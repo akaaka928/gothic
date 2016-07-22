@@ -1,0 +1,4 @@
+/home/ymiki/calculation/nbody/tree/plugins/GOTHIC_split/CMakeFiles/EGOTHIC_splitDatabase_par.dir
+/home/ymiki/calculation/nbody/tree/plugins/GOTHIC_split/CMakeFiles/EGOTHIC_splitDatabase_ser.dir
+/home/ymiki/calculation/nbody/tree/plugins/GOTHIC_split/CMakeFiles/IGOTHIC_splitDatabase.dir
+/home/ymiki/calculation/nbody/tree/plugins/GOTHIC_split/CMakeFiles/MGOTHIC_splitDatabase.dir

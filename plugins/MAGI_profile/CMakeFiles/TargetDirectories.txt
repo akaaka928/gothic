@@ -1,0 +1,4 @@
+/home/ymiki/calculation/nbody/tree/plugins/MAGI_profile/CMakeFiles/EMAGI_profileDatabase_par.dir
+/home/ymiki/calculation/nbody/tree/plugins/MAGI_profile/CMakeFiles/EMAGI_profileDatabase_ser.dir
+/home/ymiki/calculation/nbody/tree/plugins/MAGI_profile/CMakeFiles/IMAGI_profileDatabase.dir
+/home/ymiki/calculation/nbody/tree/plugins/MAGI_profile/CMakeFiles/MMAGI_profileDatabase.dir

@@ -1,0 +1,4 @@
+/home/ymiki/calculation/nbody/tree/plugins/GOTHIC/CMakeFiles/EGOTHICDatabase_par.dir
+/home/ymiki/calculation/nbody/tree/plugins/GOTHIC/CMakeFiles/EGOTHICDatabase_ser.dir
+/home/ymiki/calculation/nbody/tree/plugins/GOTHIC/CMakeFiles/IGOTHICDatabase.dir
+/home/ymiki/calculation/nbody/tree/plugins/GOTHIC/CMakeFiles/MGOTHICDatabase.dir

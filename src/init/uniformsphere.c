@@ -1,0 +1,311 @@
+/*************************************************************************\
+ *                                                                       *
+                  last updated on 2016/01/29(Fri) 17:32:12
+ *                                                                       *
+ *    Making Initial Condition Code of N-body Simulation                 *
+ *       Uniform sphere w/ Gaussian velocity dispersion                  *
+ *                                                                       *
+ *                                                                       *
+ *                                             written by Yohei MIKI     *
+ *                                                                       *
+\*************************************************************************/
+//-------------------------------------------------------------------------
+/* conversion from physical unit to computational unit must be performed internally */
+//-------------------------------------------------------------------------
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+//-------------------------------------------------------------------------
+#include <gsl/gsl_rng.h>
+//-------------------------------------------------------------------------
+#ifdef  USE_HDF5_FORMAT
+#       include <hdf5.h>
+#       include <hdf5lib.h>
+#endif//USE_HDF5_FORMAT
+//-------------------------------------------------------------------------
+#include <macro.h>
+#include <myutil.h>
+#include <constants.h>
+#include <timer.h>
+#include <name.h>
+//-------------------------------------------------------------------------
+#include "../misc/structure.h"
+#include "../misc/allocate.h"
+//-------------------------------------------------------------------------
+#include "../file/io.h"
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
+extern const double mass_astro2com, velocity_astro2com, length_astro2com, time_astro2com;
+extern const real newton;
+//-------------------------------------------------------------------------
+gsl_rng *GSLRand;
+#define RANDPOS ((real)gsl_rng_uniform(GSLRand))
+#define RANDVAL (TWO * (RANDPOS) - UNITY)
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
+static inline void isotropicDistribution(const real rad, nbody_particle *pos)
+{
+  //-----------------------------------------------------------------------
+  const real proj = RANDVAL;
+  pos->z = rad * proj;
+  real Rproj  = rad * SQRT(UNITY - proj * proj);
+  //-----------------------------------------------------------------------
+  real theta = TWO * (real)M_PI * RANDPOS;
+  pos->x = Rproj * COS(theta);
+  pos->y = Rproj * SIN(theta);
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
+/* Gaussian with mean = 0.0, dispersion = 1.0 by Box-Muller Method */
+static inline real gaussian(void)
+{
+  //-----------------------------------------------------------------------
+  real x, y, z, r2;
+  //-----------------------------------------------------------------------
+  r2 = ZERO;
+  while( (r2 < EPSILON) || (r2 + EPSILON > (real)1.0) ){
+    x = RANDVAL;
+    y = RANDVAL;
+    r2 = x * x + y * y;
+  }
+  //-----------------------------------------------------------------------
+  z = SQRT(-(real)2.0 * LOG(r2) / r2) * x;
+  //-----------------------------------------------------------------------
+  return (z);
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
+void makeUniformSphere(ulong num, nbody_particle *body, real mtot, real length, real sigma)
+{
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "start");
+  //-----------------------------------------------------------------------
+  real mass = mtot / (real)num;
+  //-----------------------------------------------------------------------
+  for(ulong ii = 0; ii < num; ii++){
+    //---------------------------------------------------------------------
+    isotropicDistribution(length * POW(RANDPOS, ONE_THIRD), &body[ii]);
+    body[ii].vx = sigma * gaussian();
+    body[ii].vy = sigma * gaussian();
+    body[ii].vz = sigma * gaussian();
+    //---------------------------------------------------------------------
+    body[ii].ax = ZERO;
+    body[ii].ay = ZERO;
+    body[ii].az = ZERO;
+    //---------------------------------------------------------------------
+    body[ii].m   = mass;
+    body[ii].pot = ZERO;
+    //---------------------------------------------------------------------
+    body[ii].idx = ii;
+    //---------------------------------------------------------------------
+  }
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "end");
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
+void shiftCenter(ulong num, nbody_particle *body)
+{
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "start");
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  real com[3] = {ZERO, ZERO, ZERO};
+  real vel[3] = {ZERO, ZERO, ZERO};
+  real Mtot = ZERO;
+  //-----------------------------------------------------------------------
+  for(ulong ii = 0; ii < num; ii++){
+    com[0] += body[ii].m * body[ii].x;    vel[0] += body[ii].m * body[ii].vx;
+    com[1] += body[ii].m * body[ii].y;    vel[1] += body[ii].m * body[ii].vy;
+    com[2] += body[ii].m * body[ii].z;    vel[2] += body[ii].m * body[ii].vz;
+    Mtot   += body[ii].m;
+  }
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  real Minv = UNITY / Mtot;
+  com[0] *= Minv;  vel[0] *= Minv;
+  com[1] *= Minv;  vel[1] *= Minv;
+  com[2] *= Minv;  vel[2] *= Minv;
+  //-----------------------------------------------------------------------
+  for(ulong ii = 0; ii < num; ii++){
+    body[ii].x -= com[0];    body[ii].vx -= vel[0];
+    body[ii].y -= com[1];    body[ii].vy -= vel[1];
+    body[ii].z -= com[2];    body[ii].vz -= vel[2];
+#ifdef  BLOCK_TIME_STEP
+    body[ii].t0 = body[ii].t1 = body[ii].dt = ZERO;
+#endif//BLOCK_TIME_STEP
+  }
+  //-----------------------------------------------------------------------
+#if 0
+  printf("position shift = (%e, %e, %e)\n", com[0], com[1], com[2]);
+  printf("velocity shift = (%e, %e, %e)\n", vel[0], vel[1], vel[2]);
+#endif
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "end");
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
+void outputFundamentalInformationOfColdSphere
+(const real Mtot, const real rad, const real sigma, const ulong Ntot, const real eps, const double snapshotInterval, const double ft, char file[])
+{
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "start");
+  //-----------------------------------------------------------------------
+  FILE *fp;
+  char filename[256], date[64];
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* output fundamental information of the Cold sphere */
+  sprintf(filename, "%s/%s.info.txt", DOCUMENTFOLDER, file);
+  fp = fopen(filename, "w");
+  if( fp == NULL ){
+    __KILL__(stderr, "%s\n", "ERROR: fundamental information file of the Cold sphere couldn't open.");
+  }
+  //-----------------------------------------------------------------------
+  getPresentDateInStrings(date);
+  fprintf(fp, "#############################################################################\n");
+  fprintf(fp, "Fundamental information about the Cold sphere\n");
+  fprintf(fp, "\tgenerated on %s", date);
+  fprintf(fp, "#############################################################################\n");
+  fprintf(fp, "Total mass of the Cold sphere Mtot is                    %e\n", Mtot);
+  fprintf(fp, "Radius of the Cold sphere rad is                         %e\n", rad);
+  fprintf(fp, "Gaussian velocity dispersion of the Cold sphere sigma is %e\n", sigma);
+  fprintf(fp, "#############################################################################\n");
+  const real Ms = Mtot;
+  const real Ns = (real)Ntot;
+  const real tff = (real)M_PI_2 * rad * SQRTRATIO(rad, TWO * newton * Ms);
+  const real t2r = tff * Ns / ((real)32.0 * LOG(rad / eps));
+  fprintf(fp, "Number of N-body particles to represent the Cold sphere is  %zu (= 2^%u)\n", Ntot, ilog2((uint)Ntot));
+  fprintf(fp, "Length of Plummer softening is                              %e\n", eps);
+  fprintf(fp, "Number of particles within the scale length is              %e\n", Ns);
+  fprintf(fp, "Enclosed mass within the scale length is                    %e\n", Ms);
+  fprintf(fp, "Free-fall time at the scale length in computational unit is %e\n", tff);
+  fprintf(fp, "Two-body relaxation time at the scale length is             %e\n", t2r);
+  fprintf(fp, "#############################################################################\n");
+  fprintf(fp, "Snapshot interval in the computational unit               is %e\n", snapshotInterval);
+  fprintf(fp, "Snapshot interval in the unit of free-fall time           is %e\n", snapshotInterval / tff);
+  fprintf(fp, "Snapshot interval in the unit of two-body relaxation time is %e\n", snapshotInterval / t2r);
+  fprintf(fp, "#############################################################################\n");
+  fprintf(fp, "Final time of the simulation in the computational unit               is %e\n", ft);
+  fprintf(fp, "Final time of the simulation in the unit of free-fall time           is %e\n", ft / tff);
+  fprintf(fp, "Final time of the simulation in the unit of two-body relaxation time is %e\n", ft / t2r);
+  fprintf(fp, "#############################################################################\n");
+  fclose(fp);
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "end");
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
+int main(int argc, char **argv)
+{
+  //-----------------------------------------------------------------------
+  if( argc < 12 ){
+    __FPRINTF__(stderr, "insufficient number of input parameters of %d (at least %d inputs are required).\n", argc, 12);
+    __FPRINTF__(stderr, "Usage is: %s\n", argv[0]);
+    __FPRINTF__(stderr, "          -file=<char *>\n");
+    __FPRINTF__(stderr, "          -unit=<int>\n");
+    __FPRINTF__(stderr, "          -Ntot=<unsigned long int>\n");
+    __FPRINTF__(stderr, "          -Mtot=<real> -sigma=<real> -rad=<real>\n");
+    __FPRINTF__(stderr, "          -eps=<real> -ft=<real> -eta=<real>\n");
+    __FPRINTF__(stderr, "          -ft=<real> -snapshotInterval=<real> -saveInterval=<real>\n");
+    __KILL__(stderr, "%s\n", "insufficient command line arguments");
+  }
+  //-----------------------------------------------------------------------
+  /* setPhysicalConstantsAndUnitSystem(UNITSYSTEM, 1); */
+  //-----------------------------------------------------------------------
+  char *file;  requiredCmdArg(getCmdArgStr( argc, (const char * const *)argv, "file", &file));
+  ulong Ntot;  requiredCmdArg(getCmdArgUlg( argc, (const char * const *)argv, "Ntot", &Ntot));
+  int   unit;  requiredCmdArg(getCmdArgInt( argc, (const char * const *)argv, "unit", &unit));
+  setPhysicalConstantsAndUnitSystem(unit, 1);
+  double tmp;
+  requiredCmdArg(getCmdArgDbl( argc, (const char * const *)argv, "Mtot",  &tmp));  real Mtot  = (real)(tmp *     mass_astro2com);
+  requiredCmdArg(getCmdArgDbl( argc, (const char * const *)argv, "sigma", &tmp));  real sigma = (real)(tmp * velocity_astro2com);
+  requiredCmdArg(getCmdArgDbl( argc, (const char * const *)argv, "rad",   &tmp));  real rad   = (real)(tmp *   length_astro2com);
+  requiredCmdArg(getCmdArgDbl( argc, (const char * const *)argv, "eps",   &tmp));  real eps   = (real)(tmp *   length_astro2com);
+  requiredCmdArg(getCmdArgDbl( argc, (const char * const *)argv, "ft",    &tmp));  double ft  =       (tmp *     time_astro2com);
+  real eta;
+  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "eta", &eta));
+  double saveInterval;  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "saveInterval", &saveInterval));
+  requiredCmdArg(getCmdArgDbl( argc, (const char * const *)argv, "snapshotInterval", &tmp));
+  double snapshotInterval = ldexp(1.0, (int)floor(log2(tmp * time_astro2com)));
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* settings about random numbers */
+  const gsl_rng_type *RandType;
+  gsl_rng_env_setup();
+  RandType = gsl_rng_mt19937;
+  GSLRand = gsl_rng_alloc(RandType);
+  gsl_rng_set(GSLRand, 5489);
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  writeSettings(unit, Ntot, eps, eta, ft, snapshotInterval, saveInterval, file);
+  //-----------------------------------------------------------------------
+  nbody_particle *body;
+  allocParticleDataAoS((int)Ntot, &body);
+  makeUniformSphere(Ntot, body, Mtot, rad, sigma);
+  shiftCenter(Ntot, body);
+  //-----------------------------------------------------------------------
+  outputFundamentalInformationOfColdSphere(Mtot, rad, sigma, Ntot, eps, snapshotInterval, ft, file);
+  //-----------------------------------------------------------------------
+  /* /\* additional sorting to detect bugs easily *\/ */
+  /* qsort(body, Ntot, sizeof(iparticle), xposAscendingOrder); */
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  double  time  = 0.0;
+  double   dt   = 0.0;
+  int   last  = 1;
+  ulong steps = 0;
+  //-----------------------------------------------------------------------
+#ifdef  USE_HDF5_FORMAT
+  static hdf5struct hdf5type;
+  createHDF5DataType(&hdf5type);
+#ifdef  MONITOR_ENERGY_ERROR
+  static energyError relEneErr = {1.0, DBL_MIN};
+#endif//MONITOR_ENERGY_ERROR
+  writeTentativeData(time, dt, steps, Ntot, body, file, &last, hdf5type
+#ifdef  MONITOR_ENERGY_ERROR
+		     , relEneErr
+#endif//MONITOR_ENERGY_ERROR
+		     );
+  removeHDF5DataType(hdf5type);
+#else///USE_HDF5_FORMAT
+  writeTentativeData(time, dt, steps, Ntot, body, file, &last);
+#endif//USE_HDF5_FORMAT
+  updateConfigFile(last, file);
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  freeParticleDataAoS(body);
+  //-----------------------------------------------------------------------
+  return (0);
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
+
+
+
+
+

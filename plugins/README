@@ -1,0 +1,10 @@
+How to install plugins
+
+e.g., install GOTHIC
+$ cd GOTHIC
+$ xml2info GOTHIC.xml
+$ xml2cmake GOTHIC.xml
+$ cmake -DCMAKE_BUILD_TYPE:STRING=Debug
+$ make
+
+then, plugin will be created in ~/.visit/version/architecture/plugins/databases

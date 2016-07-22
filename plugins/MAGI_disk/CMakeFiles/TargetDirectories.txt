@@ -1,0 +1,4 @@
+/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/EMAGI_diskDatabase_par.dir
+/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/EMAGI_diskDatabase_ser.dir
+/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/IMAGI_diskDatabase.dir
+/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/MMAGI_diskDatabase.dir
