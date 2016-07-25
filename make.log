@@ -1,377 +1,100 @@
-if [ ! -d pub ]; then \
-mkdir pub; \
-fi
-tar cvJf 1607221728tree.tar.xz \
-README Makefile src sh cfg host plt plugins/README \
-plugins/GOTHIC_split/GOTHIC_split.xml plugins/GOTHIC_split/GOTHIC_splitCommonPluginInfo.C plugins/GOTHIC_split/GOTHIC_splitEnginePluginInfo.C plugins/GOTHIC_split/GOTHIC_splitMDServerPluginInfo.C plugins/GOTHIC_split/GOTHIC_splitPluginInfo.C plugins/GOTHIC_split/GOTHIC_splitPluginInfo.h plugins/GOTHIC_split/avtGOTHIC_splitFileFormat.C plugins/GOTHIC_split/avtGOTHIC_splitFileFormat.h plugins/GOTHIC_snp/GOTHIC_snp.xml plugins/GOTHIC_snp/GOTHIC_snpCommonPluginInfo.C plugins/GOTHIC_snp/GOTHIC_snpEnginePluginInfo.C plugins/GOTHIC_snp/GOTHIC_snpMDServerPluginInfo.C plugins/GOTHIC_snp/GOTHIC_snpPluginInfo.C plugins/GOTHIC_snp/GOTHIC_snpPluginInfo.h plugins/GOTHIC_snp/avtGOTHIC_snpFileFormat.C plugins/GOTHIC_snp/avtGOTHIC_snpFileFormat.h plugins/GOTHIC/GOTHIC.xml plugins/GOTHIC/GOTHICCommonPluginInfo.C plugins/GOTHIC/GOTHICEnginePluginInfo.C plugins/GOTHIC/GOTHICMDServerPluginInfo.C plugins/GOTHIC/GOTHICPluginInfo.C plugins/GOTHIC/GOTHICPluginInfo.h plugins/GOTHIC/avtGOTHICFileFormat.C plugins/GOTHIC/avtGOTHICFileFormat.h plugins/MAGI_disk/MAGI_disk.xml plugins/MAGI_disk/MAGI_diskCommonPluginInfo.C plugins/MAGI_disk/MAGI_diskEnginePluginInfo.C plugins/MAGI_disk/MAGI_diskMDServerPluginInfo.C plugins/MAGI_disk/MAGI_diskPluginInfo.C plugins/MAGI_disk/MAGI_diskPluginInfo.h plugins/MAGI_disk/avtMAGI_diskFileFormat.C plugins/MAGI_disk/avtMAGI_diskFileFormat.h plugins/MAGI_df/MAGI_df.xml plugins/MAGI_df/MAGI_dfCommonPluginInfo.C plugins/MAGI_df/MAGI_dfEnginePluginInfo.C plugins/MAGI_df/MAGI_dfMDServerPluginInfo.C plugins/MAGI_df/MAGI_dfPluginInfo.C plugins/MAGI_df/MAGI_dfPluginInfo.h plugins/MAGI_df/avtMAGI_dfFileFormat.C plugins/MAGI_df/avtMAGI_dfFileFormat.h plugins/MAGI_profile/MAGI_profile.xml plugins/MAGI_profile/MAGI_profileCommonPluginInfo.C plugins/MAGI_profile/MAGI_profileEnginePluginInfo.C plugins/MAGI_profile/MAGI_profileMDServerPluginInfo.C plugins/MAGI_profile/MAGI_profilePluginInfo.C plugins/MAGI_profile/MAGI_profilePluginInfo.h plugins/MAGI_profile/avtMAGI_profileFileFormat.C plugins/MAGI_profile/avtMAGI_profileFileFormat.h
-README
-Makefile
-src/
-src/file/
-src/file/io.c
-src/file/io.h
-src/init/
-src/init/sample.c
-src/init/abel.c
-src/init/blas.c
-src/init/magi.h
-src/init/magi.c
-src/init/test.c
-src/init/spline.c
-src/init/king.h
-src/init/ergodicDF.c
-src/init/blas.h
-src/init/abel.h
-src/init/table.c
-src/init/ergodicDF.h
-src/init/disk.h
-src/init/table.h
-src/init/disk.c
-src/init/king.c
-src/init/spline.h
-src/init/test.err
-src/init/uniformsphere.c
-src/main/
-src/main/gothic.c
-src/main/showOptConfig.c
-src/misc/
-src/misc/convert.h
-src/misc/allocate_dev.cu
-src/misc/brent.c
-src/misc/device.h
-src/misc/allocate.c
-src/misc/gsync_dev.cu
-src/misc/allocate.h
-src/misc/allocate_dev.h
-src/misc/benchmark.h
-src/misc/brent.h
-src/misc/structure.h
-src/misc/convert.c
-src/para/
-src/para/mpicfg.c
-src/para/mpicfg.h
-src/para/exchange.h
-src/para/exchange.c
-src/plot/
-src/plot/plot.ball.c
-src/plot/cdflib.h
-src/plot/plot.cdf.c
-src/plot/cdflib.c
-src/plot/plot.energy.c
-src/plot/plot.distribution.c
-src/plot/plot.ndep.c
-src/plot/plot.comparison.c
-src/plot/plot.df.c
-src/plot/plot.time.c
-src/plot/plot.multipole.c
-src/plot/plot.needle.c
-src/plot/plot.disk.c
-src/plot/plot.performance.c
-src/plot/plot.breakdown.c
-src/sort/
-src/sort/bench.sh
-src/sort/rate.eps
-src/sort/radix_dev.cu
-src/sort/peano.h
-src/sort/peano_dev.h
-src/sort/compare.gp
-src/sort/bench/
-src/sort/bench/bench.log
-src/sort/bench/bench.err
-src/sort/160307peano_dev.cu
-src/sort/make.log
-src/sort/peano_dev.cu
-src/sort/Makefile.sort
-src/sort/radix_inc.cu
-src/sort/check.sh
-src/sort/radix_inc.h
-src/sort/140828morton.ods
-src/sort/peano.c
-src/sort/radix_dev.h
-src/sort/radix_del.h
-src/sort/time.eps
-src/time/
-src/time/adv_dev.h
-src/time/adv_dev.cu
-src/tree/
-src/tree/seb_dev_local.cu
-src/tree/stat_dev.h
-src/tree/make.h
-src/tree/seb.c
-src/tree/let.h
-src/tree/stat.h
-src/tree/set_dev_intmem.cu
-src/tree/make.c
-src/tree/stat.c
-src/tree/shrink_dev.cu
-src/tree/let_dev.cu
-src/tree/macutil.h
-src/tree/make_del.h
-src/tree/walk_dev.cu
-src/tree/stat_dev.cu
-src/tree/make_dev.cu
-src/tree/walk_dev.h
-src/tree/seb_dev.cu
-src/tree/neighbor_dev.cu
-src/tree/make_inc.h
-src/tree/make_inc.cu
-src/tree/neighbor_dev.h
-src/tree/let.c
-src/tree/seb_smQR_dev.cu
-src/tree/make_dev.h
-src/tree/macutil.c
-src/tree/shrink_dev.h
-src/tree/icom_dev.cu
-src/tree/buf_inc.cu
-src/tree/let_dev.h
-src/tree/buf_inc.h
-src/tree/geo_dev.cu
-src/tree/geo_dev.h
-src/PHskip.ods
-sh/
-sh/hapacs/
-sh/hapacs/comq/
-sh/hapacs/comq/measure.prepare.sh
-sh/hapacs/comq/prep1k.sh
-sh/hapacs/comq/measure.sh
-sh/hapacs/comq/plot.sh
-sh/hapacs/comq/submit.sh
-sh/hapacs/comq/exec.sh
-sh/hapacs/comq/bench.misc.sh
-sh/hapacs/comq/check.misc.sh
-sh/hapacs/comq/bench.exec.sh
-sh/hapacs/comq/measure.exec.sh
-sh/hapacs/comq/bench.walk.sh
-sh/hapacs/comq/init.sh
-sh/hapacs/tca/
-sh/hapacs/tca/measure.prepare.sh
-sh/hapacs/tca/prep1k.sh
-sh/hapacs/tca/measure.sh
-sh/hapacs/tca/plot.sh
-sh/hapacs/tca/submit.sh
-sh/hapacs/tca/exec.sh
-sh/hapacs/tca/bench.misc.sh
-sh/hapacs/tca/check.misc.sh
-sh/hapacs/tca/bench.exec.sh
-sh/hapacs/tca/measure.exec.sh
-sh/hapacs/tca/bench.walk.sh
-sh/hapacs/tca/init.sh
-sh/local/
-sh/local/measure.prepare.sh
-sh/local/prep1k.sh
-sh/local/plplot.sh
-sh/local/plot.sh
-sh/local/test.sh
-sh/local/exec.sh
-sh/local/bench.misc.sh
-sh/local/plot.time.sh
-sh/local/mpirun.sh
-sh/local/check.misc.sh
-sh/local/benchmark.sh
-sh/local/bench.walk.sh
-sh/local/init.sh
-sh/local/numarun.sh
-sh/summary.sh
-sh/gnuplot.sh
-sh/digit.sh
-cfg/
-cfg/abel/
-cfg/abel/deVaucouleurs.cfg
-cfg/abel/prjTwoPow.param
-cfg/abel/prjTwoPow.cfg
-cfg/abel/deVaucouleurs.param
-cfg/galaxy/
-cfg/galaxy/s15.cfg
-cfg/galaxy/mw_bulge.param
-cfg/galaxy/f07.cfg
-cfg/galaxy/mw_centralbh.param
-cfg/galaxy/s15_dmhalo.param
-cfg/galaxy/ltg_bulge.param
-cfg/galaxy/galaxy_dmhalo.param
-cfg/galaxy/mw_thickdisk.param
-cfg/galaxy/galaxy_thindisk.param
-cfg/galaxy/ltg_halo.param
-cfg/galaxy/ltg_thickdisk.param
-cfg/galaxy/mw_stellarhalo.param
-cfg/galaxy/ltg_thindisk.param
-cfg/galaxy/va15_bulge.param
-cfg/galaxy/m31.cfg
-cfg/galaxy/s15_disk.param
-cfg/galaxy/va15_halo.param
-cfg/galaxy/f07_bulge.param
-cfg/galaxy/mw_thindisk.param
-cfg/galaxy/va15.cfg
-cfg/galaxy/m31_bulge.param
-cfg/galaxy/spherical_centralbh.param
-cfg/galaxy/f07_halo.param
-cfg/galaxy/va15_disk.param
-cfg/galaxy/galaxy_centralbh.param
-cfg/galaxy/spherical_stellarhalo.param
-cfg/galaxy/galaxy_stellarhalo.param
-cfg/galaxy/f07_disk.param
-cfg/galaxy/galaxy_thickdisk.param
-cfg/galaxy/mw.cfg
-cfg/galaxy/s15_shalo.param
-cfg/galaxy/spherical_dmhalo.param
-cfg/galaxy/ltg.cfg
-cfg/galaxy/spherical_bulge.param
-cfg/galaxy/galaxy_bulge.param
-cfg/galaxy/mw_dmhalo.param
-cfg/galaxy/compare.cfg
-cfg/galaxy/s15_bulge.param
-cfg/galaxy/spherical.cfg
-cfg/galaxy/galaxy.cfg
-cfg/galaxy/f07_gics.cfg
-cfg/gics/
-cfg/gics/bonsai/
-cfg/gics/bonsai/b14_nfw.param
-cfg/gics/bonsai/b14_disk.param
-cfg/gics/bonsai/b14.cfg
-cfg/gics/bonsai/b14_hernquist.param
-cfg/gics/kd95/
-cfg/gics/kd95/MWd.cfg
-cfg/gics/kd95/MWc_halo.param
-cfg/gics/kd95/MWc.cfg
-cfg/gics/kd95/MWb_halo.param
-cfg/gics/kd95/MWc_bulge.param
-cfg/gics/kd95/MWa_bulge.param
-cfg/gics/kd95/MWd_halo.param
-cfg/gics/kd95/MWa_halo.param
-cfg/gics/kd95/MWa.cfg
-cfg/gics/kd95/disk.param
-cfg/gics/kd95/MWd_bulge.param
-cfg/gics/kd95/MWb_bulge.param
-cfg/gics/kd95/MWb.cfg
-cfg/gics/w03/
-cfg/gics/w03/M31d_disk.param
-cfg/gics/w03/M31a_halo.param
-cfg/gics/w03/M31a_bulge.param
-cfg/gics/w03/M31a.cfg
-cfg/gics/w03/M31a_disk.param
-cfg/gics/w03/M31d_halo.param
-cfg/gics/w03/M31d.cfg
-cfg/gics/w03/M31d_bulge.param
-cfg/gics/wd05/
-cfg/gics/wd05/MWb_halo.param
-cfg/gics/wd05/MWa_bulge.param
-cfg/gics/wd05/MWb_disk.param
-cfg/gics/wd05/MWa_halo.param
-cfg/gics/wd05/MWa.cfg
-cfg/gics/wd05/MWa_disk.param
-cfg/gics/wd05/MWb_bulge.param
-cfg/gics/wd05/MWb.cfg
-cfg/multi/
-cfg/multi/hbd_bulge.param
-cfg/multi/hbdd_thin.param
-cfg/multi/ekes_sersic.param
-cfg/multi/hbd_disk.param
-cfg/multi/hbdd_thick.param
-cfg/multi/ekes_exponential.param
-cfg/multi/hbd.cfg
-cfg/multi/ekes_einasto.param
-cfg/multi/ekes.cfg
-cfg/multi/hbd_halo.param
-cfg/multi/hbdd.cfg
-cfg/multi/hb.cfg
-cfg/multi/ekes_king.param
-cfg/single/
-cfg/single/king.param
-cfg/single/hernquist.cfg
-cfg/single/moore.param
-cfg/single/twopower.cfg
-cfg/single/hernquist.param
-cfg/single/nfw.param
-cfg/single/king.cfg
-cfg/single/moore.cfg
-cfg/single/plummer.param
-cfg/single/twopower.param
-cfg/single/einasto.cfg
-cfg/single/burkert.cfg
-cfg/single/plummer.cfg
-cfg/single/burkert.param
-cfg/single/nfw.cfg
-cfg/single/einasto.param
-cfg/table/
-cfg/table/ahernquist.cfg
-cfg/table/dblpower.param
-cfg/table/thernquist.cfg
-cfg/table/dblpower.cfg
-cfg/table/tplummer.dat
-cfg/table/tplummer.cfg
-cfg/table/thernquist.param
-cfg/table/ahernquist.param
-cfg/table/aplummer.cfg
-cfg/table/bulgetbl.cfg
-cfg/table/bulgetbl.dat
-cfg/table/bulgetbl.param
-cfg/table/aplummer.param
-cfg/table/thernquist.dat
-cfg/table/dblpower.dat
-cfg/table/tplummer.param
-host/
-host/dm
-host/mw
-host/andromeda
-host/augustus
-plt/
-plt/compare.gp
-plt/neighbor.gp
-plt/neighbor.eps
-plt/time.gp
-plt/ijp.gp
-plt/breakdown.gp
-plt/err.gp
-plt/arm.eps
-plt/relax.gp
-plt/acc.gp
-plt/near.eps
-plugins/README
-plugins/GOTHIC_split/GOTHIC_split.xml
-plugins/GOTHIC_split/GOTHIC_splitCommonPluginInfo.C
-plugins/GOTHIC_split/GOTHIC_splitEnginePluginInfo.C
-plugins/GOTHIC_split/GOTHIC_splitMDServerPluginInfo.C
-plugins/GOTHIC_split/GOTHIC_splitPluginInfo.C
-plugins/GOTHIC_split/GOTHIC_splitPluginInfo.h
-plugins/GOTHIC_split/avtGOTHIC_splitFileFormat.C
-plugins/GOTHIC_split/avtGOTHIC_splitFileFormat.h
-plugins/GOTHIC_snp/GOTHIC_snp.xml
-plugins/GOTHIC_snp/GOTHIC_snpCommonPluginInfo.C
-plugins/GOTHIC_snp/GOTHIC_snpEnginePluginInfo.C
-plugins/GOTHIC_snp/GOTHIC_snpMDServerPluginInfo.C
-plugins/GOTHIC_snp/GOTHIC_snpPluginInfo.C
-plugins/GOTHIC_snp/GOTHIC_snpPluginInfo.h
-plugins/GOTHIC_snp/avtGOTHIC_snpFileFormat.C
-plugins/GOTHIC_snp/avtGOTHIC_snpFileFormat.h
-plugins/GOTHIC/GOTHIC.xml
-plugins/GOTHIC/GOTHICCommonPluginInfo.C
-plugins/GOTHIC/GOTHICEnginePluginInfo.C
-plugins/GOTHIC/GOTHICMDServerPluginInfo.C
-plugins/GOTHIC/GOTHICPluginInfo.C
-plugins/GOTHIC/GOTHICPluginInfo.h
-plugins/GOTHIC/avtGOTHICFileFormat.C
-plugins/GOTHIC/avtGOTHICFileFormat.h
-plugins/MAGI_disk/MAGI_disk.xml
-plugins/MAGI_disk/MAGI_diskCommonPluginInfo.C
-plugins/MAGI_disk/MAGI_diskEnginePluginInfo.C
-plugins/MAGI_disk/MAGI_diskMDServerPluginInfo.C
-plugins/MAGI_disk/MAGI_diskPluginInfo.C
-plugins/MAGI_disk/MAGI_diskPluginInfo.h
-plugins/MAGI_disk/avtMAGI_diskFileFormat.C
-plugins/MAGI_disk/avtMAGI_diskFileFormat.h
-plugins/MAGI_df/MAGI_df.xml
-plugins/MAGI_df/MAGI_dfCommonPluginInfo.C
-plugins/MAGI_df/MAGI_dfEnginePluginInfo.C
-plugins/MAGI_df/MAGI_dfMDServerPluginInfo.C
-plugins/MAGI_df/MAGI_dfPluginInfo.C
-plugins/MAGI_df/MAGI_dfPluginInfo.h
-plugins/MAGI_df/avtMAGI_dfFileFormat.C
-plugins/MAGI_df/avtMAGI_dfFileFormat.h
-plugins/MAGI_profile/MAGI_profile.xml
-plugins/MAGI_profile/MAGI_profileCommonPluginInfo.C
-plugins/MAGI_profile/MAGI_profileEnginePluginInfo.C
-plugins/MAGI_profile/MAGI_profileMDServerPluginInfo.C
-plugins/MAGI_profile/MAGI_profilePluginInfo.C
-plugins/MAGI_profile/MAGI_profilePluginInfo.h
-plugins/MAGI_profile/avtMAGI_profileFileFormat.C
-plugins/MAGI_profile/avtMAGI_profileFileFormat.h
-mv       1607221728tree.tar.xz pub/
+mpicc -std=c99 -Wall -Wextra -Wunused -Wcast-qual -Wcast-align -Wmissing-declarations -DGPUGEN="(52)" -DGPUVER="(52)" -DCUB_AVAILABLE -DREPORT_TOTAL_ELAPSED_TIME -DMONITOR_ENERGY_ERROR -DBUILD_LET_ON_DEVICE -DLET_COMMUNICATION_VIA_HOST -DRETURN_CENTER_BY_PHKEY_GENERATOR -DWALK_TREE_COMBINED_MODEL -DMAKE_TREE_ON_DEVICE -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DGENERATE_PHKEY_ON_DEVICE -DCALC_MULTIPOLE_ON_DEVICE -DLOCALIZE_I_PARTICLES -DBRUTE_FORCE_LOCALIZATION -DFACILE_NEIGHBOR_SEARCH -DUSE_BRENT_METHOD -DIJ_PARALLELIZATION -DUSE_HDF5_FORMAT -DHDF5_FOR_ZINDAIJI -DNDEBUG  -O3 -ffast-math -funroll-loops -mavx2 -I/home/ymiki/inc           -I/opt/HDF5/1.8.16/include    -o bin/obj/gothic.mpi.hdf5.o -c src/main/gothic.c
+In file included from src/main/gothic.c:28:0:
+/home/ymiki/inc/macro.h:446:13: 警告: ‘ilog2’ が定義されましたが使用されません [-Wunused-function]
+ static uint ilog2(uint x)
+             ^
+/home/ymiki/inc/macro.h:474:12: 警告: ‘lcm’ が定義されましたが使用されません [-Wunused-function]
+ static int lcm(int m, int n)
+            ^
+nvcc -Xptxas -v -Xptxas -warn-spills -Xptxas -warn-lmem-usage -gencode=arch=compute_52,code=sm_52 -DGPUGEN="(52)" -DGPUVER="(52)" -lineinfo -DUSE_GPU_FOR_MONITOR -DCUB_AVAILABLE -DSM520 -DBUILD_LET_ON_DEVICE -DLET_COMMUNICATION_VIA_HOST -DRETURN_CENTER_BY_PHKEY_GENERATOR -DWALK_TREE_COMBINED_MODEL -DMAKE_TREE_ON_DEVICE -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DGENERATE_PHKEY_ON_DEVICE -DCALC_MULTIPOLE_ON_DEVICE -DLOCALIZE_I_PARTICLES -DBRUTE_FORCE_LOCALIZATION -DFACILE_NEIGHBOR_SEARCH -DUSE_BRENT_METHOD -DIJ_PARALLELIZATION -DNDEBUG             -I/home/ymiki/inc -I/opt/CUDA/7.5/include -I/opt/CUDA/7.5/samples/common/inc -DGPUS_PER_NODE="(2)" -DGPUS_PER_PROCESS="(1)" -DP2P_ACCESS_AVAILABLE -DCONTINUOUS_GPU_ID -I/opt/CUB/1.5.2 -I/opt/MPI/mvapich2/2.1/include    -o bin/obj/make_dev.mpi.o -c src/tree/make_dev.cu
+ptxas info    : 0 bytes gmem, 36 bytes cmem[3]
+ptxas info    : Compiling entry function '_Z15linkTree_kerneliPK8treecellPKbPjPiS4_S5_S5_S5_S5_' for 'sm_52'
+ptxas info    : Function properties for _Z15linkTree_kerneliPK8treecellPKbPjPiS4_S5_S5_S5_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 23 registers, 1024 bytes smem, 400 bytes cmem[0], 12 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z25initTreeCellOffset_kerneliiP8treecellPmPjS2_PbS2_i' for 'sm_52'
+ptxas info    : Function properties for _Z25initTreeCellOffset_kerneliiP8treecellPmPjS2_PbS2_i
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 21 registers, 380 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z19initTreeBody_kernelP9jparticlePfS1_' for 'sm_52'
+ptxas info    : Function properties for _Z19initTreeBody_kernelP9jparticlePfS1_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 14 registers, 344 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z19initTreeLink_kerneliPi' for 'sm_52'
+ptxas info    : Function properties for _Z19initTreeLink_kerneliPi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 4 registers, 336 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z20calcMultipole_kerneliPK6PHinfoPK8treecellPKbPK8positionPKjSB_PKiP9jparticlePfSG_PiSH_SG_SH_SH_SH_' for 'sm_52'
+ptxas info    : Function properties for _Z20calcMultipole_kerneliPK6PHinfoPK8treecellPKbPK8positionPKjSB_PKiP9jparticlePfSG_PiSH_SG_SH_SH_SH_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 64 registers, 12288 bytes smem, 456 bytes cmem[0], 48 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z22initPHhierarchy_kernelP6PHinfo' for 'sm_52'
+ptxas info    : Function properties for _Z22initPHhierarchy_kernelP6PHinfo
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 8 registers, 328 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z19enforceBarnesHutMACiP12accelerationiP9jparticlePfPKf' for 'sm_52'
+ptxas info    : Function properties for _Z19enforceBarnesHutMACiP12accelerationiP9jparticlePfPKf
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 11 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z15makeTree_kernelPiP6PHinfoS_P8treecellPmPbPjS6_PKmS_PViS_S_S_S_' for 'sm_52'
+ptxas info    : Function properties for _Z15makeTree_kernelPiP6PHinfoS_P8treecellPmPbPjS6_PKmS_PViS_S_S_S_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 64 registers, 2912 bytes smem, 440 bytes cmem[0], 8 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z19initTreeCell_kerneliP8treecellPmPjS2_PbS2_i' for 'sm_52'
+ptxas info    : Function properties for _Z19initTreeCell_kerneliP8treecellPmPjS2_PbS2_i
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 21 registers, 380 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z17recoverGADGET_MACiP9jparticlePKf' for 'sm_52'
+ptxas info    : Function properties for _Z17recoverGADGET_MACiP9jparticlePKf
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 10 registers, 344 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z19initTreeNode_kerneliPjPi' for 'sm_52'
+ptxas info    : Function properties for _Z19initTreeNode_kerneliPjPi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 7 registers, 344 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z19copyRealBody_kerneliPKiPK8positionP9jparticlePf' for 'sm_52'
+ptxas info    : Function properties for _Z19copyRealBody_kerneliPKiPK8positionP9jparticlePf
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 14 registers, 360 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z16initGsync_kerneliPiS_' for 'sm_52'
+ptxas info    : Function properties for _Z16initGsync_kerneliPiS_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 6 registers, 344 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z15trimTree_kerneliiPK8treecellPKbPKjS5_PiPj' for 'sm_52'
+ptxas info    : Function properties for _Z15trimTree_kerneliiPK8treecellPKbPKjS5_PiPj
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 22 registers, 376 bytes cmem[0], 12 bytes cmem[2]
+nvcc -Xptxas -v -Xptxas -warn-spills -Xptxas -warn-lmem-usage -gencode=arch=compute_52,code=sm_52 -DGPUGEN="(52)" -DGPUVER="(52)" -lineinfo -DUSE_GPU_FOR_MONITOR -DCUB_AVAILABLE -DSM520 -DBUILD_LET_ON_DEVICE -DLET_COMMUNICATION_VIA_HOST -DRETURN_CENTER_BY_PHKEY_GENERATOR -DWALK_TREE_COMBINED_MODEL -DMAKE_TREE_ON_DEVICE -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DGENERATE_PHKEY_ON_DEVICE -DCALC_MULTIPOLE_ON_DEVICE -DLOCALIZE_I_PARTICLES -DBRUTE_FORCE_LOCALIZATION -DFACILE_NEIGHBOR_SEARCH -DUSE_BRENT_METHOD -DIJ_PARALLELIZATION -DNDEBUG             -I/home/ymiki/inc -I/opt/CUDA/7.5/include -I/opt/CUDA/7.5/samples/common/inc -DGPUS_PER_NODE="(2)" -DGPUS_PER_PROCESS="(1)" -DP2P_ACCESS_AVAILABLE -DCONTINUOUS_GPU_ID -I/opt/CUB/1.5.2 -I/opt/MPI/mvapich2/2.1/include    -o bin/obj/walk_dev.mpi.o -c src/tree/walk_dev.cu
+ptxas info    : 0 bytes gmem, 32 bytes cmem[3]
+ptxas info    : Compiling entry function '_Z14initAcc_kernelP12accelerationiPK8laneinfoS0_' for 'sm_52'
+ptxas info    : Function properties for _Z14initAcc_kernelP12accelerationiPK8laneinfoS0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 14 registers, 352 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z14calcAcc_kernelPK8laneinfoPK8positionP5jnodePK12accelerationiPKjPK9jparticlePKfPjSH_iPiPy' for 'sm_52'
+ptxas info    : Function properties for _Z14calcAcc_kernelPK8laneinfoPK8positionP5jnodePK12accelerationiPKjPK9jparticlePKfPjSH_iPiPy
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 64 registers, 24576 bytes smem, 424 bytes cmem[0], 28 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z11initFreeLstiPjiPKi' for 'sm_52'
+ptxas info    : Function properties for _Z11initFreeLstiPjiPKi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 7 registers, 352 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z14trimAcc_kernelP12accelerationPK8positioniPK8laneinfo' for 'sm_52'
+ptxas info    : Function properties for _Z14trimAcc_kernelP12accelerationPK8positioniPK8laneinfo
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 10 registers, 352 bytes cmem[0]
+nvcc -Xptxas -v -Xptxas -warn-spills -Xptxas -warn-lmem-usage -gencode=arch=compute_52,code=sm_52 -DGPUGEN="(52)" -DGPUVER="(52)" -lineinfo -DUSE_GPU_FOR_MONITOR -DCUB_AVAILABLE -DSM520 -DBUILD_LET_ON_DEVICE -DLET_COMMUNICATION_VIA_HOST -DRETURN_CENTER_BY_PHKEY_GENERATOR -DWALK_TREE_COMBINED_MODEL -DMAKE_TREE_ON_DEVICE -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DGENERATE_PHKEY_ON_DEVICE -DCALC_MULTIPOLE_ON_DEVICE -DLOCALIZE_I_PARTICLES -DBRUTE_FORCE_LOCALIZATION -DFACILE_NEIGHBOR_SEARCH -DUSE_BRENT_METHOD -DIJ_PARALLELIZATION -DNDEBUG             -I/home/ymiki/inc -I/opt/CUDA/7.5/include -I/opt/CUDA/7.5/samples/common/inc -DGPUS_PER_NODE="(2)" -DGPUS_PER_PROCESS="(1)" -DP2P_ACCESS_AVAILABLE -DCONTINUOUS_GPU_ID -I/opt/CUB/1.5.2 -I/opt/MPI/mvapich2/2.1/include    -o bin/obj/let_dev.mpi.o -c src/tree/let_dev.cu
+ptxas warning : Local memory used for function '_Z14makeLET_kernel8positionfPiPKjPK9jparticlePKfPjPS3_PfS8_S8_iS0_'
+ptxas info    : 0 bytes gmem
+ptxas info    : Compiling entry function '_Z14makeLET_kernel8positionfPiPKjPK9jparticlePKfPjPS3_PfS8_S8_iS0_' for 'sm_52'
+ptxas info    : Function properties for _Z14makeLET_kernel8positionfPiPKjPK9jparticlePKfPjPS3_PfS8_S8_iS0_
+    16 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 48 registers, 24576 bytes smem, 432 bytes cmem[0], 24 bytes cmem[2]
+mpicc -std=c99 -Wall -Wextra -Wunused -Wcast-qual -Wcast-align -Wmissing-declarations -DGPUGEN="(52)" -DGPUVER="(52)" -DCUB_AVAILABLE -DREPORT_TOTAL_ELAPSED_TIME -DMONITOR_ENERGY_ERROR -DBUILD_LET_ON_DEVICE -DLET_COMMUNICATION_VIA_HOST -DRETURN_CENTER_BY_PHKEY_GENERATOR -DWALK_TREE_COMBINED_MODEL -DMAKE_TREE_ON_DEVICE -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DGENERATE_PHKEY_ON_DEVICE -DCALC_MULTIPOLE_ON_DEVICE -DLOCALIZE_I_PARTICLES -DBRUTE_FORCE_LOCALIZATION -DFACILE_NEIGHBOR_SEARCH -DUSE_BRENT_METHOD -DIJ_PARALLELIZATION -DUSE_HDF5_FORMAT -DHDF5_FOR_ZINDAIJI -DNDEBUG  -O3 -ffast-math -funroll-loops -mavx2 -I/home/ymiki/inc              -o bin/obj/let.mpi.o -c src/tree/let.c
+In file included from src/tree/let.c:19:0:
+/home/ymiki/inc/macro.h:446:13: 警告: ‘ilog2’ が定義されましたが使用されません [-Wunused-function]
+ static uint ilog2(uint x)
+             ^
+/home/ymiki/inc/macro.h:474:12: 警告: ‘lcm’ が定義されましたが使用されません [-Wunused-function]
+ static int lcm(int m, int n)
+            ^
+mpicc -std=c99 -Wall -Wextra -Wunused -Wcast-qual -Wcast-align -Wmissing-declarations   -o bin/gothic   bin/obj/gothic.mpi.hdf5.o   bin/obj/io.mpi.hdf5.o   bin/obj/allocate.mpi.hdf5.o   bin/obj/convert.mpi.hdf5.o   bin/obj/peano.o   bin/obj/make.o   bin/obj/macutil.o  bin/obj/allocate_dev.o  bin/obj/shrink_dev.o  bin/obj/make_dev.mpi.o  bin/obj/adv_dev.mpi.o  bin/obj/walk_dev.mpi.o  bin/obj/neighbor_dev.mpi.o  bin/obj/let_dev.mpi.o  bin/obj/geo_dev.mpi.o   bin/obj/let.mpi.o   bin/obj/exchange.mpi.o   bin/obj/mpicfg.mpi.o  bin/obj/peano_dev.o   bin/obj/brent.o  -lm -L/opt/CUDA/7.5/lib64 -lcudart -lstdc++ -L/home/ymiki/lib -lSPmyutil -lSPconstants -lSPtimer -lSPmpilib -lSPcudalib -lSPhdf5lib -L/opt/HDF5/1.8.16/lib -lhdf5 -L/opt/Szip/2.1/lib -lsz -lz -ldl

@@ -19,16 +19,16 @@ HOSTNAME=`hostname`
 NODES=1
 NCORE_PER_NODE=1
 if [ $HOSTNAME = augustus ]; then
-NODES=4
-NCORE_PER_NODE=1
+NODES=1
+NCORE_PER_NODE=4
 fi
 if [ $HOSTNAME = mw ]; then
-NODES=8
-NCORE_PER_NODE=2
+NODES=2
+NCORE_PER_NODE=8
 fi
 if [ $HOSTNAME = dm ]; then
-NODES=8
-NCORE_PER_NODE=2
+NODES=2
+NCORE_PER_NODE=8
 fi
 HOSTFILE=host/$HOSTNAME
 ##################################################################

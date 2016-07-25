@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2016/07/22(Fri) 17:22:51
+# last updated on 2016/07/25(Mon) 17:01:00
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -47,7 +47,7 @@ DUMPFILE_FOR_BONSAI	:= 0
 # Debugging options
 EVALUATE_FORCE_ERROR	:= 0
 DEBUG_PARALLEL_HDF5	:= 0
-DEBUG_LETGEN_ON_GPU	:= 1
+DEBUG_LETGEN_ON_GPU	:= 0
 DEBUG_TREE_TRAVERSAL	:= 0
 DEBUG_MULTIPOLE_GPU	:= 0
 #################################################################################################

@@ -1,5 +1,5 @@
 
-src/file/io.c,1132
+src/file/io.c,1406
 #define USE_SZIP_COMPRESSION13,887
 void createMPIcfg_dataio(88,4536
 static inline void updateMPIcfg_dataio(103,5190
@@ -7,30 +7,38 @@ static inline void writeConfigFileFormat(121,6020
 void updateConfigFile(134,6758
 void readConfigFile(159,7785
 void readConfigFileParallel(188,9035
-void readSettings(230,10906
-void readSettingsParallel(268,12931
-void writeSettings(322,15997
-void createHDF5DataType(363,18086
-void removeHDF5DataType(443,23144
-void  readTentativeData(461,23911
-void  readTentativeDataParallel(582,29852
-void writeTentativeData(745,38119
-void writeTentativeDataParallel(871,44754
-void readTentativeData(1020,52567
-void readTentativeDataParallel(1053,54178
-void writeTentativeData(1111,57327
-void writeTentativeDataParallel(1145,58967
-void  readSnapshot(1212,62362
-void writeSnapshot(1322,67677
-void writeSnapshotParallel(1637,84920
-void writeSnapshotMultiGroups(1997,105310
-void readSnapshot(2273,120078
-void writeSnapshot(2312,121913
-void writeSnapshotParallel(2346,123580
-void  readApproxAccel(2411,126894
-void writeApproxAccel(2440,128368
-void dumpBenchmark(2472,130026
-void dumpStatistics(2849,150135
+void readSettings(230,10932
+void readSettingsParallel(268,12957
+void writeSettings(322,16049
+void createHDF5DataType(363,18138
+void removeHDF5DataType(443,23196
+void  readTentativeData(461,23963
+void  readTentativeDataParallel(582,29904
+void writeTentativeData(745,38197
+void writeTentativeDataParallel(871,44832
+  union {double d;948,48813
+  union {double d; ulong i;948,48813
+void readTentativeData(1058,53746
+void readTentativeDataParallel(1091,55357
+void writeTentativeData(1149,58506
+void writeTentativeDataParallel(1183,60146
+void  readSnapshot(1250,63541
+void writeSnapshot(1360,68856
+void writeSnapshotParallel(1673,86022
+  union {double d;1866,96299
+  union {double d; ulong i;1866,96299
+  union {double r;1923,98820
+  union {double r; ulong i;1923,98820
+  union {float  r;1926,98966
+  union {float  r; uint  i;1926,98966
+void writeSnapshotMultiGroups(2156,110557
+void readSnapshot(2432,125325
+void writeSnapshot(2471,127160
+void writeSnapshotParallel(2505,128827
+void  readApproxAccel(2570,132141
+void writeApproxAccel(2599,133615
+void dumpBenchmark(2631,135273
+void dumpStatistics(3008,155382
 
 src/file/io.h,737
 #define IO_H14,900
@@ -551,9 +559,9 @@ static inline void configDistribution623,27538
 static inline void dumpSnapshot712,31193
 static inline void dumpRestarter851,36268
 int main(932,39171
-void analyzeWalkStatistics(3355,139889
-static inline void analyzeTreeStatistics(3399,141766
-void analyzeTreeMetrics(3409,142451
+void analyzeWalkStatistics(3360,141292
+static inline void analyzeTreeStatistics(3404,143169
+void analyzeTreeMetrics(3414,143854
 
 src/main/showOptConfig.c,804
 #define NADD 22,1138
@@ -707,7 +715,7 @@ src/misc/brent.h,593
 
 src/misc/structure.h,1609
 #define STRUCTURE_H13,832
-#define NUM_BODY_MAX 34,1530
+#define NUM_BODY_MAX 38,1643
 #undef  NUM_BODY_MAX47,1978
 #define NUM_BODY_MAX 48,1999
   size_t host,59,2363
@@ -1573,85 +1581,85 @@ src/tree/make_del.h,182
 #undef  PREFIX_SUM_MAKE_INC_GRID26,1400
 #undef  MAKE_INC_H28,1509
 
-src/tree/walk_dev.h,2226
+src/tree/walk_dev.h,2231
 #define WALK_DEV_H14,906
-  cudaStream_t *stream;stream72,3335
-  int idx,73,3359
-  int idx, num;73,3359
-} kernelStream;74,3375
-#define ADOPT_APPROXIMATED_ENCLOSING_BALL83,3727
-#define ADOPT_ENCLOSING_BALL87,3904
-#       undef   ADOPT_APPROXIMATED_ENCLOSING_BALL90,4102
-#       undef   COMPARE_ENCLOSING_BALLS94,4452
-#        define  ADOPT_ENCLOSING_BALL98,4864
-#define USE_WARP_SHUFFLE_FUNC103,5300
-#undef          USE_WARP_SHUFFLE_FUNC107,5490
-#define NWARP 114,5771
-#define NWARP 119,5909
-#define NWARP 126,6070
-#define NTHREADS 132,6250
-#define NTHREADS 134,6301
-#undef  NTHREADS141,6699
-#define NTHREADS 142,6716
-#undef  DIV_NTHREADS146,6860
-#define DIV_NTHREADS(149,6927
-#define DIV_NTHREADS(152,7013
-#define DIV_NTHREADS(155,7099
-#define DIV_NTHREADS(158,7185
-#define TSUB 163,7373
-#undef  TSUB168,7518
-#define TSUB 169,7531
-#undef  TSUB173,7636
-#define TSUB 174,7649
-#undef  TSUB178,7765
-#define TSUB 179,7778
-#undef  DIV_TSUB183,7919
-#define DIV_TSUB(186,7972
-#define DIV_TSUB(189,8041
-#define DIV_TSUB(192,8110
-#define DIV_TSUB(195,8179
-#define DIV_TSUB(198,8248
-#define DIV_TSUB(201,8317
-#undef  DIV_NWARP205,8456
-#define DIV_NWARP(208,8512
-#define DIV_NWARP(211,8584
-#define DIV_NWARP(214,8656
-#define DIV_NWARP(217,8728
-#define DIV_NWARP(220,8800
-#define DIV_NWARP(223,8872
-#define NGROUPS 226,8995
-#define NLOOP 234,9242
-#define NBLOCKS_PER_SM 239,9456
-#undef  NLOOP247,9856
-#define NLOOP 248,9870
-#define NQUEUE 251,9999
-#define NQUEUE 253,10091
-#undef  NLOOP258,10309
-#define NLOOP 259,10323
-#define NQUEUE 262,10452
-#define NQUEUE 264,10544
-#undef  NLOOP273,11018
-#define NLOOP 274,11032
-#define NQUEUE 277,11161
-#define NQUEUE 279,11253
-#undef  NLOOP284,11489
-#define NLOOP 285,11503
-#define NQUEUE 288,11668
-#define NQUEUE 290,11778
-#define NSTOCK 299,12201
-#define IDX_SHIFT_BITS 301,12296
-#define IDX_SHIFT_MASK 302,12323
-typedef struct __align__(308,12525
-#define  NDIM_SEB 312,12713
-#define NDIM2_SEB 313,12735
-#undef  NDIM_SEB315,12800
-#undef NDIM2_SEB316,12817
-typedef struct __align__(318,12877
-typedef union __align__(323,12951
-typedef union __align__(331,13117
-  uint i;345,13426
-  real r;346,13436
-} uint_real;347,13446
+#define ADOPT_APPROXIMATED_ENCLOSING_BALL74,3500
+#define ADOPT_ENCLOSING_BALL78,3677
+#       undef   ADOPT_APPROXIMATED_ENCLOSING_BALL81,3875
+#       undef   COMPARE_ENCLOSING_BALLS85,4225
+#        define  ADOPT_ENCLOSING_BALL89,4637
+#define USE_WARP_SHUFFLE_FUNC94,5073
+#undef          USE_WARP_SHUFFLE_FUNC98,5263
+#define NWARP 105,5544
+#define NWARP 110,5682
+#define NWARP 117,5843
+#define NTHREADS 123,6023
+#define NTHREADS 125,6074
+#undef  NTHREADS132,6472
+#define NTHREADS 133,6489
+#undef  DIV_NTHREADS137,6633
+#define DIV_NTHREADS(140,6700
+#define DIV_NTHREADS(143,6786
+#define DIV_NTHREADS(146,6872
+#define DIV_NTHREADS(149,6958
+#define TSUB 154,7146
+#undef  TSUB159,7291
+#define TSUB 160,7304
+#undef  TSUB164,7409
+#define TSUB 165,7422
+#undef  TSUB169,7538
+#define TSUB 170,7551
+#undef  DIV_TSUB174,7692
+#define DIV_TSUB(177,7745
+#define DIV_TSUB(180,7814
+#define DIV_TSUB(183,7883
+#define DIV_TSUB(186,7952
+#define DIV_TSUB(189,8021
+#define DIV_TSUB(192,8090
+#undef  DIV_NWARP196,8229
+#define DIV_NWARP(199,8285
+#define DIV_NWARP(202,8357
+#define DIV_NWARP(205,8429
+#define DIV_NWARP(208,8501
+#define DIV_NWARP(211,8573
+#define DIV_NWARP(214,8645
+#define NGROUPS 217,8768
+#define NLOOP 225,9015
+#define NBLOCKS_PER_SM 230,9229
+#undef  NLOOP238,9629
+#define NLOOP 239,9643
+#define NQUEUE 242,9772
+#define NQUEUE 244,9864
+#undef  NLOOP249,10082
+#define NLOOP 250,10096
+#define NQUEUE 253,10225
+#define NQUEUE 255,10317
+#undef  NLOOP264,10791
+#define NLOOP 265,10805
+#define NQUEUE 268,10934
+#define NQUEUE 270,11026
+#undef  NLOOP275,11262
+#define NLOOP 276,11276
+#define NQUEUE 279,11441
+#define NQUEUE 281,11551
+#define NSTOCK 290,11974
+#define IDX_SHIFT_BITS 292,12069
+#define IDX_SHIFT_MASK 293,12096
+typedef struct __align__(299,12298
+  cudaStream_t *stream;stream304,12465
+  int idx,305,12489
+  int idx, num;305,12489
+} kernelStream;306,12505
+#define  NDIM_SEB 309,12635
+#define NDIM2_SEB 310,12657
+#undef  NDIM_SEB312,12722
+#undef NDIM2_SEB313,12739
+typedef struct __align__(315,12799
+typedef union __align__(320,12873
+typedef union __align__(328,13039
+  uint i;342,13348
+  real r;343,13358
+} uint_real;344,13368
 
 src/tree/make_inc.h,492
 #define MAKE_INC_H18,1057

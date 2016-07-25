@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/21(Thu) 11:54:57
+                  last updated on 2016/07/25(Mon) 10:58:54
  *                                                                       *
  *    Header File for constructing octree structure                      *
  *                                                                       *
@@ -145,6 +145,9 @@ extern "C"
 #endif//BUILD_LET_ON_DEVICE
 			  cudaStream_t  *stream, int  Nstream);
   //-----------------------------------------------------------------------
+#ifdef  DBG_LETGEN_ON_GPU
+  void printTreeNode(const int Nj, uint * RESTRICT more, jparticle * RESTRICT jpos, real * RESTRICT mj);
+#endif//DBG_LETGEN_ON_GPU
   void callGenLET
   (const cudaStream_t stream, domainInfo *let, MPIcfg_tree mpi,
    const soaTreeNode tree, const int numSendGuess, const soaTreeWalkBuf buf

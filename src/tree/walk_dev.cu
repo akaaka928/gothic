@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/22(Fri) 10:53:07
+                  last updated on 2016/07/25(Mon) 10:59:56
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -3056,6 +3056,9 @@ void calcGravity_dev
 #endif
 
 #ifndef DBG_PARALLEL_HDF5
+#ifdef  DBG_LETGEN_ON_GPU
+	  printTreeNode(pjNum, tree.more, tree.jpos, tree.mj);
+#endif//DBG_LETGEN_ON_GPU
 	  callGenLET(stream_let[streamIdxLET], let, mpi,
 		     tree, let[ii].numSend, buf
 #ifdef  MONITOR_LETGEN_TIME

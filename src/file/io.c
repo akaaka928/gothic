@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/22(Fri) 17:21:34
+                  last updated on 2016/07/23(Sat) 14:22:24
  *                                                                       *
  *    Input/Output Code of N-body calculation                            *
  *                                                                       *
@@ -1045,13 +1045,6 @@ void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num,
   chkHDF5err(H5Fclose(target));
   //-----------------------------------------------------------------------
   *last ^= 1;
-  //-----------------------------------------------------------------------
-#ifdef  DBG_PARALLEL_HDF5
-#if 1
-  MPI_Finalize();
-  exit(0);
-#endif
-#endif//DBG_PARALLEL_HDF5
   //-----------------------------------------------------------------------
 
 
@@ -2153,13 +2146,6 @@ void writeSnapshotParallel(int  unit, double  time, ulong  steps, int num, nbody
   /* close the file */
   //-----------------------------------------------------------------------
   chkHDF5err(H5Fclose(target));
-  //-----------------------------------------------------------------------
-#ifdef  DBG_PARALLEL_HDF5
-#if 1
-  MPI_Finalize();
-  exit(0);
-#endif
-#endif//DBG_PARALLEL_HDF5
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------

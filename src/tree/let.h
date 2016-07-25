@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/15(Fri) 14:35:26
+                  last updated on 2016/07/25(Mon) 17:12:09
  *                                                                       *
  *    Header File for constructing octree structure                      *
  *                                                                       *
@@ -57,6 +57,8 @@
 
 
 //-------------------------------------------------------------------------
+/* #define LETSIZE_OVERESTIMATION_FACTOR (2.0f) */
+/* #define LETSIZE_OVERESTIMATION_FACTOR (1.5f) */
 #define LETSIZE_OVERESTIMATION_FACTOR (1.125f)
 //-------------------------------------------------------------------------
 

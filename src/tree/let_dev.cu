@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/22(Fri) 10:48:19
+                  last updated on 2016/07/25(Mon) 15:32:05
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -544,6 +544,17 @@ __global__ void makeLET_kernel
   /* const int head = tidx - lane; */
   /* const int tail = head + (warpSize - 1); */
   //-----------------------------------------------------------------------
+/* #ifdef  DBG_LETGEN_ON_GPU */
+/* #if 1 */
+/*   if( more_org[tidx] != NULL_NODE ) */
+/*     printf("%d: (%d + %d), %e @ (%e, %e, %e; %e)\n", tidx, */
+/* 	   more_org[tidx] & IDXMASK, 1 + (more_org[tidx] >> IDXBITS), */
+/* 	   mj_org[tidx], */
+/* 	   jpos_org[tidx].x, jpos_org[tidx].y, jpos_org[tidx].z, */
+/* 	   jpos_org[tidx].w); */
+/* #endif */
+/* #endif//DBG_LETGEN_ON_GPU */
+  //-----------------------------------------------------------------------
 
 
   //-----------------------------------------------------------------------
@@ -578,13 +589,6 @@ __global__ void makeLET_kernel
   for(int jj = 0; jj < NQUEUE_LET; jj++)
     queue[tidx + NTHREADS_MAKE_LET * jj] = NULL_NODE;/* size >= NTHREADS_MAKE_LET * NQUEUE_LET */
   //-----------------------------------------------------------------------
-  /* initialize queue for j-cells and interaction list by a representative thread */
-  int sendNum = 0;/* # of LET nodes already stored in the global memory */
-  int letTail = 0;/* the tail index of child cells for LET nodes already stored in the global memory */
-  int bufHead = 0;
-  int bufTail = 0;
-  int bufOpen = bufSize;
-  int bufUsed = 0;
   /* set child j-cells in queue on the shared memory */
   const int root = 0;
   uint jcell = more_org[root];
@@ -611,6 +615,21 @@ __global__ void makeLET_kernel
       queue[tidx] = more_org[jcell + tidx];/* size >= NTHREADS_MAKE_LET */
     //---------------------------------------------------------------------
   }/* else{ */
+  //-----------------------------------------------------------------------
+#if 0
+  if( tidx == 0 )
+    printf("rem = %d\n", rem);
+  if( tidx < rem )
+    printf("%d\t%d\t%d\n", tidx, queue[tidx] & IDXMASK, 1 + (queue[tidx] >> IDXBITS));
+#endif
+  /* initialize queue for j-cells and interaction list by a representative thread */
+  int sendNum = 0;/* # of LET nodes already stored in the global memory */
+  /* int letTail = 0;/\* the tail index of child cells for LET nodes already stored in the global memory *\/ */
+  /* int letTail = rem;/\* the tail index of child cells for LET nodes already stored in the global memory *\/ */
+  int bufHead = 0;
+  int bufTail = 0;
+  int bufOpen = bufSize;
+  int bufUsed = 0;
   //-----------------------------------------------------------------------
 
 
@@ -693,6 +712,9 @@ __global__ void makeLET_kernel
     int returnLET = (target != NULL_NODE) ? 1 : 0;
     hidx = sendNum + prefixSum(returnLET, tidx, lane, smem) - returnLET;/* index of the corresponding LET node, which is based on exclusive prefix sum of calc */
     sendNum += smem[NTHREADS_MAKE_LET - 1];
+#if 0
+    letTail = sendNum;
+#endif
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
@@ -808,8 +830,9 @@ __global__ void makeLET_kernel
     //---------------------------------------------------------------------
     /* modify more pointer using leafHead */
     if( childNum > 0 )
-      more_tmp = ((uint)(childNum - 1) << IDXBITS) + (uint)(letTail + leafHead);
-    letTail += smem[NTHREADS_MAKE_LET - 1];
+      more_tmp = ((uint)(childNum - 1) << IDXBITS) + (uint)(sendNum + leafHead);
+    /*   more_tmp = ((uint)(childNum - 1) << IDXBITS) + (uint)(letTail + leafHead); */
+    /* letTail += smem[NTHREADS_MAKE_LET - 1]; */
     //---------------------------------------------------------------------
 
 
@@ -822,6 +845,17 @@ __global__ void makeLET_kernel
     }/* if( returnLET ){ */
     //---------------------------------------------------------------------
   }/* while( true ){ */
+  //-----------------------------------------------------------------------
+/* #ifdef  DBG_LETGEN_ON_GPU */
+/* #if 0 */
+/*   if( tidx < sendNum ) */
+/*     printf("%d: (%d + %d), %e @ (%e, %e, %e; %e)\n", tidx, */
+/* 	   more_let[tidx] & IDXMASK, 1 + (more_let[tidx] >> IDXBITS), */
+/* 	   mj_let[tidx], */
+/* 	   jpos_let[tidx].x, jpos_let[tidx].y, jpos_let[tidx].z, */
+/* 	   jpos_let[tidx].w); */
+/* #endif */
+/* #endif//DBG_LETGEN_ON_GPU */
   //-----------------------------------------------------------------------
 
 
@@ -856,6 +890,44 @@ __global__ void makeLET_kernel
 
 
 //-------------------------------------------------------------------------
+#ifdef  DBG_LETGEN_ON_GPU
+//-------------------------------------------------------------------------
+__global__ void printTreeNode_kernel(const int Nj, uint * RESTRICT more, jparticle * RESTRICT jpos, real * RESTRICT mj)
+{
+  //-----------------------------------------------------------------------
+  const int tidx = THREADIDX_X1D;
+  const int tnum =  BLOCKDIM_X1D;
+  //-----------------------------------------------------------------------
+  if( tidx == 0 )
+    printf("#idx\thead\tnum\tmass\tx-pos\ty-pos\tz-pos\tr2\n");
+  __syncthreads();
+  for(int ii = tidx; ii < Nj; ii += tnum)
+    printf("%d\t%d\t%d\t%e\t%e\t%e\t%e\t%e\n", ii,
+	   more[ii] & IDXMASK, 1 + (more[ii] >> IDXBITS),
+	   mj[ii],
+	   jpos[ii].x, jpos[ii].y, jpos[ii].z, jpos[ii].w);
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
+extern "C"
+void printTreeNode(const int Nj, uint * RESTRICT more, jparticle * RESTRICT jpos, real * RESTRICT mj)
+{
+  //-----------------------------------------------------------------------
+  int deviceID;
+  checkCudaErrors(cudaGetDevice(&deviceID));
+  //-----------------------------------------------------------------------
+  if( deviceID == 0 ){
+    printTreeNode_kernel<<<1, 32>>>(Nj, more, jpos, mj);
+    checkCudaErrors(cudaDeviceSynchronize());
+  }/* if( deviceID == 0 ){ */
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
+#endif//DBG_LETGEN_ON_GPU
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
  /* generate LET (Locally Essential Tree) */
 //-------------------------------------------------------------------------
 extern "C"
@@ -870,8 +942,24 @@ void callGenLET
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
+#ifdef  DBG_LETGEN_ON_GPU
+#if 0
+  let->icom.x = 0.0e+3f;
+  let->icom.y = 0.0e+3f;
+  let->icom.z = 0.0e+3f;
+  let->icom.m = 1.0e+2f;
+  let->amin   = 1.0e-6f;
+#endif
+#endif//DBG_LETGEN_ON_GPU
   /* checkCudaErrors(cudaStreamSynchronize(stream)); */
   /* makeLET_kernel<<<1, NTHREADS_MAKE_LET>>> */
+#ifdef  DBG_LETGEN_ON_GPU
+#if 0
+  int deviceID;
+  checkCudaErrors(cudaGetDevice(&deviceID));
+  if( deviceID == 0 )
+#endif
+#endif//DBG_LETGEN_ON_GPU
   makeLET_kernel<<<1, NTHREADS_MAKE_LET, SMEM_SIZE, stream>>>
     ((*let).icom,
 #ifdef  GADGET_MAC
@@ -902,9 +990,12 @@ void callGenLET
   //-----------------------------------------------------------------------
 #ifdef  DBG_LETGEN_ON_GPU
   fprintf(stdout, "numSend = %d @ rank %d\n", (*let).numSend, mpi.rank);
-  /* checkCudaErrors(cudaDeviceSynchronize()); */
-  /* MPI_Finalize(); */
-  /* exit(0); */
+  checkCudaErrors(cudaDeviceSynchronize());
+#if 1
+  printTreeNode((*let).numSend, &(tree.more[(*let).headSend]), &(tree.jpos[(*let).headSend]), &(tree.mj[(*let).headSend]));
+#endif
+  MPI_Finalize();
+  exit(0);
 #endif//DBG_LETGEN_ON_GPU
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
