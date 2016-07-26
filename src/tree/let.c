@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/15(Fri) 14:36:44
+                  last updated on 2016/07/26(Tue) 14:21:09
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -226,10 +226,10 @@ void setLETpartition(const int Ndomain, domainInfo *info)
   //-----------------------------------------------------------------------
   for(int ii = 0; ii < Ndomain - 1; ii++){
     //---------------------------------------------------------------------
-    info[ii].numSend = increaseNumber(info[ii].numSend);
-    info[ii].numRecv = increaseNumber(info[ii].numRecv);
+    info[ii].maxSend = increaseNumber(info[ii].maxSend);
+    info[ii].maxRecv = increaseNumber(info[ii].maxRecv);
     //---------------------------------------------------------------------
-  }
+  }/* for(int ii = 0; ii < Ndomain - 1; ii++){ */
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
@@ -245,6 +245,30 @@ void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, c
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
+  /* exchange # of nodes in full tree */
+  //-----------------------------------------------------------------------
+  const int numMax = increaseNumber(numNode);
+  for(int ii = 0; ii < Ndomain - 1; ii++){
+    //---------------------------------------------------------------------
+    /* initialization */
+    info[ii].overEstimateSend = 0;
+    info[ii].overEstimateRecv = 0;
+    info[ii].numFull = numNode;
+    //---------------------------------------------------------------------
+    chkMPIerr(MPI_Isend(&          numMax  , 1, MPI_INT, info[ii].rank,      mpi.rank, mpi.comm, &(info[ii].reqSendInfo)));
+    chkMPIerr(MPI_Irecv(&(info[ii].numNode), 1, MPI_INT, info[ii].rank, info[ii].rank, mpi.comm, &(info[ii].reqRecvInfo)));
+    //---------------------------------------------------------------------
+  }/* for(int ii = 0; ii < Ndomain - 1; ii++){ */
+  //-----------------------------------------------------------------------
+  for(int ii = 0; ii < Ndomain - 1; ii++){
+    //---------------------------------------------------------------------
+    MPI_Status statusSend;    chkMPIerr(MPI_Wait(&(info[ii].reqSendInfo), &statusSend));
+    MPI_Status statusRecv;    chkMPIerr(MPI_Wait(&(info[ii].reqRecvInfo), &statusRecv));
+    //---------------------------------------------------------------------
+  }/* for(int ii = 0; ii < Ndomain - 1; ii++){ */
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
   /* guess required depth to get enough accuracy */
   //-----------------------------------------------------------------------
   for(int ii = 0; ii < Ndomain - 1; ii++){
@@ -252,7 +276,7 @@ void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, c
     const real rx = icom.x - info[ii].icom.x;
     const real ry = icom.y - info[ii].icom.y;
     const real rz = icom.z - info[ii].icom.z;
-    const real r2 = rx * rx + ry * ry + rz * rz;
+    const real r2 = 1.0e-30f + rx * rx + ry * ry + rz * rz;
     //---------------------------------------------------------------------
     const real lambda = FMAX(UNITY - SQRTRATIO(info[ii].icom.m, r2), ZERO);
     /* const real theta = SQRTRATIO(icom.m, EPSILON + (lambda * lambda) * r2);/\* rough estimated value of theta *\/ */
@@ -264,11 +288,17 @@ void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, c
     /* rough assumption: computaional amount scales as thetamin^-2 */
     //---------------------------------------------------------------------
     /* numLET = numNode * (theta^2 / thetamin^2); */
-    int numLET = (int)CEIL((real)numNode * FMIN((real)256.0 * icom.m / (EPSILON + (lambda * lambda) * r2), UNITY));
-    info[ii].numSend = increaseNumber(numLET);
+    /* int numLET = (int)CEIL((real)numNode * FMIN((real)256.0 * icom.m / (EPSILON + (lambda * lambda) * r2), UNITY)); */
+    real factor = LDEXP(UNITY, FMIN(CEIL(LOG2((real)256.0 * icom.m / (EPSILON + (lambda * lambda) * r2))), ZERO));
+    factor *= LETSIZE_OVERESTIMATION_FACTOR;
+    const int numLET = increaseNumber((int)CEIL((real)numNode * factor));
+#if 0
+    __NOTE__("factor = %e, numLET = %d, numMax = %d @ rank %d\n", factor, numLET, numMax, mpi.rank);
+#endif
+    info[ii].maxSend = (numLET < numMax) ? numLET : numMax;
     //---------------------------------------------------------------------
-    chkMPIerr(MPI_Isend(&(info[ii].numSend), 1, MPI_INT, info[ii].rank,      mpi.rank, mpi.comm, &(info[ii].reqSendInfo)));
-    chkMPIerr(MPI_Irecv(&(info[ii].numRecv), 1, MPI_INT, info[ii].rank, info[ii].rank, mpi.comm, &(info[ii].reqRecvInfo)));
+    chkMPIerr(MPI_Isend(&(info[ii].maxSend), 1, MPI_INT, info[ii].rank,      mpi.rank, mpi.comm, &(info[ii].reqSendInfo)));
+    chkMPIerr(MPI_Irecv(&(info[ii].maxRecv), 1, MPI_INT, info[ii].rank, info[ii].rank, mpi.comm, &(info[ii].reqRecvInfo)));
     //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < Ndomain - 1; ii++){ */
   //-----------------------------------------------------------------------
@@ -289,24 +319,30 @@ void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, c
   int numSend = 0;
   int numRecv = 0;
   for(int ii = 0; ii < Ndomain - 1; ii++){
-    numSend += info[ii].numSend;
-    numRecv += info[ii].numRecv;
+    numSend += info[ii].maxSend;
+    numRecv += info[ii].maxRecv;
   }/* for(int ii = 0; ii < Ndomain - 1; ii++){ */
   //-----------------------------------------------------------------------
+#if 1
+  __NOTE__("numSend = %d, numRecv = %d, numNode = %d @ rank %d\n", numSend, numRecv, numNode, mpi.rank);
+#endif
+  //-----------------------------------------------------------------------
+#if 1
   const int upper = (int)floorf(0.9f * EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - increaseNumber(numNode);
   if( 2 * (numSend + numRecv) < upper ){
     //---------------------------------------------------------------------
     const float factor = floorf((float)upper / (float)(numSend + numRecv));
     //---------------------------------------------------------------------
     for(int ii = 0; ii < Ndomain - 1; ii++){
-      info[ii].numSend = increaseNumber((int)floorf(factor * (float)info[ii].numSend));
-      info[ii].numRecv = increaseNumber((int)floorf(factor * (float)info[ii].numRecv));
+      if( info[ii].maxSend !=          numMax  )	info[ii].maxSend = increaseNumber((int)floorf(factor * (float)info[ii].maxSend));
+      if( info[ii].maxRecv != info[ii].numNode )	info[ii].maxRecv = increaseNumber((int)floorf(factor * (float)info[ii].maxRecv));
     }/* for(int ii = 0; ii < Ndomain - 1; ii++){ */
     //---------------------------------------------------------------------
   }/* if( 2 * (numSend + numRecv) < upper ){ */
+#endif
   //-----------------------------------------------------------------------
-  if( info[0].numSend + info[0].numRecv > ((int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - increaseNumber(numNode)) ){
-    __KILL__(stderr, "ERROR: rough estimation routine predicts # of LET nodes(%d) succeed the capacity of the array(%d - %d); communication with first partner would fail due to lack of MPI buffer.\n", info[0].numSend + info[0].numRecv, (int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE), increaseNumber(numNode));
+  if( info[0].maxSend + info[0].maxRecv > ((int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - increaseNumber(numNode)) ){
+    __KILL__(stderr, "ERROR: rough estimation routine predicts # of LET nodes(%d) succeed the capacity of the array(%d - %d); communication with first partner would fail due to lack of MPI buffer.\n", info[0].maxSend + info[0].maxRecv, (int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE), increaseNumber(numNode));
   }/* if( numSend + numRecv > (int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - increaseNumber(numNode) ){ */
   //-----------------------------------------------------------------------
 

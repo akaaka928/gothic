@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/25(Mon) 17:12:09
+                  last updated on 2016/07/26(Tue) 14:55:24
  *                                                                       *
  *    Header File for constructing octree structure                      *
  *                                                                       *
@@ -57,9 +57,15 @@
 
 
 //-------------------------------------------------------------------------
+#define LETSIZE_OVERESTIMATION_STEPS (4)
+//-------------------------------------------------------------------------
 /* #define LETSIZE_OVERESTIMATION_FACTOR (2.0f) */
 /* #define LETSIZE_OVERESTIMATION_FACTOR (1.5f) */
-#define LETSIZE_OVERESTIMATION_FACTOR (1.125f)
+#define LETSIZE_OVERESTIMATION_FACTOR (1.25f)
+/* #define LETSIZE_OVERESTIMATION_FACTOR (1.125f) */
+//-------------------------------------------------------------------------
+#define LETSIZE_REDUCE_CRITERION (0.25f)
+#define LETSIZE_REDUCE_FACTOR (0.75f)
 //-------------------------------------------------------------------------
 
 
@@ -92,6 +98,8 @@ typedef struct
   MPI_Request reqSendInfo, reqSendMore, reqSendJpos, reqSendMass;
   MPI_Request reqRecvInfo, reqRecvMore, reqRecvJpos, reqRecvMass;
   int headSend, headRecv, numSend, numRecv, numRecvGuess;
+  int maxSend, maxRecv, numFull, numNode;/* numFull is # of nodes in local full tree, numNode is # of nodes in distant full tree */
+  int overEstimateSend, overEstimateRecv;
   int rank;
 #ifdef  GADGET_MAC
   real amin;

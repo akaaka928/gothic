@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/01(Fri) 16:44:43
+                  last updated on 2016/07/26(Tue) 15:11:28
  *                                                                       *
  *    Implementations related to OpenMP/MPI hybrid parallelization       *
  *                                                                       *
@@ -124,9 +124,7 @@ void configORBtopology
     //---------------------------------------------------------------------
     *sampleNumMax = (int)ceilf((float)Ntot * (*samplingRate));
     *sampleFul = (real *)malloc((*sampleNumMax) * sizeof(real));
-    if( *sampleFul == NULL ){
-      __KILL__(stderr, "ERROR: failure to allocate sampleFul");
-    }
+    if( *sampleFul == NULL ){      __KILL__(stderr, "ERROR: failure to allocate sampleFul");    }
     //---------------------------------------------------------------------
     /* recvcnts, displs */
     *recvNum = (int *)malloc(mpi->size * sizeof(int));
@@ -134,13 +132,11 @@ void configORBtopology
     if( *recvNum == NULL ){      __KILL__(stderr, "ERROR: failure to allocate recvNum");    }
     if( *recvDsp == NULL ){      __KILL__(stderr, "ERROR: failure to allocate recvDsp");    }
     //---------------------------------------------------------------------
-  }
+  }/* if( root ){ */
   //-----------------------------------------------------------------------
   *sampleNumMax = (int)ceilf((float)NUM_BODY_MAX * MAX_FACTOR_FROM_EQUIPARTITION * (*samplingRate));
   *sampleLoc = (real *)malloc((*sampleNumMax) * 3 * sizeof(real));
-  if( *sampleLoc == NULL ){
-    __KILL__(stderr, "ERROR: failure to allocate sampleLoc");
-  }
+  if( *sampleLoc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate sampleLoc");  }
   //-----------------------------------------------------------------------
   /* minimum/maximun position of the decomposed domain */
   int maxDim = (mpi->dim[0] > mpi->dim[1]) ? mpi->dim[0] : mpi->dim[1];
@@ -589,13 +585,13 @@ void exchangeParticles
       if( ii + 1 < numProcs )
 	recvBuf[ii + 1].head = recvBuf[ii].head + recvBuf[ii].num;
       //-------------------------------------------------------------------
-    }
+    }/* if( recvBuf[ii].num != 0 ){ */
     //---------------------------------------------------------------------
-  }
+  }/* for(int ii = 0; ii < numProcs; ii++){ */
   //-----------------------------------------------------------------------
   if( *numNew > numMax ){
-    __KILL__(stderr, "ERROR: # of required receive buffer (%d) exceeds the maximum number of particles per process (%d)\n", *numNew, numMax);
-  }
+    __KILL__(stderr, "ERROR: # of required receive buffer (%d) exceeds the maximum number of particles per process (%d).\n\tsuggestion: consider increasing \"MAX_FACTOR_FROM_EQUIPARTITION\" defined in src/para/mpicfg.h (current value is %f) to at least %f.\n", *numNew, numMax, MAX_FACTOR_FROM_EQUIPARTITION, MAX_FACTOR_FROM_EQUIPARTITION * (float)(*numNew) / (float)numMax);
+  }/* if( *numNew > numMax ){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------

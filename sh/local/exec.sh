@@ -1,18 +1,24 @@
 #!/bin/sh
 ###############################################################
-if [ $# -ne 2 ]; then
-    echo "$# input(s) is/are detected while 2 inputs are required to specify <test problem> and <# of MPI processes>" 1>&2
+if [ $# -lt 2 ]; then
+    echo "$# input(s) is/are detected while at least 2 inputs are required to specify <test problem> and <# of MPI processes>" 1>&2
     exit 1
 fi
 PROBLEM=$1
 PROCS=$2
 JOB_ID=$$
 ###############################################################
+DO_MEMCHK=0
+if [ $# -eq 3 ]; then
+    DO_MEMCHK=$3
+fi
+###############################################################
 #
 #
 ###############################################################
 # global configurations
 ###############################################################
+MEMCHK=cuda-memcheck
 MPIRUN=sh/local/mpirun.sh
 EXE=bin/gothic
 ###############################################################
@@ -252,11 +258,21 @@ STDERR=log/$FILE.e$JOB_ID
 TIME=`date`
 echo "$TIME: $EXE start" >> $LOG
 if [ $PROCS -eq 1 ]; then
-echo "$EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
-$EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
+    if [ $DO_MEMCHK -eq 0 ]; then
+	echo "$EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
+	$EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
+    else
+	echo "$MEMCHK $EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
+	$MEMCHK $EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
+    fi
 else
-echo "$MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
-$MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
+    if [ $DO_MEMCHK -eq 0 ]; then
+	echo "$MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
+	$MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
+    else
+	echo "$MEMCHK $MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
+	$MEMCHK $MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
+    fi
 fi
 TIME=`date`
 echo "$TIME: $EXE finish" >> $LOG

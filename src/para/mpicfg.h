@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/01(Fri) 16:43:56
+                  last updated on 2016/07/26(Tue) 15:37:04
  *                                                                       *
  *    Header File for N-body calculation with MPI parallelization        *
  *                                                                       *
@@ -33,8 +33,10 @@
 #define GPUS_PER_PROCESS (1)
 #endif//GPUS_PER_PROCESS
 //-------------------------------------------------------------------------
-/* #define MAX_FACTOR_FROM_EQUIPARTITION (2) */
-#define MAX_FACTOR_FROM_EQUIPARTITION (1.5f)
+#define MAX_FACTOR_FROM_EQUIPARTITION (2.0f)
+/* #define MAX_FACTOR_FROM_EQUIPARTITION (1.9f) */
+/* #define MAX_FACTOR_FROM_EQUIPARTITION (1.8f) */
+/* #define MAX_FACTOR_FROM_EQUIPARTITION (1.5f) */
 //-------------------------------------------------------------------------
 
 

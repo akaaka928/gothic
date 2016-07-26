@@ -786,28 +786,28 @@ void setNodeConfig(55,2596
 src/para/mpicfg.h,728
 #define MPICFG_H12,754
 #define GPUS_PER_PROCESS 33,1509
-#define MAX_FACTOR_FROM_EQUIPARTITION 37,1687
-  MPI_Datatype cell,44,1903
-  MPI_Datatype cell, link;44,1903
-  MPI_Comm comm;45,1930
-  int rank,46,1947
-  int rank, size;46,1947
-} MPIcfg_octree;47,1965
-  MPI_Datatype ipos,51,2075
-  MPI_Datatype ipos, jpos,51,2075
-  MPI_Datatype ipos, jpos, more,51,2075
-  MPI_Datatype ipos, jpos, more, mass;51,2075
-  MPI_Datatype iacc;53,2133
-  MPI_Datatype ivel,56,2197
-  MPI_Datatype ivel, time;56,2197
-  MPI_Comm comm,58,2248
-  MPI_Comm comm, cart;58,2248
-  int rank,59,2271
-  int rank, size;59,2271
-  int dim[dim60,2289
-  int dim[3], prd[prd60,2289
-  int dim[3], prd[3], pos[pos60,2289
-} MPIcfg_tree;61,2319
+#define MAX_FACTOR_FROM_EQUIPARTITION 37,1690
+  MPI_Datatype cell,45,1957
+  MPI_Datatype cell, link;45,1957
+  MPI_Comm comm;46,1984
+  int rank,47,2001
+  int rank, size;47,2001
+} MPIcfg_octree;48,2019
+  MPI_Datatype ipos,52,2129
+  MPI_Datatype ipos, jpos,52,2129
+  MPI_Datatype ipos, jpos, more,52,2129
+  MPI_Datatype ipos, jpos, more, mass;52,2129
+  MPI_Datatype iacc;54,2187
+  MPI_Datatype ivel,57,2251
+  MPI_Datatype ivel, time;57,2251
+  MPI_Comm comm,59,2302
+  MPI_Comm comm, cart;59,2302
+  int rank,60,2325
+  int rank, size;60,2325
+  int dim[dim61,2343
+  int dim[3], prd[prd61,2343
+  int dim[3], prd[3], pos[pos61,2343
+} MPIcfg_tree;62,2373
 
 src/para/exchange.h,1178
 #define EXCHANGE_H12,756
@@ -853,11 +853,11 @@ src/para/exchange.h,1178
 
 src/para/exchange.c,210
 void configORBtopology37,1847
-void removeORBtopology160,8111
-static inline void calcLocalBoxSize(197,9560
-int posAscendingOrder(228,10924
-int ddkeyAscendingOrder(237,11403
-void exchangeParticles246,11988
+void removeORBtopology156,8124
+static inline void calcLocalBoxSize(193,9573
+int posAscendingOrder(224,10937
+int ddkeyAscendingOrder(233,11416
+void exchangeParticles242,12001
 
 src/plot/plot.ball.c,306
 #define NORMALIZE_COL32,1532
@@ -1518,35 +1518,44 @@ static inline void finalizeSEBfinder(800,42098
 void findSEB858,45459
 int main(951,50121
 
-src/tree/let.h,1139
+src/tree/let.h,1508
 #define LET_H14,901
 #define EXTEND_NUM_TREE_NODE 19,1069
 #       undef  EXTEND_NUM_TREE_NODE22,1210
 #       define EXTEND_NUM_TREE_NODE 23,1246
-#define LETSIZE_OVERESTIMATION_FACTOR 60,2608
-#define TGRP 65,2809
-#define NBUF_LET 76,3424
-#define NBUF_MSK 77,3445
-#define LET_INCNUM_UNIT 79,3553
-  position icom;86,3753
-  int *numSend_hst,numSend_hst88,3798
-  int *numSend_hst, *numSend_dev;numSend_dev88,3798
-  MPI_Request reqSendInfo,90,3860
-  MPI_Request reqSendInfo, reqSendMore,90,3860
-  MPI_Request reqSendInfo, reqSendMore, reqSendJpos,90,3860
-  MPI_Request reqSendInfo, reqSendMore, reqSendJpos, reqSendMass;90,3860
-  MPI_Request reqRecvInfo,91,3926
-  MPI_Request reqRecvInfo, reqRecvMore,91,3926
-  MPI_Request reqRecvInfo, reqRecvMore, reqRecvJpos,91,3926
-  MPI_Request reqRecvInfo, reqRecvMore, reqRecvJpos, reqRecvMass;91,3926
-  int headSend,92,3992
-  int headSend, headRecv,92,3992
-  int headSend, headRecv, numSend,92,3992
-  int headSend, headRecv, numSend, numRecv,92,3992
-  int headSend, headRecv, numSend, numRecv, numRecvGuess;92,3992
-  int rank;93,4050
-  real amin;95,4081
-} domainInfo;97,4113
+#define LETSIZE_OVERESTIMATION_STEPS 60,2608
+#define LETSIZE_OVERESTIMATION_FACTOR 64,2827
+#define LETSIZE_REDUCE_CRITERION 67,3002
+#define LETSIZE_REDUCE_FACTOR 68,3043
+#define TGRP 73,3235
+#define NBUF_LET 84,3850
+#define NBUF_MSK 85,3871
+#define LET_INCNUM_UNIT 87,3979
+  position icom;94,4179
+  int *numSend_hst,numSend_hst96,4224
+  int *numSend_hst, *numSend_dev;numSend_dev96,4224
+  MPI_Request reqSendInfo,98,4286
+  MPI_Request reqSendInfo, reqSendMore,98,4286
+  MPI_Request reqSendInfo, reqSendMore, reqSendJpos,98,4286
+  MPI_Request reqSendInfo, reqSendMore, reqSendJpos, reqSendMass;98,4286
+  MPI_Request reqRecvInfo,99,4352
+  MPI_Request reqRecvInfo, reqRecvMore,99,4352
+  MPI_Request reqRecvInfo, reqRecvMore, reqRecvJpos,99,4352
+  MPI_Request reqRecvInfo, reqRecvMore, reqRecvJpos, reqRecvMass;99,4352
+  int headSend,100,4418
+  int headSend, headRecv,100,4418
+  int headSend, headRecv, numSend,100,4418
+  int headSend, headRecv, numSend, numRecv,100,4418
+  int headSend, headRecv, numSend, numRecv, numRecvGuess;100,4418
+  int maxSend,101,4476
+  int maxSend, maxRecv,101,4476
+  int maxSend, maxRecv, numFull,101,4476
+  int maxSend, maxRecv, numFull, numNode;101,4476
+  int overEstimateSend,102,4608
+  int overEstimateSend, overEstimateRecv;102,4608
+  int rank;103,4650
+  real amin;105,4681
+} domainInfo;107,4713
 
 src/tree/stat.h,22
 #define STAT_H14,902
@@ -1740,7 +1749,7 @@ src/tree/let.c,143
 void shareNodePosition(178,9369
 static inline int increaseNumber(210,10763
 void setLETpartition(222,11458
-void guessLETpartition(241,12448
+void guessLETpartition(241,12494
 
 src/tree/make_dev.h,2388
 #define MAKE_DEV_H14,906

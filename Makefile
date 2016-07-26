@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2016/07/25(Mon) 17:01:00
+# last updated on 2016/07/26(Tue) 16:33:09
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -47,7 +47,7 @@ DUMPFILE_FOR_BONSAI	:= 0
 # Debugging options
 EVALUATE_FORCE_ERROR	:= 0
 DEBUG_PARALLEL_HDF5	:= 0
-DEBUG_LETGEN_ON_GPU	:= 0
+DEBUG_LETGEN_ON_GPU	:= 1
 DEBUG_TREE_TRAVERSAL	:= 0
 DEBUG_MULTIPOLE_GPU	:= 0
 #################################################################################################
@@ -1049,7 +1049,7 @@ $(OBJDIR)/cdflib.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(PLOTDIR)/cdfl
 ## $(PARADIR)/*
 PARA_DEP	:=	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/name.h		\
 			$(MISCDIR)/structure.h	$(TREEDIR)/make.h	$(MYINC)/mpilib.h	$(PARADIR)/mpicfg.h
-$(OBJDIR)/exchange.mpi.o:	$(PRA_DEP)	$(PARADIR)/exchange.h
-$(OBJDIR)/mpicfg.mpi.o:		$(PRA_DEP)
+$(OBJDIR)/exchange.mpi.o:	$(PARA_DEP)	$(PARADIR)/exchange.h
+$(OBJDIR)/mpicfg.mpi.o:		$(PARA_DEP)
 #################################################################################################
 #################################################################################################

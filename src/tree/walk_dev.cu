@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/25(Mon) 10:59:56
+                  last updated on 2016/07/26(Tue) 16:34:33
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -2971,13 +2971,8 @@ void calcGravity_dev
       //-------------------------------------------------------------------
       /* estimate performance indicator of block time step */
 #ifdef  BLOCK_TIME_STEP
-#if 0
-      const double block = (double)BLOCKSIZE(                            blck.x, NBLOCKS_PER_SM * devProp.numSM);
-      const double share = (double)BLOCKSIZE(BLOCKSIZE(totNum * NWARP, NGROUPS), NBLOCKS_PER_SM * devProp.numSM);
-#else
       const double block = (double)BLOCKSIZE(BLOCKSIZE(grpNum, NGROUPS), NBLOCKS_PER_SM * devProp.numSM);
       const double share = (double)BLOCKSIZE(BLOCKSIZE(totNum, NGROUPS), NBLOCKS_PER_SM * devProp.numSM);
-#endif
 #ifdef  WALK_TREE_COMBINED_MODEL
       *reduce = share / block;
 #else///WALK_TREE_COMBINED_MODEL
@@ -3004,32 +2999,30 @@ void calcGravity_dev
 	int numProcs = remProcs;
 	for(int ii = 0; ii < remProcs; ii++){
 	  //---------------------------------------------------------------
-	  remBuf -= let[idxProcs + ii].numSend + let[idxProcs + ii].numRecv;
+	  remBuf -= let[idxProcs + ii].maxSend + let[idxProcs + ii].maxRecv;
 	  //---------------------------------------------------------------
 	  if( remBuf < 0 ){
 	    numProcs = ii - 1;
 	    break;
-	  }
+	  }/* if( remBuf < 0 ){ */
 	  //---------------------------------------------------------------
-	}
+	}/* for(int ii = 0; ii < remProcs; ii++){ */
 	//-----------------------------------------------------------------
 	chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &numProcs, 1, MPI_INT, MPI_MIN, mpi.comm));
-#if 1
 	if( numProcs < 1 ){
-	  __KILL__(stderr, "ERROR: numProcs is %d, due to lack of remLETbuf(%d) while 0-th target requires numSend(%d) and numRecv(%d).\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", numProcs, remLETbuf, let[idxProcs].numSend, let[idxProcs].numRecv, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
-	}
-#endif
+	  __KILL__(stderr, "ERROR: numProcs is %d, due to lack of remLETbuf(%d) while 0-th target requires numSend(%d) and numRecv(%d).\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", numProcs, remLETbuf, let[idxProcs].maxSend, let[idxProcs].maxRecv, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
+	}/* if( numProcs < 1 ){ */
 	//-----------------------------------------------------------------
 	let[idxProcs].headSend = headLETsend;
 	int numSend = 0;
 	int numRecv = 0;
 	for(int ii = 0; ii < numProcs - 1; ii++){
-	  let[idxProcs + ii    ].headRecv = let[idxProcs + ii].headSend + let[idxProcs + ii].numSend;	  numSend += let[idxProcs + ii].numSend;
-	  let[idxProcs + ii + 1].headSend = let[idxProcs + ii].headRecv + let[idxProcs + ii].numRecv;	  numRecv += let[idxProcs + ii].numRecv;
-	}
-	let[idxProcs + numProcs - 1].headRecv = let[idxProcs + numProcs - 1].headSend + let[idxProcs + numProcs - 1].numSend;
-	numSend += let[idxProcs + numProcs - 1].numSend;
-	numRecv += let[idxProcs + numProcs - 1].numRecv;
+	  let[idxProcs + ii    ].headRecv = let[idxProcs + ii].headSend + let[idxProcs + ii].maxSend;	  numSend += let[idxProcs + ii].maxSend;
+	  let[idxProcs + ii + 1].headSend = let[idxProcs + ii].headRecv + let[idxProcs + ii].maxRecv;	  numRecv += let[idxProcs + ii].maxRecv;
+	}/* for(int ii = 0; ii < numProcs - 1; ii++){ */
+	let[idxProcs + numProcs - 1].headRecv = let[idxProcs + numProcs - 1].headSend + let[idxProcs + numProcs - 1].maxSend;
+	numSend += let[idxProcs + numProcs - 1].maxSend;
+	numRecv += let[idxProcs + numProcs - 1].maxRecv;
 	//-----------------------------------------------------------------
 #if 1
 	if( numSend + numRecv > remLETbuf ){
@@ -3047,24 +3040,17 @@ void calcGravity_dev
 	  //---------------------------------------------------------------
 	  const int streamIdxLET = ii % Nstream_let;
 	  //---------------------------------------------------------------
-#if 0
-	  static struct timeval LETbenchIni, LETbenchFin;
-	  gettimeofday(&LETbenchIni, NULL);
-#endif
-#if 0
-	  let[0].icom.m = 0.01f;
-#endif
-
 #ifndef DBG_PARALLEL_HDF5
-#ifdef  DBG_LETGEN_ON_GPU
-	  printTreeNode(pjNum, tree.more, tree.jpos, tree.mj);
-#endif//DBG_LETGEN_ON_GPU
 	  callGenLET(stream_let[streamIdxLET], let, mpi,
-		     tree, let[ii].numSend, buf
+		     tree, let[ii].maxSend, buf
 #ifdef  MONITOR_LETGEN_TIME
 		     , cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
 		     );
+#ifndef NDEBUG
+	  printf("numSend[%d -->> %d] is %d\n", mpi.rank, let[ii].rank, let[ii].numSend);
+	  fflush(NULL);
+#endif//NDEBUG
 #else///DBG_PARALLEL_HDF5
 	  let[ii].headSend = 0;
 	  let[ii]. numSend = pjNum;
@@ -3082,33 +3068,10 @@ void calcGravity_dev
 	  /* if( let[ii].numSend > numSendGuess ){ */
 	  /*   __KILL__(stderr, "ERROR: predicted size of send buffer(%d) is not sufficient for true size of that(%d) @ rank %d with %d-th partner.\n", numSendGuess, let[ii].numSend, mpi.rank, ii); */
 	  /* } */
-
-#if 0
-	  gettimeofday(&LETbenchFin, NULL);
-	  double texec = calcElapsedTimeInSec(LETbenchIni, LETbenchFin);
-	  printf("texec = %e @ rank %d\n", texec, mpi.rank);
-	  MPI_Finalize();
-	  exit(0);
-#endif
-#if 0
-	  if( mpi.rank == 0 ){
-	    printf("#numFul = %d, numLET = %d\n", pjNum, let[ii].numSend);
-
-	    for(int jj = 0; jj < pjNum; jj++)
-	      printf("%d\t%e\t%e\t%e\t%e\t%e\n", jj, tree_hst.mj[jj], tree_hst.jpos[jj].x, tree_hst.jpos[jj].y, tree_hst.jpos[jj].z, tree_hst.jpos[jj].w);
-	    printf("\n");
-
-	    for(int jj = 0; jj < let[ii].numSend; jj++)
-	      printf("%d\t%e\t%e\t%e\t%e\t%e\n", jj, tree_hst.mj[let[ii].headSend + jj], tree_hst.jpos[let[ii].headSend + jj].x, tree_hst.jpos[let[ii].headSend + jj].y, tree_hst.jpos[let[ii].headSend + jj].z, tree_hst.jpos[let[ii].headSend + jj].w);
-
-	  }
-	    MPI_Finalize();
-	    exit(0);
-#endif
 	  //---------------------------------------------------------------
 	  /* send # of LET nodes */
 	  chkMPIerr(MPI_Isend(&(let[ii].numSend), 1, MPI_INT, let[ii].rank,     mpi.rank, mpi.comm, &(let[ii].reqSendInfo)));
-	  let[ii].numRecvGuess = let[ii].numRecv;
+	  let[ii].numRecvGuess = let[ii].maxRecv;
 	  chkMPIerr(MPI_Irecv(&(let[ii].numRecv), 1, MPI_INT, let[ii].rank, let[ii].rank, mpi.comm, &(let[ii].reqRecvInfo)));
 #ifdef  DBG_LETGEN_ON_GPU
 	  fprintf(stdout, "rank = %d: ii = %d: LET(target is %d): numSend = %d out of %d nodes\n", mpi.rank, ii, let[ii].rank, let[ii].numSend, pjNum);
@@ -3139,8 +3102,8 @@ void calcGravity_dev
 	  fflush(stdout);
 #endif//DBG_LETGEN_ON_GPU
 	  if( let[ii].numRecv > let[ii].numRecvGuess ){
-	    __KILL__(stderr, "ERROR: predicted size of receive buffer(%d) is not sufficient for true size of that(%d) @ rank %d with %d-th partner.\n", let[ii].numRecvGuess, let[ii].numRecv, mpi.rank, ii);
-	  }
+	    __KILL__(stderr, "ERROR: predicted size of receive buffer(%d) is not sufficient for true size of that(%d) @ rank %d with %d-th partner.\n\tsuggestion: consider increasing \"LETSIZE_REDUCE_FACTOR\" defined in src/tree/let.h (current value is %f) to at least %f.\n", let[ii].numRecvGuess, let[ii].numRecv, mpi.rank, ii, LETSIZE_REDUCE_FACTOR, LETSIZE_REDUCE_FACTOR * (float)let[ii].numRecv / (float)let[ii].numRecvGuess);
+	  }/* if( let[ii].numRecv > let[ii].numRecvGuess ){ */
 	  //---------------------------------------------------------------
 	  /* receive # of LET nodes */
 #ifdef  LET_COMMUNICATION_VIA_HOST
@@ -3192,7 +3155,7 @@ void calcGravity_dev
 #endif//COUNT_INTERACTIONS
 			      );
 	  //---------------------------------------------------------------
-	}
+	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 	//-----------------------------------------------------------------
 	for(int ii = 0; ii < numProcs; ii++){
 	  //---------------------------------------------------------------
@@ -3201,7 +3164,7 @@ void calcGravity_dev
 	  MPI_Status statusJpos;	  chkMPIerr(MPI_Wait(&(let[ii].reqSendJpos), &statusJpos));
 	  MPI_Status statusMass;	  chkMPIerr(MPI_Wait(&(let[ii].reqSendMass), &statusMass));
 	  //---------------------------------------------------------------
-	}
+	}/* for(int ii = 0; ii < numProcs; ii++){ */
 	//-----------------------------------------------------------------
 	idxProcs += numProcs;
 	remProcs -= numProcs;
@@ -3214,16 +3177,44 @@ void calcGravity_dev
       }/* while( true ){ */
       //-------------------------------------------------------------------
       /* preparation for communication in the next step */
+#ifdef  BLOCK_TIME_STEP
+      const float letsize_scaler = (float)(share / block);
+#else///BLOCK_TIME_STEP
+      const float letsize_scaler = UNITY;
+#endif//BLOCK_TIME_STEP
       for(int ii = 0; ii < Nlet - 1; ii++){
-	let[ii].numSend = (int)ceilf(LETSIZE_OVERESTIMATION_FACTOR * (float)let[ii].numSend);	let[ii].numSend += 32 - (let[ii].numSend & 31);
-	let[ii].numRecv = (int)ceilf(LETSIZE_OVERESTIMATION_FACTOR * (float)let[ii].numRecv);	let[ii].numRecv += 32 - (let[ii].numRecv & 31);
-      }
+	//-----------------------------------------------------------------
+	/* /\* guess the minimum size of the buffer *\/ */
+	/* int minSend = (int)ceilf(letsize_scaler * (float)let[ii].numSend);	minSend += 32 - (minSend & 31); */
+	/* int minRecv = (int)ceilf(letsize_scaler * (float)let[ii].numRecv);	minRecv += 32 - (minRecv & 31); */
+	//-----------------------------------------------------------------
+	if( ceilf(letsize_scaler * (float)let[ii].numSend) < (LETSIZE_REDUCE_CRITERION * (float)let[ii].maxSend) )	  let[ii].overEstimateSend++;
+	if( ceilf(letsize_scaler * (float)let[ii].numRecv) < (LETSIZE_REDUCE_CRITERION * (float)let[ii].maxRecv) )	  let[ii].overEstimateRecv++;
+	//-----------------------------------------------------------------
+	if( let[ii].overEstimateSend >= LETSIZE_OVERESTIMATION_STEPS ){
+	  let[ii].maxSend = (int)ceilf(LETSIZE_REDUCE_FACTOR * (float)let[ii].maxSend);	  let[ii].maxSend += 32 - (let[ii].maxSend & 31);
+	  let[ii].overEstimateSend = 0;
+	}/* if( let[ii].overEstimateSend >= LETSIZE_OVERESTIMATION_STEPS ){ */
+	//-----------------------------------------------------------------
+	if( let[ii].overEstimateRecv >= LETSIZE_OVERESTIMATION_STEPS ){
+	  let[ii].maxRecv = (int)ceilf(LETSIZE_REDUCE_FACTOR * (float)let[ii].maxRecv);	  let[ii].maxRecv += 32 - (let[ii].maxRecv & 31);
+	  let[ii].overEstimateRecv = 0;
+	}/* if( let[ii].overEstimateRecv >= LETSIZE_OVERESTIMATION_STEPS ){ */
+	//-----------------------------------------------------------------
+	/* let[ii].maxSend = (int)ceilf(fminf((float)let[ii].maxSend, letsize_scaler * (float)let[ii].numSend));	let[ii].maxSend += 32 - (let[ii].maxSend & 31); */
+	/* let[ii].maxRecv = (int)ceilf(fminf((float)let[ii].maxRecv, letsize_scaler * (float)let[ii].numRecv));	let[ii].maxRecv += 32 - (let[ii].maxRecv & 31); */
+	//-----------------------------------------------------------------
+      }/* for(int ii = 0; ii < Nlet - 1; ii++){ */
       setLETpartition(Nlet, let);
+#if 0
+      fprintf(stderr, "maxSend = %d while pjNum = %d @ rank %d\n", let[0].maxSend, pjNum, mpi.rank);
+      fflush(stderr);
+#endif
       //-------------------------------------------------------------------
-      /* check the size does not exceed the LET buffer */
-      if( let[0].numSend + let[0].numRecv > ((int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - headLETsend) ){
-	__KILL__(stderr, "ERROR: rough estimation routine predicts # of LET nodes(%d) succeed the capacity of the array(%d - %d); communication with first partner would fail due to lack of MPI buffer.\n", let[0].numSend + let[0].numRecv, (int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE), headLETsend);
-      }
+      /* /\* check the size does not exceed the LET buffer *\/ */
+      /* if( let[0].maxSend + let[0].maxRecv > ((int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - headLETsend) ){ */
+      /* 	__KILL__(stderr, "ERROR: rough estimation routine predicts # of LET nodes(%d) succeed the capacity of the array(%d - %d); communication with first partner would fail due to lack of MPI buffer.\n", let[0].maxSend + let[0].maxRecv, (int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE), headLETsend); */
+      /* }/\* if( let[0].maxSend + let[0].maxRecv > ((int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - headLETsend) ){ *\/ */
       //-------------------------------------------------------------------
 #endif//SERIALIZED_EXECUTION
       //-------------------------------------------------------------------
@@ -3248,7 +3239,7 @@ void calcGravity_dev
 #else///SERIALIZED_EXECUTION
 	__KILL__(stderr, "ERROR: bufUsed exceeds bufSize of %d at least %u times.\nPLEASE re-simulate after decreasing NUM_BODY_MAX(%d) or GLOBAL_MEMORY_SYSBUF(%zu) defined in src/misc/structure.h or TREE_SAFETY_VAL(%f) defined in src/tree/make.h, or EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h.\n", buf.bufSize, fail_hst, NUM_BODY_MAX, (size_t)GLOBAL_MEMORY_SYSBUF, TREE_SAFETY_VAL, EXTEND_NUM_TREE_NODE);
 #endif//SERIALIZED_EXECUTION
-      }
+      }/* if( fail_hst != 0 ){ */
       //-------------------------------------------------------------------
     }
   //-----------------------------------------------------------------------
