@@ -19,9 +19,9 @@ EXTENSION=$2
 ###############################################################
 # set # of N-body particles per bin to estimate density
 # NCRIT=8
-NCRIT=32
+# NCRIT=32
 # NCRIT=128
-# NCRIT=256
+NCRIT=256
 # NCRIT=512
 # NCRIT=1024
 # NCRIT=2048

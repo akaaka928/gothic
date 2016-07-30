@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/29(Fri) 14:38:59
+                  last updated on 2016/07/30(Sat) 15:00:15
  *                                                                       *
  *    Orbit integration of N-body particles in collisionless systems     *
  *                                                                       *
@@ -244,7 +244,7 @@ void setTimeStep_dev
   fflush(stdout);
 #endif
   //-----------------------------------------------------------------------
-#if 1
+#if 0
   /* TENTATIVE FIX */
   if( *grpNum == 0 )
     *grpNum = 1;

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/29(Fri) 16:43:40
+                  last updated on 2016/07/30(Sat) 14:59:52
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -2689,7 +2689,7 @@ static inline void callCalcGravityFunc
 (const dim3 blck, const dim3 thrd, kernelStream *sinfo, int *sidx,
  laneinfo * RESTRICT laneInfo, const iparticle pi, const int rootIdx, const soaTreeNode tree
 #ifndef SERIALIZED_EXECUTION
- , const int jhead
+ , const int grpNum, const int jhead
 #endif//SERIALIZED_EXECUTION
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
  , unsigned long long int * RESTRICT cycles
@@ -2709,10 +2709,11 @@ static inline void callCalcGravityFunc
 #endif
   //-----------------------------------------------------------------------
 #   if  defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
-  if( blck.x != 0 ){
+  if( grpNum != 0 ){
 #endif//defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
     //---------------------------------------------------------------------
-    if( blck.x <= MAX_BLOCKS_PER_GRID )
+    if( blck.x <= MAX_BLOCKS_PER_GRID ){
+      //-------------------------------------------------------------------
       calcAcc_kernel<<<blck, thrd, SMEM_SIZE, sinfo->stream[*sidx]>>>
 	(laneInfo,
 #ifdef  BLOCK_TIME_STEP
@@ -2744,6 +2745,10 @@ static inline void callCalcGravityFunc
 	 , treeInfo.Nj, treeInfo.Nbuf
 #endif//COUNT_INTERACTIONS
 	 );
+      //-------------------------------------------------------------------
+      *sidx ^= 1;
+      //-------------------------------------------------------------------
+    }/* if( blck.x <= MAX_BLOCKS_PER_GRID ){ */
     //---------------------------------------------------------------------
     else{
       //-------------------------------------------------------------------
@@ -2796,8 +2801,6 @@ static inline void callCalcGravityFunc
 	//-----------------------------------------------------------------
       }/* for(int iter = 0; iter < Niter; iter++){ */
       //-------------------------------------------------------------------
-      *sidx ^= 1;
-      //-------------------------------------------------------------------
     }/* else{ */
     //---------------------------------------------------------------------
 /* #ifndef SERIALIZED_EXECUTION */
@@ -2805,10 +2808,8 @@ static inline void callCalcGravityFunc
 /*     checkCudaErrors(cudaMemcpyAsync(&clockCycles, *cycles, sizeof(unsigned long long int), cudaMemcpyDeviceToHost, sinfo->stream[*sidx])); */
 /* #endif//SERIALIZED_EXECUTION */
     //---------------------------------------------------------------------
-    *sidx ^= 1;
-    //---------------------------------------------------------------------
 #   if  defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
-  }/* if( blck.x != 0 ){ */
+  }/* if( grpNum != 0 ){ */
 #endif//defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
   //-----------------------------------------------------------------------
 }
@@ -2990,7 +2991,7 @@ void calcGravity_dev
       //-------------------------------------------------------------------
       callCalcGravityFunc(blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree
 #ifndef SERIALIZED_EXECUTION
-			  , 0
+			  , grpNum, 0
 #endif//SERIALIZED_EXECUTION
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 			  , cycles_dev
@@ -3244,7 +3245,7 @@ void calcGravity_dev
 	  chkMPIerr(MPI_Barrier(mpi.comm));
 #endif
 	  //---------------------------------------------------------------
-	  callCalcGravityFunc(blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree, let[ii].headRecv, cycles_dev, buf
+	  callCalcGravityFunc(blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree, grpNum, let[ii].headRecv, cycles_dev, buf
 #ifdef  COUNT_INTERACTIONS
 			      , treeInfo
 #endif//COUNT_INTERACTIONS
