@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/06/21(Tue) 17:06:05
+                  last updated on 2016/07/29(Fri) 14:38:59
  *                                                                       *
  *    Orbit integration of N-body particles in collisionless systems     *
  *                                                                       *
@@ -220,6 +220,10 @@ void setTimeStep_dev
 /* #endif//CUB_AVAILABLE */
   checkCudaErrors(cudaMemcpy(tnew, laneTime_dev, sizeof(double), cudaMemcpyDeviceToHost));
 #ifndef SERIALIZED_EXECUTION
+#if 0
+  fprintf(stdout, "dt = %e @ rank %d\n", *tnew, mpi.rank);
+  fflush(stdout);
+#endif
   chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, tnew, 1, MPI_DOUBLE, MPI_MIN, mpi.comm));
 #endif//SERIALIZED_EXECUTION
   *dt = (*tnew) - told;
@@ -234,6 +238,17 @@ void setTimeStep_dev
   }/* if( !adjustAllTimeStep ){ */
   else
     *grpNum = Ngrp;
+  //-----------------------------------------------------------------------
+#if 0
+  fprintf(stdout, "dt = %e, grpNum = %d @ rank %d\n", *dt, *grpNum, mpi.rank);
+  fflush(stdout);
+#endif
+  //-----------------------------------------------------------------------
+#if 1
+  /* TENTATIVE FIX */
+  if( *grpNum == 0 )
+    *grpNum = 1;
+#endif
   //-----------------------------------------------------------------------
 #ifndef SERIALIZED_EXECUTION
   if( *grpNum != 0 )

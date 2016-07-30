@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/26(Tue) 15:37:04
+                  last updated on 2016/07/28(Thu) 17:46:02
  *                                                                       *
  *    Header File for N-body calculation with MPI parallelization        *
  *                                                                       *
@@ -72,7 +72,7 @@ extern "C"
 {
 #endif//__CUDACC__
   //-----------------------------------------------------------------------
-  void setNodeConfig(ulong Ntot, int *Nnode, int *Ni, MPIinfo mpi, MPIcfg_tree *let);
+  void setNodeConfig(ulong Ntot, int *Nnode, int *Ni, MPIinfo mpi, MPIcfg_tree *let, const int devID);
   //-----------------------------------------------------------------------
 #ifdef  __CUDACC__
 }

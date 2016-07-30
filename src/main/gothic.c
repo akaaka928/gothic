@@ -1,6 +1,6 @@
 /************************************************************************* \
  *                                                                       *
-                  last updated on 2016/07/21(Thu) 16:33:18
+                  last updated on 2016/07/29(Fri) 16:44:53
  *                                                                       *
  *    N-body code based on Barnes--Hut tree                              *
  *                                                                       *
@@ -459,6 +459,7 @@ static inline void buildTreeStructure
 		    , execTime
 #endif//EXEC_BENCHMARK
 		    );
+  *elapsedCalc = 0.0;
 #if 1
   *Ni = *num;
 #endif
@@ -1044,7 +1045,7 @@ int main(int argc, char **argv)
   const int num_max = num;
 #else///SERIALIZED_EXECUTION
   static MPIcfg_tree letcfg;
-  setNodeConfig(Ntot, &num, &Ni, mpi, &letcfg);
+  setNodeConfig(Ntot, &num, &Ni, mpi, &letcfg, devIdx);
   /* const int num_max = num * MAX_FACTOR_FROM_EQUIPARTITION; */
   const int num_max = (int)ceilf((float)num * MAX_FACTOR_FROM_EQUIPARTITION);
 #endif//SERIALIZED_EXECUTION
@@ -2061,6 +2062,66 @@ int main(int argc, char **argv)
 #ifdef  EXEC_BENCHMARK
     execTime[steps - bench_begin].calcGravity_dev = 0.0;
 #endif//EXEC_BENCHMARK
+#if 0
+    /* output snapshot for debugging */
+    dumpSnapshot
+      (unit, num, ibody0_dev, ibody0,
+#ifdef  USE_HDF5_FORMAT
+       &body_snapshot, hdf5type,
+#ifdef  MONITOR_ENERGY_ERROR
+       &relEneErr,
+#endif//MONITOR_ENERGY_ERROR
+#else///USE_HDF5_FORMAT
+       body,
+#endif//USE_HDF5_FORMAT
+       time, steps, file, 1000 * mpi.size, &previous
+#ifdef  LEAP_FROG_INTEGRATOR
+       , dt
+#endif//LEAP_FROG_INTEGRATOR
+#ifndef SERIALIZED_EXECUTION
+       , &iocfg
+#ifdef  USE_HDF5_FORMAT
+       , Ntot
+#endif//USE_HDF5_FORMAT
+#endif//SERIALIZED_EXECUTION
+#ifdef  EXEC_BENCHMARK
+       , &execTime[steps - bench_begin]
+#endif//EXEC_BENCHMARK
+#ifdef  COMPARE_WITH_DIRECT_SOLVER
+       , Ni, ibody_direct_dev, devProp, direct, Ngrp, laneInfo_dev
+#ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
+       , eps * eps
+#endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
+       , accfile
+#endif//COMPARE_WITH_DIRECT_SOLVER
+       );
+#endif
+
+#ifndef SERIALIZED_EXECUTION
+#ifdef  BUILD_LET_ON_DEVICE
+    calc_r2max_dev(Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev
+#ifdef  EXEC_BENCHMARK
+		   , &execTime[steps - bench_begin]
+#endif//EXEC_BENCHMARK
+		   );
+    shareNodePosition(letcfg.size, nodeInfo,    ipos, *(ibody0_dev.encBall_hst),
+#ifdef  GADGET_MAC
+		      amin, ibody0_dev.amin,
+#endif//GADGET_MAC
+		      letcfg);
+#else///BUILD_LET_ON_DEVICE
+    encBall.x = pj[0].x;
+    encBall.y = pj[0].y;
+    encBall.z = pj[0].z;
+    encBall.m = bmax_root * bmax_root;
+    shareNodePosition(letcfg.size, nodeInfo, ipos, encBall,
+#ifdef  GADGET_MAC
+		      amin, ibody0_dev.amin,
+#endif//GADGET_MAC
+		      letcfg);
+#endif//BUILD_LET_ON_DEVICE
+#endif//SERIALIZED_EXECUTION
+
 #endif//GADGET_MAC
     //---------------------------------------------------------------------
     /* calculate gravitational acceleration and potential */
@@ -2098,6 +2159,40 @@ int main(int argc, char **argv)
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 #endif//COMPARE_WITH_DIRECT_SOLVER
 		    );
+#if 0
+    /* output snapshot for debugging */
+    dumpSnapshot
+      (unit, num, ibody0_dev, ibody0,
+#ifdef  USE_HDF5_FORMAT
+       &body_snapshot, hdf5type,
+#ifdef  MONITOR_ENERGY_ERROR
+       &relEneErr,
+#endif//MONITOR_ENERGY_ERROR
+#else///USE_HDF5_FORMAT
+       body,
+#endif//USE_HDF5_FORMAT
+       time, steps, file, 10000 * mpi.size, &previous
+#ifdef  LEAP_FROG_INTEGRATOR
+       , dt
+#endif//LEAP_FROG_INTEGRATOR
+#ifndef SERIALIZED_EXECUTION
+       , &iocfg
+#ifdef  USE_HDF5_FORMAT
+       , Ntot
+#endif//USE_HDF5_FORMAT
+#endif//SERIALIZED_EXECUTION
+#ifdef  EXEC_BENCHMARK
+       , &execTime[steps - bench_begin]
+#endif//EXEC_BENCHMARK
+#ifdef  COMPARE_WITH_DIRECT_SOLVER
+       , Ni, ibody_direct_dev, devProp, direct, Ngrp, laneInfo_dev
+#ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
+       , eps * eps
+#endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
+       , accfile
+#endif//COMPARE_WITH_DIRECT_SOLVER
+       );
+#endif
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
     brentDistance.u.val += elapsedTreeWalk[0];
     brentHistory.totNum += Ngrp;
@@ -2322,6 +2417,8 @@ int main(int argc, char **argv)
       printf("#rebuild @ %zu-th step\n", steps);
       fflush(stdout);
 #endif//EXEC_BENCHMARK
+      //-------------------------------------------------------------------
+      __NOTE__("rebuild @ %zu-th step, t = %e, elapsedCalc = %e @ rank %d\n", steps, time, elapsedCalcAcc, mpi.rank);
       //-------------------------------------------------------------------
       /* copy position of N-body particles from device to host if necessary */
 #   if  !defined(GENERATE_PHKEY_ON_DEVICE) && defined(CALC_MULTIPOLE_ON_DEVICE)
@@ -2932,6 +3029,43 @@ int main(int argc, char **argv)
 #endif//BLOCK_TIME_STEP
       //-------------------------------------------------------------------
     }/* if( currentTime > formerTime + saveInterval ){ */
+    //---------------------------------------------------------------------
+#if 0
+    /* output snapshot for debugging */
+    dumpSnapshot
+      (unit, num, ibody0_dev, ibody0,
+#ifdef  USE_HDF5_FORMAT
+       &body_snapshot, hdf5type,
+#ifdef  MONITOR_ENERGY_ERROR
+       &relEneErr,
+#endif//MONITOR_ENERGY_ERROR
+#else///USE_HDF5_FORMAT
+       body,
+#endif//USE_HDF5_FORMAT
+       time, steps, file, 100 * mpi.size, &previous
+#ifdef  LEAP_FROG_INTEGRATOR
+       , dt
+#endif//LEAP_FROG_INTEGRATOR
+#ifndef SERIALIZED_EXECUTION
+       , &iocfg
+#ifdef  USE_HDF5_FORMAT
+       , Ntot
+#endif//USE_HDF5_FORMAT
+#endif//SERIALIZED_EXECUTION
+#ifdef  EXEC_BENCHMARK
+       , &execTime[steps - bench_begin]
+#endif//EXEC_BENCHMARK
+#ifdef  COMPARE_WITH_DIRECT_SOLVER
+       , Ni, ibody_direct_dev, devProp, direct, Ngrp, laneInfo_dev
+#ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
+       , eps * eps
+#endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
+       , accfile
+#endif//COMPARE_WITH_DIRECT_SOLVER
+       );
+    exitMPI();
+    return (0);
+#endif
     //---------------------------------------------------------------------
     /* output snapshot file to analyze and visualize the results */
     if( present != previous ){

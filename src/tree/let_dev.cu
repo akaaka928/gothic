@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/26(Tue) 17:22:46
+                  last updated on 2016/07/30(Sat) 14:44:06
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -427,18 +427,22 @@ __device__ __forceinline__ void copyData_g2g
 __device__ __forceinline__ void enqueueChildNodes
 (const int tidx, const int lane, int * RESTRICT smem, const int leaf, const uint subNode,
  uint * RESTRICT smbuf,                  int *rem_sm, int *num_sm,
- uint * RESTRICT gmbuf, const size_t hb, int *rem_gm, int *num_gm, int *head_gm, int *tail_gm
-)
+ uint * RESTRICT gmbuf, const size_t hb, int *rem_gm, int *num_gm, int *head_gm, int *tail_gm)
 {
   //-----------------------------------------------------------------------
   /* 1. compact the given sparse tree nodes */
   //-----------------------------------------------------------------------
   int add = prefixSum(leaf, tidx, lane, smem) - leaf;/* exclusive prefix sum of leaf */
   //-----------------------------------------------------------------------
-  __syncthreads();
   int Ntot = smem[NTHREADS_MAKE_LET - 1];
   /* node[(leaf) ? (add) : (Ntot + tidx - add)] = (leaf) ? subNode : NULL_NODE; */
+  /* *totNum += Ntot; */
+  /* /\* *totNum -= Ntot; *\/ */
+  /* /\* *totNum += (NTHREADS_MAKE_LET - Ntot); *\/ */
+  /* /\* *totNum -= (NTHREADS_MAKE_LET - Ntot); *\/ */
+  __syncthreads();
   smem[(leaf) ? (add) : (Ntot + tidx - add)] = (leaf) ? subNode : NULL_NODE;
+  __syncthreads();
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -507,8 +511,6 @@ __device__ __forceinline__ void enqueueChildNodes
 /* bufSize    :: input          :: size of the buffer */
 /* overflow   ::         output :: a variable to detect buffer overflow */
 //-------------------------------------------------------------------------
-#if 1
-//-------------------------------------------------------------------------
 __global__ void makeLET_kernel
 (READ_ONLY position icom,
 #ifdef  GADGET_MAC
@@ -576,39 +578,10 @@ __global__ void makeLET_kernel
     queue[tidx + NTHREADS_MAKE_LET * jj] = NULL_NODE;/* size >= NTHREADS_MAKE_LET * NQUEUE_LET */
   //-----------------------------------------------------------------------
   /* set child j-cells in queue on the shared memory */
-#if 1
   int rem = 1;
   uint jcell = 0;/* 0 means that the head index is 0 and the number of tree nodes is 1; i.e., it is the root node */
   if( tidx == 0 )
     queue[0] = jcell;
-#else
-  const int root = 0;
-  uint jcell = more_org[root];
-  int rem = 1 + (int)(jcell >> IDXBITS);
-  jcell &= IDXMASK;
-  //-----------------------------------------------------------------------
-  if( rem > NTHREADS_MAKE_LET ){
-    //---------------------------------------------------------------------
-    /* if rem exceeds NTHREADS_MAKE_LET, then number of child j-cells must be shrunk */
-    //---------------------------------------------------------------------
-    queue[tidx] = jcell + (uint)tidx;/* size >= NTHREADS_MAKE_LET */
-    //---------------------------------------------------------------------
-    if( tidx == (NTHREADS_MAKE_LET - 1) )
-      queue[tidx] += (uint)((rem - NTHREADS_MAKE_LET) << IDXBITS);/* size >= NTHREADS_MAKE_LET */
-    //---------------------------------------------------------------------
-    rem = NTHREADS_MAKE_LET;
-    //---------------------------------------------------------------------
-  }/* if( rem > NTHREADS_MAKE_LET ){ */
-  else{
-    //---------------------------------------------------------------------
-    /* upload rem (<= NTHREADS_MAKE_LET) child j-cells to the shared memory */
-    //---------------------------------------------------------------------
-    if( tidx < rem )
-      queue[tidx] = more_org[jcell + tidx];/* size >= NTHREADS_MAKE_LET */
-    //---------------------------------------------------------------------
-  }/* else{ */
-  //-----------------------------------------------------------------------
-#endif
   //-----------------------------------------------------------------------
 #if 0
   if( tidx == 0 )
@@ -619,6 +592,9 @@ __global__ void makeLET_kernel
   //-----------------------------------------------------------------------
   /* initialize queue for j-cells and interaction list by a representative thread */
   int sendNum = 0;/* # of LET nodes already stored in the global memory */
+#if 1
+  int  totNum = 1;/* total # of nodes stored to the queue */
+#endif
   int bufHead = 0;
   int bufTail = 0;
   int bufOpen = bufSize;
@@ -695,6 +671,8 @@ __global__ void makeLET_kernel
       rem -= remove;
       copyData_s2s(queue, tidx + remove, queue, tidx, rem, tidx);
     }/* if( remove != 0 ){ */
+    else
+      __syncthreads();
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
@@ -704,6 +682,7 @@ __global__ void makeLET_kernel
     int returnLET = (target != NULL_NODE) ? 1 : 0;
     hidx = sendNum + prefixSum(returnLET, tidx, lane, smem) - returnLET;/* index of the corresponding LET node, which is based on exclusive prefix sum of calc */
     sendNum += smem[NTHREADS_MAKE_LET - 1];
+    /* totNum  += smem[NTHREADS_MAKE_LET - 1]; */
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
@@ -724,28 +703,19 @@ __global__ void makeLET_kernel
       const real ry = jpos_tmp.y - icom.y;
       const real rz = jpos_tmp.z - icom.z;
       const real r2 = 1.0e-30f + rx * rx + ry * ry + rz * rz;
-#if 1
       real lambda = FMAX(UNITY - SQRTRATIO(icom.m, r2), ZERO);
-#else
-      real lambda = UNITY - SQRTRATIO(icom.m, r2);
-      if( lambda < EPSILON )	lambda = ZERO;
-#endif
       /* calculate distance between the pseudo i-particle and the candidate j-particle */
       //-------------------------------------------------------------------
+      lambda *= lambda * r2;
 #ifdef  GADGET_MAC
       /* alpha * |a| * r^4 > G * M * l^2 */
-#if 1
-      lambda *= lambda * r2;
-      if(   jpos_tmp.w < lambda               * lambda               * amin )
-#else
-	if( jpos_tmp.w < lambda * lambda * r2 * lambda * lambda * r2 * amin )
-#endif
+      if( jpos_tmp.w < lambda * lambda * amin )
 #else///GADGET_MAC
 #ifdef  WS93_MAC
-	  if(   jpos_tmp.w < lambda * lambda * r2 )
+	  if( jpos_tmp.w < lambda )
 #else///WS93_MAC
 	    /* (l / r) < theta */
-	    if( jpos_tmp.w < lambda * lambda * r2 * theta2 )
+	    if( jpos_tmp.w < lambda * theta2 )
 #endif//WS93_MAC
 #endif//GADGET_MAC
 	      {
@@ -795,6 +765,8 @@ __global__ void makeLET_kernel
       }/* if( bufUsed == 0 ){ */
       //-------------------------------------------------------------------
     }/* if( (bufUsed != 0) && (Nsm_rem > 0) ){ */
+    else
+      __syncthreads();
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
@@ -812,7 +784,17 @@ __global__ void makeLET_kernel
     //---------------------------------------------------------------------
     /* modify more pointer using leafHead */
     if( childNum > 0 )
-      more_tmp = ((uint)(childNum - 1) << IDXBITS) + (uint)(sendNum + leafHead);
+      more_tmp = ((uint)(childNum - 1) << IDXBITS) + (uint)(totNum + leafHead);
+      /* more_tmp = ((uint)(childNum - 1) << IDXBITS) + (uint)(sendNum + leafHead); */
+    //---------------------------------------------------------------------
+#if 0
+    if( (hidx == 154) || (hidx == 184) )
+      printf("hidx = %d, more_head = %u, more_num = %u for LET of %e\n", hidx, more_tmp & IDXMASK, 1 + (more_tmp >> IDXBITS), jpos_org[0].x);
+#endif
+    //---------------------------------------------------------------------
+#if 1
+    totNum += smem[NTHREADS_MAKE_LET - 1];
+#endif
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
@@ -824,388 +806,11 @@ __global__ void makeLET_kernel
     }/* if( returnLET ){ */
     //---------------------------------------------------------------------
   }/* while( true ){ */
-  //-----------------------------------------------------------------------
-
-
-  //-----------------------------------------------------------------------
-  /* finalizing LET generator */
-  //-----------------------------------------------------------------------
-  if( tidx == 0 ){
-    *numLETnode = sendNum;
-    atomicAdd(overflow, fail);
-  }/* if( tidx == 0 ){ */
-  //-----------------------------------------------------------------------
-#ifdef  USE_SMID_TO_GET_BUFID
-  releaseBuffer(tidx, freeLst, (uint)bufIdx, target);
-#else///USE_SMID_TO_GET_BUFID
-#ifdef  TRY_MODE_ABOUT_BUFFER
-  releaseBuffer(tidx, freeLst, (uint)bufIdx, target);
-#else///TRY_MODE_ABOUT_BUFFER
-  releaseBuffer(tidx, freeNum, freeLst, bufIdx, active);
-#endif//TRY_MODE_ABOUT_BUFFER
-#endif//USE_SMID_TO_GET_BUFID
-  //-----------------------------------------------------------------------
-#ifdef  MONITOR_LETGEN_TIME
-  long long int exitCycle = clock64();
-  if( tidx == 0 ){
-    unsigned long long int elapsed = (unsigned long long int)(exitCycle - initCycle);
-    atomicAdd(cycles, elapsed);
-  }/* if( tidx == 0 ){ */
-#endif//MONITOR_LETGEN_TIME
-  //-----------------------------------------------------------------------
-}
-//-------------------------------------------------------------------------
-#else
-//-------------------------------------------------------------------------
-__global__ void makeLET_kernel
-(READ_ONLY position icom,
-#ifdef  GADGET_MAC
- READ_ONLY real amin,
-#endif//GADGET_MAC
- int * RESTRICT numLETnode,
- READ_ONLY uint * RESTRICT more_org, READ_ONLY jparticle * RESTRICT jpos_org, READ_ONLY real * RESTRICT mj_org,
-           uint * RESTRICT more_let,           jparticle * RESTRICT jpos_let,           real * RESTRICT mj_let,
-#   if  !defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
- int * RESTRICT active, uint * RESTRICT freeNum,
-#endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
-#   if  !defined(USE_SMID_TO_GET_BUFID) &&  defined(TRY_MODE_ABOUT_BUFFER)
- const int freeNum,
-#endif//!defined(USE_SMID_TO_GET_BUFID) &&  defined(TRY_MODE_ABOUT_BUFFER)
- uint * RESTRICT freeLst, uint * RESTRICT buffer, const int bufSize, int * RESTRICT overflow
-#ifdef  MONITOR_LETGEN_TIME
- , unsigned long long int * RESTRICT cycles
-#endif//MONITOR_LETGEN_TIME
-)
-{
-  //-----------------------------------------------------------------------
-  /* start stop watch */
-  //-----------------------------------------------------------------------
-#ifdef  MONITOR_LETGEN_TIME
-  const long long int initCycle = clock64();
-#endif//MONITOR_LETGEN_TIME
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
-  /* identify thread properties */
-  //-----------------------------------------------------------------------
-  const int tidx = THREADIDX_X1D;
-  const int lane = tidx & (warpSize - 1);/* index of the thread within a thread group */
-  //-----------------------------------------------------------------------
-  /* const int head = tidx - lane; */
-  /* const int tail = head + (warpSize - 1); */
-  //-----------------------------------------------------------------------
-/* #ifdef  DBG_LETGEN_ON_GPU */
-/* #if 1 */
-/*   if( more_org[tidx] != NULL_NODE ) */
-/*     printf("%d: (%d + %d), %e @ (%e, %e, %e; %e)\n", tidx, */
-/* 	   more_org[tidx] & IDXMASK, 1 + (more_org[tidx] >> IDXBITS), */
-/* 	   mj_org[tidx], */
-/* 	   jpos_org[tidx].x, jpos_org[tidx].y, jpos_org[tidx].z, */
-/* 	   jpos_org[tidx].w); */
-/* #endif */
-/* #endif//DBG_LETGEN_ON_GPU */
-  //-----------------------------------------------------------------------
-
-
-  //-----------------------------------------------------------------------
-  /* shared values within the threads */
-  //-----------------------------------------------------------------------
-  __shared__ uint queue[NTHREADS_MAKE_LET * NQUEUE_LET];
-  __shared__  int  smem[NTHREADS_MAKE_LET];
-  //-----------------------------------------------------------------------
-
-
-  //-----------------------------------------------------------------------
-#ifdef  USE_SMID_TO_GET_BUFID
-  const int target = occupyBuffer(tidx, freeLst, queue);
-#else///USE_SMID_TO_GET_BUFID
-#ifdef  TRY_MODE_ABOUT_BUFFER
-  const int target = occupyBuffer(tidx, BLOCKIDX_X1D, freeNum, freeLst, queue);
-#else///TRY_MODE_ABOUT_BUFFER
-  occupyBuffer(tidx, freeNum, freeLst, queue, active);
-#endif//TRY_MODE_ABOUT_BUFFER
-#endif//USE_SMID_TO_GET_BUFID
-  const int bufIdx = (int)queue[0];
-  __syncthreads();
-  size_t buf0Head = (size_t)bufIdx * (size_t)bufSize;
-  //-----------------------------------------------------------------------
-
-
-  //-----------------------------------------------------------------------
-  /* sweep all tree nodes by executing tree-traversal */
-  //-----------------------------------------------------------------------
-  /* initialize queue for tree nodes */
-#pragma unroll
-  for(int jj = 0; jj < NQUEUE_LET; jj++)
-    queue[tidx + NTHREADS_MAKE_LET * jj] = NULL_NODE;/* size >= NTHREADS_MAKE_LET * NQUEUE_LET */
-  //-----------------------------------------------------------------------
-  /* set child j-cells in queue on the shared memory */
-  const int root = 0;
-  uint jcell = more_org[root];
-  int rem = 1 + (int)(jcell >> IDXBITS);
-  jcell &= IDXMASK;
-  //-----------------------------------------------------------------------
-  if( rem > NTHREADS_MAKE_LET ){
-    //---------------------------------------------------------------------
-    /* if rem exceeds NTHREADS_MAKE_LET, then number of child j-cells must be shrunk */
-    //---------------------------------------------------------------------
-    queue[tidx] = jcell + (uint)tidx;/* size >= NTHREADS_MAKE_LET */
-    //---------------------------------------------------------------------
-    if( tidx == (NTHREADS_MAKE_LET - 1) )
-      queue[tidx] += (uint)((rem - NTHREADS_MAKE_LET) << IDXBITS);/* size >= NTHREADS_MAKE_LET */
-    //---------------------------------------------------------------------
-    rem = NTHREADS_MAKE_LET;
-    //---------------------------------------------------------------------
-  }/* if( rem > NTHREADS_MAKE_LET ){ */
-  else{
-    //---------------------------------------------------------------------
-    /* upload rem (<= NTHREADS_MAKE_LET) child j-cells to the shared memory */
-    //---------------------------------------------------------------------
-    if( tidx < rem )
-      queue[tidx] = more_org[jcell + tidx];/* size >= NTHREADS_MAKE_LET */
-    //---------------------------------------------------------------------
-  }/* else{ */
   //-----------------------------------------------------------------------
 #if 0
   if( tidx == 0 )
-    printf("rem = %d\n", rem);
-  if( tidx < rem )
-    printf("%d\t%d\t%d\n", tidx, queue[tidx] & IDXMASK, 1 + (queue[tidx] >> IDXBITS));
+    printf("sendNum = %d, totNum = %d\n", sendNum, totNum);
 #endif
-  /* initialize queue for j-cells and interaction list by a representative thread */
-  int sendNum = 0;/* # of LET nodes already stored in the global memory */
-  /* int letTail = 0;/\* the tail index of child cells for LET nodes already stored in the global memory *\/ */
-  /* int letTail = rem;/\* the tail index of child cells for LET nodes already stored in the global memory *\/ */
-  int bufHead = 0;
-  int bufTail = 0;
-  int bufOpen = bufSize;
-  int bufUsed = 0;
-  //-----------------------------------------------------------------------
-
-
-  //-----------------------------------------------------------------------
-  /* tree traversal in a width-first manner */
-  //-----------------------------------------------------------------------
-  int fail = 0;
-  //-----------------------------------------------------------------------
-  while( true ){
-    //---------------------------------------------------------------------
-    /* if the queue becomes empty, then exit the while loop */
-    //---------------------------------------------------------------------
-    __syncthreads();
-    if( rem == 0 )
-      break;
-    //---------------------------------------------------------------------
-
-    //---------------------------------------------------------------------
-    /* pick up a queue from stack */
-    //---------------------------------------------------------------------
-    /* tentative load from the stack */
-    int cnum = 0;
-    jcell = NULL_NODE;
-    if( tidx < rem ){
-      jcell = queue[tidx];
-      cnum = 1 + (int)(jcell >> IDXBITS);
-    }/* if( lane < rem ){ */
-    jcell &= IDXMASK;
-    //---------------------------------------------------------------------
-    /* predict the head index on the shared memory by parallel prefix sum */
-    int hidx = prefixSum(cnum, tidx, lane, smem) - cnum;/* exclusive prefix sum of cnum */
-    //---------------------------------------------------------------------
-    smem[tidx] = NULL_NODE;
-    __syncthreads();
-    //---------------------------------------------------------------------
-    int remove = 0;
-    if( (cnum != 0) && (hidx < NTHREADS_MAKE_LET) ){
-      //-------------------------------------------------------------------
-      /* local data can be uploaded to the shared memory */
-      int unum = NTHREADS_MAKE_LET - hidx;
-      if( cnum < unum )	  unum = cnum;
-      //-------------------------------------------------------------------
-      /* upload local data */
-      for(int jj = 0; jj < unum; jj++){
-	/* list[hidx & (NTHREADS_MAKE_LET - 1)] = jcell; */
-	smem[hidx] = (int)jcell;/* because hidx < NTHREADS_MAKE_LET */
-	hidx++;
-	jcell++;
-      }/* for(int jj = 0; jj < unum; jj++){ */
-      //-------------------------------------------------------------------
-      /* eliminate stocked j-cells from the queue */
-      if( unum == cnum )
-	remove = 1;
-      else{
-	jcell += ((uint)(cnum - unum - 1) << IDXBITS);
-	queue[tidx] = jcell;
-      }/* else{ */
-      //-------------------------------------------------------------------
-    }/* if( (cnum != 0) && (hidx < NTHREADS_MAKE_LET) ){ */
-    //---------------------------------------------------------------------
-    /* set an index of j-cell */
-    __syncthreads();
-    const int target = smem[tidx];
-    //---------------------------------------------------------------------
-    /* remove scanned j-cells if possible */
-    prefixSum(remove, tidx, lane, smem);
-    remove = smem[NTHREADS_MAKE_LET - 1];
-    //---------------------------------------------------------------------
-    if( remove != 0 ){
-      rem -= remove;
-      copyData_s2s(queue, tidx + remove, queue, tidx, rem, tidx);
-    }/* if( remove != 0 ){ */
-    //---------------------------------------------------------------------
-
-
-    //---------------------------------------------------------------------
-    /* pick up pseudo particles */
-    //---------------------------------------------------------------------
-    /* prefixSum to submit an LET node */
-    int returnLET = (target != NULL_NODE) ? 1 : 0;
-    hidx = sendNum + prefixSum(returnLET, tidx, lane, smem) - returnLET;/* index of the corresponding LET node, which is based on exclusive prefix sum of calc */
-    sendNum += smem[NTHREADS_MAKE_LET - 1];
-#if 0
-    letTail = sendNum;
-#endif
-    //---------------------------------------------------------------------
-
-    //---------------------------------------------------------------------
-    /* only the active threads pick up a j-cell from the global memory */
-    //---------------------------------------------------------------------
-    jparticle jpos_tmp;
-    uint      more_tmp;
-    int childNum = 0;
-    int hasChild = 0;
-    //---------------------------------------------------------------------
-    if( returnLET ){
-      //-------------------------------------------------------------------
-      jpos_tmp     = jpos_org[target];      /* get position of pseudo j-particle */
-      mj_let[hidx] =   mj_org[target];      /* send mj of an LET node */
-      //-------------------------------------------------------------------
-      /* set a pseudo i-particle */
-      const real rx = jpos_tmp.x - icom.x;
-      const real ry = jpos_tmp.y - icom.y;
-      const real rz = jpos_tmp.z - icom.z;
-      const real r2 = 1.0e-30f + rx * rx + ry * ry + rz * rz;
-#if 1
-      real lambda = FMAX(UNITY - SQRTRATIO(icom.m, r2), ZERO);
-#else
-      real lambda = UNITY - SQRTRATIO(icom.m, r2);
-      if( lambda < EPSILON )	lambda = ZERO;
-#endif
-      /* calculate distance between the pseudo i-particle and the candidate j-particle */
-      //-------------------------------------------------------------------
-#ifdef  GADGET_MAC
-      /* alpha * |a| * r^4 > G * M * l^2 */
-#if 1
-      lambda *= lambda * r2;
-      if(   jpos_tmp.w < lambda               * lambda               * amin )
-#else
-	if( jpos_tmp.w < lambda * lambda * r2 * lambda * lambda * r2 * amin )
-#endif
-#else///GADGET_MAC
-#ifdef  WS93_MAC
-	  if(   jpos_tmp.w < lambda * lambda * r2 )
-#else///WS93_MAC
-	    /* (l / r) < theta */
-	    if( jpos_tmp.w < lambda * lambda * r2 * theta2 )
-#endif//WS93_MAC
-#endif//GADGET_MAC
-	      {
-		//---------------------------------------------------------
-		/* distant node ==>> child cells are not included in the LET */
-		//---------------------------------------------------------
-		more_tmp = hidx;
-		jpos_tmp.w = -UNITY;/* squared size for the distant node is set to be negative */
-		//---------------------------------------------------------
-	      }
-	    else
-	      {
-		//---------------------------------------------------------
-		/* near node ==> child cells are included in the LET */
-		//---------------------------------------------------------
-		/* add child-cells of near tree-cells to the tentative stack */
-		more_tmp = more_org[target];
-		childNum = 1 + (int)(more_tmp >> IDXBITS);
-		hasChild = 1;
-		//---------------------------------------------------------
-	      }
-      //-------------------------------------------------------------------
-    }/* if( returnLET ){ */
-    //---------------------------------------------------------------------
-
-
-    //---------------------------------------------------------------------
-    /* if the shared memory has open space and some tree cells are stored on the global memory, then load tree-cells from the global memory to the shared memory */
-    //---------------------------------------------------------------------
-    /* evaluate available size of the queue on the shared memory */
-    int Nsm_rem = NQUEUE_LET * NTHREADS_MAKE_LET - rem;
-    //---------------------------------------------------------------------
-    if( (bufUsed != 0) && (Nsm_rem > 0) ){
-      //-------------------------------------------------------------------
-      /* hq is tidx */
-      const int Nload = (Nsm_rem < bufUsed) ? (Nsm_rem) : (bufUsed);
-#if 0
-      memcpy((void *)&queue[rem], (const void *)&buffer[buf0Head + bufHead], sizeof(uint) * Nload);
-#else
-      copyData_g2s(buffer, buf0Head + bufHead, queue, rem, Nload, tidx);
-#endif
-      //-------------------------------------------------------------------
-      rem     += Nload;
-      Nsm_rem -= Nload;
-      bufUsed -= Nload;
-      bufHead += Nload;
-      //-------------------------------------------------------------------
-      if( bufUsed == 0 ){
-	bufHead = 0;
-	bufTail = 0;
-	bufOpen = bufSize;
-      }/* if( bufUsed == 0 ){ */
-      //-------------------------------------------------------------------
-    }/* if( (bufUsed != 0) && (Nsm_rem > 0) ){ */
-    //---------------------------------------------------------------------
-
-
-    //---------------------------------------------------------------------
-    /* copy child-cells of near tree-cells stored in the tentative stack to the stack on the shared memory and/or the global memory */
-    //---------------------------------------------------------------------
-    enqueueChildNodes(tidx, lane, smem, hasChild, more_tmp, queue, &Nsm_rem, &rem, buffer, buf0Head, &bufOpen, &bufUsed, &bufHead, &bufTail);
-    fail += (bufOpen < 0);
-    //---------------------------------------------------------------------
-
-
-    //---------------------------------------------------------------------
-    /* if current node has child nodes in LET, then head index of more_tmp must be rewritten */
-    //---------------------------------------------------------------------
-    /* prefixSum to extend LET */
-    int leafHead = prefixSum(childNum, tidx, lane, smem) - childNum;/* exclusive prefix sum of nchild */
-    //---------------------------------------------------------------------
-    /* modify more pointer using leafHead */
-    if( childNum > 0 )
-      more_tmp = ((uint)(childNum - 1) << IDXBITS) + (uint)(sendNum + leafHead);
-    /*   more_tmp = ((uint)(childNum - 1) << IDXBITS) + (uint)(letTail + leafHead); */
-    /* letTail += smem[NTHREADS_MAKE_LET - 1]; */
-    //---------------------------------------------------------------------
-
-
-    //---------------------------------------------------------------------
-    /* add tree nodes to LET (mj_tmp is already stored) */
-    //---------------------------------------------------------------------
-    if( returnLET ){
-      jpos_let[hidx] = jpos_tmp;
-      more_let[hidx] = more_tmp;
-    }/* if( returnLET ){ */
-    //---------------------------------------------------------------------
-  }/* while( true ){ */
-  //-----------------------------------------------------------------------
-/* #ifdef  DBG_LETGEN_ON_GPU */
-/* #if 0 */
-/*   if( tidx < sendNum ) */
-/*     printf("%d: (%d + %d), %e @ (%e, %e, %e; %e)\n", tidx, */
-/* 	   more_let[tidx] & IDXMASK, 1 + (more_let[tidx] >> IDXBITS), */
-/* 	   mj_let[tidx], */
-/* 	   jpos_let[tidx].x, jpos_let[tidx].y, jpos_let[tidx].z, */
-/* 	   jpos_let[tidx].w); */
-/* #endif */
-/* #endif//DBG_LETGEN_ON_GPU */
   //-----------------------------------------------------------------------
 
 
@@ -1237,12 +842,10 @@ __global__ void makeLET_kernel
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-#endif
-//-------------------------------------------------------------------------
 
 
 //-------------------------------------------------------------------------
-#ifdef  DBG_LETGEN_ON_GPU
+/* #ifdef  DBG_LETGEN_ON_GPU */
 //-------------------------------------------------------------------------
 __global__ void printTreeNode_kernel(const int Nj, uint * RESTRICT more, jparticle * RESTRICT jpos, real * RESTRICT mj)
 {
@@ -1253,11 +856,17 @@ __global__ void printTreeNode_kernel(const int Nj, uint * RESTRICT more, jpartic
   if( tidx == 0 )
     printf("#idx\thead\tnum\tmass\tx-pos\ty-pos\tz-pos\tr2\n");
   __syncthreads();
-  for(int ii = tidx; ii < Nj; ii += tnum)
-    printf("%d\t%d\t%d\t%e\t%e\t%e\t%e\t%e\n", ii,
+  union {real f; uint i;} buf_m, buf_x, buf_y, buf_z, buf_w;
+  for(int ii = tidx; ii < Nj; ii += tnum){
+    buf_m.f = mj[ii];
+    buf_x.f = jpos[ii].x;
+    buf_y.f = jpos[ii].y;
+    buf_z.f = jpos[ii].z;
+    buf_w.f = jpos[ii].w;
+    printf("%d\t%d\t%d\t%x\t%x\t%x\t%x\t%x\n", ii,
 	   more[ii] & IDXMASK, 1 + (more[ii] >> IDXBITS),
-	   mj[ii],
-	   jpos[ii].x, jpos[ii].y, jpos[ii].z, jpos[ii].w);
+	   buf_m.i, buf_x.i, buf_y.i, buf_z.i, buf_w.i);
+  }/* for(int ii = tidx; ii < Nj; ii += tnum){ */
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -1265,17 +874,18 @@ extern "C"
 void printTreeNode(const int Nj, uint * RESTRICT more, jparticle * RESTRICT jpos, real * RESTRICT mj)
 {
   //-----------------------------------------------------------------------
-  int deviceID;
-  checkCudaErrors(cudaGetDevice(&deviceID));
+  /* int deviceID; */
+  /* checkCudaErrors(cudaGetDevice(&deviceID)); */
   //-----------------------------------------------------------------------
-  if( deviceID == 0 ){
-    printTreeNode_kernel<<<1, 32>>>(Nj, more, jpos, mj);
+  /* if( deviceID == 0 ){ */
+    /* printTreeNode_kernel<<<1, 32>>>(Nj, more, jpos, mj); */
+  printTreeNode_kernel<<<1, 32>>>((Nj < 2048) ? (Nj) : (2048), more, jpos, mj);
     checkCudaErrors(cudaDeviceSynchronize());
-  }/* if( deviceID == 0 ){ */
+  /* }/\* if( deviceID == 0 ){ *\/ */
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-#endif//DBG_LETGEN_ON_GPU
+/* #endif//DBG_LETGEN_ON_GPU */
 //-------------------------------------------------------------------------
 
 
@@ -1284,8 +894,7 @@ void printTreeNode(const int Nj, uint * RESTRICT more, jparticle * RESTRICT jpos
 //-------------------------------------------------------------------------
 extern "C"
 void callGenLET
-  (const cudaStream_t stream, domainInfo *let, MPIcfg_tree mpi,
-   const soaTreeNode tree, const int numSendGuess, const soaTreeWalkBuf buf
+  (const cudaStream_t stream, domainInfo *let, MPIcfg_tree mpi, const soaTreeNode tree, const soaTreeWalkBuf buf
 #ifdef  MONITOR_LETGEN_TIME
    , unsigned long long int * RESTRICT cycles
 #endif//MONITOR_LETGEN_TIME
@@ -1294,8 +903,11 @@ void callGenLET
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
+#if 0
+  let->amin = 0.0f;
+#endif
 #ifdef  DBG_LETGEN_ON_GPU
-#if 1
+#if 0
   printf("# close limit\n");
   let->icom.x = 0.0e+2f;
   let->icom.y = 0.0e+2f;
@@ -1311,6 +923,22 @@ void callGenLET
   let->icom.m = 1.0e-2f;
   let->amin   = 1.0e+2f;
 #endif
+#if 0
+  printf("# intermediate case\n");
+  let->icom.x = 5.0e+0f;
+  let->icom.y = 5.0e+0f;
+  let->icom.z = 5.0e+0f;
+  let->icom.m = 1.0e+0f;
+  let->amin   = 1.0e-2f;
+#endif
+#if 0
+  printf("# overlapping case\n");
+  let->icom.x =  6.364845e-1f;
+  let->icom.y = -1.231880e-1f;
+  let->icom.z =  1.260145e-1f;
+  let->icom.m = 1.0e-6f;
+  let->amin   = 1.0e+1f;
+#endif
 #endif//DBG_LETGEN_ON_GPU
   /* checkCudaErrors(cudaStreamSynchronize(stream)); */
   /* makeLET_kernel<<<1, NTHREADS_MAKE_LET>>> */
@@ -1321,7 +949,12 @@ void callGenLET
   if( deviceID == 0 )
 #endif
 #endif//DBG_LETGEN_ON_GPU
+  /* checkCudaErrors(cudaDeviceSynchronize()); */
+#if 1
   makeLET_kernel<<<1, NTHREADS_MAKE_LET, SMEM_SIZE, stream>>>
+#else
+  makeLET_kernel<<<1, NTHREADS_MAKE_LET>>>
+#endif
     ((*let).icom,
 #ifdef  GADGET_MAC
      (*let).amin,
@@ -1340,31 +973,68 @@ void callGenLET
      , cycles
 #endif//MONITOR_LETGEN_TIME
      );
+  /* checkCudaErrors(cudaDeviceSynchronize()); */
   //-----------------------------------------------------------------------
   checkCudaErrors(cudaMemcpy((*let).numSend_hst, (*let).numSend_dev, sizeof(int), cudaMemcpyDeviceToHost));
   /* checkCudaErrors(cudaMemcpyAsync((*let).numSend_hst, (*let).numSend_dev, sizeof(int), cudaMemcpyDeviceToHost, stream)); */
   /* checkCudaErrors(cudaStreamSynchronize(stream)); */
   let->numSend = *((*let).numSend_hst);
-  if( let->numSend > let->numFull ){
-    /* if # of LET nodes is greater than that of local tree, then send local full tree */
-    fprintf(stdout, "ALERT: # of LET (%d) is greater than that of local tree (%d), thus the local tree will be sent.\n", let->numSend, let->numFull);
+#if 0
+  if( let->numSend != let->numFull ){
+    fprintf(stdout, "numSend = %d, numFull = %d @ amin = %e on rank %d\n", let->numSend, let->numFull, let->amin, mpi.rank);
     fflush(stdout);
-    let-> numSend = let->numFull;
-    let->headSend = 0;
-  }/* if( let->numSend > let->numFull ){ */
-  if( let->numSend > numSendGuess ){
-    __KILL__(stderr, "ERROR: predicted size of send buffer(%d) is not sufficient for true size of that(%d) @ rank %d for rand %d.\n\tsuggestion: consider increasing \"LETSIZE_REDUCE_FACTOR\" defined in src/tree/let.h (current value is %f) to at least %f.\n", numSendGuess, let->numSend, mpi.rank, let->rank, LETSIZE_REDUCE_FACTOR, LETSIZE_REDUCE_FACTOR * (float)let->numSend / (float)numSendGuess);
-  }/* if( *numSend_hst > numSendGuess ){ */
-  //-----------------------------------------------------------------------
-#ifdef  DBG_LETGEN_ON_GPU
-  fprintf(stdout, "numSend = %d @ rank %d\n", (*let).numSend, mpi.rank);
-  checkCudaErrors(cudaDeviceSynchronize());
-#if 1
-  printTreeNode((*let).numFull, tree.more, tree.jpos, tree.mj);
-  printTreeNode((*let).numSend, &(tree.more[(*let).headSend]), &(tree.jpos[(*let).headSend]), &(tree.mj[(*let).headSend]));
+    __KILL__(stderr, "ERROR related to CUDA stream\n");
+  }/* if( let->numSend != let->numFull ){ */
 #endif
+#if 0
+  let-> numSend = let->numFull;
+  let->headSend = 0;
+#endif
+#if 0
   MPI_Finalize();
   exit(0);
+#endif
+#if 0
+  if( mpi.rank == 0 ){
+    printTreeNode((*let).numFull, tree.more, tree.jpos, tree.mj);
+    printTreeNode((*let).numSend, &(tree.more[(*let).headSend]), &(tree.jpos[(*let).headSend]), &(tree.mj[(*let).headSend]));
+  }/* if( mpi.rank == 0 ){ */
+  MPI_Finalize();
+  exit(0);
+#endif
+#if 1
+  if( let->numSend > let->numFull ){
+    printTreeNode((*let).numFull, tree.more, tree.jpos, tree.mj);
+    printTreeNode((*let).numSend, &(tree.more[(*let).headSend]), &(tree.jpos[(*let).headSend]), &(tree.mj[(*let).headSend]));
+    int fail_hst;
+    checkCudaErrors(cudaMemcpy(&fail_hst, buf.fail, sizeof(int), cudaMemcpyDeviceToHost));
+    __KILL__(stderr, "BUG: # of LET nodes (%d) exceeds that of local tree (%d) @ rank %d (amin = %e, r = %e, pos = (%e, %e, %e); fail = %d).\n", let->numSend, let->numFull, mpi.rank, let->amin, SQRT(let->icom.m), let->icom.x, let->icom.y, let->icom.z, fail_hst);
+  }/* if( let->numSend > let->numFull ){ */
+#endif
+  if( let->numSend > let->maxSend ){
+    __KILL__(stderr, "ERROR: predicted size of send buffer(%d) is not sufficient for true size of that(%d) @ rank %d for rand %d.\n\tsuggestion: consider increasing \"LETSIZE_REDUCE_FACTOR\" defined in src/tree/let.h (current value is %f) to at least %f.\n", let->maxSend, let->numSend, mpi.rank, let->rank, LETSIZE_REDUCE_FACTOR, LETSIZE_REDUCE_FACTOR * (float)let->numSend / (float)let->maxSend);
+  }/* if( let->numSend > let->maxSend ){ */
+  //-----------------------------------------------------------------------
+#ifdef  DBG_LETGEN_ON_GPU
+  fprintf(stderr, "numSend = %d, numFull = %d @ rank %d\n", (*let).numSend, (*let).numFull, mpi.rank);
+  checkCudaErrors(cudaDeviceSynchronize());
+#ifdef  GADGET_MAC
+  static int Ncall = 0;
+  if( Ncall >= 2 )
+#endif//GADGET_MAC
+    {
+#if 1
+      if( mpi.rank == 1 ){
+      printTreeNode((*let).numFull, tree.more, tree.jpos, tree.mj);
+      printTreeNode((*let).numSend, &(tree.more[(*let).headSend]), &(tree.jpos[(*let).headSend]), &(tree.mj[(*let).headSend]));
+      }
+#endif
+      MPI_Finalize();
+      exit(0);
+    }
+#ifdef  GADGET_MAC
+  Ncall++;
+#endif//GADGET_MAC
 #endif//DBG_LETGEN_ON_GPU
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");

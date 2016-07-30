@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/15(Fri) 14:43:58
+                  last updated on 2016/07/29(Fri) 11:18:40
  *                                                                       *
  *    Generation of enclosing ball containing all N-body particles       *
  *   the center is the geometric one of the enclosing rectangular cuboid *
@@ -64,7 +64,7 @@ __global__ void init_amin_kernel(const int num, real *amin)
 /* minimum value within a block */
 /* NOTE: implicit synchronization within 32 threads (a warp) is assumed */
 //-------------------------------------------------------------------------
-__device__ __forceinline__ void getMin_block(const real val, const int tidx, const int lane, volatile real * RESTRICT smem)
+__device__ __forceinline__ real getMin_block(const real val, const int tidx, const int lane, volatile real * RESTRICT smem)
 {
   //-----------------------------------------------------------------------
   /* 1. reduction within a warp */
@@ -151,8 +151,8 @@ __device__ __forceinline__ void getMin_block(const real val, const int tidx, con
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-  /* min = smem[0]; */
-  /* return (min); */
+  min = smem[0];
+  return (min);
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -162,7 +162,7 @@ __device__ __forceinline__ void getMin_block(const real val, const int tidx, con
 /* maximum value within a block */
 /* NOTE: implicit synchronization within 32 threads (a warp) is assumed */
 //-------------------------------------------------------------------------
-__device__ __forceinline__ void getMax_block(const real val, const int tidx, const int lane, volatile real * RESTRICT smem)
+__device__ __forceinline__ real getMax_block(const real val, const int tidx, const int lane, volatile real * RESTRICT smem)
 {
   //-----------------------------------------------------------------------
   /* 1. reduction within a warp */
@@ -249,8 +249,8 @@ __device__ __forceinline__ void getMax_block(const real val, const int tidx, con
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-  /* max = smem[0]; */
-  /* return (max); */
+  max = smem[0];
+  return (max);
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -317,10 +317,10 @@ __global__ void calc_r2max_kernel
     //---------------------------------------------------------------------
   }/* if( lane < info.num ){ */
   //-----------------------------------------------------------------------
-  getMax_block(r2, tidx, tidx & (warpSize - 1), smem);
+  r2 = getMax_block(r2, tidx, tidx & (warpSize - 1), smem);
   if( tidx == 0 ){
-    if( singleCall )      r2_dev[BLOCKIDX_X1D] = smem[0];
-    else      atomicMax(&r2_dev[BLOCKIDX_X1D], smem[0]);
+    if( singleCall )      r2_dev[BLOCKIDX_X1D] = r2;
+    else      atomicMax(&r2_dev[BLOCKIDX_X1D], r2);
   }/* if( tidx == 0 ){ */
   //-----------------------------------------------------------------------
 }
@@ -352,11 +352,11 @@ __global__ void calc_amin_kernel
     //---------------------------------------------------------------------
   }/* if( lane < info.num ){ */
   //-----------------------------------------------------------------------
-  getMin_block(a2, tidx, tidx & (warpSize - 1), smem);
+  a2 = getMin_block(a2, tidx, tidx & (warpSize - 1), smem);
   if( tidx == 0 ){
     a2 *= RSQRT(a2);
     if( singleCall )      amin_dev[BLOCKIDX_X1D] = a2;
-    else      atomicMax(&amin_dev[BLOCKIDX_X1D], a2);
+    else      atomicMin(&amin_dev[BLOCKIDX_X1D], a2);
   }/* if( tidx == 0 ){ */
   //-----------------------------------------------------------------------
 }
@@ -377,6 +377,11 @@ void calc_r2max_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, iparticle *pi,
 #ifdef  EXEC_BENCHMARK
   initStopwatch();
 #endif//EXEC_BENCHMARK
+  //-----------------------------------------------------------------------
+  (*pi).encBall_hst->m = ZERO;
+#ifdef  GADGET_MAC
+  pi->amin = REAL_MAX;
+#endif//GADGET_MAC
   //-----------------------------------------------------------------------
   /* thread-block structure must be identical to tree traversal */
 #ifndef SERIALIZED_EXECUTION

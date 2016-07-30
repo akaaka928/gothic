@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/26(Tue) 15:11:28
+                  last updated on 2016/07/29(Fri) 12:05:28
  *                                                                       *
  *    Implementations related to OpenMP/MPI hybrid parallelization       *
  *                                                                       *
@@ -210,7 +210,7 @@ static inline void calcLocalBoxSize(const int num, iparticle body, real min[], r
     if( body.pos[ii].x > max[0] )      max[0] = body.pos[ii].x;
     if( body.pos[ii].y > max[1] )      max[1] = body.pos[ii].y;
     if( body.pos[ii].z > max[2] )      max[2] = body.pos[ii].z;
-  }
+  }/* for(int ii = 0; ii < num; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -284,13 +284,17 @@ void exchangeParticles
   /* pick up sample particles */
   //-----------------------------------------------------------------------
   /* weight is determined using elapsed time by each process */
+  __NOTE__("rank %d: tloc = %e, numOld = %d, xmin = %e, xmax = %e\n", mpi.rank, tloc, numOld, min[0], max[0]);
+#if 1
+  if( tloc == 0.0 ){
+    __KILL__(stderr, "ERROR: tloc is %e @ rank %d\n", tloc, mpi.rank);
+  }/* if( tloc == 0.0 ){ */
+#endif
   double ttot;
   chkMPIerr(MPI_Allreduce(&tloc, &ttot, 1, MPI_DOUBLE, MPI_SUM, mpi.comm));
   const int Nsub = (int)ceilf((float)numOld * samplingRate * (float)(tloc / ttot));
+  __NOTE__("rank %d: tloc = %e, ttot = %e, frac = %e, numOld = %d, Nsub = %d\n", mpi.rank, tloc, ttot, tloc / ttot, numOld, Nsub);
   const int iskip = numOld / Nsub;
-#if 0
-  fprintf(stdout, "rank %d: tloc = %e, ttot = %e, frac = %e, iskip = %d, numOld = %d, xmin = %e, xmax = %e\n", mpi.rank, tloc, ttot, tloc / ttot, iskip, numOld, min[0], max[0]);
-#endif
   int sampleNum = 0;
   for(int ii = 0; ii < numOld; ii += iskip){
     sampleLoc[sampleNum                   ] = src.pos[ii].x;
@@ -303,6 +307,7 @@ void exchangeParticles
   sampleLoc[(sampleNum - 1) +     sampleNumMax] = src.pos[numOld - 1].y;
   sampleLoc[(sampleNum - 1) + 2 * sampleNumMax] = src.pos[numOld - 1].z;
 #endif
+  __NOTE__("rank %d: iskip = %d, sampleNum = %d\n", mpi.rank, iskip, sampleNum);
   //-----------------------------------------------------------------------
   /* sort sample particles in each direction */
 #if 1
@@ -313,6 +318,8 @@ void exchangeParticles
     qsort(&sampleLoc[2 * sampleNumMax], sampleNum, sizeof(real), posAscendingOrder);
 #endif
   //-----------------------------------------------------------------------
+  __NOTE__("rank %d\n", mpi.rank);
+  //-----------------------------------------------------------------------
 
 
   //-----------------------------------------------------------------------
@@ -322,7 +329,7 @@ void exchangeParticles
   for(int ii = 0; ii < 3; ii++){
     local.min[ii] = HALF * REAL_MIN;
     local.max[ii] = HALF * REAL_MAX;
-  }
+  }/* for(int ii = 0; ii < 3; ii++){ */
   //-----------------------------------------------------------------------
   MPIinfo root;
   root.rank = mpi.rank;
@@ -349,6 +356,14 @@ void exchangeParticles
     /* sort sample particles in each direction */
     if( root.rank == 0 )
       qsort(sampleFul, recvNumTot, sizeof(real), posAscendingOrder);
+#if 0
+    if( root.rank == 0 ){
+      fprintf(stdout, "recvNumTot = %d\n", recvNumTot);
+      for(int jj = 0; jj < recvNumTot; jj++)
+	fprintf(stdout, "pos[%d] = %e\n", jj, sampleFul[jj]);
+      fflush(stdout);
+    }
+#endif
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
@@ -365,10 +380,10 @@ void exchangeParticles
 	//-----------------------------------------------------------------
 	boxMax[jj    ] = middle;
 	boxMin[jj + 1] = middle;
-      }
+      }/* for(int jj = 0; jj < mpi.dim[ii] - 1; jj++){ */
       boxMax[mpi.dim[ii] - 1] = HALF * REAL_MAX;
       //-------------------------------------------------------------------
-    }
+    }/* if( root.rank == 0 ){ */
     //---------------------------------------------------------------------
     /* broadcast the partition */
     chkMPIerr(MPI_Bcast(boxMin, mpi.dim[ii], MPI_REALDAT, 0, root.comm));
@@ -384,10 +399,17 @@ void exchangeParticles
     //---------------------------------------------------------------------
     root = orb[ii];
     //---------------------------------------------------------------------
-  }
+    __NOTE__("rank %d\n", mpi.rank);
+    //---------------------------------------------------------------------
+  }/* for(int ii = 0; ii < ndim; ii++){ */
   //-----------------------------------------------------------------------
   /* share the decomposed domain */
   chkMPIerr(MPI_Allgather(&local, 1 * sizeof(domainCfg), MPI_BYTE, domain, 1 * sizeof(domainCfg), MPI_BYTE, mpi.comm));
+  //-----------------------------------------------------------------------
+  __NOTE__("rank %d: [%e, %e]x[%e, %e]x[%e, %e]\n", mpi.rank,
+	   domain[mpi.rank].min[0], domain[mpi.rank].max[0],
+	   domain[mpi.rank].min[1], domain[mpi.rank].max[1],
+	   domain[mpi.rank].min[2], domain[mpi.rank].max[2]);
   //-----------------------------------------------------------------------
 
 
@@ -442,8 +464,11 @@ void exchangeParticles
       //-------------------------------------------------------------------
       chkMPIerr(MPI_Isend(&nullSend, 1, MPI_INT, ii, mpi.rank, mpi.comm, &(domain[ii].req)));
       //-------------------------------------------------------------------
-    }
-  }
+    }/* else{ */
+    //---------------------------------------------------------------------
+    __NOTE__("rank %d, ii = %d\n", mpi.rank, ii);
+    //---------------------------------------------------------------------
+  }/* for(int ii = 0; ii < numProcs; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -474,7 +499,7 @@ void exchangeParticles
 	//-----------------------------------------------------------------
       }
       //-------------------------------------------------------------------
-    }
+    }/* for(int jj = 0; jj < overlapNum; jj++){ */
     //---------------------------------------------------------------------
 #ifndef NDEBUG
     if( !find ){
@@ -496,14 +521,14 @@ void exchangeParticles
     }
 #endif//NDEBUG
     //---------------------------------------------------------------------
-  }
+  }/* for(int ii = 0; ii < numOld; ii++){ */
   //-----------------------------------------------------------------------
   sendBuf[0].head = 0;
   for(int ii = 0; ii < overlapNum; ii++){
     chkMPIerr(MPI_Isend(&(sendBuf[ii].num), 1, MPI_INT, sendBuf[ii].rank, mpi.rank, mpi.comm, &(domain[sendBuf[ii].rank].req)));
     if( ii > 0 )
       sendBuf[ii].head = sendBuf[ii - 1].head + sendBuf[ii - 1].num;
-  }
+  }/* for(int ii = 0; ii < overlapNum; ii++){ */
   //-----------------------------------------------------------------------
   if( (sendBuf[overlapNum - 1].head + sendBuf[overlapNum - 1].num) != numOld ){
     __KILL__(stderr, "ERROR: total number of scattered particles (%d) is differ from that of local particles (%d)\n",
@@ -530,7 +555,7 @@ void exchangeParticles
   for(int ii = 0; ii < numProcs; ii++){
     MPI_Status status;
     chkMPIerr(MPI_Wait(&(domain[ii].req), &status));
-  }
+  }/* for(int ii = 0; ii < numProcs; ii++){ */
   //-----------------------------------------------------------------------
   for(int ii = 0; ii < overlapNum; ii++){
     //---------------------------------------------------------------------
@@ -548,7 +573,7 @@ void exchangeParticles
 #endif//BLOCK_TIME_STEP
     chkMPIerr(MPI_Isend(&(dst.idx [sendBuf[ii].head]), sendBuf[ii].num, MPI_UNSIGNED_LONG, sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].idx)));
     //---------------------------------------------------------------------
-  }
+  }/* for(int ii = 0; ii < overlapNum; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -613,9 +638,9 @@ void exchangeParticles
 #endif//BLOCK_TIME_STEP
     MPI_Status  idx;    chkMPIerr(MPI_Wait(&(sendBuf[ii]. idx), &idx));
     //---------------------------------------------------------------------
-  }
+  }/* for(int ii = 0; ii < overlapNum; ii++){ */
   //-----------------------------------------------------------------------
-  for(int ii = 0; ii < numProcs; ii++){
+  for(int ii = 0; ii < numProcs; ii++)
     if( recvBuf[ii].num != 0 ){
       //-------------------------------------------------------------------
       MPI_Status  pos;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. pos), &pos));
@@ -632,8 +657,7 @@ void exchangeParticles
 #endif//BLOCK_TIME_STEP
       MPI_Status  idx;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. idx), &idx));
       //-------------------------------------------------------------------
-    }
-  }
+    }/* if( recvBuf[ii].num != 0 ){ */
   //-----------------------------------------------------------------------
   /* confirmation */
   const int diff = (*numNew) - numOld;
@@ -642,7 +666,7 @@ void exchangeParticles
   if( mpi.rank == 0 )
     if( diff_sum != 0 ){
       __KILL__(stderr, "ERROR: domain decomposition cause some error (duplication of %d particles)\n", diff_sum);
-    }
+    }/* if( diff_sum != 0 ){ */
   //-----------------------------------------------------------------------
 
 
@@ -656,6 +680,8 @@ void exchangeParticles
 #endif//EXEC_BENCHMARK
 		       );
 #endif//GENERATE_PHKEY_ON_DEVICE
+  //-----------------------------------------------------------------------
+  __NOTE__("numOld = %d, numNew = %d @ rank %d\n", numOld, *numNew, mpi.rank);
   //-----------------------------------------------------------------------
 
 

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/26(Tue) 14:21:09
+                  last updated on 2016/07/27(Wed) 14:01:27
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -207,17 +207,17 @@ void shareNodePosition(const int Ndomain, domainInfo *info, position *pos_ful, c
 
 
 //-------------------------------------------------------------------------
-static inline int increaseNumber(const int ini)
-{
-  //-----------------------------------------------------------------------
-  /* int fin = ini + (ini / 4); */
-  /* fin += ((fin % LET_INCNUM_UNIT) != 0) * (LET_INCNUM_UNIT - (fin & (LET_INCNUM_UNIT - 1))); */
-  /* //----------------------------------------------------------------------- */
-  /* return (fin); */
-  //-----------------------------------------------------------------------
-  return (ini + ((ini % LET_INCNUM_UNIT) != 0) * (LET_INCNUM_UNIT - (ini & (LET_INCNUM_UNIT - 1))));
-  //-----------------------------------------------------------------------
-}
+/* static inline int increaseNumber(const int ini) */
+/* { */
+/*   //----------------------------------------------------------------------- */
+/*   /\* int fin = ini + (ini / 4); *\/ */
+/*   /\* fin += ((fin % LET_INCNUM_UNIT) != 0) * (LET_INCNUM_UNIT - (fin & (LET_INCNUM_UNIT - 1))); *\/ */
+/*   /\* //----------------------------------------------------------------------- *\/ */
+/*   /\* return (fin); *\/ */
+/*   //----------------------------------------------------------------------- */
+/*   return (ini + ((ini % LET_INCNUM_UNIT) != 0) * (LET_INCNUM_UNIT - (ini & (LET_INCNUM_UNIT - 1)))); */
+/*   //----------------------------------------------------------------------- */
+/* } */
 //-------------------------------------------------------------------------
 void setLETpartition(const int Ndomain, domainInfo *info)
 {
@@ -226,8 +226,8 @@ void setLETpartition(const int Ndomain, domainInfo *info)
   //-----------------------------------------------------------------------
   for(int ii = 0; ii < Ndomain - 1; ii++){
     //---------------------------------------------------------------------
-    info[ii].maxSend = increaseNumber(info[ii].maxSend);
-    info[ii].maxRecv = increaseNumber(info[ii].maxRecv);
+    info[ii].maxSend = ALIGN_BUF_FOR_LET(info[ii].maxSend);
+    info[ii].maxRecv = ALIGN_BUF_FOR_LET(info[ii].maxRecv);
     //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < Ndomain - 1; ii++){ */
   //-----------------------------------------------------------------------
@@ -247,7 +247,7 @@ void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, c
   //-----------------------------------------------------------------------
   /* exchange # of nodes in full tree */
   //-----------------------------------------------------------------------
-  const int numMax = increaseNumber(numNode);
+  const int numMax = ALIGN_BUF_FOR_LET(numNode);
   for(int ii = 0; ii < Ndomain - 1; ii++){
     //---------------------------------------------------------------------
     /* initialization */
@@ -291,7 +291,7 @@ void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, c
     /* int numLET = (int)CEIL((real)numNode * FMIN((real)256.0 * icom.m / (EPSILON + (lambda * lambda) * r2), UNITY)); */
     real factor = LDEXP(UNITY, FMIN(CEIL(LOG2((real)256.0 * icom.m / (EPSILON + (lambda * lambda) * r2))), ZERO));
     factor *= LETSIZE_OVERESTIMATION_FACTOR;
-    const int numLET = increaseNumber((int)CEIL((real)numNode * factor));
+    const int numLET = ALIGN_BUF_FOR_LET((int)CEIL((real)numNode * factor));
 #if 0
     __NOTE__("factor = %e, numLET = %d, numMax = %d @ rank %d\n", factor, numLET, numMax, mpi.rank);
 #endif
@@ -328,22 +328,22 @@ void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, c
 #endif
   //-----------------------------------------------------------------------
 #if 1
-  const int upper = (int)floorf(0.9f * EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - increaseNumber(numNode);
+  const int upper = (int)floorf(0.9f * EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - ALIGN_BUF_FOR_LET(numNode);
   if( 2 * (numSend + numRecv) < upper ){
     //---------------------------------------------------------------------
     const float factor = floorf((float)upper / (float)(numSend + numRecv));
     //---------------------------------------------------------------------
     for(int ii = 0; ii < Ndomain - 1; ii++){
-      if( info[ii].maxSend !=          numMax  )	info[ii].maxSend = increaseNumber((int)floorf(factor * (float)info[ii].maxSend));
-      if( info[ii].maxRecv != info[ii].numNode )	info[ii].maxRecv = increaseNumber((int)floorf(factor * (float)info[ii].maxRecv));
+      if( info[ii].maxSend !=          numMax  )	info[ii].maxSend = ALIGN_BUF_FOR_LET((int)floorf(factor * (float)info[ii].maxSend));
+      if( info[ii].maxRecv != info[ii].numNode )	info[ii].maxRecv = ALIGN_BUF_FOR_LET((int)floorf(factor * (float)info[ii].maxRecv));
     }/* for(int ii = 0; ii < Ndomain - 1; ii++){ */
     //---------------------------------------------------------------------
   }/* if( 2 * (numSend + numRecv) < upper ){ */
 #endif
   //-----------------------------------------------------------------------
-  if( info[0].maxSend + info[0].maxRecv > ((int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - increaseNumber(numNode)) ){
-    __KILL__(stderr, "ERROR: rough estimation routine predicts # of LET nodes(%d) succeed the capacity of the array(%d - %d); communication with first partner would fail due to lack of MPI buffer.\n", info[0].maxSend + info[0].maxRecv, (int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE), increaseNumber(numNode));
-  }/* if( numSend + numRecv > (int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - increaseNumber(numNode) ){ */
+  if( info[0].maxSend + info[0].maxRecv > ((int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - ALIGN_BUF_FOR_LET(numNode)) ){
+    __KILL__(stderr, "ERROR: rough estimation routine predicts # of LET nodes(%d) succeed the capacity of the array(%d - %d); communication with first partner would fail due to lack of MPI buffer.\n", info[0].maxSend + info[0].maxRecv, (int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE), ALIGN_BUF_FOR_LET(numNode));
+  }/* if( numSend + numRecv > (int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - ALIGN_BUF_FOR_LET(numNode) ){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/21(Thu) 12:14:25
+                  last updated on 2016/07/28(Thu) 19:00:13
  *                                                                       *
  *    Implementations related to OpenMP/MPI hybrid parallelization       *
  *                                                                       *
@@ -52,7 +52,7 @@ static inline void createMPIcfg_tree(MPIcfg_tree *let, MPIinfo mpi)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-void setNodeConfig(ulong Ntot, int *Nnode, int *Ni, MPIinfo mpi, MPIcfg_tree *let)
+void setNodeConfig(ulong Ntot, int *Nnode, int *Ni, MPIinfo mpi, MPIcfg_tree *let, const int devID)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -70,10 +70,10 @@ void setNodeConfig(ulong Ntot, int *Nnode, int *Ni, MPIinfo mpi, MPIcfg_tree *le
   //-----------------------------------------------------------------------
   if( *Nnode > (int)ceilf((float)NUM_BODY_MAX * (float)GPUS_PER_PROCESS * MAX_FACTOR_FROM_EQUIPARTITION) ){
     __KILL__(stderr, "ERROR: # of particles per process (%d) exceeds the limit (%d)\n", *Nnode, (int)ceilf((float)NUM_BODY_MAX * (float)GPUS_PER_PROCESS * MAX_FACTOR_FROM_EQUIPARTITION));
-  }
+  }/* if( *Nnode > (int)ceilf((float)NUM_BODY_MAX * (float)GPUS_PER_PROCESS * MAX_FACTOR_FROM_EQUIPARTITION) ){ */
   if( *Nnode > (int)ceilf((float)NUM_BODY_MAX * (float)GPUS_PER_PROCESS * MAX_FACTOR_FROM_EQUIPARTITION * 0.8f) ){
     __FPRINTF__(stdout, "WARNING: # of particles per process (%d) exceeds the 80%% of the limit (%d)\n", *Nnode, (int)ceilf((float)NUM_BODY_MAX * (float)GPUS_PER_PROCESS * MAX_FACTOR_FROM_EQUIPARTITION * 0.8f));
-  }
+  }/* if( *Nnode > (int)ceilf((float)NUM_BODY_MAX * (float)GPUS_PER_PROCESS * MAX_FACTOR_FROM_EQUIPARTITION * 0.8f) ){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -99,13 +99,12 @@ void setNodeConfig(ulong Ntot, int *Nnode, int *Ni, MPIinfo mpi, MPIcfg_tree *le
   chkMPIerr(MPI_Get_processor_name(name, &tmp));
   fprintf(fp, "host name: %s\n", name);
   fprintf(fp, "\n");
-  fprintf(fp, "MPI process size: %d\n", mpi.size);
-  fprintf(fp, "MPI process rank: %d\n", mpi.rank);
+  fprintf(fp, "MPI info: rank %d out of %d processes\n", mpi.rank, mpi.size);
+  fprintf(fp, "GPU info: device ID is %d\n", devID);
   fprintf(fp, "\n");
   //-----------------------------------------------------------------------
   /* write information on domain decomposition */
-  fprintf(fp, "total # of N-body particles                           : %zu\n", Ntot);
-  fprintf(fp, "      # of N-body particles within myown   MPI process: %d\n", *Nnode);
+  fprintf(fp, "# of N-body particles is %d out of %zu\n", *Nnode, Ntot);
   fprintf(fp, "\n");
   //-----------------------------------------------------------------------
   /* write fundamental information on MPI topology */

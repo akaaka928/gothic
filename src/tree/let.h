@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/26(Tue) 14:55:24
+                  last updated on 2016/07/27(Wed) 14:00:10
  *                                                                       *
  *    Header File for constructing octree structure                      *
  *                                                                       *
@@ -85,6 +85,7 @@
 #define NBUF_MSK (2 * NBUF_LET)
 //-------------------------------------------------------------------------
 #define LET_INCNUM_UNIT (32)
+#define ALIGN_BUF_FOR_LET(ini) ((ini) + (((ini) % LET_INCNUM_UNIT) != 0) * (LET_INCNUM_UNIT - ((ini) & (LET_INCNUM_UNIT - 1))))
 //-------------------------------------------------------------------------
 
 
