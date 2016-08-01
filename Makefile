@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2016/07/29(Fri) 12:41:19
+# last updated on 2016/08/01(Mon) 16:55:21
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -725,6 +725,7 @@ plot:	TAGS $(PLTENE) $(PLTDST) $(PLTCDF)# $(PLTMUL)
 bench:	TAGS $(OPTCFG) $(PLTELP) $(PLTDEP) $(PLTBRK) $(PLTCMP) $(PLTFLP) $(PLTRAD)
 sample:	TAGS $(SAMPLE) $(PLTDF)
 disk:	TAGS $(PLTJET) $(PLTDISK)
+sass:	TAGS $(GOTHIC).sass
 #################################################################################################
 ## Making TAGS file for Emacs
 TAGS:
@@ -803,6 +804,10 @@ $(PLTDISK):	$(OBJPDSK)	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)m
 	$(VERBOSE)$(CC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPDSK) $(CCLIB) -L$(MYLIB) -l$(LIBPREC)plplotlib -l$(LIBPREC)myutil -l$(LIBPREC)constants
 endif
 #################################################################################################
+# sass file
+$(GOTHIC).sass:	$(GOTHIC)
+	$(VERBOSE)$(CUASM) $< > $@
+#################################################################################################
 # original version
 check-syntax:
 	$(CC) $(DEBUG) $(CCFLAG) $(CCARG) -fsyntax-only $(CCINC) $(OMPINC) $(MPIINC) $(GSLINC) $(PLINC) -I/$(HOME)/tau/include $(HDF5INC) $(PREC) $(UNIT) $(CHK_SOURCES)
@@ -833,7 +838,7 @@ clean:
 	$(VERBOSE)rm -f $(ASMDIR)/*.s
 	$(VERBOSE)rm -f $(BINDIR)/*.log
 	$(VERBOSE)rm -f $(OBJDIR)/*.log
-	$(VERBOSE)rm -f $(GOTHIC) $(OBJMPGT)
+	$(VERBOSE)rm -f $(GOTHIC) $(OBJMPGT) $(GOTHIC).sass
 	$(VERBOSE)rm -f $(MKCOLD) $(OBJCOLD)
 	$(VERBOSE)rm -f $(MAGI)   $(OBJMAGI)
 	$(VERBOSE)rm -f $(PLTENE) $(OBJPENE)
@@ -943,7 +948,7 @@ GOTHIC_DEP	:=	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/name.h	$(MYI
 			$(FILEDIR)/io.h	\
 			$(TIMEDIR)/adv_dev.h	\
 			$(SORTDIR)/peano.h	$(SORTDIR)/peano_dev.h	\
-			$(TREEDIR)/macutil.h	$(TREEDIR)/make.h	$(TREEDIR)/make_dev.h	$(TREEDIR)/walk_dev.h	\
+			$(TREEDIR)/macutil.h	$(TREEDIR)/make.h	$(TREEDIR)/make_dev.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/buf_inc.h	\
 			$(TREEDIR)/stat_dev.h	$(TREEDIR)/shrink_dev.h	$(TREEDIR)/neighbor_dev.h	\
 			$(TREEDIR)/let.h	$(TREEDIR)/let_dev.h	$(PARADIR)/mpicfg.h	$(PARADIR)/exchange.h	$(TREEDIR)/geo_dev.h
 $(OBJDIR)/gothic.mpi.hdf5.o:	$(GOTHIC_DEP)	$(MYINC)/hdf5lib.h

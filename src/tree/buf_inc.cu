@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/06(Wed) 17:01:26
+                  last updated on 2016/08/01(Mon) 17:52:36
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -43,7 +43,7 @@ __device__ __forceinline__ uint getSMidx()
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-__device__ __forceinline__ int occupyBuffer(const int tidx, uint *freeLst, uint *bufIdx)
+__device__ __forceinline__ int occupyBuffer(const int tidx, uint * RESTRICT freeLst, uint * RESTRICT bufIdx)
 {
   //-----------------------------------------------------------------------
   int target = 0;
@@ -136,7 +136,7 @@ __device__ __forceinline__ void releaseBuffer(const int tidx, uint *freeLst, uin
 //-------------------------------------------------------------------------
 #ifdef  TRY_MODE_ABOUT_BUFFER
 //-------------------------------------------------------------------------
-__device__ __forceinline__ int occupyBuffer(const int tidx, const int bidx, const int bufNum, uint *freeLst, uint *bufIdx)
+__device__ __forceinline__ int occupyBuffer(const int tidx, const int bidx, const int bufNum, uint * RESTRICT freeLst, uint * RESTRICT bufIdx)
 {
   //-----------------------------------------------------------------------
   int target = 0;
@@ -196,7 +196,7 @@ __device__ __forceinline__ void releaseBuffer(const int tidx, uint *freeLst, uin
 //-------------------------------------------------------------------------
 #else///TRY_MODE_ABOUT_BUFFER
 //-------------------------------------------------------------------------
-__device__ __forceinline__ void  occupyBuffer(const int tidx, uint *freeNum, uint *freeLst, uint *bufIdx, int *active)
+__device__ __forceinline__ void  occupyBuffer(const int tidx, uint * RESTRICT freeNum, uint * RESTRICT freeLst, uint * RESTRICT bufIdx, int * RESTRICT active)
 {
   //-----------------------------------------------------------------------
   if( tidx == 0 ){
@@ -224,7 +224,7 @@ __device__ __forceinline__ void  occupyBuffer(const int tidx, uint *freeNum, uin
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-__device__ __forceinline__ void releaseBuffer(const int tidx, uint *freeNum, uint *freeLst, const int bufIdx, int *active)
+__device__ __forceinline__ void releaseBuffer(const int tidx, uint * RESTRICT freeNum, uint * RESTRICT freeLst, const int bufIdx, int * RESTRICT active)
 {
   //-----------------------------------------------------------------------
   __syncthreads();

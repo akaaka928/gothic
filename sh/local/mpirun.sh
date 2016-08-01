@@ -29,3 +29,7 @@ fi
 echo "mpirun_rsh -np $PROCS -hostfile $HOSTFILE $EXEC $OPTION" >> $LOG
 mpirun_rsh -np $PROCS -hostfile $HOSTFILE $EXEC $OPTION
 ##################################################################
+# # collecting data with nvprof
+# echo "mpirun_rsh -np $PROCS -hostfile $HOSTFILE nvprof -o exec.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION" >> $LOG
+# mpirun_rsh -np $PROCS -hostfile $HOSTFILE nvprof -o exec.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION
+##################################################################
