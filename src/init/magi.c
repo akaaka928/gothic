@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/06/02(Thu) 13:53:02
+                  last updated on 2016/08/02(Tue) 17:37:31
  *                                                                       *
  *    MAGI: "MAny-component Galactic Initial-conditions" generator       *
  *    Making Initial Condition Code of N-body Simulation                 *
@@ -3025,9 +3025,15 @@ int main(int argc, char **argv)
     tmp.pos[0] = body[ii]. x;
     tmp.pos[1] = body[ii]. y;
     tmp.pos[2] = body[ii]. z;
+#if 1
     tmp.vel[0] = body[ii].vx;
     tmp.vel[1] = body[ii].vy;
     tmp.vel[2] = body[ii].vz;
+#else
+    tmp.vel[0] = 0.0f;
+    tmp.vel[1] = 0.0f;
+    tmp.vel[2] = 0.0f;
+#endif
     tmp.eps    = eps;
     tmp.idx    = (int)body[ii].idx;
     bonsaiCount = 1;    if( bonsaiCount != fwrite(&tmp, sizeof(struct dark_particle), bonsaiCount, fpbonsai) )      bonsaiSuccess = false;

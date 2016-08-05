@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2016/08/01(Mon) 16:55:21
+# last updated on 2016/08/05(Fri) 10:53:38
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -50,6 +50,7 @@ DEBUG_PARALLEL_HDF5	:= 0
 DEBUG_LETGEN_ON_GPU	:= 0
 DEBUG_TREE_TRAVERSAL	:= 0
 DEBUG_MULTIPOLE_GPU	:= 0
+ALLOCATE_LETBUFFER	:= 0
 #################################################################################################
 # Benchmark options
 REPORT_ELAPSED_TIME	:= 1
@@ -165,6 +166,11 @@ CCARG	+= -DDBG_CALC_MULTIPOLE
 CUARG	+= -DDBG_CALC_MULTIPOLE
 DEBUG	:=
 REPORT_ELAPSED_TIME	:= 0
+endif
+#################################################################################################
+ifeq ($(ALLOCATE_LETBUFFER), 1)
+CCARG	+= -DALLOCATE_LETBUFFER
+CUARG	+= -DALLOCATE_LETBUFFER
 endif
 #################################################################################################
 ifeq ($(MEASURE_EXEC_METRICS), 1)

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/01(Mon) 17:59:19
+                  last updated on 2016/08/05(Fri) 14:53:17
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -101,6 +101,27 @@ muse setCUDAstreams_dev(cudaStream_t **stream, kernelStream *sinfo, deviceInfo *
     sinfo->stream[ii] = info->stream[ii];
   for(int ii = 2; ii < sinfo->num; ii++)
     checkCudaErrors(cudaStreamCreate(&(sinfo->stream[ii])));
+  //-----------------------------------------------------------------------
+#if 0
+  int priority;
+  for(int ii = 0; ii < sinfo->num; ii++){
+    checkCudaErrors(cudaStreamGetPriority(sinfo->stream[ii], &priority));
+    fprintf(stdout, "priority of stream[%d] is %d\n", ii, priority);
+  }/* for(int ii = 0; ii < sinfo->num; ii++){ */
+  fflush(stdout);
+#endif
+  //-----------------------------------------------------------------------
+/* #if 1 */
+/*   int highest, lowest; */
+/*   checkCudaErrors(cudaDeviceGetStreamPriorityRange(&lowest, &highest)); */
+/*   for(int ii = 0; ii < *Nstream; ii++) */
+/*     checkCudaErrors(cudaStreamCreateWithPriority(&((*stream)[ii]), cudaStreamDefault, highest)); */
+/*     /\* checkCudaErrors(cudaStreamCreateWithPriority(&((*stream)[ii]), cudaStreamNonBlocking, highest)); *\/ */
+/* #else */
+/* #pragma unroll */
+/*   for(int ii = 0; ii < *Nstream; ii++) */
+/*     checkCudaErrors(cudaStreamCreate(&((*stream)[ii]))); */
+/* #endif */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -295,9 +316,19 @@ muse allocTreeBuffer_dev
   const size_t safety = GLOBAL_MEMORY_SYSBUF + (size_t)num_max * (sizeof(PHint) + sizeof(real));
 #endif//CUB_AVAILABLE
   const size_t booked = (unused > safety) ? (unused - safety) : (unused >> 1);
+  if( (booked / ((size_t)(NGROUPS * nblocks) * (sizeof(uint)))) > INT_MAX ){
+    __KILL__(stderr, "ERROR: expected size for bufUnit (%zu) exceeds INT_MAX\n\trewrite \"calcAcc_kernel()\" in \"src/tree/walk_dev.cu\"\n", (booked / ((size_t)(NGROUPS * nblocks) * (sizeof(uint)))));
+  }/* if( (booked / ((size_t)(NGROUPS * nblocks) * (sizeof(uint)))) > INT_MAX ){ */
   int bufUnit = (int)(booked / ((size_t)(NGROUPS * nblocks) * (sizeof(uint))));
   /* *bufUnit should be aligned in 32 bytes order (= 128 bits) --> 8 or 4 elements for single or double precision, respectively */
   bufUnit -= (bufUnit & 7);
+#ifndef SERIALIZED_EXECUTION
+  if( ((size_t)bufUnit * (size_t)NGROUPS) > INT_MAX ){
+    __KILL__(stderr, "ERROR: expected size for bufUnit for LET (%zu) exceeds INT_MAX\n\trewrite \"makeLET_kernel()\" in \"src/tree/let_dev.cu\"\n", ((size_t)bufUnit * (size_t)NGROUPS));
+  }/* if( ((size_t)bufUnit * (size_t)NGROUPS) > INT_MAX ){ */
+  /* MPI_Finalize(); */
+  /* exit(0); */
+#endif//SERIALIZED_EXECUTION
   //-----------------------------------------------------------------------
   const size_t walkBufSize = (size_t)(NGROUPS * nblocks) * (size_t)bufUnit * sizeof(uint);
   mycudaMalloc((void **)buffer, walkBufSize);
@@ -322,6 +353,11 @@ muse allocTreeBuffer_dev
   buf->freeNum = NBLOCKS_PER_SM * gpu.numSM;
 #endif//!defined(USE_SMID_TO_GET_BUFID) &&  defined(TRY_MODE_ABOUT_BUFFER)
   buf->bufSize = bufUnit;
+  //-----------------------------------------------------------------------
+#if 0
+  fprintf(stdout, "bufUnit = %d, bufTot = %zu, bufSize = %zu\n", bufUnit, walkBufSize / sizeof(uint), walkBufSize);
+  fflush(stdout);
+#endif
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -830,17 +866,17 @@ __device__ __forceinline__ void copyData_g2s
   const int numTemp = TSUB - (int)(srcHead & (TSUB - 1));/* := TSUB - (srcHead % TSUB) */
   const int numHead = (numTemp < numCopy) ? numTemp : numCopy;
   if( lane < numHead )
-    sbuf[dstHead + lane] = gbuf[srcHead + (size_t)lane];
-  dstHead +=         numHead;
-  srcHead += (size_t)numHead;
-  numCopy -=         numHead;
+    sbuf[dstHead + lane] = gbuf[srcHead + lane];
+  dstHead += numHead;
+  srcHead += numHead;
+  numCopy -= numHead;
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   /* sequential load from source on the global memory and store to destination on the shared memory */
   //-----------------------------------------------------------------------
   for(int ii = lane; ii < numCopy; ii += TSUB)
-    sbuf[dstHead + ii] = gbuf[srcHead + (size_t)ii];
+    sbuf[dstHead + ii] = gbuf[srcHead + ii];
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -853,22 +889,22 @@ __device__ __forceinline__ void copyData_s2g
   const int numTemp = TSUB - (int)(dstHead & (TSUB - 1));/* := TSUB - (dstHead % TSUB) */
   const int numHead = (numTemp < numCopy) ? numTemp : numCopy;
   if( lane < numHead )
-    gbuf[dstHead + (size_t)lane] = sbuf[srcHead + lane];
-  dstHead += (size_t)numHead;
-  srcHead +=         numHead;
-  numCopy -=         numHead;
+    gbuf[dstHead + lane] = sbuf[srcHead + lane];
+  dstHead += numHead;
+  srcHead += numHead;
+  numCopy -= numHead;
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   /* sequential load from source on the shared memory and store to destination on the global memory */
   //-----------------------------------------------------------------------
   for(int ii = lane; ii < numCopy; ii += TSUB)
-    gbuf[dstHead + (size_t)ii] = sbuf[srcHead + ii];
+    gbuf[dstHead + ii] = sbuf[srcHead + ii];
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
 __device__ __forceinline__ void copyData_g2g
-(uint * RESTRICT gbuf, int srcHead, int dstHead, int Ncopy, const int Ndisp, const int lane)
+(uint * RESTRICT gbuf, size_t srcHead, size_t dstHead, int Ncopy, const int Ndisp, const int lane)
 {
   //-----------------------------------------------------------------------
   /* configure the settings */
@@ -889,51 +925,6 @@ __device__ __forceinline__ void copyData_g2g
   srcHead += TSUB;
   //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-#if 0
-  //-----------------------------------------------------------------------
-  /* sequential load and store from source to destination on the global memory */
-  /* this implementation employes the local memory */
-  //-----------------------------------------------------------------------
-  const int Niter = BLOCKSIZE(Ncopy, TSUB * NSTOCK);
-  for(int iter = 0; iter < Niter; iter++){
-    //---------------------------------------------------------------------
-    const int Nmove = (Ncopy > (TSUB * NSTOCK)) ? (TSUB * NSTOCK) : (Ncopy);
-    const int Nloop = BLOCKSIZE(Nmove, TSUB);
-    //---------------------------------------------------------------------
-    //
-    //---------------------------------------------------------------------
-    /* load from the source array on the global memory */
-    //---------------------------------------------------------------------
-    /* load from temp (fraction processing) as initialization */
-    union {uint4 i; uint a[4];} local = {temp, NULL_NODE, NULL_NODE, NULL_NODE};
-    //---------------------------------------------------------------------
-    /* load from global memory */
-#pragma unroll
-    for(int ii = 0; ii < Nloop - 1; ii++)
-      local.a[grpIdx + ii] = gbuf[srcHead + TSUB * ii + ldIdx];
-    //---------------------------------------------------------------------
-    /* load from global memory, store to shared memory or temp (fraction processing) */
-    temp = gbuf[srcHead + TSUB * (Nloop - 1) + ldIdx];
-    if( !grpIdx ){
-      local.a[Nloop - 1] = temp;
-    }/* if( !grpIdx ){ */
-    //---------------------------------------------------------------------
-    //
-    //---------------------------------------------------------------------
-    /* store to the destination array on the global memory */
-    //---------------------------------------------------------------------
-#pragma unroll
-    for(int ii = 0; ii < Nloop; ii++)
-      gbuf[dstHead + TSUB * ii + lane] = local.a[ii];
-    //---------------------------------------------------------------------
-    Ncopy   -= Nmove;
-    srcHead += Nmove;
-    dstHead += Nmove;
-    //---------------------------------------------------------------------
-  }/* for(int iter = 0; iter < Niter; iter++){ */
-  //-----------------------------------------------------------------------
-#else
   //-----------------------------------------------------------------------
   /* sequential load and store from source to destination on the global memory */
   //-----------------------------------------------------------------------
@@ -965,8 +956,6 @@ __device__ __forceinline__ void copyData_g2g
     dstHead += Nmove;
     //---------------------------------------------------------------------
   }/* for(int iter = 0; iter < Niter; iter++){ */
-  //-----------------------------------------------------------------------
-#endif
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -1295,14 +1284,7 @@ __device__ __forceinline__ void cpChildNodes
   //-----------------------------------------------------------------------
   if( Ntot > *rem_gm ){
     //---------------------------------------------------------------------
-#if 1
     copyData_g2g(gmbuf, hb, hb, *num_gm, *head_gm, lane);
-#else
-    /* probably, below implementation is wrong */
-#pragma unroll
-    for(int ii = lane; ii < *num_gm; ii += TSUB)
-      gmbuf[hb + (size_t)((*head_gm) + ii)] = gmbuf[hb + (size_t)ii];
-#endif
     //---------------------------------------------------------------------
     * rem_gm += *head_gm;
     *tail_gm -= *head_gm;
@@ -1314,11 +1296,7 @@ __device__ __forceinline__ void cpChildNodes
   //-----------------------------------------------------------------------
   /* 8. copy merged tree nodes to the global memory */
   //-----------------------------------------------------------------------
-#if 0
-  memcpy((void *)&gmbuf[hb + (size_t)(*tail_gm)], (const void *)&node[Nsm], sizeof(uint) * Ntot);
-#else
-  copyData_s2g(node, Nsm, gmbuf, hb + (size_t)(*tail_gm), Ntot, lane);
-#endif
+  copyData_s2g(node, Nsm, gmbuf, hb + (*tail_gm), Ntot, lane);
   //-----------------------------------------------------------------------
   * rem_gm -= Ntot;
   * num_gm += Ntot;
@@ -1710,10 +1688,10 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 #endif//USE_WARP_SHUFFLE_FUNC
   //-----------------------------------------------------------------------
 #ifdef  USE_SMID_TO_GET_BUFID
-  const int target = occupyBuffer(tidx, freeLst, queue);
+  const int bufTarget = occupyBuffer(tidx, freeLst, queue);
 #else///USE_SMID_TO_GET_BUFID
 #ifdef  TRY_MODE_ABOUT_BUFFER
-  const int target = occupyBuffer(tidx, BLOCKIDX_X1D, freeNum, freeLst, queue);
+  const int bufTarget = occupyBuffer(tidx, BLOCKIDX_X1D, freeNum, freeLst, queue);
 #else///TRY_MODE_ABOUT_BUFFER
   occupyBuffer(tidx, freeNum, freeLst, queue, active);
 #endif//TRY_MODE_ABOUT_BUFFER
@@ -1728,7 +1706,7 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
   //-----------------------------------------------------------------------
 #if 0
   if( tidx == 0 )
-    printf("walk: SM %d, tag %d\n", target / NBLOCKS_PER_SM, target);
+    printf("walk: SM %d, tag %d\n", bufTarget / NBLOCKS_PER_SM, bufTarget);
 #endif
   //-----------------------------------------------------------------------
 #ifdef  DBG_TREE_WALK
@@ -1996,6 +1974,9 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
   int bufTail = 0;
   int bufOpen = bufSize;
   int bufUsed = 0;
+#if 0
+  int bufTailMax = bufTail;
+#endif
   /* set child j-cells in queue on the shared memory */
   uint jcell = more[root];
   int rem = 1 + (jcell >> IDXBITS);
@@ -2268,11 +2249,7 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     if(  (bufUsed != 0) && (Nsm_rem > 0) ){
       //-------------------------------------------------------------------
       const int Nload = (Nsm_rem < bufUsed) ? (Nsm_rem) : (bufUsed);
-#if 0
-      memcpy((void *)&queue[hq - lane + rem], (const void *)&buffer[buf0Head + (size_t)bufHead], sizeof(uint) * Nload);
-#else
-      copyData_g2s(buffer, buf0Head + (size_t)bufHead, queue, hq - lane + rem, Nload, lane);
-#endif
+      copyData_g2s(buffer, buf0Head + bufHead, queue, hq - lane + rem, Nload, lane);
       //-------------------------------------------------------------------
       rem     += Nload;
       Nsm_rem -= Nload;
@@ -2298,7 +2275,8 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     cpChildNodes(smem, (uint *)(&pj[hp + NLOOP * TSUB]), jidx, leaf, tidx, lane, tail, queue, hq, &Nsm_rem, &rem, buffer, buf0Head, &bufOpen, &bufUsed, &bufHead, &bufTail);
 #endif//USE_WARP_SHUFFLE_FUNC
     //---------------------------------------------------------------------
-    fail += (bufOpen < 0);
+    /* fail += (bufOpen < 0); */
+    fail += (bufTail > bufSize);
 #if 0
     if( fail != 0 )
       buffer[ULONG_MAX] = NULL_NODE;
@@ -2313,7 +2291,17 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
       break;
 #endif
     //---------------------------------------------------------------------
+#if 0
+    if( bufTail > bufTailMax )
+      bufTailMax = bufTail;
+#endif
+    //---------------------------------------------------------------------
   }/* while( true ){ */
+  //-----------------------------------------------------------------------
+#if 0
+  if( lane == 0 )
+    printf("bufTailMax = %d\n", bufTailMax);
+#endif
   //-----------------------------------------------------------------------
 
 
@@ -2433,10 +2421,10 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 
   //-----------------------------------------------------------------------
 #ifdef  USE_SMID_TO_GET_BUFID
-  releaseBuffer(tidx, freeLst, (uint)bufIdx, target);
+  releaseBuffer(tidx, freeLst, (uint)bufIdx, bufTarget);
 #else///USE_SMID_TO_GET_BUFID
 #ifdef  TRY_MODE_ABOUT_BUFFER
-  releaseBuffer(tidx, freeLst, (uint)bufIdx, target);
+  releaseBuffer(tidx, freeLst, (uint)bufIdx, bufTarget);
 #else///TRY_MODE_ABOUT_BUFFER
   releaseBuffer(tidx, freeNum, freeLst, bufIdx, active);
 #endif//TRY_MODE_ABOUT_BUFFER
@@ -2644,8 +2632,8 @@ void calcGravity_dev
 #endif//COUNT_INTERACTIONS
   //-----------------------------------------------------------------------
 #if 0
-  fprintf(stderr, "grpNum = %d\n", grpNum);
-  exit(0);
+  fprintf(stdout, "rank %d: grpNum = %d\n", mpi.rank, grpNum);
+  fflush(stdout);
 #endif
   //-----------------------------------------------------------------------
 
@@ -2658,14 +2646,11 @@ void calcGravity_dev
   blck.x = BLOCKSIZE(grpNum, NGROUPS);  blck.y = 1;  blck.z = 1;
   //-----------------------------------------------------------------------
 #if 0
-  /* when grpNum is zero, the macro ``BLOCKSIZE'' returns unity while the correct value is zero */
-  if( grpNum == 0 )
-    blck.x = 0;
-#endif
-  //-----------------------------------------------------------------------
-#if 0
-  fprintf(stderr, "rank %d: grpNum = %d, blck.x = %d\n", mpi.rank, grpNum, blck.x);
-  fflush(stderr);
+  fprintf(stdout, "rank %d: grpNum = %d with Nsm is %d (%d loops); amin = %e, pos = (%e, %e, %e), r = %e; bufSize is %d\n",
+	  mpi.rank, grpNum, devProp.numSM, BLOCKSIZE(blck.x, NBLOCKS_PER_SM * devProp.numSM),
+	  let[0].amin, let[0].icom.x, let[0].icom.y, let[0].icom.z, SQRT(let[0].icom.m),
+	  buf.bufSize);
+  fflush(stdout);
 #endif
   //-----------------------------------------------------------------------
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
@@ -2801,51 +2786,51 @@ void calcGravity_dev
       /* gravity from j-particles within other process(es) */
       //-------------------------------------------------------------------
       const int headLETsend = ALIGN_BUF_FOR_LET(pjNum);
-      const int remLETbuf = (int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - headLETsend;
+      const int  remLETbuf  = (int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - headLETsend;
+      const int  remLETsend = ALIGN_BUF_FOR_LET(remLETbuf >> 1);
+      const int  remLETrecv = remLETbuf - remLETsend;
+      const int headLETrecv = headLETsend + remLETsend;
       int idxProcs = 0;
       int remProcs = Nlet - 1;
+      int LETsteps = 0;
       while( true ){
 	//-----------------------------------------------------------------
 	/* get maximum number of processes which possible to communicate by limitation of memory capacity */
 	//-----------------------------------------------------------------
-	int remBuf = remLETbuf;
+	/* int remBuf = remLETbuf; */
+	int remSend = remLETsend;
+	int remRecv = remLETrecv;
 	int numProcs = remProcs;
 	for(int ii = 0; ii < remProcs; ii++){
 	  //---------------------------------------------------------------
-	  remBuf -= let[idxProcs + ii].maxSend + let[idxProcs + ii].maxRecv;
+	  /* remBuf -= let[idxProcs + ii].maxSend + let[idxProcs + ii].maxRecv; */
+	  remSend -= let[idxProcs + ii].maxSend;
+	  remRecv -= let[idxProcs + ii].maxRecv;
 	  //---------------------------------------------------------------
-	  if( remBuf < 0 ){
+	  /* if( remBuf < 0 ){ */
+	  if( (remSend < 0) || (remRecv < 0) ){
 	    numProcs = ii - 1;
 	    break;
-	  }/* if( remBuf < 0 ){ */
+	  }/* if( (remSend < 0) || (remRecv < 0) ){ */
 	  //---------------------------------------------------------------
 	}/* for(int ii = 0; ii < remProcs; ii++){ */
 	//-----------------------------------------------------------------
+	if( numProcs < 1 ){
+	  __KILL__(stderr, "ERROR: numProcs is %d, due to lack of remLETbuf(%d) while 0-th target requires numSend(%d) and numRecv(%d) @ rank %d.\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", numProcs, remLETbuf, let[idxProcs].maxSend, let[idxProcs].maxRecv, mpi.rank, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
+	}/* if( numProcs < 1 ){ */
 	chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &numProcs, 1, MPI_INT, MPI_MIN, mpi.comm));
-	if( (numProcs < 1) && (mpi.size > 1) ){
-	  __KILL__(stderr, "ERROR: numProcs is %d, due to lack of remLETbuf(%d) while 0-th target requires numSend(%d) and numRecv(%d).\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", numProcs, remLETbuf, let[idxProcs].maxSend, let[idxProcs].maxRecv, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
-	}/* if( (numProcs < 1) && (mpi.size > 1) ){ */
-	//-----------------------------------------------------------------
-	/* let[idxProcs].headSend = headLETsend; */
-	/* int numSend = 0; */
-	/* int numRecv = 0; */
-	/* for(int ii = 0; ii < numProcs - 1; ii++){ */
-	/*   let[idxProcs + ii    ].headRecv = let[idxProcs + ii].headSend + let[idxProcs + ii].maxSend;	  numSend += let[idxProcs + ii].maxSend; */
-	/*   let[idxProcs + ii + 1].headSend = let[idxProcs + ii].headRecv + let[idxProcs + ii].maxRecv;	  numRecv += let[idxProcs + ii].maxRecv; */
-	/* }/\* for(int ii = 0; ii < numProcs - 1; ii++){ *\/ */
-	/* let[idxProcs + numProcs - 1].headRecv = let[idxProcs + numProcs - 1].headSend + let[idxProcs + numProcs - 1].maxSend; */
-	/* numSend += let[idxProcs + numProcs - 1].maxSend; */
-	/* numRecv += let[idxProcs + numProcs - 1].maxRecv; */
 	//-----------------------------------------------------------------
 	/* set send buffer for LET on device */
-	int numSend = 0;
 	let[idxProcs].headSend = headLETsend;
-	for(int ii = 0; ii < numProcs - 1; ii++){
-	  const int numSendBuf = ALIGN_BUF_FOR_LET(let[idxProcs + ii].maxSend);
-	  let[idxProcs + ii + 1].headSend = numSendBuf + let[idxProcs + ii].headSend;
-	  numSend                        += numSendBuf;
-	}/* for(int ii = 0; ii < numProcs - 1; ii++){ */
-	numSend += ALIGN_BUF_FOR_LET(let[idxProcs + numProcs - 1].maxSend);
+	/* int numSend = 0; */
+	/* for(int ii = 0; ii < numProcs - 1; ii++){ */
+	/*   const int numSendBuf = ALIGN_BUF_FOR_LET(let[idxProcs + ii].maxSend); */
+	/*   let[idxProcs + ii + 1].headSend = numSendBuf + let[idxProcs + ii].headSend; */
+	/*   numSend                        += numSendBuf; */
+	/* }/\* for(int ii = 0; ii < numProcs - 1; ii++){ *\/ */
+	/* numSend += ALIGN_BUF_FOR_LET(let[idxProcs + numProcs - 1].maxSend); */
+	for(int ii = 0; ii < numProcs - 1; ii++)
+	  let[idxProcs + ii + 1].headSend = let[idxProcs + ii].headSend + ALIGN_BUF_FOR_LET(let[idxProcs + ii].maxSend);
 	//-----------------------------------------------------------------
 
 
@@ -2854,28 +2839,38 @@ void calcGravity_dev
 	//-----------------------------------------------------------------
 #if 0
 	/* currently, the below synchronization is required to finish N-body simulation with N >= 512k with 2 GPUs (the reason is not yet understood) */
-	checkCudaErrors(cudaStreamSynchronize(sinfo->stream[sidx ^ 1]));
+	checkCudaErrors(cudaDeviceSynchronize());
 #endif
 	//-----------------------------------------------------------------
-	/* generate numProcs LET(s) and send them to other process(es) */
+	/* generate numProcs LET(s) */
 	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
 	  //---------------------------------------------------------------
 	  const int streamIdxLET = ii % Nstream_let;
 	  //---------------------------------------------------------------
-#if 1
 	  callGenLET(stream_let[streamIdxLET], &let[ii], mpi, tree, buf
 #ifdef  MONITOR_LETGEN_TIME
 		     , cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
 		     );
-#ifndef NDEBUG
-	  printf("numSend[%d -->> %d] is %d\n", mpi.rank, let[ii].rank, let[ii].numSend);
-	  fflush(NULL);
-#endif//NDEBUG
+	  //---------------------------------------------------------------
+#if 1
+	  checkCudaErrors(cudaMemcpyAsync(let[ii].numSend_hst, let[ii].numSend_dev, sizeof(int), cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
 #else
-	  let[ii].headSend = 0;
-	  let[ii]. numSend = pjNum;
+	  checkCudaErrors(cudaMemcpy(let[ii].numSend_hst, let[ii].numSend_dev, sizeof(int), cudaMemcpyDeviceToHost));
 #endif
+	  //---------------------------------------------------------------
+	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
+	//-----------------------------------------------------------------
+	/* send numProcs LET(s) to other process(es) */
+	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
+	  //---------------------------------------------------------------
+	  const int streamIdxLET = ii % Nstream_let;
+	  //---------------------------------------------------------------
+	  checkCudaErrors(cudaStreamSynchronize(stream_let[streamIdxLET]));
+	  let[ii].numSend = *(let[ii].numSend_hst);
+	  if( let[ii].numSend > let[ii].maxSend ){
+	    __KILL__(stderr, "ERROR: predicted size of send buffer (%d) is not sufficient for true size of that (%d) @ rank %d for rand %d.\n\tsuggestion: consider increasing \"LETSIZE_REDUCE_FACTOR\" defined in src/tree/let.h (current value is %f) to at least %f.\n", let[ii].maxSend, let[ii].numSend, mpi.rank, let[ii].rank, LETSIZE_REDUCE_FACTOR, LETSIZE_REDUCE_FACTOR * (float)let[ii].numSend / (float)let[ii].maxSend);
+	  }/* if( let[ii].numSend > let[ii].maxSend ){ */
 	  //---------------------------------------------------------------
 #ifdef  LET_COMMUNICATION_VIA_HOST
 	  checkCudaErrors(cudaMemcpyAsync(&(tree_hst.more[let[ii].headSend]), &(tree.more[let[ii].headSend]), sizeof(     uint) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
@@ -2932,9 +2927,9 @@ void calcGravity_dev
 	/* chkMPIerr(MPI_Barrier(mpi.comm)); */
 	//-----------------------------------------------------------------
 	/* set receive buffer for LET on device */
-	const int headLETrecv = headLETsend + numSend;
-	int numRecv = 0;
+	/* const int headLETrecv = headLETsend + numSend; */
 	let[idxProcs].headRecv = headLETrecv;
+	int numRecv = 0;
 	for(int ii = 0; ii < numProcs - 1; ii++){
 	  const int numRecvBuf = ALIGN_BUF_FOR_LET(let[idxProcs + ii].numRecv);
 	  let[idxProcs + ii + 1].headRecv = numRecvBuf + let[idxProcs + ii].headRecv;
@@ -2942,13 +2937,26 @@ void calcGravity_dev
 	}/* for(int ii = 0; ii < numProcs - 1; ii++){ */
 	numRecv += let[idxProcs + numProcs - 1].numRecv;
 	//-----------------------------------------------------------------
-	if( numSend + numRecv > remLETbuf ){
-	  __KILL__(stderr, "ERROR: lack of remLETbuf(%d) to store numSend(%d) and numRecv(%d) LET nodes.\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", remLETbuf, numSend, numRecv, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
-	}/* if( numSend + numRecv > remLETbuf ){ */
+	if( numRecv > remLETrecv ){
+	  __KILL__(stderr, "ERROR: lack of remLETrecv(%d) to store numRecv(%d) LET nodes.\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", remLETrecv, numRecv, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
+	}/* if( numRecv > remLETbuf ){ */
 	//-----------------------------------------------------------------
 
 	//-----------------------------------------------------------------
 	/* receive LET nodes */
+	//-----------------------------------------------------------------
+	/* before receiving LET nodes, gravity calculation using LET nodes stored in the receive buffer in the previous loop must be finished */
+	if( LETsteps > 0 ){
+#   if  defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
+	  if( grpNum != 0 ){
+#endif//defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
+	    checkCudaErrors(cudaStreamSynchronize(sinfo->stream[sidx ^ 1]));
+	    if( blck.x > MAX_BLOCKS_PER_GRID )
+	      checkCudaErrors(cudaStreamSynchronize(sinfo->stream[sidx ]));
+#   if  defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
+	  }/* if( grpNum != 0 ){ */
+#endif//defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
+	}/* if( LETsteps > 0 ){ */
 	//-----------------------------------------------------------------
 	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
 	  //---------------------------------------------------------------
@@ -3052,6 +3060,7 @@ void calcGravity_dev
 	//-----------------------------------------------------------------
 	idxProcs += numProcs;
 	remProcs -= numProcs;
+	LETsteps++;
 	//-----------------------------------------------------------------
 
 	//-----------------------------------------------------------------
@@ -3105,9 +3114,11 @@ void calcGravity_dev
 
       //-------------------------------------------------------------------
       sinfo->idx = sidx;
+#if 0
       checkCudaErrors(cudaDeviceSynchronize());
       /* checkCudaErrors(cudaStreamSynchronize(sinfo->stream[sidx    ])); */
       /* checkCudaErrors(cudaStreamSynchronize(sinfo->stream[sidx ^ 1])); */
+#endif
       //-------------------------------------------------------------------
 #ifdef  DBG_LETGEN_ON_GPU
       fprintf(stdout, "force calculation finished on rank %d\n", mpi.rank);
@@ -3320,6 +3331,32 @@ void calcGravity_dev
 #ifdef  EXEC_BENCHMARK
   elapsed->calcGravity_dev += *time;
 #endif//EXEC_BENCHMARK
+  //-----------------------------------------------------------------------
+/* #if 0 */
+/*   const int nblocks = NBLOCKS_PER_SM * devProp.numSM; */
+/* #ifdef  USE_SMID_TO_GET_BUFID */
+/*   int last = 0; */
+/*   int num = 0; */
+/*   int *smid_dev;  mycudaMalloc    ((void **)&smid_dev, sizeof(int) * devProp.numSM); */
+/*   int *smid_hst;  mycudaMallocHost((void **)&smid_hst, sizeof(int) * devProp.numSM); */
+/*   for(int ii = 0; ii < 64; ii++) */
+/*     if( devProp.smid[ii] != -1 ){ */
+/*       smid_hst[num] = devProp.smid[ii];      num++; */
+/*       last = ii; */
+/*     } */
+/*   last++; */
+/*   checkCudaErrors(cudaMemcpy(smid_dev, smid_hst, sizeof(int) * devProp.numSM, cudaMemcpyHostToDevice)); */
+/*   initFreeLst<<<1, NBLOCKS_PER_SM * last>>>(nblocks, buf.freeLst, NBLOCKS_PER_SM * last, smid_dev); */
+/*   mycudaFree    (smid_dev); */
+/*   mycudaFreeHost(smid_hst); */
+/* #else///USE_SMID_TO_GET_BUFID */
+/*   initFreeLst<<<1, nblocks>>>(nblocks, buf.freeLst */
+/* #ifndef TRY_MODE_ABOUT_BUFFER */
+/* 			      , buf.freeNum, buf.active */
+/* #endif//TRY_MODE_ABOUT_BUFFER */
+/* 			      ); */
+/* #endif//USE_SMID_TO_GET_BUFID */
+/* #endif */
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/27(Wed) 16:15:51
+                  last updated on 2016/08/05(Fri) 12:05:13
  *                                                                       *
  *    Header File for constructing octree structure                      *
  *                                                                       *
@@ -118,6 +118,14 @@
 #       endif//SMPREF_LET == 1
 #endif//NQUEUE_LET
 //-------------------------------------------------------------------------
+/* #ifndef NQUEUE_LET */
+/* #          if  SMPREF_LET == 1 */
+/* #define NQUEUE_LET (DIV_NTHREADS_MAKE_LET(12288) - 1) */
+/* #       else///SMPREF_LET == 1 */
+/* #define NQUEUE_LET (DIV_NTHREADS_MAKE_LET( 4096) - 1) */
+/* #       endif//SMPREF_LET == 1 */
+/* #endif//NQUEUE_LET */
+//-------------------------------------------------------------------------
 
 
 //-------------------------------------------------------------------------
@@ -135,6 +143,9 @@ extern "C"
 #ifdef  BUILD_LET_ON_DEVICE
 			  int **numSend_hst, int **numSend_dev,
 #endif//BUILD_LET_ON_DEVICE
+#ifdef  ALLOCATE_LETBUFFER
+			  uint **buf, soaTreeWalkBuf *treebuf,
+#endif//ALLOCATE_LETBUFFER
 			  cudaStream_t **stream, int *Nstream, const deviceProp gpu, MPIcfg_tree mpi);
   void releaseLETtopology(domainInfo  *info, position  *ipos,
 #ifdef  GADGET_MAC
@@ -143,6 +154,9 @@ extern "C"
 #ifdef  BUILD_LET_ON_DEVICE
 			  int  *numSend_hst, int  *numSend_dev,
 #endif//BUILD_LET_ON_DEVICE
+#ifdef  ALLOCATE_LETBUFFER
+			  uint  *buf,
+#endif//ALLOCATE_LETBUFFER
 			  cudaStream_t  *stream, int  Nstream);
   //-----------------------------------------------------------------------
 #ifdef  DBG_LETGEN_ON_GPU

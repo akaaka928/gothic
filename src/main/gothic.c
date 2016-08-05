@@ -1,6 +1,6 @@
 /************************************************************************* \
  *                                                                       *
-                  last updated on 2016/07/29(Fri) 16:44:53
+                  last updated on 2016/08/05(Fri) 12:03:38
  *                                                                       *
  *    N-body code based on Barnes--Hut tree                              *
  *                                                                       *
@@ -1372,8 +1372,6 @@ int main(int argc, char **argv)
   real *rjmaxBuf;
   soaTreeNode soaNode_dev, soaNode_hst;
   soaMakeTreeBuf soaMakeBuf;
-
-
   const muse alloc_node_dev = allocTreeNode_dev(&more_dev, &pj_dev, &mj_dev,
 #ifdef  CALC_MULTIPOLE_ON_DEVICE
 						&bmax_dev, &node2cell_dev, &gsync0, &gsync1, devProp,
@@ -1459,6 +1457,10 @@ int main(int argc, char **argv)
 #endif//GADGET_MAC
   int Nstream_let;
   cudaStream_t *stream_let;
+#ifdef  ALLOCATE_LETBUFFER
+  uint *buf4LET;
+  soaTreeWalkBuf soaWalk_dev;
+#endif//ALLOCATE_LETBUFFER
   const muse alloc_LETtopology = configLETtopology(&nodeInfo, &ipos,
 #ifdef  GADGET_MAC
 						   &amin,
@@ -1466,8 +1468,25 @@ int main(int argc, char **argv)
 #ifdef  BUILD_LET_ON_DEVICE
 						   &numSend_hst, &numSend_dev,
 #endif//BUILD_LET_ON_DEVICE
+#ifdef  ALLOCATE_LETBUFFER
+						   &buf4LET, &soaWalk_dev,
+#endif//ALLOCATE_LETBUFFER
 						   &stream_let, &Nstream_let, devProp, letcfg);
 #endif//SERIALIZED_EXECUTION
+  //-----------------------------------------------------------------------
+#if 0
+  /* if there is only one CUDA stream... */
+  for(int ii = 0; ii < Nstream_let; ii++)
+    stream_let[ii] = stream[0];
+  stream[1] = stream[0];
+#endif
+  //-----------------------------------------------------------------------
+#if 0
+  /* if there is only two CUDA stream... */
+  for(int ii = 0; ii < Nstream_let; ii++)
+    stream_let[ii] = stream[1];
+  stream[1] = stream[0];
+#endif
   //-----------------------------------------------------------------------
 #ifdef COMPARE_WITH_DIRECT_SOLVER
   static char accfile[16];
@@ -1609,7 +1628,9 @@ int main(int argc, char **argv)
   /* declarations of arrays to prevent for stack overflow */
   int *fail_dev;
   uint *buffer, *freeLst;
+#ifndef ALLOCATE_LETBUFFER
   soaTreeWalkBuf soaWalk_dev;
+#endif//ALLOCATE_LETBUFFER
 #   if  !defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
   uint *freeNum;
   int *active;
@@ -1651,9 +1672,9 @@ int main(int argc, char **argv)
       queryFreeDeviceMemory(&free, &total);      used = total - free;
       //-------------------------------------------------------------------
       fprintf(fp, "Allocated memory on device per process: %zu B (%zu GiB, %zu MiB)\n", used_mem.device, used_mem.device >> 30, used_mem.device >> 20);
-      fprintf(fp, "\tTotal memory on device per process: %zu B (%zu GiB, %zu MiB)\n"       , total, total >> 30, total >> 20);
-      fprintf(fp, "\t Used memory on device per process: %zu B (%zu GiB, %zu MiB; %lf%%)\n",  used,  used >> 30,  used >> 20, 100.0 * (double)used / (double)total);
-      fprintf(fp, "\t Free memory on device per process: %zu B (%zu GiB, %zu MiB; %lf%%)\n",  free,  free >> 30,  free >> 20, 100.0 * (double)free / (double)total);
+      fprintf(fp, "    total memory on device per process: %zu B (%zu GiB, %zu MiB)\n"       , total, total >> 30, total >> 20);
+      fprintf(fp, "     used memory on device per process: %zu B (%zu GiB, %zu MiB; %lf%%)\n",  used,  used >> 30,  used >> 20, 100.0 * (double)used / (double)total);
+      fprintf(fp, "     free memory on device per process: %zu B (%zu GiB, %zu MiB; %lf%%)\n",  free,  free >> 30,  free >> 20, 100.0 * (double)free / (double)total);
       //-------------------------------------------------------------------
       fprintf(fp, "Allocated memory on   host per process: %zu B (%zu GiB, %zu MiB)\n", used_mem.host  , used_mem.host   >> 30, used_mem.host   >> 20);
       //-------------------------------------------------------------------
@@ -3389,6 +3410,9 @@ int main(int argc, char **argv)
 #ifdef  BUILD_LET_ON_DEVICE
 		     numSend_hst, numSend_dev,
 #endif//BUILD_LET_ON_DEVICE
+#ifdef  ALLOCATE_LETBUFFER
+		     buf4LET,
+#endif//ALLOCATE_LETBUFFER
 		     stream_let, Nstream_let);
   free(domDecKey);
   removeORBtopology(ndim, orbCfg, domCfg, iparticleSendBuf, iparticleRecvBuf,

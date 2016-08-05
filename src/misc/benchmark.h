@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/03/09(Wed) 13:51:11
+                  last updated on 2016/08/05(Fri) 12:04:43
  *                                                                       *
  *    Header File for Benchmark of N-body Simulation                     *
  *                                                                       *
@@ -104,7 +104,7 @@ typedef struct
   walk_stats Nbuf;
   walk_stats Nj;
   ulong Ninteractions;/* ULONG_MAX is ~10^20, would be enough size */
-  int bufSize;
+  size_t bufSize;
 } tree_metrics;
 //-------------------------------------------------------------------------
 

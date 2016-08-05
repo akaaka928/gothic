@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/21(Thu) 11:59:36
+                  last updated on 2016/08/05(Fri) 15:07:40
  *                                                                       *
  *    Header File for Definition about Structures of N-body Simulation   *
  *                                                                       *
@@ -30,12 +30,12 @@
 /* #define NUM_BODY_MAX (67108864) */
 /* /\* 2^25 *\/ */
 /* #define NUM_BODY_MAX (33554432) */
-/* /\* 2^24 *\/ */
-/* #define NUM_BODY_MAX (16777216) */
+/* 2^24 */
+#define NUM_BODY_MAX (16777216)
 /* /\* 2^23 *\/ */
 /* #define NUM_BODY_MAX (8388608) */
-/* 2^22 */
-#define NUM_BODY_MAX (4194304)
+/* /\* 2^22 *\/ */
+/* #define NUM_BODY_MAX (4194304) */
 /* /\* 2^21 *\/ */
 /* #define NUM_BODY_MAX (2097152) */
 /* /\* 2^20 *\/ */
