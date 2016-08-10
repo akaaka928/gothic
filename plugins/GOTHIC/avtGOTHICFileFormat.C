@@ -103,132 +103,132 @@ void __chkHDF5err(herr_t err, const char *file, const int line)
 //-------------------------------------------------------------------------
 typedef unsigned long int ulong;
 //-------------------------------------------------------------------------
-typedef struct
-{
-  ulong idx;
-  double t0, t1;
-  float dt;
-  float  x,  y,  z;
-  float vx, vy, vz;
-  float ax, ay, az;
-  float m, pot;
-} nbodyBlockSP;
+// typedef struct
+// {
+//   ulong idx;
+//   double t0, t1;
+//   float dt;
+//   float  x,  y,  z;
+//   float vx, vy, vz;
+//   float ax, ay, az;
+//   float m, pot;
+// } nbodyBlockSP;
 //-------------------------------------------------------------------------
-typedef struct
-{
-  ulong idx;
-  double t0, t1;
-  double dt;
-  double  x,  y,  z;
-  double vx, vy, vz;
-  double ax, ay, az;
-  double m, pot;
-} nbodyBlockDP;
+// typedef struct
+// {
+//   ulong idx;
+//   double t0, t1;
+//   double dt;
+//   double  x,  y,  z;
+//   double vx, vy, vz;
+//   double ax, ay, az;
+//   double m, pot;
+// } nbodyBlockDP;
 //-------------------------------------------------------------------------
-typedef struct
-{
-  ulong idx;
-  float  x,  y,  z;
-  float vx, vy, vz;
-  float ax, ay, az;
-  float m, pot;
-} nbodyShareSP;
+// typedef struct
+// {
+//   ulong idx;
+//   float  x,  y,  z;
+//   float vx, vy, vz;
+//   float ax, ay, az;
+//   float m, pot;
+// } nbodyShareSP;
 //-------------------------------------------------------------------------
-typedef struct
-{
-  ulong idx;
-  double  x,  y,  z;
-  double vx, vy, vz;
-  double ax, ay, az;
-  double m, pot;
-} nbodyShareDP;
+// typedef struct
+// {
+//   ulong idx;
+//   double  x,  y,  z;
+//   double vx, vy, vz;
+//   double ax, ay, az;
+//   double m, pot;
+// } nbodyShareDP;
 //-------------------------------------------------------------------------
-typedef struct
-{
-  hid_t blockSP, blockDP;
-  hid_t shareSP, shareDP;
-} hdf5struct;
+// typedef struct
+// {
+//   hid_t blockSP, blockDP;
+//   hid_t shareSP, shareDP;
+// } hdf5struct;
 //-------------------------------------------------------------------------
-void createHDF5DataType(hdf5struct *type)
-{
-  //-----------------------------------------------------------------------
-  /* commit data type of nbodyBlockSP */
-  type->blockSP = H5Tcreate(H5T_COMPOUND, sizeof(nbodyBlockSP));
-  chkHDF5err(H5Tinsert(type->blockSP,  "index", HOFFSET(nbodyBlockSP, idx), H5T_NATIVE_ULONG));
-  chkHDF5err(H5Tinsert(type->blockSP,   "time", HOFFSET(nbodyBlockSP,  t0), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->blockSP, "t + dt", HOFFSET(nbodyBlockSP,  t1), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->blockSP,     "dt", HOFFSET(nbodyBlockSP,  dt), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->blockSP,      "x", HOFFSET(nbodyBlockSP,   x), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->blockSP,      "y", HOFFSET(nbodyBlockSP,   y), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->blockSP,      "z", HOFFSET(nbodyBlockSP,   z), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->blockSP,     "vx", HOFFSET(nbodyBlockSP,  vx), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->blockSP,     "vy", HOFFSET(nbodyBlockSP,  vy), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->blockSP,     "vz", HOFFSET(nbodyBlockSP,  vz), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->blockSP,     "ax", HOFFSET(nbodyBlockSP,  ax), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->blockSP,     "ay", HOFFSET(nbodyBlockSP,  ay), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->blockSP,     "az", HOFFSET(nbodyBlockSP,  az), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->blockSP,      "m", HOFFSET(nbodyBlockSP,   m), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->blockSP,    "pot", HOFFSET(nbodyBlockSP, pot), H5T_NATIVE_FLOAT));
-  //-----------------------------------------------------------------------
-  /* commit data type of nbodyBlockDP */
-  type->blockDP = H5Tcreate(H5T_COMPOUND, sizeof(nbodyBlockDP));
-  chkHDF5err(H5Tinsert(type->blockDP,  "index", HOFFSET(nbodyBlockDP, idx), H5T_NATIVE_ULONG));
-  chkHDF5err(H5Tinsert(type->blockDP,   "time", HOFFSET(nbodyBlockDP,  t0), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->blockDP, "t + dt", HOFFSET(nbodyBlockDP,  t1), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->blockDP,     "dt", HOFFSET(nbodyBlockDP,  dt), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->blockDP,      "x", HOFFSET(nbodyBlockDP,   x), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->blockDP,      "y", HOFFSET(nbodyBlockDP,   y), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->blockDP,      "z", HOFFSET(nbodyBlockDP,   z), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->blockDP,     "vx", HOFFSET(nbodyBlockDP,  vx), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->blockDP,     "vy", HOFFSET(nbodyBlockDP,  vy), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->blockDP,     "vz", HOFFSET(nbodyBlockDP,  vz), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->blockDP,     "ax", HOFFSET(nbodyBlockDP,  ax), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->blockDP,     "ay", HOFFSET(nbodyBlockDP,  ay), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->blockDP,     "az", HOFFSET(nbodyBlockDP,  az), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->blockDP,      "m", HOFFSET(nbodyBlockDP,   m), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->blockDP,    "pot", HOFFSET(nbodyBlockDP, pot), H5T_NATIVE_DOUBLE));
-  //-----------------------------------------------------------------------
-  /* commit data type of nbodyShareSP */
-  type->shareSP = H5Tcreate(H5T_COMPOUND, sizeof(nbodyShareSP));
-  chkHDF5err(H5Tinsert(type->shareSP, "index", HOFFSET(nbodyShareSP, idx), H5T_NATIVE_ULONG));
-  chkHDF5err(H5Tinsert(type->shareSP,     "x", HOFFSET(nbodyShareSP,   x), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->shareSP,     "y", HOFFSET(nbodyShareSP,   y), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->shareSP,     "z", HOFFSET(nbodyShareSP,   z), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->shareSP,    "vx", HOFFSET(nbodyShareSP,  vx), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->shareSP,    "vy", HOFFSET(nbodyShareSP,  vy), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->shareSP,    "vz", HOFFSET(nbodyShareSP,  vz), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->shareSP,    "ax", HOFFSET(nbodyShareSP,  ax), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->shareSP,    "ay", HOFFSET(nbodyShareSP,  ay), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->shareSP,    "az", HOFFSET(nbodyShareSP,  az), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->shareSP,     "m", HOFFSET(nbodyShareSP,   m), H5T_NATIVE_FLOAT));
-  chkHDF5err(H5Tinsert(type->shareSP,   "pot", HOFFSET(nbodyShareSP, pot), H5T_NATIVE_FLOAT));
-  //-----------------------------------------------------------------------
-  /* commit data type of nbodyShareDP */
-  type->shareDP = H5Tcreate(H5T_COMPOUND, sizeof(nbodyShareDP));
-  chkHDF5err(H5Tinsert(type->shareDP, "index", HOFFSET(nbodyShareDP, idx), H5T_NATIVE_ULONG));
-  chkHDF5err(H5Tinsert(type->shareDP,     "x", HOFFSET(nbodyShareDP,   x), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->shareDP,     "y", HOFFSET(nbodyShareDP,   y), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->shareDP,     "z", HOFFSET(nbodyShareDP,   z), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->shareDP,    "vx", HOFFSET(nbodyShareDP,  vx), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->shareDP,    "vy", HOFFSET(nbodyShareDP,  vy), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->shareDP,    "vz", HOFFSET(nbodyShareDP,  vz), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->shareDP,    "ax", HOFFSET(nbodyShareDP,  ax), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->shareDP,    "ay", HOFFSET(nbodyShareDP,  ay), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->shareDP,    "az", HOFFSET(nbodyShareDP,  az), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->shareDP,     "m", HOFFSET(nbodyShareDP,   m), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->shareDP,   "pot", HOFFSET(nbodyShareDP, pot), H5T_NATIVE_DOUBLE));
-  //-----------------------------------------------------------------------
-}
+// void createHDF5DataType(hdf5struct *type)
+// {
+//   //-----------------------------------------------------------------------
+//   /* commit data type of nbodyBlockSP */
+//   type->blockSP = H5Tcreate(H5T_COMPOUND, sizeof(nbodyBlockSP));
+//   chkHDF5err(H5Tinsert(type->blockSP,  "index", HOFFSET(nbodyBlockSP, idx), H5T_NATIVE_ULONG));
+//   chkHDF5err(H5Tinsert(type->blockSP,   "time", HOFFSET(nbodyBlockSP,  t0), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->blockSP, "t + dt", HOFFSET(nbodyBlockSP,  t1), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->blockSP,     "dt", HOFFSET(nbodyBlockSP,  dt), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->blockSP,      "x", HOFFSET(nbodyBlockSP,   x), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->blockSP,      "y", HOFFSET(nbodyBlockSP,   y), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->blockSP,      "z", HOFFSET(nbodyBlockSP,   z), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->blockSP,     "vx", HOFFSET(nbodyBlockSP,  vx), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->blockSP,     "vy", HOFFSET(nbodyBlockSP,  vy), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->blockSP,     "vz", HOFFSET(nbodyBlockSP,  vz), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->blockSP,     "ax", HOFFSET(nbodyBlockSP,  ax), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->blockSP,     "ay", HOFFSET(nbodyBlockSP,  ay), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->blockSP,     "az", HOFFSET(nbodyBlockSP,  az), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->blockSP,      "m", HOFFSET(nbodyBlockSP,   m), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->blockSP,    "pot", HOFFSET(nbodyBlockSP, pot), H5T_NATIVE_FLOAT));
+//   //-----------------------------------------------------------------------
+//   /* commit data type of nbodyBlockDP */
+//   type->blockDP = H5Tcreate(H5T_COMPOUND, sizeof(nbodyBlockDP));
+//   chkHDF5err(H5Tinsert(type->blockDP,  "index", HOFFSET(nbodyBlockDP, idx), H5T_NATIVE_ULONG));
+//   chkHDF5err(H5Tinsert(type->blockDP,   "time", HOFFSET(nbodyBlockDP,  t0), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->blockDP, "t + dt", HOFFSET(nbodyBlockDP,  t1), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->blockDP,     "dt", HOFFSET(nbodyBlockDP,  dt), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->blockDP,      "x", HOFFSET(nbodyBlockDP,   x), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->blockDP,      "y", HOFFSET(nbodyBlockDP,   y), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->blockDP,      "z", HOFFSET(nbodyBlockDP,   z), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->blockDP,     "vx", HOFFSET(nbodyBlockDP,  vx), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->blockDP,     "vy", HOFFSET(nbodyBlockDP,  vy), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->blockDP,     "vz", HOFFSET(nbodyBlockDP,  vz), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->blockDP,     "ax", HOFFSET(nbodyBlockDP,  ax), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->blockDP,     "ay", HOFFSET(nbodyBlockDP,  ay), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->blockDP,     "az", HOFFSET(nbodyBlockDP,  az), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->blockDP,      "m", HOFFSET(nbodyBlockDP,   m), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->blockDP,    "pot", HOFFSET(nbodyBlockDP, pot), H5T_NATIVE_DOUBLE));
+//   //-----------------------------------------------------------------------
+//   /* commit data type of nbodyShareSP */
+//   type->shareSP = H5Tcreate(H5T_COMPOUND, sizeof(nbodyShareSP));
+//   chkHDF5err(H5Tinsert(type->shareSP, "index", HOFFSET(nbodyShareSP, idx), H5T_NATIVE_ULONG));
+//   chkHDF5err(H5Tinsert(type->shareSP,     "x", HOFFSET(nbodyShareSP,   x), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->shareSP,     "y", HOFFSET(nbodyShareSP,   y), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->shareSP,     "z", HOFFSET(nbodyShareSP,   z), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->shareSP,    "vx", HOFFSET(nbodyShareSP,  vx), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->shareSP,    "vy", HOFFSET(nbodyShareSP,  vy), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->shareSP,    "vz", HOFFSET(nbodyShareSP,  vz), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->shareSP,    "ax", HOFFSET(nbodyShareSP,  ax), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->shareSP,    "ay", HOFFSET(nbodyShareSP,  ay), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->shareSP,    "az", HOFFSET(nbodyShareSP,  az), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->shareSP,     "m", HOFFSET(nbodyShareSP,   m), H5T_NATIVE_FLOAT));
+//   chkHDF5err(H5Tinsert(type->shareSP,   "pot", HOFFSET(nbodyShareSP, pot), H5T_NATIVE_FLOAT));
+//   //-----------------------------------------------------------------------
+//   /* commit data type of nbodyShareDP */
+//   type->shareDP = H5Tcreate(H5T_COMPOUND, sizeof(nbodyShareDP));
+//   chkHDF5err(H5Tinsert(type->shareDP, "index", HOFFSET(nbodyShareDP, idx), H5T_NATIVE_ULONG));
+//   chkHDF5err(H5Tinsert(type->shareDP,     "x", HOFFSET(nbodyShareDP,   x), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->shareDP,     "y", HOFFSET(nbodyShareDP,   y), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->shareDP,     "z", HOFFSET(nbodyShareDP,   z), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->shareDP,    "vx", HOFFSET(nbodyShareDP,  vx), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->shareDP,    "vy", HOFFSET(nbodyShareDP,  vy), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->shareDP,    "vz", HOFFSET(nbodyShareDP,  vz), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->shareDP,    "ax", HOFFSET(nbodyShareDP,  ax), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->shareDP,    "ay", HOFFSET(nbodyShareDP,  ay), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->shareDP,    "az", HOFFSET(nbodyShareDP,  az), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->shareDP,     "m", HOFFSET(nbodyShareDP,   m), H5T_NATIVE_DOUBLE));
+//   chkHDF5err(H5Tinsert(type->shareDP,   "pot", HOFFSET(nbodyShareDP, pot), H5T_NATIVE_DOUBLE));
+//   //-----------------------------------------------------------------------
+// }
 //-------------------------------------------------------------------------
-void removeHDF5DataType(hdf5struct  type)
-{
-  //-----------------------------------------------------------------------
-  chkHDF5err(H5Tclose(type.blockSP));
-  chkHDF5err(H5Tclose(type.blockDP));
-  chkHDF5err(H5Tclose(type.shareSP));
-  chkHDF5err(H5Tclose(type.shareDP));
-  //-----------------------------------------------------------------------
-}
+// void removeHDF5DataType(hdf5struct  type)
+// {
+//   //-----------------------------------------------------------------------
+//   chkHDF5err(H5Tclose(type.blockSP));
+//   chkHDF5err(H5Tclose(type.blockDP));
+//   chkHDF5err(H5Tclose(type.shareSP));
+//   chkHDF5err(H5Tclose(type.shareDP));
+//   //-----------------------------------------------------------------------
+// }
 //-------------------------------------------------------------------------
 
 
@@ -304,13 +304,13 @@ avtGOTHICFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
   // add scalar variables
   avtScalarMetaData *pot = new avtScalarMetaData;  pot->meshName = meshname;  pot->centering = AVT_NODECENT;  pot->hasUnits = false;
   avtScalarMetaData *idx = new avtScalarMetaData;  idx->meshName = meshname;  idx->centering = AVT_NODECENT;  idx->hasUnits = false;
-  var << "pot";  pot->name = var.str();  md->Add(pot);  var.str("");
-  var << "idx";  idx->name = var.str();  md->Add(idx);  var.str("");
+  var << meshname << "/potential";  pot->name = var.str();  md->Add(pot);  var.str("");
+  var << meshname << "/index"    ;  idx->name = var.str();  md->Add(idx);  var.str("");
   // add vector variables
   avtVectorMetaData *acc = new avtVectorMetaData;  acc->meshName = meshname;  acc->centering = AVT_NODECENT;  acc->hasUnits = false;  acc->varDim = 3;
   avtVectorMetaData *vel = new avtVectorMetaData;  vel->meshName = meshname;  vel->centering = AVT_NODECENT;  vel->hasUnits = false;  vel->varDim = 3;
-  var << "acc";  acc->name = var.str();  md->Add(acc);  var.str("");
-  var << "vel";  vel->name = var.str();  md->Add(vel);  var.str("");
+  var << meshname << "/acceleration";  acc->name = var.str();  md->Add(acc);  var.str("");
+  var << meshname << "/velocity"    ;  vel->name = var.str();  md->Add(vel);  var.str("");
 }
 
 
@@ -346,12 +346,6 @@ avtGOTHICFileFormat::GetMesh(const char *meshname)
     chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &useDP));
     chkHDF5err(H5Aclose(attribute));
 
-    // read blockTimeStep
-    int blockTimeStep;
-    attribute = H5Aopen(group, "blockTimeStep", H5P_DEFAULT);
-    chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &blockTimeStep));
-    chkHDF5err(H5Aclose(attribute));
-
     const int ndims = 3;
     ulong num;
     // read number of nodes from the file (written as an attribute)
@@ -360,42 +354,25 @@ avtGOTHICFileFormat::GetMesh(const char *meshname)
     chkHDF5err(H5Aclose(attribute));
     int nnodes = (int)num;
 
-    // prepare datatype
-    hdf5struct type;
-    createHDF5DataType(&type);
-
+    hid_t dataset = H5Dopen(group, "position", H5P_DEFAULT);
     if( useDP == 0 ){
+      // read the XYZ coordinates from the file
+      float *position = new float[nnodes * 4];
+      chkHDF5err(H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, position));
+
       // create the vtkPoints object and copy points into it
       vtkPoints *points = vtkPoints::New();
       points->SetNumberOfPoints(nnodes);
       float *pts = (float *)points->GetVoidPointer(0);
-
-      // read the XYZ coordinates from the file
-      hid_t dataset = H5Dopen(group, "data", H5P_DEFAULT);
-      if( blockTimeStep == 1 ){
-	nbodyBlockSP *body = new nbodyBlockSP[nnodes];
-	chkHDF5err(H5Dread(dataset, type.blockSP, H5S_ALL, H5S_ALL, H5P_DEFAULT, body));
-	for(int ii = 0; ii < nnodes; ii++){
-	  pts[    3 * ii] = body[ii].x;
-	  pts[1 + 3 * ii] = body[ii].y;
-	  pts[2 + 3 * ii] = body[ii].z;
-	}// for(int ii = 0; ii < nnodes; ii++){
-	delete [] body;
-      }// if( blockTimeStep == 1 ){
-      else{
-	nbodyShareSP *body = new nbodyShareSP[nnodes];
-	chkHDF5err(H5Dread(dataset, type.shareSP, H5S_ALL, H5S_ALL, H5P_DEFAULT, body));
-	for(int ii = 0; ii < nnodes; ii++){
-	  pts[    3 * ii] = body[ii].x;
-	  pts[1 + 3 * ii] = body[ii].y;
-	  pts[2 + 3 * ii] = body[ii].z;
-	}// for(int ii = 0; ii < nnodes; ii++){
-	delete [] body;
-      }// else{
-      chkHDF5err(H5Dclose(dataset));
-      removeHDF5DataType(type);
+      for(int ii = 0; ii < nnodes; ii++){
+	pts[    3 * ii] = position[    4 * ii];
+	pts[1 + 3 * ii] = position[1 + 4 * ii];
+	pts[2 + 3 * ii] = position[2 + 4 * ii];
+      }// for(int ii = 0; ii < nnodes; ii++){
+      delete [] position;
 
       // close the target file
+      chkHDF5err(H5Dclose(dataset));
       chkHDF5err(H5Gclose(group));
       chkHDF5err(H5Fclose(target));
 
@@ -413,37 +390,23 @@ avtGOTHICFileFormat::GetMesh(const char *meshname)
       return ugrid;
     }// if( useDP == 0 ){
     else{
+      // read the XYZ coordinates from the file
+      double *position = new double[nnodes * 4];
+      chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, position));
+
       // create the vtkPoints object and copy points into it
       vtkPoints *points = vtkPoints::New();
       points->SetNumberOfPoints(nnodes);
       double *pts = (double *)points->GetVoidPointer(0);
-
-      // read the XYZ coordinates from the file
-      hid_t dataset = H5Dopen(group, "data", H5P_DEFAULT);
-      if( blockTimeStep == 1 ){
-	nbodyBlockDP *body = new nbodyBlockDP[nnodes];
-	chkHDF5err(H5Dread(dataset, type.blockDP, H5S_ALL, H5S_ALL, H5P_DEFAULT, body));
-	for(int ii = 0; ii < nnodes; ii++){
-	  pts[    3 * ii] = body[ii].x;
-	  pts[1 + 3 * ii] = body[ii].y;
-	  pts[2 + 3 * ii] = body[ii].z;
-	}// for(int ii = 0; ii < nnodes; ii++){
-	delete [] body;
-      }// if( blockTimeStep == 1 ){
-      else{
-	nbodyShareDP *body = new nbodyShareDP[nnodes];
-	chkHDF5err(H5Dread(dataset, type.shareDP, H5S_ALL, H5S_ALL, H5P_DEFAULT, body));
-	for(int ii = 0; ii < nnodes; ii++){
-	  pts[    3 * ii] = body[ii].x;
-	  pts[1 + 3 * ii] = body[ii].y;
-	  pts[2 + 3 * ii] = body[ii].z;
-	}// for(int ii = 0; ii < nnodes; ii++){
-	delete [] body;
-      }// else{
-      chkHDF5err(H5Dclose(dataset));
-      removeHDF5DataType(type);
+      for(int ii = 0; ii < nnodes; ii++){
+	pts[    3 * ii] = position[    4 * ii];
+	pts[1 + 3 * ii] = position[1 + 4 * ii];
+	pts[2 + 3 * ii] = position[2 + 4 * ii];
+      }// for(int ii = 0; ii < nnodes; ii++){
+      delete [] position;
 
       // close the target file
+      chkHDF5err(H5Dclose(dataset));
       chkHDF5err(H5Gclose(group));
       chkHDF5err(H5Fclose(target));
 
@@ -487,13 +450,19 @@ avtGOTHICFileFormat::GetMesh(const char *meshname)
 vtkDataArray *
 avtGOTHICFileFormat::GetVar(const char *varname)
 {
+  // extract meshname and variable from varname (varname = meshname/variable)
+  const string str = varname;
+  string::size_type pos = str.find_last_of("/");
+  string meshname = str.substr(0, pos);
+  string variable = str.substr(pos + 1, str.size() - pos);
+
   // open the target file
   const char* filename = GetFilename();
   hid_t target = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
 
   ulong ulnum;
   // read number of particles from the file (written as an attribute)
-  hid_t group = H5Gopen(target, "nbody", H5P_DEFAULT);
+  hid_t group = H5Gopen(target, meshname.c_str(), H5P_DEFAULT);
   hid_t attribute = H5Aopen(group, "number", H5P_DEFAULT);
   chkHDF5err(H5Aread(attribute, H5T_NATIVE_ULONG, &ulnum));
   chkHDF5err(H5Aclose(attribute));
@@ -505,131 +474,70 @@ avtGOTHICFileFormat::GetVar(const char *varname)
   chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &useDP));
   chkHDF5err(H5Aclose(attribute));
 
-  // read blockTimeStep
-  int blockTimeStep;
-  attribute = H5Aopen(group, "blockTimeStep", H5P_DEFAULT);
-  chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &blockTimeStep));
-  chkHDF5err(H5Aclose(attribute));
-
-  // prepare datatype
-  hdf5struct type;
-  createHDF5DataType(&type);
-
-  if( useDP == 0 ){
-    if( blockTimeStep == 1 ){
-      // read the N-body data from the file
-      nbodyBlockSP *body = new nbodyBlockSP[num];
-      hid_t dataset = H5Dopen(group, "data", H5P_DEFAULT);
-      chkHDF5err(H5Dread(dataset, type.blockSP, H5S_ALL, H5S_ALL, H5P_DEFAULT, body));
+  if( strcmp(variable.c_str(), "index") != 0 ){
+    if( useDP == 0 ){
+      // read potential
+      float *array = new float[num * 4];
+      hid_t dataset = H5Dopen(group, "acceleration", H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, array));
       chkHDF5err(H5Dclose(dataset));
-      removeHDF5DataType(type);
       chkHDF5err(H5Gclose(group));
+
+      // close the target file
       chkHDF5err(H5Fclose(target));
-      // return potential
-      if( strcmp(varname, "pot") == 0 ){
-	vtkFloatArray *rv = vtkFloatArray::New();
-	rv->SetNumberOfTuples(num);
-	for(int ii = 0; ii < num; ii++)
-	  rv->SetTuple1(ii, body[ii].pot);
-	delete [] body;
-	return rv;
-      }// if( strcmp(varname, "pot") == 0 ){
-      // return index
-      if( strcmp(varname, "idx") == 0 ){
-	vtkUnsignedLongArray *rv = vtkUnsignedLongArray::New();
-	rv->SetNumberOfTuples(num);
-	for(int ii = 0; ii < num; ii++)
-	  rv->SetTuple1(ii, body[ii].idx);
-	delete [] body;
-	return rv;
-      }// if( strcmp(varname, "idx") == 0 ){
-    }// if( blockTimeStep == 1 ){
+
+      vtkFloatArray *rv = vtkFloatArray::New();
+      rv->SetNumberOfTuples(num);
+      for(int ii = 0; ii < num; ii++)
+	rv->SetTuple1(ii, array[3 + 4 * ii]);
+
+      // delete temporary arrays
+      delete [] array;
+
+      return rv;
+    }// if( useDP == 0 ){
     else{
-      // read the N-body data from the file
-      nbodyShareSP *body = new nbodyShareSP[num];
-      hid_t dataset = H5Dopen(group, "data", H5P_DEFAULT);
-      chkHDF5err(H5Dread(dataset, type.shareSP, H5S_ALL, H5S_ALL, H5P_DEFAULT, body));
+      // read potential
+      double *array = new double[num * 4];
+      hid_t dataset = H5Dopen(group, "acceleration", H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, array));
       chkHDF5err(H5Dclose(dataset));
-      removeHDF5DataType(type);
       chkHDF5err(H5Gclose(group));
+
+      // close the target file
       chkHDF5err(H5Fclose(target));
-      // return potential
-      if( strcmp(varname, "pot") == 0 ){
-	vtkFloatArray *rv = vtkFloatArray::New();
-	rv->SetNumberOfTuples(num);
-	for(int ii = 0; ii < num; ii++)
-	  rv->SetTuple1(ii, body[ii].pot);
-	delete [] body;
-	return rv;
-      }// if( strcmp(varname, "pot") == 0 ){
-      // return index
-      if( strcmp(varname, "idx") == 0 ){
-	vtkUnsignedLongArray *rv = vtkUnsignedLongArray::New();
-	rv->SetNumberOfTuples(num);
-	for(int ii = 0; ii < num; ii++)
-	  rv->SetTuple1(ii, body[ii].idx);
-	delete [] body;
-	return rv;
-      }// if( strcmp(varname, "idx") == 0 ){
+
+      vtkDoubleArray *rv = vtkDoubleArray::New();
+      rv->SetNumberOfTuples(num);
+      for(int ii = 0; ii < num; ii++)
+	rv->SetTuple1(ii, array[3 + 4 * ii]);
+
+      // delete temporary arrays
+      delete [] array;
+
+      return rv;
     }// else{
-  }// if( useDP == 0 ){
+  }// if( strcmp(variable.c_str(), "index") != 0 ){
   else{
-    if( blockTimeStep == 1 ){
-      // read the N-body data from the file
-      nbodyBlockDP *body = new nbodyBlockDP[num];
-      hid_t dataset = H5Dopen(group, "data", H5P_DEFAULT);
-      chkHDF5err(H5Dread(dataset, type.blockDP, H5S_ALL, H5S_ALL, H5P_DEFAULT, body));
-      chkHDF5err(H5Dclose(dataset));
-      removeHDF5DataType(type);
-      chkHDF5err(H5Gclose(group));
-      chkHDF5err(H5Fclose(target));
-      // return potential
-      if( strcmp(varname, "pot") == 0 ){
-	vtkDoubleArray *rv = vtkDoubleArray::New();
-	rv->SetNumberOfTuples(num);
-	for(int ii = 0; ii < num; ii++)
-	  rv->SetTuple1(ii, body[ii].pot);
-	delete [] body;
-	return rv;
-      }// if( strcmp(varname, "pot") == 0 ){
-      // return index
-      if( strcmp(varname, "idx") == 0 ){
-	vtkUnsignedLongArray *rv = vtkUnsignedLongArray::New();
-	rv->SetNumberOfTuples(num);
-	for(int ii = 0; ii < num; ii++)
-	  rv->SetTuple1(ii, body[ii].idx);
-	delete [] body;
-	return rv;
-      }// if( strcmp(varname, "idx") == 0 ){
-    }// if( blockTimeStep == 1 ){
-    else{
-      // read the N-body data from the file
-      nbodyShareDP *body = new nbodyShareDP[num];
-      hid_t dataset = H5Dopen(group, "data", H5P_DEFAULT);
-      chkHDF5err(H5Dread(dataset, type.shareDP, H5S_ALL, H5S_ALL, H5P_DEFAULT, body));
-      chkHDF5err(H5Dclose(dataset));
-      removeHDF5DataType(type);
-      chkHDF5err(H5Gclose(group));
-      chkHDF5err(H5Fclose(target));
-      // return potential
-      if( strcmp(varname, "pot") == 0 ){
-	vtkDoubleArray *rv = vtkDoubleArray::New();
-	rv->SetNumberOfTuples(num);
-	for(int ii = 0; ii < num; ii++)
-	  rv->SetTuple1(ii, body[ii].pot);
-	delete [] body;
-	return rv;
-      }// if( strcmp(varname, "pot") == 0 ){
-      // return index
-      if( strcmp(varname, "idx") == 0 ){
-	vtkUnsignedLongArray *rv = vtkUnsignedLongArray::New();
-	rv->SetNumberOfTuples(num);
-	for(int ii = 0; ii < num; ii++)
-	  rv->SetTuple1(ii, body[ii].idx);
-	delete [] body;
-	return rv;
-      }// if( strcmp(varname, "idx") == 0 ){
-    }// else{
+    // read the target variable (index)
+    ulong *array = new ulong[num];
+    hid_t dataset = H5Dopen(group, variable.c_str(), H5P_DEFAULT);
+    chkHDF5err(H5Dread(dataset, H5T_NATIVE_ULONG, H5S_ALL, H5S_ALL, H5P_DEFAULT, array));
+    chkHDF5err(H5Dclose(dataset));
+
+    // close the target file
+    chkHDF5err(H5Gclose(group));
+    chkHDF5err(H5Fclose(target));
+
+    vtkUnsignedLongArray *rv = vtkUnsignedLongArray::New();
+    rv->SetNumberOfTuples(num);
+    for(int ii = 0; ii < num; ii++)
+      rv->SetTuple1(ii, array[ii]);
+
+    // delete temporary arrays
+    delete [] array;
+
+    return rv;
   }// else{
 }
 
@@ -653,13 +561,19 @@ avtGOTHICFileFormat::GetVar(const char *varname)
 vtkDataArray *
 avtGOTHICFileFormat::GetVectorVar(const char *varname)
 {
+  // extract meshname and variable from varname (varname = meshname/variable)
+  const string str = varname;
+  string::size_type pos = str.find_last_of("/");
+  string meshname = str.substr(0, pos);
+  string variable = str.substr(pos + 1, str.size() - pos);
+
   // open the target file
   const char* filename = GetFilename();
   hid_t target = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
 
   ulong ulnum;
   // read number of particles from the file (written as an attribute)
-  hid_t group = H5Gopen(target, "nbody", H5P_DEFAULT);
+  hid_t group = H5Gopen(target, meshname.c_str(), H5P_DEFAULT);
   hid_t attribute = H5Aopen(group, "number", H5P_DEFAULT);
   chkHDF5err(H5Aread(attribute, H5T_NATIVE_ULONG, &ulnum));
   chkHDF5err(H5Aclose(attribute));
@@ -678,146 +592,124 @@ avtGOTHICFileFormat::GetVectorVar(const char *varname)
   chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &blockTimeStep));
   chkHDF5err(H5Aclose(attribute));
 
-  // prepare datatype
-  hdf5struct type;
-  createHDF5DataType(&type);
-
-  if( useDP == 0 ){
-    // allocate data array
-    vtkFloatArray *rv = vtkFloatArray::New();
-    rv->SetNumberOfComponents(ndims);
-    rv->SetNumberOfTuples(num);
-    float *dat = (float *)rv->GetVoidPointer(0);
-    if( blockTimeStep == 1 ){
-      // read the N-body data from the file
-      nbodyBlockSP *body = new nbodyBlockSP[num];
-      hid_t dataset = H5Dopen(group, "data", H5P_DEFAULT);
-      chkHDF5err(H5Dread(dataset, type.blockSP, H5S_ALL, H5S_ALL, H5P_DEFAULT, body));
+  if( (blockTimeStep == 1) || (strcmp(variable.c_str(), "velocity") != 0) ){
+    if( useDP == 0 ){
+      // read the target variable
+      float *array = new float[num * 4];
+      hid_t dataset = H5Dopen(group, variable.c_str(), H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, array));
       chkHDF5err(H5Dclose(dataset));
-      removeHDF5DataType(type);
       chkHDF5err(H5Gclose(group));
       chkHDF5err(H5Fclose(target));
-      // return velocity
-      if( strcmp(varname, "vel") == 0 ){
-	for(int ii = 0; ii < num; ii++){
-	  dat[    3 * ii] = body[ii].vx;
-	  dat[1 + 3 * ii] = body[ii].vy;
-	  dat[2 + 3 * ii] = body[ii].vz;
-	}// for(int ii = 0; ii < num; ii++){
-	delete [] body;
-	return rv;
-      }// if( strcmp(varname, "vel") == 0 ){
-      // return acceleration
-      if( strcmp(varname, "acc") == 0 ){
-	for(int ii = 0; ii < num; ii++){
-	  dat[    3 * ii] = body[ii].ax;
-	  dat[1 + 3 * ii] = body[ii].ay;
-	  dat[2 + 3 * ii] = body[ii].az;
-	}// for(int ii = 0; ii < num; ii++){
-	delete [] body;
-	return rv;
-      }// if( strcmp(varname, "acc") == 0 ){
-    }// if( blockTimeStep == 1 ){
+
+      vtkFloatArray *rv = vtkFloatArray::New();
+      rv->SetNumberOfComponents(ndims);
+      rv->SetNumberOfTuples(num);
+      float *dat = (float *)rv->GetVoidPointer(0);
+      for(int ii = 0; ii < num; ii++){
+	dat[    3 * ii] = array[    4 * ii];
+	dat[1 + 3 * ii] = array[1 + 4 * ii];
+	dat[2 + 3 * ii] = array[2 + 4 * ii];
+      }// for(int ii = 0; ii < num; ii++){
+
+      // delete temporary arrays
+      delete [] array;
+
+      return rv;
+    }// if( useDP == 0 ){
     else{
+      // read the target variable
+      double *array = new double[num * 4];
+      hid_t dataset = H5Dopen(group, variable.c_str(), H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, array));
+      chkHDF5err(H5Dclose(dataset));
+      chkHDF5err(H5Gclose(group));
+      chkHDF5err(H5Fclose(target));
+
       vtkDoubleArray *rv = vtkDoubleArray::New();
       rv->SetNumberOfComponents(ndims);
       rv->SetNumberOfTuples(num);
       double *dat = (double *)rv->GetVoidPointer(0);
-      // read the N-body data from the file
-      nbodyShareSP *body = new nbodyShareSP[num];
-      hid_t dataset = H5Dopen(group, "data", H5P_DEFAULT);
-      chkHDF5err(H5Dread(dataset, type.shareSP, H5S_ALL, H5S_ALL, H5P_DEFAULT, body));
-      chkHDF5err(H5Dclose(dataset));
-      removeHDF5DataType(type);
-      chkHDF5err(H5Gclose(group));
-      chkHDF5err(H5Fclose(target));
-      // return velocity
-      if( strcmp(varname, "vel") == 0 ){
-	for(int ii = 0; ii < num; ii++){
-	  dat[    3 * ii] = body[ii].vx;
-	  dat[1 + 3 * ii] = body[ii].vy;
-	  dat[2 + 3 * ii] = body[ii].vz;
-	}// for(int ii = 0; ii < num; ii++){
-	delete [] body;
-	return rv;
-      }// if( strcmp(varname, "vel") == 0 ){
-      // return acceleration
-      if( strcmp(varname, "acc") == 0 ){
-	for(int ii = 0; ii < num; ii++){
-	  dat[    3 * ii] = body[ii].ax;
-	  dat[1 + 3 * ii] = body[ii].ay;
-	  dat[2 + 3 * ii] = body[ii].az;
-	}// for(int ii = 0; ii < num; ii++){
-	delete [] body;
-	return rv;
-      }// if( strcmp(varname, "acc") == 0 ){
+      for(int ii = 0; ii < num; ii++){
+	dat[    3 * ii] = array[    4 * ii];
+	dat[1 + 3 * ii] = array[1 + 4 * ii];
+	dat[2 + 3 * ii] = array[2 + 4 * ii];
+      }// for(int ii = 0; ii < num; ii++){
+
+      // delete temporary arrays
+      delete [] array;
+
+      return rv;
     }// else{
-  }// if( useDP == 0 ){
+  }// if( (blockTimeStep == 1) || (strcmp(variable.c_str(), "velocity") != 0) ){
   else{
-    // allocate data array
-    vtkDoubleArray *rv = vtkDoubleArray::New();
-    rv->SetNumberOfComponents(ndims);
-    rv->SetNumberOfTuples(num);
-    double *dat = (double *)rv->GetVoidPointer(0);
-    if( blockTimeStep == 1 ){
-      // read the N-body data from the file
-      nbodyBlockDP *body = new nbodyBlockDP[num];
-      hid_t dataset = H5Dopen(group, "data", H5P_DEFAULT);
-      chkHDF5err(H5Dread(dataset, type.blockDP, H5S_ALL, H5S_ALL, H5P_DEFAULT, body));
+    if( useDP == 0 ){
+      // read the target variable
+      float *vx = new float[num];
+      float *vy = new float[num];
+      float *vz = new float[num];
+      hid_t dataset = H5Dopen(group, "vx", H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, vx));
       chkHDF5err(H5Dclose(dataset));
-      removeHDF5DataType(type);
+      dataset = H5Dopen(group, "vy", H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, vy));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dopen(group, "vz", H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, vz));
+      chkHDF5err(H5Dclose(dataset));
       chkHDF5err(H5Gclose(group));
       chkHDF5err(H5Fclose(target));
-      // return velocity
-      if( strcmp(varname, "vel") == 0 ){
-	for(int ii = 0; ii < num; ii++){
-	  dat[    3 * ii] = body[ii].vx;
-	  dat[1 + 3 * ii] = body[ii].vy;
-	  dat[2 + 3 * ii] = body[ii].vz;
-	}// for(int ii = 0; ii < num; ii++){
-	delete [] body;
-	return rv;
-      }// if( strcmp(varname, "vel") == 0 ){
-      // return acceleration
-      if( strcmp(varname, "acc") == 0 ){
-	for(int ii = 0; ii < num; ii++){
-	  dat[    3 * ii] = body[ii].ax;
-	  dat[1 + 3 * ii] = body[ii].ay;
-	  dat[2 + 3 * ii] = body[ii].az;
-	}// for(int ii = 0; ii < num; ii++){
-	delete [] body;
-	return rv;
-      }// if( strcmp(varname, "acc") == 0 ){
-    }// if( blockTimeStep == 1 ){
+
+      vtkFloatArray *rv = vtkFloatArray::New();
+      rv->SetNumberOfComponents(ndims);
+      rv->SetNumberOfTuples(num);
+      float *dat = (float *)rv->GetVoidPointer(0);
+      for(int ii = 0; ii < num; ii++){
+	dat[    3 * ii] = vx[ii];
+	dat[1 + 3 * ii] = vy[ii];
+	dat[2 + 3 * ii] = vz[ii];
+      }// for(int ii = 0; ii < num; ii++){
+
+      // delete temporary arrays
+      delete [] vx;
+      delete [] vy;
+      delete [] vz;
+
+      return rv;
+    }// if( useDP == 0 ){
     else{
-      // read the N-body data from the file
-      nbodyShareDP *body = new nbodyShareDP[num];
-      hid_t dataset = H5Dopen(group, "data", H5P_DEFAULT);
-      chkHDF5err(H5Dread(dataset, type.shareDP, H5S_ALL, H5S_ALL, H5P_DEFAULT, body));
+      // read the target variable
+      double *vx = new double[num];
+      double *vy = new double[num];
+      double *vz = new double[num];
+      hid_t dataset = H5Dopen(group, "vx", H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, vx));
       chkHDF5err(H5Dclose(dataset));
-      removeHDF5DataType(type);
+      dataset = H5Dopen(group, "vy", H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, vy));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dopen(group, "vz", H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, vz));
+      chkHDF5err(H5Dclose(dataset));
       chkHDF5err(H5Gclose(group));
       chkHDF5err(H5Fclose(target));
-      // return velocity
-      if( strcmp(varname, "vel") == 0 ){
-	for(int ii = 0; ii < num; ii++){
-	  dat[    3 * ii] = body[ii].vx;
-	  dat[1 + 3 * ii] = body[ii].vy;
-	  dat[2 + 3 * ii] = body[ii].vz;
-	}// for(int ii = 0; ii < num; ii++){
-	delete [] body;
-	return rv;
-      }// if( strcmp(varname, "vel") == 0 ){
-      // return acceleration
-      if( strcmp(varname, "acc") == 0 ){
-	for(int ii = 0; ii < num; ii++){
-	  dat[    3 * ii] = body[ii].ax;
-	  dat[1 + 3 * ii] = body[ii].ay;
-	  dat[2 + 3 * ii] = body[ii].az;
-	}// for(int ii = 0; ii < num; ii++){
-	delete [] body;
-	return rv;
-      }// if( strcmp(varname, "acc") == 0 ){
+
+      vtkDoubleArray *rv = vtkDoubleArray::New();
+      rv->SetNumberOfComponents(ndims);
+      rv->SetNumberOfTuples(num);
+      double *dat = (double *)rv->GetVoidPointer(0);
+      for(int ii = 0; ii < num; ii++){
+	dat[    3 * ii] = vx[ii];
+	dat[1 + 3 * ii] = vy[ii];
+	dat[2 + 3 * ii] = vz[ii];
+      }// for(int ii = 0; ii < num; ii++){
+
+      // delete temporary arrays
+      delete [] vx;
+      delete [] vy;
+      delete [] vz;
+
+      return rv;
     }// else{
   }// else{
 }
