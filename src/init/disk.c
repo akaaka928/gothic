@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/06/02(Thu) 14:15:35
+                  last updated on 2016/08/09(Tue) 18:01:27
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Assume balance of force in R and z direction                    *
@@ -2935,7 +2935,7 @@ static inline void leastSquaredMethod(const int num, double * restrict xx, doubl
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-void distributeDiskParticles(ulong *Nuse, nbody_particle *body, const real mass, const disk_data disk)
+void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const disk_data disk)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -3204,15 +3204,24 @@ void distributeDiskParticles(ulong *Nuse, nbody_particle *body, const real mass,
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
-    body[ii].x = (real)xx;    body[ii].vx = (real)vx;
-    body[ii].y = (real)yy;    body[ii].vy = (real)vy;
-    body[ii].z = (real)zz;    body[ii].vz = (real)vz;
+    body.pos[ii].x = (real)xx;
+    body.pos[ii].y = (real)yy;
+    body.pos[ii].z = (real)zz;
+    body.pos[ii].m = mass;
     //---------------------------------------------------------------------
-    body[ii].ax  = body[ii].ay = body[ii].az = ZERO;
-    body[ii].pot = ZERO;
+    body.acc[ii].x = body.acc[ii].y = body.acc[ii].z = body.acc[ii].pot = ZERO;
     //---------------------------------------------------------------------
-    body[ii].m   = mass;
-    body[ii].idx = ii;
+#ifdef  BLOCK_TIME_STEP
+    body.vel[ii].x = (real)vx;
+    body.vel[ii].y = (real)vy;
+    body.vel[ii].z = (real)vz;
+#else///BLOCK_TIME_STEP
+    body.vx[ii] = (real)vx;
+    body.vy[ii] = (real)vy;
+    body.vz[ii] = (real)vz;
+#endif//BLOCK_TIME_STEP
+    //---------------------------------------------------------------------
+    body.idx[ii] = ii;
     //---------------------------------------------------------------------
 #if 0
     fprintf(stderr, "%e\t%e\t%e\t%e\t%e\t%e\n", xx, yy, zz, vx, vy, vz);

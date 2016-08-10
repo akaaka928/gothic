@@ -1,46 +1,44 @@
 
-src/file/io.c,1406
+src/file/io.c,1347
 #define USE_SZIP_COMPRESSION13,887
 void createMPIcfg_dataio(88,4536
-static inline void updateMPIcfg_dataio(103,5190
-static inline void writeConfigFileFormat(121,6020
-void updateConfigFile(134,6758
-void readConfigFile(159,7785
-void readConfigFileParallel(188,9035
-void readSettings(230,10932
-void readSettingsParallel(268,12957
-void writeSettings(322,16049
-void createHDF5DataType(363,18138
-void removeHDF5DataType(443,23196
-void  readTentativeData(461,23963
-void  readTentativeDataParallel(582,29904
-void writeTentativeData(745,38197
-void writeTentativeDataParallel(871,44832
-  union {double d;948,48813
-  union {double d; ulong i;948,48813
-void readTentativeData(1058,53746
-void readTentativeDataParallel(1091,55357
-void writeTentativeData(1149,58506
-void writeTentativeDataParallel(1183,60146
-void  readSnapshot(1250,63541
-void writeSnapshot(1360,68856
-void writeSnapshotParallel(1673,86022
-  union {double d;1866,96299
-  union {double d; ulong i;1866,96299
-  union {double r;1923,98820
-  union {double r; ulong i;1923,98820
-  union {float  r;1926,98966
-  union {float  r; uint  i;1926,98966
-void writeSnapshotMultiGroups(2156,110557
-void readSnapshot(2432,125325
-void writeSnapshot(2471,127160
-void writeSnapshotParallel(2505,128827
-void  readApproxAccel(2570,132141
-void writeApproxAccel(2599,133615
-void dumpBenchmark(2631,135273
-void dumpStatistics(3008,155382
+static inline void updateMPIcfg_dataio(103,5196
+static inline void writeConfigFileFormat(121,6026
+void updateConfigFile(134,6764
+void readConfigFile(159,7791
+void readConfigFileParallel(188,9041
+void readSettings(230,10938
+void readSettingsParallel(268,12963
+void writeSettings(322,16055
+void createHDF5DataType(363,18144
+void removeHDF5DataType(392,19444
+void  readTentativeData(403,19965
+void  readTentativeDataParallel(553,27353
+void writeTentativeData(810,40186
+void writeTentativeDataParallel(1030,51079
+void readTentativeData(1284,64331
+void readTentativeDataParallel(1324,66702
+void writeTentativeData(1417,72450
+void writeTentativeDataParallel(1460,74884
+void  readSnapshot(1570,81160
+void writeSnapshot(1680,86475
+void writeSnapshotParallel(1993,103641
+  union {double d;2186,113918
+  union {double d; ulong i;2186,113918
+  union {double r;2243,116439
+  union {double r; ulong i;2243,116439
+  union {float  r;2246,116585
+  union {float  r; uint  i;2246,116585
+void writeSnapshotMultiGroups(2476,128176
+void readSnapshot(2752,142944
+void writeSnapshot(2796,145241
+void writeSnapshotParallel(2837,147504
+void  readApproxAccel(2936,153004
+void writeApproxAccel(2965,154478
+void dumpBenchmark(2997,156136
+void dumpStatistics(3374,176245
 
-src/file/io.h,737
+src/file/io.h,573
 #define IO_H14,900
 #define IORETRY 44,2046
 #define CONFIG 46,2143
@@ -55,21 +53,15 @@ src/file/io.h,737
 #define ERRFILE_CDF 56,2404
 #define TREE_STAT 58,2510
 #define WALK_STAT 59,2540
-  MPI_Datatype body;67,2794
-  MPI_Offset   head;68,2815
-  MPI_Comm comm;69,2836
-  MPI_Info info;70,2853
-  int rank,71,2870
-  int rank, size;71,2870
-} MPIcfg_dataio;72,2888
-  hid_t nbody;78,3075
-  hid_t position;79,3090
-  hid_t acceleration;80,3108
-  hid_t velocity;82,3154
-  hid_t ibody_time;83,3172
-  hid_t real;85,3216
-  hid_t str4unit;86,3230
-} hdf5struct;87,3248
+  MPI_Offset head;67,2794
+  MPI_Comm comm;68,2813
+  MPI_Info info;69,2830
+  int rank,70,2847
+  int rank, size;70,2847
+} MPIcfg_dataio;71,2865
+  hid_t real;77,3052
+  hid_t str4unit;78,3066
+} hdf5struct;79,3084
 
 src/init/sample.c,168
 #define CFGFOLDER 22,1177
@@ -185,7 +177,7 @@ src/init/magi.h,2746
 #define NKIND_MAX 106,4469
 #define N_PRINT_LINES_ASCII 110,4671
 
-src/init/magi.c,1948
+src/init/magi.c,1947
 #define USE_SZIP_COMPRESSION18,1275
 #define SHIFT_CENTER_PER_COMPONENT20,1380
 #define          RESET_ROTATION_AXIS24,1602
@@ -197,46 +189,46 @@ gsl_rng *GSLRand;GSLRand70,4065
 double gsl_gaussQD_pos[gsl_gaussQD_pos75,4313
 double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[gsl_gaussQD_weight75,4313
 void setDensityProfilePlummer(80,4541
-void setDensityProfileBurkert(111,6060
-void setDensityProfileHernquist(142,7625
-void setDensityProfileNFW(172,9136
-void setDensityProfileMoore(202,10647
-void setDensityProfileEinasto(232,12158
-void setDensityProfileAppKing(262,13662
-void setDensityProfileTwoPower(292,15367
-void setDensityProfileTriPower(332,17408
-void setDensityProfileAppLoweredEvans(370,19589
-void setContributionByCentralBH(434,22795
-void integrateDensityProfile(464,24131
-static inline void findIdx(604,31574
-static inline void getEddingtonFormula(627,32967
-static inline void gaussQuad1dEddington(659,34808
-void integrateEddingtonFormula(696,36754
-static inline double getAsymptoticSersicScale(801,41923
-static inline void writeProfileCfgFormat(803,42149
-void readProfileCfg(878,47428
-void outputFundamentalInformation1033,55917
-static inline void isotropicDistribution(1660,94376
-void shiftCenter(1673,94979
-static inline double getDF(1791,100581
-double distributeSpheroidParticles(1812,101475
-static void evaluateDiskProperties1935,107691
-static void writeDiskData(2036,113896
-int main(2424,136684
-  struct dump 2997,169112
-    double time;2998,169128
-    int nbodies;2999,169145
-    int ndim;3000,169162
-    int nsph;3001,169176
-    int ndark;3002,169190
-    int nstar;3003,169205
-  typedef struct dump header;3005,169225
-  struct dark_particle 3015,169598
-    real mass;3016,169623
-    real pos[pos3017,169638
-    real vel[vel3018,169655
-    real eps;3019,169672
-    int idx;3020,169686
+void setDensityProfileBurkert(111,6106
+void setDensityProfileHernquist(142,7717
+void setDensityProfileNFW(172,9274
+void setDensityProfileMoore(202,10831
+void setDensityProfileEinasto(232,12388
+void setDensityProfileAppKing(262,13938
+void setDensityProfileTwoPower(292,15689
+void setDensityProfileTriPower(332,17776
+void setDensityProfileAppLoweredEvans(370,19957
+void setContributionByCentralBH(429,22942
+void integrateDensityProfile(459,24324
+static inline void findIdx(577,30787
+static inline void getEddingtonFormula(600,32205
+static inline void gaussQuad1dEddington(632,34085
+void integrateEddingtonFormula(669,36031
+static inline double getAsymptoticSersicScale(772,41244
+static inline void writeProfileCfgFormat(774,41470
+void readProfileCfg(849,46749
+void outputFundamentalInformation997,55239
+static inline void isotropicDistribution(1619,93830
+void shiftCenter(1632,94433
+static inline double getDF(1788,101406
+double distributeSpheroidParticles(1805,102191
+static void evaluateDiskProperties1929,108543
+static void writeDiskData(2030,114748
+int main(2417,137535
+  struct dump 2866,161871
+    double time;2867,161887
+    int nbodies;2868,161904
+    int ndim;2869,161921
+    int nsph;2870,161935
+    int ndark;2871,161949
+    int nstar;2872,161964
+  typedef struct dump header;2874,161984
+  struct dark_particle 2884,162357
+    real mass;2885,162382
+    real pos[pos2886,162397
+    real vel[vel2887,162414
+    real eps;2888,162431
+    int idx;2889,162445
 
 src/init/test.c,59
 #define NDATA 8,117
@@ -514,11 +506,11 @@ gsl_rng *GSLRand;GSLRand43,2143
 #define RANDPOS 44,2161
 #define RANDVAL 45,2210
 static inline void isotropicDistribution(50,2406
-static inline real gaussian(64,3068
-void makeUniformSphere(85,3849
-void shiftCenter(114,5241
-void outputFundamentalInformationOfColdSphere162,7318
-int main(219,11028
+static inline real gaussian(64,3105
+void makeUniformSphere(85,3886
+void shiftCenter(120,5527
+void outputFundamentalInformationOfColdSphere194,8704
+int main(251,12414
 
 src/main/gothic.c,1509
 #       undef   LEAP_FROG_INTEGRATOR80,3484
@@ -555,13 +547,13 @@ static inline void  powerModel(216,9740
 static inline void parabolicModel(243,11160
 static inline void setMultipoleMoment281,13502
 static inline void buildTreeStructure396,17676
-static inline void configDistribution623,27538
-static inline void dumpSnapshot712,31193
-static inline void dumpRestarter851,36268
-int main(932,39171
-void analyzeWalkStatistics(3360,141292
-static inline void analyzeTreeStatistics(3404,143169
-void analyzeTreeMetrics(3414,143854
+static inline void configDistribution624,27560
+static inline void dumpSnapshot713,31215
+static inline void dumpRestarter858,36309
+int main(935,39077
+void analyzeWalkStatistics(3352,141302
+static inline void analyzeTreeStatistics(3396,143179
+void analyzeTreeMetrics(3406,143864
 
 src/main/showOptConfig.c,804
 #define NADD 22,1138
@@ -614,11 +606,11 @@ src/misc/device.h,277
 #define WIDEBANK 46,2000
 #define GLOBAL_MEMORY_SYSBUF 54,2293
 
-src/misc/allocate.c,137
-muse allocParticleDataAoS(25,1317
-void  freeParticleDataAoS(52,2673
-muse allocSnapshotArray(68,3354
-void  freeSnapshotArray(111,5737
+src/misc/allocate.c,131
+muse allocParticleData25,1317
+void  freeParticleData89,4564
+muse allocSnapshotArray(163,7743
+void  freeSnapshotArray(206,10126
 
 src/misc/allocate.h,26
 #define ALLOCATE_H14,906
@@ -626,7 +618,7 @@ src/misc/allocate.h,26
 src/misc/allocate_dev.h,30
 #define ALLOCATE_DEV_H14,910
 
-src/misc/benchmark.h,1960
+src/misc/benchmark.h,1963
 #define BENCHMARK_H13,832
 #define BENCHMARK_STEPS 34,1563
 #define WALLCLOCK 39,1781
@@ -681,12 +673,12 @@ src/misc/benchmark.h,1960
   walk_stats Nbuf;104,3570
   walk_stats Nj;105,3589
   ulong Ninteractions;106,3606
-  int bufSize;107,3676
-} tree_metrics;108,3691
-static struct timeval _benchIni,121,4138
-static struct timeval _benchIni, _benchFin;121,4138
-static inline void initStopwatch(123,4258
-static inline void stopStopwatch(131,4476
+  size_t bufSize;107,3676
+} tree_metrics;108,3694
+static struct timeval _benchIni,121,4141
+static struct timeval _benchIni, _benchFin;121,4141
+static inline void initStopwatch(123,4261
+static inline void stopStopwatch(131,4479
 
 src/misc/brent.h,593
 #define BRENT_H13,828
@@ -713,9 +705,9 @@ src/misc/brent.h,593
   int interval;53,2385
 } brentMemory;54,2473
 
-src/misc/structure.h,1609
+src/misc/structure.h,1249
 #define STRUCTURE_H13,832
-#define NUM_BODY_MAX 38,1643
+#define NUM_BODY_MAX 34,1530
 #undef  NUM_BODY_MAX47,1978
 #define NUM_BODY_MAX 48,1999
   size_t host,59,2363
@@ -724,60 +716,42 @@ src/misc/structure.h,1609
   double E0inv,70,2708
   double E0inv, errMax;70,2708
 } energyError;71,2732
-  ulong idx;76,2869
-  double t0,79,2931
-  double t0, t1;79,2931
-  real dt;80,2948
-  real  x,82,2983
-  real  x,  y,82,2983
-  real  x,  y,  z;82,2983
-  real vx,83,3002
-  real vx, vy,83,3002
-  real vx, vy, vz;83,3002
-  real ax,84,3021
-  real ax, ay,84,3021
-  real ax, ay, az;84,3021
-  real m,85,3040
-  real m, pot;85,3040
-} nbody_particle;86,3055
-  real *pos;pos92,3235
-  real *vel;vel93,3281
-  real *acc;acc94,3327
-  real *m,m95,3373
-  real *m, *pot;pot95,3373
-  ulong *idx;idx96,3390
-} nbody_hdf5;97,3404
-typedef struct __align__(100,3518
-typedef struct __align__(105,3656
-typedef struct __align__(111,3824
-typedef struct __align__(122,4094
-  position     *pos;pos130,4273
-  acceleration *acc;acc131,4294
-  acceleration *acc_old;acc_old133,4334
-  velocity     *vel;vel136,4402
-  position     *jpos;jpos137,4423
-  velocity     *jvel;jvel138,4445
-  ibody_time   *time;time139,4467
-  real         *vx;vx141,4513
-  real         *vy;vy142,4533
-  real         *vz;vz143,4553
-  real         *neighbor;neighbor146,4672
-  ulong        *idx;idx148,4773
-  position *encBall,encBall150,4835
-  position *encBall, *encBall_hst;encBall_hst150,4835
-  real amin;153,5010
-} iparticle;155,5042
-  int *jtag;jtag159,5148
-  int *  Nj;161,5188
-  int *Nbuf;Nbuf162,5201
-} iparticle_treeinfo;164,5241
+  real *pos;pos92,3315
+  real *vel;vel93,3361
+  real *acc;acc94,3407
+  real *m,m95,3453
+  real *m, *pot;pot95,3453
+  ulong *idx;idx96,3470
+} nbody_hdf5;97,3484
+typedef struct __align__(100,3598
+typedef struct __align__(105,3736
+typedef struct __align__(111,3904
+typedef struct __align__(118,4091
+  position     *pos;pos126,4270
+  acceleration *acc;acc127,4291
+  acceleration *acc_old;acc_old129,4331
+  velocity     *vel;vel132,4399
+  position     *jpos;jpos133,4420
+  velocity     *jvel;jvel134,4442
+  ibody_time   *time;time135,4464
+  real         *vx;vx137,4510
+  real         *vy;vy138,4530
+  real         *vz;vz139,4550
+  real         *neighbor;neighbor142,4669
+  ulong        *idx;idx144,4770
+  position *encBall,encBall146,4832
+  position *encBall, *encBall_hst;encBall_hst146,4832
+  real amin;149,5007
+} iparticle;151,5039
+  int *jtag;jtag155,5145
+  int *  Nj;157,5185
+  int *Nbuf;Nbuf158,5198
+} iparticle_treeinfo;160,5238
 
-src/misc/convert.c,139
-void copyStr2Ary(24,1295
-void copyAry2Str(68,3181
-void backVel(116,5183
-void copyAry4Snapshot(133,5838
-void backVel4Snapshot(175,7763
+src/misc/convert.c,87
+void backVel(116,5715
+void copyAry4Snapshot(139,6616
+void backVel4Snapshot(181,8541
 
 src/para/mpicfg.c,74
 static inline void createMPIcfg_tree(31,1553
@@ -786,78 +760,78 @@ void setNodeConfig(55,2596
 src/para/mpicfg.h,728
 #define MPICFG_H12,754
 #define GPUS_PER_PROCESS 33,1509
-#define MAX_FACTOR_FROM_EQUIPARTITION 37,1690
-  MPI_Datatype cell,45,1957
-  MPI_Datatype cell, link;45,1957
-  MPI_Comm comm;46,1984
-  int rank,47,2001
-  int rank, size;47,2001
-} MPIcfg_octree;48,2019
-  MPI_Datatype ipos,52,2129
-  MPI_Datatype ipos, jpos,52,2129
-  MPI_Datatype ipos, jpos, more,52,2129
-  MPI_Datatype ipos, jpos, more, mass;52,2129
-  MPI_Datatype iacc;54,2187
-  MPI_Datatype ivel,57,2251
-  MPI_Datatype ivel, time;57,2251
-  MPI_Comm comm,59,2302
-  MPI_Comm comm, cart;59,2302
-  int rank,60,2325
-  int rank, size;60,2325
-  int dim[dim61,2343
-  int dim[3], prd[prd61,2343
-  int dim[3], prd[3], pos[pos61,2343
-} MPIcfg_tree;62,2373
+#define MAX_FACTOR_FROM_EQUIPARTITION 36,1639
+  MPI_Datatype cell,46,2008
+  MPI_Datatype cell, link;46,2008
+  MPI_Comm comm;47,2035
+  int rank,48,2052
+  int rank, size;48,2052
+} MPIcfg_octree;49,2070
+  MPI_Datatype ipos,53,2180
+  MPI_Datatype ipos, jpos,53,2180
+  MPI_Datatype ipos, jpos, more,53,2180
+  MPI_Datatype ipos, jpos, more, mass;53,2180
+  MPI_Datatype iacc;55,2238
+  MPI_Datatype ivel,58,2302
+  MPI_Datatype ivel, time;58,2302
+  MPI_Comm comm,60,2353
+  MPI_Comm comm, cart;60,2353
+  int rank,61,2376
+  int rank, size;61,2376
+  int dim[dim62,2394
+  int dim[3], prd[prd62,2394
+  int dim[3], prd[3], pos[pos62,2394
+} MPIcfg_tree;63,2424
 
 src/para/exchange.h,1178
 #define EXCHANGE_H12,756
 #define DEFAULT_SAMPLING_RATE 42,1909
-#define DEFAULT_SAMPLING_NUMBER 43,1951
-  real min[min50,2163
-  real min[3], max[max50,2163
-  MPI_Request req;51,2186
-} domainCfg;52,2205
-  real xmin,56,2311
-  real xmin, xmax,56,2311
-  real xmin, xmax, ymin,56,2311
-  real xmin, xmax, ymin, ymax,56,2311
-  real xmin, xmax, ymin, ymax, zmin,56,2311
-  real xmin, xmax, ymin, ymax, zmin, zmax;56,2311
-  int rank,57,2354
-  int rank, num,57,2354
-  int rank, num, head;57,2354
-  MPI_Request pos,58,2377
-  MPI_Request pos, idx;58,2377
-  MPI_Request acc;60,2420
-  MPI_Request vel,63,2482
-  MPI_Request vel, time;63,2482
-  MPI_Request vx,65,2531
-  MPI_Request vx, vy,65,2531
-  MPI_Request vx, vy, vz;65,2531
-} sendCfg;67,2581
-  int num,71,2685
-  int num, head;71,2685
-  MPI_Request req,72,2702
-  MPI_Request req, pos,72,2702
-  MPI_Request req, pos, idx;72,2702
-  MPI_Request acc;74,2750
-  MPI_Request vel,77,2812
-  MPI_Request vel, time;77,2812
-  MPI_Request vx,79,2861
-  MPI_Request vx, vy,79,2861
-  MPI_Request vx, vy, vz;79,2861
-} recvCfg;81,2911
-  int dstRank,85,3015
-  int dstRank, bodyIdx;85,3015
-} domainDecomposeKey;86,3039
+#define DEFAULT_SAMPLING_NUMBER 44,1998
+  real min[min51,2209
+  real min[3], max[max51,2209
+  MPI_Request req;52,2232
+} domainCfg;53,2251
+  real xmin,57,2357
+  real xmin, xmax,57,2357
+  real xmin, xmax, ymin,57,2357
+  real xmin, xmax, ymin, ymax,57,2357
+  real xmin, xmax, ymin, ymax, zmin,57,2357
+  real xmin, xmax, ymin, ymax, zmin, zmax;57,2357
+  int rank,58,2400
+  int rank, num,58,2400
+  int rank, num, head;58,2400
+  MPI_Request pos,59,2423
+  MPI_Request pos, idx;59,2423
+  MPI_Request acc;61,2466
+  MPI_Request vel,64,2528
+  MPI_Request vel, time;64,2528
+  MPI_Request vx,66,2577
+  MPI_Request vx, vy,66,2577
+  MPI_Request vx, vy, vz;66,2577
+} sendCfg;68,2627
+  int num,72,2731
+  int num, head;72,2731
+  MPI_Request req,73,2748
+  MPI_Request req, pos,73,2748
+  MPI_Request req, pos, idx;73,2748
+  MPI_Request acc;75,2796
+  MPI_Request vel,78,2858
+  MPI_Request vel, time;78,2858
+  MPI_Request vx,80,2907
+  MPI_Request vx, vy,80,2907
+  MPI_Request vx, vy, vz;80,2907
+} recvCfg;82,2957
+  int dstRank,86,3061
+  int dstRank, bodyIdx;86,3061
+} domainDecomposeKey;87,3085
 
 src/para/exchange.c,210
 void configORBtopology37,1847
 void removeORBtopology156,8124
 static inline void calcLocalBoxSize(193,9573
-int posAscendingOrder(224,10937
-int ddkeyAscendingOrder(233,11416
-void exchangeParticles242,12001
+int posAscendingOrder(224,10975
+int ddkeyAscendingOrder(233,11454
+void exchangeParticles242,12039
 
 src/plot/plot.ball.c,306
 #define NORMALIZE_COL32,1532
@@ -876,18 +850,31 @@ src/plot/cdflib.h,50
 #define CDFLIB_H14,904
 #define NSUMMARY 19,1075
 
-src/plot/plot.cdf.c,318
+src/plot/plot.cdf.c,616
 #define PLOT_SUMMARY_FIGURE_ONLY39,1740
 #define LOGPLOT_HOR45,2055
 #define ERRFILE 50,2262
 FILE *fp;fp51,2284
-nbody_particle *body;body52,2294
-int idxAscendingOrder(73,3221
-int main(93,4155
-void plotCDF559,28275
-int dblAscendingOrder(951,46357
-int dblDescendingOrder(963,46960
-void chkTreeError(983,47832
+  ulong idx;54,2311
+  real  x,55,2324
+  real  x,  y,55,2324
+  real  x,  y,  z;55,2324
+  real vx,56,2343
+  real vx, vy,56,2343
+  real vx, vy, vz;56,2343
+  real ax,57,2362
+  real ax, ay,57,2362
+  real ax, ay, az;57,2362
+  real m,58,2381
+  real m, pot;58,2381
+} nbody_particle;59,2396
+nbody_particle *body;body60,2414
+int idxAscendingOrder(83,3472
+int main(105,4537
+void plotCDF602,29618
+int dblAscendingOrder(994,47700
+int dblDescendingOrder(1006,48303
+void chkTreeError(1026,49175
 
 src/plot/cdflib.c,60
 void allocPercentile(22,1196
@@ -896,10 +883,10 @@ void  freePercentile(71,2901
 src/plot/plot.energy.c,126
 #define NORMALIZED_MOMENTUM_ERROR15,1037
 int main(61,3126
-void plotTimeEvolution505,28619
-void plotMomentumError845,43683
+void plotTimeEvolution527,29162
+void plotMomentumError867,44226
 
-src/plot/plot.distribution.c,2849
+src/plot/plot.distribution.c,3158
 #define DUMP_SPLITTED_SNAPSHOT13,887
 #define USE_RMS_THICKNESS15,954
 #define USE_MEDIAN_FOR_POSITION16,980
@@ -948,29 +935,42 @@ static const int NAllocUnit 64,3421
   int prf_ver_head[prf_ver_head97,5443
   int prf_ver_head[NUM_HORIZONTAL_BIN], prf_ver_num[prf_ver_num97,5443
 } model;98,5567
-static inline void allocProfileArray(103,5730
-static inline void enlargeProfileArray(119,6517
-static inline void allocDecomposedProfileArray(138,7381
-static inline void enlargeDecomposedProfileArray(160,8394
-int idxAscendingOrder(190,9676
-int radAscendingOrder(202,10342
-int horAscendingOrder(214,11002
-int verAscendingOrder(226,11662
-static inline int bisec(282,14702
-static inline void findIdx(305,15875
-static inline void getInterpolatedDensity(328,17234
-void gaussQuadVertical(347,18299
-real R_rhor(386,20241
-static inline real _gaussQuad2d(397,20828
-real gaussQuad2d(414,21861
-int main(436,23070
-void plotDistributionMaps1424,83200
-void plotRadialProfile1760,99148
-void plotHorizontalProfile2068,114641
-void plotVerticalProfile2504,136509
-void analyzeRadialProfile2761,149676
-void analyzeDecomposedProfile(2873,154575
-void integrateColumnDensity(3086,163774
+  ulong idx;102,5669
+  real  x,103,5682
+  real  x,  y,103,5682
+  real  x,  y,  z;103,5682
+  real vx,104,5701
+  real vx, vy,104,5701
+  real vx, vy, vz;104,5701
+  real ax,105,5720
+  real ax, ay,105,5720
+  real ax, ay, az;105,5720
+  real m,106,5739
+  real m, pot;106,5739
+} nbody_particle;107,5754
+static inline void allocProfileArray(112,5926
+static inline void enlargeProfileArray(128,6713
+static inline void allocDecomposedProfileArray(147,7577
+static inline void enlargeDecomposedProfileArray(169,8590
+int idxAscendingOrder(199,9872
+int radAscendingOrder(211,10538
+int horAscendingOrder(223,11198
+int verAscendingOrder(235,11858
+static inline int bisec(291,14898
+static inline void findIdx(314,16071
+static inline void getInterpolatedDensity(337,17430
+void gaussQuadVertical(356,18495
+real R_rhor(395,20437
+static inline real _gaussQuad2d(406,21024
+real gaussQuad2d(423,22057
+int main(445,23266
+void plotDistributionMaps1466,84682
+void plotRadialProfile1802,100630
+void plotHorizontalProfile2110,116123
+void plotVerticalProfile2546,137991
+void analyzeRadialProfile2803,151158
+void analyzeDecomposedProfile(2915,156057
+void integrateColumnDensity(3128,165256
 
 src/plot/plot.ndep.c,518
 #define LINE_ONLY_PLOT23,1162
@@ -1518,7 +1518,7 @@ static inline void finalizeSEBfinder(800,42098
 void findSEB858,45459
 int main(951,50121
 
-src/tree/let.h,1508
+src/tree/let.h,1551
 #define LET_H14,901
 #define EXTEND_NUM_TREE_NODE 19,1069
 #       undef  EXTEND_NUM_TREE_NODE22,1210
@@ -1531,31 +1531,32 @@ src/tree/let.h,1508
 #define NBUF_LET 84,3850
 #define NBUF_MSK 85,3871
 #define LET_INCNUM_UNIT 87,3979
-  position icom;94,4179
-  int *numSend_hst,numSend_hst96,4224
-  int *numSend_hst, *numSend_dev;numSend_dev96,4224
-  MPI_Request reqSendInfo,98,4286
-  MPI_Request reqSendInfo, reqSendMore,98,4286
-  MPI_Request reqSendInfo, reqSendMore, reqSendJpos,98,4286
-  MPI_Request reqSendInfo, reqSendMore, reqSendJpos, reqSendMass;98,4286
-  MPI_Request reqRecvInfo,99,4352
-  MPI_Request reqRecvInfo, reqRecvMore,99,4352
-  MPI_Request reqRecvInfo, reqRecvMore, reqRecvJpos,99,4352
-  MPI_Request reqRecvInfo, reqRecvMore, reqRecvJpos, reqRecvMass;99,4352
-  int headSend,100,4418
-  int headSend, headRecv,100,4418
-  int headSend, headRecv, numSend,100,4418
-  int headSend, headRecv, numSend, numRecv,100,4418
-  int headSend, headRecv, numSend, numRecv, numRecvGuess;100,4418
-  int maxSend,101,4476
-  int maxSend, maxRecv,101,4476
-  int maxSend, maxRecv, numFull,101,4476
-  int maxSend, maxRecv, numFull, numNode;101,4476
-  int overEstimateSend,102,4608
-  int overEstimateSend, overEstimateRecv;102,4608
-  int rank;103,4650
-  real amin;105,4681
-} domainInfo;107,4713
+#define ALIGN_BUF_FOR_LET(89,4148
+  position icom;96,4453
+  int *numSend_hst,numSend_hst98,4498
+  int *numSend_hst, *numSend_dev;numSend_dev98,4498
+  MPI_Request reqSendInfo,100,4560
+  MPI_Request reqSendInfo, reqSendMore,100,4560
+  MPI_Request reqSendInfo, reqSendMore, reqSendJpos,100,4560
+  MPI_Request reqSendInfo, reqSendMore, reqSendJpos, reqSendMass;100,4560
+  MPI_Request reqRecvInfo,101,4626
+  MPI_Request reqRecvInfo, reqRecvMore,101,4626
+  MPI_Request reqRecvInfo, reqRecvMore, reqRecvJpos,101,4626
+  MPI_Request reqRecvInfo, reqRecvMore, reqRecvJpos, reqRecvMass;101,4626
+  int headSend,102,4692
+  int headSend, headRecv,102,4692
+  int headSend, headRecv, numSend,102,4692
+  int headSend, headRecv, numSend, numRecv,102,4692
+  int headSend, headRecv, numSend, numRecv, numRecvGuess;102,4692
+  int maxSend,103,4750
+  int maxSend, maxRecv,103,4750
+  int maxSend, maxRecv, numFull,103,4750
+  int maxSend, maxRecv, numFull, numNode;103,4750
+  int overEstimateSend,104,4882
+  int overEstimateSend, overEstimateRecv;104,4882
+  int rank;105,4924
+  real amin;107,4955
+} domainInfo;109,4987
 
 src/tree/stat.h,22
 #define STAT_H14,902
@@ -1745,11 +1746,10 @@ src/tree/neighbor_dev.h,2164
   int *active;active248,11573
 } soaNeighborSearchBuf;250,11681
 
-src/tree/let.c,143
+src/tree/let.c,99
 void shareNodePosition(178,9369
-static inline int increaseNumber(210,10763
-void setLETpartition(222,11458
-void guessLETpartition(241,12494
+void setLETpartition(222,11532
+void guessLETpartition(241,12574
 
 src/tree/make_dev.h,2388
 #define MAKE_DEV_H14,906
@@ -1855,7 +1855,7 @@ src/tree/let_dev.h,562
 #define NQUEUE_LET 115,4849
 #define NQUEUE_LET 117,4951
 
-src/tree/buf_inc.h,336
+src/tree/buf_inc.h,393
 #define BUF_INC_H14,905
 #define USE_SMID_TO_GET_BUFID19,1077
 #define TRY_MODE_ABOUT_BUFFER20,1107
@@ -1865,8 +1865,10 @@ src/tree/buf_inc.h,336
   uint *freeNum;freeNum28,1336
   int *active;active29,1353
   int freeNum;31,1405
-  int bufSize;34,1487
-} soaTreeWalkBuf;35,1502
+  int bufSize;35,1511
+  uint *bufLET;bufLET37,1553
+  int bufLETsize;39,1596
+} soaTreeWalkBuf;41,1641
 
 src/tree/geo_dev.h,88
 #define GEO_DEV_H14,905

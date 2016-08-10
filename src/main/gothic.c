@@ -1,6 +1,6 @@
 /************************************************************************* \
  *                                                                       *
-                  last updated on 2016/08/05(Fri) 12:03:38
+                  last updated on 2016/08/10(Wed) 15:36:42
  *                                                                       *
  *    N-body code based on Barnes--Hut tree                              *
  *                                                                       *
@@ -717,18 +717,13 @@ static inline void dumpSnapshot
 #ifdef  MONITOR_ENERGY_ERROR
  energyError *relEneErr,
 #endif//MONITOR_ENERGY_ERROR
-#else///USE_HDF5_FORMAT
- nbody_particle *body,
 #endif//USE_HDF5_FORMAT
  const double time, const ulong steps, char *file, const uint present, uint *previous
 #ifdef  LEAP_FROG_INTEGRATOR
  , const double dt
 #endif//LEAP_FROG_INTEGRATOR
 #ifndef SERIALIZED_EXECUTION
- , MPIcfg_dataio *iocfg
-#ifdef  USE_HDF5_FORMAT
- , const ulong Ntot
-#endif//USE_HDF5_FORMAT
+ , MPIcfg_dataio *iocfg, const ulong Ntot
 #endif//SERIALIZED_EXECUTION
 #ifdef  EXEC_BENCHMARK
  , wall_clock_time *execTime
@@ -747,7 +742,7 @@ static inline void dumpSnapshot
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-  /* set particle data on the structure ``body'' */
+  /* set particle data on host */
   copyParticle_dev2hst(num, ibody_dev, ibody_hst
 #ifdef  EXEC_BENCHMARK
 		       , execTime
@@ -760,15 +755,20 @@ static inline void dumpSnapshot
   backVel4Snapshot(0, num,            *body, (real)dt);
 #       endif//LEAP_FROG_INTEGRATOR
 #else///USE_HDF5_FORMAT
-  copyAry2Str(0, num, ibody_hst, body);
 #       ifdef  LEAP_FROG_INTEGRATOR
-  backVel    (0, num,            body, (real)dt);
+  backVel(0, num, ibody_hst, (real)dt);
 #       endif//LEAP_FROG_INTEGRATOR
 #endif//USE_HDF5_FORMAT
   //-----------------------------------------------------------------------
   /* output the snapshot file */
 #ifdef  SERIALIZED_EXECUTION
-  writeSnapshot        (unit, time, steps, num, body, file, present
+  writeSnapshot        (unit, time, steps, num,
+#ifdef  USE_HDF5_FORMAT
+			body,
+#else///USE_HDF5_FORMAT
+			ibody_hst,
+#endif//USE_HDF5_FORMAT
+			file, present
 #ifdef  USE_HDF5_FORMAT
 			, hdf5type
 #ifdef  MONITOR_ENERGY_ERROR
@@ -777,9 +777,15 @@ static inline void dumpSnapshot
 #endif//USE_HDF5_FORMAT
 			);
 #else///SERIALIZED_EXECUTION
-  writeSnapshotParallel(unit, time, steps, num, body, file, present, iocfg
+  writeSnapshotParallel(unit, time, steps, num,
 #ifdef  USE_HDF5_FORMAT
-			, Ntot, hdf5type
+			body,
+#else///USE_HDF5_FORMAT
+			ibody_hst,
+#endif//USE_HDF5_FORMAT
+			file, present, iocfg, Ntot
+#ifdef  USE_HDF5_FORMAT
+			, hdf5type
 #ifdef  MONITOR_ENERGY_ERROR
 			, relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -850,7 +856,7 @@ static inline void dumpSnapshot
 //-------------------------------------------------------------------------
 #ifndef COMPARE_WITH_DIRECT_SOLVER
 static inline void dumpRestarter
-(const int num, iparticle ibody_dev, iparticle ibody_hst, nbody_particle *body, const double time, const double dt, const ulong steps, char *file, int *last, double *formerTime
+(const int num, iparticle ibody_dev, iparticle ibody_hst, const double time, const double dt, const ulong steps, char *file, int *last, double *formerTime
 #ifdef  USE_HDF5_FORMAT
  , hdf5struct hdf5type
 #ifdef  MONITOR_ENERGY_ERROR
@@ -858,10 +864,7 @@ static inline void dumpRestarter
 #endif//MONITOR_ENERGY_ERROR
 #endif//USE_HDF5_FORMAT
 #ifndef SERIALIZED_EXECUTION
- , MPIcfg_dataio *iocfg, const MPIinfo mpi
-#ifdef  USE_HDF5_FORMAT
- , const ulong Ntot
-#endif//USE_HDF5_FORMAT
+ , MPIcfg_dataio *iocfg, const MPIinfo mpi, const ulong Ntot
 #endif//SERIALIZED_EXECUTION
 #ifdef  EXEC_BENCHMARK
  , wall_clock_time *execTime
@@ -873,20 +876,19 @@ static inline void dumpRestarter
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-  /* set particle data on the structure ``body'' */
+  /* set particle data on host */
   copyParticle_dev2hst(num, ibody_dev, ibody_hst
 #ifdef  EXEC_BENCHMARK
 		       , execTime
 #endif//EXEC_BENCHMARK
 		       );
-  copyAry2Str(0, num, ibody_hst, body);
 #ifdef  LEAP_FROG_INTEGRATOR
-  backVel    (0, num,            body, (real)dt);
+  backVel(0, num, body, (real)dt);
 #endif//LEAP_FROG_INTEGRATOR
   //-----------------------------------------------------------------------
   /* output the dump file */
 #ifdef  SERIALIZED_EXECUTION
-  writeTentativeData        (time, dt, steps, num, body, file, last
+  writeTentativeData        (time, dt, steps, num, ibody_hst, file, last
 #ifdef  USE_HDF5_FORMAT
 			     , hdf5type
 #ifdef  MONITOR_ENERGY_ERROR
@@ -895,9 +897,9 @@ static inline void dumpRestarter
 #endif//USE_HDF5_FORMAT
 			     );
 #else///SERIALIZED_EXECUTION
-  writeTentativeDataParallel(time, dt, steps, num, body, file, last, iocfg
+  writeTentativeDataParallel(time, dt, steps, num, ibody_hst, file, last, iocfg, Ntot
 #ifdef  USE_HDF5_FORMAT
-			     , Ntot, hdf5type
+			     , hdf5type
 #ifdef  MONITOR_ENERGY_ERROR
 			     , relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -1021,11 +1023,6 @@ int main(int argc, char **argv)
   openAcceleratorGPUs(&devIdx, &devInfo, &devProp, 0, 1, mpi.rank, mpi.size);
 #endif//SERIALIZED_EXECUTION
   //-----------------------------------------------------------------------
-#if 0
-  writeDevInfo(&devInfo, &devProp, 1);
-  exit(0);
-#endif
-  //-----------------------------------------------------------------------
   /* set CUDA streams */
   cudaStream_t *stream;
   kernelStream sinfo;
@@ -1098,8 +1095,6 @@ int main(int argc, char **argv)
   /* memory allocation */
   //-----------------------------------------------------------------------
   /* declaration of array to contain whole information of whole N-body particles */
-  nbody_particle *body;
-  const muse alloc_body = allocParticleDataAoS(num_max, &body);
 #ifdef  USE_HDF5_FORMAT
   nbody_hdf5 body_snapshot;
   real *hdf5_pos, *hdf5_vel, *hdf5_acc, *hdf5_m, *hdf5_pot;
@@ -1411,10 +1406,6 @@ int main(int argc, char **argv)
 #ifndef MAKE_TREE_ON_DEVICE
   soaNode_hst.jtag = jtag;
 #endif//MAKE_TREE_ON_DEVICE
-/* #ifdef  HUNT_OPTIMAL_SEPARATION */
-/*   soaNode_dev.r_cutoff = model_rcutoff; */
-/*   soaNode_hst.r_cutoff = model_rcutoff; */
-/* #endif//HUNT_OPTIMAL_SEPARATION */
   //-----------------------------------------------------------------------
 #   if  defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH)
   int *gsync_ns0, *gsync_ns1;
@@ -1474,20 +1465,6 @@ int main(int argc, char **argv)
 						   &stream_let, &Nstream_let, devProp, letcfg);
 #endif//SERIALIZED_EXECUTION
   //-----------------------------------------------------------------------
-#if 0
-  /* if there is only one CUDA stream... */
-  for(int ii = 0; ii < Nstream_let; ii++)
-    stream_let[ii] = stream[0];
-  stream[1] = stream[0];
-#endif
-  //-----------------------------------------------------------------------
-#if 0
-  /* if there is only two CUDA stream... */
-  for(int ii = 0; ii < Nstream_let; ii++)
-    stream_let[ii] = stream[1];
-  stream[1] = stream[0];
-#endif
-  //-----------------------------------------------------------------------
 #ifdef COMPARE_WITH_DIRECT_SOLVER
   static char accfile[16];
 #ifdef  GADGET_MAC
@@ -1544,16 +1521,15 @@ int main(int argc, char **argv)
 #endif//USE_HDF5_FORMAT
 			    );
 #else///SERIALIZED_EXECUTION
-  readTentativeDataParallel(&time, &dt, &steps, num, body, file, last, &iocfg
+  readTentativeDataParallel(&time, &dt, &steps, num, ibody0, file, last, &iocfg, Ntot
 #ifdef  USE_HDF5_FORMAT
-			    , Ntot, hdf5type
+			    , hdf5type
 #ifdef  MONITOR_ENERGY_ERROR
 			    , &relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #endif//USE_HDF5_FORMAT
 			    );
 #endif//SERIALIZED_EXECUTION
-  copyStr2Ary(0, num, body, ibody0);
 #ifndef  BLOCK_TIME_STEP
   real *dt_dev;
   const muse alloc_dt_dev = allocTimeStep_dev(&dt_dev);
@@ -1582,8 +1558,8 @@ int main(int argc, char **argv)
 #endif//defined(BLOCK_TIME_STEP) || !defined(EXEC_BENCHMARK)
   //-----------------------------------------------------------------------
   /* check size of memory in use */
-  muse       body_mem = {alloc_body.host   + alloc_phkey.host   + alloc_ibody0.host   + alloc_ibody1.host   + alloc_ibody_dev.host,
-			 alloc_body.device + alloc_phkey.device + alloc_ibody0.device + alloc_ibody1.device + alloc_ibody_dev.device};
+  muse       body_mem = {alloc_phkey.host   + alloc_ibody0.host   + alloc_ibody1.host   + alloc_ibody_dev.host,
+			 alloc_phkey.device + alloc_ibody0.device + alloc_ibody1.device + alloc_ibody_dev.device};
   const muse tree_mem = {alloc_jtag.host   + alloc_jtag_dev.host   + alloc_cell.host   + alloc_cell_dev.host   + alloc_node_dev.host,
 			 alloc_jtag.device + alloc_jtag_dev.device + alloc_cell.device + alloc_cell_dev.device + alloc_node_dev.device};
   muse       misc_mem = {alloc_lane_dev.host, alloc_lane_dev.device};
@@ -1618,12 +1594,6 @@ int main(int argc, char **argv)
   misc_mem.host   += alloc_neighbor_dev.host;
   misc_mem.device += alloc_neighbor_dev.device;
 #endif//defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH)
-#if 0
-  printf("misc_mem.host = %zu, alloc_lane_dev.host = %zu\n",
-	 misc_mem.host, alloc_lane_dev.host);
-  fflush(stdout);
-  exit(0);
-#endif
   //-----------------------------------------------------------------------
   /* declarations of arrays to prevent for stack overflow */
   int *fail_dev;
@@ -1764,7 +1734,7 @@ int main(int argc, char **argv)
 #ifdef  COUNT_INTERACTIONS
       treeProp[ll] = zero_tree;
 #endif//COUNT_INTERACTIONS
-    }
+    }/* for(uint ll = 0; ll < BENCHMARK_STEPS; ll++){ */
     //---------------------------------------------------------------------
   }
   //-----------------------------------------------------------------------
@@ -2083,41 +2053,6 @@ int main(int argc, char **argv)
 #ifdef  EXEC_BENCHMARK
     execTime[steps - bench_begin].calcGravity_dev = 0.0;
 #endif//EXEC_BENCHMARK
-#if 0
-    /* output snapshot for debugging */
-    dumpSnapshot
-      (unit, num, ibody0_dev, ibody0,
-#ifdef  USE_HDF5_FORMAT
-       &body_snapshot, hdf5type,
-#ifdef  MONITOR_ENERGY_ERROR
-       &relEneErr,
-#endif//MONITOR_ENERGY_ERROR
-#else///USE_HDF5_FORMAT
-       body,
-#endif//USE_HDF5_FORMAT
-       time, steps, file, 1000 * mpi.size, &previous
-#ifdef  LEAP_FROG_INTEGRATOR
-       , dt
-#endif//LEAP_FROG_INTEGRATOR
-#ifndef SERIALIZED_EXECUTION
-       , &iocfg
-#ifdef  USE_HDF5_FORMAT
-       , Ntot
-#endif//USE_HDF5_FORMAT
-#endif//SERIALIZED_EXECUTION
-#ifdef  EXEC_BENCHMARK
-       , &execTime[steps - bench_begin]
-#endif//EXEC_BENCHMARK
-#ifdef  COMPARE_WITH_DIRECT_SOLVER
-       , Ni, ibody_direct_dev, devProp, direct, Ngrp, laneInfo_dev
-#ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
-       , eps * eps
-#endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
-       , accfile
-#endif//COMPARE_WITH_DIRECT_SOLVER
-       );
-#endif
-
 #ifndef SERIALIZED_EXECUTION
 #ifdef  BUILD_LET_ON_DEVICE
     calc_r2max_dev(Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev
@@ -2180,40 +2115,6 @@ int main(int argc, char **argv)
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 #endif//COMPARE_WITH_DIRECT_SOLVER
 		    );
-#if 0
-    /* output snapshot for debugging */
-    dumpSnapshot
-      (unit, num, ibody0_dev, ibody0,
-#ifdef  USE_HDF5_FORMAT
-       &body_snapshot, hdf5type,
-#ifdef  MONITOR_ENERGY_ERROR
-       &relEneErr,
-#endif//MONITOR_ENERGY_ERROR
-#else///USE_HDF5_FORMAT
-       body,
-#endif//USE_HDF5_FORMAT
-       time, steps, file, 10000 * mpi.size, &previous
-#ifdef  LEAP_FROG_INTEGRATOR
-       , dt
-#endif//LEAP_FROG_INTEGRATOR
-#ifndef SERIALIZED_EXECUTION
-       , &iocfg
-#ifdef  USE_HDF5_FORMAT
-       , Ntot
-#endif//USE_HDF5_FORMAT
-#endif//SERIALIZED_EXECUTION
-#ifdef  EXEC_BENCHMARK
-       , &execTime[steps - bench_begin]
-#endif//EXEC_BENCHMARK
-#ifdef  COMPARE_WITH_DIRECT_SOLVER
-       , Ni, ibody_direct_dev, devProp, direct, Ngrp, laneInfo_dev
-#ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
-       , eps * eps
-#endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
-       , accfile
-#endif//COMPARE_WITH_DIRECT_SOLVER
-       );
-#endif
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
     brentDistance.u.val += elapsedTreeWalk[0];
     brentHistory.totNum += Ngrp;
@@ -2262,18 +2163,13 @@ int main(int argc, char **argv)
 #ifdef  MONITOR_ENERGY_ERROR
        &relEneErr,
 #endif//MONITOR_ENERGY_ERROR
-#else///USE_HDF5_FORMAT
-       body,
 #endif//USE_HDF5_FORMAT
        time, steps, file, 0, &previous
 #ifdef  LEAP_FROG_INTEGRATOR
        , ZERO
 #endif//LEAP_FROG_INTEGRATOR
 #ifndef SERIALIZED_EXECUTION
-       , &iocfg
-#ifdef  USE_HDF5_FORMAT
-       , Ntot
-#endif//USE_HDF5_FORMAT
+       , &iocfg, Ntot
 #endif//SERIALIZED_EXECUTION
 #ifdef  EXEC_BENCHMARK
        , &execTime[steps - bench_begin]
@@ -2530,9 +2426,6 @@ int main(int argc, char **argv)
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
       brentDistance.u.val /= (double)brentHistory.totNum;
       brentHistory.totNum = 0;
-#if 0
-      printf("# sep = %e, time = %e\n", brentDistance.u.pos, brentDistance.u.val);
-#endif
       brentHistory.interval++;
       static bool initialized = false;
       if( initialized ){
@@ -2560,9 +2453,6 @@ int main(int argc, char **argv)
 	//-----------------------------------------------------------------
 	if( perturbBrent ){
 	  //---------------------------------------------------------------
-#if 0
-	  printf("# brentStatus is perturbed @ interval = %d\n", brentHistory.interval);
-#endif
 	  examineParticleSeparation
 	    (num, ibody0_dev
 #ifdef  USE_BRENT_METHOD
@@ -2601,9 +2491,6 @@ int main(int argc, char **argv)
 	initialized = true;
 	//-----------------------------------------------------------------
       }/* else{ */
-#if 0
-      fflush(stdout);
-#endif
 #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
       //-------------------------------------------------------------------
       /* from the second time, brentCalc1st() is called internally */
@@ -2944,8 +2831,8 @@ int main(int argc, char **argv)
 	const double growth = pow(ratio, 1.0 / (rebuildInterval - 1.0));
 	if( (rebuildInterval * rebuildInterval * elapsedTreeWalk[reuse]) > ((growth - 1.0) * elapsedTreeMake + (ratio * growth - 1.0) * tinit) )
 	  reuse = 0;
-      }
-    }
+      }/* if( ratio > DBL_EPSILON + 1.0 ){ */
+    }/* if( rebuildInterval > 1.5 ){ */
 #endif//WALK_TREE_GEOMETRIC_PROGRESSION_MODEL
     //---------------------------------------------------------------------
 
@@ -3001,10 +2888,6 @@ int main(int argc, char **argv)
 
 
     //---------------------------------------------------------------------
-#if 0
-    exit(0);
-#endif
-    //---------------------------------------------------------------------
 #ifndef EXEC_BENCHMARK
     //---------------------------------------------------------------------
 #ifndef BLOCK_TIME_STEP
@@ -3025,7 +2908,7 @@ int main(int argc, char **argv)
       //-------------------------------------------------------------------
 #ifndef COMPARE_WITH_DIRECT_SOLVER
       dumpRestarter
-	(num, ibody0_dev, ibody0, body, time, dt, steps, file, &last, &formerTime
+	(num, ibody0_dev, ibody0, time, dt, steps, file, &last, &formerTime
 #ifdef  USE_HDF5_FORMAT
 	 , hdf5type
 #ifdef  MONITOR_ENERGY_ERROR
@@ -3033,10 +2916,7 @@ int main(int argc, char **argv)
 #endif//MONITOR_ENERGY_ERROR
 #endif//USE_HDF5_FORMAT
 #ifndef SERIALIZED_EXECUTION
-	 , &iocfg, mpi
-#ifdef  USE_HDF5_FORMAT
-	 , Ntot
-#endif//USE_HDF5_FORMAT
+	 , &iocfg, mpi, Ntot
 #endif//SERIALIZED_EXECUTION
 #ifdef  EXEC_BENCHMARK
 	 , &execTime[steps - bench_begin]
@@ -3050,43 +2930,6 @@ int main(int argc, char **argv)
 #endif//BLOCK_TIME_STEP
       //-------------------------------------------------------------------
     }/* if( currentTime > formerTime + saveInterval ){ */
-    //---------------------------------------------------------------------
-#if 0
-    /* output snapshot for debugging */
-    dumpSnapshot
-      (unit, num, ibody0_dev, ibody0,
-#ifdef  USE_HDF5_FORMAT
-       &body_snapshot, hdf5type,
-#ifdef  MONITOR_ENERGY_ERROR
-       &relEneErr,
-#endif//MONITOR_ENERGY_ERROR
-#else///USE_HDF5_FORMAT
-       body,
-#endif//USE_HDF5_FORMAT
-       time, steps, file, 100 * mpi.size, &previous
-#ifdef  LEAP_FROG_INTEGRATOR
-       , dt
-#endif//LEAP_FROG_INTEGRATOR
-#ifndef SERIALIZED_EXECUTION
-       , &iocfg
-#ifdef  USE_HDF5_FORMAT
-       , Ntot
-#endif//USE_HDF5_FORMAT
-#endif//SERIALIZED_EXECUTION
-#ifdef  EXEC_BENCHMARK
-       , &execTime[steps - bench_begin]
-#endif//EXEC_BENCHMARK
-#ifdef  COMPARE_WITH_DIRECT_SOLVER
-       , Ni, ibody_direct_dev, devProp, direct, Ngrp, laneInfo_dev
-#ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
-       , eps * eps
-#endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
-       , accfile
-#endif//COMPARE_WITH_DIRECT_SOLVER
-       );
-    exitMPI();
-    return (0);
-#endif
     //---------------------------------------------------------------------
     /* output snapshot file to analyze and visualize the results */
     if( present != previous ){
@@ -3105,18 +2948,13 @@ int main(int argc, char **argv)
 #ifdef  MONITOR_ENERGY_ERROR
 	 &relEneErr,
 #endif//MONITOR_ENERGY_ERROR
-#else///USE_HDF5_FORMAT
-	 body,
 #endif//USE_HDF5_FORMAT
 	 time, steps, file, present, &previous
 #ifdef  LEAP_FROG_INTEGRATOR
 	 , dt
 #endif//LEAP_FROG_INTEGRATOR
 #ifndef SERIALIZED_EXECUTION
-	 , &iocfg
-#ifdef  USE_HDF5_FORMAT
-	 , Ntot
-#endif//USE_HDF5_FORMAT
+	 , &iocfg, Ntot
 #endif//SERIALIZED_EXECUTION
 #ifdef  EXEC_BENCHMARK
 	 , &execTime[steps - bench_begin]
@@ -3199,7 +3037,7 @@ int main(int argc, char **argv)
   /* output final stage of numerical results */
   //-----------------------------------------------------------------------
   dumpRestarter
-    (num, ibody0_dev, ibody0, body, time, dt, steps, file, &last, &formerTime
+    (num, ibody0_dev, ibody0, time, dt, steps, file, &last, &formerTime
 #ifdef  USE_HDF5_FORMAT
      , hdf5type
 #ifdef  MONITOR_ENERGY_ERROR
@@ -3207,10 +3045,7 @@ int main(int argc, char **argv)
 #endif//MONITOR_ENERGY_ERROR
 #endif//USE_HDF5_FORMAT
 #ifndef SERIALIZED_EXECUTION
-     , &iocfg, mpi
-#ifdef  USE_HDF5_FORMAT
-     , Ntot
-#endif//USE_HDF5_FORMAT
+     , &iocfg, mpi, Ntot
 #endif//SERIALIZED_EXECUTION
 #ifdef  EXEC_BENCHMARK
      , &execTime[steps - bench_begin]
@@ -3233,7 +3068,6 @@ int main(int argc, char **argv)
   //-----------------------------------------------------------------------
   /* memory deallocation */
   //-----------------------------------------------------------------------
-  freeParticleDataAoS(body);
 #ifdef  USE_HDF5_FORMAT
   freeSnapshotArray(hdf5_pos, hdf5_vel, hdf5_acc, hdf5_m, hdf5_pot, hdf5_idx);
 #endif//USE_HDF5_FORMAT

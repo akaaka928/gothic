@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/05(Tue) 17:03:26
+                  last updated on 2016/08/10(Wed) 12:08:43
  *                                                                       *
  *    Header File for Input/Output Code of N-body simulation             *
  *                                                                       *
@@ -64,8 +64,7 @@
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 typedef struct
 {
-  MPI_Datatype body;
-  MPI_Offset   head;
+  MPI_Offset head;
   MPI_Comm comm;
   MPI_Info info;
   int rank, size;
@@ -75,13 +74,6 @@ typedef struct
 #ifdef  USE_HDF5_FORMAT
 typedef struct
 {
-  hid_t nbody;
-  hid_t position;
-  hid_t acceleration;
-#ifdef  BLOCK_TIME_STEP
-  hid_t velocity;
-  hid_t ibody_time;
-#endif//BLOCK_TIME_STEP
   hid_t real;
   hid_t str4unit;
 } hdf5struct;
@@ -118,7 +110,7 @@ extern "C"
   void removeHDF5DataType(hdf5struct  type);
 #endif//USE_HDF5_FORMAT
   //-----------------------------------------------------------------------
-  void  readTentativeData        (double *time, double *dt, ulong *steps, int num, nbody_particle *body, char file[], int  last
+  void  readTentativeData        (double *time, double *dt, ulong *steps, int num, iparticle body, char file[], int  last
 #ifdef  USE_HDF5_FORMAT
 				  , hdf5struct type
 #ifdef  MONITOR_ENERGY_ERROR
@@ -126,7 +118,7 @@ extern "C"
 #endif//MONITOR_ENERGY_ERROR
 #endif//USE_HDF5_FORMAT
 				  );
-  void writeTentativeData        (double  time, double  dt, ulong  steps, int num, nbody_particle *body, char file[], int *last
+  void writeTentativeData        (double  time, double  dt, ulong  steps, int num, iparticle body, char file[], int *last
 #ifdef  USE_HDF5_FORMAT
 				  , hdf5struct type
 #ifdef  MONITOR_ENERGY_ERROR
@@ -135,17 +127,17 @@ extern "C"
 #endif//USE_HDF5_FORMAT
 				  );
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
-  void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int num, nbody_particle *body, char file[], int  last, MPIcfg_dataio *mpi
+  void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int num, iparticle body, char file[], int  last, MPIcfg_dataio *mpi, ulong Ntot
 #ifdef  USE_HDF5_FORMAT
-				  , ulong Ntot, hdf5struct type
+				  , hdf5struct type
 #ifdef  MONITOR_ENERGY_ERROR
 				  , energyError *relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #endif//USE_HDF5_FORMAT
 				  );
-  void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num, nbody_particle *body, char file[], int *last, MPIcfg_dataio *mpi
+  void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num, iparticle body, char file[], int *last, MPIcfg_dataio *mpi, ulong Ntot
 #ifdef  USE_HDF5_FORMAT
-				  , ulong Ntot, hdf5struct type
+				  , hdf5struct type
 #ifdef  MONITOR_ENERGY_ERROR
 				  , energyError  relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -169,12 +161,12 @@ extern "C"
 #endif//defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
   void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char file[], uint id, hdf5struct type, int kind, int *head, int *num);
 #else///USE_HDF5_FORMAT
-  void  readSnapshot(int *unit, double *time, ulong *steps, int num, nbody_particle *body, char file[], uint id);
-  void writeSnapshot(int  unit, double  time, ulong  steps, int num, nbody_particle *body, char file[], uint id);
+  void  readSnapshot(int *unit, double *time, ulong *steps, int num, iparticle body, char file[], uint id);
+  void writeSnapshot(int  unit, double  time, ulong  steps, int num, iparticle body, char file[], uint id);
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
-  void writeSnapshotParallel(int  unit, double  time, ulong  steps, int num, nbody_particle *body, char file[], uint id, MPIcfg_dataio *mpi
+  void writeSnapshotParallel(int  unit, double  time, ulong  steps, int num, iparticle body, char file[], uint id, MPIcfg_dataio *mpi, ulong Ntot
 #ifdef  USE_HDF5_FORMAT
-			     , ulong Ntot, hdf5struct type
+			     , hdf5struct type
 #ifdef  MONITOR_ENERGY_ERROR
 			     , energyError *relEneErr
 #endif//MONITOR_ENERGY_ERROR

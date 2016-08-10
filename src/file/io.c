@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/23(Sat) 14:22:24
+                  last updated on 2016/08/10(Wed) 12:08:44
  *                                                                       *
  *    Input/Output Code of N-body calculation                            *
  *                                                                       *
@@ -94,7 +94,7 @@ void createMPIcfg_dataio(MPIcfg_dataio *cfg, MPIinfo mpi)
   cfg->info = mpi.info;
   cfg->size = mpi.size;
   cfg->rank = mpi.rank;
-  commitMPIbyte(&(cfg->body), (int)sizeof(nbody_particle));
+  /* commitMPIbyte(&(cfg->body), (int)sizeof(nbody_particle)); */
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
@@ -385,57 +385,6 @@ void createHDF5DataType(hdf5struct *type)
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-  /* commit data type of nbody_particle */
-  //-----------------------------------------------------------------------
-  type->nbody = H5Tcreate(H5T_COMPOUND, sizeof(nbody_particle));
-  chkHDF5err(H5Tinsert(type->nbody, "index", HOFFSET(nbody_particle, idx), H5T_NATIVE_ULONG));
-#ifdef  BLOCK_TIME_STEP
-  chkHDF5err(H5Tinsert(type->nbody, "time", HOFFSET(nbody_particle, t0), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->nbody, "t + dt", HOFFSET(nbody_particle, t1), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->nbody, "dt", HOFFSET(nbody_particle, dt), type->real));
-#endif//BLOCK_TIME_STEP
-  chkHDF5err(H5Tinsert(type->nbody,   "x", HOFFSET(nbody_particle,   x), type->real));
-  chkHDF5err(H5Tinsert(type->nbody,   "y", HOFFSET(nbody_particle,   y), type->real));
-  chkHDF5err(H5Tinsert(type->nbody,   "z", HOFFSET(nbody_particle,   z), type->real));
-  chkHDF5err(H5Tinsert(type->nbody,  "vx", HOFFSET(nbody_particle,  vx), type->real));
-  chkHDF5err(H5Tinsert(type->nbody,  "vy", HOFFSET(nbody_particle,  vy), type->real));
-  chkHDF5err(H5Tinsert(type->nbody,  "vz", HOFFSET(nbody_particle,  vz), type->real));
-  chkHDF5err(H5Tinsert(type->nbody,  "ax", HOFFSET(nbody_particle,  ax), type->real));
-  chkHDF5err(H5Tinsert(type->nbody,  "ay", HOFFSET(nbody_particle,  ay), type->real));
-  chkHDF5err(H5Tinsert(type->nbody,  "az", HOFFSET(nbody_particle,  az), type->real));
-  chkHDF5err(H5Tinsert(type->nbody,   "m", HOFFSET(nbody_particle,   m), type->real));
-  chkHDF5err(H5Tinsert(type->nbody, "pot", HOFFSET(nbody_particle, pot), type->real));
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
-  /* commit data type of position, acceleration, velocity, and ibody_time */
-  //-----------------------------------------------------------------------
-  type->position     = H5Tcreate(H5T_COMPOUND, sizeof(position));
-  type->acceleration = H5Tcreate(H5T_COMPOUND, sizeof(acceleration));
-#ifdef  BLOCK_TIME_STEP
-  type->velocity     = H5Tcreate(H5T_COMPOUND, sizeof(velocity));
-  type->ibody_time   = H5Tcreate(H5T_COMPOUND, sizeof(ibody_time));
-#endif//BLOCK_TIME_STEP
-  //-----------------------------------------------------------------------
-  chkHDF5err(H5Tinsert(type->    position,   "x", HOFFSET(    position,   x), type->real));
-  chkHDF5err(H5Tinsert(type->    position,   "y", HOFFSET(    position,   y), type->real));
-  chkHDF5err(H5Tinsert(type->    position,   "z", HOFFSET(    position,   z), type->real));
-  chkHDF5err(H5Tinsert(type->    position,   "m", HOFFSET(    position,   m), type->real));
-  chkHDF5err(H5Tinsert(type->acceleration,   "x", HOFFSET(acceleration,   x), type->real));
-  chkHDF5err(H5Tinsert(type->acceleration,   "y", HOFFSET(acceleration,   y), type->real));
-  chkHDF5err(H5Tinsert(type->acceleration,   "z", HOFFSET(acceleration,   z), type->real));
-  chkHDF5err(H5Tinsert(type->acceleration, "pot", HOFFSET(acceleration, pot), type->real));
-#ifdef  BLOCK_TIME_STEP
-  chkHDF5err(H5Tinsert(type->    velocity,   "x", HOFFSET(    velocity,   x), type->real));
-  chkHDF5err(H5Tinsert(type->    velocity,   "y", HOFFSET(    velocity,   y), type->real));
-  chkHDF5err(H5Tinsert(type->    velocity,   "z", HOFFSET(    velocity,   z), type->real));
-  chkHDF5err(H5Tinsert(type->    velocity,  "dt", HOFFSET(    velocity,  dt), type->real));
-  chkHDF5err(H5Tinsert(type->ibody_time,   "time", HOFFSET(ibody_time, t0), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->ibody_time, "t + dt", HOFFSET(ibody_time, t1), H5T_NATIVE_DOUBLE));
-#endif//BLOCK_TIME_STEP
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
 }
@@ -446,19 +395,12 @@ void removeHDF5DataType(hdf5struct  type)
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
   chkHDF5err(H5Tclose(type.str4unit));
-  chkHDF5err(H5Tclose(type.nbody));
-  chkHDF5err(H5Tclose(type.position));
-  chkHDF5err(H5Tclose(type.acceleration));
-#ifdef  BLOCK_TIME_STEP
-  chkHDF5err(H5Tclose(type.velocity));
-  chkHDF5err(H5Tclose(type.ibody_time));
-#endif//BLOCK_TIME_STEP
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-void  readTentativeData(double *time, double *dt, ulong *steps, int num, nbody_particle *body, char file[], int  last, hdf5struct type
+void  readTentativeData(double *time, double *dt, ulong *steps, int num, iparticle body, char file[], int  last, hdf5struct type
 #ifdef  MONITOR_ENERGY_ERROR
 			, energyError *relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -479,8 +421,39 @@ void  readTentativeData(double *time, double *dt, ulong *steps, int num, nbody_p
   hid_t group = H5Gopen(target, "nbody", H5P_DEFAULT);
   //-----------------------------------------------------------------------
   /* read particle data */
-  hid_t dataset = H5Dopen(group, "data", H5P_DEFAULT);
-  chkHDF5err(H5Dread(dataset, type.nbody, H5S_ALL, H5S_ALL, H5P_DEFAULT, body));
+  hid_t dataset;
+  /* read particle position */
+  dataset = H5Dopen(group, "position", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.pos));
+  chkHDF5err(H5Dclose(dataset));
+  /* read particle acceleration */
+  dataset = H5Dopen(group, "acceleration", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.acc));
+  chkHDF5err(H5Dclose(dataset));
+#ifdef  BLOCK_TIME_STEP
+  /* read particle velocity */
+  dataset = H5Dopen(group, "velocity", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.vel));
+  chkHDF5err(H5Dclose(dataset));
+  /* read particle time */
+  dataset = H5Dopen(group, "time", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.time));
+  chkHDF5err(H5Dclose(dataset));
+#else///BLOCK_TIME_STEP
+  /* read particle velocity */
+  dataset = H5Dopen(group, "vx", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.vx));
+  chkHDF5err(H5Dclose(dataset));
+  dataset = H5Dopen(group, "vy", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.vy));
+  chkHDF5err(H5Dclose(dataset));
+  dataset = H5Dopen(group, "vz", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.vz));
+  chkHDF5err(H5Dclose(dataset));
+#endif//BLOCK_TIME_STEP
+  /* read particle index */
+  dataset = H5Dopen(group, "index", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, H5T_NATIVE_ULONG, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.idx));
   chkHDF5err(H5Dclose(dataset));
   //-----------------------------------------------------------------------
 
@@ -549,9 +522,7 @@ void  readTentativeData(double *time, double *dt, ulong *steps, int num, nbody_p
   //-----------------------------------------------------------------------
   /* simple error check */
   //-----------------------------------------------------------------------
-  if( num_ulong != (ulong)num ){
-    __KILL__(stderr, "ERROR: number of N-body particles in the file (%zu) differs with that in the code (%d)\n", num_ulong, num);
-  }
+  if( num_ulong != (ulong)num ){    __KILL__(stderr, "ERROR: number of N-body particles in the file (%zu) differs with that in the code (%d)\n", num_ulong, num);  }
   //-----------------------------------------------------------------------
 #ifdef  DOUBLE_PRECISION
   if( useDP != 1 ){
@@ -579,7 +550,7 @@ void  readTentativeData(double *time, double *dt, ulong *steps, int num, nbody_p
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int num, nbody_particle *body, char file[], int  last, MPIcfg_dataio *mpi, ulong Ntot, hdf5struct type
+void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int num, iparticle body, char file[], int  last, MPIcfg_dataio *mpi, ulong Ntot, hdf5struct type
 #ifdef  MONITOR_ENERGY_ERROR
 				, energyError *relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -592,9 +563,6 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int num,
   //-----------------------------------------------------------------------
   /* open an existing file with read only option */
   //-----------------------------------------------------------------------
-  /* reset MPI_Offset */
-  updateMPIcfg_dataio(mpi, num);
-  //-----------------------------------------------------------------------
   char filename[128];
   sprintf(filename, "%s/%s.%s%d.h5", DATAFOLDER, file, TENTATIVE, last);
   hid_t f_property = H5Pcreate(H5P_FILE_ACCESS);
@@ -604,31 +572,128 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int num,
   //-----------------------------------------------------------------------
   /* open an existing group */
   hid_t group = H5Gopen(target, "nbody", H5P_DEFAULT);
-  hid_t dataset = H5Dopen(group, "data", H5P_DEFAULT);
-  //-----------------------------------------------------------------------
-  /* configuration about domain decomposition */
-  hsize_t dims_loc = num;
-  hid_t locSpace = H5Screate_simple(1, &dims_loc, NULL);
-  hsize_t  count = 1;
-  hsize_t stride = 1;
-  hsize_t  block = dims_loc;
-  hsize_t offset = mpi->head;
-  //-----------------------------------------------------------------------
-  /* select hyperslab in the file */
-  hid_t hyperslab = H5Dget_space(dataset);
-  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
   //-----------------------------------------------------------------------
   /* create property list for collective dataset read */
   hid_t r_property = H5Pcreate(H5P_DATASET_XFER);
   chkHDF5err(H5Pset_dxpl_mpio(r_property, H5FD_MPIO_COLLECTIVE));
   //-----------------------------------------------------------------------
-  /* read particle data */
-  chkHDF5err(H5Dread(dataset, type.nbody, locSpace, hyperslab, r_property, body));
+  /* reset MPI_Offset */
+  updateMPIcfg_dataio(mpi, num);
   //-----------------------------------------------------------------------
-  chkHDF5err(H5Pclose(r_property));
+
+  //-----------------------------------------------------------------------
+  /* dataset for real4 arrays */
+  //-----------------------------------------------------------------------
+  /* dataspace */
+  hsize_t dims_loc = 4 * num;
+  hid_t locSpace = H5Screate_simple(1, &dims_loc, NULL);
+  //-----------------------------------------------------------------------
+  /* configuration about domain decomposition */
+  hsize_t  count = 1;
+  hsize_t stride = 1;
+  hsize_t  block = dims_loc;
+  hsize_t offset = mpi->head * 4;
+  //-----------------------------------------------------------------------
+  hid_t dataset, hyperslab;
+  /* read particle position */
+  dataset = H5Dopen(group, "position", H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.pos));
   chkHDF5err(H5Sclose(hyperslab));
   chkHDF5err(H5Dclose(dataset));
+  /* read particle acceleration */
+  dataset = H5Dopen(group, "acceleration", H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.acc));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+#ifdef  BLOCK_TIME_STEP
+  dataset = H5Dopen(group, "velocity", H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.vel));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+#endif//BLOCK_TIME_STEP
+  //-----------------------------------------------------------------------
   chkHDF5err(H5Sclose(locSpace));
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+#ifdef  BLOCK_TIME_STEP
+  //-----------------------------------------------------------------------
+  /* dataset for double2 array */
+  //-----------------------------------------------------------------------
+  /* dataspace */
+  dims_loc = 2 * num;
+  locSpace = H5Screate_simple(1, &dims_loc, NULL);
+  //-----------------------------------------------------------------------
+  /* configuration about domain decomposition */
+  count  = 1;
+  stride = 1;
+  block  = dims_loc;
+  offset = mpi->head * 2;
+  //-----------------------------------------------------------------------
+  /* read particle time */
+  dataset = H5Dopen(group, "time", H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, locSpace, hyperslab, r_property, body.time));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+  //-----------------------------------------------------------------------
+  chkHDF5err(H5Sclose(locSpace));
+  //-----------------------------------------------------------------------
+#endif//BLOCK_TIME_STEP
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* dataset for num array */
+  //-----------------------------------------------------------------------
+  /* dataspace */
+  dims_loc = num;
+  locSpace = H5Screate_simple(1, &dims_loc, NULL);
+  //-----------------------------------------------------------------------
+  /* configuration about domain decomposition */
+  count  = 1;
+  stride = 1;
+  block  = dims_loc;
+  offset = mpi->head;
+  //-----------------------------------------------------------------------
+#ifndef BLOCK_TIME_STEP
+  /* read particle velocity */
+  dataset = H5Dopen(group, "vx", H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.vx));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+  dataset = H5Dopen(group, "vy", H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.vy));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+  dataset = H5Dopen(group, "vz", H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.vz));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+#endif//BLOCK_TIME_STEP
+  dataset = H5Dopen(group, "index", H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dread(dataset, H5T_NATIVE_ULONG, locSpace, hyperslab, r_property, body.idx));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+  //-----------------------------------------------------------------------
+  chkHDF5err(H5Sclose(locSpace));
+  //-----------------------------------------------------------------------
+  /* finish collective dataset read */
+  chkHDF5err(H5Pclose(r_property));
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -742,7 +807,7 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int num,
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-void writeTentativeData(double  time, double  dt, ulong  steps, int num, nbody_particle *body, char file[], int *last, hdf5struct type
+void writeTentativeData(double  time, double  dt, ulong  steps, int num, iparticle body, char file[], int *last, hdf5struct type
 #ifdef  MONITOR_ENERGY_ERROR
 			, energyError relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -764,25 +829,119 @@ void writeTentativeData(double  time, double  dt, ulong  steps, int num, nbody_p
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-  /* create the data space for the dataset */
+  /* preparation for data compression */
   //-----------------------------------------------------------------------
-  hsize_t dims = num;
-  hid_t dataspace = H5Screate_simple(1, &dims, NULL);
+  hid_t dataset, dataspace, property;
+#ifdef  USE_SZIP_COMPRESSION
+  /* compression using szip */
+  uint szip_options_mask = H5_SZIP_NN_OPTION_MASK;
+  uint szip_pixels_per_block = 8;
+  hsize_t cdims = 128 * szip_pixels_per_block;
+#else///USE_SZIP_COMPRESSION
+  property = H5P_DEFAULT;
+#endif//USE_SZIP_COMPRESSION
   //-----------------------------------------------------------------------
-  /* SZIP compression can only be used with atomic datatypes that are integer, float, or char. */
-  /* It cannot be applied to compound, array, variable-length, enumerations, or other user-defined datatypes. */
-  /* The call to H5Dcreate will fail if attempting to create an SZIP compressed dataset with a non-allowed datatype. */
-  /* The conflict can only be detected when the property list is used. */
+
   //-----------------------------------------------------------------------
-  /* create the dataset */
-  hid_t dataset = H5Dcreate(group, "data", type.nbody, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  /* num * real4 arrays */
   //-----------------------------------------------------------------------
-  /* close the dataspace */
+  hsize_t dims = num * 4;
+  dataspace = H5Screate_simple(1, &dims, NULL);
+#ifdef  USE_SZIP_COMPRESSION
+  property = H5Pcreate(H5P_DATASET_CREATE);
+  hsize_t cdims_loc = cdims;
+  if( dims < cdims_loc )
+    cdims_loc = 1 << ilog2((uint)dims);
+  chkHDF5err(H5Pset_chunk(property, 1, &cdims_loc));
+  chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+#endif//USE_SZIP_COMPRESSION
+  //-----------------------------------------------------------------------
+  /* write particle position */
+  dataset = H5Dcreate(group, "position", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.pos));
+  chkHDF5err(H5Dclose(dataset));
+  /* write particle acceleration */
+  dataset = H5Dcreate(group, "acceleration", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.acc));
+  chkHDF5err(H5Dclose(dataset));
+#ifdef  BLOCK_TIME_STEP
+  /* write particle velocity */
+  dataset = H5Dcreate(group, "velocity", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.vel));
+  chkHDF5err(H5Dclose(dataset));
+#endif//BLOCK_TIME_STEP
+  //-----------------------------------------------------------------------
+#ifdef  USE_SZIP_COMPRESSION
+  chkHDF5err(H5Pclose(property));
+#endif//USE_SZIP_COMPRESSION
   chkHDF5err(H5Sclose(dataspace));
   //-----------------------------------------------------------------------
-  /* write particle data */
-  chkHDF5err(H5Dwrite(dataset, type.nbody, H5S_ALL, H5S_ALL, H5P_DEFAULT, body));
+
+  //-----------------------------------------------------------------------
+#ifdef  BLOCK_TIME_STEP
+  //-----------------------------------------------------------------------
+  /* num * double2 array */
+  //-----------------------------------------------------------------------
+  dims = num * 2;
+  dataspace = H5Screate_simple(1, &dims, NULL);
+#ifdef  USE_SZIP_COMPRESSION
+  property = H5Pcreate(H5P_DATASET_CREATE);
+  cdims_loc = cdims;
+  if( dims < cdims_loc )
+    cdims_loc = 1 << ilog2((uint)dims);
+  chkHDF5err(H5Pset_chunk(property, 1, &cdims_loc));
+  chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+#endif//USE_SZIP_COMPRESSION
+  //-----------------------------------------------------------------------
+  /* write particle time */
+  dataset = H5Dcreate(group, "time", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.time));
   chkHDF5err(H5Dclose(dataset));
+  //-----------------------------------------------------------------------
+#ifdef  USE_SZIP_COMPRESSION
+  chkHDF5err(H5Pclose(property));
+#endif//USE_SZIP_COMPRESSION
+  chkHDF5err(H5Sclose(dataspace));
+  //-----------------------------------------------------------------------
+#endif//BLOCK_TIME_STEP
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* num array */
+  //-----------------------------------------------------------------------
+  dims = num;
+  dataspace = H5Screate_simple(1, &dims, NULL);
+#ifdef  USE_SZIP_COMPRESSION
+  property = H5Pcreate(H5P_DATASET_CREATE);
+  cdims_loc = cdims;
+  if( dims < cdims_loc )
+    cdims_loc = 1 << ilog2((uint)dims);
+  chkHDF5err(H5Pset_chunk(property, 1, &cdims_loc));
+  chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+#endif//USE_SZIP_COMPRESSION
+  //-----------------------------------------------------------------------
+#ifndef BLOCK_TIME_STEP
+  /* write particle velocity */
+  dataset = H5Dcreate(group, "vx", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.vx));
+  chkHDF5err(H5Dclose(dataset));
+  dataset = H5Dcreate(group, "vy", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.vy));
+  chkHDF5err(H5Dclose(dataset));
+  dataset = H5Dcreate(group, "vz", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.vz));
+  chkHDF5err(H5Dclose(dataset));
+#endif//BLOCK_TIME_STEP
+  //-----------------------------------------------------------------------
+  /* write particle index */
+  dataset = H5Dcreate(group, "index", H5T_NATIVE_ULONG, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, H5T_NATIVE_ULONG, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.idx));
+  chkHDF5err(H5Dclose(dataset));
+  //-----------------------------------------------------------------------
+#ifdef  USE_SZIP_COMPRESSION
+  chkHDF5err(H5Pclose(property));
+#endif//USE_SZIP_COMPRESSION
+  chkHDF5err(H5Sclose(dataspace));
   //-----------------------------------------------------------------------
 
 
@@ -868,7 +1027,7 @@ void writeTentativeData(double  time, double  dt, ulong  steps, int num, nbody_p
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num, nbody_particle *body, char file[], int *last, MPIcfg_dataio *mpi, ulong Ntot, hdf5struct type
+void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num, iparticle body, char file[], int *last, MPIcfg_dataio *mpi, ulong Ntot, hdf5struct type
 #ifdef  MONITOR_ENERGY_ERROR
 				, energyError relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -891,48 +1050,152 @@ void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num,
   //-----------------------------------------------------------------------
   hid_t group = H5Gcreate(target, "nbody", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
-  /* create (distributed) dataset */
-  //-----------------------------------------------------------------------
-  /* create dataspace */
-  hsize_t dims_ful = Ntot            ;  hid_t fulSpace = H5Screate_simple(1, &dims_ful, NULL);
-  hsize_t dims_mem = Ntot / mpi->size;
-  hsize_t dims_loc =  num            ;  hid_t locSpace = H5Screate_simple(1, &dims_loc, NULL);
-  //-----------------------------------------------------------------------
-  /* create chunked dataset */
-  hid_t date_create = H5Pcreate(H5P_DATASET_CREATE);
-  /* chkHDF5err(H5Pset_chunk(date_create, 1, &dims_loc)); */
-  chkHDF5err(H5Pset_chunk(date_create, 1, &dims_mem));
-  hid_t dset = H5Dcreate(group, "data", type.nbody, fulSpace, H5P_DEFAULT, date_create, H5P_DEFAULT);
-  //-----------------------------------------------------------------------
-  /* configuration about domain decomposition */
-  updateMPIcfg_dataio(mpi, num);
-  hsize_t  count = 1;
-  hsize_t stride = 1;
-  hsize_t  block = dims_loc;
-  hsize_t offset = mpi->head;
-#ifdef  DBG_PARALLEL_HDF5
-  fprintf(stdout, "rank %d: block = %Lu, offset = %Lu\n", mpi->rank, block, offset);
-  fflush(stdout);
-#endif//DBG_PARALLEL_HDF5
-  //-----------------------------------------------------------------------
-  /* select hyperslab in the file */
-  hid_t hyperslab = H5Dget_space(dset);
-  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
-  //-----------------------------------------------------------------------
   /* create property list for collective dataset write */
   hid_t w_property = H5Pcreate(H5P_DATASET_XFER);
   chkHDF5err(H5Pset_dxpl_mpio(w_property, H5FD_MPIO_COLLECTIVE));
-  chkHDF5err(H5Dwrite(dset, type.nbody, locSpace, hyperslab, w_property, body));
   //-----------------------------------------------------------------------
-  /* close/release resources */
-  chkHDF5err(H5Pclose(w_property));
+  /* configuration about domain decomposition */
+  updateMPIcfg_dataio(mpi, num);
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* create (distributed) dataset for real4 arrays */
+  //-----------------------------------------------------------------------
+  /* create dataspace */
+  hsize_t dims_ful = 4 * Ntot            ;  hid_t fulSpace = H5Screate_simple(1, &dims_ful, NULL);
+  hsize_t dims_mem = 4 * Ntot / mpi->size;
+  hsize_t dims_loc = 4 *  num            ;  hid_t locSpace = H5Screate_simple(1, &dims_loc, NULL);
+  //-----------------------------------------------------------------------
+  /* configuration about domain decomposition */
+  hsize_t  count = 1;
+  hsize_t stride = 1;
+  hsize_t  block = dims_loc;
+  hsize_t offset = mpi->head * 4;
+  //-----------------------------------------------------------------------
+  /* create chunked dataset */
+  hid_t data_create = H5Pcreate(H5P_DATASET_CREATE);
+  chkHDF5err(H5Pset_chunk(data_create, 1, &dims_mem));
+  hid_t dset, hyperslab;
+  //-----------------------------------------------------------------------
+  /* write particle position */
+  dset = H5Dcreate(group, "position", type.real, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+  hyperslab = H5Dget_space(dset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dwrite(dset, type.real, locSpace, hyperslab, w_property, body.pos));
   chkHDF5err(H5Sclose(hyperslab));
   chkHDF5err(H5Dclose(dset));
-  chkHDF5err(H5Pclose(date_create));
+  /* write particle acceleration */
+  dset = H5Dcreate(group, "acceleration", type.real, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+  hyperslab = H5Dget_space(dset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dwrite(dset, type.real, locSpace, hyperslab, w_property, body.acc));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dset));
+#ifdef  BLOCK_TIME_STEP
+  /* write particle velocity */
+  dset = H5Dcreate(group, "velocity", type.real, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+  hyperslab = H5Dget_space(dset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dwrite(dset, type.real, locSpace, hyperslab, w_property, body.vel));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dset));
+#endif//BLOCK_TIME_STEP
+  //-----------------------------------------------------------------------
+  /* close/release resources */
+  chkHDF5err(H5Pclose(data_create));
   chkHDF5err(H5Sclose(locSpace));
   chkHDF5err(H5Sclose(fulSpace));
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+#ifdef  BLOCK_TIME_STEP
+  //-----------------------------------------------------------------------
+  /* create (distributed) dataset for double2 array */
+  //-----------------------------------------------------------------------
+  /* create dataspace */
+  dims_ful = 2 * Ntot            ;  fulSpace = H5Screate_simple(1, &dims_ful, NULL);
+  dims_mem = 2 * Ntot / mpi->size;
+  dims_loc = 2 *  num            ;  locSpace = H5Screate_simple(1, &dims_loc, NULL);
+  //-----------------------------------------------------------------------
+  /* configuration about domain decomposition */
+  count  = 1;
+  stride = 1;
+  block  = dims_loc;
+  offset = mpi->head * 2;
+  //-----------------------------------------------------------------------
+  /* create chunked dataset */
+  data_create = H5Pcreate(H5P_DATASET_CREATE);
+  chkHDF5err(H5Pset_chunk(data_create, 1, &dims_mem));
+  //-----------------------------------------------------------------------
+  /* write particle time */
+  dset = H5Dcreate(group, "time", H5T_NATIVE_DOUBLE, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+  hyperslab = H5Dget_space(dset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dwrite(dset, H5T_NATIVE_DOUBLE, locSpace, hyperslab, w_property, body.time));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dset));
+  //-----------------------------------------------------------------------
+  /* close/release resources */
+  chkHDF5err(H5Pclose(data_create));
+  chkHDF5err(H5Sclose(locSpace));
+  chkHDF5err(H5Sclose(fulSpace));
+  //-----------------------------------------------------------------------
+#endif//BLOCK_TIME_STEP
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* create (distributed) dataset for num arrays */
+  //-----------------------------------------------------------------------
+  /* create dataspace */
+  dims_ful = Ntot            ;  fulSpace = H5Screate_simple(1, &dims_ful, NULL);
+  dims_mem = Ntot / mpi->size;
+  dims_loc =  num            ;  locSpace = H5Screate_simple(1, &dims_loc, NULL);
+  //-----------------------------------------------------------------------
+  /* configuration about domain decomposition */
+  count  = 1;
+  stride = 1;
+  block  = dims_loc;
+  offset = mpi->head;
+  //-----------------------------------------------------------------------
+  /* create chunked dataset */
+  data_create = H5Pcreate(H5P_DATASET_CREATE);
+  chkHDF5err(H5Pset_chunk(data_create, 1, &dims_mem));
+  //-----------------------------------------------------------------------
+#ifndef BLOCK_TIME_STEP
+  /* write particle velocity */
+  dset = H5Dcreate(group, "vx", type.real, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+  hyperslab = H5Dget_space(dset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dwrite(dset, type.real, locSpace, hyperslab, w_property, body.vx));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dset));
+  dset = H5Dcreate(group, "vy", type.real, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+  hyperslab = H5Dget_space(dset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dwrite(dset, type.real, locSpace, hyperslab, w_property, body.vy));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dset));
+  dset = H5Dcreate(group, "vz", type.real, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+  hyperslab = H5Dget_space(dset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dwrite(dset, type.real, locSpace, hyperslab, w_property, body.vz));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dset));
+#endif//BLOCK_TIME_STEP
+  dset = H5Dcreate(group, "index", H5T_NATIVE_ULONG, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+  hyperslab = H5Dget_space(dset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dwrite(dset, H5T_NATIVE_ULONG, locSpace, hyperslab, w_property, body.idx));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dset));
+  //-----------------------------------------------------------------------
+  /* close/release resources */
+  chkHDF5err(H5Pclose(data_create));
+  chkHDF5err(H5Sclose(locSpace));
+  chkHDF5err(H5Sclose(fulSpace));
+  //-----------------------------------------------------------------------
+  /* finish collective dataset write */
+  chkHDF5err(H5Pclose(w_property));
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -944,51 +1207,27 @@ void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num,
   hid_t attribute;
   //-----------------------------------------------------------------------
   /* write current time */
-#ifdef  DBG_PARALLEL_HDF5
-  union {double d; ulong i;} buf_d;
-  buf_d.d = time;
-  fprintf(stdout, "rank %d: time = %lx\n", mpi->rank, buf_d.i);
-  fflush(stdout);
-#endif//DBG_PARALLEL_HDF5
   attribute = H5Acreate(group, "time", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &time));
   chkHDF5err(H5Aclose(attribute));
   //-----------------------------------------------------------------------
   /* write time step */
-#ifdef  DBG_PARALLEL_HDF5
-  buf_d.d = dt;
-  fprintf(stdout, "rank %d: dt = %lx\n", mpi->rank, buf_d.i);
-  fflush(stdout);
-#endif//DBG_PARALLEL_HDF5
   attribute = H5Acreate(group, "dt", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &dt));
   chkHDF5err(H5Aclose(attribute));
   //-----------------------------------------------------------------------
   /* write # of steps */
-#ifdef  DBG_PARALLEL_HDF5
-  fprintf(stdout, "rank %d: steps = %lu\n", mpi->rank, steps);
-  fflush(stdout);
-#endif//DBG_PARALLEL_HDF5
   attribute = H5Acreate(group, "steps", H5T_NATIVE_ULONG, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_ULONG, &steps));
   chkHDF5err(H5Aclose(attribute));
   //-----------------------------------------------------------------------
   /* write # of N-body particles */
-#ifdef  DBG_PARALLEL_HDF5
-  fprintf(stdout, "rank %d: Ntot = %lu\n", mpi->rank, Ntot);
-  fflush(stdout);
-#endif//DBG_PARALLEL_HDF5
   attribute = H5Acreate(group, "number", H5T_NATIVE_ULONG, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_ULONG, &Ntot));
   chkHDF5err(H5Aclose(attribute));
   //-----------------------------------------------------------------------
   /* write inverse of total energy at the initial condition */
 #ifdef  MONITOR_ENERGY_ERROR
-#ifdef  DBG_PARALLEL_HDF5
-  buf_d.d = relEneErr.E0inv;
-  fprintf(stdout, "rank %d: E0inv = %lx\n", mpi->rank, buf_d.i);
-  fflush(stdout);
-#endif//DBG_PARALLEL_HDF5
   attribute = H5Acreate(group, "E0inv", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &relEneErr.E0inv));
   chkHDF5err(H5Aclose(attribute));
@@ -996,11 +1235,6 @@ void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num,
   //-----------------------------------------------------------------------
   /* write maximum value of the relative error of the total energy */
 #ifdef  MONITOR_ENERGY_ERROR
-#ifdef  DBG_PARALLEL_HDF5
-  buf_d.d = relEneErr.errMax;
-  fprintf(stdout, "rank %d: errMax = %lx\n", mpi->rank, buf_d.i);
-  fflush(stdout);
-#endif//DBG_PARALLEL_HDF5
   attribute = H5Acreate(group, "errMax", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &relEneErr.errMax));
   chkHDF5err(H5Aclose(attribute));
@@ -1012,10 +1246,6 @@ void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num,
 #else///DOUBLE_PRECISION
   const int useDP = 0;
 #endif//DOUBLE_PRECISION
-#ifdef  DBG_PARALLEL_HDF5
-  fprintf(stdout, "rank %d: useDP = %d\n", mpi->rank, useDP);
-  fflush(stdout);
-#endif//DBG_PARALLEL_HDF5
   attribute = H5Acreate(group, "useDP", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
   chkHDF5err(H5Aclose(attribute));
@@ -1026,10 +1256,6 @@ void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num,
 #else///BLOCK_TIME_STEP
   const int blockTimeStep = 0;
 #endif//BLOCK_TIME_STEP
-#ifdef  DBG_PARALLEL_HDF5
-  fprintf(stdout, "rank %d: blockTimeStep = %d\n", mpi->rank, blockTimeStep);
-  fflush(stdout);
-#endif//DBG_PARALLEL_HDF5
   attribute = H5Acreate(group, "blockTimeStep", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &blockTimeStep));
   chkHDF5err(H5Aclose(attribute));
@@ -1055,7 +1281,7 @@ void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num,
 //-------------------------------------------------------------------------
 #else///USE_HDF5_FORMAT
 //-------------------------------------------------------------------------
-void readTentativeData(double *time, double *dt, ulong *steps, int num, nbody_particle *body, char file[], int last)
+void readTentativeData(double *time, double *dt, ulong *steps, int num, iparticle body, char file[], int last)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -1066,19 +1292,26 @@ void readTentativeData(double *time, double *dt, ulong *steps, int num, nbody_pa
   FILE *fp;
   sprintf(filename, "%s/%s.%s%d.dat", DATAFOLDER, file, TENTATIVE, last);
   fp = fopen(filename, "rb");
-  if( fp == NULL ){
-    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);
-  }
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
   //-----------------------------------------------------------------------
   bool success = true;
   size_t tmp;
-  tmp =   1;  if( tmp != fread( time, sizeof(        double), tmp, fp) )    success = false;
-  tmp =   1;  if( tmp != fread(   dt, sizeof(        double), tmp, fp) )    success = false;
-  tmp =   1;  if( tmp != fread(steps, sizeof(         ulong), tmp, fp) )    success = false;
-  tmp = num;  if( tmp != fread( body, sizeof(nbody_particle), tmp, fp) )    success = false;
-  if( success != true ){
-    __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);
-  }
+  tmp =   1;  if( tmp != fread( time, sizeof(double), tmp, fp) )    success = false;
+  tmp =   1;  if( tmp != fread(   dt, sizeof(double), tmp, fp) )    success = false;
+  tmp =   1;  if( tmp != fread(steps, sizeof( ulong), tmp, fp) )    success = false;
+  /* tmp = num;  if( tmp != fread( body, sizeof(nbody_particle), tmp, fp) )    success = false; */
+  tmp = num;  if( tmp != fread(body.pos, sizeof(    position), tmp, fp) )    success = false;
+  tmp = num;  if( tmp != fread(body.acc, sizeof(acceleration), tmp, fp) )    success = false;
+#ifdef  BLOCK_TIME_STEP
+  tmp = num;  if( tmp != fread(body. vel, sizeof(  velocity), tmp, fp) )    success = false;
+  tmp = num;  if( tmp != fread(body.time, sizeof(ibody_time), tmp, fp) )    success = false;
+#else///BLOCK_TIME_STEP
+  tmp = num;  if( tmp != fread(body.vx, sizeof(real), tmp, fp) )    success = false;
+  tmp = num;  if( tmp != fread(body.vy, sizeof(real), tmp, fp) )    success = false;
+  tmp = num;  if( tmp != fread(body.vz, sizeof(real), tmp, fp) )    success = false;
+#endif//BLOCK_TIME_STEP
+  tmp = num;  if( tmp != fread(body.idx, sizeof(ulong), tmp, fp) )    success = false;
+  if( success != true ){    __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);  }
   //-----------------------------------------------------------------------
   fclose(fp);
   //-----------------------------------------------------------------------
@@ -1088,7 +1321,7 @@ void readTentativeData(double *time, double *dt, ulong *steps, int num, nbody_pa
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-void readTentativeDataParallel(double *time, double *dt, ulong *steps, int num, nbody_particle *body, char file[], int last, MPIcfg_dataio *mpi)
+void readTentativeDataParallel(double *time, double *dt, ulong *steps, int num, iparticle body, char file[], int last, MPIcfg_dataio *mpi, ulong Ntot)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -1131,8 +1364,43 @@ void readTentativeDataParallel(double *time, double *dt, ulong *steps, int num, 
   disp += 1 * (MPI_Offset)sizeof(ulong);
   //-----------------------------------------------------------------------
   /* the whole processes read body, an iparticle array */
-  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(nbody_particle), mpi->body, mpi->body, "native", MPI_INFO_NULL));
-  chkMPIerr(MPI_File_read(fh, body, num, mpi->body, &status));
+  /* chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(nbody_particle), mpi->body, mpi->body, "native", MPI_INFO_NULL)); */
+  /* chkMPIerr(MPI_File_read(fh, body, num, mpi->body, &status)); */
+  //-----------------------------------------------------------------------
+  /* the whole processes read position */
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(position), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_read(fh, body.pos, num * 4, MPI_REALDAT, &status));
+  disp += Ntot * (MPI_Offset)sizeof(position);
+  //-----------------------------------------------------------------------
+  /* the whole processes read acceleration */
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(acceleration), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_read(fh, body.acc, num * 4, MPI_REALDAT, &status));
+  disp += Ntot * (MPI_Offset)sizeof(acceleration);
+  //-----------------------------------------------------------------------
+  /* the whole processes read velocity and time */
+#ifdef  BLOCK_TIME_STEP
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(velocity), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_read(fh, body.vel, num * 4, MPI_REALDAT, &status));
+  disp += Ntot * (MPI_Offset)sizeof(velocity);
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(ibody_time), MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_read(fh, body.time, num * 2, MPI_DOUBLE, &status));
+  disp += Ntot * (MPI_Offset)sizeof(ibody_time);
+#else///BLOCK_TIME_STEP
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(real), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_read(fh, body.vx, num, MPI_REALDAT, &status));
+  disp += Ntot * (MPI_Offset)sizeof(real);
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(real), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_read(fh, body.vy, num, MPI_REALDAT, &status));
+  disp += Ntot * (MPI_Offset)sizeof(real);
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(real), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_read(fh, body.vz, num, MPI_REALDAT, &status));
+  disp += Ntot * (MPI_Offset)sizeof(real);
+#endif//BLOCK_TIME_STEP
+  //-----------------------------------------------------------------------
+  /* the whole processes read index */
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(ulong), MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_read(fh, body.idx, num, MPI_UNSIGNED_LONG, &status));
+  disp += Ntot * (MPI_Offset)sizeof(ulong);
   //-----------------------------------------------------------------------
   /* close the target file */
   chkMPIerr(MPI_File_close(&fh));
@@ -1146,7 +1414,7 @@ void readTentativeDataParallel(double *time, double *dt, ulong *steps, int num, 
 
 
 //-------------------------------------------------------------------------
-void writeTentativeData(double time, double dt, ulong steps, int num, nbody_particle *body, char file[], int *last)
+void writeTentativeData(double time, double dt, ulong steps, int num, iparticle body, char file[], int *last)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -1166,10 +1434,19 @@ void writeTentativeData(double time, double dt, ulong steps, int num, nbody_part
   tmp =   1;  if( tmp != fwrite(& time, sizeof(        double), tmp, fp) )    success = false;
   tmp =   1;  if( tmp != fwrite(&   dt, sizeof(        double), tmp, fp) )    success = false;
   tmp =   1;  if( tmp != fwrite(&steps, sizeof(         ulong), tmp, fp) )    success = false;
-  tmp = num;  if( tmp != fwrite(  body, sizeof(nbody_particle), tmp, fp) )    success = false;
-  if( success != true ){
-    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);
-  }
+  /* tmp = num;  if( tmp != fwrite(  body, sizeof(nbody_particle), tmp, fp) )    success = false; */
+  tmp = num;  if( tmp != fwrite(body.pos, sizeof(    position), tmp, fp) )    success = false;
+  tmp = num;  if( tmp != fwrite(body.acc, sizeof(acceleration), tmp, fp) )    success = false;
+#ifdef  BLOCK_TIME_STEP
+  tmp = num;  if( tmp != fwrite(body. vel, sizeof(  velocity), tmp, fp) )    success = false;
+  tmp = num;  if( tmp != fwrite(body.time, sizeof(ibody_time), tmp, fp) )    success = false;
+#else///BLOCK_TIME_STEP
+  tmp = num;  if( tmp != fwrite(body.vx, sizeof(real), tmp, fp) )    success = false;
+  tmp = num;  if( tmp != fwrite(body.vy, sizeof(real), tmp, fp) )    success = false;
+  tmp = num;  if( tmp != fwrite(body.vz, sizeof(real), tmp, fp) )    success = false;
+#endif//BLOCK_TIME_STEP
+  tmp = num;  if( tmp != fwrite(body.idx, sizeof(ulong), tmp, fp) )    success = false;
+  if( success != true ){    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);  }
   //-----------------------------------------------------------------------
   fclose(fp);
   *last ^= 1;
@@ -1180,7 +1457,7 @@ void writeTentativeData(double time, double dt, ulong steps, int num, nbody_part
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-void writeTentativeDataParallel(double time, double dt, ulong steps, int num, nbody_particle *body, char file[], int *last, MPIcfg_dataio *mpi)
+void writeTentativeDataParallel(double time, double dt, ulong steps, int num, iparticle body, char file[], int *last, MPIcfg_dataio *mpi, ulong Ntot)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -1225,10 +1502,53 @@ void writeTentativeDataParallel(double time, double dt, ulong steps, int num, nb
   chkMPIerr(MPI_File_sync(fh));
   disp += 1 * (MPI_Offset)sizeof(ulong);
   //-----------------------------------------------------------------------
-  /* the whole processes write body, an iparticle array */
-  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(nbody_particle), mpi->body, mpi->body, "native", MPI_INFO_NULL));
-  chkMPIerr(MPI_File_write(fh, body, num, mpi->body, &status));
+  /* /\* the whole processes write body, an iparticle array *\/ */
+  /* chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(nbody_particle), mpi->body, mpi->body, "native", MPI_INFO_NULL)); */
+  /* chkMPIerr(MPI_File_write(fh, body, num, mpi->body, &status)); */
+  /* chkMPIerr(MPI_File_sync(fh)); */
+  //-----------------------------------------------------------------------
+  /* the whole processes write position */
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(position), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, body.pos, num * 4, MPI_REALDAT, &status));
   chkMPIerr(MPI_File_sync(fh));
+  disp += Ntot * (MPI_Offset)sizeof(position);
+  //-----------------------------------------------------------------------
+  /* the whole processes write acceleration */
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(acceleration), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, body.acc, num * 4, MPI_REALDAT, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  disp += Ntot * (MPI_Offset)sizeof(acceleration);
+  //-----------------------------------------------------------------------
+  /* the whole processes write velocity and time */
+#ifdef  BLOCK_TIME_STEP
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(velocity), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, body.vel, num * 4, MPI_REALDAT, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  disp += Ntot * (MPI_Offset)sizeof(velocity);
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(ibody_time), MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, body.time, num * 2, MPI_DOUBLE, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  disp += Ntot * (MPI_Offset)sizeof(ibody_time);
+#else///BLOCK_TIME_STEP
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(real), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, body.vx, num, MPI_REALDAT, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  disp += Ntot * (MPI_Offset)sizeof(real);
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(real), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, body.vy, num, MPI_REALDAT, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  disp += Ntot * (MPI_Offset)sizeof(real);
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(real), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, body.vz, num, MPI_REALDAT, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  disp += Ntot * (MPI_Offset)sizeof(real);
+#endif//BLOCK_TIME_STEP
+  //-----------------------------------------------------------------------
+  /* the whole processes write index */
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(ulong), MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, body.idx, num, MPI_UNSIGNED_LONG, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  disp += Ntot * (MPI_Offset)sizeof(ulong);
   //-----------------------------------------------------------------------
   /* close the output file */
   chkMPIerr(MPI_File_close(&fh));
@@ -1767,8 +2087,8 @@ void writeSnapshotParallel(int  unit, double  time, ulong  steps, int num, nbody
   hsize_t dims_loc[2] = { num            , 3};  hid_t locSpace = H5Screate_simple(2, dims_loc, NULL);
   //-----------------------------------------------------------------------
   /* create chunked dataset */
-  hid_t date_create = H5Pcreate(H5P_DATASET_CREATE);
-  chkHDF5err(H5Pset_chunk(date_create, 2, dims_mem));
+  hid_t data_create = H5Pcreate(H5P_DATASET_CREATE);
+  chkHDF5err(H5Pset_chunk(data_create, 2, dims_mem));
   hid_t dataset, hyperslab;
   //-----------------------------------------------------------------------
 #if 0
@@ -1799,21 +2119,21 @@ void writeSnapshotParallel(int  unit, double  time, ulong  steps, int num, nbody
   //-----------------------------------------------------------------------
   /* 2D (num, 3) arrays */
   /* write particle position */
-  dataset = H5Dcreate(group, "position", type.real, fulSpace, H5P_DEFAULT, date_create, data_access);
+  dataset = H5Dcreate(group, "position", type.real, fulSpace, H5P_DEFAULT, data_create, data_access);
   hyperslab = H5Dget_space(dataset);
   chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, offset, stride, count, block));
   chkHDF5err(H5Dwrite(dataset, type.real, locSpace, hyperslab, w_property, body->pos));
   chkHDF5err(H5Sclose(hyperslab));
   chkHDF5err(H5Dclose(dataset));
   /* write particle velocity */
-  dataset = H5Dcreate(group, "velocity", type.real, fulSpace, H5P_DEFAULT, date_create, data_access);
+  dataset = H5Dcreate(group, "velocity", type.real, fulSpace, H5P_DEFAULT, data_create, data_access);
   hyperslab = H5Dget_space(dataset);
   chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, offset, stride, count, block));
   chkHDF5err(H5Dwrite(dataset, type.real, locSpace, hyperslab, w_property, body->vel));
   chkHDF5err(H5Sclose(hyperslab));
   chkHDF5err(H5Dclose(dataset));
   /* write particle acceleration */
-  dataset = H5Dcreate(group, "acceleration", type.real, fulSpace, H5P_DEFAULT, date_create, data_access);
+  dataset = H5Dcreate(group, "acceleration", type.real, fulSpace, H5P_DEFAULT, data_create, data_access);
   hyperslab = H5Dget_space(dataset);
   chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, offset, stride, count, block));
   chkHDF5err(H5Dwrite(dataset, type.real, locSpace, hyperslab, w_property, body->acc));
@@ -1821,39 +2141,39 @@ void writeSnapshotParallel(int  unit, double  time, ulong  steps, int num, nbody
   chkHDF5err(H5Dclose(dataset));
   /* close the dataspace */
   chkHDF5err(H5Pclose(data_access));
-  chkHDF5err(H5Pclose(date_create));
+  chkHDF5err(H5Pclose(data_create));
   chkHDF5err(H5Sclose(locSpace));
   chkHDF5err(H5Sclose(fulSpace));
   //-----------------------------------------------------------------------
   /* 1D (num) arrays */
   fulSpace = H5Screate_simple(1, dims_ful, NULL);
   locSpace = H5Screate_simple(1, dims_loc, NULL);
-  date_create = H5Pcreate(H5P_DATASET_CREATE);
-  /* chkHDF5err(H5Pset_chunk(date_create, 1, dims_loc)); */
-  chkHDF5err(H5Pset_chunk(date_create, 1, dims_mem));
+  data_create = H5Pcreate(H5P_DATASET_CREATE);
+  /* chkHDF5err(H5Pset_chunk(data_create, 1, dims_loc)); */
+  chkHDF5err(H5Pset_chunk(data_create, 1, dims_mem));
   /* write particle mass */
-  dataset = H5Dcreate(group, "mass", type.real, fulSpace, H5P_DEFAULT, date_create, H5P_DEFAULT);
+  dataset = H5Dcreate(group, "mass", type.real, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
   hyperslab = H5Dget_space(dataset);
   chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, offset, stride, count, block));
   chkHDF5err(H5Dwrite(dataset, type.real, locSpace, hyperslab, w_property, body->m));
   chkHDF5err(H5Sclose(hyperslab));
   chkHDF5err(H5Dclose(dataset));
   /* write particle potential */
-  dataset = H5Dcreate(group, "potential", type.real, fulSpace, H5P_DEFAULT, date_create, H5P_DEFAULT);
+  dataset = H5Dcreate(group, "potential", type.real, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
   hyperslab = H5Dget_space(dataset);
   chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, offset, stride, count, block));
   chkHDF5err(H5Dwrite(dataset, type.real, locSpace, hyperslab, w_property, body->pot));
   chkHDF5err(H5Sclose(hyperslab));
   chkHDF5err(H5Dclose(dataset));
   /* write particle index */
-  dataset = H5Dcreate(group, "index", H5T_NATIVE_ULONG, fulSpace, H5P_DEFAULT, date_create, H5P_DEFAULT);
+  dataset = H5Dcreate(group, "index", H5T_NATIVE_ULONG, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
   hyperslab = H5Dget_space(dataset);
   chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, offset, stride, count, block));
   chkHDF5err(H5Dwrite(dataset, H5T_NATIVE_ULONG, locSpace, hyperslab, w_property, body->idx));
   chkHDF5err(H5Sclose(hyperslab));
   chkHDF5err(H5Dclose(dataset));
   /* close the dataspace */
-  chkHDF5err(H5Pclose(date_create));
+  chkHDF5err(H5Pclose(data_create));
   chkHDF5err(H5Sclose(locSpace));
   chkHDF5err(H5Sclose(fulSpace));
   chkHDF5err(H5Pclose(w_property));
@@ -2429,7 +2749,7 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
 //-------------------------------------------------------------------------
 #else///USE_HDF5_FORMAT
 //-------------------------------------------------------------------------
-void readSnapshot(int *unit, double *time, ulong *steps, int num, nbody_particle *body, char file[], uint id)
+void readSnapshot(int *unit, double *time, ulong *steps, int num, iparticle body, char file[], uint id)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -2452,14 +2772,19 @@ void readSnapshot(int *unit, double *time, ulong *steps, int num, nbody_particle
   tmp =   1;  if( tmp != fread( unit, sizeof(           int), tmp, fp) )    success = false;
   tmp =   1;  if( tmp != fread( time, sizeof(        double), tmp, fp) )    success = false;
   tmp =   1;  if( tmp != fread(steps, sizeof(         ulong), tmp, fp) )    success = false;
-  tmp = num;  if( tmp != fread( body, sizeof(nbody_particle), tmp, fp) )    success = false;
-  if( success != true ){
-    __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);
-  }
+  tmp = num;  if( tmp != fread(body.pos, sizeof(    position), tmp, fp) )    success = false;
+  tmp = num;  if( tmp != fread(body.acc, sizeof(acceleration), tmp, fp) )    success = false;
+#ifdef  BLOCK_TIME_STEP
+  tmp = num;  if( tmp != fread(body.vel, sizeof(velocity), tmp, fp) )    success = false;
+#else///BLOCK_TIME_STEP
+  tmp = num;  if( tmp != fread(body.vx, sizeof(real), tmp, fp) )    success = false;
+  tmp = num;  if( tmp != fread(body.vy, sizeof(real), tmp, fp) )    success = false;
+  tmp = num;  if( tmp != fread(body.vz, sizeof(real), tmp, fp) )    success = false;
+#endif//BLOCK_TIME_STEP
+  tmp = num;  if( tmp != fread(body.idx, sizeof(ulong), tmp, fp) )    success = false;
+  if( success != true ){    __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);  }
   //-----------------------------------------------------------------------
   fclose(fp);
-  //-----------------------------------------------------------------------
-  /* setPhysicalConstantsAndUnitSystem(*unit, 0); */
   //-----------------------------------------------------------------------
 
 
@@ -2468,7 +2793,7 @@ void readSnapshot(int *unit, double *time, ulong *steps, int num, nbody_particle
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-void writeSnapshot(int  unit, double  time, ulong  steps, int  num, nbody_particle *body, char file[], uint id)
+void writeSnapshot(int  unit, double  time, ulong  steps, int  num, iparticle body, char file[], uint id)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -2488,10 +2813,17 @@ void writeSnapshot(int  unit, double  time, ulong  steps, int  num, nbody_partic
   tmp =   1;  if( tmp != fwrite(& unit, sizeof(           int), tmp, fp) )    success = false;
   tmp =   1;  if( tmp != fwrite(& time, sizeof(        double), tmp, fp) )    success = false;
   tmp =   1;  if( tmp != fwrite(&steps, sizeof(         ulong), tmp, fp) )    success = false;
-  tmp = num;  if( tmp != fwrite(  body, sizeof(nbody_particle), tmp, fp) )    success = false;
-  if( success != true ){
-    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);
-  }
+  tmp = num;  if( tmp != fwrite(body.pos, sizeof(    position), tmp, fp) )    success = false;
+  tmp = num;  if( tmp != fwrite(body.acc, sizeof(acceleration), tmp, fp) )    success = false;
+#ifdef  BLOCK_TIME_STEP
+  tmp = num;  if( tmp != fwrite(body.vel, sizeof(velocity), tmp, fp) )    success = false;
+#else///BLOCK_TIME_STEP
+  tmp = num;  if( tmp != fwrite(body.vx, sizeof(real), tmp, fp) )    success = false;
+  tmp = num;  if( tmp != fwrite(body.vy, sizeof(real), tmp, fp) )    success = false;
+  tmp = num;  if( tmp != fwrite(body.vz, sizeof(real), tmp, fp) )    success = false;
+#endif//BLOCK_TIME_STEP
+  tmp = num;  if( tmp != fwrite(body.idx, sizeof(ulong), tmp, fp) )    success = false;
+  if( success != true ){    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);  }
   //-----------------------------------------------------------------------
   fclose(fp);
   //-----------------------------------------------------------------------
@@ -2502,7 +2834,7 @@ void writeSnapshot(int  unit, double  time, ulong  steps, int  num, nbody_partic
 }
 //-------------------------------------------------------------------------
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
-void writeSnapshotParallel(int  unit, double  time, ulong  steps, int  num, nbody_particle *body, char file[], uint id, MPIcfg_dataio *mpi)
+void writeSnapshotParallel(int  unit, double  time, ulong  steps, int  num, iparticle body, char file[], uint id, MPIcfg_dataio *mpi, ulong Ntot)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -2547,10 +2879,44 @@ void writeSnapshotParallel(int  unit, double  time, ulong  steps, int  num, nbod
   chkMPIerr(MPI_File_sync(fh));
   disp += 1 * (MPI_Offset)sizeof(ulong);
   //-----------------------------------------------------------------------
-  /* the whole processes write body, an iparticle array */
-  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(nbody_particle), mpi->body, mpi->body, "native", MPI_INFO_NULL));
-  chkMPIerr(MPI_File_write(fh, body, num, mpi->body, &status));
+  /* the whole processes write position */
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(position), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, body.pos, num * 4, MPI_REALDAT, &status));
   chkMPIerr(MPI_File_sync(fh));
+  disp += Ntot * (MPI_Offset)sizeof(position);
+  //-----------------------------------------------------------------------
+  /* the whole processes write acceleration */
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(acceleration), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, body.acc, num * 4, MPI_REALDAT, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  disp += Ntot * (MPI_Offset)sizeof(acceleration);
+  //-----------------------------------------------------------------------
+  /* the whole processes write velocity */
+#ifdef  BLOCK_TIME_STEP
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(velocity), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, body.vel, num * 4, MPI_REALDAT, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  disp += Ntot * (MPI_Offset)sizeof(velocity);
+#else///BLOCK_TIME_STEP
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(real), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, body.vx, num, MPI_REALDAT, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  disp += Ntot * (MPI_Offset)sizeof(real);
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(real), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, body.vy, num, MPI_REALDAT, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  disp += Ntot * (MPI_Offset)sizeof(real);
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(real), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, body.vz, num, MPI_REALDAT, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  disp += Ntot * (MPI_Offset)sizeof(real);
+#endif//BLOCK_TIME_STEP
+  //-----------------------------------------------------------------------
+  /* the whole processes write index */
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(ulong), MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, body.idx, num, MPI_UNSIGNED_LONG, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  disp += Ntot * (MPI_Offset)sizeof(ulong);
   //-----------------------------------------------------------------------
   /* close the target file */
   chkMPIerr(MPI_File_close(&fh));

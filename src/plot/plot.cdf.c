@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/25(Mon) 16:34:57
+                  last updated on 2016/08/10(Wed) 13:04:43
  *                                                                       *
  *    Plot Code of Cumulative distribution function for Tree code        *
  *                                                                       *
@@ -49,6 +49,14 @@
 #include "../misc/allocate.h"
 #define ERRFILE "err"
 FILE *fp;
+typedef struct
+{
+  ulong idx;
+  real  x,  y,  z;
+  real vx, vy, vz;
+  real ax, ay, az;
+  real m, pot;
+} nbody_particle;
 nbody_particle *body;
 #endif//defined(PRINT_VALUES) || defined(ERROR_DETECT)
 //-------------------------------------------------------------------------
@@ -64,6 +72,8 @@ void chkTreeError(int num, acceleration *direct, acceleration *octree,
 //-------------------------------------------------------------------------
 
 
+//-------------------------------------------------------------------------
+#   if  defined(PRINT_VALUES) || defined(ERROR_DETECT)
 //-------------------------------------------------------------------------
 #ifdef __ICC
 /* Disable ICC's remark #161: unrecognized #pragma */
@@ -87,6 +97,8 @@ int idxAscendingOrder(const void *a, const void *b)
 #     pragma warning (enable:161)
 #endif//__ICC
 //-------------------------------------------------------------------------
+#endif//defined(PRINT_VALUES) || defined(ERROR_DETECT)
+//-------------------------------------------------------------------------
 
 
 //-------------------------------------------------------------------------
@@ -101,7 +113,6 @@ int main(int argc, char **argv)
 
   //-----------------------------------------------------------------------
   /* initialization */
-  /* setPhysicalConstantsAndUnitSystem(UNITSYSTEM, 0); */
   //-----------------------------------------------------------------------
   if( argc < 2 ){
     __FPRINTF__(stderr, "insufficient number of input parameters of %d (at least %d inputs are required).\n", argc, 2);
@@ -111,9 +122,6 @@ int main(int argc, char **argv)
   }
   //-----------------------------------------------------------------------
   char   *file;  requiredCmdArg(getCmdArgStr(argc, (const char * const *)argv,     "file", &file));
-  /* int    start;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv,    "start", &start)); */
-  /* int      end;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv,      "end", &end)); */
-  /* int interval;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv, "interval", &interval)); */
   //-----------------------------------------------------------------------
   modifyArgcArgv4PLplot(&argc, argv, 2);
   //-----------------------------------------------------------------------
@@ -152,7 +160,8 @@ int main(int argc, char **argv)
   allocPercentile(&percentage);
   //-----------------------------------------------------------------------
 #   if  defined(PRINT_VALUES) || defined(ERROR_DETECT)
-  allocParticleDataAoS((int)Ntot, &body);
+  body = (nbody_particle *)malloc(sizeof(nbody_particle) * Ntot);
+  if( body == NULL ){    __KILL__(stderr, "ERROR: failure to allocate body");  }
 #ifdef  USE_HDF5_FORMAT
   static hdf5struct hdf5type;
   createHDF5DataType(&hdf5type);
@@ -160,6 +169,24 @@ int main(int argc, char **argv)
   real *hdf5_pos, *hdf5_vel, *hdf5_acc, *hdf5_m, *hdf5_pot;
   ulong *hdf5_idx;
   allocSnapshotArray(&hdf5_pos, &hdf5_vel, &hdf5_acc, &hdf5_m, &hdf5_pot, &hdf5_idx, (int)Ntot, &hdf5_dat);
+#else///USE_HDF5_FORMAT
+  iparticle ibody;
+  ulong *idx;
+  position *pos;
+  acceleration *iacc;
+#ifdef  BLOCK_TIME_STEP
+  velocity *vel;
+  ibody_time *ti;
+#else///BLOCK_TIME_STEP
+  real *vx, *vy, *vz;
+#endif//BLOCK_TIME_STEP
+  allocParticleData((int)Ntot, &ibody, &idx, &pos, &iacc,
+#ifdef  BLOCK_TIME_STEP
+		    &vel, &ti
+#else///BLOCK_TIME_STEP
+		    &vx, &vy, &vz
+#endif//BLOCK_TIME_STEP
+		    );
 #endif//USE_HDF5_FORMAT
 #endif//defined(PRINT_VALUES) || defined(ERROR_DETECT)
   //-----------------------------------------------------------------------
@@ -259,7 +286,15 @@ int main(int argc, char **argv)
 	//-----------------------------------------------------------------
       }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 #else///USE_HDF5_FORMAT
-      readSnapshot(&unit_read, &time, &steps, Ntot,  body, file, filenum);
+      readSnapshot(&unit_read, &time, &steps, Ntot, ibody, file, filenum);
+      for(int ii = 0; ii < (int)Ntot; ii++){
+	//-----------------------------------------------------------------
+	body[ii]. x  = ibody.pos[ii].x;	   body[ii]. y = ibody.pos[ii].y;	   body[ii]. z	= ibody.pos[ii].z;
+	body[ii].vx  = ibody.vel[ii].x;	   body[ii].vy = ibody.vel[ii].y;	   body[ii].vz	= ibody.vel[ii].z;
+	body[ii].ax  = ibody.acc[ii].x;	   body[ii].ay = ibody.acc[ii].y;	   body[ii].az	= ibody.acc[ii].z;
+	body[ii].idx = ibody.idx[ii]  ;	   body[ii]. m = ibody.pos[ii].m;	   body[ii].pot = ibody.acc[ii].pot;
+	//-----------------------------------------------------------------
+      }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 #endif//USE_HDF5_FORMAT
       //-------------------------------------------------------------------
       if( unit_read != unit ){	__KILL__(stderr, "ERROR: conflict about unit system detected (unit = %d, unit_read = %d)\n", unit, unit_read);      }
@@ -286,7 +321,7 @@ int main(int argc, char **argv)
 	pot[i] =       (PLFLT)potErr[i];
 	grv[i] =       (PLFLT)grvErr[i];
 	acc[i] =       (PLFLT)accErr[i];
-      }
+      }/* for(ulong i = 0; i < Ntot; i++){ */
       //-------------------------------------------------------------------
     /* output CDF of relative error */
 #ifdef  USE_HDF5_FORMAT
@@ -522,10 +557,18 @@ int main(int argc, char **argv)
 
   //-----------------------------------------------------------------------
 #   if  defined(PRINT_VALUES) || defined(ERROR_DETECT)
-  freeParticleDataAoS(body);
+  free(body);
 #ifdef  USE_HDF5_FORMAT
   removeHDF5DataType(hdf5type);
   freeSnapshotArray(hdf5_pos, hdf5_vel, hdf5_acc, hdf5_m, hdf5_pot, hdf5_idx);
+#else///USE_HDF5_FORMAT
+  freeParticleData(idx, pos, iacc,
+#ifdef  BLOCK_TIME_STEP
+		    vel, ti
+#else///BLOCK_TIME_STEP
+		    vx, vy, vz
+#endif//BLOCK_TIME_STEP
+		    );
 #endif//USE_HDF5_FORMAT
 #endif//defined(PRINT_VALUES) || defined(ERROR_DETECT)
   //-----------------------------------------------------------------------

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/02(Tue) 17:37:31
+                  last updated on 2016/08/10(Wed) 11:39:40
  *                                                                       *
  *    MAGI: "MAny-component Galactic Initial-conditions" generator       *
  *    Making Initial Condition Code of N-body Simulation                 *
@@ -100,7 +100,7 @@ void setDensityProfilePlummer(profile *prf, const double rs)
     prf[ii]. drho_dr  = - 5.0 * rad_rs * pow_m5_2 * inv * rsinv;
     prf[ii].d2rho_dr2 = 5.0 * pow_m5_2 * inv * (7.0 * rad_rs * rad_rs * inv - 1.0) * rsinv * rsinv;
     //---------------------------------------------------------------------
-  }
+  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -131,7 +131,7 @@ void setDensityProfileBurkert(profile *prf, const double rs)
     prf[ii]. drho_dr  = - (1.0 + rad_rs * (2.0 + 3.0 * rad_rs)) * inv * inv * rsinv;
     prf[ii].d2rho_dr2 = 4.0 * rad2_rs2 * (4.0 * rad_rs + 3.0 * rad2_rs2_p1) * inv * inv * inv * rsinv * rsinv;
     //---------------------------------------------------------------------
-  }
+  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -161,7 +161,7 @@ void setDensityProfileHernquist(profile *prf, const double rs)
     prf[ii]. drho_dr  = - (1.0 + 4.0 * rad_rs) * inv * inv * rsinv;
     prf[ii].d2rho_dr2 = 2.0 * (1.0 + 5.0 * rad_rs * (1.0 + 2.0 * rad_rs)) * inv * inv * inv * rad_rs_p1 * rsinv * rsinv;
     //---------------------------------------------------------------------
-  }
+  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -191,7 +191,7 @@ void setDensityProfileNFW(profile *prf, const double rs)
     prf[ii]. drho_dr  = - (1.0 + 3.0 * rad_rs) * inv * inv * rad_rs_p1 * rsinv;
     prf[ii].d2rho_dr2 = 2.0 * (2.0 * rad_rs * (3.0 * rad_rs + 2.0) + 1.0) * inv * inv * inv * rad_rs_p1 * rad_rs_p1 * rsinv * rsinv;
     //---------------------------------------------------------------------
-  }
+  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -221,7 +221,7 @@ void setDensityProfileMoore(profile *prf, const double rs)
     prf[ii]. drho_dr  = -1.5 * (1.0 + 2.0 * rad_rs) * pow_m5_2 * rsinv;
     prf[ii].d2rho_dr2 =  0.75 * (5.0 + 16.0 * rad_rs * (1.0 + rad_rs)) * pow_m5_2 * inv * rsinv * rsinv;
     //---------------------------------------------------------------------
-  }
+  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -251,7 +251,7 @@ void setDensityProfileEinasto(profile *prf, const double rs, const double alpha)
     prf[ii]. drho_dr  = -2.0 * xalpha * xinv * rho * rsinv;
     prf[ii].d2rho_dr2 =  2.0 * xalpha * xinv * xinv * rho * rsinv * rsinv * (2.0 * xalpha + 1.0 - alpha);
     //---------------------------------------------------------------------
-  }
+  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -281,7 +281,7 @@ void setDensityProfileAppKing(profile *prf, const double rs, const double rt)
     prf[ii]. drho_dr  = (prf[ii].rad < rt) ? (-2.0 * (sqrtinv - CC) * rad_rs * inv * sqrtinv * rsinv) : (0.0);
     prf[ii].d2rho_dr2 = (prf[ii].rad < rt) ? ((2.0 * inv * inv * (4.0 * rad_rs * rad_rs * inv - 1.0) + 2.0 * CC * sqrtinv * inv * (1.0 - 3.0 * rad_rs * rad_rs * inv)) * rsinv * rsinv) : (0.0);
     //---------------------------------------------------------------------
-  }
+  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -321,7 +321,7 @@ void setDensityProfileTwoPower(profile *prf, const double rs, const double alpha
     prf[ii]. drho_dr  = -rsinv         * base * xinv        * xbp1i         * (alpha                    + gam * xb);
     prf[ii].d2rho_dr2 =  rsinv * rsinv * base * xinv * xinv * xbp1i * xbp1i * (alpha * (a1 + b1g2 * xb) + gam * xb * (b1 + g1 * xb));
     //---------------------------------------------------------------------
-  }
+  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -418,12 +418,7 @@ void setDensityProfileAppLoweredEvans(profile *prf, const double rs, const doubl
     prf[ii]. drho_dr  = rho * dsmooth + drho * smooth;
     prf[ii].d2rho_dr2 = rho * d2smooth + 2.0 * drho * dsmooth + d2rho * smooth;
     //---------------------------------------------------------------------
-  }
-  //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 0; ii < 4 + NRADBIN; ii += (NRADBIN / N_PRINT_LINES_ASCII))
-    fprintf(stderr, "%e\t%e\t%e\t%e\n", prf[ii].rad, prf[ii].rho, prf[ii].drho_dr, prf[ii].d2rho_dr2);
-#endif
+  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -450,7 +445,7 @@ void setContributionByCentralBH(profile *prf, const profile_cfg cfg)
     prf[ii].enc =                  cfg.Mtot;
     prf[ii].psi = (double)newton * cfg.Mtot / prf[ii].rad;
     //---------------------------------------------------------------------
-  }
+  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -469,11 +464,6 @@ void integrateDensityProfile(profile *prf, const double logrbin, const double Mt
 
   //-----------------------------------------------------------------------
   /* set cutoff radius if necessary */
-  //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 0; ii < 4 + NRADBIN; ii += (NRADBIN >> 6))
-    fprintf(stderr, "%e\t%e\n", prf[ii].rad, prf[ii].rho);
-#endif
   //-----------------------------------------------------------------------
   if( cutoff == true ){
     //---------------------------------------------------------------------
@@ -502,11 +492,6 @@ void integrateDensityProfile(profile *prf, const double logrbin, const double Mt
     //---------------------------------------------------------------------
   }/* if( cutoff == true ){ */
   //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 0; ii < 4 + NRADBIN; ii += (NRADBIN >> 6))
-    fprintf(stderr, "%e\t%e\t%e\t%e\n", prf[ii].rad, prf[ii].rho, prf[ii].drho_dr, prf[ii].d2rho_dr2);
-#endif
-  //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   /* calculate enclosed mass and potential (internal part) */
@@ -529,7 +514,7 @@ void integrateDensityProfile(profile *prf, const double logrbin, const double Mt
     Menc[0] += mass * (double)(1 << (1 + (idx    )));
     Menc[1] += mass * (double)(1 << (1 + (idx ^ 1)));
     //---------------------------------------------------------------------
-  }
+  }/* for(int ii = 2; ii < 4 + NRADBIN; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -553,7 +538,7 @@ void integrateDensityProfile(profile *prf, const double logrbin, const double Mt
     Pext[0] += psi * (double)(1 << (1 + (idx    )));
     Pext[1] += psi * (double)(1 << (1 + (idx ^ 1)));
     //---------------------------------------------------------------------
-  }
+  }/* for(int ii = NRADBIN + 1; ii >= 0; ii--){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -563,12 +548,7 @@ void integrateDensityProfile(profile *prf, const double logrbin, const double Mt
   for(int ii = 0; ii < 4 + NRADBIN; ii++){
     prf[ii].enc *= 4.0 * M_PI;
     prf[ii].psi *= 4.0 * M_PI * (double)newton;
-  }
-  //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 0; ii < 4 + NRADBIN; ii += (NRADBIN >> 6))
-    fprintf(stderr, "%e\t%e\t%e\t%e\n", prf[ii].rad, prf[ii].rho, prf[ii].enc, prf[ii].psi);
-#endif
+  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -583,14 +563,7 @@ void integrateDensityProfile(profile *prf, const double logrbin, const double Mt
     prf[ii].  psi     *= Mscale;
     prf[ii]. drho_dr  *= Mscale;
     prf[ii].d2rho_dr2 *= Mscale;
-  }
-  //-----------------------------------------------------------------------
-#if 0
-  /* for(int ii = 0; ii < 4 + NRADBIN; ii += 1000) */
-  for(int ii = 1; ii < 4 + NRADBIN - 1; ii++)
-    fprintf(stderr, "%e\t%e\t%e\t%e\t%e\t%e\n", prf[ii].rad, prf[ii].rho, prf[ii].drho_dr, prf[ii].d2rho_dr2, (prf[ii + 1].rho - prf[ii - 1].rho) / (prf[ii + 1].rad - prf[ii - 1].rad), (prf[ii + 1].drho_dr - prf[ii - 1].drho_dr) / (prf[ii + 1].rad - prf[ii - 1].rad));
-  exit(0);
-#endif
+  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -620,7 +593,7 @@ static inline void findIdx(const double psi, profile *prf, int *ll, int *rr)
     //---------------------------------------------------------------------
     if( (1 + (*ll)) == (*rr) )      break;
     //---------------------------------------------------------------------
-  }
+  }/* while( bisection ){ */
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -649,7 +622,7 @@ static inline void getEddingtonFormula(const double ene, const double psi, const
     //---------------------------------------------------------------------
     val[kk] = common * (d2rho_dr2 + drho_dr * fac);
     //---------------------------------------------------------------------
-  }
+  }/* for(int kk = 0; kk < kind; kk++){ */
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -699,7 +672,6 @@ void integrateEddingtonFormula(const int skind, profile **prf, dist_func **fene)
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
 
-
   //-----------------------------------------------------------------------
   /* set integration range */
   //-----------------------------------------------------------------------
@@ -709,13 +681,12 @@ void integrateEddingtonFormula(const int skind, profile **prf, dist_func **fene)
   for(int ii = 2; ii < 2 + NRADBIN; ii++){
     double floc = prf[0][ii].rad * prf[0][ii].rad * prf[0][ii].rho_tot;
     if(                                        floc > fmax ){      fmax = floc;    }
-  }
+  }/* for(int ii = 2; ii < 2 + NRADBIN; ii++){ */
   //-----------------------------------------------------------------------
   const double Emax = prf[0][2   ].psi_tot;
   const double Emin = prf[0][iout].psi_tot;
   const double Ebin = (Emax - Emin) / (double)(NENEBIN - 1);
   //-----------------------------------------------------------------------
-
 
   //-----------------------------------------------------------------------
 #ifdef  NDIVIDE_GAUSSQD
@@ -881,7 +852,6 @@ void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg)
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
 
-
   //-----------------------------------------------------------------------
   /* read global settings */
   //-----------------------------------------------------------------------
@@ -890,9 +860,7 @@ void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg)
   sprintf(filename, "%s/%s", CFGFOLDER, fcfg);
   //-----------------------------------------------------------------------
   fp = fopen(filename, "r");
-  if( fp == NULL ){
-    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);
-  }
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
   int checker = 1;
   //-----------------------------------------------------------------------
   /* read the specified unit system and set it */
@@ -907,9 +875,7 @@ void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg)
     /* checker &= (2 == fscanf(fp, "%d\t%s", &(*cfg)[ii].kind, (*cfg)[ii].file)); */
   //-----------------------------------------------------------------------
   fclose(fp);
-  if( !checker ){
-    __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);
-  }/* if( !checker ){ */
+  if( !checker ){    __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);  }/* if( !checker ){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -920,9 +886,7 @@ void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg)
     sprintf(filename, "%s/%s", CFGFOLDER, (*cfg)[ii].file);
     //---------------------------------------------------------------------
     fp = fopen(filename, "r");
-    if( fp == NULL ){
-      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);
-    }/* fp = fopen(filename, "r"); */
+    if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
     checker = 1;
     //---------------------------------------------------------------------
     checker &= (1 == fscanf(fp, "%le", &(*cfg)[ii].Mtot));    (*cfg)[ii].Mtot *= mass_astro2com;
@@ -1018,7 +982,7 @@ void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg)
     if( !checker )
       writeProfileCfgFormat(filename, (*cfg)[ii]);
     //---------------------------------------------------------------------
-  }
+  }/* for(int ii = 0; ii < *kind; ii++){ */
   //-----------------------------------------------------------------------
 
 
@@ -1040,7 +1004,6 @@ void outputFundamentalInformation
   char filename[256], date[64];
   //-----------------------------------------------------------------------
 
-
   //-----------------------------------------------------------------------
   /* output useful information for multi-component analysis */
   //-----------------------------------------------------------------------
@@ -1055,7 +1018,6 @@ void outputFundamentalInformation
   //-----------------------------------------------------------------------
   fclose(fp);
   //-----------------------------------------------------------------------
-
 
   //-----------------------------------------------------------------------
   /* output fundamental information of the particle distribution */
@@ -1250,7 +1212,6 @@ void outputFundamentalInformation
   fclose(fp);
   //-----------------------------------------------------------------------
 
-
   //-----------------------------------------------------------------------
   /* output fundamental profile of the particle distribution */
   //-----------------------------------------------------------------------
@@ -1299,7 +1260,7 @@ void outputFundamentalInformation
       tmp_rho[ii] = (real)(prf[kk][ii].rho * density2astro);
       tmp_enc[ii] = (real)(prf[kk][ii].enc *    mass2astro);
       tmp_psi[ii] = (real)(prf[kk][ii].psi * senergy2astro);
-    }
+    }/* for(int ii = 0; ii < NRADBIN; ii++){ */
     //---------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
     hsize_t dims = NRADBIN;
@@ -1494,12 +1455,11 @@ void outputFundamentalInformation
     fprintf(fp, "\t%e",  prf[0][ii].enc_tot);    for(int kk = 0; kk < kind; kk++)      fprintf(fp, "\t%e",  prf[kk][ii].enc);
     fprintf(fp, "\t%e", -prf[0][ii].psi_tot);    for(int kk = 0; kk < kind; kk++)      fprintf(fp, "\t%e", -prf[kk][ii].psi);
     fprintf(fp, "\n");
-  }
+  }/* for(int ii = 2; ii < 2 + NRADBIN; ii += nskip){ */
   fclose(fp);
   //-----------------------------------------------------------------------
 #endif//OUTPUT_ASCII_PROFILE
   //-----------------------------------------------------------------------
-
 
   //-----------------------------------------------------------------------
   /* output distribution function of the particle distribution */
@@ -1518,7 +1478,7 @@ void outputFundamentalInformation
     for(int ii = 0; ii < NENEBIN; ii++){
       tmp_ene[ii] = (real)((double)df[kk][ii].ene * senergy2astro);
       tmp_val[ii] =                df[kk][ii].val;
-    }
+    }/* for(int ii = 0; ii < NENEBIN; ii++){ */
     //---------------------------------------------------------------------
     char grp[16];    sprintf(grp,  "series%d", kk);
     hid_t group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -1648,7 +1608,6 @@ void outputFundamentalInformation
 #endif//OUTPUT_ASCII_PROFILE
   //-----------------------------------------------------------------------
 
-
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
@@ -1670,7 +1629,7 @@ static inline void isotropicDistribution(const real rad, real *vecx, real *vecy,
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-void shiftCenter(ulong num, nbody_particle *body)
+void shiftCenter(const ulong num, const ulong head, iparticle body)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -1683,12 +1642,25 @@ void shiftCenter(ulong num, nbody_particle *body)
   double vel[3] = {0.0, 0.0, 0.0};
   double Mtot = 0.0;
   //-----------------------------------------------------------------------
-  for(ulong ii = 0; ii < num; ii++){
-    com[0] += (double)(body[ii].m * body[ii].x);    vel[0] += (double)(body[ii].m * body[ii].vx);
-    com[1] += (double)(body[ii].m * body[ii].y);    vel[1] += (double)(body[ii].m * body[ii].vy);
-    com[2] += (double)(body[ii].m * body[ii].z);    vel[2] += (double)(body[ii].m * body[ii].vz);
-    Mtot   += (double)body[ii].m;
-  }
+  for(ulong ii = head; ii < head + num; ii++){
+    //---------------------------------------------------------------------
+    const double mass = (double)body.pos[ii].m;
+    Mtot   += mass;
+    //---------------------------------------------------------------------
+    com[0] += mass * (double)body.pos[ii].x;
+    com[1] += mass * (double)body.pos[ii].y;
+    com[2] += mass * (double)body.pos[ii].z;
+#ifdef  BLOCK_TIME_STEP
+    vel[0] += mass * (double)body.vel[ii].x;
+    vel[1] += mass * (double)body.vel[ii].y;
+    vel[2] += mass * (double)body.vel[ii].z;
+#else///BLOCK_TIME_STEP
+    vel[0] += mass * (double)body.vx[ii];
+    vel[1] += mass * (double)body.vy[ii];
+    vel[2] += mass * (double)body.vz[ii];
+#endif//BLOCK_TIME_STEP
+    //---------------------------------------------------------------------
+  }/* for(ulong ii = head; ii < head + num; ii++){ */
   //-----------------------------------------------------------------------
   double Minv = 1.0 / Mtot;
   com[0] *= Minv;  vel[0] *= Minv;
@@ -1702,20 +1674,25 @@ void shiftCenter(ulong num, nbody_particle *body)
   const real rcom[3] = {(real)com[0], (real)com[1], (real)com[2]};
   const real rvel[3] = {(real)vel[0], (real)vel[1], (real)vel[2]};
 #pragma omp parallel for
-  for(ulong ii = 0; ii < num; ii++){
-    body[ii].x -= rcom[0];    body[ii].vx -= rvel[0];
-    body[ii].y -= rcom[1];    body[ii].vy -= rvel[1];
-    body[ii].z -= rcom[2];    body[ii].vz -= rvel[2];
+  for(ulong ii = head; ii < head + num; ii++){
+    //---------------------------------------------------------------------
+    body.pos[ii].x -= rcom[0];
+    body.pos[ii].y -= rcom[1];
+    body.pos[ii].z -= rcom[2];
+    //---------------------------------------------------------------------
 #ifdef  BLOCK_TIME_STEP
-    body[ii].t0 = body[ii].t1 = 0.0;
-    body[ii].dt = ZERO;
+    body.time[ii].t0 = body.time[ii].t1 = 0.0;
+    body.vel[ii].x -= rvel[0];
+    body.vel[ii].y -= rvel[1];
+    body.vel[ii].z -= rvel[2];
+    body.vel[ii].dt = ZERO;
+#else///BLOCK_TIME_STEP
+    body.vx[ii] -= rvel[0];
+    body.vy[ii] -= rvel[1];
+    body.vz[ii] -= rvel[2];
 #endif//BLOCK_TIME_STEP
-  }/* for(ulong ii = 0; ii < num; ii++){ */
-  //-----------------------------------------------------------------------
-#if 0
-  printf("#position shift = (%e, %e, %e)\n", com[0], com[1], com[2]);
-  printf("#velocity shift = (%e, %e, %e)\n", vel[0], vel[1], vel[2]);
-#endif
+    //---------------------------------------------------------------------
+  }/* for(ulong ii = head; ii < head + num; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -1724,20 +1701,28 @@ void shiftCenter(ulong num, nbody_particle *body)
   /* calculate angular momentum vector */
   //-----------------------------------------------------------------------
   double amom[3] = {0.0, 0.0, 0.0};
-  for(ulong ii = 0; ii < num; ii++){
+  for(ulong ii = head; ii < head + num; ii++){
     //---------------------------------------------------------------------
-    const double rx = (double)              body[ii]. x;
-    const double ry = (double)              body[ii]. y;
-    const double rz = (double)              body[ii]. z;
-    const double px = (double)(body[ii].m * body[ii].vx);
-    const double py = (double)(body[ii].m * body[ii].vy);
-    const double pz = (double)(body[ii].m * body[ii].vz);
+    const double mass = (double)body.pos[ii].m;
+    //---------------------------------------------------------------------
+    const double rx = (double)body.pos[ii].x;
+    const double ry = (double)body.pos[ii].y;
+    const double rz = (double)body.pos[ii].z;
+#ifdef  BLOCK_TIME_STEP
+    const double px = (double)body.vel[ii].x * mass;
+    const double py = (double)body.vel[ii].y * mass;
+    const double pz = (double)body.vel[ii].z * mass;
+#else///BLOCK_TIME_STEP
+    const double px = (double)body.vx[ii] * mass;
+    const double py = (double)body.vy[ii] * mass;
+    const double pz = (double)body.vz[ii] * mass;
+#endif//BLOCK_TIME_STEP
     //---------------------------------------------------------------------
     amom[0] += ry * pz - rz * py;
     amom[1] += rz * px - rx * pz;
     amom[2] += rx * py - ry * px;
     //---------------------------------------------------------------------
-  }/* for(ulong ii = 0; ii < num; ii++){ */
+  }/* for(ulong ii = head; ii < head + num; ii++){ */
   //-----------------------------------------------------------------------
   /* rotate galaxy (if necessary) */
   //-----------------------------------------------------------------------
@@ -1751,29 +1736,41 @@ void shiftCenter(ulong num, nbody_particle *body)
     initRotationMatrices(ini, fin, rot, inv);
     //---------------------------------------------------------------------
 #pragma omp parallel for
-    for(ulong ii = 0; ii < num; ii++){
+    for(ulong ii = head; ii < head + num; ii++){
       //-------------------------------------------------------------------
       real bfr[3], aft[3];
       //-------------------------------------------------------------------
       /* rotate position */
-      bfr[0] = body[ii].x;
-      bfr[1] = body[ii].y;
-      bfr[2] = body[ii].z;
+      bfr[0] = body.pos[ii].x;
+      bfr[1] = body.pos[ii].y;
+      bfr[2] = body.pos[ii].z;
       rotateVector(bfr, rot, aft);
-      body[ii].x = aft[0];
-      body[ii].y = aft[1];
-      body[ii].z = aft[2];
+      body.pos[ii].x = aft[0];
+      body.pos[ii].y = aft[1];
+      body.pos[ii].z = aft[2];
       //-------------------------------------------------------------------
       /* rotate velocity */
-      bfr[0] = body[ii].vx;
-      bfr[1] = body[ii].vy;
-      bfr[2] = body[ii].vz;
+#ifdef  BLOCK_TIME_STEP
+      bfr[0] = body.vel[ii].x;
+      bfr[1] = body.vel[ii].y;
+      bfr[2] = body.vel[ii].z;
+#else///BLOCK_TIME_STEP
+      bfr[0] = body.vx[ii];
+      bfr[1] = body.vy[ii];
+      bfr[2] = body.vz[ii];
+#endif//BLOCK_TIME_STEP
       rotateVector(bfr, rot, aft);
-      body[ii].vx = aft[0];
-      body[ii].vy = aft[1];
-      body[ii].vz = aft[2];
+#ifdef  BLOCK_TIME_STEP
+      body.vel[ii].x = aft[0];
+      body.vel[ii].y = aft[1];
+      body.vel[ii].z = aft[2];
+#else///BLOCK_TIME_STEP
+      body.vx[ii] = aft[0];
+      body.vy[ii] = aft[1];
+      body.vz[ii] = aft[2];
+#endif//BLOCK_TIME_STEP
       //-------------------------------------------------------------------
-    }/* for(ulong ii = 0; ii < num; ii++){ */
+    }/* for(ulong ii = head; ii < head + num; ii++){ */
     //---------------------------------------------------------------------
   }/* if( L2 > 1.0e-10 ){ */
   //-----------------------------------------------------------------------
@@ -1792,10 +1789,6 @@ static inline double getDF(const double ene, dist_func *df, const double Emin, c
 {
   //-----------------------------------------------------------------------
 #if 1
-#if 0
-  fprintf(stderr, "ene = %e, Emin = %e, invEbin = %e\n", ene, Emin, invEbin);
-  fflush(stderr);
-#endif
   const int ll = (int)((ene - Emin) * invEbin);
   return (df[ll].val + (df[ll + 1].val - df[ll].val) * (ene - df[ll].ene) / (df[ll + 1].ene - df[ll].ene));
 #else
@@ -1809,7 +1802,7 @@ static inline double getDF(const double ene, dist_func *df, const double Emin, c
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-double distributeSpheroidParticles(ulong *Nuse, nbody_particle *body, const real mass, profile_cfg cfg, profile *prf, dist_func *df)
+double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass, profile_cfg cfg, profile *prf, dist_func *df)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -1836,15 +1829,12 @@ double distributeSpheroidParticles(ulong *Nuse, nbody_particle *body, const real
     if(                            floc > fmax ){      fmax = floc;    }
   }/* for(int ii = 0; ii < NRADBIN; ii++){ */
   const double Ecut = (iout != 0) ? prf[iout].psi_tot : Emin;
-#if 0
-  fprintf(stderr, "Emin = %e, Emax = %e, fmax = %e, iout = %d, Ecut = %e\n", Emin, Emax, fmax, iout, Ecut);
-  exit(0);
-#endif
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   const double Mmax = cfg.Mtot;
   const double Mmin = prf[0].enc;
+  //-----------------------------------------------------------------------
   for(ulong ii = *Nuse; ii < *Nuse + num; ii++){
     //---------------------------------------------------------------------
     /* set spatial distribution by table search */
@@ -1865,7 +1855,7 @@ double distributeSpheroidParticles(ulong *Nuse, nbody_particle *body, const real
     //---------------------------------------------------------------------
     const double alpha = (tmp - prf[ll].enc) / (prf[rr].enc - prf[ll].enc);
     const double rad = (1.0 - alpha) * prf[ll].rad + alpha * prf[rr].rad;
-    isotropicDistribution((real)rad, &(body[ii].x), &(body[ii].y), &(body[ii].z));
+    isotropicDistribution((real)rad, &(body.pos[ii].x), &(body.pos[ii].y), &(body.pos[ii].z));
     __NOTE__("position of %zu-th particle determined: rad = %e\n", ii, rad);
     //---------------------------------------------------------------------
 
@@ -1892,14 +1882,18 @@ double distributeSpheroidParticles(ulong *Nuse, nbody_particle *body, const real
       //-------------------------------------------------------------------
     }/* while( true ){ */
     //---------------------------------------------------------------------
-    isotropicDistribution((real)vel, &(body[ii].vx), &(body[ii].vy), &(body[ii].vz));
+#ifdef  BLOCK_TIME_STEP
+    isotropicDistribution((real)vel, &(body.vel[ii].x), &(body.vel[ii].y), &(body.vel[ii].z));
+#else///BLOCK_TIME_STEP
+    isotropicDistribution((real)vel, &(body.vx[ii]), &(body.vy[ii]), &(body.vz[ii]));
+#endif//BLOCK_TIME_STEP
     __NOTE__("velocity of %zu-th particle determined\n", ii);
     //---------------------------------------------------------------------
-    body[ii].ax = body[ii].ay = body[ii].az = ZERO;
-    body[ii].m   = mass;
-    body[ii].pot = ZERO;
+    body.acc[ii].x   = body.acc[ii].y = body.acc[ii].z = ZERO;
+    body.pos[ii].m   = mass;
+    body.acc[ii].pot = ZERO;
     //---------------------------------------------------------------------
-    body[ii].idx = ii;
+    body.idx[ii] = ii;
     //---------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
     if( (ii - (*Nuse)) == (stage * nunit) ){
@@ -2038,7 +2032,6 @@ static void writeDiskData(char *file, const int ndisk, disk_data *disk)
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
-
 
   //-----------------------------------------------------------------------
   real *tmp_hor;  tmp_hor = (real *)malloc(NDISKBIN_HOR                * sizeof(real));
@@ -2435,7 +2428,7 @@ int main(int argc, char **argv)
     __FPRINTF__(stderr, "          -eps=<real> -eta=<real>\n");
     __FPRINTF__(stderr, "          -ft=<real> -snapshotInterval=<real> -saveInterval=<real>\n");
     __KILL__(stderr, "%s\n", "insufficient command line arguments");
-  }
+  }/* if( argc < 9 ){ */
   //-----------------------------------------------------------------------
   /* read input arguments do not depend on the unit system adopted in the numerical simulation */
   char *file;  requiredCmdArg(getCmdArgStr( argc, (const char * const *)argv,   "file", &file));
@@ -2477,7 +2470,7 @@ int main(int argc, char **argv)
       Mtot += cfg[ii].Mtot;
   const double Minv = 1.0 / Mtot;
   ulong Nuse = 0;
-  int idx = kind;
+  int kidx = kind;
   double Mmax = 0.0;
   for(int ii = 0; ii < kind; ii++){
     //---------------------------------------------------------------------
@@ -2489,7 +2482,7 @@ int main(int argc, char **argv)
       //-------------------------------------------------------------------
       if( cfg[ii].Mtot > Mmax ){
 	//-----------------------------------------------------------------
-	idx = ii;
+	kidx = ii;
 	Mmax = cfg[ii].Mtot;
 	//-----------------------------------------------------------------
       }/* if( cfg[ii].Mtot > Mmax ){ */
@@ -2497,11 +2490,11 @@ int main(int argc, char **argv)
     }/* if( cfg[ii].forceNum != 1 ){ */
     //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < kind; ii++){ */
-  if( (idx == kind) && (Nuse != Nrem) ){
+  if( (kidx == kind) && (Nuse != Nrem) ){
     __KILL__(stderr, "ERROR: mismatch about number of particles detected (Nuse = %zu, Nrem = %zu) with %d components\n", Nuse, Nrem, kind);
-  }/* if( (idx == kind) && (Nuse != Nrem) ){ */
+  }/* if( (kidx == kind) && (Nuse != Nrem) ){ */
   if( Nuse != Nrem )
-    cfg[idx].num += (Nrem - Nuse);
+    cfg[kidx].num += (Nrem - Nuse);
   //-----------------------------------------------------------------------
 
 
@@ -2614,11 +2607,6 @@ int main(int argc, char **argv)
     //---------------------------------------------------------------------
     profile_abel_cfg dummy;    dummy.invRd = 1.0;
     //---------------------------------------------------------------------
-#if 0
-    fprintf(stdout, "%d-th component: kind = %d\n", ii, cfg[ii].kind);
-    fflush(NULL);
-#endif
-    //---------------------------------------------------------------------
     switch( cfg[ii].kind ){
     case   PLUMMER:      setDensityProfilePlummer        (prf[ii],  cfg[ii].rs                                                                       );      break;
     case      KING:      setDensityProfileKing           (prf[ii], &cfg[ii]                                                                          );      break;
@@ -2669,39 +2657,15 @@ int main(int argc, char **argv)
     }/* for(int kk = 0; kk < kind; kk++){ */
     //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
-#if 0
-  for(int ii = 0; ii < 4 + NRADBIN; ii += (NRADBIN >> 6)){
-    fprintf(stdout, "%e", prf[0][ii].rad);
-    for(int jj = 0; jj < skind; jj++)
-      fprintf(stdout, "\t%e\t%e\t%e", prf[jj][ii].rho, prf[jj][ii].enc, prf[jj][ii].psi);
-    fprintf(stdout, "\n");
-  }
-  exit(0);
-#endif
   //-----------------------------------------------------------------------
   /* set density profile for the disk component */
   if( addDisk ){
     //---------------------------------------------------------------------
     /* set disk_radius, disk_height, disk_pot */
     makeDiskPotentialTable(ndisk, disk_info);
-#if 0
-    printf("# potential-density pair of the disk component is calculated\n");
-    for(int ii = 0; ii < NDISKBIN_HOR; ii++){
-      for(int jj = 0; jj < NDISKBIN_VER; jj++)
-	fprintf(stderr, "%e\t%e\t%e\t%e\n", disk_info[0].hor[ii], disk_info[0].ver[jj], (*disk_info[0].rho)[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)], disk_info[0].pot[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)]);
-      fprintf(stderr, "\n");
-    }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
-    exit(0);
-#endif
     //---------------------------------------------------------------------
     /* set profile of spherical averaged density, mass and potential */
     integrateSphericalDensityProfile(ndisk, disk_info);
-#if 0
-    printf("# spherical averaged quantities are calculated\n");
-    for(int ii = 0; ii < 4 + NRADBIN; ii++)
-      fprintf(stderr, "%e\t%e\t%e\t%e\n", prf[skind][ii].rad, prf[skind][ii].rho, prf[skind][ii].enc, prf[skind][ii].psi);
-    exit(0);
-#endif
     //---------------------------------------------------------------------
 #pragma omp parallel for
     for(int ii = 0; ii < 4 + NRADBIN; ii++){
@@ -2713,7 +2677,7 @@ int main(int argc, char **argv)
 	rho += prf[kk][ii].rho;
 	enc += prf[kk][ii].enc;
 	psi += prf[kk][ii].psi;
-      }
+      }/* for(int kk = skind; kk < kind; kk++){ */
       //-------------------------------------------------------------------
       for(int kk = 0; kk < skind; kk++){
 	prf[kk][ii].rho_tot += rho;
@@ -2736,41 +2700,6 @@ int main(int argc, char **argv)
   if( addDisk ){
     /* differentiate potential along the radial direction on the equatorial plane */
     diffAxisymmetricPotential(disk_info[0]);
-#if 0
-    fprintf(stderr, "#R\tz\tPhi\tdPhidR\td2PhidR2\n");
-    for(int ii = 0; ii < NDISKBIN_HOR; ii++){
-#ifndef USE_POTENTIAL_SCALING_SCHEME
-      for(int jj = 0; jj < NDISKBIN_VER; jj++)
-	fprintf(stderr, "%e\t%e\t%e\t%e\t%e\n", disk_info[0].hor[ii], disk_info[0].ver[jj], disk_info[0].pot[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)], disk_info[0].dPhidR[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)], disk_info[0].d2PhidR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)]);
-      fprintf(stderr, "\n");
-#else///USE_POTENTIAL_SCALING_SCHEME
-	fprintf(stderr, "%e\t%e\t%e\t%e\n", disk_info[0].hor[ii], disk_info[0].pot[ii], disk_info[0].dPhidR[ii], disk_info[0].d2PhidR2[ii]);
-#endif//USE_POTENTIAL_SCALING_SCHEME
-    }/* for(int ii = 0; ii < NDBIN_RAD; ii++){ */
-    exit(0);
-#endif
-#if 0
-    printf("# differentiation along the radial direction on the equatorial plane are calculated\n");
-    for(int ii = 0; ii < NDISKBIN_HOR; ii++){
-#ifndef USE_POTENTIAL_SCALING_SCHEME
-      for(int jj = 0; jj < NDISKBIN_VER; jj++){
-	const double Omega2 = disk_info[0].dPhidR[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)] / disk_info[0].hor[ii];
-	const double kappa = sqrt(disk_info[0].d2PhidR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)] + 3.0 * Omega2);
-	const double gam   = 2.0 * sqrt(Omega2 / (disk_info[0].d2PhidR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)] + 3.0 * Omega2));
-	const double vcirc  = disk_info[0].hor[ii] * sqrt(Omega2);
-	fprintf(stderr, "%e\t%e\t%e\t%e\t%e\t%e\t%e\n", disk_info[0].hor[ii], disk_info[0].ver[jj], Omega2, kappa, gam, 1.0 / (0.5 * sqrt(3.0 + disk_info[0].d2PhidR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)] / (1.0e-100 + Omega2))), vcirc);
-      }/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
-      fprintf(stderr, "\n");
-#else///USE_POTENTIAL_SCALING_SCHEME
-      const double Omega2 = disk_info[0].dPhidR[ii] / disk_info[0].hor[ii];
-      const double kappa = sqrt(disk_info[0].d2PhidR2[ii] + 3.0 * Omega2);
-      const double gam   = 2.0 * sqrt(Omega2 / (disk_info[0].d2PhidR2[ii] + 3.0 * Omega2));
-      const double vcirc  = disk_info[0].hor[ii] * sqrt(Omega2);
-      fprintf(stderr, "%e\t%e\t%e\t%e\t%e\t%e\n", disk_info[0].hor[ii], Omega2, kappa, gam, 1.0 / (0.5 * sqrt(3.0 + disk_info[0].d2PhidR2[ii] / (1.0e-100 + Omega2))), vcirc);
-#endif//USE_POTENTIAL_SCALING_SCHEME
-    }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
-    exit(0);
-#endif
     /* set velocity dispersion in vertical direction */
     calcVerticalVdisp(ndisk, disk_info);
     for(int ii = skind; ii < kind; ii++){
@@ -2779,92 +2708,9 @@ int main(int argc, char **argv)
       if( cfg[ii].vdispR0 < 0.0 )
 	cfg[ii].vdispR0 = cfg[ii].vdispz0;
     }/* for(int ii = skind; ii < kind; ii++){ */
-#if 0
-    printf("# vertical velocity dispersion are calculated\n");
-    for(int ii = 0; ii < NDISKBIN_HOR; ii++)
-	fprintf(stderr, "%e\t%e\n", disk_info[0].hor[ii], disk_info[0].sigmaz[ii]);
-    exit(0);
-#endif
     //---------------------------------------------------------------------
     /* output fundamental quantities of the disk component */
     writeDiskData(file, ndisk, disk_info);
-    //---------------------------------------------------------------------
-
-/*     //--------------------------------------------------------------------- */
-/*     /\* evaluate and output kinematical properties of the disk component *\/ */
-/*     //--------------------------------------------------------------------- */
-/*     for(int hh = skind; hh < kind; hh++){ */
-/*       //------------------------------------------------------------------- */
-/*       const int diskID = hh - skind; */
-/*       //------------------------------------------------------------------- */
-/*       FILE *fp; */
-/*       char filename[256]; */
-/*       sprintf(filename, "%s/%s.diskhor.%d.txt", DATAFOLDER, file, diskID); */
-/*       fp = fopen(filename, "w"); */
-/*       if( fp == NULL ){	__KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);      } */
-/*       fprintf(fp, "#R\tSigma(R)\tfrac(R)\tv_c(R)\tsigma_p(R)\tsigma_R(R)\tsigma_z(R)\tkappa(R)\tOmega(R)\tToomre-Q(R)\tlambda_crit(R)\n"); */
-/*       //------------------------------------------------------------------- */
-/* #ifndef USE_ORIGINAL_VDISP_ESTIMATOR */
-/*       const double invRd = 1.0 / cfg[hh].rs; */
-/* #endif//USE_ORIGINAL_VDISP_ESTIMATOR */
-/*       cfg[hh].vcirc_max   = -1.0; */
-/*       cfg[hh].vcirc_max_R = -1.0; */
-/*       cfg[hh].Qmin = DBL_MAX; */
-/*       bool passed = false; */
-/*       //------------------------------------------------------------------- */
-/* 	for(int ii = 0; ii < NDISKBIN_HOR; ii++) */
-/* 	  { */
-/* 	    //------------------------------------------------------------- */
-/* 	    /\* evaluate epicyclic quantities and circular speed *\/ */
-/* #ifndef USE_POTENTIAL_SCALING_SCHEME */
-/* 	    const double Omega = sqrt(disk_info[diskID]. dPhidR [INDEX2D(NDISKBIN_RAD, NDISKBIN_VER, ii, 0)] / disk_info[diskID].hor[ii]); */
-/* 	    const double kappa = sqrt(disk_info[diskID].d2PhidR2[INDEX2D(NDISKBIN_RAD, NDISKBIN_VER, ii, 0)] + 3.0 * Omega * Omega); */
-/* #else///USE_POTENTIAL_SCALING_SCHEME */
-/* 	    const double Omega = sqrt(disk_info[diskID]. dPhidR [ii] / disk_info[diskID].hor[ii]); */
-/* 	    const double kappa = sqrt(disk_info[diskID].d2PhidR2[ii] + 3.0 * Omega * Omega); */
-/* #endif//USE_POTENTIAL_SCALING_SCHEME */
-/* 	    const double vcirc = disk_info[diskID].hor[ii] * Omega; */
-/* 	    //------------------------------------------------------------- */
-/* 	    /\* evaluate Toomre's Q-value *\/ */
-/* #ifdef  USE_ORIGINAL_VDISP_ESTIMATOR */
-/* 	    const double sigmap = DISK_PERP_VDISP(disk_info[diskID].sigmaz[ii], vcirc, cfg[hh].vdisp_frac); */
-/* 	    const double gam2inv = 0.25 * (3.0 + disk_info[diskID].d2PhidR2[ii] / (1.0e-100 + Omega * Omega)); */
-/* 	    const double sigmaR = sigmap / sqrt(gam2inv); */
-/* #else///USE_ORIGINAL_VDISP_ESTIMATOR */
-/* 	    const double sigmaR = DISK_RADIAL_VDISP(cfg[hh].vdispR0, disk_info[diskID].hor[ii], invRd); */
-/* #endif//USE_ORIGINAL_VDISP_ESTIMATOR */
-/* 	    const double toomre = sigmaR * kappa / (3.36 * newton * disk_info[diskID].Sigma[ii]); */
-/* 	    const double lambda = 4.0 * M_PI * M_PI * newton * disk_info[diskID].Sigma[ii] / (kappa * kappa); */
-/* 	    //------------------------------------------------------------- */
-/* 	    /\* find the maximum circular speed *\/ */
-/* 	    if( vcirc > cfg[hh].vcirc_max ){ */
-/* 	      cfg[hh].vcirc_max   = vcirc; */
-/* 	      cfg[hh].vcirc_max_R = disk_info[diskID].hor[ii]; */
-/* 	    }/\* if( vcirc > cfg[hh].vcirc_max ){ *\/ */
-/* 	    //------------------------------------------------------------- */
-/* 	    /\* find the minimum Toomre's Q-value *\/ */
-/* 	    if( (disk_info[diskID].Sigma[ii] > 1.0e-4 * disk_info[diskID].Sigma[0]) && (toomre > DBL_EPSILON) && (toomre < cfg[hh].Qmin) ) */
-/* 	      cfg[hh].Qmin = toomre; */
-/* 	    //------------------------------------------------------------- */
-/* 	    /\* find the circular speed and Toomre's Q-value at the scale radius *\/ */
-/* 	    if( !passed ){ */
-/* 	      cfg[hh].vcirc_Rd = vcirc; */
-/* 	      cfg[hh].toomre   = toomre; */
-/* 	      if( disk_info[diskID].hor[ii] > cfg[hh].rs ) */
-/* 		passed = true; */
-/* 	    }/\* if( !passed ){ *\/ */
-/* 	    //------------------------------------------------------------- */
-/* 	    double rhoTot = DBL_MIN; */
-/* 	    for(int jj = 0; jj < ndisk; jj++) */
-/* 	      rhoTot += (*disk_info[jj].rho)[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, 0)]; */
-/* 	    //------------------------------------------------------------- */
-/* 	    fprintf(fp, "%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n", disk_info[diskID].hor[ii], disk_info[diskID].Sigma[ii], (*disk_info[diskID].rho)[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, 0)] / rhoTot, vcirc, sigmap, sigmaR, disk_info[diskID].sigmaz[ii], kappa, Omega, toomre, lambda); */
-/* 	    //------------------------------------------------------------- */
-/* 	  } */
-/*       //------------------------------------------------------------------- */
-/*       fclose(fp); */
-/*       //------------------------------------------------------------------- */
-/*     }/\* for(int hh = skind; hh < kind; hh++){ *\/ */
     //---------------------------------------------------------------------
   }/* if( addDisk ){ */
   //-----------------------------------------------------------------------
@@ -2873,9 +2719,25 @@ int main(int argc, char **argv)
   //-----------------------------------------------------------------------
   /* set particle distribution */
   //-----------------------------------------------------------------------
-  nbody_particle *body;
-  allocParticleDataAoS((int)Ntot, &body);
-  /* const real mass = (real)(Mtot / (double)Ntot); */
+  /* nbody_particle *body; */
+  /* allocParticleDataAoS((int)Ntot, &body); */
+  iparticle body;
+  ulong *idx;
+  position *pos;
+  acceleration *acc;
+#ifdef  BLOCK_TIME_STEP
+  velocity *vel;
+  ibody_time *ti;
+#else///BLOCK_TIME_STEP
+  real *vx, *vy, *vz;
+#endif//BLOCK_TIME_STEP
+  allocParticleData((int)Ntot, &body, &idx, &pos, &acc,
+#ifdef  BLOCK_TIME_STEP
+		    &vel, &ti
+#else///BLOCK_TIME_STEP
+		    &vx, &vy, &vz
+#endif//BLOCK_TIME_STEP
+		    );
   //-----------------------------------------------------------------------
   /* create spherical particle distribution */
   Nuse = 0;
@@ -2885,18 +2747,20 @@ int main(int argc, char **argv)
     if( cfg[ii].kind != CENTRALBH )
       cfg[ii].Ecut = distributeSpheroidParticles(&Nuse, body, (real)(cfg[ii].Mtot / (double)cfg[ii].num), cfg[ii], &prf[ii][2], fene[ii]);
     else{
-      body[Nuse]. x = body[Nuse]. y = body[Nuse]. z = ZERO;
-      body[Nuse].vx = body[Nuse].vy = body[Nuse].vz = ZERO;
-      body[Nuse].ax = body[Nuse].ay = body[Nuse].az = ZERO;
-      body[Nuse].m   = (real)cfg[ii].Mtot;
-      body[Nuse].pot = ZERO;
-      body[Nuse].idx = Nuse;
+      body.pos[Nuse].x = body.pos[Nuse].y = body.pos[Nuse].z = ZERO;      body.pos[Nuse].m   = (real)cfg[ii].Mtot;
+      body.acc[Nuse].x = body.acc[Nuse].y = body.acc[Nuse].z = ZERO;      body.acc[Nuse].pot = ZERO;
+#ifdef  BLOCK_TIME_STEP
+      body.vel[Nuse].x = body.vel[Nuse].y = body.vel[Nuse].z = ZERO;
+#else///BLOCK_TIME_STEP
+      body.vx[Nuse] = body.vy[Nuse] = body.vz[Nuse] = ZERO;
+#endif//BLOCK_TIME_STEP
+      body.idx[Nuse] = Nuse;
       Nuse++;
     }/* else{ */
     //---------------------------------------------------------------------
     /* shift center-of-mass, remove bulk motion */
 #ifdef  SHIFT_CENTER_PER_COMPONENT
-    shiftCenter(cfg[ii].num, &body[Nuse - cfg[ii].num]);
+    shiftCenter(cfg[ii].num, Nuse - cfg[ii].num, body);
 #endif//SHIFT_CENTER_PER_COMPONENT
     //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < skind; ii++){ */
@@ -2906,8 +2770,13 @@ int main(int argc, char **argv)
     //---------------------------------------------------------------------
 #ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
     double Krand = 0.0;
-    for(ulong ii = 0; ii < Nuse; ii++)
-      Krand += body[ii].vx * body[ii].vx + body[ii].vy * body[ii].vy + body[ii].vz * body[ii].vz;
+    for(ulong ii = 0; ii < Nuse; ii++){
+#ifdef  BLOCK_TIME_STEP
+      Krand += body.vel[ii].x * body.vel[ii].x + body.vel[ii].y * body.vel[ii].y + body.vel[ii].z * body.vel[ii].z;
+#else///BLOCK_TIME_STEP
+      Krand += body.vx[ii] * body.vx[ii] + body.vy[ii] * body.vy[ii] + body.vz[ii] * body.vz[ii];
+#endif//BLOCK_TIME_STEP
+    }/* for(ulong ii = 0; ii < Nuse; ii++){ */
     for(int ii = 0; ii < ndisk; ii++)
       disk_info[ii].Krand_sph = Krand;
 #endif//CHECK_OSTRIKER_PEEBLES_CRITERION
@@ -2919,7 +2788,7 @@ int main(int argc, char **argv)
       //-------------------------------------------------------------------
       /* shift center-of-mass, remove bulk motion */
 #ifdef  SHIFT_CENTER_PER_COMPONENT
-      shiftCenter(disk_info[ii].cfg->num, &body[Nuse - disk_info[ii].cfg->num]);
+      shiftCenter(disk_info[ii].cfg->num, Nuse - disk_info[ii].cfg->num, body);
 #endif//SHIFT_CENTER_PER_COMPONENT
       //-------------------------------------------------------------------
     }/* for(int ii = 0; ii < ndisk; ii++){ */
@@ -3025,29 +2894,27 @@ int main(int argc, char **argv)
     tmp.pos[0] = body[ii]. x;
     tmp.pos[1] = body[ii]. y;
     tmp.pos[2] = body[ii]. z;
-#if 1
     tmp.vel[0] = body[ii].vx;
     tmp.vel[1] = body[ii].vy;
     tmp.vel[2] = body[ii].vz;
-#else
-    tmp.vel[0] = 0.0f;
-    tmp.vel[1] = 0.0f;
-    tmp.vel[2] = 0.0f;
-#endif
     tmp.eps    = eps;
     tmp.idx    = (int)body[ii].idx;
     bonsaiCount = 1;    if( bonsaiCount != fwrite(&tmp, sizeof(struct dark_particle), bonsaiCount, fpbonsai) )      bonsaiSuccess = false;
   }
-  if( bonsaiSuccess != true ){
-    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", bonsaifile);
-  }
+  if( bonsaiSuccess != true ){    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", bonsaifile);  }
   fclose(fpbonsai);
 #endif//DUMPFILE_FOR_BONSAI
   //-----------------------------------------------------------------------
 
 
   //-----------------------------------------------------------------------
-  freeParticleDataAoS(body);
+  freeParticleData(idx, pos, acc,
+#ifdef  BLOCK_TIME_STEP
+		    vel, ti
+#else///BLOCK_TIME_STEP
+		    vx, vy, vz
+#endif//BLOCK_TIME_STEP
+		    );
   //-----------------------------------------------------------------------
   free(cfg);
   free(prf);

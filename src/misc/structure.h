@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/05(Fri) 15:07:40
+                  last updated on 2016/08/10(Wed) 15:53:34
  *                                                                       *
  *    Header File for Definition about Structures of N-body Simulation   *
  *                                                                       *
@@ -71,20 +71,6 @@ typedef struct
 } energyError;
 #endif//MONITOR_ENERGY_ERROR
 //-------------------------------------------------------------------------
-typedef struct
-{
-  ulong idx;
-#ifdef  BLOCK_TIME_STEP
-  /* real t0, t1, dt; */
-  double t0, t1;
-  real dt;
-#endif//BLOCK_TIME_STEP
-  real  x,  y,  z;
-  real vx, vy, vz;
-  real ax, ay, az;
-  real m, pot;
-} nbody_particle;
-//-------------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
 typedef struct
 {
@@ -115,10 +101,6 @@ typedef struct __align__(16)
 #endif//BLOCK_TIME_STEP
 //-------------------------------------------------------------------------
 #ifdef  BLOCK_TIME_STEP
-/* typedef struct __align__(8) */
-/* { */
-/*   real t0, t1; */
-/* } ibody_time; */
 typedef struct __align__(16)
 {
   double t0, t1;

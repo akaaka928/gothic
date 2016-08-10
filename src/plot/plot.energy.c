@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/05/01(Sun) 16:45:04
+                  last updated on 2016/08/10(Wed) 12:14:34
  *                                                                       *
  *    Plot Code of N-body Simulations (using PLplot)                     *
  *      Time Evolution of total energy, kinetic energy, potential energy *
@@ -69,7 +69,6 @@ int main(int argc, char **argv)
 
   //-----------------------------------------------------------------------
   /* initialization */
-  /* setPhysicalConstantsAndUnitSystem(UNITSYSTEM, 0); */
   //-----------------------------------------------------------------------
   if( argc < 6 ){
     __FPRINTF__(stderr, "insufficient number of input parameters of %d (at least %d inputs are required).\n", argc, 6);
@@ -105,8 +104,23 @@ int main(int argc, char **argv)
   ulong *hdf5_idx;
   allocSnapshotArray(&hdf5_pos, &hdf5_vel, &hdf5_acc, &hdf5_m, &hdf5_pot, &hdf5_idx, (int)Ntot, &body);
 #else///USE_HDF5_FORMAT
-  nbody_particle *body;
-  allocParticleDataAoS((int)Ntot, &body);
+  iparticle body;
+  ulong *idx;
+  position *pos;
+  acceleration *acc;
+#ifdef  BLOCK_TIME_STEP
+  velocity *vel;
+  ibody_time *ti;
+#else///BLOCK_TIME_STEP
+  real *vx, *vy, *vz;
+#endif//BLOCK_TIME_STEP
+  allocParticleData((int)Ntot, &body, &idx, &pos, &acc,
+#ifdef  BLOCK_TIME_STEP
+		    &vel, &ti
+#else///BLOCK_TIME_STEP
+		    &vx, &vy, &vz
+#endif//BLOCK_TIME_STEP
+		    );
 #endif//USE_HDF5_FORMAT
   //-----------------------------------------------------------------------
 
@@ -176,17 +190,23 @@ int main(int argc, char **argv)
       const double vely = (double)body.vel[ii * 3 + 1];
       const double velz = (double)body.vel[ii * 3 + 2];
 #else///USE_HDF5_FORMAT
-      const double mass = (double)body[ii].m;
-      const double velx = (double)body[ii].vx;
-      const double vely = (double)body[ii].vy;
-      const double velz = (double)body[ii].vz;
+      const double mass = (double)body.pos[ii].m;
+#ifdef  BLOCK_TIME_STEP
+      const double velx = (double)body.vel[ii].x;
+      const double vely = (double)body.vel[ii].y;
+      const double velz = (double)body.vel[ii].z;
+#else///BLOCK_TIME_STEP
+      const double velx = (double)body.vx[ii];
+      const double vely = (double)body.vy[ii];
+      const double velz = (double)body.vz[ii];
+#endif//BLOCK_TIME_STEP
 #endif//USE_HDF5_FORMAT
       //-------------------------------------------------------------------
       Ekin[ifile] += (PLFLT)(mass * (velx * velx + vely * vely + velz * velz));
 #ifdef  USE_HDF5_FORMAT
       Epot[ifile] += (PLFLT)(mass * (double)body.pot[ii]);
 #else///USE_HDF5_FORMAT
-      Epot[ifile] += (PLFLT)(mass * (double)body[ii].pot);
+      Epot[ifile] += (PLFLT)(mass * (double)body.acc[ii].pot);
 #endif//USE_HDF5_FORMAT
       //-------------------------------------------------------------------
       momx[ifile] += mass * velx;
@@ -198,11 +218,7 @@ int main(int argc, char **argv)
 	MV += mass * mass * (velx * velx + vely * vely + velz * velz);
 #endif//NORMALIZED_MOMENTUM_ERROR
       //-------------------------------------------------------------------
-    }
-    //---------------------------------------------------------------------
-#if 0
-    Ekin[ifile] -= (momx[ifile] * momx[ifile] + momy[ifile] * momy[ifile] + momz[ifile] * momz[ifile]) / mtot;
-#endif
+    }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
     //---------------------------------------------------------------------
     Ekin[ifile] *= 0.5 * energy2astro;
     Epot[ifile] *= 0.5 * energy2astro;
@@ -214,7 +230,7 @@ int main(int argc, char **argv)
     //---------------------------------------------------------------------
     ifile += mpi.size;
     //---------------------------------------------------------------------
-  }
+  }/* for(int filenum = start + mpi.rank * interval; filenum < end + 1; filenum += interval * mpi.size){ */
   //-----------------------------------------------------------------------
   chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, time, nfile, MPI_DOUBLE, MPI_SUM, mpi.comm));
   chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, step, nfile, MPI_DOUBLE, MPI_SUM, mpi.comm));
@@ -483,7 +499,13 @@ int main(int argc, char **argv)
   removeHDF5DataType(hdf5type);
   freeSnapshotArray(hdf5_pos, hdf5_vel, hdf5_acc, hdf5_m, hdf5_pot, hdf5_idx);
 #else///USE_HDF5_FORMAT
-  freeParticleDataAoS(body);
+  freeParticleData(idx, pos, acc,
+#ifdef  BLOCK_TIME_STEP
+		    vel, ti
+#else///BLOCK_TIME_STEP
+		    vx, vy, vz
+#endif//BLOCK_TIME_STEP
+		    );
 #endif//USE_HDF5_FORMAT
   //-----------------------------------------------------------------------
   free(time);  free(step);

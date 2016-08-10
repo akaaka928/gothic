@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/05(Fri) 14:53:17
+                  last updated on 2016/08/10(Wed) 16:01:32
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -2815,9 +2815,9 @@ void calcGravity_dev
 	  //---------------------------------------------------------------
 	}/* for(int ii = 0; ii < remProcs; ii++){ */
 	//-----------------------------------------------------------------
-	if( numProcs < 1 ){
+	if( (numProcs < 1) && (mpi.size > 1) ){
 	  __KILL__(stderr, "ERROR: numProcs is %d, due to lack of remLETbuf(%d) while 0-th target requires numSend(%d) and numRecv(%d) @ rank %d.\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", numProcs, remLETbuf, let[idxProcs].maxSend, let[idxProcs].maxRecv, mpi.rank, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
-	}/* if( numProcs < 1 ){ */
+	}/* if( (numProcs < 1) && (mpi.size > 1) ){ */
 	chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &numProcs, 1, MPI_INT, MPI_MIN, mpi.comm));
 	//-----------------------------------------------------------------
 	/* set send buffer for LET on device */

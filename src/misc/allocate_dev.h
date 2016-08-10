@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/14(Thu) 10:59:03
+                  last updated on 2016/08/08(Mon) 16:29:22
  *                                                                       *
  *    Header File for memory allocation code of N-body calculation       *
  *                                                                       *
@@ -29,7 +29,7 @@
 //-------------------------------------------------------------------------
 //-- List of functions appeared in "allocate_dev.cu"
 //-------------------------------------------------------------------------
-#ifdef __CUDACC__
+#ifdef  __CUDACC__
 extern "C"
 {
 #endif//__CUDACC__

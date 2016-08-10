@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/01/27(Wed) 16:53:42
+                  last updated on 2016/08/09(Tue) 17:22:25
  *                                                                       *
  *    Header File for memory allocation code of N-body calculation       *
  *                                                                       *
@@ -34,8 +34,26 @@ extern "C"
 {
 #endif//__CUDACC__
   //-----------------------------------------------------------------------
-  muse allocParticleDataAoS(const int num, nbody_particle **body);
-  void  freeParticleDataAoS(               nbody_particle  *body);
+  muse allocParticleData
+  (const int num, iparticle *body,
+   ulong **idx, position **pos, acceleration **acc,
+#ifdef  BLOCK_TIME_STEP
+   velocity **vel, ibody_time **ti
+#else///BLOCK_TIME_STEP
+   real **vx, real **vy, real **vz
+#endif//BLOCK_TIME_STEP
+   );
+  void  freeParticleData
+  (ulong  *idx, position  *pos, acceleration  *acc,
+#ifdef  BLOCK_TIME_STEP
+   velocity  *vel, ibody_time  *ti
+#else///BLOCK_TIME_STEP
+   real  *vx, real  *vy, real  *vz
+#endif//BLOCK_TIME_STEP
+   );
+  //-----------------------------------------------------------------------
+  /* muse allocParticleDataAoS(const int num, nbody_particle **body); */
+  /* void  freeParticleDataAoS(               nbody_particle  *body); */
   //-----------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
   muse allocSnapshotArray(real **pos, real **vel, real **acc, real **m, real **pot, ulong **idx, const int num, nbody_hdf5 *data);

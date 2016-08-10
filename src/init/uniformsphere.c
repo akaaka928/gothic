@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/01/29(Fri) 17:32:12
+                  last updated on 2016/08/10(Wed) 15:51:00
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Uniform sphere w/ Gaussian velocity dispersion                  *
@@ -47,16 +47,16 @@ gsl_rng *GSLRand;
 
 
 //-------------------------------------------------------------------------
-static inline void isotropicDistribution(const real rad, nbody_particle *pos)
+static inline void isotropicDistribution(const real rad, iparticle body, const int idx)
 {
   //-----------------------------------------------------------------------
   const real proj = RANDVAL;
-  pos->z = rad * proj;
+  body.pos[idx].z = rad * proj;
   real Rproj  = rad * SQRT(UNITY - proj * proj);
   //-----------------------------------------------------------------------
   real theta = TWO * (real)M_PI * RANDPOS;
-  pos->x = Rproj * COS(theta);
-  pos->y = Rproj * SIN(theta);
+  body.pos[idx].x = Rproj * COS(theta);
+  body.pos[idx].y = Rproj * SIN(theta);
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -82,7 +82,7 @@ static inline real gaussian(void)
 
 
 //-------------------------------------------------------------------------
-void makeUniformSphere(ulong num, nbody_particle *body, real mtot, real length, real sigma)
+void makeUniformSphere(ulong num, iparticle body, real mtot, real length, real sigma)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -91,59 +91,91 @@ void makeUniformSphere(ulong num, nbody_particle *body, real mtot, real length, 
   //-----------------------------------------------------------------------
   for(ulong ii = 0; ii < num; ii++){
     //---------------------------------------------------------------------
-    isotropicDistribution(length * POW(RANDPOS, ONE_THIRD), &body[ii]);
-    body[ii].vx = sigma * gaussian();
-    body[ii].vy = sigma * gaussian();
-    body[ii].vz = sigma * gaussian();
+    isotropicDistribution(length * POW(RANDPOS, ONE_THIRD), body, ii);
+    body.pos[ii].m = mass;
     //---------------------------------------------------------------------
-    body[ii].ax = ZERO;
-    body[ii].ay = ZERO;
-    body[ii].az = ZERO;
+    body.acc[ii].x   = ZERO;
+    body.acc[ii].y   = ZERO;
+    body.acc[ii].z   = ZERO;
+    body.acc[ii].pot = ZERO;
     //---------------------------------------------------------------------
-    body[ii].m   = mass;
-    body[ii].pot = ZERO;
+#ifdef  BLOCK_TIME_STEP
+    body.vel[ii].x = sigma * gaussian();
+    body.vel[ii].y = sigma * gaussian();
+    body.vel[ii].z = sigma * gaussian();
+#else///BLOCK_TIME_STEP
+    body.vx[ii] = sigma * gaussian();
+    body.vy[ii] = sigma * gaussian();
+    body.vz[ii] = sigma * gaussian();
+#endif//BLOCK_TIME_STEP
     //---------------------------------------------------------------------
-    body[ii].idx = ii;
+    body.idx[ii] = ii;
     //---------------------------------------------------------------------
-  }
+  }/* for(ulong ii = 0; ii < num; ii++){ */
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-void shiftCenter(ulong num, nbody_particle *body)
+void shiftCenter(ulong num, iparticle body)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-  real com[3] = {ZERO, ZERO, ZERO};
-  real vel[3] = {ZERO, ZERO, ZERO};
-  real Mtot = ZERO;
+  double com[3] = {0.0, 0.0, 0.0};
+  double vel[3] = {0.0, 0.0, 0.0};
+  double Mtot = 0.0;
   //-----------------------------------------------------------------------
   for(ulong ii = 0; ii < num; ii++){
-    com[0] += body[ii].m * body[ii].x;    vel[0] += body[ii].m * body[ii].vx;
-    com[1] += body[ii].m * body[ii].y;    vel[1] += body[ii].m * body[ii].vy;
-    com[2] += body[ii].m * body[ii].z;    vel[2] += body[ii].m * body[ii].vz;
-    Mtot   += body[ii].m;
-  }
+    //---------------------------------------------------------------------
+    const double mass = (double)body.pos[ii].m;
+    Mtot   += mass;
+    //---------------------------------------------------------------------
+    com[0] += mass * (double)body.pos[ii].x;
+    com[1] += mass * (double)body.pos[ii].y;
+    com[2] += mass * (double)body.pos[ii].z;
+#ifdef  BLOCK_TIME_STEP
+    vel[0] += mass * (double)body.vel[ii].x;
+    vel[1] += mass * (double)body.vel[ii].y;
+    vel[2] += mass * (double)body.vel[ii].z;
+#else///BLOCK_TIME_STEP
+    vel[0] += mass * (double)body.vx[ii];
+    vel[1] += mass * (double)body.vy[ii];
+    vel[2] += mass * (double)body.vz[ii];
+#endif//BLOCK_TIME_STEP
+    //---------------------------------------------------------------------
+  }/* for(ulong ii = 0; ii < num; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-  real Minv = UNITY / Mtot;
+  double Minv = 1.0 / Mtot;
   com[0] *= Minv;  vel[0] *= Minv;
   com[1] *= Minv;  vel[1] *= Minv;
   com[2] *= Minv;  vel[2] *= Minv;
+  const real rcom[3] = {(real)com[0], (real)com[1], (real)com[2]};
+  const real rvel[3] = {(real)vel[0], (real)vel[1], (real)vel[2]};
   //-----------------------------------------------------------------------
   for(ulong ii = 0; ii < num; ii++){
-    body[ii].x -= com[0];    body[ii].vx -= vel[0];
-    body[ii].y -= com[1];    body[ii].vy -= vel[1];
-    body[ii].z -= com[2];    body[ii].vz -= vel[2];
+    //---------------------------------------------------------------------
+    body.pos[ii].x -= rcom[0];
+    body.pos[ii].y -= rcom[1];
+    body.pos[ii].z -= rcom[2];
+    //---------------------------------------------------------------------
 #ifdef  BLOCK_TIME_STEP
-    body[ii].t0 = body[ii].t1 = body[ii].dt = ZERO;
+    body.time[ii].t0 = body.time[ii].t1 = 0.0;
+    body.vel[ii].x -= rvel[0];
+    body.vel[ii].y -= rvel[1];
+    body.vel[ii].z -= rvel[2];
+    body.vel[ii].dt = ZERO;
+#else///BLOCK_TIME_STEP
+    body.vx[ii] -= rvel[0];
+    body.vy[ii] -= rvel[1];
+    body.vz[ii] -= rvel[2];
 #endif//BLOCK_TIME_STEP
-  }
+    //---------------------------------------------------------------------
+  }/* for(ulong ii = 0; ii < num; ii++){ */
   //-----------------------------------------------------------------------
 #if 0
   printf("position shift = (%e, %e, %e)\n", com[0], com[1], com[2]);
@@ -262,15 +294,27 @@ int main(int argc, char **argv)
   //-----------------------------------------------------------------------
   writeSettings(unit, Ntot, eps, eta, ft, snapshotInterval, saveInterval, file);
   //-----------------------------------------------------------------------
-  nbody_particle *body;
-  allocParticleDataAoS((int)Ntot, &body);
+  iparticle body;
+  ulong *idx;
+  position *pos;
+  acceleration *acc;
+#ifdef  BLOCK_TIME_STEP
+  velocity *vel;
+  ibody_time *ti;
+#else///BLOCK_TIME_STEP
+  real *vx, *vy, *vz;
+#endif//BLOCK_TIME_STEP
+  allocParticleData((int)Ntot, &body, &idx, &pos, &acc,
+#ifdef  BLOCK_TIME_STEP
+		    &vel, &ti
+#else///BLOCK_TIME_STEP
+		    &vx, &vy, &vz
+#endif//BLOCK_TIME_STEP
+		    );
   makeUniformSphere(Ntot, body, Mtot, rad, sigma);
   shiftCenter(Ntot, body);
   //-----------------------------------------------------------------------
   outputFundamentalInformationOfColdSphere(Mtot, rad, sigma, Ntot, eps, snapshotInterval, ft, file);
-  //-----------------------------------------------------------------------
-  /* /\* additional sorting to detect bugs easily *\/ */
-  /* qsort(body, Ntot, sizeof(iparticle), xposAscendingOrder); */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -298,14 +342,15 @@ int main(int argc, char **argv)
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-  freeParticleDataAoS(body);
+  freeParticleData(idx, pos, acc,
+#ifdef  BLOCK_TIME_STEP
+		    vel, ti
+#else///BLOCK_TIME_STEP
+		    vx, vy, vz
+#endif//BLOCK_TIME_STEP
+		    );
   //-----------------------------------------------------------------------
   return (0);
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-
-
-
-
-

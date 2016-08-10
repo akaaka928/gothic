@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/01/27(Wed) 16:53:26
+                  last updated on 2016/08/10(Wed) 15:53:26
  *                                                                       *
  *    Header File for converting type of arrays (SoA <--> AoS)           *
  *                                                                       *
@@ -34,12 +34,8 @@ extern "C"
 {
 #endif//__CUDACC__
   //-----------------------------------------------------------------------
-  /* data packing and unpacking */
-  void copyStr2Ary(const int head, const int Ni, nbody_particle *src, iparticle dst);
-  void copyAry2Str(const int head, const int Ni, iparticle src, nbody_particle *dst);
-  //-----------------------------------------------------------------------
   /* additional function for Leap-Frog integrator */
-  void backVel(const int head, const int tail, nbody_particle *body, real dt);
+  void backVel(const int head, const int tail, iparticle body, real dt);
   //-----------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
   void copyAry4Snapshot(const int head, const int Ni, iparticle src, nbody_hdf5 dst);

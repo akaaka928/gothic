@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/05/06(Fri) 16:48:12
+                  last updated on 2016/08/10(Wed) 13:15:41
  *                                                                       *
  *    Plot Code of N-body Simulations (using PLplot)                     *
  *      Time Evolution of Spatial Distribution Maps                      *
@@ -96,6 +96,15 @@ typedef struct
   int prf_hor_head, prf_hor_num;/* data for horizontal profile of N-body particles */
   int prf_ver_head[NUM_HORIZONTAL_BIN], prf_ver_num[NUM_HORIZONTAL_BIN];/* data for vertical profile of N-body particles */
 } model;
+//-------------------------------------------------------------------------
+typedef struct
+{
+  ulong idx;
+  real  x,  y,  z;
+  real vx, vy, vz;
+  real ax, ay, az;
+  real m, pot;
+} nbody_particle;
 //-------------------------------------------------------------------------
 
 
@@ -444,7 +453,6 @@ int main(int argc, char **argv)
 
   //-----------------------------------------------------------------------
   /* initialization */
-  /* setPhysicalConstantsAndUnitSystem(UNITSYSTEM, 0); */
   //-----------------------------------------------------------------------
   if( argc < 7 ){
     __FPRINTF__(stderr, "insufficient number of input parameters of %d (at least %d inputs are required).\n", argc, 7);
@@ -454,7 +462,7 @@ int main(int argc, char **argv)
     __FPRINTF__(stderr, "          -problem=<int>\n");
     __FPRINTF__(stderr, "          -ncrit=<int>\n");
     __KILL__(stderr, "%s\n", "insufficient command line arguments");
-  }
+  }/* if( argc < 7 ){ */
   //-----------------------------------------------------------------------
   char   *file;  requiredCmdArg(getCmdArgStr(argc, (const char * const *)argv,     "file", &file));
   int    start;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv,    "start", &start));
@@ -469,14 +477,14 @@ int main(int argc, char **argv)
   for(int ii = 0; ii < NTBL_GAUSS_QD; ii++){
     gsl_gaussQD_pos   [ii] = 0.0;
     gsl_gaussQD_weight[ii] = 0.0;
-  }
+  }/* for(int ii = 0; ii < NTBL_GAUSS_QD; ii++){ */
   gsl_integration_glfixed_table *tab;
   tab = gsl_integration_glfixed_table_alloc(NINTBIN);
   int max = (NINTBIN >> 1) + (NINTBIN & 1);
   for(int ii = 0; ii < max; ii++){
     gsl_gaussQD_pos   [ii] = (real)(*tab).x[(max - 1) - ii];
     gsl_gaussQD_weight[ii] = (real)(*tab).w[(max - 1) - ii];
-  }
+  }/* for(int ii = 0; ii < max; ii++){ */
   gsl_integration_glfixed_table_free(tab);
   //-----------------------------------------------------------------------
 
@@ -492,7 +500,9 @@ int main(int argc, char **argv)
   double ft, snapshotInterval, saveInterval;
   readSettingsParallel(&unit, &Ntot, &eps, &eta, &ft, &snapshotInterval, &saveInterval, file, mpi);
   nbody_particle *body;
-  allocParticleDataAoS((int)Ntot, &body);
+  /* allocParticleDataAoS((int)Ntot, &body); */
+  body = (nbody_particle *)malloc(sizeof(nbody_particle) * Ntot);
+  if( body == NULL ){    __KILL__(stderr, "ERROR: failure to allocate body");  }
 #ifdef  USE_HDF5_FORMAT
   static hdf5struct hdf5type;
   createHDF5DataType(&hdf5type);
@@ -500,6 +510,24 @@ int main(int argc, char **argv)
   real *hdf5_pos, *hdf5_vel, *hdf5_acc, *hdf5_m, *hdf5_pot;
   ulong *hdf5_idx;
   allocSnapshotArray(&hdf5_pos, &hdf5_vel, &hdf5_acc, &hdf5_m, &hdf5_pot, &hdf5_idx, (int)Ntot, &hdf5);
+#else///USE_HDF5_FORMAT
+  iparticle ibody;
+  ulong *idx;
+  position *pos;
+  acceleration *acc;
+#ifdef  BLOCK_TIME_STEP
+  velocity *vel;
+  ibody_time *ti;
+#else///BLOCK_TIME_STEP
+  real *vx, *vy, *vz;
+#endif//BLOCK_TIME_STEP
+  allocParticleData((int)Ntot, &ibody, &idx, &pos, &acc,
+#ifdef  BLOCK_TIME_STEP
+		    &vel, &ti
+#else///BLOCK_TIME_STEP
+		    &vx, &vy, &vz
+#endif//BLOCK_TIME_STEP
+		    );
 #endif//USE_HDF5_FORMAT
   //-----------------------------------------------------------------------
 
@@ -508,8 +536,6 @@ int main(int argc, char **argv)
   /* set plot range */
   //-----------------------------------------------------------------------
   PLFLT radius;
-  /* double radmin, rhomin, encmin, Sigmamin, zrhomin;  double Rmin, zmin; */
-  /* double radmax, rhomax, encmax, Sigmamax, zrhomax;  double Rmax, zmax; */
   double radmin, rhomin, encmin, Sigmamin;  double Rmin, zmin;
   double radmax, rhomax, encmax, Sigmamax;  double Rmax, zmax;
   switch( problem ){
@@ -1252,7 +1278,15 @@ int main(int argc, char **argv)
       //-------------------------------------------------------------------
     }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 #else///USE_HDF5_FORMAT
-    readSnapshot(&unit_read, &time, &steps, Ntot,  body, file, (uint)filenum);
+    readSnapshot(&unit_read, &time, &steps, Ntot, ibody, file, (uint)filenum);
+    for(int ii = 0; ii < (int)Ntot; ii++){
+      //-----------------------------------------------------------------
+      body[ii]. x  = ibody.pos[ii].x;      body[ii]. y = ibody.pos[ii].y;      body[ii]. z  = ibody.pos[ii].z;
+      body[ii].vx  = ibody.vel[ii].x;      body[ii].vy = ibody.vel[ii].y;      body[ii].vz  = ibody.vel[ii].z;
+      body[ii].ax  = ibody.acc[ii].x;      body[ii].ay = ibody.acc[ii].y;      body[ii].az  = ibody.acc[ii].z;
+      body[ii].idx = ibody.idx[ii]  ;      body[ii]. m = ibody.pos[ii].m;      body[ii].pot = ibody.acc[ii].pot;
+      //-----------------------------------------------------------------
+    }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 #endif//USE_HDF5_FORMAT
     if( unit_read != unit ){
       __KILL__(stderr, "ERROR: conflict about unit system detected (unit = %d, unit_read = %d)\n", unit, unit_read);
@@ -1363,8 +1397,16 @@ int main(int argc, char **argv)
 #ifdef  USE_HDF5_FORMAT
   removeHDF5DataType(hdf5type);
   freeSnapshotArray(hdf5_pos, hdf5_vel, hdf5_acc, hdf5_m, hdf5_pot, hdf5_idx);
+#else///USE_HDF5_FORMAT
+  freeParticleData(idx, pos, acc,
+#ifdef  BLOCK_TIME_STEP
+		    vel, ti
+#else///BLOCK_TIME_STEP
+		    vx, vy, vz
+#endif//BLOCK_TIME_STEP
+		    );
 #endif//USE_HDF5_FORMAT
-  freeParticleDataAoS(body);
+  free(body);
   free(rad);  free(rho);  free(enc);
   free(hor_pos);  free(hor_rho);  free(hor_zdisp);
   free(ver_pos);  free(ver_rho);

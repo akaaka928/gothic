@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/05/07(Sat) 15:25:54
+                  last updated on 2016/08/09(Tue) 17:58:52
  *                                                                       *
  *    Header File for Definition to generate initial condition of disk   *
  *                                                                       *
@@ -163,7 +163,7 @@ void integrateSphericalDensityProfile(const int ndisk, disk_data *disk);
 void diffAxisymmetricPotential(const disk_data disk);
 void calcVerticalVdisp(const int ndisk, disk_data *disk_info);
 //-------------------------------------------------------------------------
-void distributeDiskParticles(ulong *Nuse, nbody_particle *body, const real mass, const disk_data disk);
+void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const disk_data disk);
 //-------------------------------------------------------------------------
 
 
