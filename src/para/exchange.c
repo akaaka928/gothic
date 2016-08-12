@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/29(Fri) 12:05:28
+                  last updated on 2016/08/12(Fri) 11:37:41
  *                                                                       *
  *    Implementations related to OpenMP/MPI hybrid parallelization       *
  *                                                                       *
@@ -201,7 +201,7 @@ static inline void calcLocalBoxSize(const int num, iparticle body, real min[], r
   for(int ii = 0; ii < 3; ii++){
     min[ii] =  REAL_MAX;
     max[ii] = -REAL_MAX;
-  }
+  }/* for(int ii = 0; ii < 3; ii++){ */
   //-----------------------------------------------------------------------
   for(int ii = 0; ii < num; ii++){
     if( body.pos[ii].x < min[0] )      min[0] = body.pos[ii].x;
@@ -221,23 +221,44 @@ static inline void calcLocalBoxSize(const int num, iparticle body, real min[], r
 
 
 //-------------------------------------------------------------------------
+#ifdef __ICC
+/* Disable ICC's remark #161: unrecognized #pragma */
+#     pragma warning (disable:161)
+#endif//__ICC
+//-------------------------------------------------------------------------
+int posAscendingOrder(const void *a, const void *b);
 int posAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
   if(          (*(real *)a) > (*(real *)b) ){    return ( 1);  }
   else{    if( (*(real *)a) < (*(real *)b) ){    return (-1);  }
     else                                         return ( 0);  }
+#pragma GCC diagnostic pop
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+int ddkeyAscendingOrder(const void *a, const void *b);
 int ddkeyAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
   if(          ((domainDecomposeKey *)a)->dstRank > ((domainDecomposeKey *)b)->dstRank ){    return ( 1);  }
   else{    if( ((domainDecomposeKey *)a)->dstRank < ((domainDecomposeKey *)b)->dstRank ){    return (-1);  }
     else                                                         return ( 0);  }
+#pragma GCC diagnostic pop
   //-----------------------------------------------------------------------
 }
+//-------------------------------------------------------------------------
+#ifdef __ICC
+/* Enable ICC's remark #161: unrecognized #pragma */
+#     pragma warning (enable:161)
+#endif//__ICC
+//-------------------------------------------------------------------------
+
+
 //-------------------------------------------------------------------------
 void exchangeParticles
 (const int numOld,              iparticle src,

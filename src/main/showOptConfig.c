@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/02/24(Wed) 18:18:40
+                  last updated on 2016/08/12(Fri) 11:35:41
  *                                                                       *
  *    Plot Code of Benchmark for N-body Simulations (using PLplot)       *
  *                                                                       *
@@ -31,41 +31,67 @@ typedef struct
 
 
 //-------------------------------------------------------------------------
+#ifdef __ICC
+/* Disable ICC's remark #161: unrecognized #pragma */
+#     pragma warning (disable:161)
+#endif//__ICC
+//-------------------------------------------------------------------------
+int walkAscendingOrder(const void *a, const void *b);
 int walkAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
   if(          ((perf *)a)->timeWalkTree > ((perf *)b)->timeWalkTree ){    return ( 1);  }
   else{    if( ((perf *)a)->timeWalkTree < ((perf *)b)->timeWalkTree ){    return (-1);  }
     else                                                                   return ( 0);  }
+#pragma GCC diagnostic pop
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+int cmacAscendingOrder(const void *a, const void *b);
 int cmacAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
   if(          ((perf *)a)->timeMultipole > ((perf *)b)->timeMultipole ){    return ( 1);  }
   else{    if( ((perf *)a)->timeMultipole < ((perf *)b)->timeMultipole ){    return (-1);  }
     else                                                                     return ( 0);  }
+#pragma GCC diagnostic pop
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+int makeAscendingOrder(const void *a, const void *b);
 int makeAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
   if(          ((perf *)a)->timeMakeTree > ((perf *)b)->timeMakeTree ){    return ( 1);  }
   else{    if( ((perf *)a)->timeMakeTree < ((perf *)b)->timeMakeTree ){    return (-1);  }
     else                                                                   return ( 0);  }
+#pragma GCC diagnostic pop
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+int timeAscendingOrder(const void *a, const void *b);
 int timeAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
   if(          ((perf *)a)->timeIntegrate > ((perf *)b)->timeIntegrate ){    return ( 1);  }
   else{    if( ((perf *)a)->timeIntegrate < ((perf *)b)->timeIntegrate ){    return (-1);  }
     else                                                                     return ( 0);  }
+#pragma GCC diagnostic pop
   //-----------------------------------------------------------------------
 }
+//-------------------------------------------------------------------------
+#ifdef __ICC
+/* Enable ICC's remark #161: unrecognized #pragma */
+#     pragma warning (enable:161)
+#endif//__ICC
 //-------------------------------------------------------------------------
 
 
@@ -92,8 +118,8 @@ int main(int argc, char **argv)
     __KILL__(stderr, "%s\n", "insufficient command line arguments");
   }
   //-----------------------------------------------------------------------
-  char *file;     requiredCmdArg(getCmdArgStr(argc, (const char **)argv, "file", &file));
-  char *problem;  requiredCmdArg(getCmdArgStr(argc, (const char **)argv, "problem", &problem));
+  char *file;     requiredCmdArg(getCmdArgStr(argc, (const char * const *)argv, "file", &file));
+  char *problem;  requiredCmdArg(getCmdArgStr(argc, (const char * const *)argv, "problem", &problem));
   //-----------------------------------------------------------------------
 
 

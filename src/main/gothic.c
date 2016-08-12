@@ -1,6 +1,6 @@
 /************************************************************************* \
  *                                                                       *
-                  last updated on 2016/08/10(Wed) 15:36:42
+                  last updated on 2016/08/10(Wed) 17:17:56
  *                                                                       *
  *    N-body code based on Barnes--Hut tree                              *
  *                                                                       *
@@ -1512,7 +1512,7 @@ int main(int argc, char **argv)
   createHDF5DataType(&hdf5type);
 #endif//USE_HDF5_FORMAT
 #ifdef  SERIALIZED_EXECUTION
-  readTentativeData        (&time, &dt, &steps, num, body, file, last
+  readTentativeData        (&time, &dt, &steps, num, ibody0, file, last
 #ifdef  USE_HDF5_FORMAT
 			    , hdf5type
 #ifdef  MONITOR_ENERGY_ERROR

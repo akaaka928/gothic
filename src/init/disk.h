@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/09(Tue) 17:58:52
+                  last updated on 2016/08/12(Fri) 10:34:24
  *                                                                       *
  *    Header File for Definition to generate initial condition of disk   *
  *                                                                       *
@@ -16,16 +16,16 @@
 
 //-------------------------------------------------------------------------
 #ifndef MACRO_H
-#      include <macro.h>
+#include <macro.h>
 #endif//MACRO_H
 //-------------------------------------------------------------------------
 #ifndef STRUCTURE_H
-#       include "../misc/structure.h"
+#include "../misc/structure.h"
 #endif//STRUCTURE_H
 //-------------------------------------------------------------------------
-#ifndef MAGI_H
-#       include "../init/magi.h"
-#endif//MAGI_H
+#ifndef PROFILE_H
+#include "../init/profile.h"
+#endif//PROFILE_H
 //-------------------------------------------------------------------------
 
 

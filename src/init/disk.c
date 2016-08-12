@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/09(Tue) 18:01:27
+                  last updated on 2016/08/12(Fri) 10:55:26
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Assume balance of force in R and z direction                    *
@@ -39,9 +39,12 @@
 #include <macro.h>
 #include <constants.h>
 //-------------------------------------------------------------------------
-#include "blas.h"
-#include "spline.h"
+#include "../misc/structure.h"
+//-------------------------------------------------------------------------
 #include "magi.h"
+#include "spline.h"
+#include "blas.h"
+#include "profile.h"
 #include "disk.h"
 //-------------------------------------------------------------------------
 extern const real newton;
@@ -68,31 +71,20 @@ extern gsl_rng *GSLRand;
 #endif//__ICC
 //-------------------------------------------------------------------------
 static inline double getSmoothCutoff (const double RR, const double Rt, const double invDelta){  return (0.5 * erfc(2.0 * (RR - Rt) * invDelta));}
-#if 1
+double getColumnDensityExp   (double RR, double invRd, const disk_util disk);
 double getColumnDensityExp   (double RR, double invRd, const disk_util disk){
   return (exp(-                    RR * invRd                   ) * getSmoothCutoff(RR, disk.Rcutoff, disk.invRsmooth));}
+double getColumnDensitySersic(double RR, double invRd, const disk_util disk);
 double getColumnDensitySersic(double RR, double invRd, const disk_util disk){
   return (exp(-disk.sersic_b * pow(RR * invRd, disk.sersic_ninv)) * getSmoothCutoff(RR, disk.Rcutoff, disk.invRsmooth));}
-#else
-double getColumnDensityExp   (double RR, double invRd, double ninv, double bb, double Rt, double invDelta){
-  return (exp(-         RR * invRd       ) * getSmoothCutoff(RR, Rt, invDelta));}
-double getColumnDensitySersic(double RR, double invRd, double ninv, double bb, double Rt, double invDelta){
-  return (exp(-bb * pow(RR * invRd, ninv)) * getSmoothCutoff(RR, Rt, invDelta));}
-#endif
 //-------------------------------------------------------------------------
 static double invzd2invz0;
 static inline void setz0inv4SechProfile(void){  invzd2invz0 = 2.0 * acosh(sqrt(M_E));}
-#if 1
+double getVerticalDensity(const double  zz, const double invzd, const disk_util disk);
 double getVerticalDensity(const double  zz, const double invzd, const disk_util disk){
   const double tmp = 1.0 / cosh(0.5 * zz * invzd * invzd2invz0);/* := sech() */
   return (tmp * tmp);
 }
-#else
-double getVerticalDensity(const double  zz, const double invzd, const double ninv, const double bb, const double Rc, const double invRsmooth){
-  const double tmp = 1.0 / cosh(0.5 * zz * invzd * invzd2invz0);/* := sech() */
-  return (tmp * tmp);
-}
-#endif
 //-------------------------------------------------------------------------
 #ifdef __ICC
 /* Disable ICC's remark #869: parameter "hoge" was never referenced */
@@ -227,7 +219,6 @@ static inline void getVariableDiskScaleHeight(const int ndisk, disk_data * restr
       const int irr = findIdxSphericalPsi(Psi, sph, &ratio);
       const double rr = (1.0 - ratio) * sph[irr].rad + ratio * sph[1 + irr].rad;
       //-------------------------------------------------------------------
-      /* fprintf(stderr, "%e\t%e\t%e\t%e\t%e\t%e\t%d\t%e\n", RR[ii], sqrt(rr * rr - R2), PsiMid, Psi, PsiDim, rr, irr, ratio); */
       const double zd1 = sqrt(rr * rr - R2);
       zd[ii] = (zd0 < zd1) ? zd0 : zd1;
       //-------------------------------------------------------------------
@@ -241,71 +232,6 @@ static inline void getVariableDiskScaleHeight(const int ndisk, disk_data * restr
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-/* static const double zd_scale_factor = 0.5; */
-//-------------------------------------------------------------------------
-/* static inline void initDiskThicknessControler(disk_data *disk) */
-/* { */
-/*   //----------------------------------------------------------------------- */
-/*   const double rs = disk->rs_spheroid; */
-/*   //----------------------------------------------------------------------- */
-/*   disk->zd_scale_min = 1.0; */
-/*   disk->zd_scale_max = 1.0; */
-/*   disk->zd_scale_R0  = 1.0; */
-/*   disk->zd_scale_inv = 1.0; */
-/*   //----------------------------------------------------------------------- */
-/*   if( disk->cfg->zd > (zd_scale_factor * rs) ){ */
-/*     //--------------------------------------------------------------------- */
-/*     disk->zd_scale_min = zd_scale_factor * rs; */
-/*     disk->zd_scale_max = disk->cfg->zd; */
-/*     //--------------------------------------------------------------------- */
-/*     disk->zd_scale_R0 = 0.25 * (rs + 2.0 * disk->cfg->zd); */
-/*     disk->zd_scale_inv = 10.0 / (2.0 * disk->cfg->zd - rs); */
-/*     //--------------------------------------------------------------------- */
-/*   }/\* if( disk->cfg->zd > (zd_scale_factor * rs) ){ *\/ */
-/*   //----------------------------------------------------------------------- */
-/* } */
-//-------------------------------------------------------------------------
-/* static inline double modulateDiskThickness(const double RR, disk_data disk){ */
-/*   //----------------------------------------------------------------------- */
-/*   return (disk.zd_scale_min + 0.5 * (disk.zd_scale_max - disk.zd_scale_min) * (1.0 + tanh((RR - disk.zd_scale_R0) * disk.zd_scale_inv))); */
-/*   //----------------------------------------------------------------------- */
-/* } */
-//-------------------------------------------------------------------------
-/* void selectDominantComponent(const int ndisk, disk_data * restrict disk, const int skind, profile * restrict * prf, const double invlogbin, profile_cfg * restrict cfg) */
-/* { */
-/*   //----------------------------------------------------------------------- */
-/*   __NOTE__("%s\n", "start"); */
-/*   //----------------------------------------------------------------------- */
-/*   // */
-/*   //----------------------------------------------------------------------- */
-/*   for(int ii = 0; ii < ndisk; ii++){ */
-/*     //--------------------------------------------------------------------- */
-/*     /\* pick up the dominant spherical component determines to determine gravitational force at r = scale height of the given disk component *\/ */
-/*     //--------------------------------------------------------------------- */
-/*     double ratio; */
-/*     const int idx = findIdxSpherical(disk[ii].cfg->zd, prf[0], invlogbin, &ratio); */
-/*     //--------------------------------------------------------------------- */
-/*     int idxMax = 0; */
-/*     double encMax = 0.0; */
-/*     for(int jj = 0; jj < skind; jj++){ */
-/*       //------------------------------------------------------------------- */
-/*       const double enc = (1.0 - ratio) * prf[jj][idx].enc + ratio * prf[jj][1 + idx].enc; */
-/*       if( enc > encMax ){	encMax = enc;	idxMax = jj;      } */
-/*       //------------------------------------------------------------------- */
-/*     }/\* for(int jj = 0; jj < skind; jj++){ *\/ */
-/*     //--------------------------------------------------------------------- */
-/*     // */
-/*     //--------------------------------------------------------------------- */
-/*     disk[ii].rs_spheroid = cfg[idxMax].rs; */
-/*     //--------------------------------------------------------------------- */
-/*   }/\* for(int ii = 0; ii < ndisk; ii++){ *\/ */
-/*   //----------------------------------------------------------------------- */
-/*   // */
-/*   //----------------------------------------------------------------------- */
-/*   __NOTE__("%s\n", "end"); */
-/*   //----------------------------------------------------------------------- */
-/* } */
-//-------------------------------------------------------------------------
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
 //-------------------------------------------------------------------------
 
@@ -316,11 +242,11 @@ static inline void getVariableDiskScaleHeight(const int ndisk, disk_data * restr
 static inline double func4GDpot(const double RR, const double a2, const disk_data disk)
 {
   //-----------------------------------------------------------------------
-  /* return (RR * disk.getColumnDensity(RR, disk.invRd, disk.sersic_ninv, disk.sersic_b, disk.Rcutoff, disk.invRsmooth) / sqrt(RR * RR - a2)); */
   return (RR * disk.getColumnDensity(RR, disk.invRd, disk.util) / sqrt(RR * RR - a2));
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+double gaussQD4GDpot(const double min, const double max, const double a2, const disk_data disk);
 double gaussQD4GDpot(const double min, const double max, const double a2, const disk_data disk)
 {
   //-----------------------------------------------------------------------
@@ -344,34 +270,15 @@ double gaussQD4GDpot(const double min, const double max, const double a2, const 
 void calcGDpot
 (const double zz, const int Nz, double * restrict ver, const double invdz, const double zp,
  const int ia, const double fa, const int iR, const double fR, const double aa, const double apR2, const double amR2,
+ const int ndisk, disk_data * restrict disk, double * restrict invSigma, double * restrict ret);
+void calcGDpot
+(const double zz, const int Nz, double * restrict ver, const double invdz, const double zp,
+ const int ia, const double fa, const int iR, const double fR, const double aa, const double apR2, const double amR2,
  const int ndisk, disk_data * restrict disk, double * restrict invSigma, double * restrict ret)
 {
   //-----------------------------------------------------------------------
   const double zpls2 = (zz - zp) * (zz - zp);  const double asinp = asin(2.0 * aa / (sqrt(zpls2 + apR2) + sqrt(zpls2 + amR2)));
   const double zmns2 = (zz + zp) * (zz + zp);  const double asinm = asin(2.0 * aa / (sqrt(zmns2 + apR2) + sqrt(zmns2 + amR2)));
-  //-----------------------------------------------------------------------
-#if 0
-  int status = fpclassify(asinp);
-  if( (status != FP_NORMAL) && (status != FP_ZERO) ){
-    static char msg[64];
-    switch( status ){
-    case FP_NAN      :	sprintf(msg, "Not a Number"                                    );	break;
-    case FP_INFINITE :	sprintf(msg, "either positive infinity or negative inifinity"  );	break;
-    case FP_SUBNORMAL:	sprintf(msg, "too small to be represented in normalized format");	break;
-    }/* switch( fpclassify(errMax) ){ */
-    __KILL__(stderr, "ERROR: asinp is \"%s\".\n", msg);
-  }/* if( fpclassify(errMax) != FP_NORMAL ){ */
-  status = fpclassify(asinm);
-  if( (status != FP_NORMAL) && (status != FP_ZERO) ){
-    static char msg[64];
-    switch( status ){
-    case FP_NAN      :	sprintf(msg, "Not a Number"                                    );	break;
-    case FP_INFINITE :	sprintf(msg, "either positive infinity or negative inifinity"  );	break;
-    case FP_SUBNORMAL:	sprintf(msg, "too small to be represented in normalized format");	break;
-    }/* switch( fpclassify(errMax) ){ */
-    __KILL__(stderr, "ERROR: asinm is \"%s\".\n", msg);
-  }/* if( fpclassify(errMax) != FP_NORMAL ){ */
-#endif
   //-----------------------------------------------------------------------
   double fz;
   const int jz = bisection(zp, Nz, ver, false, invdz, &fz);
@@ -381,31 +288,8 @@ void calcGDpot
     const double zeta = invSigma[ii] *
       (((1.0 - fz) * (*disk[ii].rho)[INDEX2D(NR, Nz,     iR, jz)] + fz * (*disk[ii].rho)[INDEX2D(NR, Nz,     iR, 1 + jz)]) * (1.0 - fR) +
        ((1.0 - fz) * (*disk[ii].rho)[INDEX2D(NR, Nz, 1 + iR, jz)] + fz * (*disk[ii].rho)[INDEX2D(NR, Nz, 1 + iR, 1 + jz)]) *        fR   );
-#if 0
-    int status = fpclassify(zeta);
-    if( (status != FP_NORMAL) && (status != FP_ZERO) ){
-      static char msg[64];
-      switch( status ){
-      case FP_NAN      :	sprintf(msg, "Not a Number"                                    );	break;
-      case FP_INFINITE :	sprintf(msg, "either positive infinity or negative inifinity"  );	break;
-      case FP_SUBNORMAL:	sprintf(msg, "too small to be represented in normalized format");	break;
-      }/* switch( fpclassify(errMax) ){ */
-      __KILL__(stderr, "ERROR: zeta is \"%s\"; invSigma[%d] = %e, fR = %e, iR = %d, fz = %e, jz = %d; rho = %e, %e, %e, %e while DBL_MIN = %e.\n",
-	       msg, ii, invSigma[ii], fR, iR, fz, jz,
-	       (*disk[ii].rho)[INDEX2D(NR, Nz,     iR, jz)], (*disk[ii].rho)[INDEX2D(NR, Nz,     iR, 1 + jz)],
-	       (*disk[ii].rho)[INDEX2D(NR, Nz, 1 + iR, jz)], (*disk[ii].rho)[INDEX2D(NR, Nz, 1 + iR, 1 + jz)], DBL_MIN);
-    }/* if( fpclassify(errMax) != FP_NORMAL ){ */
-#endif
     //---------------------------------------------------------------------
     const double diff = (1.0 - fa) * disk[ii].prf[ia].psi + fa * disk[ii].prf[1 + ia].psi;
-    //---------------------------------------------------------------------
-#if 0
-    fprintf(stdout, "%d\t%e\t%e\t%e\t%e\t%e\n", iR, zp, zeta, diff, asinp, asinm);
-#endif
-    //---------------------------------------------------------------------
-#if 0
-    fprintf(stdout, "%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n", sqrt(apR2) - aa, zz, aa, zp, asinp, asinm, 2.0 * aa / (sqrt(zpls2 + apR2) + sqrt(zpls2 + amR2)), 2.0 * aa / (sqrt(zmns2 + apR2) + sqrt(zmns2 + amR2)));
-#endif
     //---------------------------------------------------------------------
     ret[ii] = zeta * diff * (asinp + asinm);
     //---------------------------------------------------------------------
@@ -413,6 +297,10 @@ void calcGDpot
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+void _gaussQuad2d4GDpot
+(const double zz, const int Nz, double * restrict ver, const double invdz, const double zmin, const double zmax,
+ const int ia, const double fa, const int iR, const double fR, const double aa, const double apR2, const double amR2,
+ const int ndisk, disk_data * restrict disk, double * restrict sum, double * invSigma, double * restrict tmp);
 void _gaussQuad2d4GDpot
 (const double zz, const int Nz, double * restrict ver, const double invdz, const double zmin, const double zmax,
  const int ia, const double fa, const int iR, const double fR, const double aa, const double apR2, const double amR2,
@@ -450,10 +338,6 @@ void _gaussQuad2d4GDpot
   /* finalization */
   for(int ii = 0; ii < ndisk; ii++)
     sum[ii] *= mns;
-  //-----------------------------------------------------------------------
-#if 0
-  fprintf(stdout, "%d\t%e\t%e\t%e\n", iR, zmin, zmax, sum[0]);
-#endif
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -501,6 +385,10 @@ static inline void _setRdep4GDpot
 void gaussQuad2d4GDpot
 (const double RR, const int NR, double * restrict hor, const double invdR, const double Rmin, const double Rmax,
  const double zz, const int Nz, double * restrict ver, const double invdz, const double zmin, const double zmax,
+ const int ndisk, disk_data * restrict disk, double * restrict invSigma, double * restrict sub, double * restrict tmp, double * restrict sum);
+void gaussQuad2d4GDpot
+(const double RR, const int NR, double * restrict hor, const double invdR, const double Rmin, const double Rmax,
+ const double zz, const int Nz, double * restrict ver, const double invdz, const double zmin, const double zmax,
  const int ndisk, disk_data * restrict disk, double * restrict invSigma, double * restrict sub, double * restrict tmp, double * restrict sum)
 {
   //-----------------------------------------------------------------------
@@ -543,10 +431,6 @@ void gaussQuad2d4GDpot
   /* finalization */
   for(int ii = 0; ii < ndisk; ii++)
     sum[ii] *= mns;
-  //-----------------------------------------------------------------------
-#if 0
-  fprintf(stdout, "%e\t%e\t%e\t%e\t%e\n", Rmin, Rmax, zmin, zmax, sum[0]);
-#endif
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -592,8 +476,8 @@ static inline double integrateGDpot
 #ifndef USE_ELLIPTIC_INTEGRAL
 //-------------------------------------------------------------------------
 static inline double rinv4pot(double d2, double dd, double phi){  return (1.0 / sqrt(DBL_MIN + d2 + dd * (1.0 - cos(phi))));}
-/* static inline double rinv4pot(double d2, double dd, double phi){  return (1.0 / sqrt(d2 + dd * (1.0 - cos(phi))));} */
 //-------------------------------------------------------------------------
+double gaussQD4rinv4pot(const double min, const double max, const double r2, const double Rmean);
 double gaussQD4rinv4pot(const double min, const double max, const double r2, const double Rmean)
 {
   //-----------------------------------------------------------------------
@@ -647,6 +531,10 @@ static inline double calcPot
 double _gaussQuad2d4calcPot
 (const int iR, const double fR, const double Rp, const double R2, const double Rmean,
  const double zz, const int Nz, double * restrict ver, const double invdz, const double zmin, const double zmax,
+ double * restrict rho);
+double _gaussQuad2d4calcPot
+(const int iR, const double fR, const double Rp, const double R2, const double Rmean,
+ const double zz, const int Nz, double * restrict ver, const double invdz, const double zmin, const double zmax,
  double * restrict rho)
 {
   //-----------------------------------------------------------------------
@@ -696,6 +584,10 @@ static inline void _setRdep4calcPot
 double gaussQuad2d4calcPot
 (const double RR, const int NR, double * restrict hor, const double invdR, const double Rmin, const double Rmax,
  const double zz, const int Nz, double * restrict ver, const double invdz, const double zmin, const double zmax,
+ double * restrict rho);
+double gaussQuad2d4calcPot
+(const double RR, const int NR, double * restrict hor, const double invdR, const double Rmin, const double Rmax,
+ const double zz, const int Nz, double * restrict ver, const double invdz, const double zmin, const double zmax,
  double * restrict rho)
 {
   //-----------------------------------------------------------------------
@@ -738,6 +630,10 @@ double gaussQuad2d4calcPot
 //-------------------------------------------------------------------------
 #ifndef USE_GD_FORM_POTENTIAL
 static inline
+#else///USE_GD_FORM_POTENTIAL
+double integratePotential
+(const double RR, const int NR, double * restrict hor, const double invdR, const double Rs, const double Rmax,
+ const double zz, const int Nz, double * restrict ver, const double invdz, const double zs, const double zmax, double * restrict rho);
 #endif//USE_GD_FORM_POTENTIAL
 double integratePotential
 (const double RR, const int NR, double * restrict hor, const double invdR, const double Rs, const double Rmax,
@@ -770,6 +666,19 @@ void calcOuterPotential
 #ifdef  CONFIRM_BUILDING_BLOCK
  , const double Mdisk
 #endif//CONFIRM_BUILDING_BLOCK
+ );
+void calcOuterPotential
+(const int NR, double * restrict hor, const double dR, const double invdR, const double Rmax,
+ const int Nz, double * restrict ver, const double dz, const double invdz, const double zmax,
+ const double Rs, const double zs, double * restrict Phi_NR, double * restrict Phi_Nz,
+#ifdef  USE_GD_FORM_POTENTIAL
+ const int ndisk, disk_data * restrict disk, double * restrict stock_inv, double * restrict stock_sub, double * restrict stock_tmp, double * restrict stock_sum
+#else///USE_GD_FORM_POTENTIAL
+ double * restrict rho
+#endif//USE_GD_FORM_POTENTIAL
+#ifdef  CONFIRM_BUILDING_BLOCK
+ , const double Mdisk
+#endif//CONFIRM_BUILDING_BLOCK
  )
 {
   //-----------------------------------------------------------------------
@@ -778,19 +687,6 @@ void calcOuterPotential
 
   //-----------------------------------------------------------------------
   /* \Phi_{  i, N_z} = potential @ R = (  i + 1/2) * R_max / N_R, z = (N_z + 1/2) * z_max / N_z; for i = 0, ..., N_R - 1 */
-  //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 0; ii < NR; ii++){
-    for(int jj = 0; jj < Nz; jj++){
-      fprintf(stderr, "%e\t%e", hor[ii], ver[jj]);
-      for(int hh = 0; hh < ndisk; hh++)
-	fprintf(stderr, "\t%e", (*disk[hh].rho)[INDEX2D(NR, Nz, ii, jj)]);
-      fprintf(stderr, "\n");
-    }
-    fprintf(stderr, "\n");
-  }
-  exit(0);
-#endif
   //-----------------------------------------------------------------------
 #ifdef  CONFIRM_BUILDING_BLOCK
   fprintf(stderr, "# boundary @ large z\n");
@@ -856,40 +752,6 @@ void calcOuterPotential
     //---------------------------------------------------------------------
   }
   //-----------------------------------------------------------------------
-#if 0
-  bool failure = false;
-  for(int ii = 0; ii < NR; ii++){
-    int status = fpclassify(Phi_Nz[ii]);
-    failure |= ((status != FP_NORMAL) && (status != FP_ZERO));
-  }
-  for(int jj = 0; jj < Nz; jj++){
-    int status = fpclassify(Phi_NR[jj]);
-    failure |= ((status != FP_NORMAL) && (status != FP_ZERO));
-  }
-  if( failure ){
-    for(int ii = 0; ii < NR; ii++){
-      for(int jj = 0; jj < Nz; jj++){
-	fprintf(stderr, "%e\t%e", hor[ii], ver[jj]);
-	for(int hh = 0; hh < ndisk; hh++)
-	  fprintf(stderr, "\t%e", (*disk[hh].rho)[INDEX2D(NR, Nz, ii, jj)]);
-	fprintf(stderr, "\n");
-      }
-      fprintf(stderr, "\n");
-    }
-
-    /* for(int ii = 0; ii < NR; ii++){ */
-    /*   fprintf(stderr, "%e\t%e", hor[ii], Phi_Nz[ii]); */
-    /*   /\* for(int hh = 0; hh < ndisk; hh++) *\/ */
-    /*   /\* 	fprintf(stderr, "\t%e", disk[hh].Sigma[ii]); *\/ */
-    /*   fprintf(stderr, "\n"); */
-    /* } */
-    /* fprintf(stderr, "\n"); */
-    /* for(int jj = 0; jj < Nz; jj++) */
-    /*   fprintf(stderr, "%e\t%e\n", ver[jj], Phi_NR[jj]); */
-    exit(0);
-  }
-#endif
-  //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
 #ifdef  CONFIRM_BUILDING_BLOCK
@@ -904,6 +766,9 @@ void calcOuterPotential
 
 
 //-------------------------------------------------------------------------
+void setSparseMatrix
+(const int NR, const double dR, double * restrict RR, const int Nz, const double dz, double * restrict rho, double * restrict Phi_NR, double * restrict Phi_Nz,
+ const crs mat, double * restrict vec);
 void setSparseMatrix
 (const int NR, const double dR, double * restrict RR, const int Nz, const double dz, double * restrict rho, double * restrict Phi_NR, double * restrict Phi_Nz,
  const crs mat, double * restrict vec)
@@ -1064,6 +929,7 @@ void setSparseMatrix
 //-------------------------------------------------------------------------
 /* assume potential generated by a Miyamoto & Nagai disk for initial guess to the solution of the Poisson equation */
 //-------------------------------------------------------------------------
+void initPotentialField(const int NR, double * restrict RR, const int Nz, double * restrict zz, double * restrict Phi, const int ndisk, disk_data * restrict disk);
 void initPotentialField(const int NR, double * restrict RR, const int Nz, double * restrict zz, double * restrict Phi, const int ndisk, disk_data * restrict disk)
 {
   //-----------------------------------------------------------------------
@@ -1114,6 +980,17 @@ void getPotentialField
 #ifdef  USE_GD_FORM_POTENTIAL
  , double * restrict stock_inv, double * restrict stock_sub, double * restrict stock_tmp, double * restrict stock_sum
 #endif//USE_GD_FORM_POTENTIAL
+ );
+void getPotentialField
+(const int ndisk, disk_data * restrict disk,
+ const int NR, double * restrict RR, const double dR, const double invdR, const double Rmax,
+ const int Nz, double * restrict zz, const double dz, const double invdz, const double zmax,
+ double * restrict rho, double * restrict Phi, double * restrict Phi_NR, double * restrict Phi_Nz,
+ const crs mat, const crs ilu, double * restrict vec, double * restrict res, double * restrict sdw, double * restrict mid, double * restrict tmp,
+ double * restrict Api, double * restrict Ati, double * restrict Kri, double * restrict Kpi, double * restrict Kti
+#ifdef  USE_GD_FORM_POTENTIAL
+ , double * restrict stock_inv, double * restrict stock_sub, double * restrict stock_tmp, double * restrict stock_sum
+#endif//USE_GD_FORM_POTENTIAL
  )
 {
   //-----------------------------------------------------------------------
@@ -1136,38 +1013,6 @@ void getPotentialField
   const double Minv = 1.0 / Mtot;
   Rs *= Minv;
   zs *= Minv;
-  //-----------------------------------------------------------------------
-/* #ifdef  USE_GD_FORM_POTENTIAL */
-/*   for(int ii = 0; ii < NR; ii++){ */
-/*     for(int jj = 0; jj < Nz; jj++){ */
-/*       fprintf(stderr, "%e\t%e", RR[ii], zz[jj]); */
-/*       for(int hh = 0; hh < ndisk; hh++) */
-/* 	fprintf(stderr, "\t%e", (*disk[hh].rho)[INDEX2D(NR, Nz, ii, jj)]); */
-/*       fprintf(stderr, "\n"); */
-/*     } */
-/*     fprintf(stderr, "\n"); */
-/*   } */
-/*   exit(0); */
-/* #endif//USE_GD_FORM_POTENTIAL */
-  //-----------------------------------------------------------------------
-#if 0
-#ifdef  USE_GD_FORM_POTENTIAL
-  static int printSteps = 0;
-  if( printSteps == 1 ){
-    for(int ii = 0; ii < NR; ii++){
-      for(int jj = 0; jj < Nz; jj++){
-	fprintf(stderr, "%e\t%e", RR[ii], zz[jj]);
-	for(int hh = 0; hh < ndisk; hh++)
-	  fprintf(stderr, "\t%e", (*disk[hh].rho)[INDEX2D(NR, Nz, ii, jj)]);
-	fprintf(stderr, "\n");
-      }
-      fprintf(stderr, "\n");
-    }
-    exit(0);
-  }
-  printSteps++;
-#endif//USE_GD_FORM_POTENTIAL
-#endif
   //-----------------------------------------------------------------------
   calcOuterPotential(NR, RR, dR, invdR, Rmax, Nz, zz, dz, invdz, zmax, Rs, zs, Phi_NR, Phi_Nz,
 #ifdef  USE_GD_FORM_POTENTIAL
@@ -1198,7 +1043,6 @@ void getPotentialField
 
 
 //-------------------------------------------------------------------------
-/* static inline double gaussQuad1d4Rho(double (*func)(double, double, double, double, double, double), const double min, const double max, const double xinv, const double ninv, const double bb, const double Rcutoff, const double invRsmooth) */
 static inline double gaussQuad1d4Rho(double (*func)(double, double, disk_util), const double min, const double max, const double xinv, const disk_util disk)
 {
   //-----------------------------------------------------------------------
@@ -1208,15 +1052,12 @@ static inline double gaussQuad1d4Rho(double (*func)(double, double, disk_util), 
   double sum = 0.0;
   if( NINTBIN_LOW & 1 )
     sum = gsl_gaussQD_low_weight[(NINTBIN_LOW >> 1)] * func(pls + mns * gsl_gaussQD_low_pos[(NINTBIN_LOW >> 1)], xinv, disk);
-    /* sum = gsl_gaussQD_low_weight[(NINTBIN_LOW >> 1)] * func(pls + mns * gsl_gaussQD_low_pos[(NINTBIN_LOW >> 1)], xinv, ninv, bb, Rcutoff, invRsmooth); */
   //-----------------------------------------------------------------------
   /* numerical integration */
   for(int ii = (NINTBIN_LOW >> 1) - 1; ii >= 0; ii--)
     sum += gsl_gaussQD_low_weight[ii] *
       (func(pls + mns * gsl_gaussQD_low_pos[ii], xinv, disk) +
        func(pls - mns * gsl_gaussQD_low_pos[ii], xinv, disk));
-      /* (func(pls + mns * gsl_gaussQD_low_pos[ii], xinv, ninv, bb, Rcutoff, invRsmooth) + */
-      /*  func(pls - mns * gsl_gaussQD_low_pos[ii], xinv, ninv, bb, Rcutoff, invRsmooth)); */
   //-----------------------------------------------------------------------
   /* finalization */
   return (sum * mns);
@@ -1247,6 +1088,10 @@ static inline double _setzdep4calcRho
 void _setRdep4calcRho
 (const double RR, double * restrict R2, double * restrict horDep, int * restrict iR, double * restrict fR, double * restrict PsiR0, double * restrict invPsi,
  const int NR, double * restrict horRad, const double invdR, const int Nz, double * restrict ver, const double invdz, double * restrict Phi,
+ const disk_data disk, profile * restrict sph, const double invlogrbin_sph);
+void _setRdep4calcRho
+(const double RR, double * restrict R2, double * restrict horDep, int * restrict iR, double * restrict fR, double * restrict PsiR0, double * restrict invPsi,
+ const int NR, double * restrict horRad, const double invdR, const int Nz, double * restrict ver, const double invdz, double * restrict Phi,
  const disk_data disk, profile * restrict sph, const double invlogrbin_sph)
 {
   //-----------------------------------------------------------------------
@@ -1256,9 +1101,6 @@ void _setRdep4calcRho
   *PsiR0 = (1.0 - (*fR)) * (-Phi[INDEX2D(NR, Nz, *iR, 0)]) + (*fR) * (-Phi[INDEX2D(NR, Nz, 1 + (*iR), 0)]) + Phi_spherical(RR, sph, invlogrbin_sph);
   //-----------------------------------------------------------------------
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-  /* const double value = modulateDiskThickness(RR, disk); */
-  /* const double invzd = disk.invzd   / value; */
-  /* const double    zd = disk.cfg->zd * value; */
   const double    zd = (1.0 - (*fR)) * disk.zd[*iR] + (*fR) * disk.zd[1 + (*iR)];
 #else///ENABLE_VARIABLE_SCALE_HEIGHT
   const double    zd = disk.cfg->zd;
@@ -1308,6 +1150,10 @@ static inline double _gaussQuad2d4calcRho
 double gaussQuad2d4calcRho
 (const double Rmin, const double Rmax, const int NR, double * restrict hor, const double invdR,
  const double zmin, const double zmax, const int Nz, double * restrict ver, const double invdz,
+ profile * restrict sph, const double invlogrbin_sph, double * restrict Phi, const disk_data disk);
+double gaussQuad2d4calcRho
+(const double Rmin, const double Rmax, const int NR, double * restrict hor, const double invdR,
+ const double zmin, const double zmax, const int Nz, double * restrict ver, const double invdz,
  profile * restrict sph, const double invlogrbin_sph, double * restrict Phi, const disk_data disk)
 {
   //-----------------------------------------------------------------------
@@ -1347,7 +1193,6 @@ double gaussQuad2d4calcRho
 
 
 //-------------------------------------------------------------------------
-/* static inline double func4encSigma(const double RR, const disk_data disk){  return (RR * disk.getColumnDensity(RR, disk.invRd, disk.sersic_ninv, disk.sersic_b, disk.Rcutoff, disk.invRsmooth));} */
 static inline double func4encSigma(const double RR, const disk_data disk){  return (RR * disk.getColumnDensity(RR, disk.invRd, disk.util));}
 //-------------------------------------------------------------------------
 static inline double gaussQD4encSigma(const double min, const double max, const disk_data disk)
@@ -1381,6 +1226,15 @@ static inline void swapDblArrays(double **p0, double **p1)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+void getPotDensPair
+(const int ndisk, disk_data * restrict disk, const int NR, const double Rmax, const int Nz, const double zmax,
+ double * restrict Phi_NR, double * restrict Phi_Nz,
+ const crs mat, const crs ilu, double * restrict vec, double * restrict res, double * restrict sdw, double * restrict mid, double * restrict tmp,
+ double * restrict Api, double * restrict Ati, double * restrict Kri, double * restrict Kpi, double * restrict Kti
+#ifdef  USE_GD_FORM_POTENTIAL
+ , double * restrict stock_inv, double * restrict stock_sub, double * restrict stock_tmp, double * restrict stock_sum
+#endif//USE_GD_FORM_POTENTIAL
+ );
 void getPotDensPair
 (const int ndisk, disk_data * restrict disk, const int NR, const double Rmax, const int Nz, const double zmax,
  double * restrict Phi_NR, double * restrict Phi_Nz,
@@ -1440,22 +1294,11 @@ void getPotDensPair
     for(int ii = 0; ii < NR - 1; ii++)
 #endif//PROHIBIT_EXTRAPOLATION
       disk[hh].Sigma[ii] = disk[hh].cfg->Sigma0 * gaussQuad1d4Rho(disk[hh].getColumnDensity, RR[ii] - 0.5 * Rbin, RR[ii] + 0.5 * Rbin, disk[hh].invRd, disk[hh].util) * invRbin;
-      /* disk[hh].Sigma[ii] = disk[hh].cfg->Sigma0 * gaussQuad1d4Rho(disk[hh].getColumnDensity, RR[ii] - 0.5 * Rbin, RR[ii] + 0.5 * Rbin, disk[hh].invRd, disk[hh].sersic_ninv, disk[hh].sersic_b, disk[hh].Rcutoff, disk[hh].invRsmooth) * invRbin; */
 #ifdef  PROHIBIT_EXTRAPOLATION
     disk[hh].Sigma[NR - 1] = 0.0;
 #endif//PROHIBIT_EXTRAPOLATION
     //---------------------------------------------------------------------
   }/* for(int hh = 0; hh < ndisk; hh++){ */
-  //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 0; ii < NR; ii++){
-    fprintf(stderr, "%e\t%e", RR[ii], disk[0].Sigma[ii]);
-    for(int hh = 1; hh < ndisk; hh++)
-      fprintf(stderr, "\t%e", disk[hh].Sigma[ii]);
-    fprintf(stderr, "\n");
-  }
-  exit(0);
-#endif
   //-----------------------------------------------------------------------
   /* set density field */
   /* initial vertical profile is assumed to be hyperbolic secant */
@@ -1516,19 +1359,6 @@ void getPotDensPair
     //---------------------------------------------------------------------
   }/* if( init ){ */
   //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 0; ii < NR; ii++){
-    for(int jj = 0; jj < Nz; jj++){
-      fprintf(stderr, "%e\t%e", RR[ii], zz[jj]);
-      for(int hh = 0; hh < ndisk; hh++)
-	fprintf(stderr, "\t%e", (*disk[hh].rho)[INDEX2D(NR, Nz, ii, jj)]);
-      fprintf(stderr, "\n");
-    }
-    fprintf(stderr, "\n");
-  }
-  exit(0);
-#endif
-  //-----------------------------------------------------------------------
 
 
   //-----------------------------------------------------------------------
@@ -1561,19 +1391,6 @@ void getPotDensPair
     }/* if( ndisk > 1 ){ */
     else      rhoTot = *disk[0].rho;
     //---------------------------------------------------------------------
-#if 0
-    static int printSteps = 0;
-    if( printSteps == 1 ){
-      for(int ii = 0; ii < NR; ii++){
-	for(int jj = 0; jj < Nz; jj++)
-	  fprintf(stderr, "%e\t%e\t%e\n", RR[ii], zz[jj], rhoTot[INDEX2D(NR, Nz, ii, jj)]);
-	fprintf(stderr, "\n");
-      }
-      exit(0);
-    }
-    printSteps++;
-#endif
-    //---------------------------------------------------------------------
     /* solve Poisson equation using ILU(0) preconditioned BiCGSTAB method */
     getPotentialField(ndisk, disk, NR, RR, Rbin, invRbin, Rmax, Nz, zz, zbin, invzbin, zmax,
 		      rhoTot, Phi, Phi_NR, Phi_Nz, mat, ilu, vec, res, sdw, mid, tmp, Api, Ati, Kri, Kpi, Kti
@@ -1581,15 +1398,6 @@ void getPotDensPair
 		      , stock_inv, stock_sub, stock_tmp, stock_sum
 #endif//USE_GD_FORM_POTENTIAL
 		      );
-    //---------------------------------------------------------------------
-#if 0
-    for(int ii = 0; ii < NR; ii++){
-      for(int jj = 0; jj < Nz; jj++)
-	fprintf(stderr, "%e\t%e\t%e\n", RR[ii], zz[jj], Phi[INDEX2D(NR, Nz, ii, jj)]);
-      fprintf(stderr, "\n");
-    }
-    exit(0);
-#endif
     //---------------------------------------------------------------------
 
 
@@ -1612,9 +1420,6 @@ void getPotDensPair
 	  const double Rmax = RR[ii] + 0.5 * Rbin;
 	  /* const double rho0 = (*disk[hh].rho)[INDEX2D(NR, Nz, ii, 0)] / gaussQuad2d4calcRho(Rmin, Rmax, NR, RR, invRbin, 0.0, zbin, Nz, zz, invzbin, sph, invlogrbin_sph, Phi, disk[hh]); */
 	  const double rho0 = (*disk[hh].rho)[INDEX2D(NR, Nz, ii, 0)] / (DBL_MIN + gaussQuad2d4calcRho(Rmin, Rmax, NR, RR, invRbin, 0.0, zbin, Nz, zz, invzbin, sph, invlogrbin_sph, Phi, disk[hh]));
-#if 0
-	  fprintf(stdout, "%d\t%e\t%e\n", hh, RR[ii], gaussQuad2d4calcRho(Rmin, Rmax, NR, RR, invRbin, 0.0, zbin, Nz, zz, invzbin, sph, invlogrbin_sph, Phi, disk[hh]));
-#endif
 	  //---------------------------------------------------------------
 	  /* calculate vertical density profile */
 	  (*disk[hh].rhoSum)[INDEX2D(NR, Nz, ii, 0)] = (*disk[hh].rho)[INDEX2D(NR, Nz, ii, 0)];
@@ -1638,20 +1443,10 @@ void getPotDensPair
 	  Sigma += (*disk[hh].rhoSum)[INDEX2D(NR, Nz, ii, Nz - 1)];
 	  Sigma *= 2.0 * zbin / 3.0;/* 2.0 reflects plane symmetry about the equatorial plane (z = 0) */
 	  //---------------------------------------------------------------
-#if 0
-	  if( ii == 55 )
-	    for(int jj = 0; jj < Nz; jj++)
-	      fprintf(stderr, "%e\t%e\n", disk[hh].ver[jj], (*disk[hh].rhoSum)[INDEX2D(NR, Nz, ii, jj)]);
-#endif
-	  //---------------------------------------------------------------
 	  /* calibrate column density */
 	  const double Mscale = disk[hh].Sigma[ii] / (DBL_MIN + Sigma);
 	  for(int jj = 0; jj < Nz; jj++)
 	    (*disk[hh].rhoSum)[INDEX2D(NR, Nz, ii, jj)] *= Mscale;
-	  //---------------------------------------------------------------
-#if 0
-	  fprintf(stderr, "# ii = %d: Mscale = %e, Sigma[ii] = %e, Sigma = %e\n", ii, Mscale, disk[hh].Sigma[ii], Sigma);
-#endif
 	  //---------------------------------------------------------------
 	  /* const double errVal = fabs(Mscale - 1.0); */
 	  /* const double errVal = (disk[hh].Sigma[ii] != 0.0) ? fabs(Mscale - 1.0) : (0.0); */
@@ -1670,23 +1465,6 @@ void getPotDensPair
 #endif//PROHIBIT_EXTRAPOLATION
       //-------------------------------------------------------------------
     }/* for(int hh = 0; hh < ndisk; hh++){ */
-    //---------------------------------------------------------------------
-#if 0
-    exit(0);
-#endif
-    //---------------------------------------------------------------------
-#if 0
-    const int status = fpclassify(errMax);
-    if( (status != FP_NORMAL) && (status != FP_ZERO) ){
-      static char msg[64];
-      switch( status ){
-      case FP_NAN      :	sprintf(msg, "Not a Number"                                    );	break;
-      case FP_INFINITE :	sprintf(msg, "either positive infinity or negative inifinity"  );	break;
-      case FP_SUBNORMAL:	sprintf(msg, "too small to be represented in normalized format");	break;
-      }/* switch( fpclassify(errMax) ){ */
-      __KILL__(stderr, "ERROR: errMax is \"%s\".\n", msg);
-    }/* if( fpclassify(errMax) != FP_NORMAL ){ */
-#endif
     //---------------------------------------------------------------------
 
 
@@ -1931,7 +1709,7 @@ void makeDiskPotentialTable(const int ndisk, disk_data * restrict disk)
   for(int ii = 0; ii < NTBL_GAUSS_QD_LOW; ii++){
     gsl_gaussQD_low_pos   [ii] = 0.0;
     gsl_gaussQD_low_weight[ii] = 0.0;
-  }
+  }/* for(int ii = 0; ii < NTBL_GAUSS_QD_LOW; ii++){ */
   gsl_integration_glfixed_table *tab;
   tab = gsl_integration_glfixed_table_alloc(NINTBIN_LOW);
   int max = (NINTBIN_LOW >> 1) + (NINTBIN_LOW & 1);
@@ -1985,11 +1763,8 @@ void makeDiskPotentialTable(const int ndisk, disk_data * restrict disk)
   for(int hh = 0; hh < ndisk; hh++){
     //---------------------------------------------------------------------
     disk[hh].invRd = 1.0 / disk[hh].cfg->rs;
-    /* disk[hh].invzd = 1.0 / disk[hh].cfg->zd; */
     //---------------------------------------------------------------------
     if( disk[hh].cfg->kind == SERSIC ){
-      /* disk[hh].sersic_ninv = 1.0 / disk[hh].cfg->n_sersic; */
-      /* disk[hh].sersic_b    =       disk[hh].cfg->b_sersic; */
       disk[hh].util.sersic_ninv = 1.0 / disk[hh].cfg->n_sersic;
       disk[hh].util.sersic_b    =       disk[hh].cfg->b_sersic;
     }/* if( disk[hh].cfg->kind == SERSIC ){ */
@@ -1999,10 +1774,6 @@ void makeDiskPotentialTable(const int ndisk, disk_data * restrict disk)
     case   SERSIC:      disk[hh].getColumnDensity = getColumnDensitySersic;      break;
     default:      __KILL__(stderr, "ERROR: undefined model(%d) is specified as disk profile\n", disk[hh].cfg->kind);      break;
     }
-    //---------------------------------------------------------------------
-/* #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT */
-/*     initDiskThicknessControler(&disk[hh]); */
-/* #endif//ENABLE_VARIABLE_SCALE_HEIGHT */
     //---------------------------------------------------------------------
   }/* for(int hh = 0; hh < ndisk; hh++){ */
   //-----------------------------------------------------------------------
@@ -2021,10 +1792,6 @@ void makeDiskPotentialTable(const int ndisk, disk_data * restrict disk)
   __NOTE__("zmax = %e\n", zmax);
   __NOTE__("Rmax = %e\n", Rmax);
   //-----------------------------------------------------------------------
-  /* zmax = ldexp(1.0, (int)ceil(log2(zmax * diskMaxHeight))); */
-  /* Rmax = ldexp(1.0, (int)ceil(log2(Rmax * diskMaxLength))); */
-  /* zmax = 0.5 * Rmax; */
-  //-----------------------------------------------------------------------
   zmax = ldexp(1.0, (int)ceil(log2((double)NHOR_OVER_NVER * zmax * diskMaxHeight)));
   Rmax = ldexp(1.0, (int)ceil(log2(                         Rmax * diskMaxLength)));
   if( zmax > Rmax )    Rmax = zmax;
@@ -2037,14 +1804,10 @@ void makeDiskPotentialTable(const int ndisk, disk_data * restrict disk)
   for(int hh = 0; hh < ndisk; hh++){
     //---------------------------------------------------------------------
     /* additional setting about density cutoff in the horizontal direction */
-    /* disk[hh].Rcutoff    = Rmax * 10.0;/\* i.e., the point at infinity *\/ */
-    /* disk[hh].invRsmooth = disk[hh].invRd; */
     disk[hh].util.Rcutoff    = Rmax * 10.0;/* i.e., the point at infinity */
     disk[hh].util.invRsmooth = disk[hh].invRd;
     if( disk[hh].cfg->cutoff ){
       //-------------------------------------------------------------------
-      /* disk[hh].Rcutoff    =       disk[hh].cfg->rc; */
-      /* disk[hh].invRsmooth = 1.0 / disk[hh].cfg->rc_width; */
       disk[hh].util.Rcutoff    =       disk[hh].cfg->rc;
       disk[hh].util.invRsmooth = 1.0 / disk[hh].cfg->rc_width;
       //-------------------------------------------------------------------
@@ -2112,16 +1875,6 @@ void makeDiskPotentialTable(const int ndisk, disk_data * restrict disk)
     disk[hh].prf[NRADBIN - 1].psi = (disk[hh].prf[NRADBIN - 1].enc - disk[hh].prf[NRADBIN - 2].enc) * invabin;
     //---------------------------------------------------------------------
   }/* for(int hh = 0; hh < ndisk; hh++){ */
-  //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 0; ii < NRADBIN; ii++){
-    fprintf(stderr, "%e\t%e", disk[0].prf[ii].rho, disk[0].prf[ii].psi);
-    for(int hh = 1; hh < ndisk; hh++)
-      fprintf(stderr, "\t%e", disk[hh].prf[ii].psi);
-    fprintf(stderr, "\n");
-  }
-  exit(0);
-#endif
   //-----------------------------------------------------------------------
 #endif//USE_GD_FORM_POTENTIAL
   //-----------------------------------------------------------------------
@@ -2299,16 +2052,6 @@ void makeDiskPotentialTable(const int ndisk, disk_data * restrict disk)
       disk[hh].enc[ii] = 2.0 * M_PI * disk[hh].cfg->Sigma0 * gaussQD4encSigma(0.0, disk[hh].hor[ii], disk[hh]);
 #endif//NDIVIDE_GAUSSQD4DISK
   //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 0; ii < NDISKBIN_HOR; ii++){
-    fprintf(stderr, "%e", disk[0].hor[ii]);
-    for(int hh = 0; hh < ndisk; hh++)
-      fprintf(stderr, "\t%.20e\t%.20e", disk[hh].Sigma[ii], disk[hh].enc[ii]);
-    fprintf(stderr, "\n");
-  }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
-  exit(0);
-#endif
-  //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   /* calculate int_0^z dz' \rho(R, z') */
@@ -2321,7 +2064,6 @@ void makeDiskPotentialTable(const int ndisk, disk_data * restrict disk)
   const double z02 = disk[0].ver[0] * disk[0].ver[0];
   const double z12 = disk[0].ver[1] * disk[0].ver[1];
   const double zd2inv = 1.0 / (z12 - z02);
-
   for(int hh = 0; hh < ndisk; hh++)
 #pragma omp parallel for num_threads(CPUS_PER_PROCESS)
     for(int ii = 0; ii < NDISKBIN_HOR; ii++){
@@ -2360,25 +2102,6 @@ void makeDiskPotentialTable(const int ndisk, disk_data * restrict disk)
       //-------------------------------------------------------------------
     }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
   //-----------------------------------------------------------------------
-#if 0
-  for(int jj = 0; jj < NDISKBIN_VER; jj++)
-    fprintf(stderr, "%e\t%e\n", disk[0].ver[jj], (*disk[0].rhoSum)[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, jj)]);
-  exit(0);
-#endif
-  //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 0; ii < NDISKBIN_HOR; ii++){
-    for(int jj = 0; jj < NDISKBIN_VER; jj++){
-      fprintf(stderr, "%e\t%e", disk[0].hor[ii], disk[0].ver[jj]);
-      for(int hh = 0; hh < ndisk; hh++)
-	fprintf(stderr, "\t%e", (*disk[hh].rhoSum)[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)]);
-      fprintf(stderr, "\n");
-    }
-    fprintf(stderr, "\n");
-  }
-  exit(0);
-#endif
-  //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
@@ -2398,6 +2121,7 @@ static inline double func4enc(const double rr, double * restrict rad, const doub
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+double gaussQD4enc(const double min, const double max, double * restrict rad, const double invdr, double * restrict rho);
 double gaussQD4enc(const double min, const double max, double * restrict rad, const double invdr, double * restrict rho)
 {
   //-----------------------------------------------------------------------
@@ -2612,11 +2336,6 @@ void integrateSphericalDensityProfile(const int ndisk, disk_data *disk)
     sum += getCubicSplineIntegral1D2ndHalf(1 + ii, rr, ff, f2);
     //-----------------------------------------------------------------
   }/* for(int ii = 0; ii < NDISKBIN_RAD; jj++){ */
-#if 0
-  for(int ii = 0; ii < NDISKBIN_RAD; ii++)
-    fprintf(stderr, "%e\t%e\n", rad[ii], enc[ii]);
-  exit(0);
-#endif
 #else
     /* numerical integration to get enclosed mass profile using Simpson's rule */
     double Menc[2] = {rad[0] * rad[0] * rho[0], rad[1] * rad[1] * rho[1]};
@@ -3034,12 +2753,6 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
 	zz = 0.0;
       }/* else{ */
       //-------------------------------------------------------------------
-#if 0
-      if( azz == 0.0 ){
-	fprintf(stdout, "# ii = %zu, iRg = %d, ", ii - (*Nuse)
-      }
-#endif
-      //-------------------------------------------------------------------
     }/* else{ */
     if( gsl_rng_get(GSLRand) < rand_half )
       zz *= -1.0;
@@ -3112,31 +2825,6 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     const double sigmap = 1.0 / sqrt(DBL_MIN + sp2inv);
 #endif//SPEEDUP_CONVERGENCE
 #endif//USE_ORIGINAL_VDISP_ESTIMATOR
-    //---------------------------------------------------------------------
-#if 0
-    /* WARNING: THIS IS A TENTATIVE IMPLEMENTATION FOR DEBUGGING */
-    if( vcirc2 > vesc2 ){
-      //-------------------------------------------------------------------
-      fprintf(stderr, "\tRg = %e\n", Rg);
-      fprintf(stderr, "\tzz = %e\n", zz);
-#ifdef  USE_POTENTIAL_SCALING_SCHEME
-      fprintf(stderr, "\tpotScaling = %e\n", potScaling);
-#endif//USE_POTENTIAL_SCALING_SCHEME
-      fprintf(stderr, "\tOmega2 = %e\n", Omega2);
-      fprintf(stderr, "\tkappa = %e\n", sqrt(d2Phi + 3.0 * Omega2));
-      fprintf(stderr, "\tgam = %e\n", sqrt(gam2));
-      fprintf(stderr, "\tPhiRz = %e\n", PhiRz);
-      fprintf(stderr, "\tsphepot = %e\n", sphepot);
-      fprintf(stderr, "\tvesc = %e\n", sqrt(vesc2));
-      fprintf(stderr, "\tvcirc = %e\n", vcirc);
-      fprintf(stderr, "\tsigmaR = %e\n", 1.0 / sqrt(sR2inv));
-      fprintf(stderr, "\tsigmap = %e\n", 1.0 / sqrt(sp2inv));
-      fprintf(stderr, "\tsigmaz = %e\n", sigmaz);
-      //-------------------------------------------------------------------
-      __KILL__(stderr, "ERROR: %zu-th particle: circular speed (%e) exceed escape velocity (%e)\n", ii - (*Nuse), vcirc, sqrt(vesc2));
-      //-------------------------------------------------------------------
-    }/* if( vcirc2 > vesc2 ){ */
-#endif
     //---------------------------------------------------------------------
 
 
@@ -3222,10 +2910,6 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
 #endif//BLOCK_TIME_STEP
     //---------------------------------------------------------------------
     body.idx[ii] = ii;
-    //---------------------------------------------------------------------
-#if 0
-    fprintf(stderr, "%e\t%e\t%e\t%e\t%e\t%e\n", xx, yy, zz, vx, vy, vz);
-#endif
     //---------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
     if( (ii - (*Nuse)) == (stage * nunit) ){

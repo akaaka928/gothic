@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/10(Wed) 13:15:41
+                  last updated on 2016/08/12(Fri) 11:36:25
  *                                                                       *
  *    Plot Code of N-body Simulations (using PLplot)                     *
  *      Time Evolution of Spatial Distribution Maps                      *
@@ -196,6 +196,7 @@ static inline void enlargeDecomposedProfileArray(int num, real **pos, real **rho
 #     pragma warning (disable:161)
 #endif//__ICC
 //-------------------------------------------------------------------------
+int idxAscendingOrder(const void *a, const void *b);
 int idxAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
@@ -208,6 +209,7 @@ int idxAscendingOrder(const void *a, const void *b)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+int radAscendingOrder(const void *a, const void *b);
 int radAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
@@ -220,6 +222,7 @@ int radAscendingOrder(const void *a, const void *b)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+int horAscendingOrder(const void *a, const void *b);
 int horAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
@@ -232,6 +235,7 @@ int horAscendingOrder(const void *a, const void *b)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+int verAscendingOrder(const void *a, const void *b);
 int verAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
@@ -353,6 +357,7 @@ static inline void getInterpolatedDensity(const real RR, const real zz, const in
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+void gaussQuadVertical(const real RR, const int num, const real zmin, const real zmax, const int skind, model *group, real *sum, real *fm, real *fp);
 void gaussQuadVertical(const real RR, const int num, const real zmin, const real zmax, const int skind, model *group, real *sum, real *fm, real *fp)
 {
   //-----------------------------------------------------------------------
@@ -392,7 +397,9 @@ void gaussQuadVertical(const real RR, const int num, const real zmin, const real
 
 
 //-------------------------------------------------------------------------
-real R_rhor(real RR, real zz, model prf, real invlogrbin){
+real R_rhor(real RR, real zz, model prf, real invlogrbin);
+real R_rhor(real RR, real zz, model prf, real invlogrbin)
+{
   //-----------------------------------------------------------------------
   const real rad = SQRT(RR * RR + zz * zz);
   int ll, rr;
@@ -421,8 +428,11 @@ static inline real _gaussQuad2d(real (*func)(real, real, model, real), const rea
 }
 //-------------------------------------------------------------------------
 real gaussQuad2d(real (*func)(real, real, model, real), const real invlogrbin, const model prf,
-		   const int nx, const real xmin, const real xmax,
-		   const int ny, const real ymin, const real ymax)
+		 const int nx, const real xmin, const real xmax,
+		 const int ny, const real ymin, const real ymax);
+real gaussQuad2d(real (*func)(real, real, model, real), const real invlogrbin, const model prf,
+		 const int nx, const real xmin, const real xmax,
+		 const int ny, const real ymin, const real ymax)
 {
   //-----------------------------------------------------------------------
   const real mns = HALF * (xmax - xmin);

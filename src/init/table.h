@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/02/10(Wed) 11:52:26
+                  last updated on 2016/08/11(Thu) 16:50:59
  *                                                                       *
  *    Header File to generate table f' and f'' from f by cubic spline    *
  *                                                                       *
@@ -15,9 +15,9 @@
 
 
 //-------------------------------------------------------------------------
-#ifndef MAGI_H
-#include "../init/magi.h"
-#endif//MAGI_H
+#ifndef PROFILE_H
+#include "../init/profile.h"
+#endif//PROFILE_H
 //-------------------------------------------------------------------------
 
 

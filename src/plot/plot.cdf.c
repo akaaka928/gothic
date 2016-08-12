@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/10(Wed) 13:04:43
+                  last updated on 2016/08/12(Fri) 11:43:07
  *                                                                       *
  *    Plot Code of Cumulative distribution function for Tree code        *
  *                                                                       *
@@ -80,6 +80,7 @@ void chkTreeError(int num, acceleration *direct, acceleration *octree,
 #     pragma warning (disable:161)
 #endif//__ICC
 //-------------------------------------------------------------------------
+int idxAscendingOrder(const void *a, const void *b);
 int idxAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
@@ -991,6 +992,7 @@ void plotCDF
 #     pragma warning (disable:161)
 #endif//__ICC
 //-------------------------------------------------------------------------
+int dblAscendingOrder(const void *a, const void *b);
 int dblAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
@@ -1003,6 +1005,7 @@ int dblAscendingOrder(const void *a, const void *b)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+int dblDescendingOrder(const void *a, const void *b);
 int dblDescendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------

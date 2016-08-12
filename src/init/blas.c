@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/01/15(Fri) 17:41:12
+                  last updated on 2016/08/11(Thu) 17:12:31
  *                                                                       *
  *    BLAS (Basic Linear Algebra Subprograms)                            *
  *                                                                       *
@@ -27,7 +27,7 @@
 
 
 //-------------------------------------------------------------------------
-inline double dnrm2(const int head, const int tail, double * restrict vec)
+static inline double dnrm2(const int head, const int tail, double * restrict vec)
 {
   //-----------------------------------------------------------------------
   double ret = 0.0;
@@ -38,7 +38,7 @@ inline double dnrm2(const int head, const int tail, double * restrict vec)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-inline double ddot(const int head, const int tail, double * restrict vec0, double * restrict vec1)
+static inline double ddot(const int head, const int tail, double * restrict vec0, double * restrict vec1)
 {
   //-----------------------------------------------------------------------
   double ret = 0.0;
@@ -52,6 +52,7 @@ inline double ddot(const int head, const int tail, double * restrict vec0, doubl
 
 
 //-------------------------------------------------------------------------
+void spmv(crs mat, const int head, const int tail, double * restrict vec, double * restrict ret);
 void spmv(crs mat, const int head, const int tail, double * restrict vec, double * restrict ret)
 {
   //-----------------------------------------------------------------------
@@ -93,15 +94,6 @@ void getILU0(const int num, crs mat, crs ilu)
   /* execute Incomplete LU decomposition in the inner-product form */
   /* diagonal elements in L are fixed to unity */
   /* assume all diagonal elements are non-zero */
-  //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 0; ii < num; ii++){
-    for(int jj = mat.row[ii]; jj < mat.row[ii + 1]; jj++)
-      fprintf(stderr, "(%d,%d) = %e\t", ii, mat.col[jj], mat.val[jj]);
-    fprintf(stderr, "\n");
-  }
-  exit(0);
-#endif
   //-----------------------------------------------------------------------
   for(int ii = 1; ii < num; ii++){
     //---------------------------------------------------------------------
@@ -155,15 +147,6 @@ void getILU0(const int num, crs mat, crs ilu)
     //---------------------------------------------------------------------
   }/* for(int ii = 1; ii < num; ii++){ */
   //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 0; ii < num; ii++){
-    for(int jj = ilu.row[ii]; jj < ilu.row[ii + 1]; jj++)
-      fprintf(stderr, "(%d,%d) = %e\t", ii, ilu.col[jj], ilu.val[jj]);
-    fprintf(stderr, "\n");
-  }
-  exit(0);
-#endif
-  //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
@@ -173,6 +156,7 @@ void getILU0(const int num, crs mat, crs ilu)
 
 
 //-------------------------------------------------------------------------
+void mulLUinv(const int num, crs ilu, double * restrict ini, double * restrict tmp, double * restrict ret);
 void mulLUinv(const int num, crs ilu, double * restrict ini, double * restrict tmp, double * restrict ret)
 {
   //-----------------------------------------------------------------------

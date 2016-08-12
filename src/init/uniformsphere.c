@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/10(Wed) 15:51:00
+                  last updated on 2016/08/12(Fri) 11:06:20
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Uniform sphere w/ Gaussian velocity dispersion                  *
@@ -82,6 +82,7 @@ static inline real gaussian(void)
 
 
 //-------------------------------------------------------------------------
+void makeUniformSphere(ulong num, iparticle body, real mtot, real length, real sigma);
 void makeUniformSphere(ulong num, iparticle body, real mtot, real length, real sigma)
 {
   //-----------------------------------------------------------------------
@@ -117,6 +118,7 @@ void makeUniformSphere(ulong num, iparticle body, real mtot, real length, real s
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+void shiftCenter(ulong num, iparticle body);
 void shiftCenter(ulong num, iparticle body)
 {
   //-----------------------------------------------------------------------
@@ -191,6 +193,8 @@ void shiftCenter(ulong num, iparticle body)
 
 
 //-------------------------------------------------------------------------
+void outputFundamentalInformationOfColdSphere
+(const real Mtot, const real rad, const real sigma, const ulong Ntot, const real eps, const double snapshotInterval, const double ft, char file[]);
 void outputFundamentalInformationOfColdSphere
 (const real Mtot, const real rad, const real sigma, const ulong Ntot, const real eps, const double snapshotInterval, const double ft, char file[])
 {

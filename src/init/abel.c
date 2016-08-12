@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/04/30(Sat) 15:07:21
+                  last updated on 2016/08/12(Fri) 10:53:29
  *                                                                       *
  *    Abel transform to deproject column density profile in MAGI         *
  *                                                                       *
@@ -13,13 +13,12 @@
 #include <stdlib.h>
 #include <math.h>
 //-------------------------------------------------------------------------
-#include <gsl/gsl_integration.h>
-//-------------------------------------------------------------------------
 #include <macro.h>
 //-------------------------------------------------------------------------
 #include "magi.h"
-#include "table.h"
 #include "spline.h"
+#include "profile.h"
+#include "table.h"
 #include "abel.h"
 //-------------------------------------------------------------------------
 extern double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[NTBL_GAUSS_QD];
@@ -27,6 +26,7 @@ extern double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[NTBL_GAUSS_QD];
 
 
 //-------------------------------------------------------------------------
+double getColumnDensityDerivativeSersic(double RR, profile_abel_cfg cfg);
 double getColumnDensityDerivativeSersic(double RR, profile_abel_cfg cfg)
 {
   //-----------------------------------------------------------------------
@@ -36,6 +36,7 @@ double getColumnDensityDerivativeSersic(double RR, profile_abel_cfg cfg)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+double getColumnDensityDerivativeTwoPow(double RR, profile_abel_cfg cfg);
 double getColumnDensityDerivativeTwoPow(double RR, profile_abel_cfg cfg)
 {
   //-----------------------------------------------------------------------
@@ -46,6 +47,7 @@ double getColumnDensityDerivativeTwoPow(double RR, profile_abel_cfg cfg)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+double getColumnDensityDerivativeTable(double RR, profile_abel_cfg cfg);
 double getColumnDensityDerivativeTable(double RR, profile_abel_cfg cfg)
 {
   //-----------------------------------------------------------------------
@@ -63,6 +65,7 @@ static inline double func4Abel(const double RR, const double r2, const abel_util
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+double gaussQD4Abel(const double min, const double max, const double r2, const abel_util abel);
 double gaussQD4Abel(const double min, const double max, const double r2, const abel_util abel)
 {
   //-----------------------------------------------------------------------
@@ -121,11 +124,6 @@ void execAbelTransform(profile *prf, const profile_cfg cfg, const double rmin, c
     break;
   }/* switch( cfg.kind ){ */
   //-----------------------------------------------------------------------
-#if 0
-  fprintf(stdout, "Rs = %e, n = %e, ninv = %e, bb = %e\n", cfg.rs, cfg.n_sersic, abel.cfg.ninv, abel.cfg.bb);
-  exit(0);
-#endif
-  //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   /* initialize temporary array and execute first touch */
@@ -141,12 +139,6 @@ void execAbelTransform(profile *prf, const profile_cfg cfg, const double rmin, c
     rho[ii] = 0.0;
     //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < NABEL; ii++){ */
-  //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 0; ii < NABEL; ii += 32)
-    fprintf(stdout, "%e\t%e\n", rad[ii], rho[ii]);
-  exit(0);
-#endif
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -171,23 +163,11 @@ void execAbelTransform(profile *prf, const profile_cfg cfg, const double rmin, c
     //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < NABEL; ii++){ */
   //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 0; ii < NABEL; ii++)
-    fprintf(stderr, "%e\t%e\n", rad[ii], rho[ii]);
-  exit(0);
-#endif
-  //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   /* return deprojected density profile */
   //-----------------------------------------------------------------------
   getInterpolatedDensityProfile(NABEL, prf, rad, rho);
-  //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 0; ii < 4 + NRADBIN; ii++)
-    fprintf(stderr, "%e\t%e\t%e\t%e\n", prf[ii].rad, prf[ii].rho, prf[ii].drho_dr, prf[ii].d2rho_dr2);
-  exit(0);
-#endif
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -247,9 +227,7 @@ void readColumnDensityProfileTable(profile *prf, const double rs, char *file, co
   FILE *fp;
   sprintf(filename, "%s/%s", CFGFOLDER, file);
   fp = fopen(filename, "r");
-  if( fp == NULL ){
-    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);
-  }
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
   bool success = true;
   //-----------------------------------------------------------------------
   int num;
@@ -290,10 +268,6 @@ void readColumnDensityProfileTable(profile *prf, const double rs, char *file, co
     ff[ii] = bb * pow(xx[ii], pp);
   }/* for(int ii = 0; ii < NPUT; ii++){ */
   const double fpl = bb * pp * pow(rmin, pp - 1.0);
-#if 0
-  fprintf(stderr, "bb = %e, pp = %e, x0 = %e, f0 = %e\n", bb, pp, xx[0], ff[0]);
-  exit(0);
-#endif
   leastSquaredMethod(NFIT, &xx[num - 1 - NFIT - NPUT], &ff[num - 1 - NFIT - NPUT], &pp, &bb);
   const double logrmax = log10(rmax);
   logrbin = (log10(xx[num - 1 - NPUT]) - logrmax) / (double)NPUT;
@@ -310,15 +284,6 @@ void readColumnDensityProfileTable(profile *prf, const double rs, char *file, co
   double *f2;  f2 = (double *)malloc(num * sizeof(double));  if( f2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate f2");  }
   double *bp;  bp = (double *)malloc(num * sizeof(double));  if( bp == NULL ){    __KILL__(stderr, "ERROR: failure to allocate bp");  }
   genCubicSpline1D(num, xx, ff, bp, fpl, fpr, f2);
-  //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 0; ii < num; ii++)
-    fprintf(stderr, "%e\t%e\t%e\t%e\n", xx[ii],
-	    getCubicSpline1D               (xx[ii], num, xx, ff, f2),
-	    getCubicSpline1stDifferential1D(xx[ii], num, xx, ff, f2),
-	    getCubicSpline2ndDifferential1D(xx[ii], num, xx,     f2));
-  exit(0);
-#endif
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------

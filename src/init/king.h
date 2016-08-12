@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2015/09/01(Tue) 10:54:43
+                  last updated on 2016/08/11(Thu) 16:55:09
  *                                                                       *
  *    Header File for Definition to generate initial condition (King)    *
  *                                                                       *
@@ -15,16 +15,12 @@
 
 
 //-------------------------------------------------------------------------
-#ifndef MACRO_H
-#      include <macro.h>
-#endif//MACRO_H
-//-------------------------------------------------------------------------
-#ifndef STRUCTURE_H
-#       include "../misc/structure.h"
-#endif//STRUCTURE_H
+#ifndef PROFILE_H
+#include "../init/profile.h"
+#endif//PROFILE_H
 //-------------------------------------------------------------------------
 #ifndef MAGI_H
-#       include "../init/magi.h"
+#include "../init/magi.h"
 #endif//MAGI_H
 //-------------------------------------------------------------------------
 
@@ -33,6 +29,11 @@
 #ifdef  PROGRESS_REPORT_ON
 #define KING_PROGRESS_REPORT_ON (100000)
 #endif//PROGRESS_REPORT_ON
+//-------------------------------------------------------------------------
+/* #define NADD_KING (16384) */
+/* #define NADD_KING (131072) */
+#define NADD_KING (1048576)
+/* #define NADD_KING (4 * 1048576) */
 //-------------------------------------------------------------------------
 
 

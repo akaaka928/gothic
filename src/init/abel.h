@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/02/12(Fri) 10:37:44
+                  last updated on 2016/08/11(Thu) 17:07:12
  *                                                                       *
  *    Header File to execute Abel transform to deproject density profile *
  *                                                                       *
@@ -15,9 +15,9 @@
 
 
 //-------------------------------------------------------------------------
-#ifndef MAGI_H
-#include "../init/magi.h"
-#endif//MAGI_H
+#ifndef PROFILE_H
+#include "../init/profile.h"
+#endif//PROFILE_H
 //-------------------------------------------------------------------------
 
 

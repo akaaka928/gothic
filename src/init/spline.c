@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/02/08(Mon) 18:40:42
+                  last updated on 2016/08/11(Thu) 17:14:00
  *                                                                       *
  *    Cubic Spline Interpolation                                         *
  *                                                                       *
@@ -79,12 +79,7 @@ void genCubicSpline1D(const int num, double * restrict xx, double * restrict yy,
     const double sig = (xx[ii] - xx[ii - 1]) * xinv;
     const double dinv = 1.0 / (2.0 + sig * y2[ii - 1]);
     y2[ii] = (sig - 1.0) * dinv;
-#if 1
     bp[ii] = (6.0 * ((yy[ii - 1] * (xx[ii + 1] - xx[ii]) + yy[ii + 1] * (xx[ii] - xx[ii - 1])) * xinv - yy[ii]) / ((xx[ii + 1] - xx[ii]) * (xx[ii] - xx[ii - 1])) - sig * bp[ii - 1]) * dinv;
-#else
-    bp[ii] = (yy[ii + 1] - yy[ii]) / (xx[ii + 1] - xx[ii]) - (yy[ii] - yy[ii - 1]) / (xx[ii] - xx[ii - 1]);
-    bp[ii] = (6.0 * xinv * bp[ii] - sig * bp[ii - 1]) * dinv;
-#endif
     //---------------------------------------------------------------------
   }/* for(int ii = 1; ii < num - 1; ii++){ */
   //-----------------------------------------------------------------------
@@ -107,11 +102,6 @@ void genCubicSpline1D(const int num, double * restrict xx, double * restrict yy,
   //-----------------------------------------------------------------------
   for(int ii = num - 2; ii >= 0; ii--)
     y2[ii] = bp[ii] + y2[ii] * y2[ii + 1];
-  //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 0; ii < num; ii += 100)
-    fprintf(stdout, "%e\t%e\t%e\t%e\n", xx[ii], yy[ii], y2[ii], bp[ii]);
-#endif
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------

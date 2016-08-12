@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2016/08/10(Wed) 15:52:26
+# last updated on 2016/08/12(Fri) 11:28:49
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -562,16 +562,17 @@ endif
 #################################################################################################
 COLDSRC	:= uniformsphere.c
 MAGISRC	:= magi.c
+PROFSRC	:= profile.c
+EDDFSRC	:= eddington.c
 DISKSRC	:= disk.c
 SMPLSRC	:= sample.c
 BLASLIB	:= blas.c
 SPLNLIB	:= spline.c
-MKDFLIB	:= ergodicDF.c
 KINGLIB	:= king.c
 TBLELIB	:= table.c
 ABELLIB	:= abel.c
-CC_FILE	+= $(INITDIR)/$(COLDSRC) $(INITDIR)/$(MAGISRC) $(INITDIR)/$(DISKSRC) $(INITDIR)/$(SMPLSRC)
-CC_FILE	+= $(INIDIR)/$(BLASLIB) $(INIDIR)/$(SPLNLIB) $(INITDIR)/$(MKDFLIB) $(INITDIR)/$(KINGLIB) $(INITDIR)/$(TBLELIB) $(INITDIR)/$(ABELLIB)
+CC_FILE	+= $(INITDIR)/$(COLDSRC) $(INITDIR)/$(MAGISRC) $(INITDIR)/$(PROFSRC) $(INITDIR)/$(EDDFSRC) $(INITDIR)/$(DISKSRC) $(INITDIR)/$(SMPLSRC)
+CC_FILE	+= $(INIDIR)/$(BLASLIB) $(INIDIR)/$(SPLNLIB) $(INITDIR)/$(KINGLIB) $(INITDIR)/$(TBLELIB) $(INITDIR)/$(ABELLIB)
 #################################################################################################
 PENESRC	:= plot.energy.c
 DISTSRC	:= plot.distribution.c
@@ -635,15 +636,13 @@ endif
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 OBJMAGI	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.gsl.hdf5.o, $(notdir $(MAGISRC)))
 OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o,        $(notdir $(FILELIB) $(ALLCLIB)))
-OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.omp.gsl.o,         $(notdir $(DISKSRC) $(ABELLIB)))
-OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.omp.o,             $(notdir $(KINGLIB) $(BLASLIB) $(SPLNLIB) $(TBLELIB)))
 else
 OBJMAGI	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.gsl.o,      $(notdir $(MAGISRC)))
 OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.o,                 $(notdir $(ALLCLIB)))
 OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.mpi.o,             $(notdir $(FILELIB)))
-OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.omp.gsl.o,         $(notdir $(DISKSRC) $(ABELLIB)))
-OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.omp.o,             $(notdir $(KINGLIB) $(BLASLIB) $(SPLNLIB) $(TBLELIB)))
 endif
+OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.omp.gsl.o,         $(notdir $(DISKSRC)))
+OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.omp.o,             $(notdir $(PROFSRC) $(EDDFSRC) $(KINGLIB) $(ABELLIB) $(BLASLIB) $(SPLNLIB) $(TBLELIB)))
 #################################################################################################
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 OBJPENE	:= $(patsubst %.c, $(OBJDIR)/%.mpi.pl.hdf5.o, $(notdir $(PENESRC)))
@@ -946,8 +945,10 @@ rmvisit:
 #################################################################################################
 ## Dependence
 #################################################################################################
+COMMON_DEP	:=	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h
+#################################################################################################
 ## $(MAINDIR)/*
-GOTHIC_DEP	:=	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/name.h	$(MYINC)/myutil.h	$(MYINC)/timer.h	\
+GOTHIC_DEP	:=	$(COMMON_DEP)	$(MYINC)/name.h	$(MYINC)/myutil.h	$(MYINC)/timer.h	\
 			$(MYINC)/mpilib.h	$(MYINC)/cudalib.h	$(MYINC)/constants.h	\
 			$(MISCDIR)/structure.h	$(MISCDIR)/brent.h	$(MISCDIR)/device.h	\
 			$(MISCDIR)/benchmark.h	$(MISCDIR)/convert.h	$(MISCDIR)/allocate.h	$(MISCDIR)/allocate_dev.h	\
@@ -959,44 +960,43 @@ GOTHIC_DEP	:=	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/name.h	$(MYI
 			$(TREEDIR)/let.h	$(TREEDIR)/let_dev.h	$(PARADIR)/mpicfg.h	$(PARADIR)/exchange.h	$(TREEDIR)/geo_dev.h
 $(OBJDIR)/gothic.mpi.hdf5.o:	$(GOTHIC_DEP)	$(MYINC)/hdf5lib.h
 $(OBJDIR)/gothic.mpi.o:		$(GOTHIC_DEP)
-$(OBJDIR)/showOptConfig.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/myutil.h	$(MYINC)/name.h
+$(OBJDIR)/showOptConfig.o:	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/name.h
 #################################################################################################
 ## $(MISCDIR)/*
-ALLOCATE_DEP	:=	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h
+ALLOCATE_DEP	:=	$(COMMON_DEP)	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h
+CONVERT_DEP	:=	$(COMMON_DEP)	$(MISCDIR)/structure.h	$(MISCDIR)/convert.h
 $(OBJDIR)/allocate.mpi.hdf5.o:	$(ALLOCATE_DEP)	$(MYINC)/hdf5lib.h
 $(OBJDIR)/allocate.mpi.o:	$(ALLOCATE_DEP)
-$(OBJDIR)/allocate_dev.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MISCDIR)/structure.h	\
-				$(MYINC)/cudalib.h	$(MISCDIR)/device.h	$(MISCDIR)/allocate_dev.h
-CONVERT_DEP	:=	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MISCDIR)/structure.h	$(MISCDIR)/convert.h
+$(OBJDIR)/allocate_dev.o:	$(COMMON_DEP)	$(MISCDIR)/structure.h	$(MYINC)/cudalib.h	$(MISCDIR)/device.h	$(MISCDIR)/allocate_dev.h
 $(OBJDIR)/convert.mpi.hdf5.o:	$(CONVERT_DEP)	$(MYINC)/hdf5lib.h
 $(OBJDIR)/convert.o:		$(CONVERT_DEP)
-$(OBJDIR)/brent.o:		Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MISCDIR)/brent.h
+$(OBJDIR)/brent.o:		$(COMMON_DEP)	$(MISCDIR)/brent.h
 #################################################################################################
 ## $(FILEDIR)/*
-IO_DEP	:=	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/constants.h	$(MYINC)/name.h	\
-		$(MYINC)/mpilib.h	$(MYINC)/hdf5lib.h	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(FILEDIR)/io.h
+IO_DEP	:=	$(COMMON_DEP)	$(MYINC)/constants.h	$(MYINC)/name.h	$(MYINC)/mpilib.h	$(MYINC)/hdf5lib.h	\
+				$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(FILEDIR)/io.h
 $(OBJDIR)/io.mpi.hdf5.o:	$(IO_DEP)
 $(OBJDIR)/io.mpi.o:		$(IO_DEP)
 #################################################################################################
 ## $(SORTDIR)/*
-PEANO_DEP	:=	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(SORTDIR)/peano.h
+PEANO_DEP	:=	$(COMMON_DEP)	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(SORTDIR)/peano.h
 $(OBJDIR)/peano.o:	$(PEANO_DEP)	$(TREEDIR)/make.h
 $(OBJDIR)/peano_dev.o:	$(PEANO_DEP)	$(TREEDIR)/macutil.h	$(MYINC)/cudalib.h	$(MISCDIR)/gsync_dev.cu	$(SORTDIR)/peano_dev.h
 #################################################################################################
 ## $(TIMEDIR)/*
-ADV_DEV_DEP	:=	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/timer.h	$(MYINC)/cudalib.h	\
+ADV_DEV_DEP	:=	$(COMMON_DEP)	$(MYINC)/timer.h	$(MYINC)/cudalib.h	\
 			$(MISCDIR)/structure.h	$(MISCDIR)/benchmark.h	$(MISCDIR)/device.h	$(TIMEDIR)/adv_dev.h
 $(OBJDIR)/adv_dev.mpi.o:	$(ADV_DEV_DEP)	$(MYINC)/mpilib.h	$(PARADIR)/mpicfg.h
 $(OBJDIR)/adv_dev.o:		$(ADV_DEV_DEP)
 #################################################################################################
 ## $(TREEDIR)/*
-TREE_DEP	:=	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(TREEDIR)/make.h
+TREE_DEP	:=	$(COMMON_DEP)	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(TREEDIR)/make.h
 $(OBJDIR)/geo_dev.o:	$(TREE_DEP)	$(MYINC)/cudalib.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/geo_dev.h
 $(OBJDIR)/let.mpi.o:	$(TREE_DEP)	$(MYINC)/mpilib.h	\
 			$(TREEDIR)/let.h	$(PARADIR)/mpicfg.h
 $(OBJDIR)/let_dev.mpi.o:	$(TREE_DEP)	$(MYINC)/cudalib.h	$(MYINC)/timer.h	$(MISCDIR)/device.h	$(MYINC)/mpilib.h	\
 			$(TREEDIR)/macutil.h	$(TREEDIR)/buf_inc.h	$(TREEDIR)/buf_inc.cu	$(TREEDIR)/walk_dev.h	$(TREEDIR)/let.h	$(TREEDIR)/let_dev.h	$(PARADIR)/mpicfg.h
-$(OBJDIR)/macutil.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(SORTDIR)/peano.h	$(TREEDIR)/macutil.h	$(TREEDIR)/make.h
+$(OBJDIR)/macutil.o:	$(COMMON_DEP)	$(SORTDIR)/peano.h	$(TREEDIR)/macutil.h	$(TREEDIR)/make.h
 MAKE_DEV_DEP	:=	$(MYINC)/cudalib.h	$(MISCDIR)/device.h	$(SORTDIR)/peano_dev.h	$(MISCDIR)/gsync_dev.cu	\
 			$(TREEDIR)/make_dev.h	$(TREEDIR)/let.h	$(TREEDIR)/make_inc.h	$(TREEDIR)/make_del.h
 $(OBJDIR)/make_dev.mpi.o:	$(TREE_DEP)	$(SORTDIR)/peano.h	$(TREEDIR)/macutil.h	$(MAKE_DEV_DEP)
@@ -1018,25 +1018,26 @@ $(OBJDIR)/walk_dev.mpi.o:	$(TREE_DEP)	$(WALK_DEV_DEP)	$(MYINC)/mpilib.h	$(TREEDI
 $(OBJDIR)/walk_dev.o:		$(TREE_DEP)	$(WALK_DEV_DEP)
 #################################################################################################
 ## $(INITDIR)/*
-INIT_DEP	:=	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/constants.h	$(MISCDIR)/structure.h
-FILE_DEP	:=	$(MYINC)/timer.h	$(MYINC)/myutil.h	$(MYINC)/name.h	$(MISCDIR)/allocate.h	$(FILEDIR)/io.h
-MAGI_DEP	:=	$(MYINC)/rotate.h	$(INITDIR)/magi.h	$(INITDIR)/king.h	$(INITDIR)/disk.h	$(INITDIR)/blas.h	\
-			$(INITDIR)/spline.h	$(INITDIR)/table.h	$(INITDIR)/abel.h
-$(OBJDIR)/magi.ompmpi.gsl.hdf5.o:		$(INIT_DEP)	$(FILE_DEP)	$(MAGI_DEP)	$(MYINC)/hdf5lib.h
-$(OBJDIR)/magi.omp.gsl.o:			$(INIT_DEP)	$(FILE_DEP)	$(MAGI_DEP)
-$(OBJDIR)/ergodicDF.omp.gsl.o:			$(INIT_DEP)	$(INITDIR)/ergodicDF.h	$(MYINC)/timer.h	$(MYINC)/name.h
-$(OBJDIR)/disk.omp.gsl.o:			$(INIT_DEP)	$(INITDIR)/magi.h	$(INITDIR)/disk.h
-$(OBJDIR)/blas.omp.o:				Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(INITDIR)/blas.h
-$(OBJDIR)/spline.omp.o:				Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(INITDIR)/spline.h
-$(OBJDIR)/king.omp.o:				$(INIT_DEP)	$(INITDIR)/magi.h	$(INITDIR)/king.h
-$(OBJDIR)/table.omp.o:				$(INIT_DEP)	$(INITDIR)/magi.h	$(INITDIR)/table.h	$(INITDIR)/spline.h
-$(OBJDIR)/abel.omp.gsl.o:			$(INIT_DEP)	$(INITDIR)/magi.h	$(INITDIR)/table.h	$(INITDIR)/spline.h	$(INITDIR)/abel.h
-$(OBJDIR)/uniformsphere.mpi.gsl.hdf5.o:		$(INIT_DEP)	$(FILE_DEP)	$(MYINC)/hdf5lib.h
-$(OBJDIR)/uniformsphere.gsl.o:			$(INIT_DEP)	$(FILE_DEP)
-$(OBJDIR)/sample.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h
+$(OBJDIR)/sample.o:	$(COMMON_DEP)
+$(OBJDIR)/blas.omp.o:	$(COMMON_DEP)	$(INITDIR)/blas.h
+$(OBJDIR)/spline.omp.o:	$(COMMON_DEP)	$(INITDIR)/spline.h
+SPLINE_DEP	:=	$(COMMON_DEP)	$(INITDIR)/profile.h	$(INITDIR)/table.h	$(INITDIR)/spline.h
+$(OBJDIR)/abel.omp.o:	$(SPLINE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/abel.h
+$(OBJDIR)/table.omp.o:	$(SPLINE_DEP)
+PROFILE_DEP	:=	$(COMMON_DEP)	$(MYINC)/constants.h	$(INITDIR)/profile.h
+$(OBJDIR)/disk.omp.gsl.o:		$(PROFILE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/spline.h	$(INITDIR)/blas.h	$(INITDIR)/disk.h	$(MISCDIR)/structure.h
+$(OBJDIR)/eddington.omp.o:		$(PROFILE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/eddington.h
+$(OBJDIR)/king.omp.o:			$(PROFILE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/king.h
+$(OBJDIR)/profile.omp.o:		$(PROFILE_DEP)
+IOFILE_DEP	:=	$(COMMON_DEP)	$(MYINC)/constants.h	$(MISCDIR)/structure.h	$(MYINC)/timer.h	$(MYINC)/myutil.h	$(MYINC)/name.h	$(MISCDIR)/allocate.h	$(FILEDIR)/io.h
+MAGI_DEP	:=	$(MYINC)/rotate.h	$(INITDIR)/magi.h	$(INITDIR)/profile.h	$(INITDIR)/eddington.h	$(INITDIR)/king.h	$(INITDIR)/table.h	$(INITDIR)/abel.h	$(INITDIR)/disk.h
+$(OBJDIR)/magi.ompmpi.gsl.hdf5.o:	$(IOFILE_DEP)	$(MAGI_DEP)	$(MYINC)/hdf5lib.h
+$(OBJDIR)/magi.omp.gsl.o:		$(IOFILE_DEP)	$(MAGI_DEP)
+$(OBJDIR)/uniformsphere.mpi.gsl.hdf5.o:	$(IOFILE_DEP)			$(MYINC)/hdf5lib.h
+$(OBJDIR)/uniformsphere.gsl.o:		$(IOFILE_DEP)
 #################################################################################################
 ## $(PLOTDIR)/*
-PLOT_DEP	:=	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/myutil.h	$(MYINC)/constants.h	\
+PLOT_DEP	:=	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/constants.h	\
 			$(MYINC)/plplotlib.h	$(MYINC)/mpilib.h	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h	$(FILEDIR)/io.h
 $(OBJDIR)/plot.cdf.mpi.pl.hdf5.o:		$(PLOT_DEP)	$(MYINC)/name.h	$(PLOTDIR)/cdflib.h	$(MYINC)/hdf5lib.h
 $(OBJDIR)/plot.cdf.mpi.pl.o:			$(PLOT_DEP)	$(MYINC)/name.h	$(PLOTDIR)/cdflib.h
@@ -1046,19 +1047,19 @@ $(OBJDIR)/plot.energy.mpi.pl.hdf5.o:		$(PLOT_DEP)	$(MYINC)/hdf5lib.h
 $(OBJDIR)/plot.energy.mpi.pl.o:			$(PLOT_DEP)
 $(OBJDIR)/plot.multipole.mpi.gsl.pl.hdf5.o:	$(PLOT_DEP)	$(MYINC)/hdf5lib.h
 $(OBJDIR)/plot.multipole.mpi.gsl.pl.o:		$(PLOT_DEP)
-$(OBJDIR)/plot.ndep.pl.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/plplotlib.h
-$(OBJDIR)/plot.ball.pl.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/plplotlib.h	$(MYINC)/myutil.h	$(MYINC)/name.h	$(MYINC)/constants.h
-$(OBJDIR)/plot.breakdown.pl.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/plplotlib.h	$(MYINC)/myutil.h	$(MYINC)/name.h	$(MISCDIR)/benchmark.h
-$(OBJDIR)/plot.time.mpi.pl.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/plplotlib.h	$(MYINC)/myutil.h	$(MYINC)/name.h	$(MYINC)/mpilib.h	$(PLOTDIR)/cdflib.h
-$(OBJDIR)/plot.comparison.mpi.pl.hdf5.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/plplotlib.h	$(MYINC)/name.h	$(MYINC)/hdf5lib.h
-$(OBJDIR)/plot.df.mpi.pl.hdf5.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/plplotlib.h	$(MYINC)/name.h	$(MYINC)/hdf5lib.h	$(MYINC)/constants.h
-$(OBJDIR)/plot.performance.pl.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/plplotlib.h
-$(OBJDIR)/plot.needle.mpi.pl.hdf5.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/myutil.h	$(MYINC)/plplotlib.h	$(MYINC)/name.h	$(MYINC)/hdf5lib.h	$(MYINC)/constants.h	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h	$(FILEDIR)/io.h
-$(OBJDIR)/plot.disk.mpi.pl.hdf5.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/myutil.h	$(MYINC)/plplotlib.h	$(MYINC)/name.h	$(MYINC)/hdf5lib.h	$(MYINC)/constants.h
-$(OBJDIR)/cdflib.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(PLOTDIR)/cdflib.h
+$(OBJDIR)/plot.ndep.pl.o:	$(COMMON_DEP)	$(MYINC)/plplotlib.h
+$(OBJDIR)/plot.ball.pl.o:	$(COMMON_DEP)	$(MYINC)/plplotlib.h	$(MYINC)/myutil.h	$(MYINC)/name.h	$(MYINC)/constants.h
+$(OBJDIR)/plot.breakdown.pl.o:	$(COMMON_DEP)	$(MYINC)/plplotlib.h	$(MYINC)/myutil.h	$(MYINC)/name.h	$(MISCDIR)/benchmark.h
+$(OBJDIR)/plot.time.mpi.pl.o:	$(COMMON_DEP)	$(MYINC)/plplotlib.h	$(MYINC)/myutil.h	$(MYINC)/name.h	$(MYINC)/mpilib.h	$(PLOTDIR)/cdflib.h
+$(OBJDIR)/plot.comparison.mpi.pl.hdf5.o:	$(COMMON_DEP)	$(MYINC)/plplotlib.h	$(MYINC)/name.h	$(MYINC)/hdf5lib.h
+$(OBJDIR)/plot.df.mpi.pl.hdf5.o:	$(COMMON_DEP)	$(MYINC)/plplotlib.h	$(MYINC)/name.h	$(MYINC)/hdf5lib.h	$(MYINC)/constants.h
+$(OBJDIR)/plot.performance.pl.o:	$(COMMON_DEP)	$(MYINC)/plplotlib.h
+$(OBJDIR)/plot.needle.mpi.pl.hdf5.o:	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/plplotlib.h	$(MYINC)/name.h	$(MYINC)/hdf5lib.h	$(MYINC)/constants.h	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h	$(FILEDIR)/io.h
+$(OBJDIR)/plot.disk.mpi.pl.hdf5.o:	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/plplotlib.h	$(MYINC)/name.h	$(MYINC)/hdf5lib.h	$(MYINC)/constants.h
+$(OBJDIR)/cdflib.o:	$(COMMON_DEP)	$(PLOTDIR)/cdflib.h
 #################################################################################################
 ## $(PARADIR)/*
-PARA_DEP	:=	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/name.h		\
+PARA_DEP	:=	$(COMMON_DEP)	$(MYINC)/name.h		\
 			$(MISCDIR)/structure.h	$(TREEDIR)/make.h	$(MYINC)/mpilib.h	$(PARADIR)/mpicfg.h
 $(OBJDIR)/exchange.mpi.o:	$(PARA_DEP)	$(PARADIR)/exchange.h
 $(OBJDIR)/mpicfg.mpi.o:		$(PARA_DEP)

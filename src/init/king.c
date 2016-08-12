@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/04/25(Mon) 14:53:00
+                  last updated on 2016/08/12(Fri) 10:58:05
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       King sphere                                                     *
@@ -10,8 +10,6 @@
  *                                                                       *
 \*************************************************************************/
 //-------------------------------------------------------------------------
-/* #define TEST_CUBIC_SPLINE */
-//-------------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -20,14 +18,9 @@
 #include <macro.h>
 #include <constants.h>
 //-------------------------------------------------------------------------
-#include "../misc/structure.h"
-//-------------------------------------------------------------------------
 #include "magi.h"
+#include "profile.h"
 #include "king.h"
-#ifdef  TEST_CUBIC_SPLINE
-#include "spline.h"
-#include "blas.h"
-#endif//TEST_CUBIC_SPLINE
 //-------------------------------------------------------------------------
 extern const real newton;
 //-------------------------------------------------------------------------
@@ -40,11 +33,6 @@ static const double extreme     = 0.25;
 //-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-/* #define NADD_KING (16384) */
-/* #define NADD_KING (131072) */
-#define NADD_KING (1048576)
-/* #define NADD_KING (4 * 1048576) */
 //-------------------------------------------------------------------------
 static inline void allocateArray(const int num, double **rad, double **rho, double **psi, double **dr1, double **dr2)
 {
@@ -237,28 +225,22 @@ static inline void solvePoissonEqOfKingDF(const double W0, double **Rad, double 
       dens = getKingDensity(uu, sqrtW, kingExpErrFunc, rho1);
       //-------------------------------------------------------------------
       /* convergence tests */
-#if 1
       const double udiff = fabs(uu - uold) * uoldinv;
       const double ydiff = fabs(yy - yold) * yoldinv;
       double  diff = (udiff > ydiff) ? udiff : ydiff;
-      /* const double rdiff = (convergence * dens > DBL_EPSILON) ? (fabs(dens - rold) * roldinv) : (0.0); */
-      /* const double rdiff = (dens > DBL_EPSILON * rho1) ? (fabs(dens - rold) * roldinv) : (0.0); */
       const double rdiff = (convergence * dens > DBL_EPSILON * rho[0]) ? (fabs(dens - rold) * roldinv) : (0.0);
       if( rdiff > diff )
 	diff = rdiff;
-#else
-      const double diff = fabs(uu - uold) * uoldinv;
-#endif
       if( diff < convergence ){
 	if( diff < extreme * convergence )	  hnew = hh * 2.0;
 	break;
-      }
+      }/* if( diff < convergence ){ */
       else{
 	hh *= 0.5;
 	hnew = hh;
-      }
+      }/* else{ */
       //-------------------------------------------------------------------
-    }
+    }/* while( true ){ */
     //---------------------------------------------------------------------
     if( *rem == 0 ){
       enlargeArray((*num) + NADD_KING, Rad, Rho, Psi, Dr1, Dr2);
@@ -268,11 +250,10 @@ static inline void solvePoissonEqOfKingDF(const double W0, double **Rad, double 
       dr1 = *Dr1;
       dr2 = *Dr2;
       *rem += NADD_KING;
-    }
+    }/* if( *rem == 0 ){ */
     ii++;    *num += 1;    *rem -= 1;
     rad[ii] = rad[ii - 1] + hh;
     //---------------------------------------------------------------------
-    /* if( (uu > DBL_EPSILON) && (dens > rho[0] * 1.0e-12) ){ */
     if( (uu > DBL_EPSILON) && (dens > DBL_EPSILON) ){
       //-------------------------------------------------------------------
       psi[ii] = uu;
@@ -283,13 +264,10 @@ static inline void solvePoissonEqOfKingDF(const double W0, double **Rad, double 
       const double rinv = 1.0 / rad[ii];
       const double dW_dr = yy * rinv * rinv;
       dr1[ii] = rho1 *  tmp * dW_dr;
-#if 1
       const double d2W_dr2 = -9.0 * dens * rho0inv - 2.0 * dW_dr * rinv;
       dr2[ii] = rho1 * (tmp * d2W_dr2 + kingExpErrFunc * dW_dr * dW_dr);
-#else
-      dr2[ii] = rho1 * ((kingExpErrFunc * dW_dr - 2.0 * tmp * rinv) * dW_dr - 9.0 * dens * rho0inv * tmp);
-#endif
-    }
+      //-------------------------------------------------------------------
+    }/* if( (uu > DBL_EPSILON) && (dens > DBL_EPSILON) ){ */
     //---------------------------------------------------------------------
     else{
       psi[ii] = 0.0;
@@ -297,21 +275,16 @@ static inline void solvePoissonEqOfKingDF(const double W0, double **Rad, double 
       dr1[ii] = 0.0;
       dr2[ii] = 0.0;
       break;
-    }
+    }/* else{ */
     //---------------------------------------------------------------------
 #ifdef  KING_PROGRESS_REPORT_ON
     if( (ii % KING_PROGRESS_REPORT_ON) == 0 ){
       fprintf(stdout, "# Poisson solver for King model: %d steps finished: rad = %e, rho = %e, W = %e\n", ii, rad[ii], rho[ii], psi[ii]);
       fflush(stdout);
-    }
+    }/* if( (ii % KING_PROGRESS_REPORT_ON) == 0 ){ */
 #endif//KING_PROGRESS_REPORT_ON
     //---------------------------------------------------------------------
-#if 0
-    if( (ii & 127) == 0 )
-      fprintf(stderr, "%e\t%e\t%e\n", rad[ii], rho[ii], psi[ii]);
-#endif
-    //---------------------------------------------------------------------
-  }
+  }/* while( true ){ */
   //-----------------------------------------------------------------------
 #ifdef  KING_PROGRESS_REPORT_ON
   fprintf(stdout, "# Poisson solver for King model finish: %d elements used: rt / r0 = %e, c = %e\n#\n#\n", *num, rad[*num - 1], log10(rad[*num - 1]));
@@ -325,12 +298,6 @@ static inline void solvePoissonEqOfKingDF(const double W0, double **Rad, double 
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-#if 0
-  for(int jj = 1; jj < *num - 1; jj += 100)
-    fprintf(stderr, "%e\t%e\t%e\t%e\t%e\n", rad[jj], dr1[jj], (rho[jj + 1] - rho[jj - 1]) / (rad[jj + 1] - rad[jj - 1]), dr2[jj], (dr1[jj + 1] - dr1[jj - 1]) / (rad[jj + 1] - rad[jj - 1]));
-  exit(0);
-#endif
-  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
 }
@@ -340,12 +307,6 @@ static inline void solvePoissonEqOfKingDF(const double W0, double **Rad, double 
 //-------------------------------------------------------------------------
 static void rescaleKingSphere(const double Mtot, const double r0, double *rt, const int num, double *rad, double *rho, double *dr1, double *dr2, double *enc)
 {
-  //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 1; ii < num - 1; ii += 100)
-    fprintf(stderr, "%e\t%e\t%e\t%e\t%e\n", rad[ii], dr1[ii], (rho[ii + 1] - rho[ii - 1]) / (rad[ii + 1] - rad[ii - 1]), dr2[ii], (dr1[ii + 1] - dr1[ii - 1]) / (rad[ii + 1] - rad[ii - 1]));
-  exit(0);
-#endif
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
@@ -381,18 +342,6 @@ static void rescaleKingSphere(const double Mtot, const double r0, double *rt, co
     dr1[ii] *=   drho_drUnit;
     dr2[ii] *= d2rho_dr2Unit;
   }/* for(int ii = 0; ii < num; ii++){ */
-  //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 1; ii < num - 1; ii += 100)
-    fprintf(stderr, "%e\t%e\t%e\t%e\n", rad[ii], rho[ii], dr1[ii], dr2[ii]);
-  exit(0);
-#endif
-  //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 1; ii < num - 1; ii += 100)
-    fprintf(stderr, "%e\t%e\t%e\t%e\t%e\n", rad[ii], dr1[ii], (rho[ii + 1] - rho[ii - 1]) / (rad[ii + 1] - rad[ii - 1]), dr2[ii], (dr1[ii + 1] - dr1[ii - 1]) / (rad[ii + 1] - rad[ii - 1]));
-  exit(0);
-#endif
   //-----------------------------------------------------------------------
 #ifdef  KING_PROGRESS_REPORT_ON
   fprintf(stdout, "# King model:   lengthUnit is %le\n", lengthUnit);
@@ -476,92 +425,12 @@ static inline void getDensityProfile(const int num, double *rad, double *rho, do
   const int head = findIdx(rad[      0], prf);
   const int tail = findIdx(rad[num - 1], prf);
   //-----------------------------------------------------------------------
-#if 0
-  /* this part would have some bugs about least squared method */
-  /* 2nd derivative is given by the least squared method */
-  double SS, Sx, Sy, Sxx, Sxy;
-  SS = Sx = Sy = Sxx = Sxy = 0.0;
-  for(int ii = 0; ii < 8; ii++){
-    //---------------------------------------------------------------------
-    const double logx = log10(rho[ii]);
-    const double logy = log10(dr2[ii]);
-    SS  += 1.0;
-    Sx  += logx;
-    Sxx += logx * logx;
-    Sy  +=        logy;
-    Sxy += logx * logy;
-    //---------------------------------------------------------------------
-  }
-  const double pp   = (SS * Sxy - Sx * Sy) / (SS * Sxx - Sx * Sx);
-  const double bb   = pow(10.0, (Sy - pp * Sx) / SS);
-  const double pinv = 1.0 / pp;
-  const double binv = 1.0 / bb;
-  if( (pp != -1.0) && (pp != -2.0) ){
-    //---------------------------------------------------------------------
-    const double p1inv = 1.0 / (1.0 + pp);
-    const double p2inv = 1.0 / (2.0 + pp);
-    //---------------------------------------------------------------------
-    const double cc =               dr1[0] - bb      * pp      * p1inv         * pow(rad[0] * binv, 1.0 + pinv);
-    const double dd = rho[0] - cc * rad[0] - bb * bb * pp * pp * p1inv * p2inv * pow(rad[0] * binv, 2.0 + pinv);
-    //---------------------------------------------------------------------
-#pragma omp parallel for
-    for(int ii = 0; ii < head; ii++){
-      //-------------------------------------------------------------------
-      const double xx = prf[ii].rad * binv;
-      const double yy = pow(xx, pinv);
-      //-------------------------------------------------------------------
-      prf[ii].d2rho_dr2 =                                                                       yy;
-      prf[ii]. drho_dr  =      cc               + bb      * pp      * p1inv         * xx      * yy;
-      prf[ii].  rho     = dd + cc * prf[ii].rad + bb * bb * pp * pp * p1inv * p2inv * xx * xx * yy;
-    }/* for(int ii = 0; ii < head; ii++){ */
-    //---------------------------------------------------------------------
-  }/* if( (pp != -1.0) && (pp != -2.0) ){ */
-  else{
-    if( pp == -2.0 ){
-      //-------------------------------------------------------------------
-      const double p1inv = -1.0;
-      const double cc = dr1[0] - bb * pp * p1inv * pow(rad[0] * binv, 1.0 + pinv);
-      const double dd = rho[0] - cc * rad[0] - bb * rad[0] * (log(rad[0]) - 1.0);
-      //-------------------------------------------------------------------
-#pragma omp parallel for
-      for(int ii = 0; ii < head; ii++){
-	//-----------------------------------------------------------------
-	const double xx = prf[ii].rad * binv;
-	const double yy = pow(xx, pinv);
-	//-----------------------------------------------------------------
-	prf[ii].d2rho_dr2 =                                                     yy;
-	prf[ii]. drho_dr  =      cc               + bb      * pp * p1inv * xx * yy;
-	prf[ii].  rho     = dd + cc * prf[ii].rad + bb * bb * pp * p1inv * log(prf[ii].rad);
-      }/* for(int ii = 0; ii < head; ii++){ */
-      //-----------------------------------------------------------------
-    }/* if( pp == -2.0 ){ */
-    else{
-      //-------------------------------------------------------------------
-      const double cc = dr1[0] - bb * log(rad[0]);
-      const double dd = rho[0] - cc * rad[0] - bb * rad[0] * (log(rad[0]) - 1.0);
-      //-------------------------------------------------------------------
-#pragma omp parallel for
-      for(int ii = 0; ii < head; ii++){
-	//-----------------------------------------------------------------
-	const double xx = prf[ii].rad * binv;
-	const double yy = pow(xx, pinv);
-	const double zz = log(prf[ii].rad);
-	//-----------------------------------------------------------------
-	prf[ii].d2rho_dr2 = yy;
-	prf[ii]. drho_dr  = cc + bb * zz;
-	prf[ii].  rho     = dd + prf[ii].rad * (cc + bb * (zz - 1.0));
-      }/* for(int ii = 0; ii < head; ii++){ */
-      //-------------------------------------------------------------------
-    }/* else{ */
-  }/* else{ */
-#else
 #pragma omp parallel for
   for(int ii = 0; ii < head; ii++){
     prf[ii].rho       = rho[0];
     prf[ii].drho_dr   = dr1[0];
     prf[ii].d2rho_dr2 = dr2[0];
-  }
-#endif
+  }/* for(int ii = 0; ii < head; ii++){ */
   //-----------------------------------------------------------------------
   /* interpolate: enc --> prf */
 #pragma omp parallel for
@@ -569,13 +438,8 @@ static inline void getDensityProfile(const int num, double *rad, double *rho, do
     double alpha;
     const int idx = bisection(prf[ii].rad, num, rad, &alpha);
     prf[ii].rho       = (1.0 - alpha) * rho[idx] + alpha * rho[1 + idx];
-#if 1
     prf[ii].drho_dr   = (1.0 - alpha) * dr1[idx] + alpha * dr1[1 + idx];
     prf[ii].d2rho_dr2 = (1.0 - alpha) * dr2[idx] + alpha * dr2[1 + idx];
-#else
-    prf[ii].drho_dr   = (rho[idx + 1] - rho[idx - 1]) / (rad[idx + 1] - rad[idx - 1]);
-    prf[ii].d2rho_dr2 = (1.0 - alpha) * dr2[idx] + alpha * dr2[1 + idx];
-#endif
   }/* for(int ii = head; ii < tail; ii++){ */
   //-----------------------------------------------------------------------
   /* fill the total enclosed mass in the outer region */
@@ -585,22 +449,6 @@ static inline void getDensityProfile(const int num, double *rad, double *rho, do
     prf[ii].drho_dr   = 0.0;
     prf[ii].d2rho_dr2 = 0.0;
   }
-  //-----------------------------------------------------------------------
-#if 0
-  const int ih = findIdx(1.0e-2, prf);
-#pragma omp parallel for
-  for(int ii = ih; ii < 3 + NRADBIN; ii++)
-    prf[ii].drho_dr = (prf[ii + 1].rho - prf[ii - 1].rho) / (prf[ii + 1].rad - prf[ii - 1].rad);
-#pragma omp parallel for
-  for(int ii = 1 + ih; ii < 2 + NRADBIN; ii++)
-    prf[ii].d2rho_dr2 = (prf[ii + 1].drho_dr - prf[ii - 1].drho_dr) / (prf[ii + 1].rad - prf[ii - 1].rad);
-#endif
-  //-----------------------------------------------------------------------
-#if 0
-  for(int ii = 0; ii < 4 + NRADBIN; ii++)
-    fprintf(stderr, "%e\t%e\t%e\t%e\n", prf[ii].rad, prf[ii].rho, prf[ii].drho_dr, prf[ii].d2rho_dr2);
-  exit(0);
-#endif
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -634,94 +482,10 @@ void setDensityProfileKing(profile *prf, profile_cfg *cfg)
   /* derive density profile of the King sphere */
   //-----------------------------------------------------------------------
   solvePoissonEqOfKingDF(W0, &rad, &psi, &rho, &dr1, &dr2, &num, &rem);
-#if 0
-  for(int ii = 1; ii < num - 1; ii += 100)
-    fprintf(stderr, "%e\t%e\t%e\t%e\t%e\n", rad[ii], dr1[ii], (rho[ii + 1] - rho[ii - 1]) / (rad[ii + 1] - rad[ii - 1]), dr2[ii], (dr1[ii + 1] - dr1[ii - 1]) / (rad[ii + 1] - rad[ii - 1]));
-  exit(0);
-#endif
   double *enc;  enc = (double *)malloc(sizeof(double) * num);  if( enc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate enc");  }
   rescaleKingSphere(Mtot, r0, &cfg->king_rt, num, rad, rho, dr1, dr2, enc);
   //-----------------------------------------------------------------------
   cfg->king_c = log10(cfg->king_rt / cfg->rs);
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
-  /* test cubic spline */
-  //-----------------------------------------------------------------------
-#ifdef  TEST_CUBIC_SPLINE
-  const int ncs = num / 1024;
-  double *xx;  xx = (double *)malloc(sizeof(double) * ncs);  if( xx == NULL ){    __KILL__(stderr, "ERROR: failure to allocate xx");  }
-  double *yy;  yy = (double *)malloc(sizeof(double) * ncs);  if( yy == NULL ){    __KILL__(stderr, "ERROR: failure to allocate yy");  }
-  double *bp;  bp = (double *)malloc(sizeof(double) * ncs);  if( bp == NULL ){    __KILL__(stderr, "ERROR: failure to allocate bp");  }
-  double *y2;  y2 = (double *)malloc(sizeof(double) * ncs);  if( y2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate y2");  }
-  for(int ii = 0; ii < ncs; ii++){
-    xx[ii] = rad[ii * 1024];
-    yy[ii] = rho[ii * 1024];
-  }
-  genCubicSpline1D(ncs, xx, yy, bp, NATURAL_CUBIC_SPLINE, NATURAL_CUBIC_SPLINE, y2);
-#if 1
-  //-----------------------------------------------------------------------
-  crs mat, ilu;
-  double *mat_val, *ilu_val;
-  int    *mat_col, *ilu_col, *mat_row, *ilu_row;
-  mat_val = (double *)malloc(sizeof(double) * ncs * 3);  ilu_val = (double *)malloc(sizeof(double) * ncs * 3);  mat_row = (int *)malloc(sizeof(int) * (ncs + 1));
-  mat_col = (   int *)malloc(sizeof(   int) * ncs * 3);  ilu_col = (   int *)malloc(sizeof(   int) * ncs * 3);  ilu_row = (int *)malloc(sizeof(int) * (ncs + 1));
-  mat.val = mat_val;  mat.col = mat_col;  mat.row = mat_row;
-  ilu.val = ilu_val;  ilu.col = ilu_col;  ilu.row = ilu_row;
-  //-----------------------------------------------------------------------
-  /* vector used in BiCGSTAB method */
-  double *vec, *res, *sdw, *mid, *tmp, *sol;
-  double *Api, *Ati, *Kri, *Kpi, *Kti;
-  vec = (double *)malloc(sizeof(double) * ncs);  res = (double *)malloc(sizeof(double) * ncs);  sol = (double *)malloc(sizeof(double) * ncs);
-  sdw = (double *)malloc(sizeof(double) * ncs);  mid = (double *)malloc(sizeof(double) * ncs);
-  tmp = (double *)malloc(sizeof(double) * ncs);  Api = (double *)malloc(sizeof(double) * ncs);
-  Ati = (double *)malloc(sizeof(double) * ncs);  Kri = (double *)malloc(sizeof(double) * ncs);
-  Kpi = (double *)malloc(sizeof(double) * ncs);  Kti = (double *)malloc(sizeof(double) * ncs);
-  //-----------------------------------------------------------------------
-  /* assume natural cubic spline */
-#pragma omp parallel for
-  for(int ii = 0; ii < ncs; ii++)
-    sol[ii] = 0.0;
-  vec[0] = 0.0;
-#pragma omp parallel for
-  for(int ii = 1; ii < ncs - 1; ii++)
-    vec[ii] = (yy[ii + 1] - yy[ii]) / (xx[ii + 1] - xx[ii]) - (yy[ii] - yy[ii - 1]) / (xx[ii] - xx[ii - 1]);
-  vec[ncs - 1] = 0.0;
-  int valIdx = 0;
-  int rowIdx = 0;
-  mat.row[rowIdx] = valIdx;
-  mat.col[valIdx] = 0;  mat.val[valIdx] = 1.0;  valIdx++;
-  rowIdx++;  mat.row[rowIdx] = valIdx;
-  for(int ii = 1; ii < ncs - 1; ii++){
-    mat.col[valIdx] = ii - 1;    mat.val[valIdx] = (xx[ii    ] - xx[ii - 1]) / 6.0;    valIdx++;
-    mat.col[valIdx] = ii    ;    mat.val[valIdx] = (xx[ii + 1] - xx[ii - 1]) / 3.0;    valIdx++;
-    mat.col[valIdx] = ii + 1;    mat.val[valIdx] = (xx[ii + 1] - xx[ii    ]) / 6.0;    valIdx++;
-    rowIdx++;    mat.row[rowIdx] = valIdx;
-  }
-  mat.col[valIdx] = ncs - 1;  mat.val[valIdx] = 1.0;  valIdx++;
-  rowIdx++;  mat.row[rowIdx] = valIdx;
-  //-----------------------------------------------------------------------
-  /* outer boundary condition of the potential field */
-  getILU0(ncs, mat, ilu);
-  pbicgstab(mat, ncs, vec, sol, res, sdw, mid, tmp, Api, Ati, ilu, Kri, Kpi, Kti, 1.0e-10);
-  for(int ii = 0; ii < ncs; ii++)
-    fprintf(stderr, "%e\t%e\t%e\t%e\n", xx[ii], yy[ii], y2[ii], sol[ii]);
-  free(mat_val);  free(mat_col);  free(mat_row);
-  free(ilu_val);  free(ilu_col);  free(ilu_row);
-  free(vec);  free(res);  free(sdw);  free(mid);  free(tmp);  free(sol);
-  free(Api);  free(Ati);  free(Kri);  free(Kpi);  free(Kti);
-  exit(0);
-#endif
-  for(int ii = 1; ii < ncs - 1; ii++)
-    fprintf(stderr, "%e\t%e\t%e\t%e\t%e\n", xx[ii],
-  	    (yy[ii + 1] - yy[ii - 1]) / (xx[ii + 1] - xx[ii - 1]), getCubicSpline1stDifferential1D(xx[ii], ncs, xx, yy, y2),
-  	    (yy[ii + 1] + yy[ii - 1] - 2.0 * yy[ii]) / ((xx[ii + 1] - xx[ii - 1]) * (xx[ii + 1] - xx[ii - 1])), getCubicSpline2ndDifferential1D(xx[ii], ncs, xx, y2));
-  free(xx);
-  free(yy);
-  free(bp);
-  free(y2);
-  exit(0);
-#endif//TEST_CUBIC_SPLINE
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
