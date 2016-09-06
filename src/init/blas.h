@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/01/02(Sat) 16:25:54
+                  last updated on 2016/08/29(Mon) 16:32:28
  *                                                                       *
  *    Header File for BLAS (Basic Linear Algebra Subprograms)            *
  *                                                                       *
@@ -30,6 +30,20 @@ typedef struct
   int    *col;
   int    *row;
 } crs;
+//-------------------------------------------------------------------------
+typedef struct
+{
+  crs mat;
+  double *vec, *res, *sdw, *mid, *tmp, *Api, *Ati;
+  /* double tol; */
+  /* int num; */
+} soaBiCGSTAB;
+//-------------------------------------------------------------------------
+typedef struct
+{
+  crs ilu;
+  double *Kri, *Kpi, *Kti;
+} soaPreConditioning;
 //-------------------------------------------------------------------------
 
 

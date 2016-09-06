@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2016/08/12(Fri) 11:28:49
+# last updated on 2016/09/06(Tue) 18:04:52
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -520,59 +520,39 @@ SRCPROF	+= $(DIRPROF)/$(TAGPROF)PluginInfo.C $(DIRPROF)/$(TAGPROF)PluginInfo.h $
 ## source files for collisionless N-body code relying on Barnes--Hut tree
 NBDYSRC	:= gothic.c
 FINDSRC	:= showOptConfig.c
-CC_FILE	+= $(MAINDIR)/$(NBDYSRC) $(MAINDIR)/$(FINDSRC)
 #################################################################################################
 ALLCLIB	:= allocate.c
 CNVTLIB	:= convert.c
 BRNTLIB	:= brent.c
-CC_FILE	+= $(MISCDIR)/$(ALLCLIB) $(MISCDIR)/$(CNVTLIB) $(MISCDIR)/$(BRNTLIB)
-ALLCGPU	:= allocate_dev.cu
-CU_FILE	+= $(MISCDIR)/$(ALLCGPU)
+UTILGPU	:= allocate_dev.cu
 #################################################################################################
 FILELIB	:= io.c
-CC_FILE	+= $(FILEDIR)/$(FILELIB)
 #################################################################################################
-TIMEGPU	:= adv_dev.cu
-CU_FILE	+= $(TIMEDIR)/$(TIMEGPU)
+TREEGPU	:= adv_dev.cu
 #################################################################################################
-PGENSRC	:= peano.c
-CC_FILE	+= $(SORTDIR)/$(PGENSRC)
-PGENGPU	:= peano_dev.cu
-CU_FILE	+= $(SORTDIR)/$(PGENGPU)
-#################################################################################################
-MAKESRC	:= make.c
-WS93LIB	:= macutil.c
-CC_FILE	+= $(TREEDIR)/$(MAKESRC) $(TREEDIR)/$(WS93LIB)
-MAKEGPU	:= make_dev.cu
-WALKGPU	:= walk_dev.cu
-ifeq ($(BRUTE_FORCE_LOCALIZER), 1)
-STATGPU	:= shrink_dev.cu
-else
-STATGPU	:= stat_dev.cu
+TREESRC	:= peano.c
+ifeq ($(GENERATE_PHKEY_ON_GPU), 1)
+UTILGPU	+= peano_dev.cu
 endif
-NSGPU	:= neighbor_dev.cu
-CU_FILE	+= $(TREEDIR)/$(MAKEGPU) $(TREEDIR)/$(WALKGPU) $(TREEDIR)/$(STATGPU) $(TREEDIR)/$(NSGPU)
+#################################################################################################
+TREESRC	+= make.c macutil.c
+TREEGPU	+= make_dev.cu walk_dev.cu neighbor_dev.cu
+ifeq ($(BRUTE_FORCE_LOCALIZER), 1)
+UTILGPU	+= shrink_dev.cu
+else
+UTILGPU	+= stat_dev.cu
+endif
 ifeq ($(FORCE_SINGLE_GPU_RUN), 0)
-HLETSRC	:= let.c
-DLETSRC	:= let_dev.cu
-GEOGPU	:= geo_dev.cu
-CC_FILE	+= $(TREEDIR)/$(HLETSRC)
-CU_FILE	+= $(TREEDIR)/$(DLETSRC) $(TREEDIR)/$(GEOGPU)
+LETHOST	:= let.c
+LET_GPU	:= let_dev.cu geo_dev.cu
 endif
 #################################################################################################
 COLDSRC	:= uniformsphere.c
 MAGISRC	:= magi.c
-PROFSRC	:= profile.c
-EDDFSRC	:= eddington.c
-DISKSRC	:= disk.c
 SMPLSRC	:= sample.c
-BLASLIB	:= blas.c
-SPLNLIB	:= spline.c
-KINGLIB	:= king.c
-TBLELIB	:= table.c
-ABELLIB	:= abel.c
-CC_FILE	+= $(INITDIR)/$(COLDSRC) $(INITDIR)/$(MAGISRC) $(INITDIR)/$(PROFSRC) $(INITDIR)/$(EDDFSRC) $(INITDIR)/$(DISKSRC) $(INITDIR)/$(SMPLSRC)
-CC_FILE	+= $(INIDIR)/$(BLASLIB) $(INIDIR)/$(SPLNLIB) $(INITDIR)/$(KINGLIB) $(INITDIR)/$(TBLELIB) $(INITDIR)/$(ABELLIB)
+# DISKLIB	:= disk.c
+DISKLIB	:= potdens.c diskDF.c
+MAGILIB	:= profile.c eddington.c king.c abel.c blas.c spline.c table.c
 #################################################################################################
 PENESRC	:= plot.energy.c
 DISTSRC	:= plot.distribution.c
@@ -588,12 +568,8 @@ PRADSRC	:= plot.ball.c
 PDFSRC	:= plot.df.c
 PJETSRC	:= plot.needle.c
 PDSKSRC	:= plot.disk.c
-CC_FILE	+= $(PLOTDIR)/$(PENESRC) $(PLOTDIR)/$(DISTSRC) $(PLOTDIR)/$(PCDFSRC) $(PLOTDIR)/$(PMULSRC) $(PLOTDIR)/$(PCDFLIB) $(PLOTDIR)/$(PDFSRC) $(PLOTDIR)/$(PDSKSRC)
-CC_FILE	+= $(PLOTDIR)/$(PELPSRC) $(PLOTDIR)/$(PDEPSRC) $(PLOTDIR)/$(PBRKSRC) $(PLOTDIR)/$(PCMPSRC) $(PLOTDIR)/$(PFLPSRC) $(PLOTDIR)/$(PRADSRC) $(PLOTDIR)/$(PJETSRC)
 #################################################################################################
-EXCHSRC	:= exchange.c
-PARALIB	:= mpicfg.c
-CC_FILE	+= $(PARADIR)/$(EXCHSRC) $(PARADIR)/$(PARALIB)
+LETHOST	+= exchange.c mpicfg.c
 #################################################################################################
 
 
@@ -606,16 +582,13 @@ else
 OBJMPGT	:= $(patsubst %.c,  $(OBJDIR)/%.mpi.o,      $(notdir $(NBDYSRC) $(FILELIB)))
 OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.o,          $(notdir $(ALLCLIB) $(CNVTLIB)))
 endif
-OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.o,          $(notdir $(PGENSRC) $(MAKESRC) $(STATSRC) $(WS93LIB)))
-OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.o,          $(notdir $(ALLCGPU) $(STATGPU)))
+OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.o,          $(notdir $(TREESRC)))
+OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.o,          $(notdir $(UTILGPU)))
 ifeq ($(FORCE_SINGLE_GPU_RUN), 1)
-OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.o,          $(notdir $(MAKEGPU) $(TIMEGPU) $(WALKGPU) $(NSGPU)))
+OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.o,          $(notdir $(TREEGPU)))
 else
-OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.mpi.o,      $(notdir $(MAKEGPU) $(TIMEGPU) $(WALKGPU) $(NSGPU) $(DLETSRC) $(GEOGPU)))
-OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.mpi.o,      $(notdir $(HLETSRC) $(EXCHSRC) $(PARALIB)))
-endif
-ifeq ($(GENERATE_PHKEY_ON_GPU), 1)
-OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.o,          $(notdir $(PGENGPU)))
+OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.mpi.o,      $(notdir $(TREEGPU) $(LET_GPU)))
+OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.mpi.o,      $(notdir $(LETHOST)))
 endif
 ifeq ($(USE_BRENT_METHOD), 1)
 OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.o,          $(notdir $(BRNTLIB)))
@@ -641,8 +614,8 @@ OBJMAGI	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.gsl.o,      $(notdir $(MAGISRC)))
 OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.o,                 $(notdir $(ALLCLIB)))
 OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.mpi.o,             $(notdir $(FILELIB)))
 endif
-OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.omp.gsl.o,         $(notdir $(DISKSRC)))
-OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.omp.o,             $(notdir $(PROFSRC) $(EDDFSRC) $(KINGLIB) $(ABELLIB) $(BLASLIB) $(SPLNLIB) $(TBLELIB)))
+OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.omp.gsl.o,         $(notdir $(DISKLIB)))
+OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.omp.o,             $(notdir $(MAGILIB)))
 #################################################################################################
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 OBJPENE	:= $(patsubst %.c, $(OBJDIR)/%.mpi.pl.hdf5.o, $(notdir $(PENESRC)))
@@ -819,8 +792,8 @@ check-syntax:
 check-syntax-cu:
 	$(CU) $(DEBUG) $(CUARG) -Xcompiler -fsyntax-only $(CCINC) $(CUINC) $(OMPINC) $(MPIINC) $(GSLINC) $(PLINC) -I/$(HOME)/tau/include $(HDF5INC) $(PREC) $(UNIT) -o /dev/null -c $(CHK_SOURCES)
 #################################################################################################
-depend:
-	makedepend -- $(CCINC) $(CUINC) $(OMPINC) $(MPIINC) $(GSLINC) $(PLINC) -I/$(HOME)/tau/include $(HDF5INC) -- $(CC_FILE) $(CU_FILE)
+# depend:
+# 	makedepend -- $(CCINC) $(CUINC) $(OMPINC) $(MPIINC) $(GSLINC) $(PLINC) -I/$(HOME)/tau/include $(HDF5INC) -- $(CC_FILE) $(CU_FILE)
 #################################################################################################
 dir:
 	$(VERBOSE)mkdir -p $(BINDIR)
@@ -948,74 +921,120 @@ rmvisit:
 COMMON_DEP	:=	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h
 #################################################################################################
 ## $(MAINDIR)/*
-GOTHIC_DEP	:=	$(COMMON_DEP)	$(MYINC)/name.h	$(MYINC)/myutil.h	$(MYINC)/timer.h	\
-			$(MYINC)/mpilib.h	$(MYINC)/cudalib.h	$(MYINC)/constants.h	\
-			$(MISCDIR)/structure.h	$(MISCDIR)/brent.h	$(MISCDIR)/device.h	\
-			$(MISCDIR)/benchmark.h	$(MISCDIR)/convert.h	$(MISCDIR)/allocate.h	$(MISCDIR)/allocate_dev.h	\
-			$(FILEDIR)/io.h	\
-			$(TIMEDIR)/adv_dev.h	\
-			$(SORTDIR)/peano.h	$(SORTDIR)/peano_dev.h	\
-			$(TREEDIR)/macutil.h	$(TREEDIR)/make.h	$(TREEDIR)/make_dev.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/buf_inc.h	\
-			$(TREEDIR)/stat_dev.h	$(TREEDIR)/shrink_dev.h	$(TREEDIR)/neighbor_dev.h	\
-			$(TREEDIR)/let.h	$(TREEDIR)/let_dev.h	$(PARADIR)/mpicfg.h	$(PARADIR)/exchange.h	$(TREEDIR)/geo_dev.h
+GOTHIC_DEP	:=	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/name.h	$(MYINC)/constants.h	$(MYINC)/timer.h	$(MYINC)/cudalib.h
+GOTHIC_DEP	+=	$(MISCDIR)/device.h	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h	$(MISCDIR)/allocate_dev.h	$(MISCDIR)/convert.h
+GOTHIC_DEP	+=	$(FILEDIR)/io.h
+GOTHIC_DEP	+=	$(SORTDIR)/peano.h
+GOTHIC_DEP	+=	$(TREEDIR)/macutil.h	$(TREEDIR)/make.h	$(TREEDIR)/let.h	$(TREEDIR)/buf_inc.h	$(TREEDIR)/make_dev.h	$(TREEDIR)/walk_dev.h
+GOTHIC_DEP	+=	$(TIMEDIR)/adv_dev.h
+ifeq ($(FORCE_SINGLE_GPU_RUN), 0)
+GOTHIC_DEP	+=	$(MYINC)/mpilib.h	$(PARADIR)/mpicfg.h	$(PARADIR)/exchange.h
+GOTHIC_DEP	+=	$(TREEDIR)/geo_dev.h	$(TREEDIR)/let_dev.h
+endif
+ifeq ($(USE_BRENT_METHOD), 1)
+GOTHIC_DEP	+=	$(MISCDIR)/brent.h
+endif
+ifeq ($(GENERATE_PHKEY_ON_GPU), 1)
+GOTHIC_DEP	+=	$(SORTDIR)/peano_dev.h
+endif
+ifeq ($(BRUTE_FORCE_LOCALIZER), 1)
+ifeq ($(LOCALIZE_I_PARTICLES), 1)
+GOTHIC_DEP	+=	$(TREEDIR)/neighbor_dev.h
+endif
+GOTHIC_DEP	+=	$(TREEDIR)/shrink_dev.h
+else
+GOTHIC_DEP	+=	$(TREEDIR)/stat_dev.h
+endif
 $(OBJDIR)/gothic.mpi.hdf5.o:	$(GOTHIC_DEP)	$(MYINC)/hdf5lib.h
 $(OBJDIR)/gothic.mpi.o:		$(GOTHIC_DEP)
 $(OBJDIR)/showOptConfig.o:	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/name.h
 #################################################################################################
 ## $(MISCDIR)/*
-ALLOCATE_DEP	:=	$(COMMON_DEP)	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h
-CONVERT_DEP	:=	$(COMMON_DEP)	$(MISCDIR)/structure.h	$(MISCDIR)/convert.h
-$(OBJDIR)/allocate.mpi.hdf5.o:	$(ALLOCATE_DEP)	$(MYINC)/hdf5lib.h
-$(OBJDIR)/allocate.mpi.o:	$(ALLOCATE_DEP)
-$(OBJDIR)/allocate_dev.o:	$(COMMON_DEP)	$(MISCDIR)/structure.h	$(MYINC)/cudalib.h	$(MISCDIR)/device.h	$(MISCDIR)/allocate_dev.h
-$(OBJDIR)/convert.mpi.hdf5.o:	$(CONVERT_DEP)	$(MYINC)/hdf5lib.h
-$(OBJDIR)/convert.o:		$(CONVERT_DEP)
+$(OBJDIR)/allocate.mpi.hdf5.o:	$(COMMON_DEP)	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h
+$(OBJDIR)/allocate.mpi.o:	$(COMMON_DEP)	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h
+$(OBJDIR)/allocate_dev.o:	$(COMMON_DEP)	$(MISCDIR)/structure.h	$(MISCDIR)/allocate_dev.h	$(MYINC)/cudalib.h	$(TREEDIR)/walk_dev.h
+$(OBJDIR)/convert.mpi.hdf5.o:	$(COMMON_DEP)	$(MISCDIR)/structure.h	$(MISCDIR)/convert.h
+$(OBJDIR)/convert.o:		$(COMMON_DEP)	$(MISCDIR)/structure.h	$(MISCDIR)/convert.h
 $(OBJDIR)/brent.o:		$(COMMON_DEP)	$(MISCDIR)/brent.h
 #################################################################################################
 ## $(FILEDIR)/*
-IO_DEP	:=	$(COMMON_DEP)	$(MYINC)/constants.h	$(MYINC)/name.h	$(MYINC)/mpilib.h	$(MYINC)/hdf5lib.h	\
-				$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(FILEDIR)/io.h
-$(OBJDIR)/io.mpi.hdf5.o:	$(IO_DEP)
+IO_DEP	:=	$(COMMON_DEP)	$(MYINC)/constants.h	$(MYINC)/name.h	$(MYINC)/mpilib.h
+IO_DEP	+=	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(FILEDIR)/io.h
+ifeq ($(HUNT_OPTIMAL_WALK_TREE), 1)
+IO_DEP	+=	$(TREEDIR)/walk_dev.h
+ifeq ($(BRUTE_FORCE_LOCALIZER), 1)
+ifeq ($(LOCALIZE_I_PARTICLES), 1)
+IO_DEP	+=	$(TREEDIR)/neighbor_dev.h
+endif
+IO_DEP	+=	$(TREEDIR)/shrink_dev.h
+else
+IO_DEP	+=	$(TREEDIR)/stat_dev.h
+endif
+endif
+ifeq ($(HUNT_OPTIMAL_MAKE_TREE), 1)
+IO_DEP	+=	$(SORTDIR)/peano_dev.h	$(TREEDIR)/make_dev.h
+endif
+ifeq ($(HUNT_OPTIMAL_MAKE_NODE), 1)
+IO_DEP	+=	$(TREEDIR)/make_dev.h
+endif
+ifeq ($(HUNT_OPTIMAL_INTEGRATE), 1)
+IO_DEP	+=	$(TIMEDIR)/adv_dev.h
+endif
+ifeq ($(HUNT_OPTIMAL_NEIGHBOUR), 1)
+ifeq ($(BRUTE_FORCE_LOCALIZER), 1)
+ifeq ($(LOCALIZE_I_PARTICLES), 1)
+IO_DEP	+=	$(TREEDIR)/neighbor_dev.h
+endif
+endif
+endif
+$(OBJDIR)/io.mpi.hdf5.o:	$(IO_DEP)	$(MYINC)/hdf5lib.h
 $(OBJDIR)/io.mpi.o:		$(IO_DEP)
 #################################################################################################
 ## $(SORTDIR)/*
-PEANO_DEP	:=	$(COMMON_DEP)	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(SORTDIR)/peano.h
-$(OBJDIR)/peano.o:	$(PEANO_DEP)	$(TREEDIR)/make.h
+PEANO_DEP	:=	$(COMMON_DEP)	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(SORTDIR)/peano.h	$(TREEDIR)/make.h
+$(OBJDIR)/peano.o:	$(PEANO_DEP)
 $(OBJDIR)/peano_dev.o:	$(PEANO_DEP)	$(TREEDIR)/macutil.h	$(MYINC)/cudalib.h	$(MISCDIR)/gsync_dev.cu	$(SORTDIR)/peano_dev.h
 #################################################################################################
 ## $(TIMEDIR)/*
-ADV_DEV_DEP	:=	$(COMMON_DEP)	$(MYINC)/timer.h	$(MYINC)/cudalib.h	\
-			$(MISCDIR)/structure.h	$(MISCDIR)/benchmark.h	$(MISCDIR)/device.h	$(TIMEDIR)/adv_dev.h
+ADV_DEV_DEP	:=	$(COMMON_DEP)	$(MYINC)/timer.h	$(MYINC)/cudalib.h
+ADV_DEV_DEP	+=	$(MISCDIR)/structure.h	$(MISCDIR)/benchmark.h	$(MISCDIR)/device.h	$(TIMEDIR)/adv_dev.h	$(TREEDIR)/walk_dev.h
 $(OBJDIR)/adv_dev.mpi.o:	$(ADV_DEV_DEP)	$(MYINC)/mpilib.h	$(PARADIR)/mpicfg.h
 $(OBJDIR)/adv_dev.o:		$(ADV_DEV_DEP)
 #################################################################################################
 ## $(TREEDIR)/*
+$(OBJDIR)/macutil.o:	$(COMMON_DEP)	$(SORTDIR)/peano.h	$(TREEDIR)/macutil.h	$(TREEDIR)/make.h
 TREE_DEP	:=	$(COMMON_DEP)	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(TREEDIR)/make.h
 $(OBJDIR)/geo_dev.o:	$(TREE_DEP)	$(MYINC)/cudalib.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/geo_dev.h
-$(OBJDIR)/let.mpi.o:	$(TREE_DEP)	$(MYINC)/mpilib.h	\
-			$(TREEDIR)/let.h	$(PARADIR)/mpicfg.h
-$(OBJDIR)/let_dev.mpi.o:	$(TREE_DEP)	$(MYINC)/cudalib.h	$(MYINC)/timer.h	$(MISCDIR)/device.h	$(MYINC)/mpilib.h	\
-			$(TREEDIR)/macutil.h	$(TREEDIR)/buf_inc.h	$(TREEDIR)/buf_inc.cu	$(TREEDIR)/walk_dev.h	$(TREEDIR)/let.h	$(TREEDIR)/let_dev.h	$(PARADIR)/mpicfg.h
-$(OBJDIR)/macutil.o:	$(COMMON_DEP)	$(SORTDIR)/peano.h	$(TREEDIR)/macutil.h	$(TREEDIR)/make.h
-MAKE_DEV_DEP	:=	$(MYINC)/cudalib.h	$(MISCDIR)/device.h	$(SORTDIR)/peano_dev.h	$(MISCDIR)/gsync_dev.cu	\
-			$(TREEDIR)/make_dev.h	$(TREEDIR)/let.h	$(TREEDIR)/make_inc.h	$(TREEDIR)/make_del.h
-$(OBJDIR)/make_dev.mpi.o:	$(TREE_DEP)	$(SORTDIR)/peano.h	$(TREEDIR)/macutil.h	$(MAKE_DEV_DEP)
-$(OBJDIR)/make_dev.o:		$(TREE_DEP)	$(SORTDIR)/peano.h	$(TREEDIR)/macutil.h	$(MAKE_DEV_DEP)
+$(OBJDIR)/let.mpi.o:	$(TREE_DEP)	$(MYINC)/mpilib.h	$(TREEDIR)/let.h	$(PARADIR)/mpicfg.h
+TREE_DEV_DEP	:=	$(TREE_DEP)	$(MYINC)/cudalib.h	$(MISCDIR)/device.h	$(TREEDIR)/macutil.h
+TREE_BUF_DEP	:=	$(TREEDIR)/buf_inc.h	$(TREEDIR)/buf_inc.cu
+TREE_LET_DEP	:=	$(MYINC)/mpilib.h	$(TREEDIR)/let.h	$(TREEDIR)/let_dev.h	$(PARADIR)/mpicfg.h
+$(OBJDIR)/let_dev.mpi.o:	$(TREE_DEV_DEP)	$(TREE_BUF_DEP)	$(TREE_LET_DEP)	$(MYINC)/timer.h	$(TREEDIR)/walk_dev.h
+MAKE_DEV_DEP	:=	$(MISCDIR)/gsync_dev.cu	$(TREEDIR)/make_dev.h	$(TREEDIR)/let.h	$(TREEDIR)/make_inc.cu	$(TREEDIR)/make_inc.h	$(TREEDIR)/make_del.h
+$(OBJDIR)/make_dev.mpi.o:	$(TREE_DEV_DEP)	$(SORTDIR)/peano.h	$(SORTDIR)/peano_dev.h	$(MAKE_DEV_DEP)
+$(OBJDIR)/make_dev.o:		$(TREE_DEV_DEP)	$(SORTDIR)/peano.h	$(SORTDIR)/peano_dev.h	$(MAKE_DEV_DEP)
 $(OBJDIR)/make.o:		$(TREE_DEP)	$(SORTDIR)/peano.h	$(TREEDIR)/macutil.h
-NEIGHBOR_DEV_DEP	:=	$(MISCDIR)/gsync_dev.cu	$(SORTDIR)/radix_dev.h	$(SORTDIR)/radix_inc.cu	$(SORTDIR)/radix_inc.h	$(SORTDIR)/radix_del.h	\
-				$(MYINC)/cudalib.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/neighbor_dev.h
+TREE_RSORT_DEP	:=	$(MISCDIR)/gsync_dev.cu	$(SORTDIR)/radix_dev.h	$(SORTDIR)/radix_inc.cu	$(SORTDIR)/radix_inc.h	$(SORTDIR)/radix_del.h
+NEIGHBOR_DEV_DEP	:=	$(TREE_RSORT_DEP)	$(MYINC)/cudalib.h	$(TREEDIR)/make_dev.h	$(TREEDIR)/neighbor_dev.h
 $(OBJDIR)/neighbor_dev.mpi.o:	$(TREE_DEP)	$(NEIGHBOR_DEV_DEP)
 $(OBJDIR)/neighbor_dev.o:	$(TREE_DEP)	$(NEIGHBOR_DEV_DEP)
-SHRINK_DEV_DEP	:=	$(MYINC)/cudalib.h	$(MISCDIR)/device.h	$(MISCDIR)/brent.h	\
-			$(TREEDIR)/walk_dev.h	$(TREEDIR)/make_dev.h	$(TREEDIR)/shrink_dev.h	$(TREEDIR)/neighbor_dev.h
+SHRINK_DEV_DEP	:=	$(MYINC)/cudalib.h	$(MISCDIR)/device.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/make_dev.h	$(TREEDIR)/shrink_dev.h
+ifeq ($(LOCALIZE_I_PARTICLES), 1)
+ifeq ($(USE_BRENT_METHOD), 1)
+SHRINK_DEV_DEP	+=	$(MISCDIR)/brent.h
+endif
+SHRINK_DEV_DEP	+=	$(TREEDIR)/neighbor_dev.h
+endif
 $(OBJDIR)/shrink_dev.mpi.o:	$(TREE_DEP)	$(SHRINK_DEV_DEP)
 $(OBJDIR)/shrink_dev.o:		$(TREE_DEP)	$(SHRINK_DEV_DEP)
-$(OBJDIR)/stat_dev.o:	$(TREE_DEP)	$(MYINC)/cudalib.h	$(MISCDIR)/device.h	\
-			$(SORTDIR)/peano.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/stat_dev.h	$(TREEDIR)/let.h
-WALK_DEV_DEP	:=	$(MYINC)/cudalib.h	$(MYINC)/timer.h	$(MYINC)/timer.h	\
-			$(MISCDIR)/device.h	$(TREEDIR)/macutil.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/seb_dev.cu	$(TREEDIR)/buf_inc.h	$(TREEDIR)/buf_inc.cu
-$(OBJDIR)/walk_dev.mpi.o:	$(TREE_DEP)	$(WALK_DEV_DEP)	$(MYINC)/mpilib.h	$(TREEDIR)/let.h	$(TREEDIR)/let_dev.h	$(PARADIR)/mpicfg.h
-$(OBJDIR)/walk_dev.o:		$(TREE_DEP)	$(WALK_DEV_DEP)
+ifeq ($(LOCALIZE_I_PARTICLES), 1)
+$(OBJDIR)/stat_dev.o:	$(TREE_DEP)	$(MYINC)/cudalib.h	$(MISCDIR)/device.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/stat_dev.h	$(SORTDIR)/peano.h
+else
+$(OBJDIR)/stat_dev.o:	$(TREE_DEP)	$(MYINC)/cudalib.h	$(MISCDIR)/device.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/stat_dev.h
+endif
+WALK_DEV_DEP	:=	$(TREE_DEV_DEP)	$(TREE_BUF_DEP)	$(MYINC)/timer.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/seb_dev.cu
+$(OBJDIR)/walk_dev.mpi.o:	$(WALK_DEV_DEP)	$(TREE_LET_DEP)
+$(OBJDIR)/walk_dev.o:		$(WALK_DEV_DEP)
 #################################################################################################
 ## $(INITDIR)/*
 $(OBJDIR)/sample.o:	$(COMMON_DEP)
@@ -1025,16 +1044,21 @@ SPLINE_DEP	:=	$(COMMON_DEP)	$(INITDIR)/profile.h	$(INITDIR)/table.h	$(INITDIR)/s
 $(OBJDIR)/abel.omp.o:	$(SPLINE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/abel.h
 $(OBJDIR)/table.omp.o:	$(SPLINE_DEP)
 PROFILE_DEP	:=	$(COMMON_DEP)	$(MYINC)/constants.h	$(INITDIR)/profile.h
-$(OBJDIR)/disk.omp.gsl.o:		$(PROFILE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/spline.h	$(INITDIR)/blas.h	$(INITDIR)/disk.h	$(MISCDIR)/structure.h
-$(OBJDIR)/eddington.omp.o:		$(PROFILE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/eddington.h
-$(OBJDIR)/king.omp.o:			$(PROFILE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/king.h
-$(OBJDIR)/profile.omp.o:		$(PROFILE_DEP)
-IOFILE_DEP	:=	$(COMMON_DEP)	$(MYINC)/constants.h	$(MISCDIR)/structure.h	$(MYINC)/timer.h	$(MYINC)/myutil.h	$(MYINC)/name.h	$(MISCDIR)/allocate.h	$(FILEDIR)/io.h
-MAGI_DEP	:=	$(MYINC)/rotate.h	$(INITDIR)/magi.h	$(INITDIR)/profile.h	$(INITDIR)/eddington.h	$(INITDIR)/king.h	$(INITDIR)/table.h	$(INITDIR)/abel.h	$(INITDIR)/disk.h
-$(OBJDIR)/magi.ompmpi.gsl.hdf5.o:	$(IOFILE_DEP)	$(MAGI_DEP)	$(MYINC)/hdf5lib.h
-$(OBJDIR)/magi.omp.gsl.o:		$(IOFILE_DEP)	$(MAGI_DEP)
+$(OBJDIR)/eddington.omp.o:	$(PROFILE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/eddington.h
+$(OBJDIR)/king.omp.o:		$(PROFILE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/king.h
+$(OBJDIR)/profile.omp.o:	$(PROFILE_DEP)
+DISK_DEP	:=	$(PROFILE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/spline.h	$(INITDIR)/blas.h	$(INITDIR)/potdens.h
+$(OBJDIR)/potdens.omp.gsl.o:	$(DISK_DEP)
+$(OBJDIR)/diskDF.omp.gsl.o:	$(DISK_DEP)	$(MISCDIR)/structure.h	$(INITDIR)/diskDF.h
+$(OBJDIR)/disk.omp.gsl.o:	$(DISK_DEP)	$(MISCDIR)/structure.h	$(INITDIR)/disk.h
+IOFILE_DEP	:=	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/constants.h	$(MYINC)/timer.h	$(MYINC)/name.h
+IOFILE_DEP	+=	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h	$(FILEDIR)/io.h
 $(OBJDIR)/uniformsphere.mpi.gsl.hdf5.o:	$(IOFILE_DEP)			$(MYINC)/hdf5lib.h
 $(OBJDIR)/uniformsphere.gsl.o:		$(IOFILE_DEP)
+MAGI_DEP	:=	$(MYINC)/rotate.h	$(INITDIR)/magi.h	$(INITDIR)/king.h	$(INITDIR)/profile.h	$(INITDIR)/eddington.h
+MAGI_DEP	+=	$(INITDIR)/table.h	$(INITDIR)/abel.h	$(INITDIR)/potdens.h	$(INITDIR)/diskDF.h
+$(OBJDIR)/magi.ompmpi.gsl.hdf5.o:	$(IOFILE_DEP)	$(MAGI_DEP)	$(MYINC)/hdf5lib.h
+$(OBJDIR)/magi.omp.gsl.o:		$(IOFILE_DEP)	$(MAGI_DEP)
 #################################################################################################
 ## $(PLOTDIR)/*
 PLOT_DEP	:=	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/constants.h	\
@@ -1059,9 +1083,9 @@ $(OBJDIR)/plot.disk.mpi.pl.hdf5.o:	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/plpl
 $(OBJDIR)/cdflib.o:	$(COMMON_DEP)	$(PLOTDIR)/cdflib.h
 #################################################################################################
 ## $(PARADIR)/*
-PARA_DEP	:=	$(COMMON_DEP)	$(MYINC)/name.h		\
-			$(MISCDIR)/structure.h	$(TREEDIR)/make.h	$(MYINC)/mpilib.h	$(PARADIR)/mpicfg.h
-$(OBJDIR)/exchange.mpi.o:	$(PARA_DEP)	$(PARADIR)/exchange.h
+PARA_DEP	:=	$(COMMON_DEP)	$(MYINC)/name.h	$(MYINC)/mpilib.h
+PARA_DEP	+=	$(MISCDIR)/structure.h	$(TREEDIR)/make.h	$(PARADIR)/mpicfg.h
+$(OBJDIR)/exchange.mpi.o:	$(PARA_DEP)	$(TIMEDIR)/adv_dev.h	$(PARADIR)/exchange.h
 $(OBJDIR)/mpicfg.mpi.o:		$(PARA_DEP)
 #################################################################################################
 #################################################################################################

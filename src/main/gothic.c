@@ -1,6 +1,6 @@
 /************************************************************************* \
  *                                                                       *
-                  last updated on 2016/08/10(Wed) 17:17:56
+                  last updated on 2016/09/06(Tue) 16:47:43
  *                                                                       *
  *    N-body code based on Barnes--Hut tree                              *
  *                                                                       *
@@ -38,6 +38,7 @@
 #include "../para/exchange.h"
 #        endif//SERIALIZED_EXECUTION
 //-------------------------------------------------------------------------
+#include "../misc/device.h"
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
 #include "../misc/allocate.h"
@@ -57,6 +58,7 @@
 #include "../tree/macutil.h"
 #include "../tree/make.h"
 #include "../tree/let.h"
+#include "../tree/buf_inc.h"
 #include "../tree/make_dev.h"
 #include "../tree/walk_dev.h"
 #        ifdef  BRUTE_FORCE_LOCALIZATION

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/09/06(Tue) 16:06:36
+                  last updated on 2016/08/12(Fri) 11:01:37
  *                                                                       *
  *    MAGI: "MAny-component Galactic Initial-conditions" generator       *
  *    Making Initial Condition Code of N-body Simulation                 *
@@ -55,9 +55,7 @@
 #include "eddington.h"
 #include "table.h"
 #include "abel.h"
-/* #include "disk.h" */
-#include "potdens.h"
-#include "diskDF.h"
+#include "disk.h"
 //-------------------------------------------------------------------------
 extern const real newton;
 extern const double     mass_astro2com,     mass2astro;extern const char        mass_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
@@ -548,7 +546,6 @@ int main(int argc, char **argv)
     for(int jj = 0; jj < 4 + NRADBIN; jj++)
       prf[ii][jj].rad = pow(10.0, logrmin + logrbin * (double)jj);
   /* memory allocation for disk component */
-  int maxLev;
   disk_data  *disk_info;
   double *disk_hor, *disk_ver, *disk_pot, *disk_dPhidR, *disk_d2PhidR2;
   double *sph_rad, *sph_enc, *sph_rho;
@@ -556,28 +553,23 @@ int main(int argc, char **argv)
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
   double *disk_zd;
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
-  double *spline_xx, *spline_ff, *spline_f2, *spline_bp;
   if( addDisk ){
     //---------------------------------------------------------------------
     /* allocate required arrays */
     //---------------------------------------------------------------------
-    allocDiskProfile(ndisk, &disk_info, &cfg[skind], &maxLev,
-		     &disk_hor, &disk_ver,
-		     &disk_pot, &disk_rho, &disk_rhoSum, &disk_rhoTot,
-		     &disk_dPhidR, &disk_d2PhidR2,
-		     &disk_Sigma, &disk_sigmaz, &disk_enc,
+    allocDiskProfile(ndisk, &disk_info, &disk_hor, &disk_ver, &disk_pot, &disk_dPhidR, &disk_d2PhidR2, &sph_rad, &sph_rho, &sph_enc,
+		     &disk_rho, &disk_rhoSum, &disk_rhoTot, &disk_Sigma, &disk_sigmaz, &disk_enc
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-		     &disk_zd,
+		     , &disk_zd
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
-		     &sph_rad, &sph_rho, &sph_enc,
-		     &spline_xx, &spline_ff, &spline_f2, &spline_bp);
+		     );
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
     /* commit fundamental information */
     //---------------------------------------------------------------------
     for(int ii = 0; ii < ndisk; ii++){
-      /* disk_info[ii].cfg        = &cfg[skind + ii]; */
+      disk_info[ii].cfg        = &cfg[skind + ii];
       disk_info[ii].prf        =  prf[skind + ii];
       disk_info[ii].   logrbin =    logrbin;
       disk_info[ii].invlogrbin = invlogrbin;
@@ -645,10 +637,10 @@ int main(int argc, char **argv)
   if( addDisk ){
     //---------------------------------------------------------------------
     /* set disk_radius, disk_height, disk_pot */
-    makeDiskPotentialTable(ndisk, maxLev, disk_info);
+    makeDiskPotentialTable(ndisk, disk_info);
     //---------------------------------------------------------------------
     /* set profile of spherical averaged density, mass and potential */
-    integrateSphericalDensityProfile(ndisk, maxLev, disk_info);
+    integrateSphericalDensityProfile(ndisk, disk_info);
     //---------------------------------------------------------------------
 #pragma omp parallel for
     for(int ii = 0; ii < 4 + NRADBIN; ii++){
@@ -682,12 +674,12 @@ int main(int argc, char **argv)
   //-----------------------------------------------------------------------
   if( addDisk ){
     /* differentiate potential along the radial direction on the equatorial plane */
-    diffAxisymmetricPotential(maxLev, disk_info[0]);
+    diffAxisymmetricPotential(disk_info[0]);
     /* set velocity dispersion in vertical direction */
-    calcVerticalVdisp(ndisk, maxLev, disk_info);
+    calcVerticalVdisp(ndisk, disk_info);
     for(int ii = skind; ii < kind; ii++){
       /* cfg[ii].vdispz0 = disk_vdisp[0]; */
-      cfg[ii].vdispz0 = disk_info[ii - skind].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, 0)];
+      cfg[ii].vdispz0 = disk_info[ii - skind].sigmaz[0];
       if( cfg[ii].vdispR0 < 0.0 )
 	cfg[ii].vdispR0 = cfg[ii].vdispz0;
     }/* for(int ii = skind; ii < kind; ii++){ */
@@ -767,7 +759,7 @@ int main(int argc, char **argv)
     for(int ii = 0; ii < ndisk; ii++){
       //-------------------------------------------------------------------
       /* distribute disk particles */
-      distributeDiskParticles(&Nuse, body, (real)(disk_info[ii].cfg->Mtot / (double)disk_info[ii].cfg->num), maxLev, disk_info[ii]);
+      distributeDiskParticles(&Nuse, body, (real)(disk_info[ii].cfg->Mtot / (double)disk_info[ii].cfg->num), disk_info[ii]);
       //-------------------------------------------------------------------
       /* shift center-of-mass, remove bulk motion */
 #ifdef  SHIFT_CENTER_PER_COMPONENT
@@ -906,15 +898,12 @@ int main(int argc, char **argv)
   free(_fene);
   //-----------------------------------------------------------------------
   if( addDisk )
-    freeDiskProfile(ndisk, disk_info,
-		    disk_hor, disk_ver,
-		    disk_pot, disk_rho, disk_rhoSum, disk_rhoTot, disk_dPhidR, disk_d2PhidR2,
-		     disk_Sigma, disk_sigmaz, disk_enc,
+    freeDiskProfile(ndisk, disk_info, disk_hor, disk_ver, disk_pot, disk_dPhidR, disk_d2PhidR2, sph_rad, sph_rho, sph_enc,
+		    disk_rho, disk_rhoSum, disk_rhoTot, disk_Sigma, disk_sigmaz, disk_enc
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-		     disk_zd,
+		    , disk_zd
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
-		     sph_rad, sph_rho, sph_enc,
-		     spline_xx, spline_ff, spline_f2, spline_bp);
+		    );
   //-----------------------------------------------------------------------
   return (0);
   //-----------------------------------------------------------------------
