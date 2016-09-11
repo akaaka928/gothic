@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/09/06(Tue) 16:04:52
+                  last updated on 2016/09/10(Sat) 15:14:13
  *                                                                       *
  *    Header File for Definition to generate initial condition of disk   *
  *                                                                       *
@@ -31,7 +31,8 @@
 
 
 //-------------------------------------------------------------------------
-#define NDISKBIN_VER (64)
+#define NDISKBIN_VER (32)
+/* #define NDISKBIN_VER (64) */
 /* NHOR_OVER_NVER is defined as an exponent of two */
 #define NHOR_OVER_NVER (2)
 #define NDISKBIN_HOR (NDISKBIN_VER << NHOR_OVER_NVER)
@@ -57,8 +58,6 @@
 #endif//USE_GD_FORM_POTENTIAL
 //-------------------------------------------------------------------------
 #define USE_ELLIPTIC_INTEGRAL
-//-------------------------------------------------------------------------
-#define KICKOFF_POISSON_SOLVER (-1)
 //-------------------------------------------------------------------------
 #define CONVERGENCE_BICGSTAB    (1.0e-10)
 #define CONVERGENCE_POTDENSPAIR (1.0e-4)

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/11(Thu) 17:12:31
+                  last updated on 2016/09/11(Sun) 15:30:04
  *                                                                       *
  *    BLAS (Basic Linear Algebra Subprograms)                            *
  *                                                                       *
@@ -236,11 +236,11 @@ void bicgstab
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
-#ifdef  PROGRESS_REPORT_ON
+#ifdef  BLAS_PROGRESS_REPORT_ON
   fprintf(stdout, "# BiCGSTAB start: # of columns is %d, tolerance value is %e\n", num, tol);
   fflush(stdout);
   int steps = 0;
-#endif//PROGRESS_REPORT_ON
+#endif//BLAS_PROGRESS_REPORT_ON
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -298,16 +298,18 @@ void bicgstab
     //---------------------------------------------------------------------
     /* convergence test */
     //---------------------------------------------------------------------
-#ifdef  PROGRESS_REPORT_ON
+#ifdef  BLAS_PROGRESS_REPORT_ON
     const double error = dnrm2(0, num, res);
-    fprintf(stdout, "#\t%d-th iteration: error is %e\n", steps, error);
-    fflush(stdout);
+    if( (steps % BLAS_PROGRESS_REPORT_ON) == 0 ){
+      fprintf(stdout, "#\t%d-th iteration: error is %e\n", steps, error);
+      fflush(stdout);
+    }/* if( (steps % BLAS_PROGRESS_REPORT_ON) == 0 ){ */
     if( error < tol2 )      break;
     steps++;
-#else///PROGRESS_REPORT_ON
+#else///BLAS_PROGRESS_REPORT_ON
     if( dnrm2(num, res) < tol2 )
       break;
-#endif//PROGRESS_REPORT_ON
+#endif//BLAS_PROGRESS_REPORT_ON
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
@@ -356,11 +358,11 @@ void pbicgstab
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
-#ifdef  PROGRESS_REPORT_ON
+#ifdef  BLAS_PROGRESS_REPORT_ON
   fprintf(stdout, "# preconditioned BiCGSTAB start: # of columns is %d, tolerance value is %e\n", num, tol);
   fflush(stdout);
   int steps = 0;
-#endif//PROGRESS_REPORT_ON
+#endif//BLAS_PROGRESS_REPORT_ON
   //-----------------------------------------------------------------------
 
 
@@ -480,18 +482,18 @@ void pbicgstab
 #pragma omp atomic
       dnrm_ful += dnrm_loc;
 #pragma omp barrier
-#ifdef  PROGRESS_REPORT_ON
+#ifdef  BLAS_PROGRESS_REPORT_ON
 #pragma omp single
-      {
+      if( (steps % BLAS_PROGRESS_REPORT_ON) == 0 ){
 	fprintf(stdout, "#\t%d-th iteration: error is %e, goal is %e\n", steps, dnrm_ful, tol2);
 	fflush(stdout);
-      }
+      }/* if( (steps % BLAS_PROGRESS_REPORT_ON) == 0 ){ */
       if( dnrm_ful < tol2 )      break;
 #pragma omp single nowait
       steps++;
-#else///PROGRESS_REPORT_ON
+#else///BLAS_PROGRESS_REPORT_ON
       if( dnrm_ful < tol2 )      break;
-#endif//PROGRESS_REPORT_ON
+#endif//BLAS_PROGRESS_REPORT_ON
       //-------------------------------------------------------------------
 #ifdef  DEBUG_MODE_FOR_BLAS_C
 #pragma omp barrier
@@ -535,6 +537,10 @@ void pbicgstab
   }
   //-----------------------------------------------------------------------
   /* end OpenMP parallelized region */
+  //-----------------------------------------------------------------------
+#ifdef  BLAS_PROGRESS_REPORT_ON
+  fprintf(stdout, "# preconditioned BiCGSTAB finish: final error is %e after %d iterations\n", dnrm_ful, steps);
+#endif//BLAS_PROGRESS_REPORT_ON
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------

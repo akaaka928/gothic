@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/09/06(Tue) 16:04:55
+                  last updated on 2016/09/11(Sun) 16:04:01
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Poisson solver to yield potential--density pair                 *
@@ -165,6 +165,7 @@ void allocDiskProfile
   if( Rmax > ldexp(zmax, NHOR_OVER_NVER) ){    log2hmax = (int)ceil(log2(DISK_MAX_SAFETY * Rmax));    maxLR = ldexp(1.0, log2hmax);    maxLz = ldexp(maxLR, -NHOR_OVER_NVER);  }
   else{                                        log2hmax = (int)ceil(log2(DISK_MAX_SAFETY * zmax));    maxLz = ldexp(1.0, log2hmax);    maxLR = ldexp(maxLz,  NHOR_OVER_NVER);  }
   const double hh = maxLz / (double)NDISKBIN_VER;
+  log2hmax = (int)nearbyint(log2(hh));
   //-----------------------------------------------------------------------
   /* configuration of finest grid */
   double Rmin = DBL_MAX;
@@ -179,7 +180,8 @@ void allocDiskProfile
   /* const double hmin = ldexp(1.0, log2hmin); */
   //-----------------------------------------------------------------------
   /* hmin corresponds to 2^(1-Lmax) h */
-  *maxLev = 1 + log2hmax - log2hmin;
+  /* *maxLev = 1 + log2hmax - log2hmin; */
+  *maxLev = 1 - log2hmin + log2hmax;
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -401,6 +403,16 @@ void allocDiskProfile
 	for(int kk = 0; kk < NDISKBIN_VER; kk++)
 	  (*rhoTot)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, jj, kk)] = 0.0;
   //-----------------------------------------------------------------------
+#if 0
+  fprintf(stdout, "# NR = %d, Nz = %d\n", NDISKBIN_HOR, NDISKBIN_VER);
+  fprintf(stdout, "# Rmax = %e, zmax = %e, log2hmax = %d\n", Rmax, zmax, log2hmax);
+  fprintf(stdout, "# maxLR = %e, maxLz = %e, hh = %e\n", maxLR, maxLz, hh);
+  fprintf(stdout, "# Rmin = %e, zmin = %e, log2hmin = %d\n", Rmin, zmin, log2hmin);
+  fprintf(stdout, "# maxLev = %d, hmin = %e\n", *maxLev, ldexp(1.0, log2hmin));
+  fflush(NULL);
+  exit(0);
+#endif
+  //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
@@ -504,42 +516,55 @@ static inline int findIdxSphericalPsi(const double psi, profile *prf, double *ra
 static const double diskDimmingHeight    = 16.0;
 static const double diskDimmingHeightInv = 0.0625;
 //-------------------------------------------------------------------------
-static inline void getVariableDiskScaleHeight(const int ndisk, disk_data * restrict disk, const int NR, profile * restrict sph, const double invlogrbin_sph)
+static inline void getVariableDiskScaleHeight(const int ndisk, const int maxLev, disk_data * restrict disk, profile * restrict sph, const double invlogrbin_sph)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-  for(int hh = 0; hh < ndisk; hh++){
+  for(int kk = 0; kk < ndisk; kk++){
     //---------------------------------------------------------------------
-    double *RR;    RR = disk[hh].hor;
-    double *zd;    zd = disk[hh].zd;
-    //---------------------------------------------------------------------
-    const double zd0 = disk[hh].cfg->zd;
-    const double zd2 = diskDimmingHeight * zd0 * diskDimmingHeight * zd0;
-    //---------------------------------------------------------------------
+    for(int lev = 0; lev < maxLev; lev++){
+      //-------------------------------------------------------------------
+      double *RR;      RR = &(disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)]);
+      double *zd;      zd = &(disk[kk]. zd[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)]);
+      //-------------------------------------------------------------------
+      const double zd0 = disk[kk].cfg->zd;
+      const double zd2 = diskDimmingHeight * zd0 * diskDimmingHeight * zd0;
+      //-------------------------------------------------------------------
 #pragma omp parallel for
-    for(int ii = 0; ii < NR; ii++){
+      for(int ii = 0; ii < NDISKBIN_HOR; ii++){
+	//-----------------------------------------------------------------
+	const double R2 = RR[ii] * RR[ii];
+	//-----------------------------------------------------------------
+	/* get potential @ the reference points (mid plane and dimming scale) */
+	const double PsiMid = Phi_spherical(RR[ii], sph, invlogrbin_sph);
+	const double PsiDim = Phi_spherical(sqrt(R2 + zd2), sph, invlogrbin_sph);
+	//-----------------------------------------------------------------
+	const double Psi = PsiMid + diskDimmingHeightInv * (PsiDim - PsiMid);
+	//-----------------------------------------------------------------
+	double ratio;
+	const int irr = findIdxSphericalPsi(Psi, sph, &ratio);
+	const double rr = (1.0 - ratio) * sph[irr].rad + ratio * sph[1 + irr].rad;
+	//-----------------------------------------------------------------
+	const double zd1 = sqrt(rr * rr - R2);
+	zd[ii] = (zd0 < zd1) ? zd0 : zd1;
+	//-----------------------------------------------------------------
+#if 0
+	fprintf(stderr, "%e\t%e\n", RR[ii], zd[ii]);
+#endif
+	//-----------------------------------------------------------------
+      }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
       //-------------------------------------------------------------------
-      const double R2 = RR[ii] * RR[ii];
-      //-------------------------------------------------------------------
-      /* get potential @ the reference points (mid plane and dimming scale) */
-      const double PsiMid = Phi_spherical(RR[ii], sph, invlogrbin_sph);
-      const double PsiDim = Phi_spherical(sqrt(R2 + zd2), sph, invlogrbin_sph);
-      //-------------------------------------------------------------------
-      const double Psi = PsiMid + diskDimmingHeightInv * (PsiDim - PsiMid);
-      //-------------------------------------------------------------------
-      double ratio;
-      const int irr = findIdxSphericalPsi(Psi, sph, &ratio);
-      const double rr = (1.0 - ratio) * sph[irr].rad + ratio * sph[1 + irr].rad;
-      //-------------------------------------------------------------------
-      const double zd1 = sqrt(rr * rr - R2);
-      zd[ii] = (zd0 < zd1) ? zd0 : zd1;
-      //-------------------------------------------------------------------
-    }/* for(int ii = 0; ii < NR; ii++){ */
+    }/* for(int lev = 0; lev < maxLev; lev++){ */
     //---------------------------------------------------------------------
-  }/* for(int hh = 0; hh < ndisk; hh++){ */
+  }/* for(int kk = 0; kk < ndisk; kk++){ */
+  //-----------------------------------------------------------------------
+#if 0
+  fflush(stderr);
+  exit(0);
+#endif
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -628,7 +653,7 @@ static inline void setColumnDensityProfile(const int ndisk, const int maxLev, di
 
   //-----------------------------------------------------------------------
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-  getVariableDiskScaleHeight(ndisk, disk, NDISKBIN_HOR, sph, invlogrbin_sph);
+  getVariableDiskScaleHeight(ndisk, maxLev, disk, sph, invlogrbin_sph);
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
   //-----------------------------------------------------------------------
   /* set column density profile on the midplane */
@@ -701,8 +726,7 @@ static inline void setColumnDensityProfile(const int ndisk, const int maxLev, di
 
 
 //-------------------------------------------------------------------------
-/* RR, hh are for levNew (coarser grid) */
-static inline void coarseGraining(double * restrict data, const int levOld, const int levNew, double * restrict RR, const double hh)
+static inline void coarseGraining(double * restrict data, const int levOld, const int levNew, double * restrict RRNew, const double hhNew)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -713,16 +737,19 @@ static inline void coarseGraining(double * restrict data, const int levOld, cons
   //-----------------------------------------------------------------------
 #pragma omp parallel for
   for(int ii = 0; ii < (NDISKBIN_HOR >> 1); ii++){
-    const double R0   = RR[ii];
-    const double Rp   = R0 + 0.5 * hh;
-    const double Rm   = R0 - 0.5 * hh;
-    const double Rinv = 1.0 / R0;
+    //---------------------------------------------------------------------
+    const double R0   = RRNew[ii];
+    const double Rp   = R0 + 0.25 * hhNew;
+    const double Rm   = R0 - 0.25 * hhNew;
+    const double Rinv = 0.25 / R0;
+    //---------------------------------------------------------------------
     for(int jj = 0; jj < (NDISKBIN_VER >> 1); jj++)
       data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levNew, ii, jj)] =
-	0.25 * ((data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levOld,     (ii << 1),	   (jj << 1))] +
-		 data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levOld,	    (ii << 1), 1 + (jj << 1))]) * Rm +
-		(data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levOld, 1 + (ii << 1),	   (jj << 1))] +
-		 data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levOld, 1 + (ii << 1), 1 + (jj << 1))]) * Rp) * Rinv;
+	((data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levOld,     (ii << 1),	    (jj << 1))] +
+	  data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levOld,     (ii << 1), 1 + (jj << 1))]) * Rm +
+	 (data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levOld, 1 + (ii << 1),     (jj << 1))] +
+	  data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levOld, 1 + (ii << 1), 1 + (jj << 1))]) * Rp) * Rinv;
+    //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < (NDISKBIN_HOR >> 1); ii++){ */
   //-----------------------------------------------------------------------
 
@@ -731,7 +758,8 @@ static inline void coarseGraining(double * restrict data, const int levOld, cons
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-static inline void   fineGraining(double *data, const int levOld, const int levNew)
+/* RR, hh are for levOld (coarser grid) */
+static inline void   fineGraining(double *data, const int levOld, const int levNew, double * restrict RROld, const double hhOld)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -740,10 +768,45 @@ static inline void   fineGraining(double *data, const int levOld, const int levN
   //-----------------------------------------------------------------------
   /* apply piecewise constant interpolation */
   //-----------------------------------------------------------------------
+#if 1
+  //-----------------------------------------------------------------------
+#pragma omp parallel for
+  for(int ii = 0; ii < (NDISKBIN_HOR >> 1); ii++){
+    //---------------------------------------------------------------------
+    const double tmp = -hhOld / (3.0 * RROld[ii]);
+    const double inner = (double)( 2 + 12 * ii) / (double)(3 + 12 * ii);
+    const double outer = (double)(10 + 12 * ii) / (double)(9 + 12 * ii);
+    //---------------------------------------------------------------------
+    for(int jj = 0; jj < (NDISKBIN_VER >> 1); jj++){
+      //-------------------------------------------------------------------
+      double dfdR, dfdz;
+      dfdR = 0.125 * (data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levOld, ii + 1, jj)] - data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levOld, (ii > 0) ? (ii - 1) : (0), jj)]);
+      dfdz = 0.125 * (data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levOld, ii, jj + 1)] - data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levOld, ii, (jj > 0) ? (jj - 1) : (0))]);
+      const double datAvg = data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levOld, ii, jj)] + tmp * dfdR;
+      //-------------------------------------------------------------------
+      double dat00 = datAvg - inner * dfdR - dfdz;
+      double dat01 = datAvg - inner * dfdR + dfdz;
+      double dat10 = datAvg + outer * dfdR - dfdz;
+      double dat11 = datAvg + outer * dfdR + dfdz;
+      if( (dat00 < 0.0) || (dat01 < 0.0) || (dat10 < 0.0) || (dat11 < 0.0) )
+	dat00 = dat01 = dat10 = dat11 = datAvg;
+      data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levNew,      ii << 1 ,      jj << 1 )] = dat00;
+      data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levNew,      ii << 1 , 1 + (jj << 1))] = dat01;
+      data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levNew, 1 + (ii << 1),      jj << 1 )] = dat10;
+      data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levNew, 1 + (ii << 1), 1 + (jj << 1))] = dat11;
+      //-------------------------------------------------------------------
+    }/* for(int jj = 0; jj < (NDISKBIN_VER >> 1); jj++){ */
+    //---------------------------------------------------------------------
+  }/* for(int ii = 0; ii < (NDISKBIN_HOR >> 1); ii++){ */
+  //-----------------------------------------------------------------------
+#else
+  //-----------------------------------------------------------------------
 #pragma omp parallel for
   for(int ii = 0; ii < NDISKBIN_HOR; ii++)
     for(int jj = 0; jj < NDISKBIN_VER; jj++)
       data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levNew, ii, jj)] = data[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levOld, ii >> 1, jj >> 1)];
+  //-----------------------------------------------------------------------
+#endif
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -1239,7 +1302,7 @@ static inline void setSparseMatrix
     const double Ri = RR[ii];
     //---------------------------------------------------------------------
     for(int jj = 0; jj < NDISKBIN_VER; jj++)
-      vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)] = Phi0 * Ri * rho[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)];
+      vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)] = Phi0 * Ri * rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)];
     //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
   //-----------------------------------------------------------------------
@@ -1307,7 +1370,6 @@ static inline void setSparseMatrix
 
     //---------------------------------------------------------------------
     /* outer boundary (jj = Nz - 1) */
-    /* implementation for nested level of 0 (base grid) */
     //---------------------------------------------------------------------
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii - 1, NDISKBIN_VER - 1);    mat.val[valIdx] =           (double)(      ii << 1       );    valIdx++;
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , NDISKBIN_VER - 2);    mat.val[valIdx] =           (double)( 1 + (ii << 1)      );    valIdx++;
@@ -1339,7 +1401,7 @@ static inline void setSparseMatrix
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, jj    );    mat.val[valIdx] =  (double)(      (NDISKBIN_HOR - 1) << 1       );    valIdx++;
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj - 1);    mat.val[valIdx] =  (double)( 1 + ((NDISKBIN_HOR - 1) << 1)      );    valIdx++;
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj    );
-    mat.val[valIdx] = (lev > 0) ? (-(double)((5 + 11 * (NDISKBIN_HOR - 1)) << 1) / 3.0) : (-(double)((1 + ((NDISKBIN_HOR - 1) << 1)) << 2));    valIdx++;
+    mat.val[valIdx] = -facPot * (double)((lev > 0) ? (5 + 11 * (NDISKBIN_HOR - 1)) : ((1 + ((NDISKBIN_HOR - 1) << 1)) << 2));    valIdx++;
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj + 1);    mat.val[valIdx] =  (double)( 1 + ((NDISKBIN_HOR - 1) << 1)      );    valIdx++;
     //---------------------------------------------------------------------
     rowIdx++;    mat.row[rowIdx] = valIdx;
@@ -1392,27 +1454,52 @@ static inline void getPotentialField
   //-----------------------------------------------------------------------
   if( lev > 0 ){
     //---------------------------------------------------------------------
-    for(int ii = 0; ii < NDISKBIN_HOR; ii += 2){
-      //-------------------------------------------------------------------
-      Phi_Nz[    ii] =
-	0.75 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii + 1) >> 1, NDISKBIN_VER >> 1)] +
-	0.25 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii - 1) >> 1, NDISKBIN_VER >> 1)];
-      Phi_Nz[1 + ii] =
-	0.75 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii - 1) >> 1, NDISKBIN_VER >> 1)] +
+    Phi_Nz[0] = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, 0, NDISKBIN_VER >> 1)];
+    for(int ii = 1; ii < NDISKBIN_HOR; ii++)
+      Phi_Nz[ii] =
+	0.75 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii    ) >> 1, NDISKBIN_VER >> 1)] +
 	0.25 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii + 1) >> 1, NDISKBIN_VER >> 1)];
-      //-------------------------------------------------------------------
-    }/* for(int ii = 0; ii < NDISKBIN_HOR; ii += 2){ */
     //---------------------------------------------------------------------
-    for(int jj = 0; jj < NDISKBIN_VER; jj += 2){
-      //-------------------------------------------------------------------
-      Phi_NR[    jj] =
-	0.75 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, NDISKBIN_HOR >> 1, (jj + 1) >> 1)] +
-	0.25 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, NDISKBIN_HOR >> 1, (jj - 1) >> 1)];
-      Phi_NR[1 + jj] =
-	0.75 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, NDISKBIN_HOR >> 1, (jj - 1) >> 1)] +
+    Phi_NR[0] = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, NDISKBIN_HOR >> 1, 0)];
+    for(int jj = 1; jj < NDISKBIN_VER; jj++)
+      Phi_NR[jj] =
+	0.75 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, NDISKBIN_HOR >> 1, (jj	) >> 1)] +
 	0.25 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, NDISKBIN_HOR >> 1, (jj + 1) >> 1)];
-      //-------------------------------------------------------------------
-    }/* for(int jj = 0; jj < NDISKBIN_VER; jj += 2){ */
+    //---------------------------------------------------------------------
+    /* for(int ii = 0; ii < NDISKBIN_HOR; ii += 2){ */
+    /*   //------------------------------------------------------------------- */
+    /*   Phi_Nz[    ii] = */
+    /* 	0.75 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii + 1) >> 1, NDISKBIN_VER >> 1)] + */
+    /* 	0.25 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii - 1) >> 1, NDISKBIN_VER >> 1)]; */
+    /*   Phi_Nz[1 + ii] = */
+    /* 	0.75 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii - 1) >> 1, NDISKBIN_VER >> 1)] + */
+    /* 	0.25 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii + 1) >> 1, NDISKBIN_VER >> 1)]; */
+    /*   //------------------------------------------------------------------- */
+    /* }/\* for(int ii = 0; ii < NDISKBIN_HOR; ii += 2){ *\/ */
+    /* //--------------------------------------------------------------------- */
+    /* for(int jj = 0; jj < NDISKBIN_VER; jj += 2){ */
+    /*   //------------------------------------------------------------------- */
+    /*   Phi_NR[    jj] = */
+    /* 	0.75 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, NDISKBIN_HOR >> 1, (jj + 1) >> 1)] + */
+    /* 	0.25 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, NDISKBIN_HOR >> 1, (jj - 1) >> 1)]; */
+    /*   Phi_NR[1 + jj] = */
+    /* 	0.75 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, NDISKBIN_HOR >> 1, (jj - 1) >> 1)] + */
+    /* 	0.25 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, NDISKBIN_HOR >> 1, (jj + 1) >> 1)]; */
+    /*   //------------------------------------------------------------------- */
+    /* }/\* for(int jj = 0; jj < NDISKBIN_VER; jj += 2){ *\/ */
+    //---------------------------------------------------------------------
+#if 0
+    fprintf(stderr, "# Phi_Nz[%d]\n", NDISKBIN_HOR);
+    for(int ii = 0; ii < NDISKBIN_HOR; ii++)
+      fprintf(stderr, "%e\t%e\t%e\n", RR[ii], Phi_Nz[ii], disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, ii >> 1, NDISKBIN_VER >> 1)]);
+
+    fprintf(stderr, "\n");
+    fprintf(stderr, "# Phi_NR[%d]\n", NDISKBIN_VER);
+    for(int jj = 0; jj < NDISKBIN_VER; jj++)
+      fprintf(stderr, "%e\t%e\t%e\n", zz[jj], Phi_NR[jj], disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, NDISKBIN_HOR >> 1, jj >> 1)]);
+    fflush(NULL);
+    exit(0);
+#endif
     //---------------------------------------------------------------------
   }/* if( lev > 0 ){ */
   else{
@@ -1483,7 +1570,7 @@ static inline double _setzdep4calcRho
 static inline void _setRdep4calcRho
 (const double RR, double * restrict R2, double * restrict horDep, int * restrict iR, double * restrict fR, double * restrict PsiR0, double * restrict invPsi,
  const int NR, double * restrict horRad, const double invdR, const int Nz, double * restrict ver, const double invdz, double * restrict Phi,
- const disk_data disk, profile * restrict sph, const double invlogrbin_sph)
+ const int lev, const disk_data disk, profile * restrict sph, const double invlogrbin_sph)
 {
   //-----------------------------------------------------------------------
   *R2 = RR * RR;
@@ -1492,7 +1579,7 @@ static inline void _setRdep4calcRho
   *PsiR0 = (1.0 - (*fR)) * (-Phi[INDEX2D(NR, Nz, *iR, 0)]) + (*fR) * (-Phi[INDEX2D(NR, Nz, 1 + (*iR), 0)]) + Phi_spherical(RR, sph, invlogrbin_sph);
   //-----------------------------------------------------------------------
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-  const double    zd = (1.0 - (*fR)) * disk.zd[*iR] + (*fR) * disk.zd[1 + (*iR)];
+  const double    zd = (1.0 - (*fR)) * disk.zd[INDEX2D(maxLev, NDISKBIN_HOR, lev, *iR)] + (*fR) * disk.zd[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + (*iR))];
 #else///ENABLE_VARIABLE_SCALE_HEIGHT
   const double    zd = disk.cfg->zd;
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
@@ -1541,7 +1628,7 @@ static inline double _gaussQuad2d4calcRho
 static inline double gaussQuad2d4calcRho
 (const double Rmin, const double Rmax, const int NR, double * restrict hor, const double invdR,
  const double zmin, const double zmax, const int Nz, double * restrict ver, const double invdz,
- profile * restrict sph, const double invlogrbin_sph, double * restrict Phi, const disk_data disk)
+ profile * restrict sph, const double invlogrbin_sph, double * restrict Phi, const int lev, const disk_data disk)
 {
   //-----------------------------------------------------------------------
   /* initialization */
@@ -1552,7 +1639,8 @@ static inline double gaussQuad2d4calcRho
     //---------------------------------------------------------------------
     double R2, radVal, fR, PsiR0, invPsi;
     int iR;
-    _setRdep4calcRho(pls + mns * gsl_gaussQD_low_pos[(NINTBIN_LOW >> 1)], &R2, &radVal, &iR, &fR, &PsiR0, &invPsi, NR, hor, invdR, Nz, ver, invdz, Phi, disk, sph, invlogrbin_sph);
+    _setRdep4calcRho(pls + mns * gsl_gaussQD_low_pos[(NINTBIN_LOW >> 1)],
+		     &R2, &radVal, &iR, &fR, &PsiR0, &invPsi, NR, hor, invdR, Nz, ver, invdz, Phi, lev, disk, sph, invlogrbin_sph);
     //---------------------------------------------------------------------
     sum = gsl_gaussQD_low_weight[(NINTBIN_LOW >> 1)] * radVal * _gaussQuad2d4calcRho(zmin, zmax, Nz, ver, invdz, iR, fR, R2, PsiR0, invPsi, Phi, sph, invlogrbin_sph);
     //---------------------------------------------------------------------
@@ -1564,10 +1652,10 @@ static inline double gaussQuad2d4calcRho
     double R2, radVal, fR, PsiR0, invPsi;
     int iR;
     //---------------------------------------------------------------------
-    _setRdep4calcRho(pls + mns * gsl_gaussQD_low_pos[ii], &R2, &radVal, &iR, &fR, &PsiR0, &invPsi, NR, hor, invdR, Nz, ver, invdz, Phi, disk, sph, invlogrbin_sph);
+    _setRdep4calcRho(pls + mns * gsl_gaussQD_low_pos[ii], &R2, &radVal, &iR, &fR, &PsiR0, &invPsi, NR, hor, invdR, Nz, ver, invdz, Phi, lev, disk, sph, invlogrbin_sph);
     sum += gsl_gaussQD_low_weight[ii] * radVal * _gaussQuad2d4calcRho(zmin, zmax, Nz, ver, invdz, iR, fR, R2, PsiR0, invPsi, Phi, sph, invlogrbin_sph);
     //---------------------------------------------------------------------
-    _setRdep4calcRho(pls - mns * gsl_gaussQD_low_pos[ii], &R2, &radVal, &iR, &fR, &PsiR0, &invPsi, NR, hor, invdR, Nz, ver, invdz, Phi, disk, sph, invlogrbin_sph);
+    _setRdep4calcRho(pls - mns * gsl_gaussQD_low_pos[ii], &R2, &radVal, &iR, &fR, &PsiR0, &invPsi, NR, hor, invdR, Nz, ver, invdz, Phi, lev, disk, sph, invlogrbin_sph);
     sum += gsl_gaussQD_low_weight[ii] * radVal * _gaussQuad2d4calcRho(zmin, zmax, Nz, ver, invdz, iR, fR, R2, PsiR0, invPsi, Phi, sph, invlogrbin_sph);
     //---------------------------------------------------------------------
   }/* for(int ii = (NINTBIN_LOW >> 1) - 1; ii >= 0; ii--){ */
@@ -1644,12 +1732,51 @@ void getPotDensPair
   //-----------------------------------------------------------------------
   /* set density field and guess potential field */
   //-----------------------------------------------------------------------
-  if( levOld != KICKOFF_POISSON_SOLVER ){
+  if( lev != levOld ){
     //---------------------------------------------------------------------
-    if( lev > levOld )      for(int ii = 0; ii < ndisk; ii++){    fineGraining(*(disk[ii].rho), levOld, lev        );     fineGraining(disk[ii].pot, levOld, lev        );      }
-    if( lev < levOld )      for(int ii = 0; ii < ndisk; ii++){	coarseGraining(*(disk[ii].rho), levOld, lev, RR, hh);	coarseGraining(disk[ii].pot, levOld, lev, RR, hh);      }
+#if 1
+    if( lev > levOld )	    for(int ii = 0; ii < ndisk; ii++){	  fineGraining(*(disk[ii].rho), levOld, lev, &(disk[0].hor[INDEX2D(maxLev, NDISKBIN_HOR, levOld, 0)]), ldexp(disk[ii].hh, -levOld));	}
+#else
+    if( lev > levOld )	    for(int ii = 0; ii < ndisk; ii++){	  fineGraining(*(disk[ii].rho), levOld, lev	   );	}
+#endif
+    if( lev < levOld )	    for(int ii = 0; ii < ndisk; ii++){	coarseGraining(*(disk[ii].rho), levOld, lev, RR, hh);	}
+    //---------------------------------------------------------------------
+#if 0
+    fprintf(stderr, "# lev = %d, levOld = %d\n", lev, levOld);
+    for(int ii = 0; ii < NDISKBIN_HOR; ii++){
+      for(int jj = 0; jj < NDISKBIN_VER; jj++){
+	fprintf(stderr, "%e\t%e", disk[0].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], disk[0].ver[INDEX2D(maxLev, NDISKBIN_VER, lev, jj)]);
+	for(int kk = 0; kk < ndisk; kk++)
+	  fprintf(stderr, "\t%e\t%e", (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)], disk[kk].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)]);
+	fprintf(stderr, "\n");
+      }
+      fprintf(stderr, "\n");
+    }
+    fflush(NULL);
+    exit(0);
+#endif
     //---------------------------------------------------------------------
   }/* if( levOld != KICKOFF_POISSON_SOLVER ){ */
+  //-----------------------------------------------------------------------
+#if 1
+  for(int kk = 0; kk < ndisk; kk++)
+    for(int ii = 0; ii < NDISKBIN_HOR; ii++)
+      if( (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] < 0.0 ){
+	fprintf(stderr, "# ERROR: lev = %d, levOld = %d\n", lev, levOld);
+	int levMax = (lev > levOld) ? (lev + 1) : (levOld + 1);
+	for(int ll = 0; ll < NDISKBIN_HOR; ll++){
+	  fprintf(stderr, "%e\t%e", disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, 0, ll)], (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, 0, ll, 0)]);
+	  for(int mm = 1; mm < levMax; mm++)
+	    fprintf(stderr, "\t%e\t%e", disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, mm, ll)], (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, mm, ll, 0)]);
+	  fprintf(stderr, "\n");
+	}
+	  /* fprintf(stderr, "%e\t%e\t%e\t%e\n", */
+	  /* 	  disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev   , ll)], (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev   , ll, 0)], */
+	  /* 	  disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, levOld, ll)], (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levOld, ll, 0)]); */
+	fflush(NULL);
+	exit(0);
+      }
+#endif
   //-----------------------------------------------------------------------
 
 
@@ -1664,7 +1791,7 @@ void getPotDensPair
     for(int ii = 0; ii < ndisk; ii++)
 #pragma omp parallel for
       for(int jj = 0; jj < NDISKBIN_HOR; jj++)
-	disk[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] = disk[ii].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
+	disk[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] = disk[ii].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)];
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
@@ -1682,14 +1809,32 @@ void getPotDensPair
 	  mass += (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, NDISKBIN_VER - 1)];
 	  mass *= 2.0 * ldexp(disk[kk].hh, -ll) / 3.0;/* 2.0 reflects plane symmetry about the equatorial plane (z = 0) */
 	  //---------------------------------------------------------------
-	  disk[ii].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] -= mass;
+	  disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] -= mass;
 	  //---------------------------------------------------------------
 	}/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
     //---------------------------------------------------------------------
+    /* for(int kk = 0; kk < ndisk; kk++) */
+    /*   for(int ii = 0; ii < NDISKBIN_HOR; ii++) */
+    /* 	if( disk[kk]. */
+    //---------------------------------------------------------------------
   }/* if( lev > 0 ){ */
   //-----------------------------------------------------------------------
+#if 0
+  for(int ii = 0; ii < NDISKBIN_HOR; ii++){
+    fprintf(stderr, "%e", disk[0].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
+    for(int kk = 0; kk < ndisk; kk++)
+      fprintf(stderr, "\t%e", disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
+    fprintf(stderr, "\n");
+  }
+  fprintf(stderr, "\n");
+  fflush(NULL);
+  /* exit(0); */
+#endif
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
-  fprintf(stdout, "# procedure start: grid level = %d, NR = %d, Nz = %d\n", lev, NDISKBIN_HOR, NDISKBIN_VER);
+  fprintf(stdout, "# procedure start: NR = %d, Nz = %d\n", NDISKBIN_HOR, NDISKBIN_VER);
   fflush(stdout);
   int steps = 0;
 #endif//PROGRESS_REPORT_ON
@@ -1736,13 +1881,31 @@ void getPotDensPair
 	//-----------------------------------------------------------------
 	const double Rmin = RR[ii] - 0.5 * hh;
 	const double Rmax = RR[ii] + 0.5 * hh;
-	const double rho0 = (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] / (DBL_MIN + gaussQuad2d4calcRho(Rmin, Rmax, NDISKBIN_HOR, RR, invhh, 0.0, hh, NDISKBIN_VER, zz, invhh, sph, invlogrbin_sph, Phi, disk[kk]));
+	const double rho0 = (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] /
+	  (DBL_MIN + gaussQuad2d4calcRho(Rmin, Rmax, NDISKBIN_HOR, RR, invhh, 0.0, hh, NDISKBIN_VER, zz, invhh, sph, invlogrbin_sph, Phi, lev, disk[kk]));
 	//-----------------------------------------------------------------
 	/* calculate vertical density profile */
 	(*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] = (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)];
 	for(int jj = 1; jj < NDISKBIN_VER; jj++)
-	  (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)] = rho0 * gaussQuad2d4calcRho
-	    (Rmin, Rmax, NDISKBIN_HOR, RR, invhh, zz[jj] - 0.5 * hh, zz[jj] + 0.5 * hh, NDISKBIN_VER, zz, invhh, sph, invlogrbin_sph, Phi, disk[kk]);
+	  (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)] =
+	    rho0 * gaussQuad2d4calcRho(Rmin, Rmax, NDISKBIN_HOR, RR, invhh, zz[jj] - 0.5 * hh, zz[jj] + 0.5 * hh, NDISKBIN_VER, zz, invhh, sph, invlogrbin_sph, Phi, lev, disk[kk]);
+	//-----------------------------------------------------------------
+#if 0
+#pragma omp critical
+	for(int jj = 0; jj < NDISKBIN_VER; jj++)
+	  if( (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)] < 0.0 ){
+	    fprintf(stderr, "# lev = %d, ii = %d, jj = %d, rho = %e\n", lev, ii, jj, (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)]);
+
+	    for(int mm = 0; mm < NDISKBIN_HOR; mm++){
+	      for(int nn = 0; nn < NDISKBIN_VER; nn++)
+		fprintf(stderr, "%e\t%e\t%e\t%e\t%e\n", RR[mm], zz[nn], (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, mm, nn)], disk[kk].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, mm, nn)], (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, mm, nn)]);
+	      fprintf(stderr, "\n");
+	    }
+
+	    fflush(NULL);
+	    exit(0);
+	  }
+#endif
 	//-----------------------------------------------------------------
 	/* calculate column density using Simpson's rule */
 	double Sigma = (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)];
@@ -1753,6 +1916,16 @@ void getPotDensPair
 	//-----------------------------------------------------------------
 	/* calibrate column density */
 	const double Mscale = disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] / (DBL_MIN + Sigma);
+#if 0
+	if( (Mscale == 0.0) && (disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] > NEGLECT_DENSITY_MINIMUM * disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)]) ){
+	  fprintf(stderr, "# Mscale = %e, Sigma = %e, Sigma[%d][%d] = %e\n", Mscale, Sigma, lev, ii, disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
+	  for(int jj = 0; jj < NDISKBIN_VER; jj++)
+	    fprintf(stderr, "%e\t%e\t%e\n", disk[kk].ver[INDEX2D(maxLev, NDISKBIN_VER, lev, jj)], (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)], disk[kk].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)]);
+	  fprintf(stderr, "%e\t%e\t%e\n", disk[kk].ver[INDEX2D(maxLev, NDISKBIN_VER, lev, NDISKBIN_VER - 1)] + hh, 0.0, Phi_Nz[ii]);
+	  fflush(NULL);
+	  exit(0);
+	}
+#endif
 	for(int jj = 0; jj < NDISKBIN_VER; jj++)
 	  (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)] *= Mscale;
 	//-----------------------------------------------------------------
@@ -1843,12 +2016,26 @@ void getPotDensPair
     for(int ii = 0; ii < ndisk; ii++)
 #pragma omp parallel for
       for(int jj = 0; jj < NDISKBIN_HOR; jj++)
-	disk[ii].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] = disk[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
+	disk[ii].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] = disk[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)];
   //-----------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
   fprintf(stdout, "# procedure finish after %d iteration(s): NR = %d, Nz = %d\n#\n#\n", 1 + steps, NDISKBIN_HOR, NDISKBIN_VER);
   fflush(stdout);
 #endif//PROGRESS_REPORT_ON
+  //-----------------------------------------------------------------------
+#if 0
+  for(int ii = 0; ii < NDISKBIN_HOR; ii++){
+    for(int jj = 0; jj < NDISKBIN_VER; jj++){
+      fprintf(stderr, "%e\t%e", disk[0].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], disk[0].ver[INDEX2D(maxLev, NDISKBIN_VER, lev, jj)]);
+      for(int kk = 0; kk < ndisk; kk++)
+	fprintf(stderr, "\t%e\t%e", (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)], disk[kk].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)]);
+      fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");
+  }
+  fflush(NULL);
+  exit(0);
+#endif
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -1883,7 +2070,6 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
   /* memory for the iterative solver of the Poisson equation */
   //-----------------------------------------------------------------------
   /* sparse matrix in CRS format */
-
   crs mat, ilu;
   static double mat_val[NNZ_CG], ilu_val[NNZ_CG];
   static    int mat_col[NNZ_CG], ilu_col[NNZ_CG], mat_row[NROW_CG + 1], ilu_row[NROW_CG + 1];
@@ -1922,6 +2108,12 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
   pre.ilu = ilu;  pre.Kri = Kri;  pre.Kpi = Kpi;  pre.Kti = Kti;
   //-----------------------------------------------------------------------
 
+  //-----------------------------------------------------------------------
+  /* set column density profile */
+  //-----------------------------------------------------------------------
+  /* static inline void setColumnDensityProfile(const int ndisk, const int maxLev, disk_data * restrict disk, profile * restrict sph, const double invlogrbin_sph) */
+  setColumnDensityProfile(ndisk, maxLev, disk, disk[0].prf, disk[0].invlogrbin);
+  //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   /* calculate GD formalism */
@@ -1976,12 +2168,17 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
   //-----------------------------------------------------------------------
   /* iterative procedure adopting Full Multigrid Algorithm (gamma = 2) */
   //-----------------------------------------------------------------------
-  int old = 0;
   int lev = 0;
+  int old = lev;
   int inc = 1;
   int top = 1;
   int num = 0;
   while( true ){
+    //---------------------------------------------------------------------
+#ifdef  PROGRESS_REPORT_ON
+    fprintf(stdout, "# grid level: lev = %d, oldLev = %d\n", lev, old);
+    fflush(stdout);
+#endif//PROGRESS_REPORT_ON
     //---------------------------------------------------------------------
     getPotDensPair(ndisk, lev, old, disk, Phi_NR, Phi_Nz, smat, pre
 #ifdef  USE_GD_FORM_POTENTIAL
@@ -2169,6 +2366,23 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
 	  (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)] *= disk[kk].sigmaz[ii >> ll];
     //---------------------------------------------------------------------
   }/* for(int kk = 0; kk < ndisk; kk++){ */
+  //-----------------------------------------------------------------------
+#if 1
+  for(int ll = 0; ll < maxLev; ll++)
+    for(int ii = 0; ii < NDISKBIN_HOR; ii++)
+      for(int jj = 0; jj < NDISKBIN_VER; jj++){
+	fprintf(stderr, "%e\t%e", disk[0].hor[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)], disk[0].ver[INDEX2D(maxLev, NDISKBIN_VER, ll, jj)]);
+	for(int kk = 0; kk < ndisk; kk++)
+	  fprintf(stderr, "\t%e\t%e", (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)], disk[kk].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)]);
+	fprintf(stderr, "\n");
+      }
+
+
+
+  fprintf(stdout, "# makeDiskPotentialTable finish\n");
+  fflush(NULL);
+  exit(0);
+#endif
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------

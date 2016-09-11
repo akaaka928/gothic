@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/29(Mon) 16:32:28
+                  last updated on 2016/09/08(Thu) 17:16:43
  *                                                                       *
  *    Header File for BLAS (Basic Linear Algebra Subprograms)            *
  *                                                                       *
@@ -15,9 +15,9 @@
 
 
 //-------------------------------------------------------------------------
-#ifndef PROGRESS_REPORT_ON
-#define PROGRESS_REPORT_ON
-#endif//PROGRESS_REPORT_ON
+#ifndef BLAS_PROGRESS_REPORT_ON
+#define BLAS_PROGRESS_REPORT_ON (10)
+#endif//BLAS_PROGRESS_REPORT_ON
 //-------------------------------------------------------------------------
 
 
