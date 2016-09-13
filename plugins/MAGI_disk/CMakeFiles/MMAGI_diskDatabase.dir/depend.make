@@ -20,8 +20,8 @@ CMakeFiles/MMAGI_diskDatabase.dir/MAGI_diskCommonPluginInfo.C.o: /opt/VisIt/2.10
 CMakeFiles/MMAGI_diskDatabase.dir/MAGI_diskCommonPluginInfo.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Database/database_exports.h
 CMakeFiles/MMAGI_diskDatabase.dir/MAGI_diskCommonPluginInfo.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Formats/avtFileFormat.h
 CMakeFiles/MMAGI_diskDatabase.dir/MAGI_diskCommonPluginInfo.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Formats/avtFileFormatInterface.h
-CMakeFiles/MMAGI_diskDatabase.dir/MAGI_diskCommonPluginInfo.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Formats/avtSTSDFileFormat.h
-CMakeFiles/MMAGI_diskDatabase.dir/MAGI_diskCommonPluginInfo.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Formats/avtSTSDFileFormatInterface.h
+CMakeFiles/MMAGI_diskDatabase.dir/MAGI_diskCommonPluginInfo.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Formats/avtSTMDFileFormat.h
+CMakeFiles/MMAGI_diskDatabase.dir/MAGI_diskCommonPluginInfo.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Formats/avtSTMDFileFormatInterface.h
 CMakeFiles/MMAGI_diskDatabase.dir/MAGI_diskCommonPluginInfo.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Math/avtMatrix.h
 CMakeFiles/MMAGI_diskDatabase.dir/MAGI_diskCommonPluginInfo.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Math/avtVector.h
 CMakeFiles/MMAGI_diskDatabase.dir/MAGI_diskCommonPluginInfo.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Math/math_exports.h
@@ -166,8 +166,13 @@ CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/DBAtts/MetaData/dbatts_exports.h
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Database/database_exports.h
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Formats/avtFileFormat.h
-CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Formats/avtSTSDFileFormat.h
+CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Formats/avtSTMDFileFormat.h
+CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Ghost/avtDomainBoundaries.h
+CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Ghost/avtDomainNesting.h
+CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Ghost/avtStructuredDomainBoundaries.h
+CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Ghost/avtStructuredDomainNesting.h
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Pipeline/Data/avtDataSelection.h
+CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Pipeline/Data/avtGhostData.h
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Pipeline/Data/pipeline_exports.h
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/common/Exceptions/Database/DatabaseException.h
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/common/Exceptions/Database/InvalidVariableException.h

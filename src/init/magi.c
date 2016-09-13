@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/09/06(Tue) 16:06:36
+                  last updated on 2016/09/13(Tue) 11:36:50
  *                                                                       *
  *    MAGI: "MAny-component Galactic Initial-conditions" generator       *
  *    Making Initial Condition Code of N-body Simulation                 *
@@ -389,7 +389,7 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 //-------------------------------------------------------------------------
 void outputFundamentalInformation
 (const int unit, const int kind, const int skind, profile_cfg *cfg, profile **prf, dist_func **df, const ulong Ntot, const real eps, const double snapshotInterval, const double ft, char file[]);
-void writeDiskData(char *file, const int ndisk, disk_data *disk);
+void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *disk);
 //-------------------------------------------------------------------------
 int main(int argc, char **argv)
 {
@@ -577,10 +577,17 @@ int main(int argc, char **argv)
     /* commit fundamental information */
     //---------------------------------------------------------------------
     for(int ii = 0; ii < ndisk; ii++){
+      //-------------------------------------------------------------------
       /* disk_info[ii].cfg        = &cfg[skind + ii]; */
       disk_info[ii].prf        =  prf[skind + ii];
       disk_info[ii].   logrbin =    logrbin;
       disk_info[ii].invlogrbin = invlogrbin;
+      //-------------------------------------------------------------------
+      /* initialize for Toomre's Q-value analysis */
+      disk_info[ii].cfg->vcirc_max   = -1.0;
+      disk_info[ii].cfg->vcirc_max_R = -1.0;
+      disk_info[ii].cfg->Qmin = DBL_MAX;
+      //-------------------------------------------------------------------
     }/* for(int ii = 0; ii < ndisk; ii++){ */
     //---------------------------------------------------------------------
   }/* if( addDisk ){ */
@@ -646,6 +653,10 @@ int main(int argc, char **argv)
     //---------------------------------------------------------------------
     /* set disk_radius, disk_height, disk_pot */
     makeDiskPotentialTable(ndisk, maxLev, disk_info);
+#if 1
+    writeDiskData(file, ndisk, maxLev, disk_info);
+    exit(0);
+#endif
     //---------------------------------------------------------------------
     /* set profile of spherical averaged density, mass and potential */
     integrateSphericalDensityProfile(ndisk, maxLev, disk_info);
@@ -693,7 +704,7 @@ int main(int argc, char **argv)
     }/* for(int ii = skind; ii < kind; ii++){ */
     //---------------------------------------------------------------------
     /* output fundamental quantities of the disk component */
-    writeDiskData(file, ndisk, disk_info);
+    writeDiskData(file, ndisk, maxLev, disk_info);
     //---------------------------------------------------------------------
   }/* if( addDisk ){ */
   //-----------------------------------------------------------------------
@@ -1545,11 +1556,13 @@ void outputFundamentalInformation
 
 
 //-------------------------------------------------------------------------
+/* Sigma を与える際に，バルジ成分などの影響を取り込むようにする． */
+//-------------------------------------------------------------------------
 /* real * restrict rhoFrac is an input array */
 /* real * restrict _????? is output array */
 //-------------------------------------------------------------------------
 static void evaluateDiskProperties
-(char *file, disk_data *disk_info, const int diskID, real * restrict rhoFrac,
+(disk_data *disk_info, const int diskID, const int lev,
  real * restrict _vcirc, real * restrict _sigmap, real * restrict _sigmaR, real * restrict _kappa, real * restrict _Omega, real * restrict _toomre, real * restrict _lambda)
 {
   //-----------------------------------------------------------------------
@@ -1560,9 +1573,9 @@ static void evaluateDiskProperties
 #ifndef USE_ORIGINAL_VDISP_ESTIMATOR
   const double invRd = 1.0 / disk_info[diskID].cfg->rs;
 #endif//USE_ORIGINAL_VDISP_ESTIMATOR
-  disk_info[diskID].cfg->vcirc_max   = -1.0;
-  disk_info[diskID].cfg->vcirc_max_R = -1.0;
-  disk_info[diskID].cfg->Qmin = DBL_MAX;
+  /* disk_info[diskID].cfg->vcirc_max   = -1.0; */
+  /* disk_info[diskID].cfg->vcirc_max_R = -1.0; */
+  /* disk_info[diskID].cfg->Qmin = DBL_MAX; */
   bool passed = false;
   //-----------------------------------------------------------------------
 
@@ -1571,41 +1584,41 @@ static void evaluateDiskProperties
     //---------------------------------------------------------------------
     /* evaluate epicyclic quantities and circular speed */
 #ifndef USE_POTENTIAL_SCALING_SCHEME
-    const double Omega = sqrt(disk_info[diskID]. dPhidR [INDEX2D(NDISKBIN_RAD, NDISKBIN_VER, ii, 0)] / disk_info[diskID].hor[ii]);
-    const double kappa = sqrt(disk_info[diskID].d2PhidR2[INDEX2D(NDISKBIN_RAD, NDISKBIN_VER, ii, 0)] + 3.0 * Omega * Omega);
+    const double Omega = sqrt(disk_info[diskID]. dPhidR [INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] / disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
+    const double kappa = sqrt(disk_info[diskID].d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] + 3.0 * Omega * Omega);
 #else///USE_POTENTIAL_SCALING_SCHEME
-    const double Omega = sqrt(disk_info[diskID]. dPhidR [ii] / disk_info[diskID].hor[ii]);
-    const double kappa = sqrt(disk_info[diskID].d2PhidR2[ii] + 3.0 * Omega * Omega);
+    const double Omega = sqrt(disk_info[diskID]. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] / disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
+    const double kappa = sqrt(disk_info[diskID].d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + 3.0 * Omega * Omega);
 #endif//USE_POTENTIAL_SCALING_SCHEME
-    const double vcirc = disk_info[diskID].hor[ii] * Omega;
+    const double vcirc = disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] * Omega;
     //---------------------------------------------------------------------
     /* evaluate Toomre's Q-value */
 #ifdef  USE_ORIGINAL_VDISP_ESTIMATOR
-    const double sigmap = DISK_PERP_VDISP(disk_info[diskID].sigmaz[ii], vcirc, disk_info[diskID].cfg->vdisp_frac);
-    /* const double gam2inv = 0.25 * (3.0 + disk_info[diskID].d2PhidR2[ii] / (1.0e-100 + Omega * Omega)); */
-    /* const double sigmaR = sigmap / sqrt(gam2inv); */
+    const double sigmap = DISK_PERP_VDISP(disk_info[diskID].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], vcirc, disk_info[diskID].cfg->vdisp_frac);
     const double sigmaR = sigmap * 2.0 * Omega / (DBL_MIN + kappa);
 #else///USE_ORIGINAL_VDISP_ESTIMATOR
-    const double sigmaR = DISK_RADIAL_VDISP(disk_info[diskID].cfg->vdispR0, disk_info[diskID].hor[ii], invRd);
+    const double sigmaR = DISK_RADIAL_VDISP(disk_info[diskID].cfg->vdispR0, disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], invRd);
 #endif//USE_ORIGINAL_VDISP_ESTIMATOR
-    const double toomre = sigmaR * kappa / (3.36 * newton * disk_info[diskID].Sigma[ii]);
-    const double lambda = 4.0 * M_PI * M_PI * newton * disk_info[diskID].Sigma[ii] / (DBL_MIN + kappa * kappa);
+    const double Sigma  = disk_info[diskID].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
+    const double toomre = sigmaR * kappa / (3.36 * newton * Sigma);
+    const double lambda = 4.0 * M_PI * M_PI * newton * Sigma / (DBL_MIN + kappa * kappa);
     //---------------------------------------------------------------------
     /* find the maximum circular speed */
     if( vcirc > disk_info[diskID].cfg->vcirc_max ){
       disk_info[diskID].cfg->vcirc_max   = vcirc;
-      disk_info[diskID].cfg->vcirc_max_R = disk_info[diskID].hor[ii];
+      disk_info[diskID].cfg->vcirc_max_R = disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
     }/* if( vcirc > disk_info[diskID].cfg->vcirc_max ){ */
     //---------------------------------------------------------------------
     /* find the minimum Toomre's Q-value */
-    if( (disk_info[diskID].Sigma[ii] > 1.0e-4 * disk_info[diskID].Sigma[0]) && (toomre > DBL_EPSILON) && (toomre < disk_info[diskID].cfg->Qmin) )
+    /* if( (disk_info[diskID].Sigma[ii] > 1.0e-4 * disk_info[diskID].Sigma[0]) && (toomre > DBL_EPSILON) && (toomre < disk_info[diskID].cfg->Qmin) ) */
+    if( toomre < disk_info[diskID].cfg->Qmin )
       disk_info[diskID].cfg->Qmin = toomre;
     //---------------------------------------------------------------------
     /* find the circular speed and Toomre's Q-value at the scale radius */
     if( !passed ){
       disk_info[diskID].cfg->vcirc_Rd = vcirc;
       disk_info[diskID].cfg->toomre   = toomre;
-      if( disk_info[diskID].hor[ii] > disk_info[diskID].cfg->rs )
+      if( disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] > disk_info[diskID].cfg->rs )
 	passed = true;
     }/* if( !passed ){ */
     //---------------------------------------------------------------------
@@ -1624,24 +1637,24 @@ static void evaluateDiskProperties
   }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
   //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* output profile data in ASCII */
-  //-----------------------------------------------------------------------
-  FILE *fp;
-  char filename[256];
-  sprintf(filename, "%s/%s.diskhor.%d.txt", DATAFOLDER, file, diskID);
-  fp = fopen(filename, "w");
-  if( fp == NULL ){
-    __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);
-  }
-  fprintf(fp, "#R (%s)\tSigma(R) (%s)\tfrac(R)\tv_c(R) (%s)\tsigma_p(R) (%s)\tsigma_R(R) (%s)\tsigma_z(R) (%s)\tkappa(R) (1 / %s)\tOmega(R) (1/%s)\tToomre-Q(R)\tlambda_crit(R) (%s)\n",
-	  length_astro_unit_name, col_density_astro_unit_name, velocity_astro_unit_name, velocity_astro_unit_name, velocity_astro_unit_name, velocity_astro_unit_name, time_astro_unit_name, time_astro_unit_name, length_astro_unit_name);
-  //-----------------------------------------------------------------------
-  for(int ii = 0; ii < NDISKBIN_HOR; ii++)
-    fprintf(fp, "%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n", disk_info[diskID].hor[ii] * length2astro, disk_info[diskID].Sigma[ii] * col_density2astro, rhoFrac[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, 0)], _vcirc[ii], _sigmap[ii], _sigmaR[ii], disk_info[diskID].sigmaz[ii] * velocity2astro, _kappa[ii], _Omega[ii], _toomre[ii], _lambda[ii]);
-  //-----------------------------------------------------------------------
-  fclose(fp);
-  //-----------------------------------------------------------------------
+  /* //----------------------------------------------------------------------- */
+  /* /\* output profile data in ASCII *\/ */
+  /* //----------------------------------------------------------------------- */
+  /* FILE *fp; */
+  /* char filename[256]; */
+  /* sprintf(filename, "%s/%s.diskhor.%d.txt", DATAFOLDER, file, diskID); */
+  /* fp = fopen(filename, "w"); */
+  /* if( fp == NULL ){ */
+  /*   __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename); */
+  /* } */
+  /* fprintf(fp, "#R (%s)\tSigma(R) (%s)\tfrac(R)\tv_c(R) (%s)\tsigma_p(R) (%s)\tsigma_R(R) (%s)\tsigma_z(R) (%s)\tkappa(R) (1 / %s)\tOmega(R) (1/%s)\tToomre-Q(R)\tlambda_crit(R) (%s)\n", */
+  /* 	  length_astro_unit_name, col_density_astro_unit_name, velocity_astro_unit_name, velocity_astro_unit_name, velocity_astro_unit_name, velocity_astro_unit_name, time_astro_unit_name, time_astro_unit_name, length_astro_unit_name); */
+  /* //----------------------------------------------------------------------- */
+  /* for(int ii = 0; ii < NDISKBIN_HOR; ii++) */
+  /*   fprintf(fp, "%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n", disk_info[diskID].hor[ii] * length2astro, disk_info[diskID].Sigma[ii] * col_density2astro, rhoFrac[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, 0)], _vcirc[ii], _sigmap[ii], _sigmaR[ii], disk_info[diskID].sigmaz[ii] * velocity2astro, _kappa[ii], _Omega[ii], _toomre[ii], _lambda[ii]); */
+  /* //----------------------------------------------------------------------- */
+  /* fclose(fp); */
+  /* //----------------------------------------------------------------------- */
 
 
   //-----------------------------------------------------------------------
@@ -1649,7 +1662,7 @@ static void evaluateDiskProperties
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-void writeDiskData(char *file, const int ndisk, disk_data *disk)
+void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *disk)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -1692,13 +1705,14 @@ void writeDiskData(char *file, const int ndisk, disk_data *disk)
   if( rhoFrac == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rhoFrac");  }
   //-----------------------------------------------------------------------
   if( ndisk > 1 )
+    for(int lev = 0; lev < maxLev; lev++)
 #pragma omp parallel for
-    for(int ii = 0; ii < NDISKBIN_HOR * NDISKBIN_VER; ii++){
-      disk[0].rhoTot[ii] = (*disk[0].rho)[ii];
-      for(int jj = 1; jj < ndisk; jj++)
-	disk[0].rhoTot[ii] += (*disk[jj].rho)[ii];
-      disk[0].rhoTot[ii] = 1.0 / (DBL_MIN + disk[0].rhoTot[ii]);
-    }/* for(int ii = 0; ii < NDISKBIN_HOR * NDISKBIN_VER; ii++){ */
+      for(int ii = 0; ii < NDISKBIN_HOR * NDISKBIN_VER; ii++){
+	disk[0].rhoTot[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, ii)] = (*disk[0].rho)[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, ii)];
+	for(int jj = 1; jj < ndisk; jj++)
+	  disk[0].rhoTot[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, ii)] += (*disk[jj].rho)[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, ii)];
+	disk[0].rhoTot[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, ii)] = 1.0 / (DBL_MIN + disk[0].rhoTot[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, ii)]);
+      }/* for(int ii = 0; ii < NDISKBIN_HOR * NDISKBIN_VER; ii++){ */
   //-----------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
   //-----------------------------------------------------------------------
@@ -1716,8 +1730,8 @@ void writeDiskData(char *file, const int ndisk, disk_data *disk)
   /* compression using szip */
   uint szip_options_mask = H5_SZIP_NN_OPTION_MASK;
   uint szip_pixels_per_block = 8;
+  hsize_t cdims[2];
   /* hsize_t cdims[2] = {128, 128 * szip_pixels_per_block}; */
-  hsize_t cdims[2] = {128, 128};
 #else///USE_SZIP_COMPRESSION
   property = H5P_DEFAULT;
 #endif//USE_SZIP_COMPRESSION
@@ -1731,158 +1745,212 @@ void writeDiskData(char *file, const int ndisk, disk_data *disk)
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
-    /* write two-dimensional data */
-    //---------------------------------------------------------------------
-    if( ndisk > 1 )
-#pragma omp parallel for
-      for(int jj = 0; jj < NDISKBIN_HOR * NDISKBIN_VER; jj++)
-	rhoFrac[jj] = (real)((*disk[ii].rho)[jj] * disk[ii].rhoTot[jj]);
-#pragma omp parallel for
-    for(int jj = 0; jj < NDISKBIN_HOR * NDISKBIN_VER; jj++){
-      tmp_rho[jj] = (real)((*disk[ii].rho)[jj] * density2astro);
-      tmp_Phi[jj] = (real)(  disk[ii].pot [jj] * senergy2astro);
-    }/* for(int jj = 0; jj < NDISKBIN_HOR * NDISKBIN_VER; jj++){ */
-    //---------------------------------------------------------------------
-    evaluateDiskProperties(file, disk, ii, rhoFrac, _vcirc, _sigmap, _sigmaR, _kappa, _Omega, _toomre, _lambda);
-    //---------------------------------------------------------------------
-    hsize_t dims[2] = {NDISKBIN_HOR, NDISKBIN_VER};
-    dataspace = H5Screate_simple(2, dims, NULL);
-#ifdef  USE_SZIP_COMPRESSION
-    property = H5Pcreate(H5P_DATASET_CREATE);
-    chkHDF5err(H5Pset_chunk(property, 2, cdims));
-    chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
-#endif//USE_SZIP_COMPRESSION
-    /* write density */
-    dataset = H5Dcreate(group, "rho", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_rho));
-    chkHDF5err(H5Dclose(dataset));
-    /* write potential */
-    dataset = H5Dcreate(group, "Phi", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_Phi));
-    chkHDF5err(H5Dclose(dataset));
-    /* write fraction */
-    if( ndisk > 1 ){
-      dataset = H5Dcreate(group, "fraction", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, rhoFrac));
-      chkHDF5err(H5Dclose(dataset));
-    }/* if( ndisk > 1 ){ */
-#ifdef  USE_SZIP_COMPRESSION
-    chkHDF5err(H5Pclose(property));
-#endif//USE_SZIP_COMPRESSION
-    /* close the dataspace */
-    chkHDF5err(H5Sclose(dataspace));
-    //---------------------------------------------------------------------
+    for(int lev = 0; lev < maxLev; lev++){
+      //-------------------------------------------------------------------
+      char subgrp[16];      sprintf(subgrp, "patch%d", lev);
+      hid_t patch = H5Gcreate(group, subgrp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+      //-------------------------------------------------------------------
 
-    //---------------------------------------------------------------------
-    /* write one-dimensional data */
-    //---------------------------------------------------------------------
-    for(int jj = 0; jj < NDISKBIN_HOR; jj++){
-      tmp_hor[jj] = (real)(disk[ii].hor   [jj] *      length2astro);
-      tmp_sig[jj] = (real)(disk[ii].sigmaz[jj] *    velocity2astro);
-      tmp_Sig[jj] = (real)(disk[ii].Sigma [jj] * col_density2astro);
+      //-------------------------------------------------------------------
+      /* write two-dimensional data */
+      //-------------------------------------------------------------------
+      if( ndisk > 1 )
+#pragma omp parallel for
+	for(int jj = 0; jj < NDISKBIN_HOR * NDISKBIN_VER; jj++)
+	  rhoFrac[jj] = (real)((*disk[ii].rho)[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * disk[ii].rhoTot[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)]);
+#pragma omp parallel for
+      for(int jj = 0; jj < NDISKBIN_HOR * NDISKBIN_VER; jj++){
+	tmp_rho[jj] = (real)((*disk[ii].rho)[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * density2astro);
+	tmp_Phi[jj] = (real)(  disk[ii].pot [INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * senergy2astro);
+      }/* for(int jj = 0; jj < NDISKBIN_HOR * NDISKBIN_VER; jj++){ */
+      //-------------------------------------------------------------------
+      evaluateDiskProperties(disk, ii, lev, _vcirc, _sigmap, _sigmaR, _kappa, _Omega, _toomre, _lambda);
+      //-------------------------------------------------------------------
+      hsize_t dims[2] = {NDISKBIN_HOR, NDISKBIN_VER};
+      dataspace = H5Screate_simple(2, dims, NULL);
+#ifdef  USE_SZIP_COMPRESSION
+      property = H5Pcreate(H5P_DATASET_CREATE);
+      cdims[0] = (NDISKBIN_HOR < 128) ? (NDISKBIN_HOR) : (128);
+      cdims[1] = (NDISKBIN_VER < (128 * szip_pixels_per_block) ) ? (NDISKBIN_VER) : (128 * szip_pixels_per_block);
+      chkHDF5err(H5Pset_chunk(property, 2, cdims));
+      chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+#endif//USE_SZIP_COMPRESSION
+      /* write density */
+      dataset = H5Dcreate(patch, "rho", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_rho));
+      chkHDF5err(H5Dclose(dataset));
+      /* write potential */
+      dataset = H5Dcreate(patch, "Phi", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_Phi));
+      chkHDF5err(H5Dclose(dataset));
+      /* write fraction */
+      if( ndisk > 1 ){
+	dataset = H5Dcreate(patch, "fraction", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+	chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, rhoFrac));
+	chkHDF5err(H5Dclose(dataset));
+      }/* if( ndisk > 1 ){ */
+#ifdef  USE_SZIP_COMPRESSION
+      chkHDF5err(H5Pclose(property));
+#endif//USE_SZIP_COMPRESSION
+      /* close the dataspace */
+      chkHDF5err(H5Sclose(dataspace));
+      //-------------------------------------------------------------------
+
+      //-------------------------------------------------------------------
+      /* write one-dimensional data */
+      //-------------------------------------------------------------------
+      double width[2];
+      width[0] = ldexp(disk[ii].hh, -lev) * length2astro;
+      width[1] = ldexp(disk[ii].hh, -lev) * length2astro;
+      const double dR = 0.5 * width[0];
+      const double dz = 0.5 * width[1];
+      //-------------------------------------------------------------------
+      for(int jj = 0; jj < NDISKBIN_HOR; jj++){
+	/* tmp_hor[jj] = (real)(disk[ii].hor   [INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] *      length2astro); */
+	tmp_hor[jj] = (real)((disk[ii].hor   [INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] - dR) *      length2astro);
+	tmp_sig[jj] = (real)(disk[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] *    velocity2astro);
+	tmp_Sig[jj] = (real)(disk[ii].Sigma [INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] * col_density2astro);
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-      tmp__zd[jj] = (real)(disk[ii].zd    [jj] *      length2astro);
+	tmp__zd[jj] = (real)(disk[ii].zd    [INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] *      length2astro);
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
-    }/* for(int jj = 0; jj < NDISKBIN_HOR; jj++){ */
-    for(int jj = 0; jj < NDISKBIN_VER; jj++)
-      tmp_ver[jj] = (real)(disk[ii].ver   [jj] *      length2astro);
-    //---------------------------------------------------------------------
-    /* horizontal variables */
-    dataspace = H5Screate_simple(1, &dims[0], NULL);
+      }/* for(int jj = 0; jj < NDISKBIN_HOR; jj++){ */
+      for(int jj = 0; jj < NDISKBIN_VER; jj++)
+	tmp_ver[jj] = (real)((disk[ii].ver   [INDEX2D(maxLev, NDISKBIN_VER, lev, jj)] - dz) *      length2astro);
+	/* tmp_ver[jj] = (real)(disk[ii].ver   [INDEX2D(maxLev, NDISKBIN_VER, lev, jj)] *      length2astro); */
+      //-------------------------------------------------------------------
+      /* horizontal variables */
+      dataspace = H5Screate_simple(1, &dims[0], NULL);
 #ifdef  USE_SZIP_COMPRESSION
-    property = H5Pcreate(H5P_DATASET_CREATE);
-    chkHDF5err(H5Pset_chunk(property, 1, &cdims[1]));
-    chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+      property = H5Pcreate(H5P_DATASET_CREATE);
+      cdims[0] = (NDISKBIN_HOR < (128 * szip_pixels_per_block) ) ? (NDISKBIN_HOR) : (128 * szip_pixels_per_block);
+      chkHDF5err(H5Pset_chunk(property, 1, &cdims[0]));
+      chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
 #endif//USE_SZIP_COMPRESSION
-    /* write horizontal position */
-    dataset = H5Dcreate(group, "radius", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_hor));
-    chkHDF5err(H5Dclose(dataset));
-    /* write velocity dispersion in z-direction */
-    dataset = H5Dcreate(group, "sigmaz", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_sig));
-    chkHDF5err(H5Dclose(dataset));
-    /* write column density */
-    dataset = H5Dcreate(group, "Sigma", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_Sig));
-    chkHDF5err(H5Dclose(dataset));
+      /* write horizontal position */
+      dataset = H5Dcreate(patch, "radius", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_hor));
+      chkHDF5err(H5Dclose(dataset));
+      /* write velocity dispersion in z-direction */
+      dataset = H5Dcreate(patch, "sigmaz", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_sig));
+      chkHDF5err(H5Dclose(dataset));
+      /* write column density */
+      dataset = H5Dcreate(patch, "Sigma", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_Sig));
+      chkHDF5err(H5Dclose(dataset));
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-    /* write scale height */
-    dataset = H5Dcreate(group, "zd", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp__zd));
-    chkHDF5err(H5Dclose(dataset));
+      /* write scale height */
+      dataset = H5Dcreate(patch, "zd", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp__zd));
+      chkHDF5err(H5Dclose(dataset));
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
-    /* write velocity dispersion in R-direction */
-    dataset = H5Dcreate(group, "sigmaR", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _sigmaR));
-    chkHDF5err(H5Dclose(dataset));
-    /* write velocity dispersion in tangential direction */
-    dataset = H5Dcreate(group, "sigmap", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _sigmap));
-    chkHDF5err(H5Dclose(dataset));
-    /* write circular velocity */
-    dataset = H5Dcreate(group, "vcirc", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _vcirc));
-    chkHDF5err(H5Dclose(dataset));
-    /* write kappa */
-    dataset = H5Dcreate(group, "kappa", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _kappa));
-    chkHDF5err(H5Dclose(dataset));
-    /* write Omega */
-    dataset = H5Dcreate(group, "Omega", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _Omega));
-    chkHDF5err(H5Dclose(dataset));
-    /* write lambda_critical */
-    dataset = H5Dcreate(group, "lambda", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _lambda));
-    chkHDF5err(H5Dclose(dataset));
-    /* write Toomre's Q-value */
-    dataset = H5Dcreate(group, "Toomre's Q", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _toomre));
-    chkHDF5err(H5Dclose(dataset));
+      /* write velocity dispersion in R-direction */
+      dataset = H5Dcreate(patch, "sigmaR", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _sigmaR));
+      chkHDF5err(H5Dclose(dataset));
+      /* write velocity dispersion in tangential direction */
+      dataset = H5Dcreate(patch, "sigmap", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _sigmap));
+      chkHDF5err(H5Dclose(dataset));
+      /* write circular velocity */
+      dataset = H5Dcreate(patch, "vcirc", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _vcirc));
+      chkHDF5err(H5Dclose(dataset));
+      /* write kappa */
+      dataset = H5Dcreate(patch, "kappa", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _kappa));
+      chkHDF5err(H5Dclose(dataset));
+      /* write Omega */
+      dataset = H5Dcreate(patch, "Omega", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _Omega));
+      chkHDF5err(H5Dclose(dataset));
+      /* write lambda_critical */
+      dataset = H5Dcreate(patch, "lambda", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _lambda));
+      chkHDF5err(H5Dclose(dataset));
+      /* write Toomre's Q-value */
+      dataset = H5Dcreate(patch, "Toomre's Q", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _toomre));
+      chkHDF5err(H5Dclose(dataset));
 #ifdef  USE_SZIP_COMPRESSION
-    chkHDF5err(H5Pclose(property));
+      chkHDF5err(H5Pclose(property));
 #endif//USE_SZIP_COMPRESSION
-    /* close the dataspace */
-    chkHDF5err(H5Sclose(dataspace));
-    //---------------------------------------------------------------------
-    /* vertical variables */
-    dataspace = H5Screate_simple(1, &dims[1], NULL);
+      /* close the dataspace */
+      chkHDF5err(H5Sclose(dataspace));
+      //-------------------------------------------------------------------
+      /* vertical variables */
+      dataspace = H5Screate_simple(1, &dims[1], NULL);
 #ifdef  USE_SZIP_COMPRESSION
-    property = H5Pcreate(H5P_DATASET_CREATE);
-    chkHDF5err(H5Pset_chunk(property, 1, &cdims[1]));
-    chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+      property = H5Pcreate(H5P_DATASET_CREATE);
+      chkHDF5err(H5Pset_chunk(property, 1, &cdims[1]));
+      chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
 #endif//USE_SZIP_COMPRESSION
-    /* write vertical position */
-    dataset = H5Dcreate(group, "height", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_ver));
-    chkHDF5err(H5Dclose(dataset));
+      /* write vertical position */
+      dataset = H5Dcreate(patch, "height", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_ver));
+      chkHDF5err(H5Dclose(dataset));
 #ifdef  USE_SZIP_COMPRESSION
-    chkHDF5err(H5Pclose(property));
+      chkHDF5err(H5Pclose(property));
 #endif//USE_SZIP_COMPRESSION
-    /* close the dataspace */
-    chkHDF5err(H5Sclose(dataspace));
+      /* close the dataspace */
+      chkHDF5err(H5Sclose(dataspace));
+      //-------------------------------------------------------------------
+
+      //-------------------------------------------------------------------
+      /* write attribute data */
+      //-------------------------------------------------------------------
+      /* create the data space for the attribute */
+      hsize_t attr_dims = 2;
+      dataspace = H5Screate_simple(1, &attr_dims, NULL);
+      hid_t attribute;
+      //-------------------------------------------------------------------
+      /* write # of arrays */
+      int narray[2] = {NDISKBIN_HOR, NDISKBIN_VER};
+      attribute = H5Acreate(patch, "num", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, narray));
+      chkHDF5err(H5Aclose(attribute));
+      /* write the head index which corresponding to the regular grid having the same resolution with this level (i.e., (NDISKBIN_HOR << lev) * (NDISKBIN_VER << lev) grid points) */
+      narray[0] = 0;
+      narray[1] = 0;
+      attribute = H5Acreate(patch, "head", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, narray));
+      chkHDF5err(H5Aclose(attribute));
+      /* write mesh sizes */
+      attribute = H5Acreate(patch, "width", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, width));
+      chkHDF5err(H5Aclose(attribute));
+      //-------------------------------------------------------------------
+      chkHDF5err(H5Sclose(dataspace));
+      attr_dims = 1;
+      dataspace = H5Screate_simple(1, &attr_dims, NULL);
+      //-------------------------------------------------------------------
+      /* Nested level */
+      attribute = H5Acreate(patch, "level", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &lev));
+      chkHDF5err(H5Aclose(attribute));
+      /* Parent patch */
+      int parent = (lev > 0) ? (lev - 1) : 0;
+      attribute = H5Acreate(patch, "parent", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &parent));
+      chkHDF5err(H5Aclose(attribute));
+      /* close the dataspace */
+      chkHDF5err(H5Sclose(dataspace));
+      //-------------------------------------------------------------------
+
+      //-------------------------------------------------------------------
+      chkHDF5err(H5Gclose(patch));
+      //-------------------------------------------------------------------
+    }/* for(int lev = 0; lev < maxLev; lev++){ */
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
     /* write attribute data */
     //---------------------------------------------------------------------
     /* create the data space for the attribute */
-    hsize_t attr_dims = 2;
+    hsize_t attr_dims = 1;
     dataspace = H5Screate_simple(1, &attr_dims, NULL);
     hid_t attribute;
     //---------------------------------------------------------------------
-    /* write # of arrays */
-    int narray[2] = {NDISKBIN_HOR, NDISKBIN_VER};
-    attribute = H5Acreate(group, "num", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, narray));
-    chkHDF5err(H5Aclose(attribute));
-    /* close the dataspace */
-    chkHDF5err(H5Sclose(dataspace));
-    //---------------------------------------------------------------------
-    attr_dims = 1;
-    dataspace = H5Screate_simple(1, &attr_dims, NULL);
-    narray[0] = 1;
     /* write scale radius */
     attribute = H5Acreate(group, "Rs", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
     chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &disk[ii].cfg->rs));
@@ -1912,10 +1980,14 @@ void writeDiskData(char *file, const int ndisk, disk_data *disk)
   hsize_t attr_dims = 1;
   dataspace = H5Screate_simple(1, &attr_dims, NULL);
   hid_t attribute;
-  //-----------------------------------------------------------------------
   /* write # of components */
   attribute = H5Acreate(target, "kinds", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &ndisk));
+  chkHDF5err(H5Aclose(attribute));
+  //-----------------------------------------------------------------------
+  /* write maximum # of nested level */
+  attribute = H5Acreate(target, "maxLev", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &maxLev));
   chkHDF5err(H5Aclose(attribute));
   //-----------------------------------------------------------------------
   hid_t str4format = H5Tcopy(H5T_C_S1);
@@ -1961,54 +2033,54 @@ void writeDiskData(char *file, const int ndisk, disk_data *disk)
     if( fp == NULL ){      __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);    }
     //---------------------------------------------------------------------
     bool success = true;
+    //---------------------------------------------------------------------
     const int nhorbin = NDISKBIN_HOR;
     const int nverbin = NDISKBIN_VER;
-    /* const int nsphbin = NDISKBIN_RAD; */
     success &= (fwrite(&nhorbin, sizeof(int), 1, fp) == 1);
     success &= (fwrite(&nverbin, sizeof(int), 1, fp) == 1);
-    /* success &= (fwrite(&nsphbin, sizeof(int), 1, fp) == 1); */
+    success &= (fwrite(& maxLev, sizeof(int), 1, fp) == 1);
     //---------------------------------------------------------------------
-    if( ndisk > 1 )
+    success &= (fwrite(&disk[ii].cfg->rs, sizeof(double), 1, fp) == 1);
+    success &= (fwrite(&disk[ii].cfg->zd, sizeof(double), 1, fp) == 1);
+    //---------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
+    for(int lev = 0; lev < maxLev; lev++){
+      //-------------------------------------------------------------------
+      if( ndisk > 1 )
 #pragma omp parallel for
-      for(int jj = 0; jj < NDISKBIN_HOR * NDISKBIN_VER; jj++)
-	rhoFrac[jj] = (real)((*disk[ii].rho)[jj] * disk[ii].rhoTot[jj]);
-    evaluateDiskProperties(file, disk, ii, rhoFrac, _vcirc, _sigmap, _sigmaR, _kappa, _Omega, _toomre, _lambda);
-    //---------------------------------------------------------------------
-    for(int jj = 0; jj < nhorbin; jj++){
-      tmp_hor[jj] = (real)(disk[ii].hor   [jj] *      length2astro);
-      tmp_sig[jj] = (real)(disk[ii].sigmaz[jj] *    velocity2astro);
-      tmp_Sig[jj] = (real)(disk[ii].Sigma [jj] * col_density2astro);
+	for(int jj = 0; jj < NDISKBIN_HOR * NDISKBIN_VER; jj++)
+	  rhoFrac[jj] = (real)((*disk[ii].rho)[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * disk[ii].rhoTot[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)]);
+      evaluateDiskProperties(disk, ii, lev, _vcirc, _sigmap, _sigmaR, _kappa, _Omega, _toomre, _lambda);
+      //-------------------------------------------------------------------
+      for(int jj = 0; jj < nhorbin; jj++){
+	tmp_hor[jj] = (real)(disk[ii].hor   [INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] *     length2astro);
+	tmp_sig[jj] = (real)(disk[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] *    velocity2astro);
+	tmp_Sig[jj] = (real)(disk[ii].Sigma [INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] * col_density2astro);
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-      tmp__zd[jj] = (real)(disk[ii].zd    [jj] *      length2astro);
+	tmp__zd[jj] = (real)(disk[ii].zd    [INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] *      length2astro);
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
-    }/* for(int jj = 0; jj < nhorbin; jj++){ */
-    for(int jj = 0; jj < nverbin; jj++)
-      tmp_ver[jj] = (real)(disk[ii].ver[jj] * length2astro);
-    for(int jj = 0; jj < nhorbin * nverbin; jj++){
-      tmp_rho[jj] = (real)((*disk[ii].rho)[jj] * density2astro);
-      tmp_Phi[jj] = (real)(  disk[ii].pot [jj] * senergy2astro);
-    }/* for(int jj = 0; jj < nhorbin * nverbin; jj++){ */
-    //---------------------------------------------------------------------
-    success &= (fwrite(&disk[ii].cfg->rs, sizeof(double),                 1, fp) ==                 1);
-    success &= (fwrite(&disk[ii].cfg->zd, sizeof(double),                 1, fp) ==                 1);
-    /* success &= (fwrite( disk[ii].hor    , sizeof(double), nhorbin          , fp) == nhorbin          ); */
-    /* success &= (fwrite( disk[ii].ver    , sizeof(double),           nverbin, fp) ==           nverbin); */
-    /* success &= (fwrite(*disk[ii].rho    , sizeof(double), nhorbin * nverbin, fp) == nhorbin * nverbin); */
-    /* success &= (fwrite( disk[ii].phi    , sizeof(double), nhorbin * nverbin, fp) == nhorbin * nverbin); */
-    /* success &= (fwrite( disk[ii].sigma  , sizeof(double), nhorbin          , fp) == nhorbin          ); */
-    /* success &= (fwrite( disk[ii].Sigma  , sizeof(double), nhorbin          , fp) == nhorbin          ); */
-    success &= (fwrite(tmp_hor, sizeof(real), nhorbin          , fp) == nhorbin          );
-    success &= (fwrite(tmp_ver, sizeof(real),           nverbin, fp) ==           nverbin);
-    success &= (fwrite(tmp_rho, sizeof(real), nhorbin * nverbin, fp) == nhorbin * nverbin);
-    success &= (fwrite(tmp_Phi, sizeof(real), nhorbin * nverbin, fp) == nhorbin * nverbin);
-    success &= (fwrite(tmp_sig, sizeof(real), nhorbin          , fp) == nhorbin          );
-    success &= (fwrite(tmp_Sig, sizeof(real), nhorbin          , fp) == nhorbin          );
+      }/* for(int jj = 0; jj < nhorbin; jj++){ */
+      for(int jj = 0; jj < nverbin; jj++)
+	tmp_ver[jj] = (real)(disk[ii].ver[INDEX2D(maxLev, NDISKBIN_VER, lev, jj)] * length2astro);
+      for(int jj = 0; jj < nhorbin * nverbin; jj++){
+	tmp_rho[jj] = (real)((*disk[ii].rho)[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * density2astro);
+	tmp_Phi[jj] = (real)(  disk[ii].pot [INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * senergy2astro);
+      }/* for(int jj = 0; jj < nhorbin * nverbin; jj++){ */
+      //---------------------------------------------------------------------
+      success &= (fwrite(tmp_hor, sizeof(real), nhorbin          , fp) == nhorbin          );
+      success &= (fwrite(tmp_ver, sizeof(real),           nverbin, fp) ==           nverbin);
+      success &= (fwrite(tmp_rho, sizeof(real), nhorbin * nverbin, fp) == nhorbin * nverbin);
+      success &= (fwrite(tmp_Phi, sizeof(real), nhorbin * nverbin, fp) == nhorbin * nverbin);
+      success &= (fwrite(tmp_sig, sizeof(real), nhorbin          , fp) == nhorbin          );
+      success &= (fwrite(tmp_Sig, sizeof(real), nhorbin          , fp) == nhorbin          );
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-    success &= (fwrite(tmp__zd, sizeof(real), nhorbin          , fp) == nhorbin          );
+      success &= (fwrite(tmp__zd, sizeof(real), nhorbin          , fp) == nhorbin          );
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
-    /* success &= (fwrite(  sph_rad        , sizeof(double), nsphbin          , fp) == nsphbin          ); */
-    /* success &= (fwrite(  sph_enc        , sizeof(double), nsphbin          , fp) == nsphbin          ); */
-    /* success &= (fwrite(  sph_rho        , sizeof(double), nsphbin          , fp) == nsphbin          ); */
+      //-------------------------------------------------------------------
+    }/* for(int lev = 0; lev < maxLev; lev++){ */
+    //---------------------------------------------------------------------
+
     //---------------------------------------------------------------------
     fclose(fp);
     //---------------------------------------------------------------------

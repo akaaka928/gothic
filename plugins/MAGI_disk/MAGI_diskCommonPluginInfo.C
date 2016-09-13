@@ -38,7 +38,7 @@
 
 #include <MAGI_diskPluginInfo.h>
 #include <avtMAGI_diskFileFormat.h>
-#include <avtSTSDFileFormatInterface.h>
+#include <avtSTMDFileFormatInterface.h>
 #include <avtGenericDatabase.h>
 
 // ****************************************************************************
@@ -54,7 +54,7 @@
 DatabaseType
 MAGI_diskCommonPluginInfo::GetDatabaseType()
 {
-    return DB_TYPE_STSD;
+    return DB_TYPE_STMD;
 }
 
 // ****************************************************************************
@@ -78,18 +78,13 @@ avtDatabase *
 MAGI_diskCommonPluginInfo::SetupDatabase(const char *const *list,
                                    int nList, int nBlock)
 {
-    int nTimestep = nList / nBlock;
-    avtSTSDFileFormat ***ffl = new avtSTSDFileFormat**[nTimestep];
-    for (int i = 0 ; i < nTimestep ; i++)
+    avtSTMDFileFormat **ffl = new avtSTMDFileFormat*[nList];
+    for (int i = 0 ; i < nList ; i++)
     {
-        ffl[i] = new avtSTSDFileFormat*[nBlock];
-        for (int j = 0 ; j < nBlock ; j++)
-        {
-            ffl[i][j] = new avtMAGI_diskFileFormat(list[i*nBlock + j]);
-        }
+        ffl[i] = new avtMAGI_diskFileFormat(list[i]);
     }
-    avtSTSDFileFormatInterface *inter 
-           = new avtSTSDFileFormatInterface(ffl, nTimestep, nBlock);
+    avtSTMDFileFormatInterface *inter 
+           = new avtSTMDFileFormatInterface(ffl, nList);
     return new avtGenericDatabase(inter);
 }
 // ****************************************************************************

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/09/11(Sun) 16:04:01
+                  last updated on 2016/09/12(Mon) 11:43:12
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Poisson solver to yield potential--density pair                 *
@@ -2367,7 +2367,7 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
     //---------------------------------------------------------------------
   }/* for(int kk = 0; kk < ndisk; kk++){ */
   //-----------------------------------------------------------------------
-#if 1
+#if 0
   for(int ll = 0; ll < maxLev; ll++)
     for(int ii = 0; ii < NDISKBIN_HOR; ii++)
       for(int jj = 0; jj < NDISKBIN_VER; jj++){
@@ -2376,9 +2376,6 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
 	  fprintf(stderr, "\t%e\t%e", (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)], disk[kk].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)]);
 	fprintf(stderr, "\n");
       }
-
-
-
   fprintf(stdout, "# makeDiskPotentialTable finish\n");
   fflush(NULL);
   exit(0);

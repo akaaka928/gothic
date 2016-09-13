@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/09/10(Sat) 15:14:13
+                  last updated on 2016/09/13(Tue) 11:47:50
  *                                                                       *
  *    Header File for Definition to generate initial condition of disk   *
  *                                                                       *
@@ -31,8 +31,8 @@
 
 
 //-------------------------------------------------------------------------
-#define NDISKBIN_VER (32)
-/* #define NDISKBIN_VER (64) */
+/* #define NDISKBIN_VER (32) */
+#define NDISKBIN_VER (64)
 /* NHOR_OVER_NVER is defined as an exponent of two */
 #define NHOR_OVER_NVER (2)
 #define NDISKBIN_HOR (NDISKBIN_VER << NHOR_OVER_NVER)
