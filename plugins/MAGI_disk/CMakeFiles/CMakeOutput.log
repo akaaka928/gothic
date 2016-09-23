@@ -28,16 +28,16 @@ The CXX compiler identification is GNU, found in "/home/ymiki/calculation/nbody/
 Determining if the C compiler works passed with the following output:
 Change Dir: /home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp
 
-Run Build Command:"/usr/bin/gmake" "cmTryCompileExec450927367/fast"
+Run Build Command:"/usr/bin/gmake" "cmTryCompileExec3589871694/fast"
 gmake[1]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' に入ります
-/usr/bin/gmake -f CMakeFiles/cmTryCompileExec450927367.dir/build.make CMakeFiles/cmTryCompileExec450927367.dir/build
+/usr/bin/gmake -f CMakeFiles/cmTryCompileExec3589871694.dir/build.make CMakeFiles/cmTryCompileExec3589871694.dir/build
 gmake[2]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' に入ります
 /opt/CMake/3.0.2/bin/cmake -E cmake_progress_report /home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp/CMakeFiles 1
-Building C object CMakeFiles/cmTryCompileExec450927367.dir/testCCompiler.c.o
-/usr/bin/cc    -o CMakeFiles/cmTryCompileExec450927367.dir/testCCompiler.c.o   -c /home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp/testCCompiler.c
-Linking C executable cmTryCompileExec450927367
-/opt/CMake/3.0.2/bin/cmake -E cmake_link_script CMakeFiles/cmTryCompileExec450927367.dir/link.txt --verbose=1
-/usr/bin/cc       CMakeFiles/cmTryCompileExec450927367.dir/testCCompiler.c.o  -o cmTryCompileExec450927367 -rdynamic 
+Building C object CMakeFiles/cmTryCompileExec3589871694.dir/testCCompiler.c.o
+/usr/bin/cc    -o CMakeFiles/cmTryCompileExec3589871694.dir/testCCompiler.c.o   -c /home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp/testCCompiler.c
+Linking C executable cmTryCompileExec3589871694
+/opt/CMake/3.0.2/bin/cmake -E cmake_link_script CMakeFiles/cmTryCompileExec3589871694.dir/link.txt --verbose=1
+/usr/bin/cc       CMakeFiles/cmTryCompileExec3589871694.dir/testCCompiler.c.o  -o cmTryCompileExec3589871694 -rdynamic 
 gmake[2]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' から出ます
 gmake[1]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' から出ます
 
@@ -45,16 +45,16 @@ gmake[1]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_di
 Detecting C compiler ABI info compiled with the following output:
 Change Dir: /home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp
 
-Run Build Command:"/usr/bin/gmake" "cmTryCompileExec3812785842/fast"
+Run Build Command:"/usr/bin/gmake" "cmTryCompileExec2538691980/fast"
 gmake[1]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' に入ります
-/usr/bin/gmake -f CMakeFiles/cmTryCompileExec3812785842.dir/build.make CMakeFiles/cmTryCompileExec3812785842.dir/build
+/usr/bin/gmake -f CMakeFiles/cmTryCompileExec2538691980.dir/build.make CMakeFiles/cmTryCompileExec2538691980.dir/build
 gmake[2]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' に入ります
 /opt/CMake/3.0.2/bin/cmake -E cmake_progress_report /home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp/CMakeFiles 1
-Building C object CMakeFiles/cmTryCompileExec3812785842.dir/CMakeCCompilerABI.c.o
-/usr/bin/cc    -o CMakeFiles/cmTryCompileExec3812785842.dir/CMakeCCompilerABI.c.o   -c /opt/CMake/3.0.2/share/cmake-3.0/Modules/CMakeCCompilerABI.c
-Linking C executable cmTryCompileExec3812785842
-/opt/CMake/3.0.2/bin/cmake -E cmake_link_script CMakeFiles/cmTryCompileExec3812785842.dir/link.txt --verbose=1
-/usr/bin/cc     -v CMakeFiles/cmTryCompileExec3812785842.dir/CMakeCCompilerABI.c.o  -o cmTryCompileExec3812785842 -rdynamic  
+Building C object CMakeFiles/cmTryCompileExec2538691980.dir/CMakeCCompilerABI.c.o
+/usr/bin/cc    -o CMakeFiles/cmTryCompileExec2538691980.dir/CMakeCCompilerABI.c.o   -c /opt/CMake/3.0.2/share/cmake-3.0/Modules/CMakeCCompilerABI.c
+Linking C executable cmTryCompileExec2538691980
+/opt/CMake/3.0.2/bin/cmake -E cmake_link_script CMakeFiles/cmTryCompileExec2538691980.dir/link.txt --verbose=1
+/usr/bin/cc     -v CMakeFiles/cmTryCompileExec2538691980.dir/CMakeCCompilerABI.c.o  -o cmTryCompileExec2538691980 -rdynamic  
 組み込み spec を使用しています。
 COLLECT_GCC=/usr/bin/cc
 COLLECT_LTO_WRAPPER=/usr/libexec/gcc/x86_64-redhat-linux/4.8.5/lto-wrapper
@@ -64,8 +64,8 @@ configure 設定: ../configure --prefix=/usr --mandir=/usr/share/man --infodir=/
 gcc バージョン 4.8.5 20150623 (Red Hat 4.8.5-4) (GCC) 
 COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/4.8.5/:/usr/libexec/gcc/x86_64-redhat-linux/4.8.5/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/4.8.5/:/usr/lib/gcc/x86_64-redhat-linux/
 LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/4.8.5/:/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../:/lib/:/usr/lib/
-COLLECT_GCC_OPTIONS='-v' '-o' 'cmTryCompileExec3812785842' '-rdynamic' '-mtune=generic' '-march=x86-64'
- /usr/libexec/gcc/x86_64-redhat-linux/4.8.5/collect2 --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -export-dynamic -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTryCompileExec3812785842 /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../.. CMakeFiles/cmTryCompileExec3812785842.dir/CMakeCCompilerABI.c.o -lgcc --as-needed -lgcc_s --no-as-needed -lc -lgcc --as-needed -lgcc_s --no-as-needed /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtend.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crtn.o
+COLLECT_GCC_OPTIONS='-v' '-o' 'cmTryCompileExec2538691980' '-rdynamic' '-mtune=generic' '-march=x86-64'
+ /usr/libexec/gcc/x86_64-redhat-linux/4.8.5/collect2 --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -export-dynamic -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTryCompileExec2538691980 /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../.. CMakeFiles/cmTryCompileExec2538691980.dir/CMakeCCompilerABI.c.o -lgcc --as-needed -lgcc_s --no-as-needed -lc -lgcc --as-needed -lgcc_s --no-as-needed /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtend.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crtn.o
 gmake[2]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' から出ます
 gmake[1]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' から出ます
 
@@ -74,16 +74,16 @@ Parsed C implicit link information from above output:
   link line regex: [^( *|.*[/\])(ld|([^/\]+-)?ld|collect2)[^/\]*( |$)]
   ignore line: [Change Dir: /home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp]
   ignore line: []
-  ignore line: [Run Build Command:"/usr/bin/gmake" "cmTryCompileExec3812785842/fast"]
+  ignore line: [Run Build Command:"/usr/bin/gmake" "cmTryCompileExec2538691980/fast"]
   ignore line: [gmake[1]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' に入ります]
-  ignore line: [/usr/bin/gmake -f CMakeFiles/cmTryCompileExec3812785842.dir/build.make CMakeFiles/cmTryCompileExec3812785842.dir/build]
+  ignore line: [/usr/bin/gmake -f CMakeFiles/cmTryCompileExec2538691980.dir/build.make CMakeFiles/cmTryCompileExec2538691980.dir/build]
   ignore line: [gmake[2]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' に入ります]
   ignore line: [/opt/CMake/3.0.2/bin/cmake -E cmake_progress_report /home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp/CMakeFiles 1]
-  ignore line: [Building C object CMakeFiles/cmTryCompileExec3812785842.dir/CMakeCCompilerABI.c.o]
-  ignore line: [/usr/bin/cc    -o CMakeFiles/cmTryCompileExec3812785842.dir/CMakeCCompilerABI.c.o   -c /opt/CMake/3.0.2/share/cmake-3.0/Modules/CMakeCCompilerABI.c]
-  ignore line: [Linking C executable cmTryCompileExec3812785842]
-  ignore line: [/opt/CMake/3.0.2/bin/cmake -E cmake_link_script CMakeFiles/cmTryCompileExec3812785842.dir/link.txt --verbose=1]
-  ignore line: [/usr/bin/cc     -v CMakeFiles/cmTryCompileExec3812785842.dir/CMakeCCompilerABI.c.o  -o cmTryCompileExec3812785842 -rdynamic  ]
+  ignore line: [Building C object CMakeFiles/cmTryCompileExec2538691980.dir/CMakeCCompilerABI.c.o]
+  ignore line: [/usr/bin/cc    -o CMakeFiles/cmTryCompileExec2538691980.dir/CMakeCCompilerABI.c.o   -c /opt/CMake/3.0.2/share/cmake-3.0/Modules/CMakeCCompilerABI.c]
+  ignore line: [Linking C executable cmTryCompileExec2538691980]
+  ignore line: [/opt/CMake/3.0.2/bin/cmake -E cmake_link_script CMakeFiles/cmTryCompileExec2538691980.dir/link.txt --verbose=1]
+  ignore line: [/usr/bin/cc     -v CMakeFiles/cmTryCompileExec2538691980.dir/CMakeCCompilerABI.c.o  -o cmTryCompileExec2538691980 -rdynamic  ]
   ignore line: [組み込み spec を使用しています。]
   ignore line: [COLLECT_GCC=/usr/bin/cc]
   ignore line: [COLLECT_LTO_WRAPPER=/usr/libexec/gcc/x86_64-redhat-linux/4.8.5/lto-wrapper]
@@ -93,8 +93,8 @@ Parsed C implicit link information from above output:
   ignore line: [gcc バージョン 4.8.5 20150623 (Red Hat 4.8.5-4) (GCC) ]
   ignore line: [COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/4.8.5/:/usr/libexec/gcc/x86_64-redhat-linux/4.8.5/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/4.8.5/:/usr/lib/gcc/x86_64-redhat-linux/]
   ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/4.8.5/:/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../:/lib/:/usr/lib/]
-  ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTryCompileExec3812785842' '-rdynamic' '-mtune=generic' '-march=x86-64']
-  link line: [ /usr/libexec/gcc/x86_64-redhat-linux/4.8.5/collect2 --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -export-dynamic -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTryCompileExec3812785842 /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../.. CMakeFiles/cmTryCompileExec3812785842.dir/CMakeCCompilerABI.c.o -lgcc --as-needed -lgcc_s --no-as-needed -lc -lgcc --as-needed -lgcc_s --no-as-needed /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtend.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crtn.o]
+  ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTryCompileExec2538691980' '-rdynamic' '-mtune=generic' '-march=x86-64']
+  link line: [ /usr/libexec/gcc/x86_64-redhat-linux/4.8.5/collect2 --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -export-dynamic -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTryCompileExec2538691980 /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../.. CMakeFiles/cmTryCompileExec2538691980.dir/CMakeCCompilerABI.c.o -lgcc --as-needed -lgcc_s --no-as-needed -lc -lgcc --as-needed -lgcc_s --no-as-needed /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtend.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crtn.o]
     arg [/usr/libexec/gcc/x86_64-redhat-linux/4.8.5/collect2] ==> ignore
     arg [--build-id] ==> ignore
     arg [--no-add-needed] ==> ignore
@@ -106,7 +106,7 @@ Parsed C implicit link information from above output:
     arg [-dynamic-linker] ==> ignore
     arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
     arg [-o] ==> ignore
-    arg [cmTryCompileExec3812785842] ==> ignore
+    arg [cmTryCompileExec2538691980] ==> ignore
     arg [/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crt1.o] ==> ignore
     arg [/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crti.o] ==> ignore
     arg [/usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtbegin.o] ==> ignore
@@ -115,7 +115,7 @@ Parsed C implicit link information from above output:
     arg [-L/lib/../lib64] ==> dir [/lib/../lib64]
     arg [-L/usr/lib/../lib64] ==> dir [/usr/lib/../lib64]
     arg [-L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../..] ==> dir [/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../..]
-    arg [CMakeFiles/cmTryCompileExec3812785842.dir/CMakeCCompilerABI.c.o] ==> ignore
+    arg [CMakeFiles/cmTryCompileExec2538691980.dir/CMakeCCompilerABI.c.o] ==> ignore
     arg [-lgcc] ==> lib [gcc]
     arg [--as-needed] ==> ignore
     arg [-lgcc_s] ==> lib [gcc_s]
@@ -144,16 +144,16 @@ Parsed C implicit link information from above output:
 Determining if the CXX compiler works passed with the following output:
 Change Dir: /home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp
 
-Run Build Command:"/usr/bin/gmake" "cmTryCompileExec2485221490/fast"
+Run Build Command:"/usr/bin/gmake" "cmTryCompileExec1845029875/fast"
 gmake[1]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' に入ります
-/usr/bin/gmake -f CMakeFiles/cmTryCompileExec2485221490.dir/build.make CMakeFiles/cmTryCompileExec2485221490.dir/build
+/usr/bin/gmake -f CMakeFiles/cmTryCompileExec1845029875.dir/build.make CMakeFiles/cmTryCompileExec1845029875.dir/build
 gmake[2]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' に入ります
 /opt/CMake/3.0.2/bin/cmake -E cmake_progress_report /home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp/CMakeFiles 1
-Building CXX object CMakeFiles/cmTryCompileExec2485221490.dir/testCXXCompiler.cxx.o
-/usr/bin/c++     -o CMakeFiles/cmTryCompileExec2485221490.dir/testCXXCompiler.cxx.o -c /home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp/testCXXCompiler.cxx
-Linking CXX executable cmTryCompileExec2485221490
-/opt/CMake/3.0.2/bin/cmake -E cmake_link_script CMakeFiles/cmTryCompileExec2485221490.dir/link.txt --verbose=1
-/usr/bin/c++        CMakeFiles/cmTryCompileExec2485221490.dir/testCXXCompiler.cxx.o  -o cmTryCompileExec2485221490 -rdynamic 
+Building CXX object CMakeFiles/cmTryCompileExec1845029875.dir/testCXXCompiler.cxx.o
+/usr/bin/c++     -o CMakeFiles/cmTryCompileExec1845029875.dir/testCXXCompiler.cxx.o -c /home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp/testCXXCompiler.cxx
+Linking CXX executable cmTryCompileExec1845029875
+/opt/CMake/3.0.2/bin/cmake -E cmake_link_script CMakeFiles/cmTryCompileExec1845029875.dir/link.txt --verbose=1
+/usr/bin/c++        CMakeFiles/cmTryCompileExec1845029875.dir/testCXXCompiler.cxx.o  -o cmTryCompileExec1845029875 -rdynamic 
 gmake[2]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' から出ます
 gmake[1]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' から出ます
 
@@ -161,16 +161,16 @@ gmake[1]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_di
 Detecting CXX compiler ABI info compiled with the following output:
 Change Dir: /home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp
 
-Run Build Command:"/usr/bin/gmake" "cmTryCompileExec435001063/fast"
+Run Build Command:"/usr/bin/gmake" "cmTryCompileExec2395901332/fast"
 gmake[1]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' に入ります
-/usr/bin/gmake -f CMakeFiles/cmTryCompileExec435001063.dir/build.make CMakeFiles/cmTryCompileExec435001063.dir/build
+/usr/bin/gmake -f CMakeFiles/cmTryCompileExec2395901332.dir/build.make CMakeFiles/cmTryCompileExec2395901332.dir/build
 gmake[2]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' に入ります
 /opt/CMake/3.0.2/bin/cmake -E cmake_progress_report /home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp/CMakeFiles 1
-Building CXX object CMakeFiles/cmTryCompileExec435001063.dir/CMakeCXXCompilerABI.cpp.o
-/usr/bin/c++     -o CMakeFiles/cmTryCompileExec435001063.dir/CMakeCXXCompilerABI.cpp.o -c /opt/CMake/3.0.2/share/cmake-3.0/Modules/CMakeCXXCompilerABI.cpp
-Linking CXX executable cmTryCompileExec435001063
-/opt/CMake/3.0.2/bin/cmake -E cmake_link_script CMakeFiles/cmTryCompileExec435001063.dir/link.txt --verbose=1
-/usr/bin/c++      -v CMakeFiles/cmTryCompileExec435001063.dir/CMakeCXXCompilerABI.cpp.o  -o cmTryCompileExec435001063 -rdynamic  
+Building CXX object CMakeFiles/cmTryCompileExec2395901332.dir/CMakeCXXCompilerABI.cpp.o
+/usr/bin/c++     -o CMakeFiles/cmTryCompileExec2395901332.dir/CMakeCXXCompilerABI.cpp.o -c /opt/CMake/3.0.2/share/cmake-3.0/Modules/CMakeCXXCompilerABI.cpp
+Linking CXX executable cmTryCompileExec2395901332
+/opt/CMake/3.0.2/bin/cmake -E cmake_link_script CMakeFiles/cmTryCompileExec2395901332.dir/link.txt --verbose=1
+/usr/bin/c++      -v CMakeFiles/cmTryCompileExec2395901332.dir/CMakeCXXCompilerABI.cpp.o  -o cmTryCompileExec2395901332 -rdynamic  
 組み込み spec を使用しています。
 COLLECT_GCC=/usr/bin/c++
 COLLECT_LTO_WRAPPER=/usr/libexec/gcc/x86_64-redhat-linux/4.8.5/lto-wrapper
@@ -180,8 +180,8 @@ configure 設定: ../configure --prefix=/usr --mandir=/usr/share/man --infodir=/
 gcc バージョン 4.8.5 20150623 (Red Hat 4.8.5-4) (GCC) 
 COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/4.8.5/:/usr/libexec/gcc/x86_64-redhat-linux/4.8.5/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/4.8.5/:/usr/lib/gcc/x86_64-redhat-linux/
 LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/4.8.5/:/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../:/lib/:/usr/lib/
-COLLECT_GCC_OPTIONS='-v' '-o' 'cmTryCompileExec435001063' '-rdynamic' '-shared-libgcc' '-mtune=generic' '-march=x86-64'
- /usr/libexec/gcc/x86_64-redhat-linux/4.8.5/collect2 --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -export-dynamic -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTryCompileExec435001063 /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../.. CMakeFiles/cmTryCompileExec435001063.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtend.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crtn.o
+COLLECT_GCC_OPTIONS='-v' '-o' 'cmTryCompileExec2395901332' '-rdynamic' '-shared-libgcc' '-mtune=generic' '-march=x86-64'
+ /usr/libexec/gcc/x86_64-redhat-linux/4.8.5/collect2 --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -export-dynamic -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTryCompileExec2395901332 /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../.. CMakeFiles/cmTryCompileExec2395901332.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtend.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crtn.o
 gmake[2]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' から出ます
 gmake[1]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' から出ます
 
@@ -190,16 +190,16 @@ Parsed CXX implicit link information from above output:
   link line regex: [^( *|.*[/\])(ld|([^/\]+-)?ld|collect2)[^/\]*( |$)]
   ignore line: [Change Dir: /home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp]
   ignore line: []
-  ignore line: [Run Build Command:"/usr/bin/gmake" "cmTryCompileExec435001063/fast"]
+  ignore line: [Run Build Command:"/usr/bin/gmake" "cmTryCompileExec2395901332/fast"]
   ignore line: [gmake[1]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' に入ります]
-  ignore line: [/usr/bin/gmake -f CMakeFiles/cmTryCompileExec435001063.dir/build.make CMakeFiles/cmTryCompileExec435001063.dir/build]
+  ignore line: [/usr/bin/gmake -f CMakeFiles/cmTryCompileExec2395901332.dir/build.make CMakeFiles/cmTryCompileExec2395901332.dir/build]
   ignore line: [gmake[2]: ディレクトリ `/home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp' に入ります]
   ignore line: [/opt/CMake/3.0.2/bin/cmake -E cmake_progress_report /home/ymiki/calculation/nbody/tree/plugins/MAGI_disk/CMakeFiles/CMakeTmp/CMakeFiles 1]
-  ignore line: [Building CXX object CMakeFiles/cmTryCompileExec435001063.dir/CMakeCXXCompilerABI.cpp.o]
-  ignore line: [/usr/bin/c++     -o CMakeFiles/cmTryCompileExec435001063.dir/CMakeCXXCompilerABI.cpp.o -c /opt/CMake/3.0.2/share/cmake-3.0/Modules/CMakeCXXCompilerABI.cpp]
-  ignore line: [Linking CXX executable cmTryCompileExec435001063]
-  ignore line: [/opt/CMake/3.0.2/bin/cmake -E cmake_link_script CMakeFiles/cmTryCompileExec435001063.dir/link.txt --verbose=1]
-  ignore line: [/usr/bin/c++      -v CMakeFiles/cmTryCompileExec435001063.dir/CMakeCXXCompilerABI.cpp.o  -o cmTryCompileExec435001063 -rdynamic  ]
+  ignore line: [Building CXX object CMakeFiles/cmTryCompileExec2395901332.dir/CMakeCXXCompilerABI.cpp.o]
+  ignore line: [/usr/bin/c++     -o CMakeFiles/cmTryCompileExec2395901332.dir/CMakeCXXCompilerABI.cpp.o -c /opt/CMake/3.0.2/share/cmake-3.0/Modules/CMakeCXXCompilerABI.cpp]
+  ignore line: [Linking CXX executable cmTryCompileExec2395901332]
+  ignore line: [/opt/CMake/3.0.2/bin/cmake -E cmake_link_script CMakeFiles/cmTryCompileExec2395901332.dir/link.txt --verbose=1]
+  ignore line: [/usr/bin/c++      -v CMakeFiles/cmTryCompileExec2395901332.dir/CMakeCXXCompilerABI.cpp.o  -o cmTryCompileExec2395901332 -rdynamic  ]
   ignore line: [組み込み spec を使用しています。]
   ignore line: [COLLECT_GCC=/usr/bin/c++]
   ignore line: [COLLECT_LTO_WRAPPER=/usr/libexec/gcc/x86_64-redhat-linux/4.8.5/lto-wrapper]
@@ -209,8 +209,8 @@ Parsed CXX implicit link information from above output:
   ignore line: [gcc バージョン 4.8.5 20150623 (Red Hat 4.8.5-4) (GCC) ]
   ignore line: [COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/4.8.5/:/usr/libexec/gcc/x86_64-redhat-linux/4.8.5/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/4.8.5/:/usr/lib/gcc/x86_64-redhat-linux/]
   ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/4.8.5/:/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../:/lib/:/usr/lib/]
-  ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTryCompileExec435001063' '-rdynamic' '-shared-libgcc' '-mtune=generic' '-march=x86-64']
-  link line: [ /usr/libexec/gcc/x86_64-redhat-linux/4.8.5/collect2 --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -export-dynamic -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTryCompileExec435001063 /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../.. CMakeFiles/cmTryCompileExec435001063.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtend.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crtn.o]
+  ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTryCompileExec2395901332' '-rdynamic' '-shared-libgcc' '-mtune=generic' '-march=x86-64']
+  link line: [ /usr/libexec/gcc/x86_64-redhat-linux/4.8.5/collect2 --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -export-dynamic -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTryCompileExec2395901332 /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../.. CMakeFiles/cmTryCompileExec2395901332.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtend.o /usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crtn.o]
     arg [/usr/libexec/gcc/x86_64-redhat-linux/4.8.5/collect2] ==> ignore
     arg [--build-id] ==> ignore
     arg [--no-add-needed] ==> ignore
@@ -222,7 +222,7 @@ Parsed CXX implicit link information from above output:
     arg [-dynamic-linker] ==> ignore
     arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
     arg [-o] ==> ignore
-    arg [cmTryCompileExec435001063] ==> ignore
+    arg [cmTryCompileExec2395901332] ==> ignore
     arg [/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crt1.o] ==> ignore
     arg [/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../lib64/crti.o] ==> ignore
     arg [/usr/lib/gcc/x86_64-redhat-linux/4.8.5/crtbegin.o] ==> ignore
@@ -231,7 +231,7 @@ Parsed CXX implicit link information from above output:
     arg [-L/lib/../lib64] ==> dir [/lib/../lib64]
     arg [-L/usr/lib/../lib64] ==> dir [/usr/lib/../lib64]
     arg [-L/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../..] ==> dir [/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../..]
-    arg [CMakeFiles/cmTryCompileExec435001063.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
+    arg [CMakeFiles/cmTryCompileExec2395901332.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
     arg [-lstdc++] ==> lib [stdc++]
     arg [-lm] ==> lib [m]
     arg [-lgcc_s] ==> lib [gcc_s]

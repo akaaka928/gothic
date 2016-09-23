@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/09/13(Tue) 11:36:50
+                  last updated on 2016/09/23(Fri) 16:14:47
  *                                                                       *
  *    MAGI: "MAny-component Galactic Initial-conditions" generator       *
  *    Making Initial Condition Code of N-body Simulation                 *
@@ -653,13 +653,17 @@ int main(int argc, char **argv)
     //---------------------------------------------------------------------
     /* set disk_radius, disk_height, disk_pot */
     makeDiskPotentialTable(ndisk, maxLev, disk_info);
-#if 1
+#if 0
     writeDiskData(file, ndisk, maxLev, disk_info);
     exit(0);
 #endif
     //---------------------------------------------------------------------
     /* set profile of spherical averaged density, mass and potential */
     integrateSphericalDensityProfile(ndisk, maxLev, disk_info);
+#if 0
+    writeDiskData(file, ndisk, maxLev, disk_info);
+    exit(0);
+#endif
     //---------------------------------------------------------------------
 #pragma omp parallel for
     for(int ii = 0; ii < 4 + NRADBIN; ii++){
@@ -694,6 +698,10 @@ int main(int argc, char **argv)
   if( addDisk ){
     /* differentiate potential along the radial direction on the equatorial plane */
     diffAxisymmetricPotential(maxLev, disk_info[0]);
+#if 0
+    writeDiskData(file, ndisk, maxLev, disk_info);
+    exit(0);
+#endif
     /* set velocity dispersion in vertical direction */
     calcVerticalVdisp(ndisk, maxLev, disk_info);
     for(int ii = skind; ii < kind; ii++){
@@ -884,15 +892,15 @@ int main(int argc, char **argv)
   };
   for(ulong ii = 0; ii < Ntot; ii++){
     struct dark_particle tmp;
-    tmp.mass   = body[ii]. m;
-    tmp.pos[0] = body[ii]. x;
-    tmp.pos[1] = body[ii]. y;
-    tmp.pos[2] = body[ii]. z;
-    tmp.vel[0] = body[ii].vx;
-    tmp.vel[1] = body[ii].vy;
-    tmp.vel[2] = body[ii].vz;
+    tmp.mass   = body.pos[ii].m;
+    tmp.pos[0] = body.pos[ii].x;
+    tmp.pos[1] = body.pos[ii].y;
+    tmp.pos[2] = body.pos[ii].z;
+    tmp.vel[0] = body.vel[ii].x;
+    tmp.vel[1] = body.vel[ii].y;
+    tmp.vel[2] = body.vel[ii].z;
     tmp.eps    = eps;
-    tmp.idx    = (int)body[ii].idx;
+    tmp.idx    = (int)body.idx[ii];
     bonsaiCount = 1;    if( bonsaiCount != fwrite(&tmp, sizeof(struct dark_particle), bonsaiCount, fpbonsai) )      bonsaiSuccess = false;
   }
   if( bonsaiSuccess != true ){    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", bonsaifile);  }
@@ -1558,11 +1566,10 @@ void outputFundamentalInformation
 //-------------------------------------------------------------------------
 /* Sigma を与える際に，バルジ成分などの影響を取り込むようにする． */
 //-------------------------------------------------------------------------
-/* real * restrict rhoFrac is an input array */
-/* real * restrict _????? is output array */
+/* real * restrict _????? are output arrays */
 //-------------------------------------------------------------------------
 static void evaluateDiskProperties
-(disk_data *disk_info, const int diskID, const int lev,
+(disk_data *disk_info, const int diskID, const int lev, const int ihead, const int itail,
  real * restrict _vcirc, real * restrict _sigmap, real * restrict _sigmaR, real * restrict _kappa, real * restrict _Omega, real * restrict _toomre, real * restrict _lambda)
 {
   //-----------------------------------------------------------------------
@@ -1580,7 +1587,7 @@ static void evaluateDiskProperties
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-  for(int ii = 0; ii < NDISKBIN_HOR; ii++){
+  for(int ii = ihead; ii < itail + 1; ii++){
     //---------------------------------------------------------------------
     /* evaluate epicyclic quantities and circular speed */
 #ifndef USE_POTENTIAL_SCALING_SCHEME
@@ -1626,15 +1633,16 @@ static void evaluateDiskProperties
     //---------------------------------------------------------------------
     /* memorize calculated values */
     //---------------------------------------------------------------------
-    _vcirc [ii] = (real)(vcirc  * velocity2astro);
-    _sigmap[ii] = (real)(sigmap * velocity2astro);
-    _sigmaR[ii] = (real)(sigmaR * velocity2astro);
-    _kappa [ii] = (real)(kappa  /     time2astro);
-    _Omega [ii] = (real)(Omega  /     time2astro);
-    _lambda[ii] = (real)(lambda *   length2astro);
-    _toomre[ii] = (real) toomre;
+    const int jj = ii - ihead;
+    _vcirc [jj] = (real)(vcirc	* velocity2astro);
+    _sigmap[jj] = (real)(sigmap * velocity2astro);
+    _sigmaR[jj] = (real)(sigmaR * velocity2astro);
+    _kappa [jj] = (real)(kappa	/     time2astro);
+    _Omega [jj] = (real)(Omega	/     time2astro);
+    _lambda[jj] = (real)(lambda *   length2astro);
+    _toomre[jj] = (real) toomre;
     //---------------------------------------------------------------------
-  }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
+  }/* for(int ii = ihead; ii < itail + 1; ii++){ */
   //-----------------------------------------------------------------------
 
   /* //----------------------------------------------------------------------- */
@@ -1669,40 +1677,47 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-  real *tmp_hor;  tmp_hor = (real *)malloc(NDISKBIN_HOR                * sizeof(real));
-  real *tmp_ver;  tmp_ver = (real *)malloc(               NDISKBIN_VER * sizeof(real));
-  real *tmp_sig;  tmp_sig = (real *)malloc(NDISKBIN_HOR                * sizeof(real));
-  real *tmp_Sig;  tmp_Sig = (real *)malloc(NDISKBIN_HOR                * sizeof(real));
-  real *_vcirc ;  _vcirc  = (real *)malloc(NDISKBIN_HOR                * sizeof(real));
-  real *_sigmap;  _sigmap = (real *)malloc(NDISKBIN_HOR                * sizeof(real));
-  real *_sigmaR;  _sigmaR = (real *)malloc(NDISKBIN_HOR                * sizeof(real));
-  real *_kappa ;  _kappa  = (real *)malloc(NDISKBIN_HOR                * sizeof(real));
-  real *_Omega ;  _Omega  = (real *)malloc(NDISKBIN_HOR                * sizeof(real));
-  real *_lambda;  _lambda = (real *)malloc(NDISKBIN_HOR                * sizeof(real));
-  real *_toomre;  _toomre = (real *)malloc(NDISKBIN_HOR                * sizeof(real));
+  /* arrays for 2D-plot */
+#ifdef  USE_HDF5_FORMAT
+  real *node_RR;  node_RR = (real *)malloc((NDISKBIN_HOR + 1) * sizeof(real));  if( node_RR == NULL ){    __KILL__(stderr, "ERROR: failure to allocate node_RR");  }
+  real *node_zz;  node_zz = (real *)malloc((NDISKBIN_VER + 1) * sizeof(real));  if( node_zz == NULL ){    __KILL__(stderr, "ERROR: failure to allocate node_zz");  }
+#endif//USE_HDF5_FORMAT
+  real *tmp_rho;  tmp_rho = (real *)malloc(NDISKBIN_HOR * NDISKBIN_VER * sizeof(real));  if( tmp_rho == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_rho");  }
+  real *rhoFrac;  rhoFrac = (real *)malloc(NDISKBIN_HOR * NDISKBIN_VER * sizeof(real));  if( rhoFrac == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rhoFrac");  }
+  real *tmp_Phi;  tmp_Phi = (real *)malloc(NDISKBIN_HOR * NDISKBIN_VER * sizeof(real));  if( tmp_Phi == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_Phi");  }
+  //-----------------------------------------------------------------------
+  /* arrays for 1D-plot */
+#ifdef  USE_HDF5_FORMAT
+  real *tmp_ver;  tmp_ver = (real *)malloc((NDISKBIN_VER >> 1) * (maxLev + 1) * sizeof(real));  if( tmp_ver == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_ver");  }
+  real *tmp_hor;  tmp_hor = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( tmp_hor == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_hor");  }
+  real *tmp_sig;  tmp_sig = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( tmp_sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_sig");  }
+  real *tmp_Sig;  tmp_Sig = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( tmp_Sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_Sig");  }
+  real *_vcirc ;  _vcirc  = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _vcirc  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _vcirc" );  }
+  real *_sigmap;  _sigmap = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _sigmap == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _sigmap");  }
+  real *_sigmaR;  _sigmaR = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _sigmaR == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _sigmaR");  }
+  real *_kappa ;  _kappa  = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _kappa  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _kappa" );  }
+  real *_Omega ;  _Omega  = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _Omega  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _Omega" );  }
+  real *_lambda;  _lambda = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _lambda == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _lambda");  }
+  real *_toomre;  _toomre = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _toomre == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _toomre");  }
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-  real *tmp__zd;  tmp__zd = (real *)malloc(NDISKBIN_HOR                * sizeof(real));
+  real *tmp__zd;  tmp__zd = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( tmp__zd == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp__zd");  }
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
-  real *tmp_rho;  tmp_rho = (real *)malloc(NDISKBIN_HOR * NDISKBIN_VER * sizeof(real));
-  real *tmp_Phi;  tmp_Phi = (real *)malloc(NDISKBIN_HOR * NDISKBIN_VER * sizeof(real));
-  real *rhoFrac;  rhoFrac = (real *)malloc(NDISKBIN_HOR * NDISKBIN_VER * sizeof(real));
-  if( tmp_hor == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_hor");  }
-  if( tmp_ver == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_ver");  }
-  if( tmp_sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_sig");  }
-  if( tmp_Sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_Sig");  }
-  if( _vcirc  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _vcirc" );  }
-  if( _sigmap == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _sigmap");  }
-  if( _sigmaR == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _sigmaR");  }
-  if( _kappa  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _kappa" );  }
-  if( _Omega  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _Omega" );  }
-  if( _lambda == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _lambda");  }
-  if( _toomre == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _toomre");  }
+#else///USE_HDF5_FORMAT
+  real *tmp_ver;  tmp_ver = (real *)malloc(NDISKBIN_VER * sizeof(real));  if( tmp_ver == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_ver");  }
+  real *tmp_hor;  tmp_hor = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( tmp_hor == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_hor");  }
+  real *tmp_sig;  tmp_sig = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( tmp_sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_sig");  }
+  real *tmp_Sig;  tmp_Sig = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( tmp_Sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_Sig");  }
+  real *_vcirc ;  _vcirc  = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _vcirc  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _vcirc" );  }
+  real *_sigmap;  _sigmap = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _sigmap == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _sigmap");  }
+  real *_sigmaR;  _sigmaR = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _sigmaR == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _sigmaR");  }
+  real *_kappa ;  _kappa  = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _kappa  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _kappa" );  }
+  real *_Omega ;  _Omega  = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _Omega  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _Omega" );  }
+  real *_lambda;  _lambda = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _lambda == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _lambda");  }
+  real *_toomre;  _toomre = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _toomre == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _toomre");  }
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-  if( tmp__zd == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp__zd");  }
+  real *tmp__zd;  tmp__zd = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( tmp__zd == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp__zd");  }
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
-  if( tmp_rho == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_rho");  }
-  if( tmp_Phi == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_Phi");  }
-  if( rhoFrac == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rhoFrac");  }
+#endif//USE_HDF5_FORMAT
   //-----------------------------------------------------------------------
   if( ndisk > 1 )
     for(int lev = 0; lev < maxLev; lev++)
@@ -1745,6 +1760,8 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
+    /* write two-dimensional data */
+    //---------------------------------------------------------------------
     for(int lev = 0; lev < maxLev; lev++){
       //-------------------------------------------------------------------
       char subgrp[16];      sprintf(subgrp, "patch%d", lev);
@@ -1752,7 +1769,7 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
       //-------------------------------------------------------------------
 
       //-------------------------------------------------------------------
-      /* write two-dimensional data */
+      /* write data */
       //-------------------------------------------------------------------
       if( ndisk > 1 )
 #pragma omp parallel for
@@ -1764,14 +1781,12 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
 	tmp_Phi[jj] = (real)(  disk[ii].pot [INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * senergy2astro);
       }/* for(int jj = 0; jj < NDISKBIN_HOR * NDISKBIN_VER; jj++){ */
       //-------------------------------------------------------------------
-      evaluateDiskProperties(disk, ii, lev, _vcirc, _sigmap, _sigmaR, _kappa, _Omega, _toomre, _lambda);
-      //-------------------------------------------------------------------
       hsize_t dims[2] = {NDISKBIN_HOR, NDISKBIN_VER};
       dataspace = H5Screate_simple(2, dims, NULL);
 #ifdef  USE_SZIP_COMPRESSION
       property = H5Pcreate(H5P_DATASET_CREATE);
-      cdims[0] = (NDISKBIN_HOR < 128) ? (NDISKBIN_HOR) : (128);
-      cdims[1] = (NDISKBIN_VER < (128 * szip_pixels_per_block) ) ? (NDISKBIN_VER) : (128 * szip_pixels_per_block);
+      cdims[0] = (dims[0] <  128                          ) ? (dims[0]) : (128);
+      cdims[1] = (dims[1] < (128 * szip_pixels_per_block) ) ? (dims[1]) : (128 * szip_pixels_per_block);
       chkHDF5err(H5Pset_chunk(property, 2, cdims));
       chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
 #endif//USE_SZIP_COMPRESSION
@@ -1797,32 +1812,44 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
       //-------------------------------------------------------------------
 
       //-------------------------------------------------------------------
-      /* write one-dimensional data */
+      /* prepare horizontal and vertical axes */
       //-------------------------------------------------------------------
       double width[2];
       width[0] = ldexp(disk[ii].hh, -lev) * length2astro;
       width[1] = ldexp(disk[ii].hh, -lev) * length2astro;
-      const double dR = 0.5 * width[0];
-      const double dz = 0.5 * width[1];
+      const real dR = (real)(0.5 * width[0]);
+      const real dz = (real)(0.5 * width[1]);
       //-------------------------------------------------------------------
+      /* note: VisIt requires position of edges of the grid */
+      node_RR[0] = 0.0;
+#pragma omp parallel for
       for(int jj = 0; jj < NDISKBIN_HOR; jj++){
-	/* tmp_hor[jj] = (real)(disk[ii].hor   [INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] *      length2astro); */
-	tmp_hor[jj] = (real)((disk[ii].hor   [INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] - dR) *      length2astro);
-	tmp_sig[jj] = (real)(disk[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] *    velocity2astro);
-	tmp_Sig[jj] = (real)(disk[ii].Sigma [INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] * col_density2astro);
-#ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-	tmp__zd[jj] = (real)(disk[ii].zd    [INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] *      length2astro);
-#endif//ENABLE_VARIABLE_SCALE_HEIGHT
+	//-----------------------------------------------------------------
+	const real RR = (real)(disk[ii].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] * length2astro);
+	//-----------------------------------------------------------------
+	tmp_hor[    jj] = RR;
+	node_RR[1 + jj] = RR + dR;
+	//-----------------------------------------------------------------
       }/* for(int jj = 0; jj < NDISKBIN_HOR; jj++){ */
-      for(int jj = 0; jj < NDISKBIN_VER; jj++)
-	tmp_ver[jj] = (real)((disk[ii].ver   [INDEX2D(maxLev, NDISKBIN_VER, lev, jj)] - dz) *      length2astro);
-	/* tmp_ver[jj] = (real)(disk[ii].ver   [INDEX2D(maxLev, NDISKBIN_VER, lev, jj)] *      length2astro); */
+      node_zz[0] = 0.0;
+#pragma omp parallel for
+      for(int jj = 0; jj < NDISKBIN_VER; jj++){
+	//-----------------------------------------------------------------
+	const double zz = (real)(disk[ii].ver[INDEX2D(maxLev, NDISKBIN_VER, lev, jj)] * length2astro);
+	//-----------------------------------------------------------------
+	tmp_ver[    jj] = zz;
+	node_zz[1 + jj] = zz + dz;
+	//-----------------------------------------------------------------
+      }/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
       //-------------------------------------------------------------------
-      /* horizontal variables */
+
+      //-------------------------------------------------------------------
+      /* write horizontal axis */
+      //-------------------------------------------------------------------
       dataspace = H5Screate_simple(1, &dims[0], NULL);
 #ifdef  USE_SZIP_COMPRESSION
       property = H5Pcreate(H5P_DATASET_CREATE);
-      cdims[0] = (NDISKBIN_HOR < (128 * szip_pixels_per_block) ) ? (NDISKBIN_HOR) : (128 * szip_pixels_per_block);
+      cdims[0] = (dims[0] < (128 * szip_pixels_per_block) ) ? (dims[0]) : (128 * szip_pixels_per_block);
       chkHDF5err(H5Pset_chunk(property, 1, &cdims[0]));
       chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
 #endif//USE_SZIP_COMPRESSION
@@ -1830,47 +1857,20 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
       dataset = H5Dcreate(patch, "radius", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
       chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_hor));
       chkHDF5err(H5Dclose(dataset));
-      /* write velocity dispersion in z-direction */
-      dataset = H5Dcreate(patch, "sigmaz", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_sig));
-      chkHDF5err(H5Dclose(dataset));
-      /* write column density */
-      dataset = H5Dcreate(patch, "Sigma", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_Sig));
-      chkHDF5err(H5Dclose(dataset));
-#ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-      /* write scale height */
-      dataset = H5Dcreate(patch, "zd", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp__zd));
-      chkHDF5err(H5Dclose(dataset));
-#endif//ENABLE_VARIABLE_SCALE_HEIGHT
-      /* write velocity dispersion in R-direction */
-      dataset = H5Dcreate(patch, "sigmaR", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _sigmaR));
-      chkHDF5err(H5Dclose(dataset));
-      /* write velocity dispersion in tangential direction */
-      dataset = H5Dcreate(patch, "sigmap", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _sigmap));
-      chkHDF5err(H5Dclose(dataset));
-      /* write circular velocity */
-      dataset = H5Dcreate(patch, "vcirc", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _vcirc));
-      chkHDF5err(H5Dclose(dataset));
-      /* write kappa */
-      dataset = H5Dcreate(patch, "kappa", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _kappa));
-      chkHDF5err(H5Dclose(dataset));
-      /* write Omega */
-      dataset = H5Dcreate(patch, "Omega", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _Omega));
-      chkHDF5err(H5Dclose(dataset));
-      /* write lambda_critical */
-      dataset = H5Dcreate(patch, "lambda", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _lambda));
-      chkHDF5err(H5Dclose(dataset));
-      /* write Toomre's Q-value */
-      dataset = H5Dcreate(patch, "Toomre's Q", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _toomre));
+      /* close the dataspace */
+      chkHDF5err(H5Sclose(dataspace));
+      //-------------------------------------------------------------------
+      dims[0]++;
+      dataspace = H5Screate_simple(1, &dims[0], NULL);
+#ifdef  USE_SZIP_COMPRESSION
+      property = H5Pcreate(H5P_DATASET_CREATE);
+      cdims[0] = (dims[0] < (128 * szip_pixels_per_block) ) ? (dims[0]) : (128 * szip_pixels_per_block);
+      chkHDF5err(H5Pset_chunk(property, 1, &cdims[0]));
+      chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+#endif//USE_SZIP_COMPRESSION
+      /* write horizontal position */
+      dataset = H5Dcreate(patch, "node_RR", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, node_RR));
       chkHDF5err(H5Dclose(dataset));
 #ifdef  USE_SZIP_COMPRESSION
       chkHDF5err(H5Pclose(property));
@@ -1878,7 +1878,10 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
       /* close the dataspace */
       chkHDF5err(H5Sclose(dataspace));
       //-------------------------------------------------------------------
-      /* vertical variables */
+
+      //-------------------------------------------------------------------
+      /* write vertical axis */
+      //-------------------------------------------------------------------
       dataspace = H5Screate_simple(1, &dims[1], NULL);
 #ifdef  USE_SZIP_COMPRESSION
       property = H5Pcreate(H5P_DATASET_CREATE);
@@ -1888,6 +1891,24 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
       /* write vertical position */
       dataset = H5Dcreate(patch, "height", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
       chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_ver));
+      chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_SZIP_COMPRESSION
+      chkHDF5err(H5Pclose(property));
+#endif//USE_SZIP_COMPRESSION
+      /* close the dataspace */
+      chkHDF5err(H5Sclose(dataspace));
+      //-------------------------------------------------------------------
+      dims[1]++;
+      dataspace = H5Screate_simple(1, &dims[1], NULL);
+#ifdef  USE_SZIP_COMPRESSION
+      property = H5Pcreate(H5P_DATASET_CREATE);
+      cdims[1] = (dims[1] < (128 * szip_pixels_per_block) ) ? (dims[1]) : (128 * szip_pixels_per_block);
+      chkHDF5err(H5Pset_chunk(property, 1, &cdims[1]));
+      chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+#endif//USE_SZIP_COMPRESSION
+      /* write vertical position */
+      dataset = H5Dcreate(patch, "node_zz", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, node_zz));
       chkHDF5err(H5Dclose(dataset));
 #ifdef  USE_SZIP_COMPRESSION
       chkHDF5err(H5Pclose(property));
@@ -1943,13 +1964,174 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
     }/* for(int lev = 0; lev < maxLev; lev++){ */
     //---------------------------------------------------------------------
 
+
+    //---------------------------------------------------------------------
+    /* prepare one-dimensional data */
+    //---------------------------------------------------------------------
+    /* data preparation in the finest grid */
+    evaluateDiskProperties(disk, ii, maxLev - 1, 0, NDISKBIN_HOR - 1, _vcirc, _sigmap, _sigmaR, _kappa, _Omega, _toomre, _lambda);
+#pragma omp parallel for
+    for(int jj = 0; jj < NDISKBIN_HOR; jj++){
+      //-------------------------------------------------------------------
+      tmp_hor[jj] = (real)(disk[ii].hor   [INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, jj)] *      length2astro);
+      tmp_sig[jj] = (real)(disk[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, jj)] *    velocity2astro);
+      tmp_Sig[jj] = (real)(disk[ii].Sigma [INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, jj)] * col_density2astro);
+#ifdef	ENABLE_VARIABLE_SCALE_HEIGHT
+      tmp__zd[jj] = (real)(disk[ii].zd    [INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, jj)] *      length2astro);
+#endif//ENABLE_VARIABLE_SCALE_HEIGHT
+      //-------------------------------------------------------------------
+    }/* for(int jj = 0; jj < NDISKBIN_HOR; jj++){ */
+#pragma omp parallel for
+    for(int jj = 0; jj < NDISKBIN_VER; jj++)
+      tmp_ver[jj] = (real)(disk[ii].ver   [INDEX2D(maxLev, NDISKBIN_VER, maxLev - 1, jj)] *      length2astro);
+    //---------------------------------------------------------------------
+    /* data preparation in coarser grids */
+    for(int lev = maxLev - 2; lev >= 0; lev--)
+      evaluateDiskProperties(disk, ii, lev, NDISKBIN_HOR >> 1, NDISKBIN_HOR - 1,
+			     &(_vcirc [(NDISKBIN_HOR >> 1) * (maxLev - lev)]),
+			     &(_sigmap[(NDISKBIN_HOR >> 1) * (maxLev - lev)]),
+			     &(_sigmaR[(NDISKBIN_HOR >> 1) * (maxLev - lev)]),
+			     &(_kappa [(NDISKBIN_HOR >> 1) * (maxLev - lev)]),
+			     &(_Omega [(NDISKBIN_HOR >> 1) * (maxLev - lev)]),
+			     &(_toomre[(NDISKBIN_HOR >> 1) * (maxLev - lev)]),
+			     &(_lambda[(NDISKBIN_HOR >> 1) * (maxLev - lev)]));
+#pragma omp parallel
+    for(int lev = maxLev - 2; lev >= 0; lev--){
+      //-------------------------------------------------------------------
+#pragma omp for nowait
+      for(int jj = 0; jj < (NDISKBIN_HOR >> 1); jj++){
+	tmp_hor[(NDISKBIN_HOR >> 1) * (maxLev - lev) + jj] = (real)(disk[ii].hor   [INDEX2D(maxLev, NDISKBIN_HOR, lev, (NDISKBIN_HOR >> 1) + jj)] *      length2astro);
+	tmp_sig[(NDISKBIN_HOR >> 1) * (maxLev - lev) + jj] = (real)(disk[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, (NDISKBIN_HOR >> 1) + jj)] *    velocity2astro);
+	tmp_Sig[(NDISKBIN_HOR >> 1) * (maxLev - lev) + jj] = (real)(disk[ii].Sigma [INDEX2D(maxLev, NDISKBIN_HOR, lev, (NDISKBIN_HOR >> 1) + jj)] * col_density2astro);
+#ifdef	ENABLE_VARIABLE_SCALE_HEIGHT
+	tmp__zd[(NDISKBIN_HOR >> 1) * (maxLev - lev) + jj] = (real)(disk[ii].zd    [INDEX2D(maxLev, NDISKBIN_HOR, lev, (NDISKBIN_HOR >> 1) + jj)] *      length2astro);
+#endif//ENABLE_VARIABLE_SCALE_HEIGHT
+      }/* for(int jj = 0; jj < NDISKBIN_HOR; jj++){ */
+#pragma omp for nowait
+      for(int jj = 0; jj < (NDISKBIN_VER >> 1); jj++)
+	tmp_ver[(NDISKBIN_VER >> 1) * (maxLev - lev) + jj] = (real)(disk[ii].ver   [INDEX2D(maxLev, NDISKBIN_VER, lev, (NDISKBIN_VER >> 1) + jj)] *      length2astro);
+      //-------------------------------------------------------------------
+    }/* for(int lev = maxLev - 2; lev >= 0; lev--){ */
+    //---------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
+    /* write one-dimensional data */
+    //---------------------------------------------------------------------
+    char subgrp[16];
+    sprintf(subgrp, "1D_data");
+    hid_t patch = H5Gcreate(group, subgrp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    //---------------------------------------------------------------------
+    hsize_t dims[2] = {(NDISKBIN_HOR >> 1) * (maxLev + 1), (NDISKBIN_VER >> 1) * (maxLev + 1)};
+    //---------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
+    /* write horizontal variables */
+    //---------------------------------------------------------------------
+    dataspace = H5Screate_simple(1, &dims[0], NULL);
+#ifdef  USE_SZIP_COMPRESSION
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    cdims[0] = (dims[0] < (128 * szip_pixels_per_block) ) ? (dims[0]) : (128 * szip_pixels_per_block);
+    chkHDF5err(H5Pset_chunk(property, 1, &cdims[0]));
+    chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+#endif//USE_SZIP_COMPRESSION
+      /* write horizontal position */
+    dataset = H5Dcreate(patch, "radius", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_hor));
+    chkHDF5err(H5Dclose(dataset));
+    /* write velocity dispersion in z-direction */
+    dataset = H5Dcreate(patch, "sigmaz", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_sig));
+    chkHDF5err(H5Dclose(dataset));
+    /* write column density */
+    dataset = H5Dcreate(patch, "Sigma", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_Sig));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
+    /* write scale height */
+    dataset = H5Dcreate(patch, "zd", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp__zd));
+    chkHDF5err(H5Dclose(dataset));
+#endif//ENABLE_VARIABLE_SCALE_HEIGHT
+      /* write velocity dispersion in R-direction */
+    dataset = H5Dcreate(patch, "sigmaR", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _sigmaR));
+    chkHDF5err(H5Dclose(dataset));
+    /* write velocity dispersion in tangential direction */
+    dataset = H5Dcreate(patch, "sigmap", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _sigmap));
+    chkHDF5err(H5Dclose(dataset));
+    /* write circular velocity */
+    dataset = H5Dcreate(patch, "vcirc", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _vcirc));
+    chkHDF5err(H5Dclose(dataset));
+    /* write kappa */
+    dataset = H5Dcreate(patch, "kappa", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _kappa));
+    chkHDF5err(H5Dclose(dataset));
+    /* write Omega */
+    dataset = H5Dcreate(patch, "Omega", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _Omega));
+    chkHDF5err(H5Dclose(dataset));
+    /* write lambda_critical */
+    dataset = H5Dcreate(patch, "lambda", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _lambda));
+    chkHDF5err(H5Dclose(dataset));
+    /* write Toomre's Q-value */
+    dataset = H5Dcreate(patch, "Toomre's Q", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, _toomre));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_SZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_SZIP_COMPRESSION
+      /* close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+    //---------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
+    /* write vertical variables */
+    //---------------------------------------------------------------------
+    dataspace = H5Screate_simple(1, &dims[1], NULL);
+#ifdef  USE_SZIP_COMPRESSION
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    chkHDF5err(H5Pset_chunk(property, 1, &cdims[1]));
+    chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+#endif//USE_SZIP_COMPRESSION
+      /* write vertical position */
+    dataset = H5Dcreate(patch, "height", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_ver));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_SZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_SZIP_COMPRESSION
+      /* close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+    //---------------------------------------------------------------------
+
     //---------------------------------------------------------------------
     /* write attribute data */
     //---------------------------------------------------------------------
     /* create the data space for the attribute */
-    hsize_t attr_dims = 1;
+    hsize_t attr_dims = 2;
     dataspace = H5Screate_simple(1, &attr_dims, NULL);
     hid_t attribute;
+    //---------------------------------------------------------------------
+    /* write # of arrays */
+    attribute = H5Acreate(patch, "num", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, dims));
+    chkHDF5err(H5Aclose(attribute));
+    /* close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+    //---------------------------------------------------------------------
+    chkHDF5err(H5Gclose(patch));
+    //---------------------------------------------------------------------
+
+
+    //---------------------------------------------------------------------
+    /* write attribute data */
+    //---------------------------------------------------------------------
+    /* create the data space for the attribute */
+    attr_dims = 1;
+    dataspace = H5Screate_simple(1, &attr_dims, NULL);
     //---------------------------------------------------------------------
     /* write scale radius */
     attribute = H5Acreate(group, "Rs", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
@@ -2051,7 +2233,7 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
 #pragma omp parallel for
 	for(int jj = 0; jj < NDISKBIN_HOR * NDISKBIN_VER; jj++)
 	  rhoFrac[jj] = (real)((*disk[ii].rho)[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * disk[ii].rhoTot[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)]);
-      evaluateDiskProperties(disk, ii, lev, _vcirc, _sigmap, _sigmaR, _kappa, _Omega, _toomre, _lambda);
+      evaluateDiskProperties(disk, ii, lev, 0, NDISKBIN_HOR - 1, _vcirc, _sigmap, _sigmaR, _kappa, _Omega, _toomre, _lambda);
       //-------------------------------------------------------------------
       for(int jj = 0; jj < nhorbin; jj++){
 	tmp_hor[jj] = (real)(disk[ii].hor   [INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] *     length2astro);

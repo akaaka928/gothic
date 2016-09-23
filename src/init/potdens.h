@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/09/13(Tue) 11:47:50
+                  last updated on 2016/09/18(Sun) 15:37:12
  *                                                                       *
  *    Header File for Definition to generate initial condition of disk   *
  *                                                                       *
@@ -37,7 +37,9 @@
 #define NHOR_OVER_NVER (2)
 #define NDISKBIN_HOR (NDISKBIN_VER << NHOR_OVER_NVER)
 //-------------------------------------------------------------------------
-#define NDISKBIN_RAD (16384)
+/* #define NDISKBIN_RAD (16384) */
+#define NDISKBIN_RAD (131072)
+/* #define NDISKBIN_RAD (1048576) */
 //-------------------------------------------------------------------------
 #define  NNZ_CG (5 * NDISKBIN_HOR * NDISKBIN_VER - 2 * (NDISKBIN_HOR + NDISKBIN_VER))
 #define NROW_CG (NDISKBIN_HOR * NDISKBIN_VER)
@@ -47,7 +49,9 @@
 #define DISK_MAX_LENGTH (10.0)
 #define DISK_MIN_LENGTH (3.90625e-3)
 //-------------------------------------------------------------------------
-#define NDIVIDE_GAUSSQD4DISK (4)
+/* #define NDIVIDE_GAUSSQD4DISK (4) */
+#define NDIVIDE_GAUSSQD4DISK (8)
+/* #define NDIVIDE_GAUSSQD4DISK (16) */
 //-------------------------------------------------------------------------
 /* #define PROHIBIT_EXTRAPOLATION *//* <-- currently, not implemented */
 #define ENABLE_VARIABLE_SCALE_HEIGHT

@@ -27,6 +27,8 @@ avtStructuredDomainBoundaries.h
 -
 avtStructuredDomainNesting.h
 -
+avtVariableCache.h
+-
 DBOptionsAttributes.h
 -
 Expression.h
@@ -491,6 +493,20 @@ avtVarMetaData.h
 -
 
 /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/DBAtts/MetaData/dbatts_exports.h
+
+/opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Database/avtVariableCache.h
+database_exports.h
+-
+visitstream.h
+-
+map
+-
+vector
+-
+void_ref_ptr.h
+-
+vtkInformationStringKey.h
+-
 
 /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Database/database_exports.h
 
@@ -1011,6 +1027,14 @@ vtkObjectBase.h
 /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/vtk/vtk-6.1/vtkObjectBase.h
 vtkObject.h
 /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/vtk/vtk-6.1/vtkObject.h
+
+/opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/vtk/vtk-6.1/vtkInformationStringKey.h
+vtkCommonCoreModule.h
+/opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/vtk/vtk-6.1/vtkCommonCoreModule.h
+vtkInformationKey.h
+/opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/vtk/vtk-6.1/vtkInformationKey.h
+vtkCommonInformationKeyManager.h
+/opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/vtk/vtk-6.1/vtkCommonInformationKeyManager.h
 
 /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/vtk/vtk-6.1/vtkInformationVector.h
 vtkCommonCoreModule.h

@@ -164,6 +164,7 @@ CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/DBAtts/MetaData/avtVarMetaData.h
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/DBAtts/MetaData/avtVectorMetaData.h
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/DBAtts/MetaData/dbatts_exports.h
+CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Database/avtVariableCache.h
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Database/database_exports.h
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Formats/avtFileFormat.h
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/visit/avt/Database/Formats/avtSTMDFileFormat.h
@@ -231,6 +232,7 @@ CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/vtk/vtk-6.1/vtkInformationDoubleVectorKey.h
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/vtk/vtk-6.1/vtkInformationInformationVectorKey.h
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/vtk/vtk-6.1/vtkInformationKey.h
+CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/vtk/vtk-6.1/vtkInformationStringKey.h
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/vtk/vtk-6.1/vtkInformationVector.h
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/vtk/vtk-6.1/vtkMappedDataArray.h
 CMakeFiles/MMAGI_diskDatabase.dir/avtMAGI_diskFileFormat.C.o: /opt/VisIt/2.10.3/2.10.3/linux-x86_64/include/vtk/vtk-6.1/vtkMappedDataArray.txx

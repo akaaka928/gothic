@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/09/06(Tue) 15:22:40
+                  last updated on 2016/09/23(Fri) 11:48:58
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Assume balance of force in R and z direction                    *
@@ -215,34 +215,13 @@ void integrateSphericalDensityProfile(const int ndisk, const int maxLev, disk_da
       convertCylindrical2Spherical(ll, 0, NDISKBIN_HOR >> 1, NDISKBIN_VER >> 1, NDISKBIN_VER, invrrbin, rho, disk[kk]);
       convertCylindrical2Spherical(ll, NDISKBIN_HOR >> 1, NDISKBIN_HOR, 0, NDISKBIN_VER, invrrbin, rho, disk[kk]);
     }/* for(int ll = maxLev - 1; ll >= 0; ll--){ */
-    /* divide by volume of pieces */
-#pragma omp parallel for
-    for(int ii = 0; ii < NDISKBIN_RAD; ii++)
-      rho[ii] *= invrrbin / (rad[ii] * rad[ii] * rad[ii] + 0.25 * rrbin * rrbin / 3.0);
-    //---------------------------------------------------------------------
-    /* numerical integration to get enclosed mass profile using Simpson's rule */
-    double Menc[2] = {rad[0] * rad[0] * rho[0], rad[1] * rad[1] * rho[1]};
-    double Mini[2] = {0.0, gaussQD4enc(0.0, rad[0], rad, invrrbin, rho)};
-    /* enc[0] = rad[0] * Menc[0] / 3.0; */
-    /* enc[1] = enc[0] + 0.5 * rad[1] * rrbin * rrbin * 0.5 * (rho[0] + rho[1]); */
-    enc[0] = Mini[1];
-    enc[1] = gaussQD4enc(0.0, rad[1], rad, invrrbin, rho);
-    Menc[0] += Menc[1] * 4.0;
-    for(int ii = 2; ii < NDISKBIN_RAD; ii++){
-      //-------------------------------------------------------------------
-      const double mass = rad[ii] * rad[ii] * rho[ii];
-      const int idx = ii & 1;
-      //-------------------------------------------------------------------
-      /* enc[ii] = enc[idx] + (Menc[idx] + mass) * rrbin / 3.0; */
-      enc[ii] = Mini[idx] + (Menc[idx] + mass) * rrbin / 3.0;
-      //-------------------------------------------------------------------
-      Menc[0] += mass * (double)(1 << (1 + (idx    )));
-      Menc[1] += mass * (double)(1 << (1 + (idx ^ 1)));
-      //-------------------------------------------------------------------
-    }/* for(int ii = 2; ii < NDISKBIN_RAD; ii++){ */
-#pragma omp parallel for
-    for(int ii = 0; ii < NDISKBIN_RAD; ii++)
-      enc[ii] *= 4.0 * M_PI;
+    /* yield enclosed mass and volume density (by dividing by volume of pieces) */
+    enc[0] = 4.0 * M_PI * rho[0];
+    rho[0] *= 3.0 * invrrbin / (3.0 * rad[0] * rad[0] + 0.25 * rrbin * rrbin);
+    for(int ii = 1; ii < NDISKBIN_RAD; ii++){
+      enc[ii] = enc[ii - 1] + 4.0 * M_PI * rho[ii];
+      rho[ii] *= 3.0 * invrrbin / (3.0 * rad[ii] * rad[ii] + 0.25 * rrbin * rrbin);
+    }
     //---------------------------------------------------------------------
     /* adjust numerical errors */
     const double Mscale = disk[kk].cfg->Mtot / enc[NDISKBIN_RAD - 1];
@@ -256,7 +235,6 @@ void integrateSphericalDensityProfile(const int ndisk, const int maxLev, disk_da
     fflush(stdout);
 #endif//PROGRESS_REPORT_ON
     //---------------------------------------------------------------------
-
 
 
     //---------------------------------------------------------------------
@@ -347,6 +325,11 @@ void integrateSphericalDensityProfile(const int ndisk, const int maxLev, disk_da
     //---------------------------------------------------------------------
   }/* for(int kk = 0; kk < ndisk; kk++){ */
   //-----------------------------------------------------------------------
+#ifdef  PROGRESS_REPORT_ON
+  fprintf(stdout, "#\n#\n");
+  fflush(stdout);
+#endif//PROGRESS_REPORT_ON
+  //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
@@ -357,6 +340,31 @@ void integrateSphericalDensityProfile(const int ndisk, const int maxLev, disk_da
 
 //-------------------------------------------------------------------------
 /* #define SMOOTH(a, b, c, d) ((((a) * (b) > 0.0) && ((b) * (c) > 0.0) && ((c) * (d) > 0.0)) ? (0.5 * ((b) + (c))) : (0.0)) */
+//-------------------------------------------------------------------------
+/* #ifndef USE_POTENTIAL_SCALING_SCHEME */
+/* //------------------------------------------------------------------------- */
+/* static inline void diffResolutionBoundary(double * restrict ff, const int ii, const int jj, double * restrict fmm, double * restrict fmp, double * restrict fpm, double * restrict fpp) */
+/* { */
+/*   //----------------------------------------------------------------------- */
+/*   const int ic = ii >> 1;  const int im = ic - 1;  const int ip = ic + 1; */
+/*   const int jc = jj >> 1;  const int jm = jc - 1;  const int jp = jc + 1; */
+/*   //----------------------------------------------------------------------- */
+/*   const double mm = ff[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, im, jc)] - 0.125 * (ff[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, im, jp)] - ff[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, im, jm)]); */
+/*   const double cm = ff[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ic, jc)] - 0.125 * (ff[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ic, jp)] - ff[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ic, jm)]); */
+/*   const double pm = ff[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ip, jc)] - 0.125 * (ff[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ip, jp)] - ff[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ip, jm)]); */
+/*   //----------------------------------------------------------------------- */
+/*   const double mp = ff[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, im, jc)] + 0.125 * (ff[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, im, jp)] - ff[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, im, jm)]); */
+/*   const double cp = ff[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ic, jc)] + 0.125 * (ff[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ic, jp)] - ff[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ic, jm)]); */
+/*   const double pp = ff[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ip, jc)] + 0.125 * (ff[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ip, jp)] - ff[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ip, jm)]); */
+/*   //----------------------------------------------------------------------- */
+/*   *fmm = cm - 0.125 * (mp - mm);/\* ii = i-, jj = j- *\/ */
+/*   *fmp = cm + 0.125 * (mp - mm);/\* ii = i-, jj = j+ *\/ */
+/*   *fpm = cp - 0.125 * (pp - pm);/\* ii = i+, jj = j- *\/ */
+/*   *fpp = cp + 0.125 * (pp - pm);/\* ii = i+, jj = j+ *\/ */
+/*   //----------------------------------------------------------------------- */
+/* } */
+/* //------------------------------------------------------------------------- */
+/* #endif//USE_POTENTIAL_SCALING_SCHEME */
 //-------------------------------------------------------------------------
 void diffAxisymmetricPotential(const int maxLev, const disk_data disk)
 {
@@ -373,6 +381,11 @@ void diffAxisymmetricPotential(const int maxLev, const disk_data disk)
 #ifndef USE_POTENTIAL_SCALING_SCHEME
     double * dPhi_dR ;	   dPhi_dR  = &(disk. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, 0)]);
     double *d2Phi_dR2;	  d2Phi_dR2 = &(disk.d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, 0)]);
+    /* double *f1, *f2; */
+    /* if( lev > 0 ){ */
+    /*   f1 = &(disk. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev - 1, 0)]); */
+    /*   f2 = &(disk.d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev - 1, 0)]); */
+    /* }/\* if( lev > 0 ){ *\/ */
 #else///USE_POTENTIAL_SCALING_SCHEME
     double * dPhi_dR ;	   dPhi_dR  = &(disk. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR               , lev, 0)]);
     double *d2Phi_dR2;	  d2Phi_dR2 = &(disk.d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR               , lev, 0)]);
@@ -427,18 +440,94 @@ void diffAxisymmetricPotential(const int maxLev, const disk_data disk)
 	  //---------------------------------------------------------------
 	}
       //-------------------------------------------------------------------
+
+      //-------------------------------------------------------------------
+      /* modify values at the boundary of each resolution */
+      //-------------------------------------------------------------------
+/* #ifndef USE_POTENTIAL_SCALING_SCHEME */
+/*       //------------------------------------------------------------------- */
+/*       if( lev > 0 ){ */
+/* 	//----------------------------------------------------------------- */
+/* 	double mm1, mp1, pm1, pp1;	diffResolutionBoundary(f1, ii, NDISKBIN_VER - 1, &mm1, &mp1, &pm1, &pp1); */
+/* 	double mm2, mp2, pm2, pp2;	diffResolutionBoundary(f2, ii, NDISKBIN_VER - 1, &mm2, &mp2, &pm2, &pp2); */
+/* 	//----------------------------------------------------------------- */
+/* 	if( ii & 1 ){ */
+/* 	  //--------------------------------------------------------------- */
+/* 	  /\* upper half *\/ */
+/* 	  //--------------------------------------------------------------- */
+/* 	  dPhi_dR  [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, NDISKBIN_VER - 2)] = pm1; */
+/* 	  dPhi_dR  [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, NDISKBIN_VER - 1)] = pp1; */
+/* 	  d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, NDISKBIN_VER - 2)] = pm2; */
+/* 	  d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, NDISKBIN_VER - 1)] = pp2; */
+/* 	  //--------------------------------------------------------------- */
+/* 	}/\* if( ii & 1 ){ *\/ */
+/* 	else{ */
+/* 	  //--------------------------------------------------------------- */
+/* 	  /\* lower half *\/ */
+/* 	  //--------------------------------------------------------------- */
+/* 	  dPhi_dR  [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, NDISKBIN_VER - 2)] = mm1; */
+/* 	  dPhi_dR  [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, NDISKBIN_VER - 1)] = mp1; */
+/* 	  d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, NDISKBIN_VER - 2)] = mm2; */
+/* 	  d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, NDISKBIN_VER - 1)] = mp2; */
+/* 	  //--------------------------------------------------------------- */
+/* 	}/\* else{ *\/ */
+/* 	//----------------------------------------------------------------- */
+/*       }/\* if( lev > 0 ){ *\/ */
+/*       //------------------------------------------------------------------- */
+/* #endif//USE_POTENTIAL_SCALING_SCHEME */
+      //-------------------------------------------------------------------
     }/* for(int ii = 0; ii < NDISKBIN_HOR - 1; ii++){ */
     //---------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
 #ifndef USE_POTENTIAL_SCALING_SCHEME
-    for(int jj = 0; jj < NDISKBIN_VER; jj++){
-      //-------------------------------------------------------------------
-      dPhi_dR  [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj)] =  dPhi_dR [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, jj)];
-      d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj)] = d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, jj)];
-      //-------------------------------------------------------------------
-    }/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
+    //---------------------------------------------------------------------
+    /* if( lev > 0 ){ */
+    /*   //------------------------------------------------------------------- */
+    /*   for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
+    /* 	//----------------------------------------------------------------- */
+    /* 	double mm1, mp1, pm1, pp1;	diffResolutionBoundary(f1, NDISKBIN_HOR - 1, jj, &mm1, &mp1, &pm1, &pp1); */
+    /* 	double mm2, mp2, pm2, pp2;	diffResolutionBoundary(f2, NDISKBIN_HOR - 1, jj, &mm2, &mp2, &pm2, &pp2); */
+    /* 	//----------------------------------------------------------------- */
+    /* 	if( jj & 1 ){ */
+    /* 	  //--------------------------------------------------------------- */
+    /* 	  /\* upper half *\/ */
+    /* 	  //--------------------------------------------------------------- */
+    /* 	  dPhi_dR  [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, jj)] = mp1; */
+    /* 	  dPhi_dR  [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj)] = pp1; */
+    /* 	  d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, jj)] = mp2; */
+    /* 	  d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj)] = pp2; */
+    /* 	  //--------------------------------------------------------------- */
+    /* 	}/\* if( jj & 1 ){ *\/ */
+    /* 	//----------------------------------------------------------------- */
+    /* 	else{ */
+    /* 	  //--------------------------------------------------------------- */
+    /* 	  /\* lower half *\/ */
+    /* 	  //--------------------------------------------------------------- */
+    /* 	  dPhi_dR  [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, jj)] = mm1; */
+    /* 	  dPhi_dR  [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj)] = pm1; */
+    /* 	  d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, jj)] = mm2; */
+    /* 	  d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj)] = pm2; */
+    /* 	  //--------------------------------------------------------------- */
+    /* 	}/\* else{ *\/ */
+    /* 	//----------------------------------------------------------------- */
+    /*   }/\* for(int jj = 0; jj < NDISKBIN_VER; jj++){ *\/ */
+    /*   //------------------------------------------------------------------- */
+    /* }/\* if( lev > 0 ){ *\/ */
+    /* //--------------------------------------------------------------------- */
+    /* else */
+      for(int jj = 0; jj < NDISKBIN_VER; jj++){
+	//-----------------------------------------------------------------
+	dPhi_dR  [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj)] =  dPhi_dR [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, jj)];
+	d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj)] = d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, jj)];
+	//-----------------------------------------------------------------
+      }/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
+    //---------------------------------------------------------------------
 #else///USE_POTENTIAL_SCALING_SCHEME
+    //---------------------------------------------------------------------
     dPhi_dR  [NDISKBIN_HOR - 1] =  dPhi_dR [NDISKBIN_HOR - 2];
     d2Phi_dR2[NDISKBIN_HOR - 1] = d2Phi_dR2[NDISKBIN_HOR - 2];
+    //---------------------------------------------------------------------
 #endif//USE_POTENTIAL_SCALING_SCHEME
     //---------------------------------------------------------------------
   }/* for(int lev = 0; lev < maxLev; lev++){ */

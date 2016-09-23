@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/09/23(Fri) 11:33:12
+                  last updated on 2016/09/18(Sun) 18:18:27
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Poisson solver to yield potential--density pair                 *
@@ -180,6 +180,7 @@ void allocDiskProfile
   /* const double hmin = ldexp(1.0, log2hmin); */
   //-----------------------------------------------------------------------
   /* hmin corresponds to 2^(1-Lmax) h */
+  /* *maxLev = 1 + log2hmax - log2hmin; */
   *maxLev = 1 - log2hmin + log2hmax;
   //-----------------------------------------------------------------------
 
@@ -748,59 +749,6 @@ static inline void setColumnDensityProfile(const int ndisk, const int maxLev, di
 
 
 //-------------------------------------------------------------------------
-static inline void coarsePotential4boundary(const int lev_lrs, double * restrict pot)
-{
-  //-----------------------------------------------------------------------
-  __NOTE__("%s\n", "start");
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
-  const int lev_hrs = lev_lrs + 1;
-  //-----------------------------------------------------------------------
-#pragma omp parallel for
-  for(int ii = 0; ii < (NDISKBIN_HOR >> 1); ii++){
-    //---------------------------------------------------------------------
-    const int il = ii << 1;
-    const int ih = il + 1;
-    //---------------------------------------------------------------------
-    const int jj = (NDISKBIN_VER >> 1) - 1;
-    //---------------------------------------------------------------------
-    const int jl = jj << 1;
-    const int jh = jl + 1;
-    //---------------------------------------------------------------------
-    pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_lrs, ii, jj)] =
-      (pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_hrs, il, jl)] + pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_hrs, il, jh)] +
-       pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_hrs, ih, jl)] + pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_hrs, ih, jh)]) * 0.25;
-    //---------------------------------------------------------------------
-  }/* for(int ii = 0; ii < (NDISKBIN_HOR >> 1); ii++){ */
-  //-----------------------------------------------------------------------
-  {
-    //---------------------------------------------------------------------
-    const int ii = (NDISKBIN_HOR >> 1) - 1;
-    //---------------------------------------------------------------------
-    const int il = ii << 1;
-    const int ih = il + 1;
-    //---------------------------------------------------------------------
-#pragma omp parallel for
-    for(int jj = 0; jj < (NDISKBIN_VER >> 1); jj++){
-      //-------------------------------------------------------------------
-      const int jl = jj << 1;
-      const int jh = jl + 1;
-      //-------------------------------------------------------------------
-      pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_lrs, ii, jj)] =
-	(pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_hrs, il, jl)] + pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_hrs, il, jh)] +
-	 pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_hrs, ih, jl)] + pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_hrs, ih, jh)]) * 0.25;
-      //-------------------------------------------------------------------
-    }/* for(int jj = 0; jj < (NDISKBIN_VER >> 1); jj++){ */
-    //---------------------------------------------------------------------
-  }/* for(int ii = 0; ii < (NDISKBIN_HOR >> 1); ii++){ */
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
-  __NOTE__("%s\n", "end");
-  //-----------------------------------------------------------------------
-}
-//-------------------------------------------------------------------------
 static inline void coarsePotential(const int lev_lrs, double * restrict pot)
 {
   //-----------------------------------------------------------------------
@@ -825,7 +773,7 @@ static inline void coarsePotential(const int lev_lrs, double * restrict pot)
 	(pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_hrs, il, jl)] + pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_hrs, il, jh)] +
 	 pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_hrs, ih, jl)] + pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_hrs, ih, jh)]) * 0.25;
       //-------------------------------------------------------------------
-    }/* for(int jj = 0; jj < (NDISKBIN_VER >> 1); jj++){ */
+    }
     //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < (NDISKBIN_HOR >> 1); ii++){ */
   //-----------------------------------------------------------------------
@@ -899,7 +847,7 @@ static inline void coarseDensity(const int lev_lrs, const disk_data disk, double
 	((rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_hrs, il, jl)] + rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_hrs, il, jh)]) * Rl +
 	 (rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_hrs, ih, jl)] + rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_hrs, ih, jh)]) * Rh) * Rinv;
       //-------------------------------------------------------------------
-    }/* for(int jj = 0; jj < (NDISKBIN_VER >> 1); jj++){ */
+    }
     //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < (NDISKBIN_HOR >> 1); ii++){ */
   //-----------------------------------------------------------------------
@@ -1464,12 +1412,21 @@ static inline void calcOuterPotential
 
 
 //-------------------------------------------------------------------------
-static inline void setResultantVector(const int lev, const double hh, double * restrict RR, double * restrict rho, double * restrict Phi_NR, double * restrict Phi_Nz, double * restrict vec)
+static inline void setSparseMatrix
+(const int lev, const double hh, double * restrict RR, double * restrict rho, double * restrict Phi_NR, double * restrict Phi_Nz, const crs mat, double * restrict vec)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
 
+  //-----------------------------------------------------------------------
+  const double facCof = (lev > 0) ? (11.0 / 3.0) : (4.0);
+  const double facPot = (lev > 0) ? ( 2.0 / 3.0) : (1.0);
+  //-----------------------------------------------------------------------
+  /* const int Nrow = NDISKBIN_HOR * NDISKBIN_VER; */
+  int valIdx = 0;
+  int rowIdx = 0;
+  mat.row[rowIdx] = valIdx;
   //-----------------------------------------------------------------------
   const double Phi0 = 8.0 * M_PI * (double)newton * hh;
 #pragma omp parallel for
@@ -1480,43 +1437,7 @@ static inline void setResultantVector(const int lev, const double hh, double * r
     for(int jj = 0; jj < NDISKBIN_VER; jj++)
       vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)] = Phi0 * Ri * rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)];
     //---------------------------------------------------------------------
-    /* boundary condition @ z-edge */
-    vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, NDISKBIN_VER - 1)] -= (double)(1 + (ii << 1)) * Phi_Nz[ii];
-    //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
-  //-----------------------------------------------------------------------
-  /* boundary condition @ R-edge */
-  for(int jj = 0; jj < NDISKBIN_VER; jj++)
-    vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj)] -= (double)(NDISKBIN_HOR << 1) * Phi_NR[jj];
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
-  __NOTE__("%s\n", "end");
-  //-----------------------------------------------------------------------
-}
-//-------------------------------------------------------------------------
-static inline void setSparseMatrix(const crs mat)
-{
-  //-----------------------------------------------------------------------
-  __NOTE__("%s\n", "start");
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
-  /* const int Nrow = NDISKBIN_HOR * NDISKBIN_VER; */
-  int valIdx = 0;
-  int rowIdx = 0;
-  mat.row[rowIdx] = valIdx;
-  //-----------------------------------------------------------------------
-/*   const double Phi0 = 8.0 * M_PI * (double)newton * hh; */
-/* #pragma omp parallel for */
-/*   for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
-/*     //--------------------------------------------------------------------- */
-/*     const double Ri = RR[ii]; */
-/*     //--------------------------------------------------------------------- */
-/*     for(int jj = 0; jj < NDISKBIN_VER; jj++) */
-/*       vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)] = Phi0 * Ri * rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)]; */
-/*     //--------------------------------------------------------------------- */
-/*   }/\* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ *\/ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -1541,11 +1462,11 @@ static inline void setSparseMatrix(const crs mat)
   }/* for(int jj = 1; jj < NDISKBIN_VER - 1; jj++){ */
   //-----------------------------------------------------------------------
   /* ii = 0; jj = NDISKBIN_VER - 1 */
-  mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, NDISKBIN_VER - 2);  mat.val[valIdx] =  1.0;  valIdx++;
-  mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, NDISKBIN_VER - 1);  mat.val[valIdx] = -4.0;  valIdx++;
-  mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 1, NDISKBIN_VER - 1);  mat.val[valIdx] =  2.0;  valIdx++;
+  mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, NDISKBIN_VER - 2);  mat.val[valIdx] =     1.0;  valIdx++;
+  mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, NDISKBIN_VER - 1);  mat.val[valIdx] = -facCof;  valIdx++;
+  mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 1, NDISKBIN_VER - 1);  mat.val[valIdx] =     2.0;  valIdx++;
   rowIdx++;  mat.row[rowIdx] = valIdx;
-  /* vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, NDISKBIN_VER - 1)] -= Phi_Nz[0]; */
+  vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, NDISKBIN_VER - 1)] -= facPot * Phi_Nz[0];
   //-----------------------------------------------------------------------
 
 
@@ -1583,14 +1504,14 @@ static inline void setSparseMatrix(const crs mat)
     //---------------------------------------------------------------------
     /* outer boundary (jj = Nz - 1) */
     //---------------------------------------------------------------------
-    mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii - 1, NDISKBIN_VER - 1);    mat.val[valIdx] =  (double)(      ii << 1       );    valIdx++;
-    mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , NDISKBIN_VER - 2);    mat.val[valIdx] =  (double)( 1 + (ii << 1)      );    valIdx++;
-    mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , NDISKBIN_VER - 1);    mat.val[valIdx] = -(double)((1 + (ii << 1)) << 2);    valIdx++;
-    mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii + 1, NDISKBIN_VER - 1);    mat.val[valIdx] =  (double)((1 +  ii      ) << 1);    valIdx++;
+    mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii - 1, NDISKBIN_VER - 1);    mat.val[valIdx] =           (double)(      ii << 1       );    valIdx++;
+    mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , NDISKBIN_VER - 2);    mat.val[valIdx] =           (double)( 1 + (ii << 1)      );    valIdx++;
+    mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , NDISKBIN_VER - 1);    mat.val[valIdx] = -facCof * (double)( 1 + (ii << 1)      );    valIdx++;
+    mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii + 1, NDISKBIN_VER - 1);    mat.val[valIdx] =           (double)((1 +  ii      ) << 1);    valIdx++;
     //---------------------------------------------------------------------
     rowIdx++;    mat.row[rowIdx] = valIdx;
     //---------------------------------------------------------------------
-    /* vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, NDISKBIN_VER - 1)] -= (double)(1 + (ii << 1)) * Phi_Nz[ii]; */
+    vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, NDISKBIN_VER - 1)] -= facPot * (double)(1 + (ii << 1)) * Phi_Nz[ii];
     //---------------------------------------------------------------------
   }/* for(int ii = 1; ii < NDISKBIN_HOR - 1; ii++){ */
   //-----------------------------------------------------------------------
@@ -1601,32 +1522,35 @@ static inline void setSparseMatrix(const crs mat)
   //-----------------------------------------------------------------------
   /* ii = NDISKBIN_HOR - 1; jj = 0; */
   mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, 0);  mat.val[valIdx] =  (double)(      (NDISKBIN_HOR - 1) << 1      );  valIdx++;
-  mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, 0);  mat.val[valIdx] = -(double)((1 + ((NDISKBIN_HOR - 1) << 1)) * 3);  valIdx++;
+  mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, 0);
+  mat.val[valIdx] = (lev > 0) ? (-(double)( 7 + ((NDISKBIN_HOR - 1) << 4)) / 3.0) : (-(double)((1 + ((NDISKBIN_HOR - 1) << 1)) * 3));  valIdx++;
   mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, 1);  mat.val[valIdx] =  (double)( 1 + ((NDISKBIN_HOR - 1) << 1)     );  valIdx++;
   rowIdx++;  mat.row[rowIdx] = valIdx;
-  /* vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, 0)] -= (double)(NDISKBIN_HOR << 1) * Phi_NR[0]; */
+  vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, 0)] -= facPot * (double)(NDISKBIN_HOR << 1) * Phi_NR[0];
   //-----------------------------------------------------------------------
   /* ii = NDISKBIN_HOR - 1; 1 <= jj <= NDISKBIN_VER - 2 */
   for(int jj = 1; jj < NDISKBIN_VER - 1; jj++){
     //---------------------------------------------------------------------
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, jj    );    mat.val[valIdx] =  (double)(      (NDISKBIN_HOR - 1) << 1       );    valIdx++;
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj - 1);    mat.val[valIdx] =  (double)( 1 + ((NDISKBIN_HOR - 1) << 1)      );    valIdx++;
-    mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj    );    mat.val[valIdx] = -(double)((1 + ((NDISKBIN_HOR - 1) << 1)) << 2);    valIdx++;
+    mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj    );
+    mat.val[valIdx] = -facPot * (double)((lev > 0) ? (5 + 11 * (NDISKBIN_HOR - 1)) : ((1 + ((NDISKBIN_HOR - 1) << 1)) << 2));    valIdx++;
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj + 1);    mat.val[valIdx] =  (double)( 1 + ((NDISKBIN_HOR - 1) << 1)      );    valIdx++;
     //---------------------------------------------------------------------
     rowIdx++;    mat.row[rowIdx] = valIdx;
     //---------------------------------------------------------------------
-    /* vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj)] -= (double)(NDISKBIN_HOR << 1) * Phi_NR[jj]; */
+    vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj)] -= facPot * (double)(NDISKBIN_HOR << 1) * Phi_NR[jj];
     //---------------------------------------------------------------------
   }/* for(int jj = 1; jj < NDISKBIN_VER - 1; jj++){ */
   //-----------------------------------------------------------------------
   /* ii = NR - 1; jj = NDISKBIN_VER - 1 */
   mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, NDISKBIN_VER - 1);  mat.val[valIdx] =  (double)(      (NDISKBIN_HOR - 1 ) << 1       );  valIdx++;
   mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, NDISKBIN_VER - 2);  mat.val[valIdx] =  (double)( 1 + ((NDISKBIN_HOR - 1 ) << 1)      );  valIdx++;
-  mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, NDISKBIN_VER - 1);  mat.val[valIdx] = -(double)((1 + ((NDISKBIN_HOR - 1 ) << 1)) << 2);  valIdx++;
+  mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, NDISKBIN_VER - 1);
+  mat.val[valIdx] = (lev > 0) ? (-(double)(9 + 20 * (NDISKBIN_HOR - 1)) / 3.0) : (-(double)((1 + ((NDISKBIN_HOR - 1 ) << 1)) << 2));  valIdx++;
   rowIdx++;  mat.row[rowIdx] = valIdx;
-  /* vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, NDISKBIN_VER - 1)] -= */
-  /*   (double)(NDISKBIN_HOR << 1) * Phi_NR[NDISKBIN_VER - 1] + (double)(1 + ((NDISKBIN_HOR - 1) << 1)) * Phi_Nz[NDISKBIN_HOR - 1]; */
+  vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, NDISKBIN_VER - 1)] -=
+    facPot * ((double)(NDISKBIN_HOR << 1) * Phi_NR[NDISKBIN_VER - 1] + (double)(1 + ((NDISKBIN_HOR - 1) << 1)) * Phi_Nz[NDISKBIN_HOR - 1]);
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -1645,8 +1569,6 @@ static inline void setSparseMatrix(const crs mat)
 
 
 //-------------------------------------------------------------------------
-/* #define MONOTONIC_DIFF(ll, cc, rr) ((((cc) - (ll)) * ((rr) - (cc)) > 0.0) ? ((rr) - (ll)) : (0.0)) */
-//-------------------------------------------------------------------------
 static inline void getPotentialField
 (const int ndisk, disk_data * restrict disk, const int lev,
  const double hh, const double invhh, double * restrict RR, double * restrict zz,
@@ -1661,99 +1583,31 @@ static inline void getPotentialField
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-  /* prepare Poisson equation in matrix form (vector part) */
+  /* prepare Poisson equation in matrix form */
   //-----------------------------------------------------------------------
   if( lev > 0 ){
     //---------------------------------------------------------------------
-    coarsePotential4boundary(lev - 1, disk[0].pot);
+    Phi_Nz[0] = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, 0, NDISKBIN_VER >> 1)];
+    for(int ii = 1; ii < NDISKBIN_HOR; ii++)
+      Phi_Nz[ii] =
+	0.75 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii    ) >> 1, NDISKBIN_VER >> 1)] +
+	0.25 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii + 1) >> 1, NDISKBIN_VER >> 1)];
     //---------------------------------------------------------------------
-    /* set z-edge[NR] */
-#pragma omp parallel for
-    for(int ii = 0; ii < NDISKBIN_HOR; ii++){
-      //-------------------------------------------------------------------
-      const double mm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii > 1) ? ((ii >> 1) - 1) : (0), (NDISKBIN_VER >> 1) - 1)];
-      const double mc = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii > 1) ? ((ii >> 1) - 1) : (0),  NDISKBIN_VER >> 1)	 ];
-      const double mp = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii > 1) ? ((ii >> 1) - 1) : (0), (NDISKBIN_VER >> 1) + 1)];
-      //-------------------------------------------------------------------
-      const double cm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1,		    ii >> 1	       , (NDISKBIN_VER >> 1) - 1)];
-      const double cc = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1,		    ii >> 1	       ,  NDISKBIN_VER >> 1)	 ];
-      const double cp = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1,		    ii >> 1	       , (NDISKBIN_VER >> 1) + 1)];
-      //-------------------------------------------------------------------
-      const double pm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1,		   (ii >> 1) + 1       , (NDISKBIN_VER >> 1) - 1)];
-      const double pc = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1,		   (ii >> 1) + 1       ,  NDISKBIN_VER >> 1)	 ];
-      const double pp = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1,		   (ii >> 1) + 1       , (NDISKBIN_VER >> 1) + 1)];
-      //-------------------------------------------------------------------
-      const double zmm = mc - 0.125 * (mp - mm);
-      const double zcm = cc - 0.125 * (cp - cm);
-      const double zpm = pc - 0.125 * (pp - pm);
-      //-------------------------------------------------------------------
-      Phi_Nz[ii] = zcm + (double)(((ii & 1) << 1) - 1) * 0.125 * (zpm - zmm);
-      //-------------------------------------------------------------------
-#if 0
-      fprintf(stderr, "%d\t%e\t%e\t%e\t%e\n", ii, Phi_Nz[ii], zmm, zcm, zpm);
-#endif
-      //-------------------------------------------------------------------
-    }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
-    /* Phi_Nz[0] = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, 0, NDISKBIN_VER >> 1)]; */
-    /* for(int ii = 1; ii < NDISKBIN_HOR; ii++) */
-    /*   Phi_Nz[ii] = */
-    /* 	0.75 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii    ) >> 1, NDISKBIN_VER >> 1)] + */
-    /* 	0.25 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii + 1) >> 1, NDISKBIN_VER >> 1)]; */
-    //---------------------------------------------------------------------
-    /* set R-edge[Nz] */
-#pragma omp parallel for
-    for(int jj = 0; jj < NDISKBIN_VER; jj++){
-      //-------------------------------------------------------------------
-      const double mm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (NDISKBIN_HOR >> 1) - 1, (jj > 1 ) ? ((jj >> 1) - 1) : (0))];
-      const double cm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1,	NDISKBIN_HOR >> 1     , (jj > 1 ) ? ((jj >> 1) - 1) : (0))];
-      const double pm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (NDISKBIN_HOR >> 1) + 1, (jj > 1 ) ? ((jj >> 1) - 1) : (0))];
-      //-------------------------------------------------------------------
-      const double mc = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (NDISKBIN_HOR >> 1) - 1,		      jj >> 1		 )];
-      const double cc = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1,	NDISKBIN_HOR >> 1     ,		      jj >> 1		 )];
-      const double pc = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (NDISKBIN_HOR >> 1) + 1,		      jj >> 1		 )];
-      //-------------------------------------------------------------------
-      const double mp = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (NDISKBIN_HOR >> 1) - 1,		     (jj >> 1) + 1	 )];
-      const double cp = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1,	NDISKBIN_HOR >> 1     ,		     (jj >> 1) + 1	 )];
-      const double pp = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (NDISKBIN_HOR >> 1) + 1,		     (jj >> 1) + 1	 )];
-      //-------------------------------------------------------------------
-      const double Rmm = cm - 0.125 * (pm - mm);
-      const double Rmc = cc - 0.125 * (pc - mc);
-      const double Rmp = cp - 0.125 * (pp - mp);
-      //-------------------------------------------------------------------
-      Phi_NR[jj] = Rmc + (double)(((jj & 1) << 1) - 1) * 0.125 * (Rmp - Rmm);
-      //-------------------------------------------------------------------
-#if 0
-      fprintf(stderr, "%d\t%e\t%e\t%e\t%e\n", jj, Phi_NR[jj], Rmm, Rmc, Rmp);
-#endif
-      //-------------------------------------------------------------------
-      /* const double zmm = mc - 0.125 * (mp - mm);      const double zcm = cc - 0.125 * (cp - cm);      const double zpm = pc - 0.125 * (pp - pm); */
-      /* const double zmp = mc + 0.125 * (mp - mm);      const double zcp = cc + 0.125 * (cp - cm);      const double zpp = pc + 0.125 * (pp - pm); */
-      //-------------------------------------------------------------------
-      /* Phi_NR[jj    ] = zcm - 0.125 * (zpm - zmm); */
-      /* Phi_NR[jj + 1] = zcp - 0.125 * (zpp - zmp); */
-      //-------------------------------------------------------------------
-    }/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
-    /* Phi_NR[0] = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, NDISKBIN_HOR >> 1, 0)]; */
-    /* for(int jj = 1; jj < NDISKBIN_VER; jj++) */
-    /*   Phi_NR[jj] = */
-    /* 	0.75 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, NDISKBIN_HOR >> 1, (jj	) >> 1)] + */
-    /* 	0.25 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, NDISKBIN_HOR >> 1, (jj + 1) >> 1)]; */
+    Phi_NR[0] = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, NDISKBIN_HOR >> 1, 0)];
+    for(int jj = 1; jj < NDISKBIN_VER; jj++)
+      Phi_NR[jj] =
+	0.75 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, NDISKBIN_HOR >> 1, (jj	) >> 1)] +
+	0.25 * disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, NDISKBIN_HOR >> 1, (jj + 1) >> 1)];
     //---------------------------------------------------------------------
 #if 0
     fprintf(stderr, "# Phi_Nz[%d]\n", NDISKBIN_HOR);
     for(int ii = 0; ii < NDISKBIN_HOR; ii++)
-      fprintf(stderr, "%e\t%e\t%e\t%e\t%e\n", RR[ii], Phi_Nz[ii],
-    	      disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, ii >> 1, (NDISKBIN_VER >> 1) - 1)],
-    	      disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, ii >> 1,  NDISKBIN_VER >> 1     )],
-    	      disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, ii >> 1, (NDISKBIN_VER >> 1) + 1)]);
-    fprintf(stderr, "\n");
+      fprintf(stderr, "%e\t%e\t%e\n", RR[ii], Phi_Nz[ii], disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, ii >> 1, NDISKBIN_VER >> 1)]);
 
+    fprintf(stderr, "\n");
     fprintf(stderr, "# Phi_NR[%d]\n", NDISKBIN_VER);
     for(int jj = 0; jj < NDISKBIN_VER; jj++)
-      fprintf(stderr, "%e\t%e\t%e\t%e\t%e\n", zz[jj], Phi_NR[jj],
-    	      disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (NDISKBIN_HOR >> 1) - 1, jj >> 1)],
-    	      disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1,  NDISKBIN_HOR >> 1     , jj >> 1)],
-    	      disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (NDISKBIN_HOR >> 1) + 1, jj >> 1)]);
+      fprintf(stderr, "%e\t%e\t%e\n", zz[jj], Phi_NR[jj], disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, NDISKBIN_HOR >> 1, jj >> 1)]);
     fflush(NULL);
     exit(0);
 #endif
@@ -1787,14 +1641,15 @@ static inline void getPotentialField
 		       );
     //---------------------------------------------------------------------
   }/* else{ */
-  //-----------------------------------------------------------------------
-  setResultantVector(lev, hh, RR, rho, Phi_NR, Phi_Nz, mat.vec);
+  setSparseMatrix(lev, hh, RR, rho, Phi_NR, Phi_Nz, mat.mat, mat.vec);
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   /* solve Poisson equation using iterative method */
   //-----------------------------------------------------------------------
-  pbicgstab(mat.mat, NDISKBIN_HOR * NDISKBIN_VER, mat.vec, Phi, mat.res, mat.sdw, mat.mid, mat.tmp, mat.Api, mat.Ati, pre.ilu, pre.Kri, pre.Kpi, pre.Kti, CONVERGENCE_BICGSTAB);
+  const int Nrow = NDISKBIN_HOR * NDISKBIN_VER;
+  getILU0(Nrow, mat.mat, pre.ilu);
+  pbicgstab(mat.mat, Nrow, mat.vec, Phi, mat.res, mat.sdw, mat.mid, mat.tmp, mat.Api, mat.Ati, pre.ilu, pre.Kri, pre.Kpi, pre.Kti, CONVERGENCE_BICGSTAB);
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -2301,10 +2156,6 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
   smat.mid = mid;  smat.tmp = tmp;  smat.Api = Api;  smat.Ati = Ati;
   soaPreConditioning pre;
   pre.ilu = ilu;  pre.Kri = Kri;  pre.Kpi = Kpi;  pre.Kti = Kti;
-  //-----------------------------------------------------------------------
-  /* prepare Poisson equation in matrix form (matrix part) */
-  setSparseMatrix(smat.mat);
-  getILU0(NDISKBIN_HOR * NDISKBIN_VER, smat.mat, pre.ilu);
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------

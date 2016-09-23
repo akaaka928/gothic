@@ -53,6 +53,7 @@
 #include <avtDatabaseMetaData.h>
 #include <avtStructuredDomainBoundaries.h>
 #include <avtStructuredDomainNesting.h>
+#include <avtVariableCache.h>
 
 #include <DBOptionsAttributes.h>
 #include <Expression.h>
@@ -225,7 +226,7 @@ avtMAGI_diskFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
       std::vector<int> ratios;
       int rr = (lev == 0) ? 1 : 2;
       for(int kk = 0; kk < nDims; kk++)
-	ratios.push_back(rr);
+    	ratios.push_back(rr);
       dn->SetLevelRefinementRatios(lev, ratios);
       levelCSset[lev] = false;
     }// for(int lev = 0; lev < nLevels; lev++){
@@ -237,11 +238,12 @@ avtMAGI_diskFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
     // fill in metadata, domain nesting, and domain boundaries by reading the target file
     std::vector<int>                groupIds(nBlocks);
     std::vector<std::string> blockPieceNames(nBlocks);
-    // int *localPatchNumber = new int[nLevels];
-    // memset(localPatchNumber, 0, sizeof(int) * nLevels);
     for(int bidx = 0; bidx < nBlocks; bidx++){
       // get the nested level and level-appropriate IJK indexing for the block
-      int level = 0, ijk_num[3] = {0, 0, 0}, ijk_head[3] = {0, 0, 0}, ijk_tail[3] = {0, 0, 0};
+      int level = 0;
+      int ijk_num [3] = {0, 0, 0};
+      int ijk_head[3] = {0, 0, 0};
+      int ijk_tail[3] = {0, 0, 0};
       double width[3] = {0.0, 0.0, 0.0};
       sprintf(grp, "data%d/patch%d", 0, bidx);
       hid_t patch = H5Gopen(target, grp, H5P_DEFAULT);
@@ -257,14 +259,10 @@ avtMAGI_diskFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
       attribute = H5Aopen(patch, "width", H5P_DEFAULT);
       chkHDF5err(H5Aread(attribute, H5T_NATIVE_DOUBLE, width));
       chkHDF5err(H5Aclose(attribute));
-      // attribute = H5Aopen(patch, "parent", H5P_DEFAULT);
-      // chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &parent));
-      // chkHDF5err(H5Aclose(attribute));
       chkHDF5err(H5Gclose(patch));
 
-      // localPatchNumber[level]++;
       for(int kk = 0; kk < nDims; kk++)
-	ijk_tail[kk] = ijk_head[kk] + ijk_num[kk] - 1;
+      	ijk_tail[kk] = ijk_head[kk] + ijk_num[kk] - 1;
 
       // fill in metadata
       sprintf(grp, "patch%d", bidx);
@@ -273,30 +271,30 @@ avtMAGI_diskFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
 
       // fill in avtStructuredDomainNesting
       if( !levelCSset[level] ){
-	std::vector<double> cs;
-	for(int kk = 0; kk < nDims; kk++)
-	  cs.push_back(width[kk]);
-	dn->SetLevelCellSizes(level, cs);
-	levelCSset[level] = true;
+      	std::vector<double> cs;
+      	for(int kk = 0; kk < nDims; kk++)
+      	  cs.push_back(width[kk]);
+      	dn->SetLevelCellSizes(level, cs);
+      	levelCSset[level] = true;
       }// if( !levelCSset[level] ){
-      std::vector<int> logicalExtents(nDims * 2);
-      for(int kk = 0; kk < nDims; kk++){
-	logicalExtents[        kk] = ijk_head[kk];
-	logicalExtents[nDims + kk] = ijk_tail[kk];
-      }// for(int kk = 0; kk < nDims; kk++){
 
       // connect pathces with the corresponding parent patch (except 0)
+      std::vector<int> logicalExtents(nDims * 2);
+      for(int kk = 0; kk < nDims; kk++){
+      	logicalExtents[        kk] = ijk_head[kk];
+      	logicalExtents[nDims + kk] = ijk_tail[kk];
+      }// for(int kk = 0; kk < nDims; kk++){
       std::vector<int> childPatches;
       for(int cidx = 1; cidx < nBlocks; cidx++)
-	if( (cidx != bidx) && (parent[cidx] == bidx) )
-	  childPatches.push_back(cidx);
+      	if( (cidx != bidx) && (parent[cidx] == bidx) )
+      	  childPatches.push_back(cidx);
       dn->SetNestingForDomain(bidx, level, childPatches, logicalExtents);
 
       // fill in avtRectilinearDomainBoundaries
       int *boundary = new int[nDims * 2];
       for(int jj = 0; jj < nDims; jj++){
-	boundary[     jj << 1 ] =     ijk_head[jj];
-	boundary[1 + (jj << 1)] = 1 + ijk_tail[jj];
+      	boundary[     jj << 1 ] =     ijk_head[jj];
+      	boundary[1 + (jj << 1)] = 1 + ijk_tail[jj];
       }// for(int jj = 0; jj < nDims; jj++){
       sdb->SetIndicesForAMRPatch(bidx, level, boundary);
       delete [] boundary;
@@ -304,8 +302,12 @@ avtMAGI_diskFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
     }// for(int bidx = 0; bidx < nBlocks; bidx++){
 
     delete [] levelCSset;
+    void_ref_ptr vr = void_ref_ptr(dn, avtStructuredDomainNesting::Destruct);
+    cache->CacheVoidRef(meshname.c_str(), AUXILIARY_DATA_DOMAIN_NESTING_INFORMATION, timestep, -1, vr);
 
     sdb->CalculateBoundaries();
+    void_ref_ptr vsdb = void_ref_ptr(sdb, avtStructuredDomainBoundaries::Destruct);
+    cache->CacheVoidRef("any_mesh", AUXILIARY_DATA_DOMAIN_BOUNDARY_INFORMATION, timestep, -1, vsdb);
 
     // AMR mesh metadata
     mmd->groupOrigin = 0;    mmd->groupTitle =  "Levels";    mmd->groupPieceName = "level";    mmd->groupIds   = groupIds;
@@ -315,15 +317,14 @@ avtMAGI_diskFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
 
 
     // add physical variables
-    // AVT_NODECENT? AVT_ZONECENT?
     std::ostringstream var;
     // add scalar variables
-    avtScalarMetaData *rho = new avtScalarMetaData;    rho->meshName = meshname;    rho->centering = AVT_NODECENT;    rho->hasUnits = true;
+    avtScalarMetaData *rho = new avtScalarMetaData;    rho->meshName = meshname;    rho->centering = AVT_ZONECENT;    rho->hasUnits = true;
     var << meshname << "/rho";    rho->name = var.str();    rho->units = density_unit;    md->Add(rho);    var.str("");
-    avtScalarMetaData *pot = new avtScalarMetaData;    pot->meshName = meshname;    pot->centering = AVT_NODECENT;    pot->hasUnits = true;
+    avtScalarMetaData *pot = new avtScalarMetaData;    pot->meshName = meshname;    pot->centering = AVT_ZONECENT;    pot->hasUnits = true;
     var << meshname << "/Phi";    pot->name = var.str();    pot->units = senergy_unit;    md->Add(pot);    var.str("");
     if( kind > 1 ){
-      avtScalarMetaData *frc = new avtScalarMetaData;      frc->meshName = meshname;      frc->centering = AVT_NODECENT;      frc->hasUnits = false;
+      avtScalarMetaData *frc = new avtScalarMetaData;      frc->meshName = meshname;      frc->centering = AVT_ZONECENT;      frc->hasUnits = false;
       var << meshname << "/fraction";      frc->name = var.str();      md->Add(frc);      var.str("");
     }// if( kind > 1 ){
 
@@ -336,7 +337,7 @@ avtMAGI_diskFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
     hor->spatialDimension = 1;
     hor->topologicalDimension = 1;
     hor->meshType = AVT_RECTILINEAR_MESH;
-    hor->numBlocks = 1;  // <-- this must be 1 for STSD
+    hor->numBlocks = 1;
     hor->xLabel = "R";    hor->xUnits = length_unit;
     md->Add(hor);
 
@@ -415,7 +416,8 @@ avtMAGI_diskFileFormat::GetMesh(int domain, const char *meshname)
     int dims[3] = {1, 1, 1};
     // read number of nodes from the file (written as an attribute)
     char patch[64];
-    sprintf(patch, "%s/%s%d", gridname.c_str(), "patch", domain);
+    // sprintf(patch, "%s/%s%d", gridname.c_str(), "patch", domain);
+    sprintf(patch, "%s/%s", gridname.c_str(), "1D_data");
     hid_t group = H5Gopen(target, patch, H5P_DEFAULT);
     attribute = H5Aopen(group, "num", H5P_DEFAULT);
     chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, dims));
@@ -518,7 +520,9 @@ avtMAGI_diskFileFormat::GetMesh(int domain, const char *meshname)
       attribute = H5Aopen(group, "num", H5P_DEFAULT);
       chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, dims));
       chkHDF5err(H5Aclose(attribute));
-      dims[2] = 1;
+
+      for(int ii = 0; ii < ndims; ii++)
+	dims[ii]++;
 
       if( useDP == 0 ){
 	vtkFloatArray *coords[3] = {0, 0, 0};
@@ -526,7 +530,8 @@ avtMAGI_diskFileFormat::GetMesh(int domain, const char *meshname)
 	coords[0] = vtkFloatArray::New();
 	coords[0]->SetNumberOfTuples(dims[0]);
 	float *hor = (float *)coords[0]->GetVoidPointer(0);
-	hid_t dataset = H5Dopen(group, "radius", H5P_DEFAULT);
+	// hid_t dataset = H5Dopen(group, "radius", H5P_DEFAULT);
+	hid_t dataset = H5Dopen(group, "node_RR", H5P_DEFAULT);
 	chkHDF5err(H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, hor));
 	chkHDF5err(H5Dclose(dataset));
 
@@ -534,7 +539,8 @@ avtMAGI_diskFileFormat::GetMesh(int domain, const char *meshname)
 	coords[1] = vtkFloatArray::New();
 	coords[1]->SetNumberOfTuples(dims[1]);
 	float *ver = (float *)coords[1]->GetVoidPointer(1);
-	dataset = H5Dopen(group, "height", H5P_DEFAULT);
+	// dataset = H5Dopen(group, "height", H5P_DEFAULT);
+	dataset = H5Dopen(group, "node_zz", H5P_DEFAULT);
 	chkHDF5err(H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, ver));
 	chkHDF5err(H5Dclose(dataset));
 
@@ -566,7 +572,8 @@ avtMAGI_diskFileFormat::GetMesh(int domain, const char *meshname)
 	coords[0] = vtkDoubleArray::New();
 	coords[0]->SetNumberOfTuples(dims[0]);
 	double *hor = (double *)coords[0]->GetVoidPointer(0);
-	hid_t dataset = H5Dopen(group, "radius", H5P_DEFAULT);
+	// hid_t dataset = H5Dopen(group, "radius", H5P_DEFAULT);
+	hid_t dataset = H5Dopen(group, "node_RR", H5P_DEFAULT);
 	chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, hor));
 	chkHDF5err(H5Dclose(dataset));
 
@@ -574,7 +581,8 @@ avtMAGI_diskFileFormat::GetMesh(int domain, const char *meshname)
 	coords[1] = vtkDoubleArray::New();
 	coords[1]->SetNumberOfTuples(dims[1]);
 	double *ver = (double *)coords[1]->GetVoidPointer(1);
-	dataset = H5Dopen(group, "height", H5P_DEFAULT);
+	// dataset = H5Dopen(group, "height", H5P_DEFAULT);
+	dataset = H5Dopen(group, "node_zz", H5P_DEFAULT);
 	chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, ver));
 	chkHDF5err(H5Dclose(dataset));
 
@@ -715,7 +723,8 @@ avtMAGI_diskFileFormat::GetVar(int domain, const char *varname)
     string::size_type pos = str.find_first_of("_");
     string gridname = str.substr(pos + 1, str.size() - pos);
     char patch[64];
-    sprintf(patch, "%s/%s%d", gridname.c_str(), "patch", domain);
+    // sprintf(patch, "%s/%s%d", gridname.c_str(), "patch", domain);
+    sprintf(patch, "%s/%s", gridname.c_str(), "1D_data");
     hid_t group = H5Gopen(target, patch, H5P_DEFAULT);
 
     const int ndims = 1;
