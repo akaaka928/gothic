@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/09/23(Fri) 11:33:12
+                  last updated on 2016/10/04(Tue) 16:21:53
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Poisson solver to yield potential--density pair                 *
@@ -104,7 +104,7 @@ static inline double gaussQD4encSigma(const double min, const double max, const 
 //-------------------------------------------------------------------------
 void   freeDiskProfile
 (const int ndisk, disk_data  *disk,
- double  *hor, double  *ver,
+ double  *hor, double  *ver, double  *node_hor, double  *node_ver,
  double  *pot, double  *rho0, double  *rho1, double  *rhoTot, double  *dPhidR, double  *d2PhidR2,
  double  *Sigma, double  *vsigz, double  *enc,
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
@@ -117,7 +117,7 @@ void   freeDiskProfile
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
   free(disk);
-  free(hor);  free(ver);
+  free(hor);  free(ver);  free(node_hor);  free(node_ver);
   free(pot);  free(rho0);  free(rho1);  free(dPhidR);  free(d2PhidR2);
   if( ndisk > 1 )
     free(rhoTot);
@@ -134,7 +134,7 @@ void   freeDiskProfile
 //-------------------------------------------------------------------------
 void allocDiskProfile
 (const int ndisk, disk_data **disk, profile_cfg *disk_cfg, int *maxLev,
- double **hor, double **ver,
+ double **hor, double **ver, double **node_hor, double **node_ver,
  double **pot, double **rho0, double **rho1, double **rhoTot, double **dPhidR, double **d2PhidR2,
  double **Sigma, double **vsigz, double **enc,
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
@@ -187,13 +187,15 @@ void allocDiskProfile
   /* allocate arrays to store physical quantities */
   //-----------------------------------------------------------------------
   /* horizontal and vertical axes */
-  *hor = (double *)malloc((*maxLev) * NDISKBIN_HOR * sizeof(double));  if( *hor == NULL ){    __KILL__(stderr, "ERROR: failure to allocate hor");  }
-  *ver = (double *)malloc((*maxLev) * NDISKBIN_VER * sizeof(double));  if( *ver == NULL ){    __KILL__(stderr, "ERROR: failure to allocate ver");  }
+  *hor      = (double *)malloc((*maxLev) *  NDISKBIN_HOR      * sizeof(double));  if( *     hor == NULL ){    __KILL__(stderr, "ERROR: failure to allocate hor");  }
+  *ver      = (double *)malloc((*maxLev) *  NDISKBIN_VER      * sizeof(double));  if( *     ver == NULL ){    __KILL__(stderr, "ERROR: failure to allocate ver");  }
+  *node_hor = (double *)malloc((*maxLev) * (NDISKBIN_HOR + 1) * sizeof(double));  if( *node_hor == NULL ){    __KILL__(stderr, "ERROR: failure to allocate node_hor");  }
+  *node_ver = (double *)malloc((*maxLev) * (NDISKBIN_VER + 1) * sizeof(double));  if( *node_ver == NULL ){    __KILL__(stderr, "ERROR: failure to allocate node_ver");  }
   //-----------------------------------------------------------------------
   /* potential-density pair */
-  *pot  = (double *)malloc(        (*maxLev) * NDISKBIN_HOR * NDISKBIN_VER * sizeof(double));  if( *pot  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate pot" );  }
-  *rho0 = (double *)malloc(ndisk * (*maxLev) * NDISKBIN_HOR * NDISKBIN_VER * sizeof(double));  if( *rho0 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rho0");  }
-  *rho1 = (double *)malloc(ndisk * (*maxLev) * NDISKBIN_HOR * NDISKBIN_VER * sizeof(double));  if( *rho1 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rho1");  }
+  *pot  = (double *)malloc(        (*maxLev) * NDISKBIN_HOR *  NDISKBIN_VER      * sizeof(double));  if( *pot  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate pot" );  }
+  *rho0 = (double *)malloc(ndisk * (*maxLev) * NDISKBIN_HOR * (NDISKBIN_VER + 1) * sizeof(double));  if( *rho0 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rho0");  }
+  *rho1 = (double *)malloc(ndisk * (*maxLev) * NDISKBIN_HOR * (NDISKBIN_VER + 1) * sizeof(double));  if( *rho1 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rho1");  }
   /* multiple component disk */
   if( ndisk > 1 ){
     *rhoTot = (double *)malloc((*maxLev) * NDISKBIN_HOR * NDISKBIN_VER * sizeof(double));    if( *rhoTot == NULL ){      __KILL__(stderr, "ERROR: failure to allocate rhoTot");    }
@@ -210,9 +212,9 @@ void allocDiskProfile
   if( *d2PhidR2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate d2PhidR2");  }
   //-----------------------------------------------------------------------
   /* horizontal profile */
-  *Sigma  = (double *)malloc(ndisk * (*maxLev) * NDISKBIN_HOR * sizeof(double));  if( *Sigma == NULL ){    __KILL__(stderr, "ERROR: failure to allocate Sigma");  }
-  *vsigz  = (double *)malloc(ndisk * (*maxLev) * NDISKBIN_HOR * sizeof(double));  if( *vsigz == NULL ){    __KILL__(stderr, "ERROR: failure to allocate vsigz");  }
-  *enc    = (double *)malloc(ndisk * (*maxLev) * NDISKBIN_HOR * sizeof(double));  if( * enc  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate enc");  }
+  *Sigma  = (double *)malloc(ndisk * (*maxLev) *  NDISKBIN_HOR      * sizeof(double));  if( *Sigma == NULL ){    __KILL__(stderr, "ERROR: failure to allocate Sigma");  }
+  *vsigz  = (double *)malloc(ndisk * (*maxLev) *  NDISKBIN_HOR      * sizeof(double));  if( *vsigz == NULL ){    __KILL__(stderr, "ERROR: failure to allocate vsigz");  }
+  *enc    = (double *)malloc(ndisk * (*maxLev) * (NDISKBIN_HOR + 1) * sizeof(double));  if( * enc  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate enc");  }
   //-----------------------------------------------------------------------
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
   *zd = (double *)malloc(ndisk * (*maxLev) * NDISKBIN_HOR * sizeof(double));
@@ -244,10 +246,16 @@ void allocDiskProfile
     //---------------------------------------------------------------------
     const double bin = ldexp(hh, -ii);
     //---------------------------------------------------------------------
+    (*node_hor)[INDEX2D(*maxLev, NDISKBIN_HOR + 1, ii, 0)] = 0.0;
 #pragma omp parallel for
-    for(int jj = 0; jj < NDISKBIN_HOR; jj++)      (*hor)[INDEX2D(*maxLev, NDISKBIN_HOR, ii, jj)] = bin * (0.5 + (double)jj);
+    for(int jj = 1; jj < 1 + NDISKBIN_HOR; jj++)      (*node_hor)[INDEX2D(*maxLev, 1 + NDISKBIN_HOR, ii, jj)] = bin *        (double)jj;
 #pragma omp parallel for
-    for(int jj = 0; jj < NDISKBIN_VER; jj++)      (*ver)[INDEX2D(*maxLev, NDISKBIN_VER, ii, jj)] = bin * (0.5 + (double)jj);
+    for(int jj = 0; jj <     NDISKBIN_HOR; jj++)      (*     hor)[INDEX2D(*maxLev,     NDISKBIN_HOR, ii, jj)] = bin * (0.5 + (double)jj);
+    (*node_ver)[INDEX2D(*maxLev, NDISKBIN_VER + 1, ii, 0)] = 0.0;
+#pragma omp parallel for
+    for(int jj = 1; jj < 1 + NDISKBIN_VER; jj++)      (*node_ver)[INDEX2D(*maxLev, 1 + NDISKBIN_VER, ii, jj)] = bin *        (double)jj;
+#pragma omp parallel for
+    for(int jj = 0; jj <     NDISKBIN_VER; jj++)      (*     ver)[INDEX2D(*maxLev,     NDISKBIN_VER, ii, jj)] = bin * (0.5 + (double)jj);
     //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < *maxLev; ii++){ */
   //-----------------------------------------------------------------------
@@ -319,6 +327,8 @@ void allocDiskProfile
     //---------------------------------------------------------------------
     (*disk)[ii].hor = *hor;
     (*disk)[ii].ver = *ver;
+    (*disk)[ii].node_hor = *node_hor;
+    (*disk)[ii].node_ver = *node_ver;
     (*disk)[ii].pot = *pot;
     //---------------------------------------------------------------------
     (*disk)[ii]. dPhidR  = * dPhidR ;
@@ -339,12 +349,12 @@ void allocDiskProfile
     //---------------------------------------------------------------------
     /* individual arrays for each component */
     //---------------------------------------------------------------------
-    (*disk)[ii].rho0 = &((*rho0)[INDEX(ndisk, *maxLev, NDISKBIN_HOR * NDISKBIN_VER, ii, 0, 0)]);    (*disk)[ii].rho    = &(*disk)[ii].rho0;
-    (*disk)[ii].rho1 = &((*rho1)[INDEX(ndisk, *maxLev, NDISKBIN_HOR * NDISKBIN_VER, ii, 0, 0)]);    (*disk)[ii].rhoSum = &(*disk)[ii].rho1;
+    (*disk)[ii].rho0 = &((*rho0)[INDEX(ndisk, *maxLev, NDISKBIN_HOR * (NDISKBIN_VER + 1), ii, 0, 0)]);    (*disk)[ii].rho    = &(*disk)[ii].rho0;
+    (*disk)[ii].rho1 = &((*rho1)[INDEX(ndisk, *maxLev, NDISKBIN_HOR * (NDISKBIN_VER + 1), ii, 0, 0)]);    (*disk)[ii].rhoSum = &(*disk)[ii].rho1;
     //---------------------------------------------------------------------
-    (*disk)[ii].Sigma  = &((*Sigma)[INDEX(ndisk, *maxLev, NDISKBIN_HOR, ii, 0, 0)]);
-    (*disk)[ii].sigmaz = &((*vsigz)[INDEX(ndisk, *maxLev, NDISKBIN_HOR, ii, 0, 0)]);
-    (*disk)[ii].enc    = &((* enc )[INDEX(ndisk, *maxLev, NDISKBIN_HOR, ii, 0, 0)]);
+    (*disk)[ii].Sigma  = &((*Sigma)[INDEX(ndisk, *maxLev, NDISKBIN_HOR    , ii, 0, 0)]);
+    (*disk)[ii].sigmaz = &((*vsigz)[INDEX(ndisk, *maxLev, NDISKBIN_HOR    , ii, 0, 0)]);
+    (*disk)[ii].enc    = &((* enc )[INDEX(ndisk, *maxLev, NDISKBIN_HOR + 1, ii, 0, 0)]);
     //---------------------------------------------------------------------
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
     (*disk)[ii].zd = &((*zd)[INDEX(ndisk, *maxLev, NDISKBIN_HOR, ii, 0, 0)]);
@@ -363,9 +373,9 @@ void allocDiskProfile
     for(int ll = 0; ll < *maxLev; ll++)
 #pragma omp parallel for
       for(int jj = 0; jj < NDISKBIN_HOR; jj++){
-	(*disk)[ii].Sigma [INDEX2D(maxLev, NDISKBIN_HOR, ll, jj)] = 0.0;
-	(*disk)[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, ll, jj)] = 0.0;
-	(*disk)[ii].enc   [INDEX2D(maxLev, NDISKBIN_HOR, ll, jj)] = 0.0;
+	(*disk)[ii].Sigma [INDEX2D(maxLev, NDISKBIN_HOR    , ll, jj)] = 0.0;
+	(*disk)[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR    , ll, jj)] = 0.0;
+	(*disk)[ii].enc   [INDEX2D(maxLev, NDISKBIN_HOR + 1, ll, jj)] = 0.0;
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
 	(*disk)[ii].zd    [INDEX2D(maxLev, NDISKBIN_HOR, ll, jj)] = 0.0;
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
@@ -2444,23 +2454,25 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
       const int nsub = (lev != (maxLev - 1)) ? ((NDISKBIN_HOR >> 1) / NDIVIDE_GAUSSQD4DISK) : (NDISKBIN_HOR / NDIVIDE_GAUSSQD4DISK);
       int head = (lev != (maxLev - 1)) ?  (NDISKBIN_HOR >> 1)                         : (0);
       //-------------------------------------------------------------------
+      disk[kk].enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, head)] = Min;
+      //-------------------------------------------------------------------
       for(int iter = 0; iter < NDIVIDE_GAUSSQD4DISK; iter++){
 	//-----------------------------------------------------------------
 	const int tail = head + nsub;
 	//-----------------------------------------------------------------
 #pragma omp parallel for
 	for(int ii = head; ii < tail; ii++)
-	  disk[kk].enc[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] = Min + gaussQD4encSigma(Rin, disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], disk[kk]);
+	  disk[kk].enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, ii + 1)] = Min + gaussQD4encSigma(Rin, disk[kk].node_hor[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, ii + 1)], disk[kk]);
 	//-----------------------------------------------------------------
 	head = tail;
-	Rin = disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, head - 1)];
-	Min = disk[kk].enc[INDEX2D(maxLev, NDISKBIN_HOR, lev, head - 1)];
+	Rin = disk[kk].node_hor[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, head)];
+	Min = disk[kk].	    enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, head)];
 	//-----------------------------------------------------------------
       }/* for(int iter = 0; iter < NDIVIDE_GAUSSQD4DISK; iter++){ */
       //-------------------------------------------------------------------
 #pragma omp parallel for
-      for(int ii = 0; ii < NDISKBIN_HOR; ii++)
-	disk[kk].enc[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] *= 2.0 * M_PI * disk[kk].cfg->Sigma0;
+      for(int ii = 0; ii < NDISKBIN_HOR + 1; ii++)
+	disk[kk].enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, ii)] *= 2.0 * M_PI * disk[kk].cfg->Sigma0;
       //-------------------------------------------------------------------
     }/* for(int lev = maxLev - 1; lev >= 0; lev--){ */
     //---------------------------------------------------------------------
@@ -2478,16 +2490,18 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
       const int nsub = (lev != (maxLev - 1)) ? (NDISKBIN_HOR >> 1) : (NDISKBIN_HOR);
       const int head = (lev != (maxLev - 1)) ? (NDISKBIN_HOR >> 1) : (0);
       //-------------------------------------------------------------------
+      disk[kk].enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, head)] = Min;
+      //-------------------------------------------------------------------
 #pragma omp parallel for
       for(int ii = head; ii < head + nsub; ii++)
-	disk[kk].enc[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] = Min + gaussQD4encSigma(Rin, disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], disk[kk]);
+	disk[kk].enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, ii + 1)] = Min + gaussQD4encSigma(Rin, disk[kk].node_hor[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, ii + 1)], disk[kk]);
       //-------------------------------------------------------------------
-      Rin = disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, head + nsub - 1)];
-      Min = disk[kk].enc[INDEX2D(maxLev, NDISKBIN_HOR, lev, head + nsub - 1)];
+      Rin = disk[kk].node_hor[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, head + nsub)];
+      Min = disk[kk].	  enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, head + nsub)];
       //-------------------------------------------------------------------
 #pragma omp parallel for
-      for(int ii = 0; ii < NDISKBIN_HOR; ii++)
-	disk[kk].enc[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] *= 2.0 * M_PI * disk[kk].cfg->Sigma0;
+      for(int ii = 0; ii < NDISKBIN_HOR + 1; ii++)
+	disk[kk].enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, ii)] *= 2.0 * M_PI * disk[kk].cfg->Sigma0;
       //-------------------------------------------------------------------
     }/* for(int lev = maxLev - 1; lev >= 0; lev--){ */
     //---------------------------------------------------------------------
@@ -2496,8 +2510,8 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
   //-----------------------------------------------------------------------
 #if 0
   extern const double length2astro, mass2astro;
-  for(int ii = 0; ii < NDISKBIN_HOR; ii++)
-    fprintf(stderr, "%e\t%e\n", disk[0].hor[ii] * length2astro, disk[0].enc[ii] * mass2astro);
+  for(int ii = 0; ii < NDISKBIN_HOR + 1; ii++)
+    fprintf(stderr, "%e\t%e\n", disk[0].node_hor[ii] * length2astro, disk[0].enc[ii] * mass2astro);
   fflush(NULL);
   exit(0);
 #endif
@@ -2515,18 +2529,27 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
 #pragma omp parallel for
       for(int ii = 0; ii < NDISKBIN_HOR; ii++){
 	//-----------------------------------------------------------------
-	double sum = 0.0;
 	const double dV = hh * hh * disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)];
+	//-----------------------------------------------------------------
+	double sum = 0.0;
+	(*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, ll, ii, 0)] = sum;
 	//-----------------------------------------------------------------
 	for(int jj = 0; jj < NDISKBIN_VER; jj++){
 	  //---------------------------------------------------------------
-	  const double mass = 0.5 * dV * (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)];
-	  //---------------------------------------------------------------
-	  sum += mass;
-	  (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)] = sum;
-	  sum += mass;
+	  sum += dV * (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)];
+	  (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, ll, ii, jj + 1)] = sum;
 	  //---------------------------------------------------------------
 	}/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
+	//-----------------------------------------------------------------
+	/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
+	/*   //--------------------------------------------------------------- */
+	/*   const double mass = 0.5 * dV * (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)]; */
+	/*   //--------------------------------------------------------------- */
+	/*   sum += mass; */
+	/*   (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)] = sum; */
+	/*   sum += mass; */
+	/*   //--------------------------------------------------------------- */
+	/* }/\* for(int jj = 0; jj < NDISKBIN_VER; jj++){ *\/ */
 	//-----------------------------------------------------------------
       }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
       //-------------------------------------------------------------------
@@ -2541,8 +2564,8 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
 		  (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)], disk[kk].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)]);
 	fprintf(stderr, "\n");
       }
-fflush(NULL);
-exit(0);
+    fflush(NULL);
+    exit(0);
 #endif
     //---------------------------------------------------------------------
 #if 0
@@ -2550,13 +2573,6 @@ exit(0);
     for(int ii = 0; ii < NDISKBIN_HOR; ii++)
       Mtot0 += (*disk[0].rhoSum)[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, NDISKBIN_VER - 1)];
     Mtot0 *= 4.0 * M_PI;
-    /* double Mtot0 = 0.0; */
-    /* Mtot0 = (*disk[0].rhoSum)[NDISKBIN_VER - 1] * disk[0].hor[0]; */
-    /* for(int ii = 1; ii < NDISKBIN_HOR - 1; ii++) */
-    /*   Mtot0 += (double)(1 << (1 + (ii & 1))) * (*disk[0].rhoSum)[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, NDISKBIN_VER - 1)] * disk[0].hor[ii]; */
-    /* Mtot0 += (*disk[0].rhoSum)[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, NDISKBIN_VER - 1)] * disk[0].hor[NDISKBIN_HOR - 1]; */
-    /* Mtot0 *= disk[0].hh / 3.0; */
-    /* Mtot0 *= 4.0 * M_PI; */
     double Mtot1 = 0.0;
     for(int ii = 0; ii < NDISKBIN_HOR; ii++)
       for(int jj = 0; jj < NDISKBIN_VER; jj++)
@@ -2571,25 +2587,15 @@ exit(0);
     Mtot2 *= 2.0 * M_PI;
     extern const double mass2astro;
     fprintf(stderr, "# Mtot0 = %e, Mtot1 = %e, Mtot2 = %e\n", Mtot0 * mass2astro, Mtot1 * mass2astro, Mtot2 * mass2astro);
-    /* for(int ll = 0; ll < maxLev; ll++){ */
-    /*   for(int ii = 0; ii < NDISKBIN_HOR; ii++) */
-    /* 	fprintf(stderr, "%e\t%e\t%e\n", disk[0].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], disk[0].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], 2.0 * (*disk[0].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, NDISKBIN_VER - 1)]); */
-    /*   fprintf(stderr, "\n"); */
-    /* } */
     for(int ii = 0; ii < NDISKBIN_HOR; ii++){
       double sum = 0.0;
       for(int jj = 0; jj < NDISKBIN_VER; jj++)
 	sum += (*disk[0].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, 0, ii, jj)];
       sum *= 2.0 * disk[0].hh;
-      /* double sum = (*disk[0].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, 0, ii, 0)]; */
-      /* for(int jj = 1; jj < NDISKBIN_VER - 1; jj++) */
-      /* 	sum += (double)(1 << (1 + (jj & 1))) * (*disk[0].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, 0, ii, jj)]; */
-      /* sum += (*disk[0].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, 0, ii, NDISKBIN_VER - 1)]; */
-      /* sum *= 2.0 * disk[0].hh / 3.0; */
       fprintf(stderr, "%e\t%e\t%e\n", disk[0].hor[ii], disk[0].Sigma[ii], sum);
     }
-    /* fflush(NULL); */
-    /* exit(0); */
+    fflush(NULL);
+    exit(0);
 #endif
     //---------------------------------------------------------------------
 
@@ -2599,27 +2605,27 @@ exit(0);
 #if 0
 #pragma omp parallel for
     for(int ii = 0; ii < NDISKBIN_HOR; ii++)
-      disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, 0, ii)] = 1.0 / (DBL_MIN + (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, 0, ii, NDISKBIN_VER - 1)]);
+      disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, 0, ii)] = 1.0 / (DBL_MIN + (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, 0, ii, NDISKBIN_VER)]);
     for(int ll = 1; ll < maxLev; ll++)
 #pragma omp parallel for
       for(int ii = 0; ii < NDISKBIN_HOR; ii++){
-	const double self = (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii    , NDISKBIN_VER - 1)];
-	const double pair = (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii ^ 1, NDISKBIN_VER - 1)];
+	const double self = (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, ll, ii    , NDISKBIN_VER)];
+	const double pair = (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, ll, ii ^ 1, NDISKBIN_VER)];
 	disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)] = disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, ll - 1, ii >> 1)] * (self + pair) / (DBL_MIN + self);
       }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
 #else
     for(int ii = 0; ii < NDISKBIN_HOR; ii++){
-      disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, 0, ii)] = 1.0 / (DBL_MIN + (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, 0, ii, NDISKBIN_VER - 1)]);
+      disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, 0, ii)] = 1.0 / (DBL_MIN + (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, 0, ii, NDISKBIN_VER)]);
       for(int ll = 1; ll < maxLev; ll++){
-	disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)] = disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, ll - 1, ii >> 1)] * ((*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, NDISKBIN_VER - 1)] + (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii ^ 1, NDISKBIN_VER - 1)]) / (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, NDISKBIN_VER - 1)];
-      }
-    }
+	disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)] = disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, ll - 1, ii >> 1)] * ((*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, ll, ii, NDISKBIN_VER)] + (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, ll, ii ^ 1, NDISKBIN_VER)]) / (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, ll, ii, NDISKBIN_VER)];
+      }/* for(int ll = 1; ll < maxLev; ll++){ */
+    }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
 #endif
     for(int ll = 0; ll < maxLev; ll++)
 #pragma omp parallel for
       for(int ii = 0; ii < NDISKBIN_HOR; ii++)
-	for(int jj = 0; jj < NDISKBIN_VER; jj++)
-	  (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)] *= disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)];
+	for(int jj = 0; jj < NDISKBIN_VER + 1; jj++)
+	  (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, ll, ii, jj)] *= disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)];
     //---------------------------------------------------------------------
   }/* for(int kk = 0; kk < ndisk; kk++){ */
   //-----------------------------------------------------------------------

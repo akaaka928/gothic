@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/09/23(Fri) 11:48:58
+                  last updated on 2016/10/05(Wed) 10:59:53
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Assume balance of force in R and z direction                    *
@@ -325,11 +325,6 @@ void integrateSphericalDensityProfile(const int ndisk, const int maxLev, disk_da
     //---------------------------------------------------------------------
   }/* for(int kk = 0; kk < ndisk; kk++){ */
   //-----------------------------------------------------------------------
-#ifdef  PROGRESS_REPORT_ON
-  fprintf(stdout, "#\n#\n");
-  fflush(stdout);
-#endif//PROGRESS_REPORT_ON
-  //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
@@ -645,15 +640,48 @@ static inline void leastSquaredMethod(const int num, double * restrict xx, doubl
 }
 //-------------------------------------------------------------------------
 static inline int bisection4nestedGrid
-(const double val, const int num, double * restrict tab, const bool logtbl, const double invbin, double * restrict ratio, const int maxLev, int * restrict lev)
+(const double val, const int num, double * restrict tab, const bool logtbl, const double invbin, double * restrict ratio, const int maxLev, int * restrict lev, double * restrict tab_lev)
 {
   //-----------------------------------------------------------------------
-  /* 1. find the level */
-  int idx = bisection(val, num, &(tab[INDEX2D(maxLev, num, 0, 0)]), false, 1.0, ratio);
-  *lev = (idx != 0) ? (int)ilog2((uint)(num / idx)) : (maxLev - 1);
+  /* 1. find the nested level */
+
+  *lev = 0;
+  for(int ii = maxLev - 1; ii >= 0; ii--)
+    if( val <= tab_lev[ii] ){
+      *lev = ii;
+      break;
+    }
+
+  /* *lev = 0; */
+  /* for(int ii = 0; ii < maxLev; ii++) */
+  /*   /\* if( val < tab_lev[ii] ){ *\/ */
+  /*   if( val <= tab_lev[ii] ){ */
+  /*     *lev = maxLev - 1 - ii; */
+  /*     break; */
+  /*   } */
+  //-----------------------------------------------------------------------
+#if 0
+  fprintf(stderr, "val = %e, *lev = %d\n", val, *lev);
+  for(int ii = 0; ii < maxLev; ii++)
+    fprintf(stderr, "lev = %d: Mmax = %e\n", ii, tab_lev[ii]);
+  fflush(stderr);
+  exit(0);
+#endif
+  //-----------------------------------------------------------------------
+#if 0
+  if( *lev < 0 ){
+    fprintf(stderr, "*lev = %d, val = %e, log2Rmax = %e, log2(val) = %e\n", *lev, val, log2Rmax, log2(val));
+    exit(0);
+  }
+#endif
+  //-----------------------------------------------------------------------
+#if 0
+  fprintf(stderr, "%d\n", *lev);
+  fflush(stderr);
+#endif
   //-----------------------------------------------------------------------
   /* 2. find the index */
-  idx = bisection(val, num, &(tab[INDEX2D(maxLev, num, *lev, 0)]), logtbl, invbin, ratio);
+  int idx = bisection(val, num, &(tab[INDEX2D(maxLev, num, *lev, 0)]), logtbl, invbin, ratio);
   //-----------------------------------------------------------------------
   return (idx);
   //-----------------------------------------------------------------------
@@ -671,9 +699,11 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
   profile *prf;  prf = disk.prf;
   const double invlogrbin = disk.invlogrbin;
   //-----------------------------------------------------------------------
+  double *node_hor;  node_hor = disk.node_hor;
+  double *node_ver;  node_ver = disk.node_ver;
+  double *zone_hor;  zone_hor = disk.hor;
+  double *zone_ver;  zone_ver = disk.ver;
   double *pot;  pot =  disk.pot;
-  double *hor;  hor =  disk.hor;
-  double *ver;  ver =  disk.ver;
   double *enc;  enc =  disk.enc;
   double *rho;  rho = *disk.rhoSum;
   double *sig;  sig =  disk.sigmaz;
@@ -685,13 +715,12 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
 #ifdef  USE_ORIGINAL_VDISP_ESTIMATOR
   const double frac = disk.cfg->vdisp_frac;
 #endif//USE_ORIGINAL_VDISP_ESTIMATOR
-  const double Mmin = enc[INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1,                0)];
-  const double Mmax = enc[INDEX2D(maxLev, NDISKBIN_HOR,          0, NDISKBIN_HOR - 1)];
+  const double Mmax = enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, 0, NDISKBIN_HOR)];
   //-----------------------------------------------------------------------
   const ulong rand_half = ((gsl_rng_min(GSLRand) + gsl_rng_max(GSLRand)) >> 1);
   //-----------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
-  fprintf(stdout, "# start distributing disk particles (%zu bodies: [%zu:%zu])\n", num, *Nuse, (*Nuse) + num - 1);
+  fprintf(stdout, "#\n#\n# start distributing disk particles (%zu bodies: [%zu:%zu])\n", num, *Nuse, (*Nuse) + num - 1);
   fflush(stdout);
   const ulong nunit = (ulong)ceilf(0.1f * (float)num);
   ulong stage = 1;
@@ -702,7 +731,13 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
   double Krnd = 0.0;
 #endif//CHECK_OSTRIKER_PEEBLES_CRITERION
   //-----------------------------------------------------------------------
-  for(ulong ii = *Nuse; ii < *Nuse + num; ii++){
+  double *tab_lev;
+  tab_lev = (double *)malloc(sizeof(double) * maxLev);
+  if( tab_lev == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tab_lev");  }
+  for(int lev = 0; lev < maxLev; lev++)
+    tab_lev[lev] = enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, NDISKBIN_HOR)];
+  //-----------------------------------------------------------------------
+  for(ulong ii = *Nuse; ii < (*Nuse) + num; ii++){
     //---------------------------------------------------------------------
     /* determine Rg, phi, and z */
     //---------------------------------------------------------------------
@@ -710,94 +745,86 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     const double Renc = Mmax * UNIRAND_DBL;
     double aRg, Rg;
     int iRg, lev;
-    if( Renc >= Mmin ){
-      //-------------------------------------------------------------------
-      /* use table search */
-      iRg = bisection4nestedGrid(Renc, NDISKBIN_HOR, enc, false, 1.0, &aRg, maxLev, &lev);
-      aRg /= (enc[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + iRg)] - enc[INDEX2D(maxLev, NDISKBIN_HOR, lev, iRg)]);
-      Rg = (1.0 - aRg) * hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, iRg)] + aRg * hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + iRg)];
-      /* iRg = bisection(Renc, NDISKBIN_HOR, enc, false, 1.0, &aRg); */
-      /* aRg /= (enc[1 + iRg] - enc[iRg]); */
-      /* Rg = (1.0 - aRg) * hor[iRg] + aRg * hor[1 + iRg]; */
-      //-------------------------------------------------------------------
-    }/* if( Renc >= Mmin ){ */
+    //---------------------------------------------------------------------
+    /* use table search */
+    iRg = bisection4nestedGrid(Renc, NDISKBIN_HOR + 1, enc, false, 1.0, &aRg, maxLev, &lev, tab_lev);
+    aRg /= (enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, 1 + iRg)] - enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, iRg)]);
+    Rg = (1.0 - aRg) * node_hor[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, iRg)] + aRg * node_hor[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, 1 + iRg)];
+    /* correction about ``iRg'' and ``aRg'' for zone centeric coordinate from edge coordinate */
+    if( Rg >= zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)] ){
+      if( Rg <= zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, NDISKBIN_HOR - 1)] ){
+	iRg = bisection(Rg, NDISKBIN_HOR, &(zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)]), false, 1.0, &aRg);
+	aRg /= (zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + iRg)] - zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, iRg)]);
+      }/* if( Rg <= zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, NDISKBIN_HOR - 1)] ){ */
+      else{
+	iRg = NDISKBIN_HOR - 2;
+	aRg = 1.0;
+      }/* else{ */
+    }/* if( Rg >= zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)] ){ */
     else{
-      //-------------------------------------------------------------------
-      /* use least squared method */
-      /* fit logR vs logM using 2 meshes */
-      double pp, bb;
-      leastSquaredMethod(2, hor, enc, &pp, &bb);
-      Rg = pow(Renc / bb, 1.0 / pp);
       iRg = 0;
-      lev = maxLev - 1;
       aRg = 0.0;
-      //-------------------------------------------------------------------
     }/* else{ */
     //---------------------------------------------------------------------
     /* calculate vertical velocity dispersion at R = Rg */
-    const double sigmaz = (1.0 - aRg) * sig[iRg] + aRg * sig[1 + iRg];
+    const double sigmaz = (1.0 - aRg) * sig[INDEX2D(maxLev, NDISKBIN_HOR, lev, iRg)] + aRg * sig[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + iRg)];
     //---------------------------------------------------------------------
     /* set z using table search */
     const double zenc = UNIRAND_DBL;
-    double azz, zz;
-    int jzz;
-    if( zenc <= rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, iRg, 0)] + DBL_EPSILON ){
+    int jzz = 0;
+    double azz = 0.0;
+    double zz = 0.0;
+    //---------------------------------------------------------------------
+    while( true ){
       //-------------------------------------------------------------------
-      /* use least squared method */
-      /* fit logz vs logM using 2 meshes */
-      double pp, bb;
-      leastSquaredMethod(2, ver, &rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, iRg, 0)], &pp, &bb);
-      zz = pow(zenc / bb, 1.0 / pp);
-      jzz = 0;
-      azz = 0.0;
-      //-------------------------------------------------------------------
-    }/* if( zenc < rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, iRg, 0)] ){ */
-    else{
-      //-------------------------------------------------------------------
-      /* /\* old implementation *\/ */
-      /* if( zenc <= (rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, iRg, NDISKBIN_VER - 1)] - DBL_EPSILON) ){ */
-      /* 	/\* use table search *\/ */
-      /* 	jzz = bisection(zenc, NDISKBIN_VER, &rho[INDEX(lev, NDISKBIN_HOR, NDISKBIN_VER, lev, iRg, 0)], false, 1.0, &azz); */
-      /* 	azz /= (rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, iRg, 1 + jzz)] - rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, iRg, jzz)]); */
-      /* 	zz = (1.0 - azz) * ver[INDEX2D(maxLev, NDISKBIN_VER, lev, jzz)] + azz * ver[INDEX2D(maxLev, NDISKBIN_VER, lev, 1 + jzz)]; */
-      /* }/\* if( zenc <= ([INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, iRg, NDISKBIN_VER)] - DBL_EPSILON) ){ *\/ */
-      /* else{ */
-      /* 	/\* coarser grid is required to locate the point determined by the random numbers *\/ */
-      /* 	/\* this means integrated mass along z-axis is zero *\/ */
-      /* 	jzz = 0; */
-      /* 	azz = 0.0; */
-      /* 	zz = 0.0; */
-      /* }/\* else{ *\/ */
-      //-------------------------------------------------------------------
-      jzz = 0;
-      azz = 0.0;
-      zz = 0.0;
-      //-------------------------------------------------------------------
-      while( true ){
+      if( zenc > (rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev, iRg, NDISKBIN_VER)] + DBL_EPSILON) ){
 	//-----------------------------------------------------------------
-	if( zenc <= (rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, iRg, NDISKBIN_VER - 1)] - DBL_EPSILON) ){
-	  //---------------------------------------------------------------
-	  /* use table search */
-	  jzz = bisection(zenc, NDISKBIN_VER, &rho[INDEX(lev, NDISKBIN_HOR, NDISKBIN_VER, lev, iRg, 0)], false, 1.0, &azz);
-	  azz /= (rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, iRg, 1 + jzz)] - rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, iRg, jzz)]);
-	  zz = (1.0 - azz) * ver[INDEX2D(maxLev, NDISKBIN_VER, lev, jzz)] + azz * ver[INDEX2D(maxLev, NDISKBIN_VER, lev, 1 + jzz)];
-	  //---------------------------------------------------------------
-	  break;
-	  //---------------------------------------------------------------
-	}/* if( zenc <= ([INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, iRg, NDISKBIN_VER)] - DBL_EPSILON) ){ */
+	lev--;
+	if( lev < 0 ){	  lev = 0;	  break;	}
+	/* reset iRg and aRg in coarser grid */
+	iRg = bisection(Renc, NDISKBIN_HOR + 1, &(enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, 0)]), false, 1.0, &aRg);
+	aRg /= (enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, 1 + iRg)] - enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, iRg)]);
+	/* correction about ``iRg'' and ``aRg'' for zone centeric coordinate from edge coordinate */
+	if( Rg >= zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)] ){
+	  if( Rg <= zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, NDISKBIN_HOR - 1)] ){
+	    iRg = bisection(Rg, NDISKBIN_HOR, &(zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)]), false, 1.0, &aRg);
+	    aRg /= (zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + iRg)] - zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, iRg)]);
+	  }/* if( Rg <= zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, NDISKBIN_HOR - 1)] ){ */
+	  else{
+	    iRg = NDISKBIN_HOR - 2;
+	    aRg = 1.0;
+	  }/* else{ */
+	}/* if( Rg >= zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)] ){ */
 	else{
-	  //---------------------------------------------------------------
-	  lev--;
-	  if( lev < 0 ){	    lev = 0;	    break;	  }
-	  /* reset iRg and aRg in coarser grid */
-	  iRg = bisection(Renc, NDISKBIN_HOR, &(enc[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)]), false, 1.0, &aRg);
-	  aRg /= (enc[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + iRg)] - enc[INDEX2D(maxLev, NDISKBIN_HOR, lev, iRg)]);
-	  //---------------------------------------------------------------
+	  iRg = 0;
+	  aRg = 0.0;
 	}/* else{ */
 	//-----------------------------------------------------------------
-      }/* while( true ){ */
-      //-------------------------------------------------------------------
+      }
+      else
+	break;
+    }/* while( true ){ */
+    //---------------------------------------------------------------------
+    /* use table search */
+    jzz = bisection(zenc, NDISKBIN_VER + 1, &rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev, iRg, 0)], false, 1.0, &azz);
+    azz /= (rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev, iRg, 1 + jzz)] - rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev, iRg, jzz)]);
+    zz = (1.0 - azz) * node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev, jzz)] + azz * node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev, 1 + jzz)];
+    /* correction about ``jzz'' and ``azz'' for zone centeric coordinate from edge coordinate */
+    if( zz >= zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, 0)] ){
+      if( zz <= zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, NDISKBIN_VER - 1)] ){
+	jzz = bisection(zz, NDISKBIN_VER, &(zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, 0)]), false, 1.0, &azz);
+	azz /= (zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, 1 + jzz)] - zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, jzz)]);
+      }/* if( zz <= zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, NDISKBIN_VER - 1)] ){ */
+      else{
+	jzz = NDISKBIN_VER - 2;
+	azz = 1.0;
+      }/* else{ */
+    }/* if( zz >= zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, 0)] ){ */
+    else{
+      jzz = 0;
+      azz = 0.0;
     }/* else{ */
+    //---------------------------------------------------------------------
     if( gsl_rng_get(GSLRand) < rand_half )
       zz *= -1.0;
     //---------------------------------------------------------------------
@@ -807,6 +834,11 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     const double diskpot =
       ((1.0 - azz) * pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev,     iRg, jzz)] + azz * pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev,     iRg, 1 + jzz)]) * (1.0 - aRg) +
       ((1.0 - azz) * pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, 1 + iRg, jzz)] + azz * pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, 1 + iRg, 1 + jzz)]) *	       aRg;
+    //---------------------------------------------------------------------
+#if 0
+    fprintf(stderr, "%d\t%e\t%e\n", lev, Rg, zz);
+    fflush(stderr);
+#endif
     //---------------------------------------------------------------------
 
 
@@ -861,7 +893,7 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     const double sR2inv = gam2inv * sp2inv;
     const double sigmaR = sqrt(gam2) * sigmap;
 #else///USE_ORIGINAL_VDISP_ESTIMATOR
-    const double sR2inv = 1.0 / DISK_RADIAL_VDISP2(sig[0] * sig[0], Rg, disk.invRd);
+    const double sR2inv = 1.0 / DISK_RADIAL_VDISP2(sig[INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, 0)] * sig[INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, 0)], Rg, disk.invRd);
     const double sp2inv = gam2 * sR2inv;
 #ifdef  SPEEDUP_CONVERGENCE
     const double sigmaR = 1.0 / sqrt(DBL_MIN + sR2inv);
@@ -977,10 +1009,7 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
   fprintf(stdout, "# \tw/z Ekin of spherical component: Krot / (Krot + Krand) = %e; i.e., %s to a bar-like mode\n", Krot / (Krot + Krnd), ((Krot / (Krot + Krnd)) > 0.28) ? "unstable" : "  stable");
 #endif//CHECK_OSTRIKER_PEEBLES_CRITERION
   //-----------------------------------------------------------------------
-#ifdef  PROGRESS_REPORT_ON
-  fprintf(stdout, "#\n#\n");
-  fflush(stdout);
-#endif//PROGRESS_REPORT_ON
+  free(tab_lev);
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------

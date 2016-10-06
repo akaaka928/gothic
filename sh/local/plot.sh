@@ -133,10 +133,10 @@ fi
 # dynamical stability of an M31 model determined by Fardal et al. (2007)
 if [ $PROBLEM -eq 20 ]; then
 FILE=m31
-FINISH=75.0
-INTERVAL=25.0
-# FINISH=1175.0
+# FINISH=75.0
 # INTERVAL=25.0
+FINISH=1175.0
+INTERVAL=25.0
 # FINISH=5175.0
 # INTERVAL=25.0
 fi

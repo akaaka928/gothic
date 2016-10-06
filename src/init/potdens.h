@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/09/18(Sun) 15:37:12
+                  last updated on 2016/10/04(Tue) 16:38:01
  *                                                                       *
  *    Header File for Definition to generate initial condition of disk   *
  *                                                                       *
@@ -87,8 +87,10 @@ typedef struct
   /* arrays */
   double *hor;/* [nest level][NR] array */
   double *ver;/* [nest level][Nz] array */
+  double *node_hor;/* [nest level][NR + 1] array */
+  double *node_ver;/* [nest level][Nz + 1] array */
   double *pot, *rhoTot;/* [nest level][NR][Nz] arrays */
-  double **rho, **rhoSum, *rho0, *rho1;/* [Ndisk][nest level][NR][Nz] arrays */
+  double **rho, **rhoSum, *rho0, *rho1;/* [Ndisk][nest level][NR][Nz + 1] arrays: Nz + 1 is for rhoSum, to exploit in bisection to determine vertical position */
   double *dPhidR, *d2PhidR2;/* [nest level][NR][Nz] arrays */
   double *Sigma, *sigmaz, *enc;/* [Ndisk][nest level][NR] array */
   disk_util util;
@@ -115,7 +117,7 @@ typedef struct
 //-------------------------------------------------------------------------
 void   freeDiskProfile
 (const int ndisk, disk_data  *disk,
- double  *hor, double  *ver,
+ double  *hor, double  *ver, double  *node_hor, double  *node_ver,
  double  *pot, double  *rho0, double  *rho1, double  *rhoTot, double  *dPhidR, double  *d2PhidR2,
  double  *Sigma, double  *vsigz, double  *enc,
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
@@ -126,7 +128,7 @@ void   freeDiskProfile
 //-------------------------------------------------------------------------
 void allocDiskProfile
 (const int ndisk, disk_data **disk, profile_cfg *disk_cfg, int *maxLev,
- double **hor, double **ver,
+ double **hor, double **ver, double **node_hor, double **node_ver,
  double **pot, double **rho0, double **rho1, double **rhoTot,
  double **dPhidR, double **d2PhidR2,
  double **Sigma, double **vsigz, double **enc,

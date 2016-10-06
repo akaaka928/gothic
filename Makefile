@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2016/09/16(Fri) 17:42:03
+# last updated on 2016/10/03(Mon) 11:40:08
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -1043,9 +1043,9 @@ $(OBJDIR)/spline.omp.o:	$(COMMON_DEP)	$(INITDIR)/spline.h
 SPLINE_DEP	:=	$(COMMON_DEP)	$(INITDIR)/profile.h	$(INITDIR)/table.h	$(INITDIR)/spline.h
 $(OBJDIR)/abel.omp.o:	$(SPLINE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/abel.h
 $(OBJDIR)/table.omp.o:	$(SPLINE_DEP)
-PROFILE_DEP	:=	$(COMMON_DEP)	$(MYINC)/constants.h	$(INITDIR)/profile.h
-$(OBJDIR)/eddington.omp.o:	$(PROFILE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/eddington.h
-$(OBJDIR)/king.omp.o:		$(PROFILE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/king.h
+PROFILE_DEP	:=	$(COMMON_DEP)	$(MYINC)/constants.h	$(INITDIR)/profile.h	$(INITDIR)/magi.h
+$(OBJDIR)/eddington.omp.o:	$(PROFILE_DEP)	$(INITDIR)/eddington.h
+$(OBJDIR)/king.omp.o:		$(PROFILE_DEP)	$(INITDIR)/king.h
 $(OBJDIR)/profile.omp.o:	$(PROFILE_DEP)
 DISK_DEP	:=	$(PROFILE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/spline.h	$(INITDIR)/blas.h	$(INITDIR)/potdens.h
 $(OBJDIR)/potdens.omp.gsl.o:	$(DISK_DEP)

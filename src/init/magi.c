@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/09/23(Fri) 16:14:47
+                  last updated on 2016/10/05(Wed) 10:58:17
  *                                                                       *
  *    MAGI: "MAny-component Galactic Initial-conditions" generator       *
  *    Making Initial Condition Code of N-body Simulation                 *
@@ -17,12 +17,7 @@
 //-------------------------------------------------------------------------
 #define USE_SZIP_COMPRESSION
 //-------------------------------------------------------------------------
-#define SHIFT_CENTER_PER_COMPONENT
-//-------------------------------------------------------------------------
 /* #define RESET_ROTATION_AXIS */
-#   if  !defined(RESET_ROTATION_AXIS) && defined(SHIFT_CENTER_PER_COMPONENT)
-#define          RESET_ROTATION_AXIS
-#endif//!defined(RESET_ROTATION_AXIS) && defined(SHIFT_CENTER_PER_COMPONENT)
 //-------------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
@@ -91,8 +86,8 @@ static inline void isotropicDistribution(const real rad, real *vecx, real *vecy,
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-void shiftCenter(const ulong num, const ulong head, iparticle body);
-void shiftCenter(const ulong num, const ulong head, iparticle body)
+void shiftCenter(const ulong num, const ulong head, iparticle body, const profile_cfg cfg);
+void shiftCenter(const ulong num, const ulong head, iparticle body, const profile_cfg cfg)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -105,23 +100,34 @@ void shiftCenter(const ulong num, const ulong head, iparticle body)
   double vel[3] = {0.0, 0.0, 0.0};
   double Mtot = 0.0;
   //-----------------------------------------------------------------------
+  const double rmax2 = 25.0 * cfg.rs * cfg.rs;/* use particles within 5 rs */
+  const double zmax2 = 25.0 * ((cfg.kind < 0) ? (cfg.zd * cfg.zd) : (cfg.rs * cfg.rs));
+  //-----------------------------------------------------------------------
   for(ulong ii = head; ii < head + num; ii++){
     //---------------------------------------------------------------------
-    const double mass = (double)body.pos[ii].m;
-    Mtot   += mass;
+    const double xx = (double)body.pos[ii].x;
+    const double yy = (double)body.pos[ii].y;
+    const double zz = (double)body.pos[ii].z;    const double z2 = zz * zz;
     //---------------------------------------------------------------------
-    com[0] += mass * (double)body.pos[ii].x;
-    com[1] += mass * (double)body.pos[ii].y;
-    com[2] += mass * (double)body.pos[ii].z;
+    if( ((z2 + yy * yy + xx * xx) < rmax2) && (z2 < zmax2) ){
+      //-------------------------------------------------------------------
+      const double mass = (double)body.pos[ii].m;
+      Mtot   += mass;
+      //-------------------------------------------------------------------
+      com[0] += mass * xx;
+      com[1] += mass * yy;
+      com[2] += mass * zz;
 #ifdef  BLOCK_TIME_STEP
-    vel[0] += mass * (double)body.vel[ii].x;
-    vel[1] += mass * (double)body.vel[ii].y;
-    vel[2] += mass * (double)body.vel[ii].z;
+      vel[0] += mass * (double)body.vel[ii].x;
+      vel[1] += mass * (double)body.vel[ii].y;
+      vel[2] += mass * (double)body.vel[ii].z;
 #else///BLOCK_TIME_STEP
-    vel[0] += mass * (double)body.vx[ii];
-    vel[1] += mass * (double)body.vy[ii];
-    vel[2] += mass * (double)body.vz[ii];
+      vel[0] += mass * (double)body.vx[ii];
+      vel[1] += mass * (double)body.vy[ii];
+      vel[2] += mass * (double)body.vz[ii];
 #endif//BLOCK_TIME_STEP
+      //-------------------------------------------------------------------
+    }/* if( ((z2 + yy * yy + xx * xx) < rmax2) && (z2 < zmax2) ){ */
     //---------------------------------------------------------------------
   }/* for(ulong ii = head; ii < head + num; ii++){ */
   //-----------------------------------------------------------------------
@@ -129,6 +135,12 @@ void shiftCenter(const ulong num, const ulong head, iparticle body)
   com[0] *= Minv;  vel[0] *= Minv;
   com[1] *= Minv;  vel[1] *= Minv;
   com[2] *= Minv;  vel[2] *= Minv;
+  //-----------------------------------------------------------------------
+#ifdef  PROGRESS_REPORT_ON
+  fprintf(stdout, "# center-of-mass shift: %e, %e, %e\n", com[0], com[1], com[2]);
+  fprintf(stdout, "#    bulk motion shift: %e, %e, %e\n", vel[0], vel[1], vel[2]);
+  fflush(stdout);
+#endif//PROGRESS_REPORT_ON
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -276,7 +288,7 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
   const ulong num = cfg.num;
   //-----------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
-  fprintf(stdout, "# start distributing spherical component particles (%zu bodies: [%zu:%zu])\n", num, *Nuse, (*Nuse) + num - 1);
+  fprintf(stdout, "#\n#\n# start distributing spherical component particles (%zu bodies: [%zu:%zu])\n", num, *Nuse, (*Nuse) + num - 1);
   fflush(stdout);
   const ulong nunit = (ulong)ceilf(0.1f * (float)num);
   ulong stage = 1;
@@ -372,7 +384,7 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
   *Nuse += num;
   //-----------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
-  fprintf(stdout, "# finish distributing spherical component particles (%zu bodies)\n#\n#\n", num);
+  fprintf(stdout, "# finish distributing spherical component particles (%zu bodies)\n", num);
   fflush(stdout);
 #endif//PROGRESS_REPORT_ON
   //-----------------------------------------------------------------------
@@ -550,7 +562,7 @@ int main(int argc, char **argv)
   /* memory allocation for disk component */
   int maxLev;
   disk_data  *disk_info;
-  double *disk_hor, *disk_ver, *disk_pot, *disk_dPhidR, *disk_d2PhidR2;
+  double *disk_hor, *disk_ver, *disk_node_hor, *disk_node_ver, *disk_pot, *disk_dPhidR, *disk_d2PhidR2;
   double *sph_rad, *sph_enc, *sph_rho;
   double *disk_rho, *disk_rhoSum, *disk_rhoTot, *disk_Sigma, *disk_sigmaz, *disk_enc;
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
@@ -562,7 +574,7 @@ int main(int argc, char **argv)
     /* allocate required arrays */
     //---------------------------------------------------------------------
     allocDiskProfile(ndisk, &disk_info, &cfg[skind], &maxLev,
-		     &disk_hor, &disk_ver,
+		     &disk_hor, &disk_ver, &disk_node_hor, &disk_node_ver,
 		     &disk_pot, &disk_rho, &disk_rhoSum, &disk_rhoTot,
 		     &disk_dPhidR, &disk_d2PhidR2,
 		     &disk_Sigma, &disk_sigmaz, &disk_enc,
@@ -695,6 +707,10 @@ int main(int argc, char **argv)
     fene[ii] = _fene + ii * NENEBIN;
   integrateEddingtonFormula(skind, prf, fene);
   //-----------------------------------------------------------------------
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+  calcColumnDensityProfile(skind, prf, logrmax, cfg);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+  //-----------------------------------------------------------------------
   if( addDisk ){
     /* differentiate potential along the radial direction on the equatorial plane */
     diffAxisymmetricPotential(maxLev, disk_info[0]);
@@ -761,9 +777,7 @@ int main(int argc, char **argv)
     }/* else{ */
     //---------------------------------------------------------------------
     /* shift center-of-mass, remove bulk motion */
-#ifdef  SHIFT_CENTER_PER_COMPONENT
-    shiftCenter(cfg[ii].num, Nuse - cfg[ii].num, body);
-#endif//SHIFT_CENTER_PER_COMPONENT
+    shiftCenter(cfg[ii].num, Nuse - cfg[ii].num, body, cfg[ii]);
     //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < skind; ii++){ */
   //-----------------------------------------------------------------------
@@ -789,17 +803,11 @@ int main(int argc, char **argv)
       distributeDiskParticles(&Nuse, body, (real)(disk_info[ii].cfg->Mtot / (double)disk_info[ii].cfg->num), maxLev, disk_info[ii]);
       //-------------------------------------------------------------------
       /* shift center-of-mass, remove bulk motion */
-#ifdef  SHIFT_CENTER_PER_COMPONENT
-      shiftCenter(disk_info[ii].cfg->num, Nuse - disk_info[ii].cfg->num, body);
-#endif//SHIFT_CENTER_PER_COMPONENT
+      shiftCenter(disk_info[ii].cfg->num, Nuse - disk_info[ii].cfg->num, body, *disk_info[ii].cfg);
       //-------------------------------------------------------------------
     }/* for(int ii = 0; ii < ndisk; ii++){ */
     //---------------------------------------------------------------------
   }/* if( addDisk ){ */
-  //-----------------------------------------------------------------------
-#ifndef SHIFT_CENTER_PER_COMPONENT
-  shiftCenter(Ntot, body);
-#endif//SHIFT_CENTER_PER_COMPONENT
   //-----------------------------------------------------------------------
   if( skind == 0 )
     for(int ii = 0; ii < 4 + NRADBIN; ii++){
@@ -926,7 +934,7 @@ int main(int argc, char **argv)
   //-----------------------------------------------------------------------
   if( addDisk )
     freeDiskProfile(ndisk, disk_info,
-		    disk_hor, disk_ver,
+		    disk_hor, disk_ver, disk_node_hor, disk_node_ver,
 		    disk_pot, disk_rho, disk_rhoSum, disk_rhoTot, disk_dPhidR, disk_d2PhidR2,
 		     disk_Sigma, disk_sigmaz, disk_enc,
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
@@ -1169,6 +1177,9 @@ void outputFundamentalInformation
   real *tmp_psi;  tmp_psi = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_psi == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_psi");  }
   real *tmp_tff;  tmp_tff = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_tff == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_tff");  }
   real *tmp_t2r;  tmp_t2r = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_t2r == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_t2r");  }
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+  real *tmp_Sig;  tmp_Sig = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_Sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_Sig");  }
+#endif//MAKE_COLUMN_DENSITY_PROFILE
   //-----------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
   /* create a new file (if the file already exists, the file is opened with read-write access, new data will overwrite any existing data) */
@@ -1208,6 +1219,9 @@ void outputFundamentalInformation
       tmp_rho[ii] = (real)(prf[kk][ii].rho * density2astro);
       tmp_enc[ii] = (real)(prf[kk][ii].enc *    mass2astro);
       tmp_psi[ii] = (real)(prf[kk][ii].psi * senergy2astro);
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+      tmp_Sig[ii] = (real)(prf[kk][ii].Sigma * col_density2astro);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
     }/* for(int ii = 0; ii < NRADBIN; ii++){ */
     //---------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
@@ -1234,6 +1248,12 @@ void outputFundamentalInformation
     dataset = H5Dcreate(group, "Psi", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_psi));
     chkHDF5err(H5Dclose(dataset));
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+    /* write column density */
+    dataset = H5Dcreate(group, "Sigma", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_Sig));
+    chkHDF5err(H5Dclose(dataset));
+#endif//MAKE_COLUMN_DENSITY_PROFILE
 #ifdef  USE_SZIP_COMPRESSION
     chkHDF5err(H5Pclose(property));
 #endif//USE_SZIP_COMPRESSION
@@ -1277,6 +1297,9 @@ void outputFundamentalInformation
     success &= (fwrite( tmp_rho, sizeof(real), NRADBIN, fp) == NRADBIN);
     success &= (fwrite( tmp_enc, sizeof(real), NRADBIN, fp) == NRADBIN);
     success &= (fwrite( tmp_psi, sizeof(real), NRADBIN, fp) == NRADBIN);
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+    success &= (fwrite( tmp_Sig, sizeof(real), NRADBIN, fp) == NRADBIN);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
     if( !success ){      __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);    }
     fclose(fp);
 #endif//USE_HDF5_FORMAT
@@ -1368,6 +1391,8 @@ void outputFundamentalInformation
   chkHDF5err(H5Awrite(attribute, str4format, senergy_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
   attribute = H5Acreate(target,    "time_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, str4format,    time_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target, "col_density_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format, col_density_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
   //-----------------------------------------------------------------------
   /* close the dataspace */
   chkHDF5err(H5Sclose(dataspace));
@@ -1382,6 +1407,9 @@ void outputFundamentalInformation
   free(tmp_psi);
   free(tmp_tff);
   free(tmp_t2r);
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+  free(tmp_Sig);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
   //-----------------------------------------------------------------------
 #ifdef  OUTPUT_ASCII_PROFILE
   //-----------------------------------------------------------------------
@@ -1564,8 +1592,6 @@ void outputFundamentalInformation
 
 
 //-------------------------------------------------------------------------
-/* Sigma を与える際に，バルジ成分などの影響を取り込むようにする． */
-//-------------------------------------------------------------------------
 /* real * restrict _????? are output arrays */
 //-------------------------------------------------------------------------
 static void evaluateDiskProperties
@@ -1606,8 +1632,8 @@ static void evaluateDiskProperties
 #else///USE_ORIGINAL_VDISP_ESTIMATOR
     const double sigmaR = DISK_RADIAL_VDISP(disk_info[diskID].cfg->vdispR0, disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], invRd);
 #endif//USE_ORIGINAL_VDISP_ESTIMATOR
-    const double Sigma  = disk_info[diskID].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
-    const double toomre = sigmaR * kappa / (3.36 * newton * Sigma);
+    const double Sigma = disk_info[diskID].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
+    const double toomre = sigmaR * kappa / (DBL_MIN + 3.36 * newton * Sigma);
     const double lambda = 4.0 * M_PI * M_PI * newton * Sigma / (DBL_MIN + kappa * kappa);
     //---------------------------------------------------------------------
     /* find the maximum circular speed */
@@ -1634,13 +1660,13 @@ static void evaluateDiskProperties
     /* memorize calculated values */
     //---------------------------------------------------------------------
     const int jj = ii - ihead;
-    _vcirc [jj] = (real)(vcirc	* velocity2astro);
-    _sigmap[jj] = (real)(sigmap * velocity2astro);
-    _sigmaR[jj] = (real)(sigmaR * velocity2astro);
-    _kappa [jj] = (real)(kappa	/     time2astro);
-    _Omega [jj] = (real)(Omega	/     time2astro);
-    _lambda[jj] = (real)(lambda *   length2astro);
-    _toomre[jj] = (real) toomre;
+    _vcirc [jj] = (real)(vcirc	* velocity2astro);    /* if( isinf(_vcirc [jj]) == 1 )      _vcirc [jj] = REAL_MAX; */
+    _sigmap[jj] = (real)(sigmap * velocity2astro);    /* if( isinf(_sigmap[jj]) == 1 )      _sigmap[jj] = REAL_MAX; */
+    _sigmaR[jj] = (real)(sigmaR * velocity2astro);    if( isinf(_sigmaR[jj]) == 1 )      _sigmaR[jj] = REAL_MAX;
+    _kappa [jj] = (real)(kappa	/     time2astro);    /* if( isinf(_kappa [jj]) == 1 )      _kappa [jj] = REAL_MAX; */
+    _Omega [jj] = (real)(Omega	/     time2astro);    /* if( isinf(_Omega [jj]) == 1 )      _Omega [jj] = REAL_MAX; */
+    _lambda[jj] = (real)(lambda *   length2astro);    if( isinf(_lambda[jj]) == 1 )      _lambda[jj] = REAL_MAX;
+    _toomre[jj] = (real) toomre                  ;    if( isinf(_toomre[jj]) == 1 )      _toomre[jj] = REAL_MAX;
     //---------------------------------------------------------------------
   }/* for(int ii = ihead; ii < itail + 1; ii++){ */
   //-----------------------------------------------------------------------
@@ -1817,30 +1843,23 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
       double width[2];
       width[0] = ldexp(disk[ii].hh, -lev) * length2astro;
       width[1] = ldexp(disk[ii].hh, -lev) * length2astro;
-      const real dR = (real)(0.5 * width[0]);
-      const real dz = (real)(0.5 * width[1]);
       //-------------------------------------------------------------------
       /* note: VisIt requires position of edges of the grid */
-      node_RR[0] = 0.0;
-#pragma omp parallel for
-      for(int jj = 0; jj < NDISKBIN_HOR; jj++){
-	//-----------------------------------------------------------------
-	const real RR = (real)(disk[ii].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] * length2astro);
-	//-----------------------------------------------------------------
-	tmp_hor[    jj] = RR;
-	node_RR[1 + jj] = RR + dR;
-	//-----------------------------------------------------------------
-      }/* for(int jj = 0; jj < NDISKBIN_HOR; jj++){ */
-      node_zz[0] = 0.0;
-#pragma omp parallel for
-      for(int jj = 0; jj < NDISKBIN_VER; jj++){
-	//-----------------------------------------------------------------
-	const double zz = (real)(disk[ii].ver[INDEX2D(maxLev, NDISKBIN_VER, lev, jj)] * length2astro);
-	//-----------------------------------------------------------------
-	tmp_ver[    jj] = zz;
-	node_zz[1 + jj] = zz + dz;
-	//-----------------------------------------------------------------
-      }/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
+#pragma omp parallel
+      {
+#pragma omp for nowait
+	for(int jj = 0; jj < NDISKBIN_HOR; jj++)
+	  tmp_hor[jj] = (real)(disk[ii].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] * length2astro);
+#pragma omp for nowait
+	for(int jj = 0; jj < NDISKBIN_VER; jj++)
+	  tmp_ver[jj] = (real)(disk[ii].ver[INDEX2D(maxLev, NDISKBIN_VER, lev, jj)] * length2astro);
+#pragma omp for nowait
+	for(int jj = 0; jj < NDISKBIN_HOR + 1; jj++)
+	  node_RR[jj] = (real)(disk[ii].node_hor[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, jj)] * length2astro);
+#pragma omp for nowait
+	for(int jj = 0; jj < NDISKBIN_VER + 1; jj++)
+	  node_zz[jj] = (real)(disk[ii].node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev, jj)] * length2astro);
+      }
       //-------------------------------------------------------------------
 
       //-------------------------------------------------------------------

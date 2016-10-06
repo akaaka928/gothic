@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/12(Fri) 11:36:25
+                  last updated on 2016/10/06(Thu) 16:33:16
  *                                                                       *
  *    Plot Code of N-body Simulations (using PLplot)                     *
  *      Time Evolution of Spatial Distribution Maps                      *
@@ -74,14 +74,14 @@ typedef struct
 {
   ulong head, num;/* data for N-body particles */
   /* double *rad, *rho, *enc;/\* tables represent the initial profile *\/ */
-  real *rad, *rho, *enc;/* tables represent the initial profile */
+  real *rad, *rho, *enc, *Sig;/* tables represent the initial profile */
 #ifndef USE_HDF5_FORMAT
   /* double *psi;/\* tables represent the initial profile *\/ */
   real *psi;/* tables represent the initial profile */
 #endif//USE_HDF5_FORMAT
   /* double *disk_radius, *disk_height, *disk_azimuth, *disk_rho, *disk_Sigma, *disk_vol, disk_Rd, disk_zd;/\* tables represent the initial profile of the disk component *\/ */
   double disk_Rd, disk_zd;
-  real *disk_radius, *disk_height, *disk_azimuth, *disk_rho, *disk_Sigma, *disk_vol;/* tables represent the initial profile of the disk component */
+  real *disk_radius, *disk_height, *disk_azimuth, *disk_rho, *disk_vol, *disk_rad1d, *disk_Sigma;/* tables represent the initial profile of the disk component */
 #ifndef USE_HDF5_FORMAT
   /* double *disk_pot, *disk_sig, *disk_sph_rad, *disk_sph_enc, *disk_sph_rho;/\* tables represent the initial profile of the disk component *\/ */
   real *disk_pot, *disk_sig;/* tables represent the initial profile of the disk component */
@@ -291,6 +291,38 @@ void integrateColumnDensity(const int num, const real logRbin, real *rad, real *
 //-------------------------------------------------------------------------
 
 
+//-------------------------------------------------------------------------
+static inline int bisec4nested(const real rad, const int num, real *val, const int levMin, int *lev, real *ratio)
+{
+  //-----------------------------------------------------------------------
+  int ll = 0;
+  int rr = num - 1;
+  //-----------------------------------------------------------------------
+  *lev = 0;
+  for(int ii = levMin; ii >= 0; ii--)
+    if( rad <= (val[INDEX2D(maxLev, num, ii, 0)] + val[INDEX2D(maxLev, num, ii, num - 1)]) ){
+      *lev = ii;
+      break;
+    }
+  //-----------------------------------------------------------------------
+  if( rad < val[INDEX2D(maxLev, num, *lev, ll)] ){    *ratio =  ZERO;    return (ll    );  }
+  if( rad > val[INDEX2D(maxLev, num, *lev, rr)] ){    *ratio = UNITY;    return (rr - 1);  }
+  //-----------------------------------------------------------------------
+  while( true ){
+    //---------------------------------------------------------------------
+    const uint cc = ((uint)ll + (uint)rr) >> 1;
+    //---------------------------------------------------------------------
+    if( (val[INDEX2D(maxLev, num, *lev, cc)] - rad) * (val[INDEX2D(maxLev, num, *lev, ll)] - rad) <= ZERO )      rr = (int)cc;
+    else                                                 ll = (int)cc;
+    //---------------------------------------------------------------------
+    if( (1 + ll) == rr ){
+      *ratio = (rad - val[INDEX2D(maxLev, num, *lev, ll)]) / (val[INDEX2D(maxLev, num, *lev, ll + 1)] - val[INDEX2D(maxLev, num, *lev, ll)]);
+      return (ll);
+    }
+    //---------------------------------------------------------------------
+  }
+  //-----------------------------------------------------------------------
+}
 //-------------------------------------------------------------------------
 static inline int bisec(const real rad, const int nmax, real *val)
 {
@@ -752,11 +784,6 @@ int main(int argc, char **argv)
   int rem_hor = NAllocUnit;
   real *hor_pos, *hor_rho, *hor_zdisp;
   allocDecomposedProfileArray(rem_hor, &hor_pos, &hor_rho,  true, &hor_zdisp);
-#ifdef  OVERPLOT_INITIAL_DISKHEIGHT
-  int num_hor_t0;
-  real *hor_pos_t0, *hor_zdisp_t0;
-  int *prf_hor_head_t0, *prf_hor_num_t0;
-#endif//OVERPLOT_INITIAL_DISKHEIGHT
   int num_ver = 0;
   int rem_ver = NAllocUnit;
   real *ver_pos, *ver_rho;
@@ -863,12 +890,14 @@ int main(int argc, char **argv)
       chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &group[ii].nrad));
       chkHDF5err(H5Aclose(attribute));
       /* memory allocation */
-      group[ii].rad   = (real *)malloc(group[ii].nrad * sizeof(real));
-      group[ii].rho   = (real *)malloc(group[ii].nrad * sizeof(real));
-      group[ii].enc   = (real *)malloc(group[ii].nrad * sizeof(real));
-      if( group[ii].rad   == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].rad", ii);      }
-      if( group[ii].rho   == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].rho", ii);      }
-      if( group[ii].enc   == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].enc", ii);      }
+      group[ii].rad = (real *)malloc(group[ii].nrad * sizeof(real));
+      group[ii].rho = (real *)malloc(group[ii].nrad * sizeof(real));
+      group[ii].enc = (real *)malloc(group[ii].nrad * sizeof(real));
+      group[ii].Sig = (real *)malloc(group[ii].nrad * sizeof(real));
+      if( group[ii].rad == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].rad", ii);      }
+      if( group[ii].rho == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].rho", ii);      }
+      if( group[ii].enc == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].enc", ii);      }
+      if( group[ii].Sig == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].Sig", ii);      }
       //-------------------------------------------------------------------
       /* read the profile data */
       hid_t dataset;
@@ -883,6 +912,10 @@ int main(int argc, char **argv)
       /* read enclosed mass */
       dataset = H5Dopen(h5group, "enc", H5P_DEFAULT);
       chkHDF5err(H5Dread(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, group[ii].enc));
+      chkHDF5err(H5Dclose(dataset));
+      /* read column density */
+      dataset = H5Dopen(h5group, "Sigma", H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, group[ii].Sig));
       chkHDF5err(H5Dclose(dataset));
       //-------------------------------------------------------------------
       /* close the file */
@@ -962,22 +995,16 @@ int main(int argc, char **argv)
 	chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &_useDP));
 	chkHDF5err(H5Aclose(attribute));
 	//-----------------------------------------------------------------
+	int maxLev;
+	attribute = H5Aopen(target, "maxLev", H5P_DEFAULT);
+	chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &maxLev));
+	chkHDF5err(H5Aclose(attribute));
+	//-----------------------------------------------------------------
 	char grp[16];	sprintf(grp, "data%d", ii - skind);
 	hid_t h5group = H5Gopen(target, grp, H5P_DEFAULT);
 	//-----------------------------------------------------------------
 	/* read attributes */
 	hid_t attribute;
-	int dims[2];
-	/* read # of arrays */
-	attribute = H5Aopen(h5group, "num", H5P_DEFAULT);
-	chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, dims));
-	chkHDF5err(H5Aclose(attribute));
-	group[ii].disk_nrad = dims[0];
-	group[ii].disk_nazi = dims[1];
-#if 0
-	fprintf(stdout, "nrad = %d, nazi = %d\n", group[ii].disk_nrad, group[ii].disk_nazi);
-	fflush(stdout);
-#endif
 	/* read scale radius and scale height */
 	attribute = H5Aopen(h5group, "Rs", H5P_DEFAULT);
 	chkHDF5err(H5Aread(attribute, H5T_NATIVE_DOUBLE, &group[ii].disk_Rd));
@@ -985,37 +1012,77 @@ int main(int argc, char **argv)
 	attribute = H5Aopen(h5group, "zd", H5P_DEFAULT);
 	chkHDF5err(H5Aread(attribute, H5T_NATIVE_DOUBLE, &group[ii].disk_zd));
 	chkHDF5err(H5Aclose(attribute));
+	//-----------------------------------------------------------------
+	sprintf(grp, "patch%d", 0);
+	hid_t patch = H5Gopen(h5group, grp, H5P_DEFAULT);
+	int dims[2];
+	/* read # of arrays */
+	attribute = H5Aopen(patch, "num", H5P_DEFAULT);
+	chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, dims));
+	chkHDF5err(H5Aclose(attribute));
+	chkHDF5err(H5Gclose(patch));
+	group[ii].disk_nrad = dims[0];
+	group[ii].disk_nazi = dims[1];
+#if 0
+	fprintf(stdout, "nrad = %d, nazi = %d\n", group[ii].disk_nrad, group[ii].disk_nazi);
+	fflush(stdout);
+	MPI_Finalize();
+	exit(0);
+#endif
+	//-----------------------------------------------------------------
 	/* memory allocation */
-	group[ii].disk_radius  = (real *)malloc(group[ii].disk_nrad                       * sizeof(real));
-	group[ii].disk_height  = (real *)malloc(                      group[ii].disk_nazi * sizeof(real));
-	group[ii].disk_rho     = (real *)malloc(group[ii].disk_nrad * group[ii].disk_nazi * sizeof(real));
-	group[ii].disk_Sigma   = (real *)malloc(group[ii].disk_nrad                       * sizeof(real));
-	if( group[ii].disk_radius  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_radius" );	}
-	if( group[ii].disk_height  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_height" );	}
-	if( group[ii].disk_rho     == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_rho"    );	}
-	if( group[ii].disk_Sigma   == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_Sigma"  );	}
+	group[ii].disk_radius = (real *)malloc( maxLev      *  group[ii].disk_nrad                             * sizeof(real));
+	group[ii].disk_height = (real *)malloc( maxLev      *                              group[ii].disk_nazi * sizeof(real));
+	group[ii].disk_rho    = (real *)malloc( maxLev      *  group[ii].disk_nrad       * group[ii].disk_nazi * sizeof(real));
+	group[ii].disk_rad1d  = (real *)malloc((maxLev + 1) * (group[ii].disk_nrad >> 1)                       * sizeof(real));
+	group[ii].disk_Sigma  = (real *)malloc((maxLev + 1) * (group[ii].disk_nrad >> 1)                       * sizeof(real));
+	if( group[ii].disk_radius == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_radius" );	}
+	if( group[ii].disk_height == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_height" );	}
+	if( group[ii].disk_rho	  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_rho"    );	}
+	if( group[ii].disk_rad1d  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_rho"    );	}
+	if( group[ii].disk_Sigma  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_Sigma"  );	}
 	//-----------------------------------------------------------------
 	/* read disk data */
-	/* read horizontal position */
-	dataset = H5Dopen(h5group, "radius", H5P_DEFAULT);
-	chkHDF5err(H5Dread(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, group[ii].disk_radius));
-	chkHDF5err(H5Dclose(dataset));
-	/* read vertical position */
-	dataset = H5Dopen(h5group, "height", H5P_DEFAULT);
-	chkHDF5err(H5Dread(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, group[ii].disk_height));
-	chkHDF5err(H5Dclose(dataset));
-	/* read density distribution */
-	dataset = H5Dopen(h5group, "rho", H5P_DEFAULT);
-	chkHDF5err(H5Dread(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, group[ii].disk_rho));
+	for(int lev = 0; lev < maxLev; lev++){
+	  //---------------------------------------------------------------
+	  sprintf(grp, "patch%d", lev);
+	  patch = H5Gopen(h5group, grp, H5P_DEFAULT);
+	  //---------------------------------------------------------------
+	  /* read horizontal position */
+	  dataset = H5Dopen(patch, "radius", H5P_DEFAULT);
+	  chkHDF5err(H5Dread(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(group[ii].disk_radius[INDEX2D(maxLev, group[ii].disk_nrad, lev, 0)])));
+	  chkHDF5err(H5Dclose(dataset));
+	  /* read vertical position */
+	  dataset = H5Dopen(patch, "height", H5P_DEFAULT);
+	  chkHDF5err(H5Dread(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(group[ii].disk_height[INDEX2D(maxLev, group[ii].disk_nazi, lev, 0)])));
+	  chkHDF5err(H5Dclose(dataset));
+	  /* read density distribution */
+	  dataset = H5Dopen(patch, "rho", H5P_DEFAULT);
+	  chkHDF5err(H5Dread(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(group[ii].disk_rho[INDEX2D(maxLev, group[ii].disk_nrad * group[ii].disk_nazi, lev, 0)])));
+	  chkHDF5err(H5Dclose(dataset));
+	  chkHDF5err(H5Gclose(patch));
+	  //---------------------------------------------------------------
+	}/* for(int lev = 0; lev < maxLev; lev++){ */
+	//-----------------------------------------------------------------
+	sprintf(grp, "1D_data");
+	patch = H5Gopen(h5group, grp, H5P_DEFAULT);
+	/* read radius */
+	dataset = H5Dopen(patch, "radius", H5P_DEFAULT);
+	chkHDF5err(H5Dread(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, group[ii].disk_rad1d));
 	chkHDF5err(H5Dclose(dataset));
 	/* read column density profile */
-	dataset = H5Dopen(h5group, "Sigma", H5P_DEFAULT);
+	dataset = H5Dopen(patch, "Sigma", H5P_DEFAULT);
 	chkHDF5err(H5Dread(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, group[ii].disk_Sigma));
 	chkHDF5err(H5Dclose(dataset));
+	chkHDF5err(H5Gclose(patch));
 	//-----------------------------------------------------------------
 	/* close the file */
 	chkHDF5err(H5Gclose(h5group));
 	chkHDF5err(H5Fclose(target));
+#if 0
+	MPI_Finalize();
+	exit(0);
+#endif
 	//-----------------------------------------------------------------
 #ifdef  DOUBLE_PRECISION
 	if( _useDP != 1 ){
@@ -1045,18 +1112,12 @@ int main(int argc, char **argv)
 	group[ii].disk_pot     = (real *)malloc(group[ii].disk_nrad * group[ii].disk_nazi * sizeof(real));
 	group[ii].disk_sig     = (real *)malloc(group[ii].disk_nrad                       * sizeof(real));
 	group[ii].disk_Sigma   = (real *)malloc(group[ii].disk_nrad                       * sizeof(real));
-	/* group[ii].disk_sph_rad = (double *)malloc(group[ii].disk_nsph                       * sizeof(double)); */
-	/* group[ii].disk_sph_enc = (double *)malloc(group[ii].disk_nsph                       * sizeof(double)); */
-	/* group[ii].disk_sph_rho = (double *)malloc(group[ii].disk_nsph                       * sizeof(double)); */
 	if( group[ii].disk_radius  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_radius" );	}
 	if( group[ii].disk_height  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_height" );	}
 	if( group[ii].disk_rho     == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_rho"    );	}
 	if( group[ii].disk_pot     == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_pot"    );	}
 	if( group[ii].disk_sig     == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_pot"    );	}
 	if( group[ii].disk_Sigma   == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_Sigma"  );	}
-	/* if( group[ii].disk_sph_rad == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_sph_rad");	} */
-	/* if( group[ii].disk_sph_enc == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_sph_enc");	} */
-	/* if( group[ii].disk_sph_rho == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_sph_rho");	} */
 	//-----------------------------------------------------------------
 	success &= (fread(group[ii].disk_radius , sizeof(real), group[ii].disk_nrad                      , fp) == group[ii].disk_nrad                      );
 	success &= (fread(group[ii].disk_height , sizeof(real),                       group[ii].disk_nazi, fp) ==                       group[ii].disk_nazi);
@@ -1064,9 +1125,6 @@ int main(int argc, char **argv)
 	success &= (fread(group[ii].disk_pot    , sizeof(real), group[ii].disk_nrad * group[ii].disk_nazi, fp) == group[ii].disk_nrad * group[ii].disk_nazi);
 	success &= (fread(group[ii].disk_sig    , sizeof(real), group[ii].disk_nrad                      , fp) == group[ii].disk_nrad                      );
 	success &= (fread(group[ii].disk_Sigma  , sizeof(real), group[ii].disk_nrad                      , fp) == group[ii].disk_nrad                      );
-	/* success &= (fread(group[ii].disk_sph_rad, sizeof(double), group[ii].disk_nsph                      , fp) == group[ii].disk_nsph                      ); */
-	/* success &= (fread(group[ii].disk_sph_enc, sizeof(double), group[ii].disk_nsph                      , fp) == group[ii].disk_nsph                      ); */
-	/* success &= (fread(group[ii].disk_sph_rho, sizeof(double), group[ii].disk_nsph                      , fp) == group[ii].disk_nsph                      ); */
 	//-----------------------------------------------------------------
 	if( !success ){	  __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);	}
 	fclose(fp);
@@ -1080,38 +1138,54 @@ int main(int argc, char **argv)
 	//-----------------------------------------------------------------
 	const real    Rmax = group[ii].disk_radius[group[ii].disk_nrad - 1];
 	const real    zmax = group[ii].disk_height[group[ii].disk_nazi - 1];
-	const real invRbin = (real)(group[ii].disk_nrad - 1) / (Rmax - group[ii].disk_radius[0]);
-	const real invzbin = (real)(group[ii].disk_nazi - 1) / (zmax - group[ii].disk_height[0]);
-	const real logRmax = LOG10(Rmax);	const real logRmin = LOG10(group[ii].disk_radius[0]);
-	const real logzmax = LOG10(zmax);	const real logzmin = LOG10(group[ii].disk_height[0]);
+	/* const real invRbin = (real)(group[ii].disk_nrad - 1) / (Rmax - group[ii].disk_radius[INDEX2D(maxLev, group[ii].disk_nrad, maxLev - 1, 0)]); */
+	/* const real invzbin = (real)(group[ii].disk_nazi - 1) / (zmax - group[ii].disk_height[INDEX2D(maxLev, group[ii].disk_nazi, maxLev - 1, 0)]); */
+	const real logRmax = LOG10(Rmax);	const real logRmin = LOG10(group[ii].disk_radius[INDEX2D(maxLev, group[ii].disk_nrad, maxLev - 1, 0)]);
+	const real logzmax = LOG10(zmax);	const real logzmin = LOG10(group[ii].disk_height[INDEX2D(maxLev, group[ii].disk_nazi, maxLev - 1, 0)]);
 	const real logRbin = (logRmax - logRmin) / (real)(NUM_ANALYTIC - 1);
 	const real logzbin = (logzmax - logzmin) / (real)(NUM_ANALYTIC - 1);
 	for(int jj = 0; jj < NUM_ANALYTIC; jj++){
 	  group[ii].hor[jj] = POW(TEN, logRmin + logRbin * (real)jj);
 	  group[ii].ver[jj] = POW(TEN, logzmin + logzbin * (real)jj);
-	}
+	}/* for(int jj = 0; jj < NUM_ANALYTIC; jj++){ */
 	group[ii].disk_vol = (real *)malloc(NUM_ANALYTIC * NUM_ANALYTIC * sizeof(real));
 	if( group[ii].disk_vol == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_vol");	}
 	for(int jj = 0; jj < NUM_ANALYTIC; jj++){
 	  //---------------------------------------------------------------
 	  const real RR = group[ii].hor[jj];
-	  const int irad = bisec(RR, group[ii].disk_nrad, group[ii].disk_radius);
-	  const real arad = (RR - group[ii].disk_radius[irad]) * invRbin;
 	  //---------------------------------------------------------------
-	  group[ii].Sigma[jj] = (UNITY - arad) * group[ii].disk_Sigma[irad] + arad * group[ii].disk_Sigma[1 + irad];
+	  int idx = bisec(RR, (maxLev + 1) * (group[ii].disk_nrad >> 1), group[ii].disk_rad1d);
+	  real alpha = ((idx != 0) && (idx != ((maxLev + 1) * (group[ii].disk_nrad >> 1) - 1))) ? ((RR - group[ii].disk_rad1d[idx]) / (group[ii].disk_rad1d[1 + idx] - group[ii].disk_rad1d[idx])) : ((idx == 0) ? (ZERO) : (UNITY));
+	  group[ii].Sigma[jj] = (UNITY - alpha) * group[ii].disk_Sigma[idx] + alpha * group[ii].disk_Sigma[idx + 1];
+	  //---------------------------------------------------------------
+	  /* const int irad = bisec(RR, group[ii].disk_nrad, group[ii].disk_radius); */
+	  /* const real arad = (RR - group[ii].disk_radius[irad]) * invRbin; */
+	  int rlev;
+	  real arad;
+	  int irad = bisec4nested(RR, group[ii].disk_nrad, group[ii].disk_radius, maxLev - 1, &rlev, &arad);
+	  //---------------------------------------------------------------
+	  /* group[ii].Sigma[jj] = (UNITY - arad) * group[ii].disk_Sigma[INDEX2D(maxLev, group[ii].disk_nrad, rlev, irad)] + arad * group[ii].disk_Sigma[INDEX2D(maxLev, group[ii].disk_nrad, rlev, 1 + irad)]; */
 	  //---------------------------------------------------------------
 	  for(int kk = 0; kk < NUM_ANALYTIC; kk++){
 	    //-------------------------------------------------------------
 	    const real zz = group[ii].ver[kk];
 	    //-------------------------------------------------------------
 	    /* 2D-interpolation */
-	    const int iazi = bisec(zz, group[ii].disk_nazi, group[ii].disk_height);
-	    const real aazi = (zz - group[ii].disk_height[iazi]) * invzbin;
+	    /* const int iazi = bisec(zz, group[ii].disk_nazi, group[ii].disk_height); */
+	    /* const real aazi = (zz - group[ii].disk_height[iazi]) * invzbin; */
+	    int zlev;
+	    real aazi;
+	    const int iazi = bisec4nested(zz, group[ii].disk_nazi, group[ii].disk_height, rlev, &zlev, &aazi);
+	    if( rlev != zlev ){
+	      irad >>= (rlev - zlev);
+	      rlev = zlev;
+	      arad = (RR - group[ii].disk_radius[INDEX2D(maxLev, group[ii].disk_nrad, rlev, irad)]) / (group[ii].disk_radius[INDEX2D(maxLev, group[ii].disk_nrad, rlev, 1 + irad)] - group[ii].disk_radius[INDEX2D(maxLev, group[ii].disk_nrad, rlev, irad)]);
+	    }/* if( rlev != zlev ){ */
 	    group[ii].disk_vol[INDEX2D(NUM_ANALYTIC, NUM_ANALYTIC, jj, kk)] =
-	      (group[ii].disk_rho[INDEX2D(group[ii].disk_nrad, group[ii].disk_nazi,     irad,     iazi)] * (UNITY - aazi) +
-	       group[ii].disk_rho[INDEX2D(group[ii].disk_nrad, group[ii].disk_nazi,     irad, 1 + iazi)] *          aazi   ) * (UNITY - arad) +
-	      (group[ii].disk_rho[INDEX2D(group[ii].disk_nrad, group[ii].disk_nazi, 1 + irad,     iazi)] * (UNITY - aazi) +
-	       group[ii].disk_rho[INDEX2D(group[ii].disk_nrad, group[ii].disk_nazi, 1 + irad, 1 + iazi)] *          aazi   ) *          arad;
+	      (group[ii].disk_rho[INDEX(maxLev, group[ii].disk_nrad, group[ii].disk_nazi, zlev,     irad,     iazi)] * (UNITY - aazi) +
+	       group[ii].disk_rho[INDEX(maxLev, group[ii].disk_nrad, group[ii].disk_nazi, zlev,     irad, 1 + iazi)] *	        aazi) * (UNITY - arad) +
+	      (group[ii].disk_rho[INDEX(maxLev, group[ii].disk_nrad, group[ii].disk_nazi, zlev, 1 + irad,     iazi)] * (UNITY - aazi) +
+	       group[ii].disk_rho[INDEX(maxLev, group[ii].disk_nrad, group[ii].disk_nazi, zlev, 1 + irad, 1 + iazi)] *	        aazi) *	         arad;
 	    //-------------------------------------------------------------
 	  }/* for(int kk = 0; kk < NUM_ANALYTIC; kk++){ */
 	}/* for(int jj = 0; jj < NUM_ANALYTIC; jj++){ */
@@ -1123,6 +1197,11 @@ int main(int argc, char **argv)
 	      fprintf(stderr, "%e\t%e\t%e\n", group[ii].hor[jj], group[ii].ver[kk], group[ii].disk_vol[INDEX2D(NUM_ANALYTIC, NUM_ANALYTIC, jj, kk)]);
 	    fprintf(stderr, "\n");
 	  }/* for(int jj = 0; jj < NUM_ANALYTIC; jj++){ */
+	MPI_Finalize();
+	exit(0);
+#endif
+	//-----------------------------------------------------------------
+#if 0
 	MPI_Finalize();
 	exit(0);
 #endif
@@ -1164,6 +1243,11 @@ int main(int argc, char **argv)
 	  //---------------------------------------------------------------
 	}/* for(int jj = 0; jj < NUM_HORIZONTAL_BIN; jj++){ */
 	//-----------------------------------------------------------------
+#if 0
+	MPI_Finalize();
+	exit(0);
+#endif
+	//-----------------------------------------------------------------
 
 
 	//-----------------------------------------------------------------
@@ -1175,9 +1259,39 @@ int main(int argc, char **argv)
     //---------------------------------------------------------------------
     /* analyze column density profile of spherical components */
     //---------------------------------------------------------------------
-    real *sum;    sum = (real *)malloc(skind * sizeof(real));    if( sum == NULL ){      __KILL__(stderr, "ERROR: failure to allocate sum");    }
-    real *tfp;    tfp = (real *)malloc(skind * sizeof(real));    if( tfp == NULL ){      __KILL__(stderr, "ERROR: failure to allocate tfp");    }
-    real *tfm;    tfm = (real *)malloc(skind * sizeof(real));    if( tfm == NULL ){      __KILL__(stderr, "ERROR: failure to allocate tfm");    }
+    /* real *sum;    sum = (real *)malloc(skind * sizeof(real));    if( sum == NULL ){      __KILL__(stderr, "ERROR: failure to allocate sum");    } */
+    /* real *tfp;    tfp = (real *)malloc(skind * sizeof(real));    if( tfp == NULL ){      __KILL__(stderr, "ERROR: failure to allocate tfp");    } */
+    /* real *tfm;    tfm = (real *)malloc(skind * sizeof(real));    if( tfm == NULL ){      __KILL__(stderr, "ERROR: failure to allocate tfm");    } */
+    /* //--------------------------------------------------------------------- */
+    /* const real logRmin = (real)log10(radmin); */
+    /* const real logRmax = (real)log10(radmax); */
+    /* const real logRbin = (logRmax - logRmin) / (real)(NUM_ANALYTIC - 1); */
+    /* for(int ii = 0; ii < NUM_ANALYTIC; ii++){ */
+    /*   //------------------------------------------------------------------- */
+    /*   const real RR = POW(TEN, logRmin + logRbin * (real)ii); */
+    /*   for(int kk = 0; kk < skind; kk++){ */
+    /* 	//----------------------------------------------------------------- */
+    /* 	group[kk].hor  [ii] = RR; */
+    /* 	group[kk].Sigma[ii] = ZERO; */
+    /* 	//----------------------------------------------------------------- */
+    /* 	/\* unity is a rough, order estimate of scale length of the component *\/ */
+    /* 	const real R0 = (RR < UNITY) ? RR : UNITY; */
+    /* 	const real R2 = (RR < UNITY) ? UNITY : RR; */
+    /* 	const real R1 = HALF * (R0 + R2); */
+    /* 	gaussQuadVertical(RR, NINTBIN, ZERO    ,                 R0, skind, group, sum, tfm, tfp);	group[kk].Sigma[ii] += sum[kk]; */
+    /* 	gaussQuadVertical(RR, NINTBIN,       R0,                 R1, skind, group, sum, tfm, tfp);	group[kk].Sigma[ii] += sum[kk]; */
+    /* 	gaussQuadVertical(RR, NINTBIN,       R1,                 R2, skind, group, sum, tfm, tfp);	group[kk].Sigma[ii] += sum[kk]; */
+    /* 	gaussQuadVertical(RR, NINTBIN,       R2, TWO *           R2, skind, group, sum, tfm, tfp);	group[kk].Sigma[ii] += sum[kk]; */
+    /* 	gaussQuadVertical(RR, NINTBIN, TWO * R2, TEN *           R2, skind, group, sum, tfm, tfp);	group[kk].Sigma[ii] += sum[kk]; */
+    /* 	gaussQuadVertical(RR, NINTBIN, TEN * R2, TWO * (real)radmax, skind, group, sum, tfm, tfp);	group[kk].Sigma[ii] += sum[kk]; */
+    /* 	//----------------------------------------------------------------- */
+    /* 	group[kk].Sigma[ii] *= TWO; */
+    /* 	//----------------------------------------------------------------- */
+    /*   } */
+    /*   //------------------------------------------------------------------- */
+    /* }/\* for(int ii = 0; ii < NUM_ANALYTIC; ii++){ *\/ */
+    /* //--------------------------------------------------------------------- */
+    /* free(sum);    free(tfp);    free(tfm); */
     //---------------------------------------------------------------------
     const real logRmin = (real)log10(radmin);
     const real logRmax = (real)log10(radmax);
@@ -1185,36 +1299,30 @@ int main(int argc, char **argv)
     for(int ii = 0; ii < NUM_ANALYTIC; ii++){
       //-------------------------------------------------------------------
       const real RR = POW(TEN, logRmin + logRbin * (real)ii);
+      int ll, rr;
+      findIdx(RR, group[0], &ll, &rr);
+      const real ratio = (RR - group[0].rad[ll]) / (group[0].rad[rr] - group[0].rad[ll]);
       for(int kk = 0; kk < skind; kk++){
-	//-----------------------------------------------------------------
-	group[kk].hor  [ii] = RR;
-	group[kk].Sigma[ii] = ZERO;
-	//-----------------------------------------------------------------
-	/* unity is a rough, order estimate of scale length of the component */
-	const real R0 = (RR < UNITY) ? RR : UNITY;
-	const real R2 = (RR < UNITY) ? UNITY : RR;
-	const real R1 = HALF * (R0 + R2);
-	gaussQuadVertical(RR, NINTBIN, ZERO    ,                 R0, skind, group, sum, tfm, tfp);	group[kk].Sigma[ii] += sum[kk];
-	gaussQuadVertical(RR, NINTBIN,       R0,                 R1, skind, group, sum, tfm, tfp);	group[kk].Sigma[ii] += sum[kk];
-	gaussQuadVertical(RR, NINTBIN,       R1,                 R2, skind, group, sum, tfm, tfp);	group[kk].Sigma[ii] += sum[kk];
-	gaussQuadVertical(RR, NINTBIN,       R2, TWO *           R2, skind, group, sum, tfm, tfp);	group[kk].Sigma[ii] += sum[kk];
-	gaussQuadVertical(RR, NINTBIN, TWO * R2, TEN *           R2, skind, group, sum, tfm, tfp);	group[kk].Sigma[ii] += sum[kk];
-	gaussQuadVertical(RR, NINTBIN, TEN * R2, TWO * (real)radmax, skind, group, sum, tfm, tfp);	group[kk].Sigma[ii] += sum[kk];
-	//-----------------------------------------------------------------
-	group[kk].Sigma[ii] *= TWO;
-	//-----------------------------------------------------------------
+    	//-----------------------------------------------------------------
+    	group[kk].hor  [ii] = RR;
+    	group[kk].Sigma[ii] = (UNITY - ratio) * group[kk].Sig[ll] + ratio * group[kk].Sig[rr];
+   	//-----------------------------------------------------------------
       }
-      //-------------------------------------------------------------------
-    }/* for(int ii = 0; ii < NUM_ANALYTIC; ii++){ */
-    //---------------------------------------------------------------------
-    free(sum);    free(tfp);    free(tfm);
+    }
     //---------------------------------------------------------------------
     for(int kk = 0; kk < skind; kk++)
       integrateColumnDensity(NUM_ANALYTIC, logRbin, group[kk].hor, group[kk].Sigma, group[kk].Menc);
+#if 0
     const double correction = col_density2astro / (density2astro * length2astro);
     for(int kk = 0; kk < skind; kk++)
       for(int ll = 0; ll < NUM_ANALYTIC; ll++)
 	group[kk].Sigma[ll] = (real)((double)group[kk].Sigma[ll] * correction);
+#endif
+    //---------------------------------------------------------------------
+#if 0
+    MPI_Finalize();
+    exit(0);
+#endif
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
@@ -1266,10 +1374,25 @@ int main(int argc, char **argv)
     //---------------------------------------------------------------------
   }/* if( problem >= 2 ){ */
   //-----------------------------------------------------------------------
+#if 0
+  MPI_Finalize();
+  exit(0);
+#endif
+  //-----------------------------------------------------------------------
 
 
   //-----------------------------------------------------------------------
   /* read particle distribution and analyze */
+  //-----------------------------------------------------------------------
+#ifdef  OVERPLOT_INITIAL_DISKHEIGHT
+  int num_hor_t0;
+  real *hor_pos_t0, *hor_zdisp_t0;
+  int *prf_hor_head_t0, *prf_hor_num_t0;
+  prf_hor_head_t0 = (int *)malloc(sizeof(int) * kind);
+  prf_hor_num_t0  = (int *)malloc(sizeof(int) * kind);
+  if( prf_hor_head_t0 == NULL ){	__KILL__(stderr, "%s\n", "ERROR: failure to allocate prf_hor_head_t0.");      }
+  if( prf_hor_num_t0  == NULL ){	__KILL__(stderr, "%s\n", "ERROR: failure to allocate prf_hor_num_t0.");      }
+#endif//OVERPLOT_INITIAL_DISKHEIGHT
   //-----------------------------------------------------------------------
   int ifile = (int)(start + mpi.rank);
   for(int filenum = start + mpi.rank * interval; filenum < end + 1; filenum += interval * mpi.size){
@@ -1361,9 +1484,6 @@ int main(int argc, char **argv)
       hor_pos_t0   = (real *)malloc(sizeof(real) * num_hor_t0);
       hor_zdisp_t0 = (real *)malloc(sizeof(real) * num_hor_t0);
       if( (hor_pos_t0 == NULL) || (hor_zdisp_t0 == NULL) ){	__KILL__(stderr, "%s\n", "ERROR: memory allocation failed.");      }
-      prf_hor_head_t0 = (int *)malloc(sizeof(int) * kind);
-      prf_hor_num_t0  = (int *)malloc(sizeof(int) * kind);
-      if( (prf_hor_head_t0 == NULL) || (prf_hor_num_t0 == NULL) ){	__KILL__(stderr, "%s\n", "ERROR: memory allocation failed.");      }
       if( mpi.rank == 0 ){
 	for(int ii = 0; ii < num_hor_t0; ii++){
 	  hor_pos_t0  [ii] = hor_pos  [ii];
@@ -1396,8 +1516,8 @@ int main(int argc, char **argv)
   }/* for(int filenum = start + mpi.rank * interval; filenum < end + 1; filenum += interval * mpi.size){ */
   //-----------------------------------------------------------------------
 #ifdef  OVERPLOT_INITIAL_DISKHEIGHT
-  free(hor_pos_t0);
-  free(hor_zdisp_t0);
+  if( hor_pos_t0 != NULL )    free(hor_pos_t0);
+  if( hor_zdisp_t0 != NULL )  free(hor_zdisp_t0);
   free(prf_hor_head_t0);
   free(prf_hor_num_t0);
 #endif//OVERPLOT_INITIAL_DISKHEIGHT
@@ -1427,6 +1547,7 @@ int main(int argc, char **argv)
       free(group[ii].rad);
       free(group[ii].rho);
       free(group[ii].enc);
+      free(group[ii].Sig);
 #ifndef USE_HDF5_FORMAT
       free(group[ii].psi);
 #endif//USE_HDF5_FORMAT
@@ -1455,6 +1576,7 @@ int main(int argc, char **argv)
 	free(group[ii].disk_sig    );
 #endif//USE_HDF5_FORMAT
 	free(group[ii].disk_Sigma  );
+	free(group[ii].disk_rad1d  );
 	free(group[ii].disk_vol    );
 	//-----------------------------------------------------------------
       }/* if( ii >= skind ){ */

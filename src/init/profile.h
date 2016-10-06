@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/11(Thu) 15:05:10
+                  last updated on 2016/10/03(Mon) 14:15:13
  *                                                                       *
  *    Header File to describe radial profile of spherical component(s)   *
  *                                                                       *
@@ -59,12 +59,17 @@
 #define NRADBIN (      4194304  )
 #define MINRAD  (1.0 / 1048576.0)
 //-------------------------------------------------------------------------
+#define MAKE_COLUMN_DENSITY_PROFILE
+//-------------------------------------------------------------------------
 typedef struct
 {
   double rad;
   double rho    , enc    , psi;
   double rho_tot, enc_tot, psi_tot;
   double drho_dr, d2rho_dr2;
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+  double Sigma;
+#endif//MAKE_COLUMN_DENSITY_PROFILE
 } profile;
 //-------------------------------------------------------------------------
 typedef struct
@@ -112,6 +117,10 @@ void setContributionByCentralBH(profile *prf, const profile_cfg cfg);
 void integrateDensityProfile(profile *prf, const double logrbin, const double Mtot, const bool cutoff, const double redge, const double width);
 //-------------------------------------------------------------------------
 void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg);
+//-------------------------------------------------------------------------
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+void calcColumnDensityProfile(const int skind, profile **prf, const double logrmax, profile_cfg *cfg);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
 //-------------------------------------------------------------------------
 
 

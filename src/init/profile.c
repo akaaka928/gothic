@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/11(Thu) 15:33:08
+                  last updated on 2016/10/03(Mon) 18:40:30
  *                                                                       *
  *    MAGI: "MAny-component Galactic Initial-conditions" generator       *
  *    Making Initial Condition Code of N-body Simulation                 *
@@ -22,6 +22,10 @@
 #include <constants.h>
 //-------------------------------------------------------------------------
 #include "profile.h"
+//-------------------------------------------------------------------------
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+#include "magi.h"
+#endif//MAKE_COLUMN_DENSITY_PROFILE
 //-------------------------------------------------------------------------
 extern const real newton;
 extern const double     mass_astro2com;
@@ -750,4 +754,160 @@ void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg)
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
 }
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+//-------------------------------------------------------------------------
+extern double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[NTBL_GAUSS_QD];
+//-------------------------------------------------------------------------
+static inline void findIdx(const double rad, profile * restrict prf, int * restrict ll, int * restrict rr)
+{
+  //-----------------------------------------------------------------------
+  bool bisection = true;
+  *ll =               0;
+  *rr = 4 + NRADBIN - 1;
+  //-----------------------------------------------------------------------
+  if( bisection == true )    if( fabs(prf[*ll].rad - rad) / rad < DBL_EPSILON ){      bisection = false;      *rr = (*ll) + 1;    }
+  if( bisection == true )    if( fabs(prf[*rr].rad - rad) / rad < DBL_EPSILON ){      bisection = false;      *ll = (*rr) - 1;    }
+  //-----------------------------------------------------------------------
+  while( bisection ){
+    //---------------------------------------------------------------------
+    const uint cc = ((uint)(*ll) + (uint)(*rr)) >> 1;
+    //---------------------------------------------------------------------
+    if( (prf[cc].rad - rad) * (prf[*ll].rad - rad) <= 0.0 )      *rr = (int)cc;
+    else                                                         *ll = (int)cc;
+    //---------------------------------------------------------------------
+    if( (1 + (*ll)) == (*rr) )      break;
+    //---------------------------------------------------------------------
+  }/* while( bisection ){ */
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
+static inline void getInterpolatedDensity(const double RR, const double zz, const int skind, profile * restrict * prf, double *val)
+{
+  //-----------------------------------------------------------------------
+  const double rad = SQRT(RR * RR + zz * zz);
+  //-----------------------------------------------------------------------
+  int ll, rr;
+  findIdx(rad, prf[0], &ll, &rr);
+  //-----------------------------------------------------------------------
+  /* based on linear interpolation */
+  const double alpha = (rad - prf[0][ll].rad) / (prf[0][rr].rad - prf[0][ll].rad);
+  //-----------------------------------------------------------------------
+  for(int kk = 0; kk < skind; kk++)
+    val[kk] = (UNITY - alpha) * prf[kk][ll].rho + alpha * prf[kk][rr].rho;
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
+void gaussQuadVertical(const double RR, const int num, const double zmin, const double zmax, const int skind, profile * restrict * prf, double *sum, double *fm, double *fp);
+void gaussQuadVertical(const double RR, const int num, const double zmin, const double zmax, const int skind, profile * restrict * prf, double *sum, double *fm, double *fp)
+{
+  //-----------------------------------------------------------------------
+  const double mns = 0.5 * (zmax - zmin);
+  const double pls = 0.5 * (zmax + zmin);
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  for(int kk = 0; kk < skind; kk++)    sum[kk] = 0.0;
+  //-----------------------------------------------------------------------
+  if( num & 1 ){
+    const double weight =             gsl_gaussQD_weight[(num >> 1)];
+    const double  value = pls + mns * gsl_gaussQD_pos   [(num >> 1)];
+    getInterpolatedDensity(RR, value, skind, prf, fm);
+    for(int kk = 0; kk < skind; kk++)
+      sum[kk] = weight * fm[kk];
+  }/* if( num & 1 ){ */
+  //-----------------------------------------------------------------------
+  for(int ii = (num >> 1) - 1; ii >= 0; ii--){
+    //---------------------------------------------------------------------
+    const double weight = gsl_gaussQD_weight[ii];
+    const double zp = pls + mns * gsl_gaussQD_pos[ii];
+    const double zm = pls - mns * gsl_gaussQD_pos[ii];
+    getInterpolatedDensity(RR, zp, skind, prf, fp);
+    getInterpolatedDensity(RR, zm, skind, prf, fm);
+    //---------------------------------------------------------------------
+    for(int kk = 0; kk < skind; kk++)
+      sum[kk] += weight * (fm[kk] + fp[kk]);
+    //---------------------------------------------------------------------
+  }/* for(int ii = (num >> 1) - 1; ii >= 0; ii--){ */
+  //-----------------------------------------------------------------------
+  for(int kk = 0; kk < skind; kk++)
+    sum[kk] *= mns;
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
+void calcColumnDensityProfile(const int skind, profile **prf, const double logrmax, profile_cfg *cfg)
+{
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "start");
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  double rs = DBL_MAX;
+  for(int ii = 0; ii < skind; ii++)
+    rs = fmin(rs, cfg[ii].rs);
+  //-----------------------------------------------------------------------
+  const double Rmax = pow(10.0, logrmax);
+  //-----------------------------------------------------------------------
+#pragma omp parallel
+  {
+    //---------------------------------------------------------------------
+    double *sum;    sum = (double *)malloc(skind * sizeof(double));    if( sum == NULL ){      __KILL__(stderr, "ERROR: failure to allocate sum");    }
+    double *tfp;    tfp = (double *)malloc(skind * sizeof(double));    if( tfp == NULL ){      __KILL__(stderr, "ERROR: failure to allocate tfp");    }
+    double *tfm;    tfm = (double *)malloc(skind * sizeof(double));    if( tfm == NULL ){      __KILL__(stderr, "ERROR: failure to allocate tfm");    }
+    //---------------------------------------------------------------------
+#pragma omp for nowait
+    for(int ii = 0; ii < 4 + NRADBIN; ii += 4){
+    /* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+      //-------------------------------------------------------------------
+      /* initialization */
+      for(int kk = 0; kk < skind; kk++)
+	prf[kk][ii].Sigma = 0.0;
+      //-------------------------------------------------------------------
+      const double RR = prf[0][ii].rad;
+      const double R0 = fmin(RR, rs);
+      const double R2 = fmax(RR, rs);
+      const double R1 = 0.5 * (R0 + R2);
+      //-------------------------------------------------------------------
+      gaussQuadVertical(RR, NINTBIN,  0.0     ,          R0, skind, prf, sum, tfm, tfp);      for(int kk = 0; kk < skind; kk++)	prf[kk][ii].Sigma += sum[kk];
+      gaussQuadVertical(RR, NINTBIN,	    R0,		 R1, skind, prf, sum, tfm, tfp);      for(int kk = 0; kk < skind; kk++)	prf[kk][ii].Sigma += sum[kk];
+      gaussQuadVertical(RR, NINTBIN,	    R1,		 R2, skind, prf, sum, tfm, tfp);      for(int kk = 0; kk < skind; kk++)	prf[kk][ii].Sigma += sum[kk];
+      gaussQuadVertical(RR, NINTBIN,	    R2,	 2.0 *	 R2, skind, prf, sum, tfm, tfp);      for(int kk = 0; kk < skind; kk++)	prf[kk][ii].Sigma += sum[kk];
+      gaussQuadVertical(RR, NINTBIN,  2.0 * R2, 10.0 *	 R2, skind, prf, sum, tfm, tfp);      for(int kk = 0; kk < skind; kk++)	prf[kk][ii].Sigma += sum[kk];
+      gaussQuadVertical(RR, NINTBIN, 10.0 * R2,	 2.0 * Rmax, skind, prf, sum, tfm, tfp);      for(int kk = 0; kk < skind; kk++)	prf[kk][ii].Sigma += sum[kk];
+      //-------------------------------------------------------------------
+      for(int kk = 0; kk < skind; kk++)
+	prf[kk][ii].Sigma *= 2.0;
+      //-------------------------------------------------------------------
+    }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+    //---------------------------------------------------------------------
+    free(sum);    free(tfp);    free(tfm);
+    //---------------------------------------------------------------------
+  }
+  //-----------------------------------------------------------------------
+#pragma omp parallel
+  for(int ii = 0; ii < NRADBIN; ii += 4)
+    for(int kk = 0; kk < skind; kk++){
+      //-------------------------------------------------------------------
+      const double S0 = prf[kk][ii    ].Sigma;
+      const double S1 = prf[kk][ii + 4].Sigma;
+      //-------------------------------------------------------------------
+      prf[kk][ii + 1].Sigma = 0.75 *  S0 + 0.25 * S1;
+      prf[kk][ii + 2].Sigma = 0.5  * (S0 +        S1);
+      prf[kk][ii + 3].Sigma = 0.25 *  S0 + 0.75 * S1;
+      //-------------------------------------------------------------------
+    }/* for(int kk = 0; kk < skind; kk++){ */
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "end");
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
+#endif//MAKE_COLUMN_DENSITY_PROFILE
 //-------------------------------------------------------------------------
