@@ -180,7 +180,9 @@ fi
 # dynamical stability of multi components galaxy model (only spherical components)
 if [ $PROBLEM -eq 26 ]; then
 FILE=spherical
-FINISH=75.0
+# FINISH=75.0
+# INTERVAL=25.0
+FINISH=1175.0
 INTERVAL=25.0
 # FINISH=3175.0
 # INTERVAL=25.0

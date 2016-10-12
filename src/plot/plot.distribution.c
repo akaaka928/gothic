@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/12(Wed) 11:45:10
+                  last updated on 2016/10/12(Wed) 18:26:10
  *                                                                       *
  *    Plot Code of N-body Simulations (using PLplot)                     *
  *      Time Evolution of Spatial Distribution Maps                      *
@@ -691,8 +691,8 @@ int main(int argc, char **argv)
     break;
   case 26:    /* A trial multi components galaxy model (spherical model) */
     radius = 1.0e+1;
-    radmin = 1.0e-2;    rhomin = 1.0e-6;    encmin = 2.0e-1;    Sigmamin = 5.0e-5;    /* zrhomin = 1.0e-5; */    Rmin =  0.0;    zmin = 0.0;
-    radmax = 1.0e+3;    rhomax = 2.0e+3;    encmax = 8.0e+4;    Sigmamax = 5.0e+2;    /* zrhomax = 1.0e+5; */    Rmax = 50.0;    zmax = 2.0;
+    radmin = 1.0e-1;    rhomin = 1.0e-8;    encmin = 2.0e-1;    Sigmamin = 5.0e-5;    /* zrhomin = 1.0e-5; */    Rmin =  0.0;    zmin = 0.0;
+    radmax = 1.0e+3;    rhomax = 2.0e+2;    encmax = 4.0e+4;    Sigmamax = 5.0e+2;    /* zrhomax = 1.0e+5; */    Rmax = 50.0;    zmax = 2.0;
     break;
   case 27:    /* M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk) */
     radius = 1.0e+1;
@@ -702,7 +702,7 @@ int main(int argc, char **argv)
   case 28:    /* A trial multi components galaxy model (NFW halo, King bulge, thick Sersic disk, and thin exponential disk) */
     radius = 1.0e+1;
     radmin = 1.0e-2;    rhomin = 1.0e-6;    encmin = 2.0e-1;    Sigmamin = 5.0e-5;    /* zrhomin = 1.0e-5; */    Rmin =  0.0;    zmin = 0.0;
-    radmax = 1.0e+3;    rhomax = 2.0e+3;    encmax = 8.0e+4;    Sigmamax = 5.0e+2;    /* zrhomax = 1.0e+5; */    Rmax = 50.0;    zmax = 1.5;
+    radmax = 1.0e+3;    rhomax = 2.0e+3;    encmax = 8.0e+4;    Sigmamax = 5.0e+2;    /* zrhomax = 1.0e+5; */    Rmax = 40.0;    zmax = 1.5;
     break;
   case 29:    /* Multi components galaxy model by Vasiliev & Athanassoula (2015) */
     radius = 1.0e+1;

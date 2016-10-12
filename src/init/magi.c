@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/11(Tue) 16:55:09
+                  last updated on 2016/10/12(Wed) 15:17:05
  *                                                                       *
  *    MAGI: "MAny-component Galactic Initial-conditions" generator       *
  *    Making Initial Condition Code of N-body Simulation                 *
@@ -147,7 +147,7 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
     //---------------------------------------------------------------------
   }/* for(ulong ii = head; ii < head + num; ii++){ */
   //-----------------------------------------------------------------------
-  double Minv = 1.0 / Mtot;
+  double Minv = 1.0 / (DBL_MIN + Mtot);
   com[0] *= Minv;  vel[0] *= Minv;
   com[1] *= Minv;  vel[1] *= Minv;
   com[2] *= Minv;  vel[2] *= Minv;

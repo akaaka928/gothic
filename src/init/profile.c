@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/11(Tue) 16:57:41
+                  last updated on 2016/10/12(Wed) 18:22:04
  *                                                                       *
  *    MAGI: "MAny-component Galactic Initial-conditions" generator       *
  *    Making Initial Condition Code of N-body Simulation                 *
@@ -850,7 +850,8 @@ void calcColumnDensityProfile(const int skind, profile **prf, const double logrm
   //-----------------------------------------------------------------------
   double rs = DBL_MAX;
   for(int ii = 0; ii < skind; ii++)
-    rs = fmin(rs, cfg[ii].rs);
+    if( cfg[ii].kind != CENTRALBH )
+      rs = fmin(rs, cfg[ii].rs);
   //-----------------------------------------------------------------------
   const double Rmax = pow(10.0, logrmax);
   //-----------------------------------------------------------------------
@@ -902,6 +903,11 @@ void calcColumnDensityProfile(const int skind, profile **prf, const double logrm
       prf[kk][ii + 3].Sigma = 0.25 *  S0 + 0.75 * S1;
       //-------------------------------------------------------------------
     }/* for(int kk = 0; kk < skind; kk++){ */
+  //-----------------------------------------------------------------------
+#if 0
+  for(int ii = 0; ii < NRADBIN; ii += 128)
+    fprintf(stderr, "%e\t%e\t%e\n", prf[0][ii].rad, prf[0][ii].rho, prf[0][ii].Sigma);
+#endif
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
