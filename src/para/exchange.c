@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/12(Fri) 11:37:41
+                  last updated on 2016/10/12(Wed) 11:46:56
  *                                                                       *
  *    Implementations related to OpenMP/MPI hybrid parallelization       *
  *                                                                       *
@@ -70,8 +70,8 @@ void configORBtopology
   *orb = (MPIinfo   *)malloc((*    ndim) * sizeof(MPIinfo));
   *box = (domainCfg *)malloc((mpi->size) * sizeof(domainCfg));
   //-----------------------------------------------------------------------
-  if( *orb == NULL ){    __KILL__(stderr, "ERROR: failure to allocate orb");  }
-  if( *box == NULL ){    __KILL__(stderr, "ERROR: failure to allocate box");  }
+  if( *orb == NULL ){    __KILL__(stderr, "ERROR: failure to allocate orb\n");  }
+  if( *box == NULL ){    __KILL__(stderr, "ERROR: failure to allocate box\n");  }
   //-----------------------------------------------------------------------
   MPIinfo old;
   old.comm = mpi->cart;
@@ -93,8 +93,8 @@ void configORBtopology
   *sendBuf = (sendCfg *)malloc((mpi->size) * sizeof(sendCfg));
   *recvBuf = (recvCfg *)malloc((mpi->size) * sizeof(recvCfg));
   //-----------------------------------------------------------------------
-  if( *sendBuf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate sendBuf");  }
-  if( *recvBuf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate recvBuf");  }
+  if( *sendBuf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate sendBuf\n");  }
+  if( *recvBuf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate recvBuf\n");  }
   //-----------------------------------------------------------------------
 
 
@@ -124,27 +124,27 @@ void configORBtopology
     //---------------------------------------------------------------------
     *sampleNumMax = (int)ceilf((float)Ntot * (*samplingRate));
     *sampleFul = (real *)malloc((*sampleNumMax) * sizeof(real));
-    if( *sampleFul == NULL ){      __KILL__(stderr, "ERROR: failure to allocate sampleFul");    }
+    if( *sampleFul == NULL ){      __KILL__(stderr, "ERROR: failure to allocate sampleFul\n");    }
     //---------------------------------------------------------------------
     /* recvcnts, displs */
     *recvNum = (int *)malloc(mpi->size * sizeof(int));
     *recvDsp = (int *)malloc(mpi->size * sizeof(int));
-    if( *recvNum == NULL ){      __KILL__(stderr, "ERROR: failure to allocate recvNum");    }
-    if( *recvDsp == NULL ){      __KILL__(stderr, "ERROR: failure to allocate recvDsp");    }
+    if( *recvNum == NULL ){      __KILL__(stderr, "ERROR: failure to allocate recvNum\n");    }
+    if( *recvDsp == NULL ){      __KILL__(stderr, "ERROR: failure to allocate recvDsp\n");    }
     //---------------------------------------------------------------------
   }/* if( root ){ */
   //-----------------------------------------------------------------------
   *sampleNumMax = (int)ceilf((float)NUM_BODY_MAX * MAX_FACTOR_FROM_EQUIPARTITION * (*samplingRate));
   *sampleLoc = (real *)malloc((*sampleNumMax) * 3 * sizeof(real));
-  if( *sampleLoc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate sampleLoc");  }
+  if( *sampleLoc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate sampleLoc\n");  }
   //-----------------------------------------------------------------------
   /* minimum/maximun position of the decomposed domain */
   int maxDim = (mpi->dim[0] > mpi->dim[1]) ? mpi->dim[0] : mpi->dim[1];
   if( maxDim < mpi->dim[2] )      maxDim = mpi->dim[2];
   *boxMin = (real *)malloc(maxDim * sizeof(real));
   *boxMax = (real *)malloc(maxDim * sizeof(real));
-  if( *boxMin == NULL ){      __KILL__(stderr, "ERROR: failure to allocate boxMin");    }
-  if( *boxMax == NULL ){      __KILL__(stderr, "ERROR: failure to allocate boxMax");    }
+  if( *boxMin == NULL ){      __KILL__(stderr, "ERROR: failure to allocate boxMin\n");    }
+  if( *boxMax == NULL ){      __KILL__(stderr, "ERROR: failure to allocate boxMax\n");    }
   //-----------------------------------------------------------------------
 
 
@@ -230,12 +230,16 @@ int posAscendingOrder(const void *a, const void *b);
 int posAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   if(          (*(real *)a) > (*(real *)b) ){    return ( 1);  }
   else{    if( (*(real *)a) < (*(real *)b) ){    return (-1);  }
     else                                         return ( 0);  }
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -243,12 +247,16 @@ int ddkeyAscendingOrder(const void *a, const void *b);
 int ddkeyAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   if(          ((domainDecomposeKey *)a)->dstRank > ((domainDecomposeKey *)b)->dstRank ){    return ( 1);  }
   else{    if( ((domainDecomposeKey *)a)->dstRank < ((domainDecomposeKey *)b)->dstRank ){    return (-1);  }
     else                                                         return ( 0);  }
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------

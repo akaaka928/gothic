@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/05(Wed) 10:59:53
+                  last updated on 2016/10/11(Tue) 16:59:04
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Assume balance of force in R and z direction                    *
@@ -733,7 +733,7 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
   //-----------------------------------------------------------------------
   double *tab_lev;
   tab_lev = (double *)malloc(sizeof(double) * maxLev);
-  if( tab_lev == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tab_lev");  }
+  if( tab_lev == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tab_lev\n");  }
   for(int lev = 0; lev < maxLev; lev++)
     tab_lev[lev] = enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, NDISKBIN_HOR)];
   //-----------------------------------------------------------------------

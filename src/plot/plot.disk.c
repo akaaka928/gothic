@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/06/03(Fri) 17:36:52
+                  last updated on 2016/10/11(Tue) 17:07:24
  *                                                                       *
  *    Plot Code of N-body Simulations (using PLplot)                     *
  *      Physical properties of disk components in the initial condition  *
@@ -322,12 +322,12 @@ int main(int argc, char **argv)
       group[ii].disk_pot     = (real *)malloc(group[ii].disk_nrad * group[ii].disk_nazi * sizeof(real));
       group[ii].disk_sig     = (real *)malloc(group[ii].disk_nrad                       * sizeof(real));
       group[ii].disk_Sigma   = (real *)malloc(group[ii].disk_nrad                       * sizeof(real));
-      if( group[ii].disk_radius  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_radius" );	}
-      if( group[ii].disk_height  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_height" );	}
-      if( group[ii].disk_rho     == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_rho"    );	}
-      if( group[ii].disk_pot     == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_pot"    );	}
-      if( group[ii].disk_sig     == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_pot"    );	}
-      if( group[ii].disk_Sigma   == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_Sigma"  );	}
+      if( group[ii].disk_radius  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_radius\n");	}
+      if( group[ii].disk_height	 == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_height\n");	}
+      if( group[ii].disk_rho	 == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_rho\n"   );	}
+      if( group[ii].disk_pot	 == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_pot\n"   );	}
+      if( group[ii].disk_sig	 == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_sig\n"   );	}
+      if( group[ii].disk_Sigma	 == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_Sigma\n" );	}
       //-------------------------------------------------------------------
       success &= (fread(group[ii].disk_radius , sizeof(real), group[ii].disk_nrad                      , fp) == group[ii].disk_nrad                      );
       success &= (fread(group[ii].disk_height , sizeof(real),                       group[ii].disk_nazi, fp) ==                       group[ii].disk_nazi);

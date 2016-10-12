@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/04/11(Mon) 17:06:02
+                  last updated on 2016/10/11(Tue) 17:08:43
  *                                                                       *
  *    Test Code to generate Smallest Enclosing Ball                      *
  *                                                                       *
@@ -982,8 +982,8 @@ int main(int argc, char **argv)
   /* data points */
   real *pos;  pos = (real *)malloc(sizeof(real) * (size_t)num * (size_t)NDIM_SEB);
   bool *sup;  sup = (bool *)malloc(sizeof(bool) * (size_t)num);
-  if( pos == NULL ){    __KILL__(stderr, "ERROR: failure to allocate pos");  }
-  if( sup == NULL ){    __KILL__(stderr, "ERROR: failure to allocate sup");  }
+  if( pos == NULL ){    __KILL__(stderr, "ERROR: failure to allocate pos\n");  }
+  if( sup == NULL ){    __KILL__(stderr, "ERROR: failure to allocate sup\n");  }
   //-----------------------------------------------------------------------
 
 

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/09(Tue) 17:22:29
+                  last updated on 2016/10/11(Tue) 16:52:23
  *                                                                       *
  *    Memory Allocation Code of N-body calculation                       *
  *                                                                       *
@@ -45,23 +45,23 @@ muse allocParticleData
     size += (size_t)(NSIMD - (num % NSIMD));
   //-----------------------------------------------------------------------
   /* memory allocation and simple confirmation */
-  *idx = (       ulong *)malloc(size * sizeof(       ulong));  if( *idx == NULL ){    __KILL__(stderr, "ERROR: failure to allocate idx");  }
+  *idx = (       ulong *)malloc(size * sizeof(       ulong));  if( *idx == NULL ){    __KILL__(stderr, "ERROR: failure to allocate idx\n");  }
   alloc.host +=                 size * sizeof(       ulong);
-  *pos = (    position *)malloc(size * sizeof(    position));  if( *pos == NULL ){    __KILL__(stderr, "ERROR: failure to allocate pos");  }
+  *pos = (    position *)malloc(size * sizeof(    position));  if( *pos == NULL ){    __KILL__(stderr, "ERROR: failure to allocate pos\n");  }
   alloc.host +=                 size * sizeof(    position);
-  *acc = (acceleration *)malloc(size * sizeof(acceleration));  if( *acc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate acc");  }
+  *acc = (acceleration *)malloc(size * sizeof(acceleration));  if( *acc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate acc\n");  }
   alloc.host +=                 size * sizeof(acceleration);
 #ifdef  BLOCK_TIME_STEP
-  *vel = (  velocity *)malloc(size * sizeof(  velocity));  if( *vel == NULL ){    __KILL__(stderr, "ERROR: failure to allocate vel");  }
+  *vel = (  velocity *)malloc(size * sizeof(  velocity));  if( *vel == NULL ){    __KILL__(stderr, "ERROR: failure to allocate vel\n");  }
   alloc.host +=               size * sizeof(  velocity);
-  * ti = (ibody_time *)malloc(size * sizeof(ibody_time));  if( * ti == NULL ){    __KILL__(stderr, "ERROR: failure to allocate ti");  }
+  * ti = (ibody_time *)malloc(size * sizeof(ibody_time));  if( * ti == NULL ){    __KILL__(stderr, "ERROR: failure to allocate ti\n");  }
   alloc.host +=               size * sizeof(ibody_time);
 #else///BLOCK_TIME_STEP
-  vx = (real *)malloc(size * sizeof(real));  if( *vx == NULL ){    __KILL__(stderr, "ERROR: failure to allocate vx");  }
+  *vx = (real *)malloc(size * sizeof(real));  if( *vx == NULL ){    __KILL__(stderr, "ERROR: failure to allocate vx\n");  }
   alloc.host +=       size * sizeof(real);
-  vy = (real *)malloc(size * sizeof(real));  if( *vy == NULL ){    __KILL__(stderr, "ERROR: failure to allocate vy");  }
+  *vy = (real *)malloc(size * sizeof(real));  if( *vy == NULL ){    __KILL__(stderr, "ERROR: failure to allocate vy\n");  }
   alloc.host +=       size * sizeof(real);
-  vz = (real *)malloc(size * sizeof(real));  if( *vz == NULL ){    __KILL__(stderr, "ERROR: failure to allocate vz");  }
+  *vz = (real *)malloc(size * sizeof(real));  if( *vz == NULL ){    __KILL__(stderr, "ERROR: failure to allocate vz\n");  }
   alloc.host +=       size * sizeof(real);
 #endif//BLOCK_TIME_STEP
   //-----------------------------------------------------------------------
@@ -181,12 +181,12 @@ muse allocSnapshotArray(real **pos, real **vel, real **acc, real **m, real **pot
   * m  = (real  *)malloc(    size * sizeof(real) );  alloc.host +=     size * sizeof(real);
   *pot = (real  *)malloc(    size * sizeof(real) );  alloc.host +=     size * sizeof(real);
   *idx = (ulong *)malloc(    size * sizeof(ulong));  alloc.host +=     size * sizeof(ulong);
-  if( *pos == NULL ){    __KILL__(stderr, "ERROR: failure to allocate pos"  );  }
-  if( *vel == NULL ){    __KILL__(stderr, "ERROR: failure to allocate vel"  );  }
-  if( *acc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate acc"  );  }
-  if( * m  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate m"  );  }
-  if( *pot == NULL ){    __KILL__(stderr, "ERROR: failure to allocate pot");  }
-  if( *idx == NULL ){    __KILL__(stderr, "ERROR: failure to allocate idx");  }
+  if( *pos == NULL ){    __KILL__(stderr, "ERROR: failure to allocate pos\n"  );  }
+  if( *vel == NULL ){    __KILL__(stderr, "ERROR: failure to allocate vel\n"  );  }
+  if( *acc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate acc\n"  );  }
+  if( * m  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate m\n"  );  }
+  if( *pot == NULL ){    __KILL__(stderr, "ERROR: failure to allocate pot\n");  }
+  if( *idx == NULL ){    __KILL__(stderr, "ERROR: failure to allocate idx\n");  }
   /* asign arrays */
   data->pos = *pos;
   data->vel = *vel;

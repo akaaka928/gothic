@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/12(Fri) 11:35:41
+                  last updated on 2016/10/12(Wed) 11:46:18
  *                                                                       *
  *    Plot Code of Benchmark for N-body Simulations (using PLplot)       *
  *                                                                       *
@@ -40,12 +40,16 @@ int walkAscendingOrder(const void *a, const void *b);
 int walkAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   if(          ((perf *)a)->timeWalkTree > ((perf *)b)->timeWalkTree ){    return ( 1);  }
   else{    if( ((perf *)a)->timeWalkTree < ((perf *)b)->timeWalkTree ){    return (-1);  }
     else                                                                   return ( 0);  }
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -53,12 +57,16 @@ int cmacAscendingOrder(const void *a, const void *b);
 int cmacAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   if(          ((perf *)a)->timeMultipole > ((perf *)b)->timeMultipole ){    return ( 1);  }
   else{    if( ((perf *)a)->timeMultipole < ((perf *)b)->timeMultipole ){    return (-1);  }
     else                                                                     return ( 0);  }
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -66,12 +74,16 @@ int makeAscendingOrder(const void *a, const void *b);
 int makeAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   if(          ((perf *)a)->timeMakeTree > ((perf *)b)->timeMakeTree ){    return ( 1);  }
   else{    if( ((perf *)a)->timeMakeTree < ((perf *)b)->timeMakeTree ){    return (-1);  }
     else                                                                   return ( 0);  }
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -79,12 +91,16 @@ int timeAscendingOrder(const void *a, const void *b);
 int timeAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   if(          ((perf *)a)->timeIntegrate > ((perf *)b)->timeIntegrate ){    return ( 1);  }
   else{    if( ((perf *)a)->timeIntegrate < ((perf *)b)->timeIntegrate ){    return (-1);  }
     else                                                                     return ( 0);  }
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -312,7 +328,7 @@ void allocPerf(perf **data, const size_t num)
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
   *data = (perf *)malloc(num * sizeof(perf));
-  if( *data == NULL ){    __KILL__(stderr, "ERROR: failure to allocate data");  }
+  if( *data == NULL ){    __KILL__(stderr, "ERROR: failure to allocate data\n");  }
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
@@ -324,7 +340,7 @@ static inline void scalePerf(perf **data, const size_t num)
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
   *data = (perf *)realloc(*data, num * sizeof(perf));
-  if( *data == NULL ){    __KILL__(stderr, "ERROR: failure to increase data");  }
+  if( *data == NULL ){    __KILL__(stderr, "ERROR: failure to increase data\n");  }
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------

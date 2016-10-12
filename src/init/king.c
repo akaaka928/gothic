@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/12(Fri) 10:58:05
+                  last updated on 2016/10/11(Tue) 16:57:12
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       King sphere                                                     *
@@ -39,11 +39,11 @@ static inline void allocateArray(const int num, double **rad, double **rho, doub
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
-  *rad = (double *)malloc(sizeof(double) * num);  if( *rad == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rad");  }
-  *rho = (double *)malloc(sizeof(double) * num);  if( *rho == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rho");  }
-  *psi = (double *)malloc(sizeof(double) * num);  if( *psi == NULL ){    __KILL__(stderr, "ERROR: failure to allocate psi");  }
-  *dr1 = (double *)malloc(sizeof(double) * num);  if( *dr1 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate dr1");  }
-  *dr2 = (double *)malloc(sizeof(double) * num);  if( *dr2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate dr2");  }
+  *rad = (double *)malloc(sizeof(double) * num);  if( *rad == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rad\n");  }
+  *rho = (double *)malloc(sizeof(double) * num);  if( *rho == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rho\n");  }
+  *psi = (double *)malloc(sizeof(double) * num);  if( *psi == NULL ){    __KILL__(stderr, "ERROR: failure to allocate psi\n");  }
+  *dr1 = (double *)malloc(sizeof(double) * num);  if( *dr1 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate dr1\n");  }
+  *dr2 = (double *)malloc(sizeof(double) * num);  if( *dr2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate dr2\n");  }
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
@@ -54,11 +54,11 @@ static inline void enlargeArray(const int num, double **rad, double **rho, doubl
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
-  *rad = realloc(*rad, sizeof(double) * num);  if( *rad == NULL ){    __KILL__(stderr, "ERROR: failure to rescale rad");  }
-  *rho = realloc(*rho, sizeof(double) * num);  if( *rho == NULL ){    __KILL__(stderr, "ERROR: failure to rescale rho");  }
-  *psi = realloc(*psi, sizeof(double) * num);  if( *psi == NULL ){    __KILL__(stderr, "ERROR: failure to rescale psi");  }
-  *dr1 = realloc(*dr1, sizeof(double) * num);  if( *dr1 == NULL ){    __KILL__(stderr, "ERROR: failure to rescale dr1");  }
-  *dr2 = realloc(*dr2, sizeof(double) * num);  if( *dr2 == NULL ){    __KILL__(stderr, "ERROR: failure to rescale dr2");  }
+  *rad = realloc(*rad, sizeof(double) * num);  if( *rad == NULL ){    __KILL__(stderr, "ERROR: failure to rescale rad\n");  }
+  *rho = realloc(*rho, sizeof(double) * num);  if( *rho == NULL ){    __KILL__(stderr, "ERROR: failure to rescale rho\n");  }
+  *psi = realloc(*psi, sizeof(double) * num);  if( *psi == NULL ){    __KILL__(stderr, "ERROR: failure to rescale psi\n");  }
+  *dr1 = realloc(*dr1, sizeof(double) * num);  if( *dr1 == NULL ){    __KILL__(stderr, "ERROR: failure to rescale dr1\n");  }
+  *dr2 = realloc(*dr2, sizeof(double) * num);  if( *dr2 == NULL ){    __KILL__(stderr, "ERROR: failure to rescale dr2\n");  }
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
@@ -482,7 +482,7 @@ void setDensityProfileKing(profile *prf, profile_cfg *cfg)
   /* derive density profile of the King sphere */
   //-----------------------------------------------------------------------
   solvePoissonEqOfKingDF(W0, &rad, &psi, &rho, &dr1, &dr2, &num, &rem);
-  double *enc;  enc = (double *)malloc(sizeof(double) * num);  if( enc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate enc");  }
+  double *enc;  enc = (double *)malloc(sizeof(double) * num);  if( enc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate enc\n");  }
   rescaleKingSphere(Mtot, r0, &cfg->king_rt, num, rad, rho, dr1, dr2, enc);
   //-----------------------------------------------------------------------
   cfg->king_c = log10(cfg->king_rt / cfg->rs);

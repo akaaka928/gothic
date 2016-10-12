@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/06(Thu) 16:33:16
+                  last updated on 2016/10/12(Wed) 11:45:10
  *                                                                       *
  *    Plot Code of N-body Simulations (using PLplot)                     *
  *      Time Evolution of Spatial Distribution Maps                      *
@@ -15,6 +15,8 @@
 #define USE_RMS_THICKNESS
 #define USE_MEDIAN_FOR_POSITION
 #define USE_ITERATED_THICKNESS
+//-------------------------------------------------------------------------
+#define OUTPUT_BULK_MOTION
 //-------------------------------------------------------------------------
 #define OVERPLOT_INITIAL_DISKHEIGHT
 //-------------------------------------------------------------------------
@@ -200,12 +202,16 @@ int idxAscendingOrder(const void *a, const void *b);
 int idxAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   if(          ((nbody_particle *)a)->idx > ((nbody_particle *)b)->idx ){    return ( 1);  }
   else{    if( ((nbody_particle *)a)->idx < ((nbody_particle *)b)->idx ){    return (-1);  }
     else{                                                                    return ( 0);  }  }
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -213,12 +219,16 @@ int radAscendingOrder(const void *a, const void *b);
 int radAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   if(          ((nbody_particle *)a)->ax > ((nbody_particle *)b)->ax ){    return ( 1);  }
   else{    if( ((nbody_particle *)a)->ax < ((nbody_particle *)b)->ax ){    return (-1);  }
     else{                                                                  return ( 0);  }  }
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -226,12 +236,16 @@ int horAscendingOrder(const void *a, const void *b);
 int horAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   if(          ((nbody_particle *)a)->ay > ((nbody_particle *)b)->ay ){    return ( 1);  }
   else{    if( ((nbody_particle *)a)->ay < ((nbody_particle *)b)->ay ){    return (-1);  }
     else{                                                                  return ( 0);  }  }
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -239,12 +253,16 @@ int verAscendingOrder(const void *a, const void *b);
 int verAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   if(          ((nbody_particle *)a)->az > ((nbody_particle *)b)->az ){    return ( 1);  }
   else{    if( ((nbody_particle *)a)->az < ((nbody_particle *)b)->az ){    return (-1);  }
     else{                                                                  return ( 0);  }  }
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -544,7 +562,7 @@ int main(int argc, char **argv)
   nbody_particle *body;
   /* allocParticleDataAoS((int)Ntot, &body); */
   body = (nbody_particle *)malloc(sizeof(nbody_particle) * Ntot);
-  if( body == NULL ){    __KILL__(stderr, "ERROR: failure to allocate body");  }
+  if( body == NULL ){    __KILL__(stderr, "ERROR: failure to allocate body\n");  }
 #ifdef  USE_HDF5_FORMAT
   static hdf5struct hdf5type;
   createHDF5DataType(&hdf5type);
@@ -839,7 +857,7 @@ int main(int argc, char **argv)
     fscanf(fp, "%*d");/* skip reading unit */
     fscanf(fp, "%d\t%d", &kind, &skind);
     group = (model *)malloc(kind * sizeof(model));
-    if( group == NULL ){      __KILL__(stderr, "ERROR: failure to allocate group");    }
+    if( group == NULL ){      __KILL__(stderr, "ERROR: failure to allocate group\n");    }
     for(int ii = 0; ii < kind; ii++)
       fscanf(fp, "%zu", &group[ii].num);
     //---------------------------------------------------------------------
@@ -850,7 +868,7 @@ int main(int argc, char **argv)
   if( !multi_group ){
     //---------------------------------------------------------------------
     group = (model *)malloc(kind * sizeof(model));
-    if( group == NULL ){      __KILL__(stderr, "ERROR: failure to allocate group");    }
+    if( group == NULL ){      __KILL__(stderr, "ERROR: failure to allocate group\n");    }
     //---------------------------------------------------------------------
     group[0].num = Ntot;
     //---------------------------------------------------------------------
@@ -894,10 +912,10 @@ int main(int argc, char **argv)
       group[ii].rho = (real *)malloc(group[ii].nrad * sizeof(real));
       group[ii].enc = (real *)malloc(group[ii].nrad * sizeof(real));
       group[ii].Sig = (real *)malloc(group[ii].nrad * sizeof(real));
-      if( group[ii].rad == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].rad", ii);      }
-      if( group[ii].rho == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].rho", ii);      }
-      if( group[ii].enc == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].enc", ii);      }
-      if( group[ii].Sig == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].Sig", ii);      }
+      if( group[ii].rad == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].rad\n", ii);      }
+      if( group[ii].rho == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].rho\n", ii);      }
+      if( group[ii].enc == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].enc\n", ii);      }
+      if( group[ii].Sig == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].Sig\n", ii);      }
       //-------------------------------------------------------------------
       /* read the profile data */
       hid_t dataset;
@@ -945,10 +963,10 @@ int main(int argc, char **argv)
       group[ii].rho = (real *)malloc(group[ii].nrad * sizeof(real));
       group[ii].enc = (real *)malloc(group[ii].nrad * sizeof(real));
       group[ii].psi = (real *)malloc(group[ii].nrad * sizeof(real));
-      if( group[ii].rad   == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].rad", ii);      }
-      if( group[ii].rho   == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].rho", ii);      }
-      if( group[ii].enc   == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].enc", ii);      }
-      if( group[ii].psi   == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].psi", ii);      }
+      if( group[ii].rad   == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].rad\n", ii);      }
+      if( group[ii].rho   == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].rho\n", ii);      }
+      if( group[ii].enc   == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].enc\n", ii);      }
+      if( group[ii].psi   == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].psi\n", ii);      }
       //-------------------------------------------------------------------
       success &= (fread(group[ii].rad, sizeof(real), group[ii].nrad, fp) == group[ii].nrad);
       success &= (fread(group[ii].rho, sizeof(real), group[ii].nrad, fp) == group[ii].nrad);
@@ -964,16 +982,16 @@ int main(int argc, char **argv)
       group[ii].ver   = (real *)malloc(NUM_ANALYTIC * sizeof(real));
       group[ii].Sigma = (real *)malloc(NUM_ANALYTIC * sizeof(real));
       group[ii].Menc  = (real *)malloc(NUM_ANALYTIC * sizeof(real));
-      if( group[ii].hor   == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].hor"  , ii);      }
-      if( group[ii].ver   == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].ver"  , ii);      }
-      if( group[ii].Sigma == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].Sigma", ii);      }
-      if( group[ii].Menc  == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].Menc" , ii);      }
+      if( group[ii].hor   == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].hor\n"  , ii);      }
+      if( group[ii].ver   == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].ver\n"  , ii);      }
+      if( group[ii].Sigma == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].Sigma\n", ii);      }
+      if( group[ii].Menc  == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group[%d].Menc\n" , ii);      }
       //-------------------------------------------------------------------
       for(int jj = 0; jj < NUM_HORIZONTAL_BIN; jj++){
 	group[ii].ver_pos[jj] = (real *)malloc(NUM_ANALYTIC * sizeof(real));
 	group[ii].ver_rho[jj] = (real *)malloc(NUM_ANALYTIC * sizeof(real));
-	if( group[ii].ver_pos[jj] == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[%d].ver_pos[%d]", ii, jj);	}
-	if( group[ii].ver_rho[jj] == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[%d].ver_rho[%d]", ii, jj);	}
+	if( group[ii].ver_pos[jj] == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[%d].ver_pos[%d]\n", ii, jj);	}
+	if( group[ii].ver_rho[jj] == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[%d].ver_rho[%d]\n", ii, jj);	}
       }/* for(int jj = 0; jj < NUM_HORIZONTAL_BIN; jj++){ */
       //-------------------------------------------------------------------
 
@@ -1036,11 +1054,11 @@ int main(int argc, char **argv)
 	group[ii].disk_rho    = (real *)malloc( maxLev      *  group[ii].disk_nrad       * group[ii].disk_nazi * sizeof(real));
 	group[ii].disk_rad1d  = (real *)malloc((maxLev + 1) * (group[ii].disk_nrad >> 1)                       * sizeof(real));
 	group[ii].disk_Sigma  = (real *)malloc((maxLev + 1) * (group[ii].disk_nrad >> 1)                       * sizeof(real));
-	if( group[ii].disk_radius == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_radius" );	}
-	if( group[ii].disk_height == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_height" );	}
-	if( group[ii].disk_rho	  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_rho"    );	}
-	if( group[ii].disk_rad1d  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_rho"    );	}
-	if( group[ii].disk_Sigma  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_Sigma"  );	}
+	if( group[ii].disk_radius == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_radius\n");	}
+	if( group[ii].disk_height == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_height\n");	}
+	if( group[ii].disk_rho	  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_rho\n"   );	}
+	if( group[ii].disk_rad1d  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_rad1d\n" );	}
+	if( group[ii].disk_Sigma  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_Sigma\n" );	}
 	//-----------------------------------------------------------------
 	/* read disk data */
 	for(int lev = 0; lev < maxLev; lev++){
@@ -1112,12 +1130,12 @@ int main(int argc, char **argv)
 	group[ii].disk_pot     = (real *)malloc(group[ii].disk_nrad * group[ii].disk_nazi * sizeof(real));
 	group[ii].disk_sig     = (real *)malloc(group[ii].disk_nrad                       * sizeof(real));
 	group[ii].disk_Sigma   = (real *)malloc(group[ii].disk_nrad                       * sizeof(real));
-	if( group[ii].disk_radius  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_radius" );	}
-	if( group[ii].disk_height  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_height" );	}
-	if( group[ii].disk_rho     == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_rho"    );	}
-	if( group[ii].disk_pot     == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_pot"    );	}
-	if( group[ii].disk_sig     == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_pot"    );	}
-	if( group[ii].disk_Sigma   == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_Sigma"  );	}
+	if( group[ii].disk_radius  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_radius\n");	}
+	if( group[ii].disk_height  == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_height\n");	}
+	if( group[ii].disk_rho	   == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_rho\n"   );	}
+	if( group[ii].disk_pot	   == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_pot\n"   );	}
+	if( group[ii].disk_sig	   == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_sig\n"   );	}
+	if( group[ii].disk_Sigma   == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_Sigma\n" );	}
 	//-----------------------------------------------------------------
 	success &= (fread(group[ii].disk_radius , sizeof(real), group[ii].disk_nrad                      , fp) == group[ii].disk_nrad                      );
 	success &= (fread(group[ii].disk_height , sizeof(real),                       group[ii].disk_nazi, fp) ==                       group[ii].disk_nazi);
@@ -1149,7 +1167,7 @@ int main(int argc, char **argv)
 	  group[ii].ver[jj] = POW(TEN, logzmin + logzbin * (real)jj);
 	}/* for(int jj = 0; jj < NUM_ANALYTIC; jj++){ */
 	group[ii].disk_vol = (real *)malloc(NUM_ANALYTIC * NUM_ANALYTIC * sizeof(real));
-	if( group[ii].disk_vol == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_vol");	}
+	if( group[ii].disk_vol == NULL ){	  __KILL__(stderr, "ERROR: failure to allocate group[ii].disk_vol\n");	}
 	for(int jj = 0; jj < NUM_ANALYTIC; jj++){
 	  //---------------------------------------------------------------
 	  const real RR = group[ii].hor[jj];
@@ -1394,6 +1412,14 @@ int main(int argc, char **argv)
   if( prf_hor_num_t0  == NULL ){	__KILL__(stderr, "%s\n", "ERROR: failure to allocate prf_hor_num_t0.");      }
 #endif//OVERPLOT_INITIAL_DISKHEIGHT
   //-----------------------------------------------------------------------
+#ifdef  OUTPUT_BULK_MOTION
+  const int nfile = (end - start + 1) / interval;
+  real *comPos;  comPos = (real *)malloc(sizeof(real) * 3 * nfile * kind);  if( comPos  == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate comPos");  }
+  real *comVel;  comVel = (real *)malloc(sizeof(real) * 3 * nfile * kind);  if( comVel  == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate comVel");  }
+  for(int ii = 0; ii < nfile * 3 * kind; ii++)
+    comPos[ii] = comVel[ii] = ZERO;
+#endif//OUTPUT_BULK_MOTION
+  //-----------------------------------------------------------------------
   int ifile = (int)(start + mpi.rank);
   for(int filenum = start + mpi.rank * interval; filenum < end + 1; filenum += interval * mpi.size){
     //---------------------------------------------------------------------
@@ -1427,6 +1453,39 @@ int main(int argc, char **argv)
     /* sort by particle index */
     qsort(body, Ntot, sizeof(nbody_particle), idxAscendingOrder);
     //---------------------------------------------------------------------
+#ifdef  OUTPUT_BULK_MOTION
+    for(int kk = 0; kk < kind; kk++){
+      //-------------------------------------------------------------------
+      double Mtot = 0.0;
+      double com[3] = {0.0, 0.0, 0.0};
+      double vel[3] = {0.0, 0.0, 0.0};
+      //-------------------------------------------------------------------
+      for(ulong ii = group[kk].head; ii < group[kk].head + group[kk].num; ii++){
+	//-----------------------------------------------------------------
+	const double mass = (double)body[ii].m;
+	//-----------------------------------------------------------------
+	Mtot += mass;
+	com[0] += mass * (double)body[ii].x;	vel[0] += mass * (double)body[ii].vx;
+	com[1] += mass * (double)body[ii].y;	vel[1] += mass * (double)body[ii].vy;
+	com[2] += mass * (double)body[ii].z;	vel[2] += mass * (double)body[ii].vz;
+	//-----------------------------------------------------------------
+      }/* for(ulong ii = group[kk].head; ii < group[kk].head + group[kk].num; ii++){ */
+      //-------------------------------------------------------------------
+      Mtot = 1.0 / Mtot;
+#pragma unroll
+      for(int ii = 0; ii < 3; ii++){
+	//-----------------------------------------------------------------
+	com[ii] *= Mtot;
+	vel[ii] *= Mtot;
+	//-----------------------------------------------------------------
+	comPos[INDEX(nfile, kind, 3, (filenum - start) / interval, kk, ii)] = (real)com[ii];
+	comVel[INDEX(nfile, kind, 3, (filenum - start) / interval, kk, ii)] = (real)vel[ii];
+	//-----------------------------------------------------------------
+      }/* for(int ii = 0; ii < 3; ii++){ */
+      //-------------------------------------------------------------------
+    }/* for(int kk = 0; kk < kind; kk++){ */
+#endif//OUTPUT_BULK_MOTION
+    //---------------------------------------------------------------------
 #ifdef  DUMP_SPLITTED_SNAPSHOT
 #ifdef  USE_HDF5_FORMAT
     if( multi_group ){
@@ -1442,8 +1501,8 @@ int main(int argc, char **argv)
       //-------------------------------------------------------------------
       int *group_head;      group_head = (int *)malloc(sizeof(int) * kind);
       int *group_num ;      group_num  = (int *)malloc(sizeof(int) * kind);
-      if( group_head == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group_head");      }
-      if( group_num  == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group_num" );      }
+      if( group_head == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group_head\n");      }
+      if( group_num  == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group_num\n" );      }
       //-------------------------------------------------------------------
       for(int ii = 0; ii < kind; ii++){
 	group_head[ii] = (int)group[ii].head;
@@ -1514,6 +1573,38 @@ int main(int argc, char **argv)
     ifile += (int)(interval * mpi.size);
     //---------------------------------------------------------------------
   }/* for(int filenum = start + mpi.rank * interval; filenum < end + 1; filenum += interval * mpi.size){ */
+  //-----------------------------------------------------------------------
+#ifdef  OUTPUT_BULK_MOTION
+  chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, comPos, nfile * kind * 3, MPI_REALDAT, MPI_SUM, mpi.comm));
+  chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, comVel, nfile * kind * 3, MPI_REALDAT, MPI_SUM, mpi.comm));
+  if( mpi.rank == 0 ){
+    //---------------------------------------------------------------------
+    fprintf(stdout, "# position of center-of-mass\n");
+    fprintf(stdout, "# file");
+    for(int ii = 0; ii < kind; ii++)      fprintf(stdout, "\tcom(%d)_x\tcom(%d)_y\tcom(%d)_z", ii, ii, ii);
+    fprintf(stdout, "\n");
+    for(int ii = 0; ii < nfile; ii++){
+      fprintf(stdout, "%d", start + ii * interval);
+      for(int kk = 0; kk < kind; kk++)
+	fprintf(stdout, "\t%e\t%e\t%e", comPos[INDEX(nfile, kind, 3, ii, kk, 0)], comPos[INDEX(nfile, kind, 3, ii, kk, 1)], comPos[INDEX(nfile, kind, 3, ii, kk, 2)]);
+      fprintf(stdout, "\n");
+    }/* for(int ii = 0; ii < nfile; ii++){ */
+    //---------------------------------------------------------------------
+    fprintf(stdout, "# velocity of bulk motion\n");
+    fprintf(stdout, "# file");
+    for(int ii = 0; ii < kind; ii++)      fprintf(stdout, "\tvel(%d)_x\tvel(%d)_y\tvel(%d)_z", ii, ii, ii);
+    fprintf(stdout, "\n");
+    for(int ii = 0; ii < nfile; ii++){
+      fprintf(stdout, "%d", start + ii * interval);
+      for(int kk = 0; kk < kind; kk++)
+	fprintf(stdout, "\t%e\t%e\t%e", comVel[INDEX(nfile, kind, 3, ii, kk, 0)], comVel[INDEX(nfile, kind, 3, ii, kk, 1)], comVel[INDEX(nfile, kind, 3, ii, kk, 2)]);
+      fprintf(stdout, "\n");
+    }/* for(int ii = 0; ii < nfile; ii++){ */
+    //---------------------------------------------------------------------
+  }/* if( mpi.rank == 0 ){ */
+  free(comPos);
+  free(comVel);
+#endif//OUTPUT_BULK_MOTION
   //-----------------------------------------------------------------------
 #ifdef  OVERPLOT_INITIAL_DISKHEIGHT
   if( hor_pos_t0 != NULL )    free(hor_pos_t0);

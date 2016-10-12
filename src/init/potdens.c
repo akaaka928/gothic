@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/04(Tue) 16:21:53
+                  last updated on 2016/10/11(Tue) 16:58:43
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Poisson solver to yield potential--density pair                 *
@@ -187,18 +187,18 @@ void allocDiskProfile
   /* allocate arrays to store physical quantities */
   //-----------------------------------------------------------------------
   /* horizontal and vertical axes */
-  *hor      = (double *)malloc((*maxLev) *  NDISKBIN_HOR      * sizeof(double));  if( *     hor == NULL ){    __KILL__(stderr, "ERROR: failure to allocate hor");  }
-  *ver      = (double *)malloc((*maxLev) *  NDISKBIN_VER      * sizeof(double));  if( *     ver == NULL ){    __KILL__(stderr, "ERROR: failure to allocate ver");  }
-  *node_hor = (double *)malloc((*maxLev) * (NDISKBIN_HOR + 1) * sizeof(double));  if( *node_hor == NULL ){    __KILL__(stderr, "ERROR: failure to allocate node_hor");  }
-  *node_ver = (double *)malloc((*maxLev) * (NDISKBIN_VER + 1) * sizeof(double));  if( *node_ver == NULL ){    __KILL__(stderr, "ERROR: failure to allocate node_ver");  }
+  *hor      = (double *)malloc((*maxLev) *  NDISKBIN_HOR      * sizeof(double));  if( *     hor == NULL ){    __KILL__(stderr, "ERROR: failure to allocate hor\n");  }
+  *ver      = (double *)malloc((*maxLev) *  NDISKBIN_VER      * sizeof(double));  if( *     ver == NULL ){    __KILL__(stderr, "ERROR: failure to allocate ver\n");  }
+  *node_hor = (double *)malloc((*maxLev) * (NDISKBIN_HOR + 1) * sizeof(double));  if( *node_hor == NULL ){    __KILL__(stderr, "ERROR: failure to allocate node_hor\n");  }
+  *node_ver = (double *)malloc((*maxLev) * (NDISKBIN_VER + 1) * sizeof(double));  if( *node_ver == NULL ){    __KILL__(stderr, "ERROR: failure to allocate node_ver\n");  }
   //-----------------------------------------------------------------------
   /* potential-density pair */
-  *pot  = (double *)malloc(        (*maxLev) * NDISKBIN_HOR *  NDISKBIN_VER      * sizeof(double));  if( *pot  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate pot" );  }
-  *rho0 = (double *)malloc(ndisk * (*maxLev) * NDISKBIN_HOR * (NDISKBIN_VER + 1) * sizeof(double));  if( *rho0 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rho0");  }
-  *rho1 = (double *)malloc(ndisk * (*maxLev) * NDISKBIN_HOR * (NDISKBIN_VER + 1) * sizeof(double));  if( *rho1 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rho1");  }
+  *pot  = (double *)malloc(        (*maxLev) * NDISKBIN_HOR *  NDISKBIN_VER      * sizeof(double));  if( *pot  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate pot\n" );  }
+  *rho0 = (double *)malloc(ndisk * (*maxLev) * NDISKBIN_HOR * (NDISKBIN_VER + 1) * sizeof(double));  if( *rho0 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rho0\n");  }
+  *rho1 = (double *)malloc(ndisk * (*maxLev) * NDISKBIN_HOR * (NDISKBIN_VER + 1) * sizeof(double));  if( *rho1 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rho1\n");  }
   /* multiple component disk */
   if( ndisk > 1 ){
-    *rhoTot = (double *)malloc((*maxLev) * NDISKBIN_HOR * NDISKBIN_VER * sizeof(double));    if( *rhoTot == NULL ){      __KILL__(stderr, "ERROR: failure to allocate rhoTot");    }
+    *rhoTot = (double *)malloc((*maxLev) * NDISKBIN_HOR * NDISKBIN_VER * sizeof(double));    if( *rhoTot == NULL ){      __KILL__(stderr, "ERROR: failure to allocate rhoTot\n");    }
   }/* if( ndisk > 1 ){ */
   //-----------------------------------------------------------------------
 #ifndef USE_POTENTIAL_SCALING_SCHEME
@@ -208,23 +208,23 @@ void allocDiskProfile
   * dPhidR  = (double *)malloc((*maxLev) * NDISKBIN_HOR                * sizeof(double));
   *d2PhidR2 = (double *)malloc((*maxLev) * NDISKBIN_HOR                * sizeof(double));
 #endif//USE_POTENTIAL_SCALING_SCHEME
-  if( * dPhidR  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate dPhidR");  }
-  if( *d2PhidR2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate d2PhidR2");  }
+  if( * dPhidR  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate dPhidR\n");  }
+  if( *d2PhidR2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate d2PhidR2\n");  }
   //-----------------------------------------------------------------------
   /* horizontal profile */
-  *Sigma  = (double *)malloc(ndisk * (*maxLev) *  NDISKBIN_HOR      * sizeof(double));  if( *Sigma == NULL ){    __KILL__(stderr, "ERROR: failure to allocate Sigma");  }
-  *vsigz  = (double *)malloc(ndisk * (*maxLev) *  NDISKBIN_HOR      * sizeof(double));  if( *vsigz == NULL ){    __KILL__(stderr, "ERROR: failure to allocate vsigz");  }
-  *enc    = (double *)malloc(ndisk * (*maxLev) * (NDISKBIN_HOR + 1) * sizeof(double));  if( * enc  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate enc");  }
+  *Sigma  = (double *)malloc(ndisk * (*maxLev) *  NDISKBIN_HOR      * sizeof(double));  if( *Sigma == NULL ){    __KILL__(stderr, "ERROR: failure to allocate Sigma\n");  }
+  *vsigz  = (double *)malloc(ndisk * (*maxLev) *  NDISKBIN_HOR      * sizeof(double));  if( *vsigz == NULL ){    __KILL__(stderr, "ERROR: failure to allocate vsigz\n");  }
+  *enc    = (double *)malloc(ndisk * (*maxLev) * (NDISKBIN_HOR + 1) * sizeof(double));  if( * enc  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate enc\n");  }
   //-----------------------------------------------------------------------
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
   *zd = (double *)malloc(ndisk * (*maxLev) * NDISKBIN_HOR * sizeof(double));
-  if( *zd == NULL ){    __KILL__(stderr, "ERROR: failure to allocate zd");  }
+  if( *zd == NULL ){    __KILL__(stderr, "ERROR: failure to allocate zd\n");  }
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
   //-----------------------------------------------------------------------
   /* for spherical averaged profile */
-  *radSph = (double *)malloc(NDISKBIN_RAD * sizeof(double));  if( *radSph == NULL ){    __KILL__(stderr, "ERROR: failure to allocate radSph");  }
-  *rhoSph = (double *)malloc(NDISKBIN_RAD * sizeof(double));  if( *rhoSph == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rhoSph");  }
-  *encSph = (double *)malloc(NDISKBIN_RAD * sizeof(double));  if( *encSph == NULL ){    __KILL__(stderr, "ERROR: failure to allocate encSph");  }
+  *radSph = (double *)malloc(NDISKBIN_RAD * sizeof(double));  if( *radSph == NULL ){    __KILL__(stderr, "ERROR: failure to allocate radSph\n");  }
+  *rhoSph = (double *)malloc(NDISKBIN_RAD * sizeof(double));  if( *rhoSph == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rhoSph\n");  }
+  *encSph = (double *)malloc(NDISKBIN_RAD * sizeof(double));  if( *encSph == NULL ){    __KILL__(stderr, "ERROR: failure to allocate encSph\n");  }
   //-----------------------------------------------------------------------
   /* for spline fitting */
   /* note: NDISKBIN_HOR > NDISKBIN_VER */
@@ -233,10 +233,10 @@ void allocDiskProfile
   *spline_ff  = (double *)malloc(Nspline * CPUS_PER_PROCESS * sizeof(double));
   *spline_f2  = (double *)malloc(Nspline * CPUS_PER_PROCESS * sizeof(double));
   *spline_bp  = (double *)malloc(Nspline * CPUS_PER_PROCESS * sizeof(double));
-  if( *spline_xx == NULL ){    __KILL__(stderr, "ERROR: failure to allocate spline_xx");  }
-  if( *spline_ff == NULL ){    __KILL__(stderr, "ERROR: failure to allocate spline_ff");  }
-  if( *spline_f2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate spline_f2");  }
-  if( *spline_bp == NULL ){    __KILL__(stderr, "ERROR: failure to allocate spline_bp");  }
+  if( *spline_xx == NULL ){    __KILL__(stderr, "ERROR: failure to allocate spline_xx\n");  }
+  if( *spline_ff == NULL ){    __KILL__(stderr, "ERROR: failure to allocate spline_ff\n");  }
+  if( *spline_f2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate spline_f2\n");  }
+  if( *spline_bp == NULL ){    __KILL__(stderr, "ERROR: failure to allocate spline_bp\n");  }
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -263,7 +263,7 @@ void allocDiskProfile
   //-----------------------------------------------------------------------
   /* allocate utility structure and commit arrays */
   //-----------------------------------------------------------------------
-  *disk = (disk_data *)malloc(ndisk * sizeof(disk_data));  if( *disk == NULL ){    __KILL__(stderr, "ERROR: failure to allocate disk" );  }
+  *disk = (disk_data *)malloc(ndisk * sizeof(disk_data));  if( *disk == NULL ){    __KILL__(stderr, "ERROR: failure to allocate disk\n");  }
   //-----------------------------------------------------------------------
   for(int ii = 0; ii < ndisk; ii++){
     //---------------------------------------------------------------------
@@ -2333,10 +2333,10 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
   double *stock_sub;  stock_sub = malloc(sizeof(double) * ndisk * (size_t)CPUS_PER_PROCESS);
   double *stock_tmp;  stock_tmp = malloc(sizeof(double) * ndisk * (size_t)CPUS_PER_PROCESS);
   double *stock_sum;  stock_sum = malloc(sizeof(double) * ndisk * (size_t)CPUS_PER_PROCESS);
-  if( stock_inv == NULL ){    __KILL__(stderr, "ERROR: failure to allocate stock_inv");  }
-  if( stock_sub == NULL ){    __KILL__(stderr, "ERROR: failure to allocate stock_sub");  }
-  if( stock_tmp == NULL ){    __KILL__(stderr, "ERROR: failure to allocate stock_tmp");  }
-  if( stock_sum == NULL ){    __KILL__(stderr, "ERROR: failure to allocate stock_sum");  }
+  if( stock_inv == NULL ){    __KILL__(stderr, "ERROR: failure to allocate stock_inv\n");  }
+  if( stock_sub == NULL ){    __KILL__(stderr, "ERROR: failure to allocate stock_sub\n");  }
+  if( stock_tmp == NULL ){    __KILL__(stderr, "ERROR: failure to allocate stock_tmp\n");  }
+  if( stock_sum == NULL ){    __KILL__(stderr, "ERROR: failure to allocate stock_sum\n");  }
   //-----------------------------------------------------------------------
   const double Rmax = disk[0].Rmax;
   const double    abin = Rmax / (double)NRADBIN;

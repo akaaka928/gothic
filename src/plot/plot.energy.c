@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/10(Wed) 12:14:34
+                  last updated on 2016/10/12(Wed) 11:09:43
  *                                                                       *
  *    Plot Code of N-body Simulations (using PLplot)                     *
  *      Time Evolution of total energy, kinetic energy, potential energy *
@@ -151,7 +151,7 @@ int main(int argc, char **argv)
     momy[ii] = 0.0;
     momz[ii] = 0.0;
     //---------------------------------------------------------------------
-  }
+  }/* for(int ii = 0; ii < nfile; ii++){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -182,6 +182,10 @@ int main(int argc, char **argv)
     time[ifile] = (PLFLT)(tmp * time2astro);
     step[ifile] = (PLFLT)steps;
     //---------------------------------------------------------------------
+#ifdef  NORMALIZED_MOMENTUM_ERROR
+    double Mtot = 0.0;
+#endif//NORMALIZED_MOMENTUM_ERROR
+    //---------------------------------------------------------------------
     for(int ii = 0; ii < (int)Ntot; ii++){
       //-------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
@@ -202,6 +206,10 @@ int main(int argc, char **argv)
 #endif//BLOCK_TIME_STEP
 #endif//USE_HDF5_FORMAT
       //-------------------------------------------------------------------
+#ifdef  NORMALIZED_MOMENTUM_ERROR
+      Mtot += mass;
+#endif//NORMALIZED_MOMENTUM_ERROR
+      //-------------------------------------------------------------------
       Ekin[ifile] += (PLFLT)(mass * (velx * velx + vely * vely + velz * velz));
 #ifdef  USE_HDF5_FORMAT
       Epot[ifile] += (PLFLT)(mass * (double)body.pot[ii]);
@@ -213,16 +221,21 @@ int main(int argc, char **argv)
       momy[ifile] += mass * vely;
       momz[ifile] += mass * velz;
       //-------------------------------------------------------------------
-#ifdef  NORMALIZED_MOMENTUM_ERROR
-      if( (mpi.rank == 0) && (ifile == 0) )
-	MV += mass * mass * (velx * velx + vely * vely + velz * velz);
-#endif//NORMALIZED_MOMENTUM_ERROR
+/* #ifdef  NORMALIZED_MOMENTUM_ERROR */
+/*       if( (mpi.rank == 0) && (ifile == 0) ) */
+/* 	MV += mass * mass * (velx * velx + vely * vely + velz * velz); */
+/* #endif//NORMALIZED_MOMENTUM_ERROR */
       //-------------------------------------------------------------------
     }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
     //---------------------------------------------------------------------
     Ekin[ifile] *= 0.5 * energy2astro;
     Epot[ifile] *= 0.5 * energy2astro;
     Etot[ifile] = Ekin[ifile] + Epot[ifile];
+    //---------------------------------------------------------------------
+#ifdef  NORMALIZED_MOMENTUM_ERROR
+    if( (mpi.rank == 0) && (ifile == 0) )
+      MV = sqrt(-2.0 * Mtot * Etot[0]);
+#endif//NORMALIZED_MOMENTUM_ERROR
     //---------------------------------------------------------------------
     momx[ifile] *= mass2astro * velocity2astro;
     momy[ifile] *= mass2astro * velocity2astro;
@@ -249,7 +262,8 @@ int main(int argc, char **argv)
   if( mpi.rank == 0 ){
     //---------------------------------------------------------------------
 #ifdef  NORMALIZED_MOMENTUM_ERROR
-    const double inv = 1.0 / (sqrt(MV) * mass2astro * velocity2astro);
+    /* const double inv = 1.0 / (sqrt(MV) * mass2astro * velocity2astro); */
+    const double inv = 1.0 / (DBL_MIN + MV * mass2astro * velocity2astro);
     for(int ii = 0; ii < nfile; ii++){
       momx[ii] *= inv;
       momy[ii] *= inv;
@@ -466,8 +480,12 @@ int main(int argc, char **argv)
     evolve.ymin *= energy2astro;
     evolve.ymax *= energy2astro;
 #ifdef  NORMALIZED_MOMENTUM_ERROR
-    momerr.ymin = -3.0e-2;
-    momerr.ymax =  3.0e-2;
+    /* momerr.ymin = -3.0e-2; */
+    /* momerr.ymax =  3.0e-2; */
+    momerr.ymin = -1.0e-3;
+    momerr.ymax =  1.0e-3;
+    /* momerr.ymin = -2.0e-5; */
+    /* momerr.ymax =  2.0e-5; */
 #else///NORMALIZED_MOMENTUM_ERROR
     momerr.ymin *= mass2astro * velocity2astro;
     momerr.ymax *= mass2astro * velocity2astro;
@@ -921,7 +939,8 @@ void plotMomentumError
   /* set labels */
   char xlab[PLplotCharWords];  sprintf(xlab, "#fit #fr(%s)", time_astro_unit_name4plot);
 #ifdef  NORMALIZED_MOMENTUM_ERROR
-  char Elab[PLplotCharWords];  sprintf(Elab, "#gS#di#u #fim#fr#di#u#fi#<0x12>v#fr#di#u / #gS#di#u |#fim#fr#di#u#fi#<0x12>v#fr#di#u|(#fit#fr=0)");
+  /* char Elab[PLplotCharWords];  sprintf(Elab, "#gS#di#u #fim#fr#di#u#fi#<0x12>v#fr#di#u / #gS#di#u |#fim#fr#di#u#fi#<0x12>v#fr#di#u|(#fit#fr=0)"); */
+  char Elab[PLplotCharWords];  sprintf(Elab, "#gS#di#u #fim#fr#di#u#fi#<0x12>v#fr#di#u / (-2 #fiM#fr#dtot#u #fiE#fr#dtot#u)#u1/2#d (#fit#fr=0)");
 #else///NORMALIZED_MOMENTUM_ERROR
   char Elab[PLplotCharWords];  sprintf(Elab, "Momentum (%s %s)", mass_astro_unit_name4plot, velocity_astro_unit_name4plot);
 #endif//NORMALIZED_MOMENTUM_ERROR

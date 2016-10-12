@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/14(Thu) 11:15:50
+                  last updated on 2016/10/11(Tue) 17:08:09
  *                                                                       *
  *    Key generation of Peano-Hilbert space filling curve                *
  *    sort N-body particles to ovey Peano-Hilbert space filling curve    *
@@ -669,7 +669,7 @@ muse allocPeanoHilbertKey_dev
   /* Properties of Peano--Hilbert key of tree cells in the hierarchical structure */
   //-----------------------------------------------------------------------
   /* memory allocation and simple confirmation */
-  *info = (PHinfo *)malloc(NUM_PHKEY_LEVEL * sizeof(PHinfo));  if( *info == NULL ){    __KILL__(stderr, "ERROR: failure to allocate info");  }
+  *info = (PHinfo *)malloc(NUM_PHKEY_LEVEL * sizeof(PHinfo));  if( *info == NULL ){    __KILL__(stderr, "ERROR: failure to allocate info\n");  }
   alloc.host +=            NUM_PHKEY_LEVEL * sizeof(PHinfo);
   //-----------------------------------------------------------------------
   initPHinfo(*info);

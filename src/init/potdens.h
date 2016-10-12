@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/04(Tue) 16:38:01
+                  last updated on 2016/10/12(Wed) 11:29:51
  *                                                                       *
  *    Header File for Definition to generate initial condition of disk   *
  *                                                                       *

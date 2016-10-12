@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/21(Thu) 16:22:28
+                  last updated on 2016/10/07(Fri) 12:38:28
  *                                                                       *
  *    Constructing octree structure for collisionless systems            *
  *                                                                       *
@@ -171,17 +171,21 @@
 #undef  REGISTERS_PER_THREAD_LINK_TREE
 #define REGISTERS_PER_THREAD_LINK_TREE (23)
 #endif//GPUVER == 50
-/* makeTree_kernel and linkTree_kernel use 64 and 23 registers, respectively @ GTX 970 w/z Ttot = 128, 512, 1024 */
-/* makeTree_kernel and linkTree_kernel use 66 and 23 registers, respectively @ GTX 970 w/z Ttot = 256 */
+/* makeTree_kernel and linkTree_kernel use 64 and 23 registers, respectively @ GTX 970 w/z Ttot = 128, 512, 1024 @ CUDA 7.5 */
+/* makeTree_kernel and linkTree_kernel use 66 and 23 registers, respectively @ GTX 970 w/z Ttot = 256            @ CUDA 7.5 */
+/* makeTree_kernel use 70 registers @ GTX TITAN X w/z Ttot = 128 @ CUDA 8.0 */
+/* linkTree_kernel use 24 registers @ GTX TITAN X w/z Ttot = 256 @ CUDA 8.0 */
 #   if  GPUVER == 52
 #undef  REGISTERS_PER_THREAD_MAKE_TREE
 #          if  NTHREADS_MAKE_TREE == 256
 #define REGISTERS_PER_THREAD_MAKE_TREE (66)
 #       else///NTHREADS_MAKE_TREE == 256
-#define REGISTERS_PER_THREAD_MAKE_TREE (64)
+/* #define REGISTERS_PER_THREAD_MAKE_TREE (64) */
+#define REGISTERS_PER_THREAD_MAKE_TREE (70)
 #       endif//NTHREADS_MAKE_TREE == 256
 #undef  REGISTERS_PER_THREAD_LINK_TREE
-#define REGISTERS_PER_THREAD_LINK_TREE (23)
+/* #define REGISTERS_PER_THREAD_LINK_TREE (23) */
+#define REGISTERS_PER_THREAD_LINK_TREE (24)
 #endif//GPUVER == 52
 //-------------------------------------------------------------------------
 /* limitations from number of registers */

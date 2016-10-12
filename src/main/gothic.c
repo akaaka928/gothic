@@ -1,6 +1,6 @@
 /************************************************************************* \
  *                                                                       *
-                  last updated on 2016/09/06(Tue) 16:47:43
+                  last updated on 2016/10/11(Tue) 16:59:37
  *                                                                       *
  *    N-body code based on Barnes--Hut tree                              *
  *                                                                       *
@@ -1429,7 +1429,7 @@ int main(int argc, char **argv)
   domainDecomposeKey *domDecKey;
   domDecKey = (domainDecomposeKey *)malloc(num_max * sizeof(domainDecomposeKey));
   const muse alloc_ddkey = {num_max * sizeof(domainDecomposeKey), 0};
-  if( domDecKey == NULL ){    __KILL__(stderr, "ERROR: failure to allocate domDecKey");  }
+  if( domDecKey == NULL ){    __KILL__(stderr, "ERROR: failure to allocate domDecKey\n");  }
 #ifdef  BUILD_LET_ON_DEVICE
   soaGEO soaGEO_dev;
   real *r2geo_dev;

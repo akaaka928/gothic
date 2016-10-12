@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/02/07(Sun) 19:19:04
+                  last updated on 2016/10/11(Tue) 17:10:07
  *                                                                       *
  *    Constructing octree structure for collisionless systems            *
  *                                                                       *
@@ -106,9 +106,7 @@ muse allocParticleGroups
   *dtInfo_num = MAXIMUM_PHKEY_LEVEL;
   *dtInfo = (histogram_dt *)malloc((*dtInfo_num) * sizeof(histogram_dt));
   alloc.host += (*dtInfo_num) * sizeof(histogram_dt);
-  if( *dtInfo == NULL ){
-    __KILL__(stderr, "ERROR: failure to allocate dtInfo");
-  }
+  if( *dtInfo == NULL ){    __KILL__(stderr, "ERROR: failure to allocate dtInfo\n");  }
   /* the size of the array is set to be a multiple of NTHREADS */
   size_t size = (size_t)num_max;
   if( (num_max % NTHREADS) != 0 )
@@ -270,9 +268,7 @@ void updateParticleGroups
     if( grem <= 0 ){
       const int nadd = 4;
       *dtInfo = (histogram_dt *)realloc(*dtInfo, sizeof(histogram_dt) * (nadd + (*gnum)));
-      if( *dtInfo == NULL ){
-	__KILL__(stderr, "ERROR: failure to rescale dtInfo");
-      }
+      if( *dtInfo == NULL ){	__KILL__(stderr, "ERROR: failure to rescale dtInfo\n");      }
       grem = nadd;
     }
     //---------------------------------------------------------------------

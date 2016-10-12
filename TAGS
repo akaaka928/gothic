@@ -89,8 +89,8 @@ void spmv(56,2688
 void getILU0(76,3668
 void mulLUinv(160,7970
 void bicgstab230,11637
-void pbicgstab349,17419
-int main(550,25599
+void pbicgstab351,17555
+int main(556,26108
 
 src/init/magi.h,218
 #define MAGI_H13,827
@@ -101,38 +101,36 @@ src/init/magi.h,218
 #define NINTBIN 37,1769
 #define N_PRINT_LINES_ASCII 41,1979
 
-src/init/magi.c,1052
+src/init/magi.c,964
 #define USE_SZIP_COMPRESSION18,1275
-#define SHIFT_CENTER_PER_COMPONENT20,1380
-#define          RESET_ROTATION_AXIS24,1602
-gsl_rng *GSLRand;GSLRand69,3884
-#define UNIRAND_DBL 70,3902
-#define UNIRAND 71,3957
-#define RANDVAL 72,4012
-double gsl_gaussQD_pos[gsl_gaussQD_pos74,4134
-double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[gsl_gaussQD_weight74,4134
-static inline void isotropicDistribution(79,4362
-void shiftCenter(93,5034
-static inline double getDF(249,12007
-double distributeSpheroidParticles(267,12920
-int main(392,19474
-  struct dump 841,43810
-    double time;842,43826
-    int nbodies;843,43843
-    int ndim;844,43860
-    int nsph;845,43874
-    int ndark;846,43888
-    int nstar;847,43903
-  typedef struct dump header;849,43923
-  struct dark_particle 859,44296
-    real mass;860,44321
-    real pos[pos861,44336
-    real vel[vel862,44353
-    real eps;863,44370
-    int idx;864,44384
-void outputFundamentalInformation915,46189
-static void evaluateDiskProperties1540,84949
-void writeDiskData(1641,91154
+gsl_rng *GSLRand;GSLRand66,3629
+#define UNIRAND_DBL 67,3647
+#define UNIRAND 68,3702
+#define RANDVAL 69,3757
+double gsl_gaussQD_pos[gsl_gaussQD_pos71,3879
+double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[gsl_gaussQD_weight71,3879
+static inline void isotropicDistribution(76,4107
+void shiftCenter(90,4802
+static inline double getDF(282,13498
+double distributeSpheroidParticles(300,14411
+int main(425,20983
+  struct dump 895,46208
+    double time;896,46224
+    int nbodies;897,46241
+    int ndim;898,46258
+    int nsph;899,46272
+    int ndark;900,46286
+    int nstar;901,46301
+  typedef struct dump header;903,46321
+  struct dark_particle 913,46694
+    real mass;914,46719
+    real pos[pos915,46734
+    real vel[vel916,46751
+    real eps;917,46768
+    int idx;918,46782
+void outputFundamentalInformation972,48702
+static void evaluateDiskProperties1616,88561
+void writeDiskData(1718,95704
 
 src/init/test.c,59
 #define NDATA 8,117
@@ -159,13 +157,27 @@ src/init/king.h,90
 #define KING_PROGRESS_REPORT_ON 30,1374
 #define NADD_KING 35,1583
 
-src/init/blas.h,153
+src/init/blas.h,664
 #define BLAS_H13,827
-#define PROGRESS_REPORT_ON19,1023
-  double *val;val29,1374
-  int    *col;col30,1389
-  int    *row;row31,1404
-} crs;32,1419
+#define BLAS_PROGRESS_REPORT_ON 19,1028
+  double *val;val29,1394
+  int    *col;col30,1409
+  int    *row;row31,1424
+} crs;32,1439
+  crs mat;36,1539
+  double *vec,vec37,1550
+  double *vec, *res,res37,1550
+  double *vec, *res, *sdw,sdw37,1550
+  double *vec, *res, *sdw, *mid,mid37,1550
+  double *vec, *res, *sdw, *mid, *tmp,tmp37,1550
+  double *vec, *res, *sdw, *mid, *tmp, *Api,Api37,1550
+  double *vec, *res, *sdw, *mid, *tmp, *Api, *Ati;Ati37,1550
+} soaBiCGSTAB;40,1638
+  crs ilu;44,1746
+  double *Kri,Kri45,1757
+  double *Kri, *Kpi,Kpi45,1757
+  double *Kri, *Kpi, *Kti;Kti45,1757
+} soaPreConditioning;46,1784
 
 src/init/abel.h,595
 #define ABEL_H13,827
@@ -370,24 +382,28 @@ void shiftCenter(122,5659
 void outputFundamentalInformationOfColdSphere198,9030
 int main(255,12740
 
-src/init/profile.c,630
-void setDensityProfilePlummer(34,1781
-void setDensityProfileBurkert(65,3346
-void setDensityProfileHernquist(96,4957
-void setDensityProfileNFW(126,6514
-void setDensityProfileMoore(156,8071
-void setDensityProfileEinasto(186,9628
-void setDensityProfileAppKing(216,11178
-void setDensityProfileTwoPower(246,12929
-void setDensityProfileTriPower(286,15016
-void setDensityProfileAppLoweredEvans(324,17197
-void setContributionByCentralBH(383,20182
-void integrateDensityProfile(413,21564
-static inline double getAsymptoticSersicScale(532,28093
-static inline void writeProfileCfgFormat(534,28319
-void readProfileCfg(609,33598
+src/init/profile.c,797
+void setDensityProfilePlummer(38,1947
+void setDensityProfileBurkert(69,3512
+void setDensityProfileHernquist(100,5123
+void setDensityProfileNFW(130,6680
+void setDensityProfileMoore(160,8237
+void setDensityProfileEinasto(190,9794
+void setDensityProfileAppKing(220,11344
+void setDensityProfileTwoPower(250,13095
+void setDensityProfileTriPower(290,15182
+void setDensityProfileAppLoweredEvans(328,17363
+void setContributionByCentralBH(387,20348
+void integrateDensityProfile(417,21730
+static inline double getAsymptoticSersicScale(536,28259
+static inline void writeProfileCfgFormat(538,28485
+void readProfileCfg(613,33764
+static inline void findIdx(765,42523
+static inline void getInterpolatedDensity(788,43965
+void gaussQuadVertical(805,45057
+void calcColumnDensityProfile(844,47098
 
-src/init/profile.h,2427
+src/init/profile.h,2495
 #define PROFILE_H13,830
 #define ERFC_SMOOTHING29,1419
 #define CFGFOLDER 32,1579
@@ -411,55 +427,57 @@ src/init/profile.h,2427
 #define    SERSIC 53,2224
 #define NRADBIN 59,2445
 #define MINRAD 60,2479
-  double rad;64,2606
-  double rho 65,2620
-  double rho    , enc 65,2620
-  double rho    , enc    , psi;65,2620
-  double rho_tot,66,2652
-  double rho_tot, enc_tot,66,2652
-  double rho_tot, enc_tot, psi_tot;66,2652
-  double drho_dr,67,2688
-  double drho_dr, d2rho_dr2;67,2688
-} profile;68,2717
-  char file[file72,2821
-  char table[table73,2839
-  double Mtot,74,2915
-  double Mtot, rs;74,2915
-  double einasto_alpha;75,2967
-  double king_W0,76,3026
-  double king_W0, king_rt,76,3026
-  double king_W0, king_rt, king_c;76,3026
-  double twopower_alpha,77,3092
-  double twopower_alpha, twopower_beta,77,3092
-  double twopower_alpha, twopower_beta, twopower_gamma;77,3092
-  double tripower_delta,78,3184
-  double tripower_delta, tripower_epsilon,78,3184
-  double tripower_delta, tripower_epsilon, tripower_rout;78,3184
-  double alevans_alpha,79,3291
-  double alevans_alpha, alevans_beta,79,3291
-  double alevans_alpha, alevans_beta, alevans_rc,79,3291
-  double alevans_alpha, alevans_beta, alevans_rc, alevans_rt,79,3291
-  double alevans_alpha, alevans_beta, alevans_rc, alevans_rt, alevans_wt;79,3291
-  double zd,80,3418
-  double zd, Sigma0,80,3418
-  double zd, Sigma0, vdispR0,80,3418
-  double zd, Sigma0, vdispR0, vdispz0,80,3418
-  double zd, Sigma0, vdispR0, vdispz0, vdisp_frac;80,3418
-  double n_sersic,81,3506
-  double n_sersic, b_sersic;81,3506
-  double vcirc_Rd,82,3570
-  double vcirc_Rd, vcirc_max,82,3570
-  double vcirc_Rd, vcirc_max, vcirc_max_R,82,3570
-  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre,82,3570
-  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin;82,3570
-  ulong num;83,3663
-  int forceNum;84,3676
-  bool cutoff;85,3763
-  double rc,86,3778
-  double rc, rc_width;86,3778
-  int kind;87,3801
-  double Ecut;88,3813
-} profile_cfg;89,3828
+#define MAKE_COLUMN_DENSITY_PROFILE62,2589
+  double rad;66,2718
+  double rho 67,2732
+  double rho    , enc 67,2732
+  double rho    , enc    , psi;67,2732
+  double rho_tot,68,2764
+  double rho_tot, enc_tot,68,2764
+  double rho_tot, enc_tot, psi_tot;68,2764
+  double drho_dr,69,2800
+  double drho_dr, d2rho_dr2;69,2800
+  double Sigma;71,2865
+} profile;73,2917
+  char file[file77,3021
+  char table[table78,3039
+  double Mtot,79,3115
+  double Mtot, rs;79,3115
+  double einasto_alpha;80,3167
+  double king_W0,81,3226
+  double king_W0, king_rt,81,3226
+  double king_W0, king_rt, king_c;81,3226
+  double twopower_alpha,82,3292
+  double twopower_alpha, twopower_beta,82,3292
+  double twopower_alpha, twopower_beta, twopower_gamma;82,3292
+  double tripower_delta,83,3384
+  double tripower_delta, tripower_epsilon,83,3384
+  double tripower_delta, tripower_epsilon, tripower_rout;83,3384
+  double alevans_alpha,84,3491
+  double alevans_alpha, alevans_beta,84,3491
+  double alevans_alpha, alevans_beta, alevans_rc,84,3491
+  double alevans_alpha, alevans_beta, alevans_rc, alevans_rt,84,3491
+  double alevans_alpha, alevans_beta, alevans_rc, alevans_rt, alevans_wt;84,3491
+  double zd,85,3618
+  double zd, Sigma0,85,3618
+  double zd, Sigma0, vdispR0,85,3618
+  double zd, Sigma0, vdispR0, vdispz0,85,3618
+  double zd, Sigma0, vdispR0, vdispz0, vdisp_frac;85,3618
+  double n_sersic,86,3706
+  double n_sersic, b_sersic;86,3706
+  double vcirc_Rd,87,3770
+  double vcirc_Rd, vcirc_max,87,3770
+  double vcirc_Rd, vcirc_max, vcirc_max_R,87,3770
+  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre,87,3770
+  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin;87,3770
+  ulong num;88,3863
+  int forceNum;89,3876
+  bool cutoff;90,3963
+  double rc,91,3978
+  double rc, rc_width;91,3978
+  int kind;92,4001
+  double Ecut;93,4013
+} profile_cfg;94,4028
 
 src/init/eddington.c,174
 static inline void findIdx(35,1859
@@ -476,48 +494,284 @@ src/init/eddington.h,178
 } dist_func;38,1616
 #define NKIND_MAX 40,1705
 
-src/main/gothic.c,1509
-#       undef   LEAP_FROG_INTEGRATOR80,3484
-real theta2;84,3680
-#define USE_PARABOLIC_GROWTH_MODEL88,3819
-#define WALK_TREE_TOTAL_SUM_MODEL91,3921
-#define WALK_TREE_USE_REDUCED_CHISQ98,4241
-#define USE_ADDITIONAL_SWITCH100,4306
-#define FORCE_ADJUSTING_PARTICLE_TIME_STEPS103,4447
-int treeBuildCalls 110,5131
-  double S,120,5576
-  double S, Sx,120,5576
-  double S, Sx, Sy,120,5576
-  double S, Sx, Sy, Sxx,120,5576
-  double S, Sx, Sy, Sxx, Sxy,120,5576
-  double S, Sx, Sy, Sxx, Sxy, Syy;120,5576
-  double Sxxxx,122,5646
-  double Sxxxx, Sxxx,122,5646
-  double Sxxxx, Sxxx, Sxxy;122,5646
-} statVal;124,5709
-  double slope,128,5813
-  double slope, icept,128,5813
-  double slope, icept, rchisq;128,5813
-  double time;129,5844
-  double second;131,5894
-} guessTime;133,5946
-static const double tolerance4chisq 136,6086
-static inline void initStatVal(138,6211
-static inline void calcStatVal(156,6802
-static inline void initGuessTime(176,7686
-static inline void evalStatVal(189,8159
-static inline void linearModel(201,8983
-static inline void  powerModel(216,9740
-static inline void parabolicModel(243,11160
-static inline void setMultipoleMoment281,13502
-static inline void buildTreeStructure396,17676
-static inline void configDistribution624,27560
-static inline void dumpSnapshot713,31215
-static inline void dumpRestarter858,36309
-int main(935,39077
-void analyzeWalkStatistics(3352,141304
-static inline void analyzeTreeStatistics(3396,143181
-void analyzeTreeMetrics(3406,143866
+src/init/potdens.c,2573
+#define NMAX_GAUSS_QD_LOW 43,2208
+#define NTBL_GAUSS_QD_LOW 44,2239
+#define NINTBIN_LOW 45,2318
+static double gsl_gaussQD_low_pos[gsl_gaussQD_low_pos46,2356
+static double gsl_gaussQD_low_pos[NTBL_GAUSS_QD_LOW], gsl_gaussQD_low_weight[gsl_gaussQD_low_weight46,2356
+static inline double getSmoothCutoff 56,2816
+double getColumnDensityExp 58,3041
+double getColumnDensitySersic(61,3319
+static double invzd2invz0;64,3595
+static inline void setz0inv4SechProfile(65,3622
+double getVerticalDensity(67,3796
+static inline double func4encSigma(80,4350
+static inline double gaussQD4encSigma(82,4567
+void   freeDiskProfile105,5727
+void allocDiskProfile135,7085
+static inline int bisection(442,25952
+static inline int findIdxSpherical(468,27392
+static inline double Phi_spherical(493,28762
+static inline int findIdxSphericalPsi(508,29519
+static const double diskDimmingHeight 533,30917
+static const double diskDimmingHeightInv 534,30966
+static inline void getVariableDiskScaleHeight(536,31093
+static inline double gaussQuad1d4Rho(597,34289
+static inline void initPotentialField(623,35668
+static inline void setColumnDensityProfile(665,37923
+static inline void coarsePotential4boundary(761,43457
+static inline void coarsePotential(814,46584
+static inline void   finePotential(848,48530
+static inline void coarseDensity(883,50944
+static inline void   fineDensity(939,54127
+static inline int findIdxSpherical4GDpot(1017,58779
+static inline double func4GDpot(1042,60144
+double gaussQD4GDpot(1050,60648
+static inline void calcGDpot1070,61733
+static inline void _gaussQuad2d4GDpot1096,63619
+static inline void _setRdep4GDpot1136,65966
+static inline void gaussQuad2d4GDpot1152,66994
+static inline double integrateGDpot1200,69906
+static inline double rinv4pot(1237,72768
+double gaussQD4rinv4pot(1239,72992
+static inline double calcPot1260,74105
+double _gaussQuad2d4calcPot1292,75767
+static inline void _setRdep4calcPot1325,77628
+static inline double gaussQuad2d4calcPot1341,78377
+static inline double integratePotential1384,80743
+static inline void calcOuterPotential1408,82335
+static inline void setResultantVector(1477,86260
+static inline void setSparseMatrix(1508,88142
+static inline void getPotentialField1660,99830
+static inline double _setzdep4calcRho1818,110312
+static inline void _setRdep4calcRho1836,111409
+static inline double _gaussQuad2d4calcRho1867,113613
+static inline double gaussQuad2d4calcRho1894,115269
+static inline void swapDblArrays(1937,118093
+void getPotDensPair1956,118888
+void makeDiskPotentialTable(2254,134798
+
+src/init/potdens.h,2166
+#define POTDENS_H13,830
+#define CHECK_OSTRIKER_PEEBLES_CRITERION29,1348
+#define NDISKBIN_VER 35,1575
+#define NHOR_OVER_NVER 37,1655
+#define NDISKBIN_HOR 38,1682
+#define NDISKBIN_RAD 41,1847
+#define  NNZ_CG 44,1990
+#define NROW_CG 45,2076
+#define NCOL_CG 46,2122
+#define DISK_MAX_SAFETY 48,2244
+#define DISK_MAX_LENGTH 49,2274
+#define DISK_MIN_LENGTH 50,2305
+#define NDIVIDE_GAUSSQD4DISK 53,2457
+#define ENABLE_VARIABLE_SCALE_HEIGHT57,2679
+#define USE_GD_FORM_POTENTIAL59,2792
+#define NGDPOT 61,2852
+#define USE_ELLIPTIC_INTEGRAL64,2983
+#define CONVERGENCE_BICGSTAB 66,3089
+#define CONVERGENCE_POTDENSPAIR 67,3131
+#define NEGLECT_DENSITY_MINIMUM 68,3172
+#define INDEX4D(70,3290
+  double sersic_ninv,77,3562
+  double sersic_ninv, sersic_b;77,3562
+  double Rcutoff,78,3594
+  double Rcutoff, invRsmooth;78,3594
+} disk_util;79,3624
+  profile_cfg *cfg;cfg84,3776
+  profile *prf;prf86,3850
+  double *hor;hor88,3881
+  double *ver;ver89,3924
+  double *node_hor;node_hor90,3967
+  double *node_ver;node_ver91,4019
+  double *pot,pot92,4071
+  double *pot, *rhoTot;rhoTot92,4071
+  double **rho,rho93,4128
+  double **rho, **rhoSum,rhoSum93,4128
+  double **rho, **rhoSum, *rho0,rho093,4128
+  double **rho, **rhoSum, *rho0, *rho1;rho193,4128
+  double *dPhidR,dPhidR94,4290
+  double *dPhidR, *d2PhidR2;d2PhidR294,4290
+  double *Sigma,Sigma95,4352
+  double *Sigma, *sigmaz,sigmaz95,4352
+  double *Sigma, *sigmaz, *enc;enc95,4352
+  disk_util util;96,4419
+  double (*getColumnDensity)getColumnDensity97,4437
+  double *zd;zd99,4531
+  double *radSph,radSph102,4628
+  double *radSph, *rhoSph,rhoSph102,4628
+  double *radSph, *rhoSph, *encSph;encSph102,4628
+  double *spline_xx,spline_xx104,4720
+  double *spline_xx, *spline_ff,spline_ff104,4720
+  double *spline_xx, *spline_ff, *spline_f2,spline_f2104,4720
+  double *spline_xx, *spline_ff, *spline_f2, *spline_bp;spline_bp104,4720
+  double Rmax,105,4777
+  double Rmax, zmax,105,4777
+  double Rmax, zmax, hh;105,4777
+  double invRd;106,4831
+  double logrbin,107,4884
+  double logrbin, invlogrbin;107,4884
+  double Krand_sph;109,5000
+} disk_data;111,5061
+
+src/init/diskDF.c,577
+#define UNIRAND_DBL 42,2162
+#define UNIRAND 43,2215
+#define RANDVAL_DBL 44,2268
+#define RANDVAL 45,2316
+static inline int bisection(50,2520
+static inline int findIdxSpherical(76,3954
+static inline double func4enc(104,5402
+double gaussQD4enc(115,6092
+static inline void convertCylindrical2Spherical135,7217
+void integrateSphericalDensityProfile(178,9587
+void diffAxisymmetricPotential(364,20528
+void calcVerticalVdisp(539,31628
+static inline void leastSquaredMethod(619,35990
+static inline int bisection4nestedGrid642,37088
+void distributeDiskParticles(690,38843
+
+src/init/diskDF.h,240
+#define DISKDF_H13,829
+#define USE_ORIGINAL_VDISP_ESTIMATOR33,1493
+#define SPEEDUP_CONVERGENCE34,1530
+#define SUBDIVIDE_NUM 37,1677
+#define DISK_PERP_VDISP(44,1970
+#define DISK_RADIAL_VDISP2(49,2270
+#define DISK_RADIAL_VDISP(50,2353
+
+src/init/z160812magi.c,1052
+#define USE_SZIP_COMPRESSION18,1275
+#define SHIFT_CENTER_PER_COMPONENT20,1380
+#define          RESET_ROTATION_AXIS24,1602
+gsl_rng *GSLRand;GSLRand69,3884
+#define UNIRAND_DBL 70,3902
+#define UNIRAND 71,3957
+#define RANDVAL 72,4012
+double gsl_gaussQD_pos[gsl_gaussQD_pos74,4134
+double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[gsl_gaussQD_weight74,4134
+static inline void isotropicDistribution(79,4362
+void shiftCenter(93,5034
+static inline double getDF(249,12007
+double distributeSpheroidParticles(267,12920
+int main(392,19474
+  struct dump 841,43810
+    double time;842,43826
+    int nbodies;843,43843
+    int ndim;844,43860
+    int nsph;845,43874
+    int ndark;846,43888
+    int nstar;847,43903
+  typedef struct dump header;849,43923
+  struct dark_particle 859,44296
+    real mass;860,44321
+    real pos[pos861,44336
+    real vel[vel862,44353
+    real eps;863,44370
+    int idx;864,44384
+void outputFundamentalInformation915,46189
+static void evaluateDiskProperties1540,84949
+void writeDiskData(1641,91154
+
+src/init/160918potdens.c,2462
+#define NMAX_GAUSS_QD_LOW 43,2208
+#define NTBL_GAUSS_QD_LOW 44,2239
+#define NINTBIN_LOW 45,2318
+static double gsl_gaussQD_low_pos[gsl_gaussQD_low_pos46,2356
+static double gsl_gaussQD_low_pos[NTBL_GAUSS_QD_LOW], gsl_gaussQD_low_weight[gsl_gaussQD_low_weight46,2356
+static inline double getSmoothCutoff 56,2816
+double getColumnDensityExp 58,3041
+double getColumnDensitySersic(61,3319
+static double invzd2invz0;64,3595
+static inline void setz0inv4SechProfile(65,3622
+double getVerticalDensity(67,3796
+static inline double func4encSigma(80,4350
+static inline double gaussQD4encSigma(82,4567
+void   freeDiskProfile105,5727
+void allocDiskProfile135,7013
+static inline int bisection(433,24883
+static inline int findIdxSpherical(459,26323
+static inline double Phi_spherical(484,27693
+static inline int findIdxSphericalPsi(499,28450
+static const double diskDimmingHeight 524,29848
+static const double diskDimmingHeightInv 525,29897
+static inline void getVariableDiskScaleHeight(527,30024
+static inline double gaussQuad1d4Rho(588,33220
+static inline void initPotentialField(614,34599
+static inline void setColumnDensityProfile(656,36854
+static inline void coarsePotential(752,42388
+static inline void   finePotential(786,44280
+static inline void coarseDensity(821,46694
+static inline void   fineDensity(877,49823
+static inline int findIdxSpherical4GDpot(955,54475
+static inline double func4GDpot(980,55840
+double gaussQD4GDpot(988,56344
+static inline void calcGDpot1008,57429
+static inline void _gaussQuad2d4GDpot1034,59315
+static inline void _setRdep4GDpot1074,61662
+static inline void gaussQuad2d4GDpot1090,62690
+static inline double integrateGDpot1138,65602
+static inline double rinv4pot(1175,68464
+double gaussQD4rinv4pot(1177,68688
+static inline double calcPot1198,69801
+double _gaussQuad2d4calcPot1230,71463
+static inline void _setRdep4calcPot1263,73324
+static inline double gaussQuad2d4calcPot1279,74073
+static inline double integratePotential1322,76439
+static inline void calcOuterPotential1346,78031
+static inline void setSparseMatrix1415,81956
+static inline void getPotentialField1572,93989
+static inline double _setzdep4calcRho1663,98676
+static inline void _setRdep4calcRho1681,99773
+static inline double _gaussQuad2d4calcRho1712,101977
+static inline double gaussQuad2d4calcRho1739,103633
+static inline void swapDblArrays(1782,106457
+void getPotDensPair1801,107252
+void makeDiskPotentialTable(2099,123162
+
+src/main/gothic.c,1510
+#       undef   LEAP_FROG_INTEGRATOR82,3541
+real theta2;86,3737
+#define USE_PARABOLIC_GROWTH_MODEL90,3876
+#define WALK_TREE_TOTAL_SUM_MODEL93,3978
+#define WALK_TREE_USE_REDUCED_CHISQ100,4298
+#define USE_ADDITIONAL_SWITCH102,4363
+#define FORCE_ADJUSTING_PARTICLE_TIME_STEPS105,4504
+int treeBuildCalls 112,5188
+  double S,122,5633
+  double S, Sx,122,5633
+  double S, Sx, Sy,122,5633
+  double S, Sx, Sy, Sxx,122,5633
+  double S, Sx, Sy, Sxx, Sxy,122,5633
+  double S, Sx, Sy, Sxx, Sxy, Syy;122,5633
+  double Sxxxx,124,5703
+  double Sxxxx, Sxxx,124,5703
+  double Sxxxx, Sxxx, Sxxy;124,5703
+} statVal;126,5766
+  double slope,130,5870
+  double slope, icept,130,5870
+  double slope, icept, rchisq;130,5870
+  double time;131,5901
+  double second;133,5951
+} guessTime;135,6003
+static const double tolerance4chisq 138,6143
+static inline void initStatVal(140,6268
+static inline void calcStatVal(158,6859
+static inline void initGuessTime(178,7743
+static inline void evalStatVal(191,8216
+static inline void linearModel(203,9040
+static inline void  powerModel(218,9797
+static inline void parabolicModel(245,11217
+static inline void setMultipoleMoment283,13559
+static inline void buildTreeStructure398,17733
+static inline void configDistribution626,27617
+static inline void dumpSnapshot715,31272
+static inline void dumpRestarter860,36366
+int main(937,39134
+void analyzeWalkStatistics(3354,141361
+static inline void analyzeTreeStatistics(3398,143238
+void analyzeTreeMetrics(3408,143923
 
 src/main/showOptConfig.c,805
 #define NADD 22,1138
@@ -572,9 +826,9 @@ src/misc/device.h,277
 
 src/misc/allocate.c,131
 muse allocParticleData25,1317
-void  freeParticleData89,4564
-muse allocSnapshotArray(163,7743
-void  freeSnapshotArray(206,10126
+void  freeParticleData89,4567
+muse allocSnapshotArray(163,7746
+void  freeSnapshotArray(206,10129
 
 src/misc/allocate.h,26
 #define ALLOCATE_H14,906
@@ -833,12 +1087,12 @@ FILE *fp;fp51,2284
   real m, pot;58,2381
 } nbody_particle;59,2396
 nbody_particle *body;body60,2414
-int idxAscendingOrder(83,3472
-int main(105,4537
-void plotCDF602,29618
-int dblAscendingOrder(994,47700
-int dblDescendingOrder(1006,48303
-void chkTreeError(1026,49175
+int idxAscendingOrder(84,3525
+int main(106,4590
+void plotCDF603,29671
+int dblAscendingOrder(996,47806
+int dblDescendingOrder(1009,48463
+void chkTreeError(1029,49335
 
 src/plot/cdflib.c,60
 void allocPercentile(22,1196
@@ -847,94 +1101,98 @@ void  freePercentile(71,2901
 src/plot/plot.energy.c,126
 #define NORMALIZED_MOMENTUM_ERROR15,1037
 int main(61,3126
-void plotTimeEvolution527,29162
-void plotMomentumError867,44226
+void plotTimeEvolution543,29930
+void plotMomentumError883,44994
 
-src/plot/plot.distribution.c,3158
+src/plot/plot.distribution.c,3395
 #define DUMP_SPLITTED_SNAPSHOT13,887
 #define USE_RMS_THICKNESS15,954
 #define USE_MEDIAN_FOR_POSITION16,980
 #define USE_ITERATED_THICKNESS17,1012
-#define OVERPLOT_INITIAL_DISKHEIGHT19,1119
-#define NMAX_GAUSS_QD 46,2124
-#define NTBL_GAUSS_QD 47,2151
-#define NINTBIN 48,2218
-real gsl_gaussQD_pos[gsl_gaussQD_pos49,2248
-real gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[gsl_gaussQD_weight49,2248
-#define REDUCE_PARTICLE_DISTRIBUTION_MAP 54,2557
-static int ncrit;62,3327
-static const int NAllocUnit 64,3421
-#define NUM_ANALYTIC 70,3675
-#define NUM_HORIZONTAL_BIN 71,3702
-  ulong head,75,3827
-  ulong head, num;75,3827
-  real *rad,rad77,3954
-  real *rad, *rho,rho77,3954
-  real *rad, *rho, *enc;enc77,3954
-  real *psi;psi80,4110
-  double disk_Rd,83,4366
-  double disk_Rd, disk_zd;83,4366
-  real *disk_radius,disk_radius84,4393
-  real *disk_radius, *disk_height,disk_height84,4393
-  real *disk_radius, *disk_height, *disk_azimuth,disk_azimuth84,4393
-  real *disk_radius, *disk_height, *disk_azimuth, *disk_rho,disk_rho84,4393
-  real *disk_radius, *disk_height, *disk_azimuth, *disk_rho, *disk_Sigma,disk_Sigma84,4393
-  real *disk_radius, *disk_height, *disk_azimuth, *disk_rho, *disk_Sigma, *disk_vol;disk_vol84,4393
-  real *disk_pot,disk_pot87,4714
-  real *disk_pot, *disk_sig;disk_sig87,4714
-  real *hor,hor91,4995
-  real *hor, *ver,ver91,4995
-  real *hor, *ver, *Sigma,Sigma91,4995
-  real *hor, *ver, *Sigma, *Menc;Menc91,4995
-  real *ver_pos[ver_pos92,5074
-  real *ver_pos[NUM_HORIZONTAL_BIN], *ver_rho[ver_rho92,5074
-  int nrad;93,5141
-  int disk_nrad,94,5187
-  int disk_nrad, disk_nazi,94,5187
-  int disk_nrad, disk_nazi, disk_nsph;94,5187
-  int prf_head,95,5283
-  int prf_head, prf_num;95,5283
-  int prf_hor_head,96,5357
-  int prf_hor_head, prf_hor_num;96,5357
-  int prf_ver_head[prf_ver_head97,5443
-  int prf_ver_head[NUM_HORIZONTAL_BIN], prf_ver_num[prf_ver_num97,5443
-} model;98,5567
-  ulong idx;102,5669
-  real  x,103,5682
-  real  x,  y,103,5682
-  real  x,  y,  z;103,5682
-  real vx,104,5701
-  real vx, vy,104,5701
-  real vx, vy, vz;104,5701
-  real ax,105,5720
-  real ax, ay,105,5720
-  real ax, ay, az;105,5720
-  real m,106,5739
-  real m, pot;106,5739
-} nbody_particle;107,5754
-static inline void allocProfileArray(112,5926
-static inline void enlargeProfileArray(128,6713
-static inline void allocDecomposedProfileArray(147,7577
-static inline void enlargeDecomposedProfileArray(169,8590
-int idxAscendingOrder(200,9925
-int radAscendingOrder(213,10644
-int horAscendingOrder(226,11357
-int verAscendingOrder(239,12070
-static inline int bisec(295,15110
-static inline void findIdx(318,16283
-static inline void getInterpolatedDensity(341,17642
-void gaussQuadVertical(361,18857
-real R_rhor(401,20858
-static inline real _gaussQuad2d(413,21446
-real gaussQuad2d(433,22678
-int main(455,23883
-void plotDistributionMaps1476,85299
-void plotRadialProfile1812,101247
-void plotHorizontalProfile2120,116740
-void plotVerticalProfile2556,138608
-void analyzeRadialProfile2813,151775
-void analyzeDecomposedProfile(2925,156674
-void integrateColumnDensity(3138,165873
+#define OUTPUT_BULK_MOTION19,1119
+#define OVERPLOT_INITIAL_DISKHEIGHT21,1222
+#define NMAX_GAUSS_QD 48,2227
+#define NTBL_GAUSS_QD 49,2254
+#define NINTBIN 50,2321
+real gsl_gaussQD_pos[gsl_gaussQD_pos51,2351
+real gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[gsl_gaussQD_weight51,2351
+#define REDUCE_PARTICLE_DISTRIBUTION_MAP 56,2660
+static int ncrit;64,3430
+static const int NAllocUnit 66,3524
+#define NUM_ANALYTIC 72,3778
+#define NUM_HORIZONTAL_BIN 73,3805
+  ulong head,77,3930
+  ulong head, num;77,3930
+  real *rad,rad79,4057
+  real *rad, *rho,rho79,4057
+  real *rad, *rho, *enc,enc79,4057
+  real *rad, *rho, *enc, *Sig;Sig79,4057
+  real *psi;psi82,4219
+  double disk_Rd,85,4475
+  double disk_Rd, disk_zd;85,4475
+  real *disk_radius,disk_radius86,4502
+  real *disk_radius, *disk_height,disk_height86,4502
+  real *disk_radius, *disk_height, *disk_azimuth,disk_azimuth86,4502
+  real *disk_radius, *disk_height, *disk_azimuth, *disk_rho,disk_rho86,4502
+  real *disk_radius, *disk_height, *disk_azimuth, *disk_rho, *disk_vol,disk_vol86,4502
+  real *disk_radius, *disk_height, *disk_azimuth, *disk_rho, *disk_vol, *disk_rad1d,disk_rad1d86,4502
+  real *disk_radius, *disk_height, *disk_azimuth, *disk_rho, *disk_vol, *disk_rad1d, *disk_Sigma;disk_Sigma86,4502
+  real *disk_pot,disk_pot89,4836
+  real *disk_pot, *disk_sig;disk_sig89,4836
+  real *hor,hor93,5117
+  real *hor, *ver,ver93,5117
+  real *hor, *ver, *Sigma,Sigma93,5117
+  real *hor, *ver, *Sigma, *Menc;Menc93,5117
+  real *ver_pos[ver_pos94,5196
+  real *ver_pos[NUM_HORIZONTAL_BIN], *ver_rho[ver_rho94,5196
+  int nrad;95,5263
+  int disk_nrad,96,5309
+  int disk_nrad, disk_nazi,96,5309
+  int disk_nrad, disk_nazi, disk_nsph;96,5309
+  int prf_head,97,5405
+  int prf_head, prf_num;97,5405
+  int prf_hor_head,98,5479
+  int prf_hor_head, prf_hor_num;98,5479
+  int prf_ver_head[prf_ver_head99,5565
+  int prf_ver_head[NUM_HORIZONTAL_BIN], prf_ver_num[prf_ver_num99,5565
+} model;100,5689
+  ulong idx;104,5791
+  real  x,105,5804
+  real  x,  y,105,5804
+  real  x,  y,  z;105,5804
+  real vx,106,5823
+  real vx, vy,106,5823
+  real vx, vy, vz;106,5823
+  real ax,107,5842
+  real ax, ay,107,5842
+  real ax, ay, az;107,5842
+  real m,108,5861
+  real m, pot;108,5861
+} nbody_particle;109,5876
+static inline void allocProfileArray(114,6048
+static inline void enlargeProfileArray(130,6835
+static inline void allocDecomposedProfileArray(149,7699
+static inline void enlargeDecomposedProfileArray(171,8712
+int idxAscendingOrder(202,10047
+int radAscendingOrder(215,10766
+int horAscendingOrder(228,11479
+int verAscendingOrder(241,12192
+static inline int bisec4nested(297,15232
+static inline int bisec(329,16970
+static inline void findIdx(352,18143
+static inline void getInterpolatedDensity(375,19502
+void gaussQuadVertical(395,20717
+real R_rhor(435,22718
+static inline real _gaussQuad2d(447,23306
+real gaussQuad2d(467,24538
+int main(489,25743
+void plotDistributionMaps1659,95199
+void plotRadialProfile1995,111147
+void plotHorizontalProfile2303,126640
+void plotVerticalProfile2739,148508
+void analyzeRadialProfile2996,161675
+void analyzeDecomposedProfile(3108,166574
+void integrateColumnDensity(3321,175773
 
 src/plot/plot.ndep.c,518
 #define LINE_ONLY_PLOT23,1162

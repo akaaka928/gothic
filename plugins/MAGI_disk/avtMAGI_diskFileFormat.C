@@ -40,6 +40,7 @@
 //                            avtMAGI_diskFileFormat.C                           //
 // ************************************************************************* //
 
+
 #include <avtMAGI_diskFileFormat.h>
 
 #include <string>
@@ -50,8 +51,11 @@
 #include <vtkStructuredGrid.h>
 #include <vtkUnstructuredGrid.h>
 
+#define SET_DOMAIN_BOUNDARY
 #include <avtDatabaseMetaData.h>
+#ifdef  SET_DOMAIN_BOUNDARY
 #include <avtStructuredDomainBoundaries.h>
+#endif//SET_DOMAIN_BOUNDARY
 #include <avtStructuredDomainNesting.h>
 #include <avtVariableCache.h>
 
@@ -231,9 +235,11 @@ avtMAGI_diskFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
       levelCSset[lev] = false;
     }// for(int lev = 0; lev < nLevels; lev++){
 
+#ifdef  SET_DOMAIN_BOUNDARY
     // create ratios for avtRectilinearDomainBoundaries
     avtStructuredDomainBoundaries *sdb = new avtRectilinearDomainBoundaries(true);
     sdb->SetNumDomains(nBlocks);
+#endif//SET_DOMAIN_BOUNDARY
 
     // fill in metadata, domain nesting, and domain boundaries by reading the target file
     std::vector<int>                groupIds(nBlocks);
@@ -260,6 +266,9 @@ avtMAGI_diskFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
       chkHDF5err(H5Aread(attribute, H5T_NATIVE_DOUBLE, width));
       chkHDF5err(H5Aclose(attribute));
       chkHDF5err(H5Gclose(patch));
+
+      // for(int kk = 0; kk < nDims; kk++)
+      // 	ijk_num[kk]++;
 
       for(int kk = 0; kk < nDims; kk++)
       	ijk_tail[kk] = ijk_head[kk] + ijk_num[kk] - 1;
@@ -290,6 +299,7 @@ avtMAGI_diskFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
       	  childPatches.push_back(cidx);
       dn->SetNestingForDomain(bidx, level, childPatches, logicalExtents);
 
+#ifdef  SET_DOMAIN_BOUNDARY
       // fill in avtRectilinearDomainBoundaries
       int *boundary = new int[nDims * 2];
       for(int jj = 0; jj < nDims; jj++){
@@ -298,6 +308,7 @@ avtMAGI_diskFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
       }// for(int jj = 0; jj < nDims; jj++){
       sdb->SetIndicesForAMRPatch(bidx, level, boundary);
       delete [] boundary;
+#endif//SET_DOMAIN_BOUNDARY
 
     }// for(int bidx = 0; bidx < nBlocks; bidx++){
 
@@ -305,9 +316,11 @@ avtMAGI_diskFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
     void_ref_ptr vr = void_ref_ptr(dn, avtStructuredDomainNesting::Destruct);
     cache->CacheVoidRef(meshname.c_str(), AUXILIARY_DATA_DOMAIN_NESTING_INFORMATION, timestep, -1, vr);
 
+#ifdef  SET_DOMAIN_BOUNDARY
     sdb->CalculateBoundaries();
     void_ref_ptr vsdb = void_ref_ptr(sdb, avtStructuredDomainBoundaries::Destruct);
     cache->CacheVoidRef("any_mesh", AUXILIARY_DATA_DOMAIN_BOUNDARY_INFORMATION, timestep, -1, vsdb);
+#endif//SET_DOMAIN_BOUNDARY
 
     // AMR mesh metadata
     mmd->groupOrigin = 0;    mmd->groupTitle =  "Levels";    mmd->groupPieceName = "level";    mmd->groupIds   = groupIds;

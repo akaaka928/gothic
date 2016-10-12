@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/05/08(Sun) 17:22:49
+                  last updated on 2016/10/11(Tue) 17:01:35
  *                                                                       *
  *    Plot Code of Elapsed time of Tree code                             *
  *                                                                       *
@@ -130,9 +130,9 @@ int main(int argc, char **argv)
   real  *ball;  ball = (real  *)malloc((size_t) NKIND      * (size_t)Ntot * (size_t)4 * sizeof( real));
   PLFLT * rad;  rad  = (PLFLT *)malloc((size_t) NKIND      * (size_t)Ntot             * sizeof(PLFLT));
   PLFLT *rate;  rate = (PLFLT *)malloc((size_t)(NKIND - 1) * (size_t)Ntot             * sizeof(PLFLT));
-  if( ball == NULL ){    __KILL__(stderr, "ERROR: failure to allocate ball");  }
-  if(  rad == NULL ){    __KILL__(stderr, "ERROR: failure to allocate  rad");  }
-  if( rate == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rate");  }
+  if( ball == NULL ){    __KILL__(stderr, "ERROR: failure to allocate ball\n");  }
+  if(  rad == NULL ){    __KILL__(stderr, "ERROR: failure to allocate  rad\n");  }
+  if( rate == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rate\n");  }
   //-----------------------------------------------------------------------
   /* read the properties of enclosing balls */
   for(int ii = 0; ii < NKIND; ii++){

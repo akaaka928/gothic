@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/05(Fri) 14:58:38
+                  last updated on 2016/10/11(Tue) 17:09:13
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -88,7 +88,7 @@ muse configLETtopology(domainInfo **info, position **ipos,
   *Nstream = NBLOCKS_PER_SM * gpu.numSM;
   *stream = (cudaStream_t *)malloc((*Nstream) * sizeof(cudaStream_t));
   alloc.host +=                    (*Nstream) * sizeof(cudaStream_t);
-  if( *stream == NULL ){    __KILL__(stderr, "ERROR: failure to allocate stream");  }
+  if( *stream == NULL ){    __KILL__(stderr, "ERROR: failure to allocate stream\n");  }
 #   if  GPUVER >= 35
   int highest, lowest;
   checkCudaErrors(cudaDeviceGetStreamPriorityRange(&lowest, &highest));

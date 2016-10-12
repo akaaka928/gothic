@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/10(Wed) 16:01:32
+                  last updated on 2016/10/11(Tue) 17:09:32
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -92,7 +92,7 @@ muse setCUDAstreams_dev(cudaStream_t **stream, kernelStream *sinfo, deviceInfo *
   sinfo->num = 2;
   //-----------------------------------------------------------------------
   /* allocate array for CUDA streams */
-  *stream = (cudaStream_t *)malloc((size_t)(sinfo->num) * sizeof(cudaStream_t));  if( *stream == NULL ){    __KILL__(stderr, "ERROR: failure to allocate stream");  }
+  *stream = (cudaStream_t *)malloc((size_t)(sinfo->num) * sizeof(cudaStream_t));  if( *stream == NULL ){    __KILL__(stderr, "ERROR: failure to allocate stream\n");  }
   alloc.host +=                    (size_t)(sinfo->num) * sizeof(cudaStream_t) ;
   sinfo->stream = *stream;
   //-----------------------------------------------------------------------

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/05(Wed) 10:58:17
+                  last updated on 2016/10/11(Tue) 16:55:09
  *                                                                       *
  *    MAGI: "MAny-component Galactic Initial-conditions" generator       *
  *    Making Initial Condition Code of N-body Simulation                 *
@@ -86,6 +86,19 @@ static inline void isotropicDistribution(const real rad, real *vecx, real *vecy,
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+#ifdef __ICC
+/* Disable ICC's remark #869: parameter "hoge" was never referenced */
+#     pragma warning (disable:869)
+#endif//__ICC
+bool isInnerParticle4spherical(const double x2, const double y2, const double z2, const double rmax2, const double zmax2);
+bool isInnerParticle4disk     (const double x2, const double y2, const double z2, const double Rmax2, const double zmax2);
+bool isInnerParticle4spherical(const double x2, const double y2, const double z2, const double rmax2, const double zmax2){  return ((x2 + y2 + z2) < rmax2);}
+bool isInnerParticle4disk     (const double x2, const double y2, const double z2, const double Rmax2, const double zmax2){  return (((x2 + y2) < Rmax2) && (z2 < zmax2));}
+#ifdef __ICC
+/* Disable ICC's remark #869: parameter "hoge" was never referenced */
+#     pragma warning ( enable:869)
+#endif//__ICC
+//-------------------------------------------------------------------------
 void shiftCenter(const ulong num, const ulong head, iparticle body, const profile_cfg cfg);
 void shiftCenter(const ulong num, const ulong head, iparticle body, const profile_cfg cfg)
 {
@@ -100,16 +113,19 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
   double vel[3] = {0.0, 0.0, 0.0};
   double Mtot = 0.0;
   //-----------------------------------------------------------------------
-  const double rmax2 = 25.0 * cfg.rs * cfg.rs;/* use particles within 5 rs */
-  const double zmax2 = 25.0 * ((cfg.kind < 0) ? (cfg.zd * cfg.zd) : (cfg.rs * cfg.rs));
+  /* use particles (r < 3 rs            ) for spherical components */
+  /* use particles (R < 3 Rd, |z| < 3 zd) for      disk components */
+  const double rmax2 = 9.0 * cfg.rs * cfg.rs;
+  const double zmax2 = 9.0 * ((cfg.kind < 0) ? (cfg.zd * cfg.zd) : (cfg.rs * cfg.rs));
+  bool (*isInnerParticle)(double, double, double, double, double) = (cfg.kind < 0) ? isInnerParticle4disk : isInnerParticle4spherical;
   //-----------------------------------------------------------------------
   for(ulong ii = head; ii < head + num; ii++){
     //---------------------------------------------------------------------
     const double xx = (double)body.pos[ii].x;
     const double yy = (double)body.pos[ii].y;
-    const double zz = (double)body.pos[ii].z;    const double z2 = zz * zz;
+    const double zz = (double)body.pos[ii].z;
     //---------------------------------------------------------------------
-    if( ((z2 + yy * yy + xx * xx) < rmax2) && (z2 < zmax2) ){
+    if( isInnerParticle(xx * xx, yy * yy, zz * zz, rmax2, zmax2) ){
       //-------------------------------------------------------------------
       const double mass = (double)body.pos[ii].m;
       Mtot   += mass;
@@ -127,7 +143,7 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
       vel[2] += mass * (double)body.vz[ii];
 #endif//BLOCK_TIME_STEP
       //-------------------------------------------------------------------
-    }/* if( ((z2 + yy * yy + xx * xx) < rmax2) && (z2 < zmax2) ){ */
+    }/* if( isInnerParticle(xx * xx, yy * yy, zz * zz, rmax2, zmax2) ){ */
     //---------------------------------------------------------------------
   }/* for(ulong ii = head; ii < head + num; ii++){ */
   //-----------------------------------------------------------------------
@@ -146,8 +162,13 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
   //-----------------------------------------------------------------------
   /* shift the coordinate system to the center-of-mass rest frame */
   //-----------------------------------------------------------------------
+#if 1
   const real rcom[3] = {(real)com[0], (real)com[1], (real)com[2]};
   const real rvel[3] = {(real)vel[0], (real)vel[1], (real)vel[2]};
+#else
+  const real rcom[3] = {ZERO, ZERO, ZERO};
+  const real rvel[3] = {ZERO, ZERO, ZERO};
+#endif
 #pragma omp parallel for
   for(ulong ii = head; ii < head + num; ii++){
     //---------------------------------------------------------------------
@@ -178,34 +199,48 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
   double amom[3] = {0.0, 0.0, 0.0};
   for(ulong ii = head; ii < head + num; ii++){
     //---------------------------------------------------------------------
-    const double mass = (double)body.pos[ii].m;
-    //---------------------------------------------------------------------
     const double rx = (double)body.pos[ii].x;
     const double ry = (double)body.pos[ii].y;
     const double rz = (double)body.pos[ii].z;
-#ifdef  BLOCK_TIME_STEP
-    const double px = (double)body.vel[ii].x * mass;
-    const double py = (double)body.vel[ii].y * mass;
-    const double pz = (double)body.vel[ii].z * mass;
-#else///BLOCK_TIME_STEP
-    const double px = (double)body.vx[ii] * mass;
-    const double py = (double)body.vy[ii] * mass;
-    const double pz = (double)body.vz[ii] * mass;
-#endif//BLOCK_TIME_STEP
     //---------------------------------------------------------------------
-    amom[0] += ry * pz - rz * py;
-    amom[1] += rz * px - rx * pz;
-    amom[2] += rx * py - ry * px;
+    if( isInnerParticle(rx * rx, ry * ry, rz * rz, rmax2, zmax2) ){
+      //-------------------------------------------------------------------
+      const double mass = (double)body.pos[ii].m;
+      //-------------------------------------------------------------------
+#ifdef  BLOCK_TIME_STEP
+      const double px = (double)body.vel[ii].x * mass;
+      const double py = (double)body.vel[ii].y * mass;
+      const double pz = (double)body.vel[ii].z * mass;
+#else///BLOCK_TIME_STEP
+      const double px = (double)body.vx[ii] * mass;
+      const double py = (double)body.vy[ii] * mass;
+      const double pz = (double)body.vz[ii] * mass;
+#endif//BLOCK_TIME_STEP
+      //-------------------------------------------------------------------
+      amom[0] += ry * pz - rz * py;
+      amom[1] += rz * px - rx * pz;
+      amom[2] += rx * py - ry * px;
+      //-------------------------------------------------------------------
+    }/* if( isInnerParticle(rx * rx, ry * ry, rz * rz, rmax2, zmax2) ){ */
     //---------------------------------------------------------------------
   }/* for(ulong ii = head; ii < head + num; ii++){ */
   //-----------------------------------------------------------------------
   /* rotate galaxy (if necessary) */
   //-----------------------------------------------------------------------
+#if 1
   const double L2 = amom[0] * amom[0] + amom[1] * amom[1] + amom[2] * amom[2];
-  if( L2 > 1.0e-10 ){
+#else
+  const double L2 = 1.0;
+#endif
+  if( L2 > 1.0e-6 ){
     //---------------------------------------------------------------------
+#if 1
     real ini[3] = {(real)amom[0], (real)amom[1], (real)amom[2]};
     real fin[3] = {ZERO, ZERO, UNITY};
+#else
+    real ini[3] = {ZERO, ZERO, UNITY};
+    real fin[3] = {ZERO, UNITY, ZERO};
+#endif
     //---------------------------------------------------------------------
     real rot[3][3], inv[3][3];
     initRotationMatrices(ini, fin, rot, inv);
@@ -247,7 +282,7 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
       //-------------------------------------------------------------------
     }/* for(ulong ii = head; ii < head + num; ii++){ */
     //---------------------------------------------------------------------
-  }/* if( L2 > 1.0e-10 ){ */
+  }/* if( L2 > 1.0e-6 ){ */
   //-----------------------------------------------------------------------
 #endif//RESET_ROTATION_AXIS
   //-----------------------------------------------------------------------
@@ -551,8 +586,8 @@ int main(int argc, char **argv)
   /* memory allocation for spherical component(s) */
   profile **prf, *_prf;
   /* 2 * 2 bins are added in the both edge */
-  _prf = (profile  *)malloc(sizeof(profile  ) * kind * (4 + NRADBIN));  if( _prf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _prf");  }
-  prf  = (profile **)malloc(sizeof(profile *) * kind                );  if(  prf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate  prf");  }
+  _prf = (profile  *)malloc(sizeof(profile  ) * kind * (4 + NRADBIN));  if( _prf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _prf\n");  }
+  prf  = (profile **)malloc(sizeof(profile *) * kind                );  if(  prf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate  prf\n");  }
   for(int ii = 0; ii < kind; ii++)
     prf[ii] = _prf + ii * (4 + NRADBIN);
 #pragma omp parallel for
@@ -701,8 +736,8 @@ int main(int argc, char **argv)
   //-----------------------------------------------------------------------
   /* integrate Eddington's formula numerically */
   dist_func **fene, *_fene;
-  _fene = (dist_func  *)malloc(sizeof(dist_func  ) * skind * NENEBIN);  if( _fene == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _fene");  }
-  fene  = (dist_func **)malloc(sizeof(dist_func *) * skind          );  if(  fene == NULL ){    __KILL__(stderr, "ERROR: failure to allocate  fene");  }
+  _fene = (dist_func  *)malloc(sizeof(dist_func  ) * skind * NENEBIN);  if( _fene == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _fene\n");  }
+  fene  = (dist_func **)malloc(sizeof(dist_func *) * skind          );  if(  fene == NULL ){    __KILL__(stderr, "ERROR: failure to allocate  fene\n");  }
   for(int ii = 0; ii < skind; ii++)
     fene[ii] = _fene + ii * NENEBIN;
   integrateEddingtonFormula(skind, prf, fene);
@@ -1171,14 +1206,14 @@ void outputFundamentalInformation
   //-----------------------------------------------------------------------
   /* output fundamental profile of the particle distribution */
   //-----------------------------------------------------------------------
-  real *tmp_rad;  tmp_rad = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_rad == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_rad");  }
-  real *tmp_rho;  tmp_rho = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_rho == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_rho");  }
-  real *tmp_enc;  tmp_enc = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_enc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_enc");  }
-  real *tmp_psi;  tmp_psi = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_psi == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_psi");  }
-  real *tmp_tff;  tmp_tff = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_tff == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_tff");  }
-  real *tmp_t2r;  tmp_t2r = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_t2r == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_t2r");  }
+  real *tmp_rad;  tmp_rad = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_rad == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_rad\n");  }
+  real *tmp_rho;  tmp_rho = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_rho == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_rho\n");  }
+  real *tmp_enc;  tmp_enc = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_enc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_enc\n");  }
+  real *tmp_psi;  tmp_psi = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_psi == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_psi\n");  }
+  real *tmp_tff;  tmp_tff = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_tff == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_tff\n");  }
+  real *tmp_t2r;  tmp_t2r = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_t2r == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_t2r\n");  }
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
-  real *tmp_Sig;  tmp_Sig = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_Sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_Sig");  }
+  real *tmp_Sig;  tmp_Sig = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_Sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_Sig\n");  }
 #endif//MAKE_COLUMN_DENSITY_PROFILE
   //-----------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
@@ -1440,8 +1475,8 @@ void outputFundamentalInformation
   //-----------------------------------------------------------------------
   /* output distribution function of the particle distribution */
   //-----------------------------------------------------------------------
-  real *tmp_ene;  tmp_ene = (real *)malloc(NENEBIN * sizeof(real));  if( tmp_ene == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_ene");  }
-  real *tmp_val;  tmp_val = (real *)malloc(NENEBIN * sizeof(real));  if( tmp_val == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_val");  }
+  real *tmp_ene;  tmp_ene = (real *)malloc(NENEBIN * sizeof(real));  if( tmp_ene == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_ene\n");  }
+  real *tmp_val;  tmp_val = (real *)malloc(NENEBIN * sizeof(real));  if( tmp_val == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_val\n");  }
   //-----------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
   /* create a new file (if the file already exists, the file is opened with read-write access, new data will overwrite any existing data) */
@@ -1705,43 +1740,43 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
   //-----------------------------------------------------------------------
   /* arrays for 2D-plot */
 #ifdef  USE_HDF5_FORMAT
-  real *node_RR;  node_RR = (real *)malloc((NDISKBIN_HOR + 1) * sizeof(real));  if( node_RR == NULL ){    __KILL__(stderr, "ERROR: failure to allocate node_RR");  }
-  real *node_zz;  node_zz = (real *)malloc((NDISKBIN_VER + 1) * sizeof(real));  if( node_zz == NULL ){    __KILL__(stderr, "ERROR: failure to allocate node_zz");  }
+  real *node_RR;  node_RR = (real *)malloc((NDISKBIN_HOR + 1) * sizeof(real));  if( node_RR == NULL ){    __KILL__(stderr, "ERROR: failure to allocate node_RR\n");  }
+  real *node_zz;  node_zz = (real *)malloc((NDISKBIN_VER + 1) * sizeof(real));  if( node_zz == NULL ){    __KILL__(stderr, "ERROR: failure to allocate node_zz\n");  }
 #endif//USE_HDF5_FORMAT
-  real *tmp_rho;  tmp_rho = (real *)malloc(NDISKBIN_HOR * NDISKBIN_VER * sizeof(real));  if( tmp_rho == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_rho");  }
-  real *rhoFrac;  rhoFrac = (real *)malloc(NDISKBIN_HOR * NDISKBIN_VER * sizeof(real));  if( rhoFrac == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rhoFrac");  }
-  real *tmp_Phi;  tmp_Phi = (real *)malloc(NDISKBIN_HOR * NDISKBIN_VER * sizeof(real));  if( tmp_Phi == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_Phi");  }
+  real *tmp_rho;  tmp_rho = (real *)malloc(NDISKBIN_HOR * NDISKBIN_VER * sizeof(real));  if( tmp_rho == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_rho\n");  }
+  real *rhoFrac;  rhoFrac = (real *)malloc(NDISKBIN_HOR * NDISKBIN_VER * sizeof(real));  if( rhoFrac == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rhoFrac\n");  }
+  real *tmp_Phi;  tmp_Phi = (real *)malloc(NDISKBIN_HOR * NDISKBIN_VER * sizeof(real));  if( tmp_Phi == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_Phi\n");  }
   //-----------------------------------------------------------------------
   /* arrays for 1D-plot */
 #ifdef  USE_HDF5_FORMAT
-  real *tmp_ver;  tmp_ver = (real *)malloc((NDISKBIN_VER >> 1) * (maxLev + 1) * sizeof(real));  if( tmp_ver == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_ver");  }
-  real *tmp_hor;  tmp_hor = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( tmp_hor == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_hor");  }
-  real *tmp_sig;  tmp_sig = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( tmp_sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_sig");  }
-  real *tmp_Sig;  tmp_Sig = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( tmp_Sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_Sig");  }
-  real *_vcirc ;  _vcirc  = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _vcirc  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _vcirc" );  }
-  real *_sigmap;  _sigmap = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _sigmap == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _sigmap");  }
-  real *_sigmaR;  _sigmaR = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _sigmaR == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _sigmaR");  }
-  real *_kappa ;  _kappa  = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _kappa  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _kappa" );  }
-  real *_Omega ;  _Omega  = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _Omega  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _Omega" );  }
-  real *_lambda;  _lambda = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _lambda == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _lambda");  }
-  real *_toomre;  _toomre = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _toomre == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _toomre");  }
+  real *tmp_ver;  tmp_ver = (real *)malloc((NDISKBIN_VER >> 1) * (maxLev + 1) * sizeof(real));  if( tmp_ver == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_ver\n");  }
+  real *tmp_hor;  tmp_hor = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( tmp_hor == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_hor\n");  }
+  real *tmp_sig;  tmp_sig = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( tmp_sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_sig\n");  }
+  real *tmp_Sig;  tmp_Sig = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( tmp_Sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_Sig\n");  }
+  real *_vcirc ;  _vcirc  = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _vcirc  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _vcirc\n" );  }
+  real *_sigmap;  _sigmap = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _sigmap == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _sigmap\n");  }
+  real *_sigmaR;  _sigmaR = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _sigmaR == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _sigmaR\n");  }
+  real *_kappa ;  _kappa  = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _kappa  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _kappa\n" );  }
+  real *_Omega ;  _Omega  = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _Omega  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _Omega\n" );  }
+  real *_lambda;  _lambda = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _lambda == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _lambda\n");  }
+  real *_toomre;  _toomre = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( _toomre == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _toomre\n");  }
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-  real *tmp__zd;  tmp__zd = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( tmp__zd == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp__zd");  }
+  real *tmp__zd;  tmp__zd = (real *)malloc((NDISKBIN_HOR >> 1) * (maxLev + 1) * sizeof(real));  if( tmp__zd == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp__zd\n");  }
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
 #else///USE_HDF5_FORMAT
-  real *tmp_ver;  tmp_ver = (real *)malloc(NDISKBIN_VER * sizeof(real));  if( tmp_ver == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_ver");  }
-  real *tmp_hor;  tmp_hor = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( tmp_hor == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_hor");  }
-  real *tmp_sig;  tmp_sig = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( tmp_sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_sig");  }
-  real *tmp_Sig;  tmp_Sig = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( tmp_Sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_Sig");  }
-  real *_vcirc ;  _vcirc  = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _vcirc  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _vcirc" );  }
-  real *_sigmap;  _sigmap = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _sigmap == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _sigmap");  }
-  real *_sigmaR;  _sigmaR = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _sigmaR == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _sigmaR");  }
-  real *_kappa ;  _kappa  = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _kappa  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _kappa" );  }
-  real *_Omega ;  _Omega  = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _Omega  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _Omega" );  }
-  real *_lambda;  _lambda = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _lambda == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _lambda");  }
-  real *_toomre;  _toomre = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _toomre == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _toomre");  }
+  real *tmp_ver;  tmp_ver = (real *)malloc(NDISKBIN_VER * sizeof(real));  if( tmp_ver == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_ver\n");  }
+  real *tmp_hor;  tmp_hor = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( tmp_hor == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_hor\n");  }
+  real *tmp_sig;  tmp_sig = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( tmp_sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_sig\n");  }
+  real *tmp_Sig;  tmp_Sig = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( tmp_Sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_Sig\n");  }
+  real *_vcirc ;  _vcirc  = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _vcirc  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _vcirc\n" );  }
+  real *_sigmap;  _sigmap = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _sigmap == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _sigmap\n");  }
+  real *_sigmaR;  _sigmaR = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _sigmaR == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _sigmaR\n");  }
+  real *_kappa ;  _kappa  = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _kappa  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _kappa\n" );  }
+  real *_Omega ;  _Omega  = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _Omega  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _Omega\n" );  }
+  real *_lambda;  _lambda = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _lambda == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _lambda\n");  }
+  real *_toomre;  _toomre = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( _toomre == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _toomre\n");  }
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-  real *tmp__zd;  tmp__zd = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( tmp__zd == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp__zd");  }
+  real *tmp__zd;  tmp__zd = (real *)malloc(NDISKBIN_HOR * sizeof(real));  if( tmp__zd == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp__zd\n");  }
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
 #endif//USE_HDF5_FORMAT
   //-----------------------------------------------------------------------

@@ -167,12 +167,13 @@ avtMAGI_profileFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
   hid_t str4format = H5Tcopy(H5T_C_S1);
   const int charSize = 16;
   chkHDF5err(H5Tset_size(str4format, charSize));
-  char length_unit[charSize], density_unit[charSize], mass_unit[charSize], senergy_unit[charSize], time_unit[charSize];
-  attribute = H5Aopen(target,  "length_astro_unit_name", H5P_DEFAULT);  chkHDF5err(H5Aread(attribute, str4format,  length_unit));  chkHDF5err(H5Aclose(attribute));
-  attribute = H5Aopen(target, "density_astro_unit_name", H5P_DEFAULT);  chkHDF5err(H5Aread(attribute, str4format, density_unit));  chkHDF5err(H5Aclose(attribute));
-  attribute = H5Aopen(target,    "mass_astro_unit_name", H5P_DEFAULT);  chkHDF5err(H5Aread(attribute, str4format,    mass_unit));  chkHDF5err(H5Aclose(attribute));
-  attribute = H5Aopen(target, "senergy_astro_unit_name", H5P_DEFAULT);  chkHDF5err(H5Aread(attribute, str4format, senergy_unit));  chkHDF5err(H5Aclose(attribute));
-  attribute = H5Aopen(target,    "time_astro_unit_name", H5P_DEFAULT);  chkHDF5err(H5Aread(attribute, str4format,    time_unit));  chkHDF5err(H5Aclose(attribute));
+  char length_unit[charSize], density_unit[charSize], col_density_unit[charSize], mass_unit[charSize], senergy_unit[charSize], time_unit[charSize];
+  attribute = H5Aopen(target,      "length_astro_unit_name", H5P_DEFAULT);  chkHDF5err(H5Aread(attribute, str4format,      length_unit));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Aopen(target,     "density_astro_unit_name", H5P_DEFAULT);  chkHDF5err(H5Aread(attribute, str4format,     density_unit));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Aopen(target,        "mass_astro_unit_name", H5P_DEFAULT);  chkHDF5err(H5Aread(attribute, str4format,        mass_unit));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Aopen(target,     "senergy_astro_unit_name", H5P_DEFAULT);  chkHDF5err(H5Aread(attribute, str4format,     senergy_unit));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Aopen(target,        "time_astro_unit_name", H5P_DEFAULT);  chkHDF5err(H5Aread(attribute, str4format,        time_unit));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Aopen(target, "col_density_astro_unit_name", H5P_DEFAULT);  chkHDF5err(H5Aread(attribute, str4format, col_density_unit));  chkHDF5err(H5Aclose(attribute));
   chkHDF5err(H5Tclose(str4format));
   // close the target file
   chkHDF5err(H5Fclose(target));
@@ -203,6 +204,8 @@ avtMAGI_profileFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
     var << meshname << "/enc";    enc->name = var.str();    enc->units =    mass_unit;    md->Add(enc);    var.str("");
     avtScalarMetaData *psi = new avtScalarMetaData;    psi->meshName = meshname;    psi->centering = AVT_NODECENT;    psi->hasUnits = true;
     var << meshname << "/Psi";    psi->name = var.str();    psi->units = senergy_unit;    md->Add(psi);    var.str("");
+    avtScalarMetaData *Sig = new avtScalarMetaData;    Sig->meshName = meshname;    Sig->centering = AVT_NODECENT;    Sig->hasUnits = true;
+    var << meshname << "/Sigma";    Sig->name = var.str();    Sig->units = col_density_unit;    md->Add(Sig);    var.str("");
   }// for(int ii = 0; ii < kind; ii++){
 
   // set subgroup

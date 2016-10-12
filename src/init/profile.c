@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/03(Mon) 18:40:30
+                  last updated on 2016/10/11(Tue) 16:57:41
  *                                                                       *
  *    MAGI: "MAny-component Galactic Initial-conditions" generator       *
  *    Making Initial Condition Code of N-body Simulation                 *
@@ -633,7 +633,7 @@ void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg)
   /* read # of components */
   checker &= (1 == fscanf(fp, "%d", kind));
   //-----------------------------------------------------------------------
-  *cfg = (profile_cfg *)malloc(sizeof(profile_cfg) * (*kind));  if( *cfg == NULL ){    __KILL__(stderr, "ERROR: failure to allocate cfg");  }
+  *cfg = (profile_cfg *)malloc(sizeof(profile_cfg) * (*kind));  if( *cfg == NULL ){    __KILL__(stderr, "ERROR: failure to allocate cfg\n");  }
   for(int ii = 0; ii < *kind; ii++)
     checker &= (4 == fscanf(fp, "%d\t%s\t%d\t%zu", &(*cfg)[ii].kind, (*cfg)[ii].file, &(*cfg)[ii].forceNum, &(*cfg)[ii].num));
     /* checker &= (2 == fscanf(fp, "%d\t%s", &(*cfg)[ii].kind, (*cfg)[ii].file)); */
@@ -857,9 +857,9 @@ void calcColumnDensityProfile(const int skind, profile **prf, const double logrm
 #pragma omp parallel
   {
     //---------------------------------------------------------------------
-    double *sum;    sum = (double *)malloc(skind * sizeof(double));    if( sum == NULL ){      __KILL__(stderr, "ERROR: failure to allocate sum");    }
-    double *tfp;    tfp = (double *)malloc(skind * sizeof(double));    if( tfp == NULL ){      __KILL__(stderr, "ERROR: failure to allocate tfp");    }
-    double *tfm;    tfm = (double *)malloc(skind * sizeof(double));    if( tfm == NULL ){      __KILL__(stderr, "ERROR: failure to allocate tfm");    }
+    double *sum;    sum = (double *)malloc(skind * sizeof(double));    if( sum == NULL ){      __KILL__(stderr, "ERROR: failure to allocate sum\n");    }
+    double *tfp;    tfp = (double *)malloc(skind * sizeof(double));    if( tfp == NULL ){      __KILL__(stderr, "ERROR: failure to allocate tfp\n");    }
+    double *tfm;    tfm = (double *)malloc(skind * sizeof(double));    if( tfm == NULL ){      __KILL__(stderr, "ERROR: failure to allocate tfm\n");    }
     //---------------------------------------------------------------------
 #pragma omp for nowait
     for(int ii = 0; ii < 4 + NRADBIN; ii += 4){

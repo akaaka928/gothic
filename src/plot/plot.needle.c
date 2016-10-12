@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/05/31(Tue) 16:23:07
+                  last updated on 2016/10/12(Wed) 11:57:30
  *                                                                       *
  *    Plot Code of N-body Simulations (using PLplot)                     *
  *      Time Evolution of Spatial Distribution Maps                      *
@@ -53,6 +53,15 @@ typedef struct
   ulong head, num;/* data for N-body particles */
 } model;
 //-------------------------------------------------------------------------
+typedef struct
+{
+  ulong idx;
+  real  x,  y,  z;
+  real vx, vy, vz;
+  real ax, ay, az;
+  real m, pot;
+} nbody_particle;
+//-------------------------------------------------------------------------
 
 
 //-------------------------------------------------------------------------
@@ -64,12 +73,16 @@ typedef struct
 int idxAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   if(          ((nbody_particle *)a)->idx > ((nbody_particle *)b)->idx ){    return ( 1);  }
   else{    if( ((nbody_particle *)a)->idx < ((nbody_particle *)b)->idx ){    return (-1);  }
     else{                                                                    return ( 0);  }  }
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -124,8 +137,12 @@ int main(int argc, char **argv)
   double ft, snapshotInterval, saveInterval;
   readSettings(&unit, &Ntot, &eps, &eta, &ft, &snapshotInterval, &saveInterval, file0);
   nbody_particle *body0, *body1;
-  allocParticleDataAoS((int)Ntot, &body0);
-  allocParticleDataAoS((int)Ntot, &body1);
+  /* allocParticleDataAoS((int)Ntot, &body0); */
+  /* allocParticleDataAoS((int)Ntot, &body1); */
+  body0 = (nbody_particle *)malloc(sizeof(nbody_particle) * Ntot);
+  if( body0 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate body0\n");  }
+  body1 = (nbody_particle *)malloc(sizeof(nbody_particle) * Ntot);
+  if( body1 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate body1\n");  }
 #ifdef  USE_HDF5_FORMAT
   static hdf5struct hdf5type;
   createHDF5DataType(&hdf5type);
@@ -133,6 +150,24 @@ int main(int argc, char **argv)
   real *hdf5_pos, *hdf5_vel, *hdf5_acc, *hdf5_m, *hdf5_pot;
   ulong *hdf5_idx;
   allocSnapshotArray(&hdf5_pos, &hdf5_vel, &hdf5_acc, &hdf5_m, &hdf5_pot, &hdf5_idx, (int)Ntot, &hdf5);
+#else///USE_HDF5_FORMAT
+  iparticle ibody;
+  ulong *idx;
+  position *pos;
+  acceleration *acc;
+#ifdef  BLOCK_TIME_STEP
+  velocity *vel;
+  ibody_time *ti;
+#else///BLOCK_TIME_STEP
+  real *vx, *vy, *vz;
+#endif//BLOCK_TIME_STEP
+  allocParticleData((int)Ntot, &ibody, &idx, &pos, &acc,
+#ifdef  BLOCK_TIME_STEP
+		    &vel, &ti
+#else///BLOCK_TIME_STEP
+		    &vx, &vy, &vz
+#endif//BLOCK_TIME_STEP
+		    );
 #endif//USE_HDF5_FORMAT
   //-----------------------------------------------------------------------
 
@@ -217,7 +252,7 @@ int main(int argc, char **argv)
     fscanf(fp, "%*d");/* skip reading unit */
     fscanf(fp, "%d\t%d", &kind, &skind);
     group = (model *)malloc(kind * sizeof(model));
-    if( group == NULL ){      __KILL__(stderr, "ERROR: failure to allocate group");    }
+    if( group == NULL ){      __KILL__(stderr, "ERROR: failure to allocate group\n");    }
     for(int ii = 0; ii < kind; ii++)
       fscanf(fp, "%zu", &group[ii].num);
     //---------------------------------------------------------------------
@@ -228,7 +263,7 @@ int main(int argc, char **argv)
   if( !multi_group ){
     //---------------------------------------------------------------------
     group = (model *)malloc(kind * sizeof(model));
-    if( group == NULL ){      __KILL__(stderr, "ERROR: failure to allocate group");    }
+    if( group == NULL ){      __KILL__(stderr, "ERROR: failure to allocate group\n");    }
     //---------------------------------------------------------------------
     group[0].num = Ntot;
     //---------------------------------------------------------------------
@@ -255,7 +290,15 @@ int main(int argc, char **argv)
     //-------------------------------------------------------------------
   }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 #else///USE_HDF5_FORMAT
-  readSnapshot(&unit_read, &time, &steps, Ntot, body1, file1, (uint)filenum);
+  readSnapshot(&unit_read, &time, &steps, Ntot, ibody, file1, (uint)filenum);
+  for(int ii = 0; ii < (int)Ntot; ii++){
+    //-------------------------------------------------------------------
+    body1[ii]. x  = ibody.pos[ii].x;      body1[ii]. y = ibody.pos[ii].y;      body1[ii]. z  = ibody.pos[ii].z;
+    body1[ii].vx  = ibody.vel[ii].x;      body1[ii].vy = ibody.vel[ii].y;      body1[ii].vz  = ibody.vel[ii].z;
+    body1[ii].ax  = ibody.acc[ii].x;      body1[ii].ay = ibody.acc[ii].y;      body1[ii].az  = ibody.acc[ii].z;
+    body1[ii].idx = ibody.idx[ii]  ;      body1[ii]. m = ibody.pos[ii].m;      body1[ii].pot = ibody.acc[ii].pot;
+    //-------------------------------------------------------------------
+  }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 #endif//USE_HDF5_FORMAT
   if( unit_read != unit ){
     __KILL__(stderr, "ERROR: conflict about unit system detected (unit = %d, unit_read = %d)\n", unit, unit_read);
@@ -273,7 +316,15 @@ int main(int argc, char **argv)
     //-------------------------------------------------------------------
   }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 #else///USE_HDF5_FORMAT
-  readSnapshot(&unit_read, &time, &steps, Ntot, body0, file0, (uint)filenum);
+  readSnapshot(&unit_read, &time, &steps, Ntot, ibody, file0, (uint)filenum);
+  for(int ii = 0; ii < (int)Ntot; ii++){
+    //-------------------------------------------------------------------
+    body0[ii]. x  = ibody.pos[ii].x;      body0[ii]. y = ibody.pos[ii].y;      body0[ii]. z  = ibody.pos[ii].z;
+    body0[ii].vx  = ibody.vel[ii].x;      body0[ii].vy = ibody.vel[ii].y;      body0[ii].vz  = ibody.vel[ii].z;
+    body0[ii].ax  = ibody.acc[ii].x;      body0[ii].ay = ibody.acc[ii].y;      body0[ii].az  = ibody.acc[ii].z;
+    body0[ii].idx = ibody.idx[ii]  ;      body0[ii]. m = ibody.pos[ii].m;      body0[ii].pot = ibody.acc[ii].pot;
+    //-------------------------------------------------------------------
+  }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 #endif//USE_HDF5_FORMAT
   if( unit_read != unit ){
     __KILL__(stderr, "ERROR: conflict about unit system detected (unit = %d, unit_read = %d)\n", unit, unit_read);
@@ -287,9 +338,16 @@ int main(int argc, char **argv)
 #ifdef  USE_HDF5_FORMAT
   removeHDF5DataType(hdf5type);
   freeSnapshotArray(hdf5_pos, hdf5_vel, hdf5_acc, hdf5_m, hdf5_pot, hdf5_idx);
+#else///USE_HDF5_FORMAT
+  freeParticleData(idx, pos, acc,
+#ifdef  BLOCK_TIME_STEP
+		    vel, ti
+#else///BLOCK_TIME_STEP
+		    vx, vy, vz
+#endif//BLOCK_TIME_STEP
+		    );
 #endif//USE_HDF5_FORMAT
-  freeParticleDataAoS(body0);
-  freeParticleDataAoS(body1);
+  free(body0);  free(body1);
   free(group);
   //-----------------------------------------------------------------------
 

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/04/20(Wed) 16:30:49
+                  last updated on 2016/10/11(Tue) 17:06:04
  *                                                                       *
  *    Plot Code of N-body Simulations (using PLplot)                     *
  *      Time Evolution of Spatial Distribution Maps                      *
@@ -354,7 +354,7 @@ int main(int argc, char **argv)
     fscanf(fp, "%*d");/* skip reading unit */
     fscanf(fp, "%d\t%d", &kind, &skind);
     group = (model *)malloc(kind * sizeof(model));
-    if( group == NULL ){      __KILL__(stderr, "ERROR: failure to allocate group");    }
+    if( group == NULL ){      __KILL__(stderr, "ERROR: failure to allocate group\n");    }
     for(int ii = 0; ii < kind; ii++)
       fscanf(fp, "%zu", &group[ii].num);
     //---------------------------------------------------------------------
@@ -365,7 +365,7 @@ int main(int argc, char **argv)
   if( !multi_group ){
     //---------------------------------------------------------------------
     group = (model *)malloc(kind * sizeof(model));
-    if( group == NULL ){      __KILL__(stderr, "ERROR: failure to allocate group");    }
+    if( group == NULL ){      __KILL__(stderr, "ERROR: failure to allocate group\n");    }
     //---------------------------------------------------------------------
     group[0].num = Ntot;
     //---------------------------------------------------------------------

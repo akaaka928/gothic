@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2016/10/03(Mon) 11:40:08
+# last updated on 2016/10/11(Tue) 10:25:00
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -22,7 +22,7 @@ DEBUG	:= -DNDEBUG
 #################################################################################################
 # Execution options
 MONITOR_ENERGY_ERROR	:= 1
-FORCE_SINGLE_GPU_RUN	:= 0
+FORCE_SINGLE_GPU_RUN	:= 1
 COMMUNICATION_VIA_HOST	:= 1
 CONSTRUCT_LET_ON_GPU	:= 1
 DIVERT_GEOMETRIC_CENTER	:= 1

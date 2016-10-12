@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/12(Fri) 11:03:46
+                  last updated on 2016/10/11(Tue) 16:55:40
  *                                                                       *
  *    Generate table of f'& f''from f using  Cubic Spline Interpolation  *
  *                                                                       *
@@ -122,8 +122,8 @@ void getInterpolatedDensityProfile(const int num, profile * restrict prf, double
   //-----------------------------------------------------------------------
   /* generate table for cubic spline interpolation */
   //-----------------------------------------------------------------------
-  double *bp;  bp = (double *)malloc(num * sizeof(double));  if( bp == NULL ){    __KILL__(stderr, "ERROR: failure to allocate bp");  }
-  double *f2;  f2 = (double *)malloc(num * sizeof(double));  if( f2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate f2");  }
+  double *bp;  bp = (double *)malloc(num * sizeof(double));  if( bp == NULL ){    __KILL__(stderr, "ERROR: failure to allocate bp\n");  }
+  double *f2;  f2 = (double *)malloc(num * sizeof(double));  if( f2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate f2\n");  }
   genCubicSpline1D(num, xx, ff, bp, fpl, fpr, f2);
   //-----------------------------------------------------------------------
 
@@ -179,8 +179,8 @@ void setDensityProfileTable(profile *prf, const double rs, char *file)
   if( 1 != fscanf(fp, "%d", &num) )    success = false;
   num += 2 * NPUT;
   //-----------------------------------------------------------------------
-  double *xx;  xx = (double *)malloc(num * sizeof(double));  if( xx == NULL ){    __KILL__(stderr, "ERROR: failure to allocate xx");  }
-  double *ff;  ff = (double *)malloc(num * sizeof(double));  if( ff == NULL ){    __KILL__(stderr, "ERROR: failure to allocate ff");  }
+  double *xx;  xx = (double *)malloc(num * sizeof(double));  if( xx == NULL ){    __KILL__(stderr, "ERROR: failure to allocate xx\n");  }
+  double *ff;  ff = (double *)malloc(num * sizeof(double));  if( ff == NULL ){    __KILL__(stderr, "ERROR: failure to allocate ff\n");  }
   //-----------------------------------------------------------------------
   for(int ii = NPUT; ii < num - NPUT; ii++)
     success &= (2 == fscanf(fp, "%le\t%le", &xx[ii], &ff[ii]));

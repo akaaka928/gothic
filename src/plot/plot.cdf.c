@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/12(Fri) 11:43:07
+                  last updated on 2016/10/12(Wed) 11:44:10
  *                                                                       *
  *    Plot Code of Cumulative distribution function for Tree code        *
  *                                                                       *
@@ -84,12 +84,16 @@ int idxAscendingOrder(const void *a, const void *b);
 int idxAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   if(          ((nbody_particle *)a)->idx > ((nbody_particle *)b)->idx ){    return ( 1);  }
   else{    if( ((nbody_particle *)a)->idx < ((nbody_particle *)b)->idx ){    return (-1);  }
     else{                                                                    return ( 0);  }  }
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -143,26 +147,26 @@ int main(int argc, char **argv)
   acceleration *accBuf;  accBuf = (acceleration *)malloc(sizeof(acceleration) * (size_t)Ntot);
   acceleration *direct;  direct = (acceleration *)malloc(sizeof(acceleration) * (size_t)Ntot);
   acceleration *octree;  octree = (acceleration *)malloc(sizeof(acceleration) * (size_t)Ntot);
-  if( index  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate  index");  }
-  if( accBuf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate accBuf");  }
-  if( direct == NULL ){    __KILL__(stderr, "ERROR: failure to allocate direct");  }
-  if( octree == NULL ){    __KILL__(stderr, "ERROR: failure to allocate octree");  }
+  if( index  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate  index\n");  }
+  if( accBuf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate accBuf\n");  }
+  if( direct == NULL ){    __KILL__(stderr, "ERROR: failure to allocate direct\n");  }
+  if( octree == NULL ){    __KILL__(stderr, "ERROR: failure to allocate octree\n");  }
   //-----------------------------------------------------------------------
-  double *potErr;  potErr = (double *)malloc(sizeof(double) * (size_t)Ntot);  if( potErr == NULL ){    __KILL__(stderr, "ERROR: failure to allocate potErr");  }
-  double *grvErr;  grvErr = (double *)malloc(sizeof(double) * (size_t)Ntot);  if( grvErr == NULL ){    __KILL__(stderr, "ERROR: failure to allocate grvErr");  }
-  double *accErr;  accErr = (double *)malloc(sizeof(double) * (size_t)Ntot);  if( accErr == NULL ){    __KILL__(stderr, "ERROR: failure to allocate accErr");  }
+  double *potErr;  potErr = (double *)malloc(sizeof(double) * (size_t)Ntot);  if( potErr == NULL ){    __KILL__(stderr, "ERROR: failure to allocate potErr\n");  }
+  double *grvErr;  grvErr = (double *)malloc(sizeof(double) * (size_t)Ntot);  if( grvErr == NULL ){    __KILL__(stderr, "ERROR: failure to allocate grvErr\n");  }
+  double *accErr;  accErr = (double *)malloc(sizeof(double) * (size_t)Ntot);  if( accErr == NULL ){    __KILL__(stderr, "ERROR: failure to allocate accErr\n");  }
   //-----------------------------------------------------------------------
-  PLFLT *cdf;  cdf = (PLFLT *)malloc(sizeof(PLFLT) * (size_t)Ntot);  if( cdf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate cdf");  }
-  PLFLT *pot;  pot = (PLFLT *)malloc(sizeof(PLFLT) * (size_t)Ntot);  if( pot == NULL ){    __KILL__(stderr, "ERROR: failure to allocate pot");  }
-  PLFLT *grv;  grv = (PLFLT *)malloc(sizeof(PLFLT) * (size_t)Ntot);  if( grv == NULL ){    __KILL__(stderr, "ERROR: failure to allocate grv");  }
-  PLFLT *acc;  acc = (PLFLT *)malloc(sizeof(PLFLT) * (size_t)Ntot);  if( acc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate acc");  }
+  PLFLT *cdf;  cdf = (PLFLT *)malloc(sizeof(PLFLT) * (size_t)Ntot);  if( cdf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate cdf\n");  }
+  PLFLT *pot;  pot = (PLFLT *)malloc(sizeof(PLFLT) * (size_t)Ntot);  if( pot == NULL ){    __KILL__(stderr, "ERROR: failure to allocate pot\n");  }
+  PLFLT *grv;  grv = (PLFLT *)malloc(sizeof(PLFLT) * (size_t)Ntot);  if( grv == NULL ){    __KILL__(stderr, "ERROR: failure to allocate grv\n");  }
+  PLFLT *acc;  acc = (PLFLT *)malloc(sizeof(PLFLT) * (size_t)Ntot);  if( acc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate acc\n");  }
   //-----------------------------------------------------------------------
   double *percentage;
   allocPercentile(&percentage);
   //-----------------------------------------------------------------------
 #   if  defined(PRINT_VALUES) || defined(ERROR_DETECT)
   body = (nbody_particle *)malloc(sizeof(nbody_particle) * Ntot);
-  if( body == NULL ){    __KILL__(stderr, "ERROR: failure to allocate body");  }
+  if( body == NULL ){    __KILL__(stderr, "ERROR: failure to allocate body\n");  }
 #ifdef  USE_HDF5_FORMAT
   static hdf5struct hdf5type;
   createHDF5DataType(&hdf5type);
@@ -233,18 +237,9 @@ int main(int argc, char **argv)
     //---------------------------------------------------------------------
     double *potErrList, *grvErrList, *accErrList;
     if( lstNum == 1 ){
-      potErrList = (double *)malloc(sizeof(double) * (size_t)nfile * NSUMMARY);
-      grvErrList = (double *)malloc(sizeof(double) * (size_t)nfile * NSUMMARY);
-      accErrList = (double *)malloc(sizeof(double) * (size_t)nfile * NSUMMARY);
-      if( potErrList == NULL ){
-	__KILL__(stderr, "ERROR: failure to allocate potErrList");
-      }
-      if( grvErrList == NULL ){
-	__KILL__(stderr, "ERROR: failure to allocate grvErrList");
-      }
-      if( accErrList == NULL ){
-	__KILL__(stderr, "ERROR: failure to allocate accErrList");
-      }
+      potErrList = (double *)malloc(sizeof(double) * (size_t)nfile * NSUMMARY);      if( potErrList == NULL ){	__KILL__(stderr, "ERROR: failure to allocate potErrList\n");      }
+      grvErrList = (double *)malloc(sizeof(double) * (size_t)nfile * NSUMMARY);      if( grvErrList == NULL ){	__KILL__(stderr, "ERROR: failure to allocate grvErrList\n");      }
+      accErrList = (double *)malloc(sizeof(double) * (size_t)nfile * NSUMMARY);      if( accErrList == NULL ){	__KILL__(stderr, "ERROR: failure to allocate accErrList\n");      }
       for(int ii = 0; ii < nfile * NSUMMARY; ii++){
 	potErrList[ii] = 0.0;
 	grvErrList[ii] = 0.0;
@@ -996,12 +991,16 @@ int dblAscendingOrder(const void *a, const void *b);
 int dblAscendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   if(          (*((double *)a)) > (*((double *)b)) ){    return ( 1);  }
   else{    if( (*((double *)a)) < (*((double *)b)) ){    return (-1);  }
     else                                                 return ( 0);  }
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -1009,12 +1008,16 @@ int dblDescendingOrder(const void *a, const void *b);
 int dblDescendingOrder(const void *a, const void *b)
 {
   //-----------------------------------------------------------------------
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   if(          (*((double *)a)) < (*((double *)b)) ){    return ( 1);  }
   else{    if( (*((double *)a)) > (*((double *)b)) ){    return (-1);  }
     else                                                 return ( 0);  }
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
