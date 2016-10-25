@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2016/10/11(Tue) 10:25:00
+# last updated on 2016/10/24(Mon) 10:42:41
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -28,6 +28,7 @@ CONSTRUCT_LET_ON_GPU	:= 1
 DIVERT_GEOMETRIC_CENTER	:= 1
 CONSTRUCT_TREE_ON_GPU	:= 1
 ADOPT_BLOCK_TIME_STEP	:= 1
+ADOPT_VECTOR_ACC_MAC	:= 0
 ADOPT_GADGET_TYPE_MAC	:= 1
 ADOPT_WS93_TYPE_MAC	:= 1
 IJ_PARALLELIZED_WALK	:= 1
@@ -219,6 +220,15 @@ CCARG	+= -DBLOCK_TIME_STEP
 CUARG	+= -DBLOCK_TIME_STEP
 else
 ADAPTIVE_PHYEY_JUMP	:= 0
+endif
+#################################################################################################
+ifeq ($(ADOPT_VECTOR_ACC_MAC), 1)
+CCARG	+= -DYMIKI_MAC
+CUARG	+= -DYMIKI_MAC
+# YMIKI_MAC is very similar to GADGET MAC
+ADOPT_GADGET_TYPE_MAC	:= 1
+# LET generator for YMIKI_MAC is not yet implementated
+FORCE_SINGLE_GPU_RUN	:= 1
 endif
 #################################################################################################
 ifeq ($(ADOPT_GADGET_TYPE_MAC), 1)

@@ -1,6 +1,6 @@
 /************************************************************************* \
  *                                                                       *
-                  last updated on 2016/10/11(Tue) 16:59:37
+                  last updated on 2016/10/16(Sun) 16:49:49
  *                                                                       *
  *    N-body code based on Barnes--Hut tree                              *
  *                                                                       *
@@ -3016,7 +3016,11 @@ int main(int argc, char **argv)
     if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
     fprintf(fp, "%s\t%u\t%s\t%.13e\n", accfile, 1 + previous,
 #ifdef  GADGET_MAC
+#ifdef  YMIKI_MAC
+	    "VecAcc_MAC", absErr
+#else///YMIKI_MAC
 	    "GADGET2_MAC", absErr
+#endif//YMIKI_MAC
 #else///GADGET_MAC
 #ifdef  WS93_MAC
 	    "Multipole_MAC", accErr
@@ -3306,7 +3310,11 @@ int main(int argc, char **argv)
       static char filename[128];
       sprintf(filename, "%s/%s.%s.%s.cc%d.%zu.time.log", LOGFOLDER, file,
 #ifdef  GADGET_MAC
+#ifdef  YMIKI_MAC
+	      "vector_acc",
+#else///YMIKI_MAC
 	      "acceleration",
+#endif//YMIKI_MAC
 #else///GADGET_MAC
 #ifdef  WS93_MAC
 	      "multipole",

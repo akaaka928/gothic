@@ -1,4 +1,0 @@
-/home/ymiki/calculation/nbody/tree/plugins/MAGI_df/CMakeFiles/EMAGI_dfDatabase_par.dir
-/home/ymiki/calculation/nbody/tree/plugins/MAGI_df/CMakeFiles/EMAGI_dfDatabase_ser.dir
-/home/ymiki/calculation/nbody/tree/plugins/MAGI_df/CMakeFiles/IMAGI_dfDatabase.dir
-/home/ymiki/calculation/nbody/tree/plugins/MAGI_df/CMakeFiles/MMAGI_dfDatabase.dir

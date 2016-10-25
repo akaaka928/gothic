@@ -1,17 +1,14 @@
 #################################################################################################
 #################################################################################################
 README file for tree code with block time step on GPU(s) written by Yohei MIKI
-                                                         last updated on 2016/03/20(Sun) 16:21:42
+                                                         last updated on 2016/10/24(Mon) 12:19:50
 #################################################################################################
 #################################################################################################
 
 
 #################################################################################################
-with --> which is or that is ??
-GOTHIC: Gravitational Oct-Tree code with HIerarchical time step Consolidated (or Combined, Coexisting, Compatible)
-GOTHIC: Gravitational Oct-Tree code with HIerarchical time step for Collisionless systems
-GOTHIC: Gravitational Oct-Tree code with HIerarchical time step written in Cuda
-time step? time stepping?
+GOTHIC: Gravitational Oct-Tree code accelerated by HIerarchical time step Controlling
+MAGI: MAny-component Galactic Initial-conditions generator
 #################################################################################################
 
 

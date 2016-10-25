@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/07(Fri) 12:38:28
+                  last updated on 2016/10/16(Sun) 16:40:38
  *                                                                       *
  *    Constructing octree structure for collisionless systems            *
  *                                                                       *
@@ -1897,10 +1897,17 @@ __global__ void enforceBarnesHutMAC
       //-------------------------------------------------------------------
       /* new MAC for initial step is Barnes-Hut criterion */
       /* jcnd.w = bmax^4 / theta^4 in this case */
-      /* theta is assumed to be unity for simplicity */
       //-------------------------------------------------------------------
       const real bjmax = bmax[gidx];
-      jpos.w = bjmax * bjmax * bjmax * bjmax;
+#if 1
+      /* theta is assumed to be 0.5 for simplicity */
+      jpos.w = TWO * bjmax;
+#else
+      /* theta is assumed to be unity for simplicity */
+      jpos.w =       bjmax;
+#endif
+      jpos.w *= jpos.w;
+      jpos.w *= jpos.w;
       pj[gidx] = jpos;
       //-------------------------------------------------------------------
     }/* if( jpos.w > -HALF ){ */
@@ -2986,6 +2993,9 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 	  //---------------------------------------------------------------
 #ifdef  GADGET_MAC
 	  jcom.w  = mac_delta * mtot * jbmax * jbmax;
+#ifdef  YMIKI_MAC
+	  jcom.w *= jcom.w;
+#endif//YMIKI_MAC
 #else///GADGET_MAC
 #ifdef  WS93_MAC
 	  const real bmax_2 = HALF * jbmax;

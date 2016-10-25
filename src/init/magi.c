@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/12(Wed) 15:17:05
+                  last updated on 2016/10/24(Mon) 19:07:47
  *                                                                       *
  *    MAGI: "MAny-component Galactic Initial-conditions" generator       *
  *    Making Initial Condition Code of N-body Simulation                 *
@@ -634,6 +634,7 @@ int main(int argc, char **argv)
       disk_info[ii].cfg->vcirc_max   = -1.0;
       disk_info[ii].cfg->vcirc_max_R = -1.0;
       disk_info[ii].cfg->Qmin = DBL_MAX;
+      disk_info[ii].cfg->passed = false;
       //-------------------------------------------------------------------
     }/* for(int ii = 0; ii < ndisk; ii++){ */
     //---------------------------------------------------------------------
@@ -1641,10 +1642,11 @@ static void evaluateDiskProperties
 #ifndef USE_ORIGINAL_VDISP_ESTIMATOR
   const double invRd = 1.0 / disk_info[diskID].cfg->rs;
 #endif//USE_ORIGINAL_VDISP_ESTIMATOR
-  /* disk_info[diskID].cfg->vcirc_max   = -1.0; */
-  /* disk_info[diskID].cfg->vcirc_max_R = -1.0; */
-  /* disk_info[diskID].cfg->Qmin = DBL_MAX; */
-  bool passed = false;
+  /* /\* disk_info[diskID].cfg->vcirc_max   = -1.0; *\/ */
+  /* /\* disk_info[diskID].cfg->vcirc_max_R = -1.0; *\/ */
+  /* /\* disk_info[diskID].cfg->Qmin = DBL_MAX; *\/ */
+  /* bool passed = false; */
+  bool passed = disk_info[diskID].cfg->passed;
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -1704,6 +1706,8 @@ static void evaluateDiskProperties
     _toomre[jj] = (real) toomre                  ;    if( isinf(_toomre[jj]) == 1 )      _toomre[jj] = REAL_MAX;
     //---------------------------------------------------------------------
   }/* for(int ii = ihead; ii < itail + 1; ii++){ */
+  //-----------------------------------------------------------------------
+  disk_info[diskID].cfg->passed = passed;
   //-----------------------------------------------------------------------
 
   /* //----------------------------------------------------------------------- */

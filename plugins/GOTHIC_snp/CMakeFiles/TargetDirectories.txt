@@ -1,4 +1,0 @@
-/home/ymiki/calculation/nbody/tree/plugins/GOTHIC_snp/CMakeFiles/EGOTHIC_snpDatabase_par.dir
-/home/ymiki/calculation/nbody/tree/plugins/GOTHIC_snp/CMakeFiles/EGOTHIC_snpDatabase_ser.dir
-/home/ymiki/calculation/nbody/tree/plugins/GOTHIC_snp/CMakeFiles/IGOTHIC_snpDatabase.dir
-/home/ymiki/calculation/nbody/tree/plugins/GOTHIC_snp/CMakeFiles/MGOTHIC_snpDatabase.dir

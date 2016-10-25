@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/11(Tue) 17:09:32
+                  last updated on 2016/10/19(Wed) 11:21:34
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -1902,7 +1902,11 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
   /* calculate radius of the sphere which include whole i-particles within the group centered on (icom.x, icom.y, icom.z) */
   //-----------------------------------------------------------------------
 #ifdef  GADGET_MAC
+#ifdef  YMIKI_MAC
+  acceleration amin;
+#else///YMIKI_MAC
   real amin;
+#endif//YMIKI_MAC
 #endif//GADGET_MAC
   {
     //---------------------------------------------------------------------
@@ -1921,16 +1925,69 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 #ifdef  GADGET_MAC
     //---------------------------------------------------------------------
     acceleration ai_old = {ZERO, ZERO, ZERO, ZERO};
-    if( !skip )
+    if( !skip ){
       ai_old = iacc_old[idx];
+/* #ifdef  YMIKI_MAC */
+/*       ai_old.pot = UNITY; */
+/* #endif//YMIKI_MAC */
+    }/* if( !skip ){ */
     //---------------------------------------------------------------------
     /* calculate minimum of a squared */
-    amin = getMinimumRealTsub(1.0e-30f + ai_old.x * ai_old.x + ai_old.y * ai_old.y + ai_old.z * ai_old.z
+    const real tmp = getMinimumRealTsub(1.0e-30f + ai_old.x * ai_old.x + ai_old.y * ai_old.y + ai_old.z * ai_old.z
 #ifndef USE_WARP_SHUFFLE_FUNC
-			      , smem, tidx, head
+					, smem, tidx, head
 #endif//USE_WARP_SHUFFLE_FUNC
-			      );
-    amin *= RSQRT(amin);
+					);
+#ifndef YMIKI_MAC
+    amin = tmp * RSQRT(tmp);
+#endif//YMIKI_MAC
+    //---------------------------------------------------------------------
+#ifdef  YMIKI_MAC
+    /* calculate bulk acceleration of a group of i-particles */
+    pj[fail].ai = ai_old;
+    /* NOTE: implicit synchronization within 32 threads (a warp) is assumed */
+#   if  TSUB >=  2
+#                    if  NWARP <  2
+    jidx = pj[fail ^  1];    ai_old.x += jidx.ai.x;    ai_old.y += jidx.ai.y;    ai_old.z += jidx.ai.z;    /* ai_old.pot += jidx.ai.pot; */    pj[fail].ai = ai_old;
+#                 endif//NWARP <  2
+#   if  TSUB >=  4
+#                    if  NWARP <  4
+    jidx = pj[fail ^  2];    ai_old.x += jidx.ai.x;    ai_old.y += jidx.ai.y;    ai_old.z += jidx.ai.z;    /* ai_old.pot += jidx.ai.pot; */    pj[fail].ai = ai_old;
+#                 endif//NWARP <  4
+#   if  TSUB >=  8
+#                    if  NWARP <  8
+    jidx = pj[fail ^  4];    ai_old.x += jidx.ai.x;    ai_old.y += jidx.ai.y;    ai_old.z += jidx.ai.z;    /* ai_old.pot += jidx.ai.pot; */    pj[fail].ai = ai_old;
+#                 endif//NWARP <  8
+#   if  TSUB >= 16
+#                    if  NWARP < 16
+    jidx = pj[fail ^  8];    ai_old.x += jidx.ai.x;    ai_old.y += jidx.ai.y;    ai_old.z += jidx.ai.z;    /* ai_old.pot += jidx.ai.pot; */    pj[fail].ai = ai_old;
+#                 endif//NWARP < 16
+#   if  TSUB == 32
+#                    if  NWARP < 32
+    jidx = pj[fail ^ 16];    ai_old.x += jidx.ai.x;    ai_old.y += jidx.ai.y;    ai_old.z += jidx.ai.z;    /* ai_old.pot += jidx.ai.pot; */    pj[fail].ai = ai_old;
+#                 endif//NWARP < 32
+#endif//TSUB == 32
+#endif//TSUB >= 16
+#endif//TSUB >=  8
+#endif//TSUB >=  4
+#endif//TSUB >=  2
+    amin = pj[hp].ai;
+#if 1
+    /* amin.pot = UNITY / amin.pot; */
+    /* amin.x *= amin.pot; */
+    /* amin.y *= amin.pot; */
+    /* amin.z *= amin.pot; */
+    amin.pot = SQRTRATIO(tmp, 1.0e-30f + amin.x * amin.x + amin.y * amin.y + amin.z * amin.z);
+    amin.x *= amin.pot;
+    amin.y *= amin.pot;
+    amin.z *= amin.pot;
+#else
+    amin.pot = SQRTRATIO(tmp * amin.pot * amin.pot, 1.0e-30f + amin.x * amin.x + amin.y * amin.y + amin.z * amin.z);
+    amin.x *= amin.pot;
+    amin.y *= amin.pot;
+    amin.z *= amin.pot;
+#endif
+#endif//YMIKI_MAC
     //---------------------------------------------------------------------
 #endif//GADGET_MAC
     //---------------------------------------------------------------------
@@ -2138,13 +2195,17 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 	/* calculate distance between the pseudo i-particle and the candidate j-particle */
 	//-----------------------------------------------------------------
 #ifdef  GADGET_MAC
+#ifndef YMIKI_MAC
 	/* alpha * |a| * r^4 > G * M * l^2 */
-#if 1
 	lambda *= lambda * r2;
-	if( jcnd.w < lambda               * lambda               * amin )
-#else
-	if( jcnd.w < lambda * lambda * r2 * lambda * lambda * r2 * amin )
-#endif
+	if( jcnd.w < lambda * lambda * amin )
+#else///YMIKI_MAC
+	/* alpha * |(a, r)| * r^3 > G * M * l^2 */
+	lambda *= lambda;	lambda *= lambda;	          /* lambda := lambda^4 */
+	lambda *= (amin.x * rx + amin.y * ry + amin.z * rz);      /* lambda := lambda^4 * (ai, rij) */
+	lambda *= r2;                                             /* lambda := lambda^4 * (ai, rij) * d^2 */
+	if( jcnd.w < lambda * lambda * r2 )
+#endif//YMIKI_MAC
 #else///GADGET_MAC
 #ifdef  WS93_MAC
 	  if(   jcnd.w < lambda * lambda * r2 )

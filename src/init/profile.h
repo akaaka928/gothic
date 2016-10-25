@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/03(Mon) 14:15:13
+                  last updated on 2016/10/24(Mon) 18:08:03
  *                                                                       *
  *    Header File to describe radial profile of spherical component(s)   *
  *                                                                       *
@@ -82,9 +82,10 @@ typedef struct
   double twopower_alpha, twopower_beta, twopower_gamma;/* parameters for two-power model */
   double tripower_delta, tripower_epsilon, tripower_rout;/* additional parameters for three-power model */
   double alevans_alpha, alevans_beta, alevans_rc, alevans_rt, alevans_wt;/* parameters for approximated lowered Evans model */
-  double zd, Sigma0, vdispR0, vdispz0, vdisp_frac;/* parameters for Exponential disk */
+  double zd, Sigma0, vdispR0, vdispz0, vdisp_frac;/* parameters for disk components */
   double n_sersic, b_sersic;/* parameters for Sersic profile */
-  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin;/* properties of Exponential disk */
+  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin;/* properties of disk components */
+  bool passed;/* variable to estimate Toomre's Q-value */
   ulong num;
   int forceNum;/* parameter to specify number of N-body particles for the component */
   bool cutoff;

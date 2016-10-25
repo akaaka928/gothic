@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/12(Wed) 18:26:10
+                  last updated on 2016/10/18(Tue) 23:35:29
  *                                                                       *
  *    Plot Code of N-body Simulations (using PLplot)                     *
  *      Time Evolution of Spatial Distribution Maps                      *
@@ -25,6 +25,10 @@
 #include <stdbool.h>
 #include <math.h>
 #include <mpi.h>
+//-------------------------------------------------------------------------
+#ifdef  DUMP_SPLITTED_SNAPSHOT
+#       include <unistd.h>
+#endif//DUMP_SPLITTED_SNAPSHOT
 //-------------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
 #       include <hdf5.h>
@@ -1490,33 +1494,44 @@ int main(int argc, char **argv)
 #ifdef  USE_HDF5_FORMAT
     if( multi_group ){
       //-------------------------------------------------------------------
-      for(int ii = 0; ii < (int)Ntot; ii++){
+      char filename[128];
+      sprintf(filename, "%s/%s.%s%.3u.h5", DATAFOLDER, file, "split", filenum);
+      if( 0 != access(filename, F_OK) ){
 	//-----------------------------------------------------------------
-	hdf5.idx[ii    ] = body[ii].idx;	hdf5.  m[ii        ] = body[ii]. m;	hdf5.pot[ii        ] = body[ii].pot;
-	hdf5.pos[ii * 3] = body[ii]. x ;	hdf5.pos[ii * 3 + 1] = body[ii]. y;	hdf5.pos[ii * 3 + 2] = body[ii]. z ;
-	hdf5.vel[ii * 3] = body[ii].vx ;	hdf5.vel[ii * 3 + 1] = body[ii].vy;	hdf5.vel[ii * 3 + 2] = body[ii].vz ;
-	hdf5.acc[ii * 3] = body[ii].ax ;	hdf5.acc[ii * 3 + 1] = body[ii].ay;	hdf5.acc[ii * 3 + 2] = body[ii].az ;
+	for(int ii = 0; ii < (int)Ntot; ii++){
+	  //---------------------------------------------------------------
+	  hdf5.idx[ii    ] = body[ii].idx;	hdf5.  m[ii        ] = body[ii]. m;	hdf5.pot[ii        ] = body[ii].pot;
+	  hdf5.pos[ii * 3] = body[ii]. x ;	hdf5.pos[ii * 3 + 1] = body[ii]. y;	hdf5.pos[ii * 3 + 2] = body[ii]. z ;
+	  hdf5.vel[ii * 3] = body[ii].vx ;	hdf5.vel[ii * 3 + 1] = body[ii].vy;	hdf5.vel[ii * 3 + 2] = body[ii].vz ;
+	  hdf5.acc[ii * 3] = body[ii].ax ;	hdf5.acc[ii * 3 + 1] = body[ii].ay;	hdf5.acc[ii * 3 + 2] = body[ii].az ;
+	  //---------------------------------------------------------------
+	}/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 	//-----------------------------------------------------------------
-      }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
-      //-------------------------------------------------------------------
-      int *group_head;      group_head = (int *)malloc(sizeof(int) * kind);
-      int *group_num ;      group_num  = (int *)malloc(sizeof(int) * kind);
-      if( group_head == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group_head\n");      }
-      if( group_num  == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group_num\n" );      }
-      //-------------------------------------------------------------------
-      for(int ii = 0; ii < kind; ii++){
-	group_head[ii] = (int)group[ii].head;
-	group_num [ii] = (int)group[ii].num;
-      }/* for(int ii = 0; ii < kind; ii++){ */
-      //-------------------------------------------------------------------
+	int *group_head;      group_head = (int *)malloc(sizeof(int) * kind);
+	int *group_num ;      group_num  = (int *)malloc(sizeof(int) * kind);
+	if( group_head == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group_head\n");      }
+	if( group_num  == NULL ){	__KILL__(stderr, "ERROR: failure to allocate group_num\n" );      }
+	//-----------------------------------------------------------------
+	for(int ii = 0; ii < kind; ii++){
+	  group_head[ii] = (int)group[ii].head;
+	  group_num [ii] = (int)group[ii].num;
+	}/* for(int ii = 0; ii < kind; ii++){ */
+	//-----------------------------------------------------------------
 #if 0
-      fprintf(stdout, "%d(%d/%d): %d, %d, %d; %d, %d, %d\n", filenum, mpi.rank, mpi.size, group_num[0], group_num[1], group_num[2], group_head[0], group_head[1], group_head[2]);
-      fflush(NULL);
+	fprintf(stdout, "%d(%d/%d): %d, %d, %d; %d, %d, %d\n", filenum, mpi.rank, mpi.size, group_num[0], group_num[1], group_num[2], group_head[0], group_head[1], group_head[2]);
+	fflush(NULL);
 #endif
-      writeSnapshotMultiGroups(time, steps, &hdf5, file, filenum, hdf5type, kind, group_head, group_num);
+	writeSnapshotMultiGroups(time, steps, &hdf5, file, filenum, hdf5type, kind, group_head, group_num);
+	//-----------------------------------------------------------------
+	free(group_head);
+	free(group_num);
+	//-----------------------------------------------------------------
+      }/* if( 0 != access(filename, F_OK) ){ */
       //-------------------------------------------------------------------
-      free(group_head);
-      free(group_num);
+      else{
+	fprintf(stderr, "# \"%s\" was not updated to decreased the elapsed time.\n", filename);
+	fflush(stderr);
+      }/* else{ */
       //-------------------------------------------------------------------
     }/* if( multi_group ){ */
 #endif//USE_HDF5_FORMAT
