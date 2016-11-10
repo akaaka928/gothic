@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/11(Tue) 17:09:13
+                  last updated on 2016/11/01(Tue) 10:23:29
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -55,6 +55,9 @@ muse configLETtopology(domainInfo **info, position **ipos,
 #ifdef  ALLOCATE_LETBUFFER
 		       uint **buf, soaTreeWalkBuf *treebuf,
 #endif//ALLOCATE_LETBUFFER
+/* #ifdef  USE_CUDA_EVENT */
+/* 		       cudaEvent_t **iniEvent, cudaEvent_t **finEvent, */
+/* #endif//USE_CUDA_EVENT */
 		       cudaStream_t **stream, int *Nstream, const deviceProp gpu, MPIcfg_tree mpi)
 {
   //-----------------------------------------------------------------------
@@ -110,6 +113,17 @@ muse configLETtopology(domainInfo **info, position **ipos,
     (*stream)[ii] = 0;
 #endif
   //-----------------------------------------------------------------------
+/* #ifdef  USE_CUDA_EVENT */
+/*   *iniEvent = (cudaEvent_t *)malloc((size_t)(*Nstream) * sizeof(cudaEvent_t));  if( *iniEvent == NULL ){    __KILL__(stderr, "ERROR: failure to allocate iniEvent\n");  } */
+/*   *finEvent = (cudaEvent_t *)malloc((size_t)(*Nstream) * sizeof(cudaEvent_t));  if( *finEvent == NULL ){    __KILL__(stderr, "ERROR: failure to allocate finEvent\n");  } */
+/*   alloc.host +=                     (size_t)(*Nstream) * sizeof(cudaEvent_t); */
+/*   alloc.host +=                     (size_t)(*Nstream) * sizeof(cudaEvent_t); */
+/*   for(int ii = 0; ii < *Nstream; ii++){ */
+/*     checkCudaErrors(cudaEventCreate(&((*iniEvent)[ii]))); */
+/*     checkCudaErrors(cudaEventCreate(&((*finEvent)[ii]))); */
+/*   }/\* for(int ii = 0; ii < *Nstream; ii++){ *\/ */
+/* #endif//USE_CUDA_EVENT */
+  //-----------------------------------------------------------------------
 #ifdef  ALLOCATE_LETBUFFER
   /* size_t bufSize = NUM_ALLOC_TREE_NODE * 5; */
   /* size_t bufSize = NUM_ALLOC_TREE_NODE; */
@@ -143,6 +157,9 @@ void releaseLETtopology(domainInfo  *info, position  *ipos,
 #ifdef  ALLOCATE_LETBUFFER
 		       uint  *buf,
 #endif//ALLOCATE_LETBUFFER
+/* #ifdef  USE_CUDA_EVENT */
+/* 			cudaEvent_t  *iniEvent, cudaEvent_t  *finEvent, */
+/* #endif//USE_CUDA_EVENT */
 			cudaStream_t  *stream, int  Nstream
 			)
 {
@@ -163,10 +180,17 @@ void releaseLETtopology(domainInfo  *info, position  *ipos,
   mycudaFree(buf);
 #endif//ALLOCATE_LETBUFFER
   //-----------------------------------------------------------------------
-#if 1
+/* #ifdef  USE_CUDA_EVENT */
+/*   for(int ii = 0; ii < Nstream; ii++){ */
+/*     mycudaEventDestroy(iniEvent[ii]); */
+/*     mycudaEventDestroy(finEvent[ii]); */
+/*   }/\* for(int ii = 0; ii < Nstream; ii++){ *\/ */
+/*   free(iniEvent); */
+/*   free(finEvent); */
+/* #endif//USE_CUDA_EVENT */
+  //-----------------------------------------------------------------------
   for(int ii = 0; ii < Nstream; ii++)
     mycudaStreamDestroy(stream[ii]);
-#endif
   free(stream);
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
@@ -661,17 +685,17 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
 #else///ALLOCATE_LETBUFFER
  uint * RESTRICT buffer, const int bufSize, int * RESTRICT overflow
 #endif//ALLOCATE_LETBUFFER
-#ifdef  MONITOR_LETGEN_TIME
+#   if  !defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
  , unsigned long long int * RESTRICT cycles
-#endif//MONITOR_LETGEN_TIME
+#endif//!defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
 )
 {
   //-----------------------------------------------------------------------
   /* start stop watch */
   //-----------------------------------------------------------------------
-#ifdef  MONITOR_LETGEN_TIME
+#   if  !defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
   const long long int initCycle = clock64();
-#endif//MONITOR_LETGEN_TIME
+#endif//!defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -999,13 +1023,13 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
 #endif//USE_SMID_TO_GET_BUFID
 #endif//ALLOCATE_LETBUFFER
   //-----------------------------------------------------------------------
-#ifdef  MONITOR_LETGEN_TIME
+#   if  !defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
   long long int exitCycle = clock64();
   if( tidx == 0 ){
     unsigned long long int elapsed = (unsigned long long int)(exitCycle - initCycle);
     atomicAdd(cycles, elapsed);
   }/* if( tidx == 0 ){ */
-#endif//MONITOR_LETGEN_TIME
+#endif//!defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -1063,12 +1087,20 @@ extern "C"
 void callGenLET
   (const cudaStream_t stream, domainInfo *let, MPIcfg_tree mpi, const soaTreeNode tree, const soaTreeWalkBuf buf
 #ifdef  MONITOR_LETGEN_TIME
+#ifdef  USE_CUDA_EVENT
+   , const cudaEvent_t iniEvent, const cudaEvent_t finEvent
+#else///USE_CUDA_EVENT
    , unsigned long long int * RESTRICT cycles
+#endif//USE_CUDA_EVENT
 #endif//MONITOR_LETGEN_TIME
    )
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
+  //-----------------------------------------------------------------------
+#   if  defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
+  checkCudaErrors(cudaEventRecord(iniEvent, 0));
+#endif//defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
   //-----------------------------------------------------------------------
 #if 0
   let->amin = 0.0f;
@@ -1142,9 +1174,9 @@ void callGenLET
 #else///ALLOCATE_LETBUFFER
      buf.bufLET, buf.bufLETsize, buf.fail
 #endif//ALLOCATE_LETBUFFER
-#ifdef  MONITOR_LETGEN_TIME
+#   if  !defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
      , cycles
-#endif//MONITOR_LETGEN_TIME
+#endif//!defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
      );
   /* checkCudaErrors(cudaDeviceSynchronize()); */
   //-----------------------------------------------------------------------
@@ -1213,6 +1245,10 @@ void callGenLET
   Ncall++;
 #endif//GADGET_MAC
 #endif//DBG_LETGEN_ON_GPU
+  //-----------------------------------------------------------------------
+#   if  defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
+  checkCudaErrors(cudaEventRecord(finEvent, 0));
+#endif//defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/10(Wed) 12:08:43
+                  last updated on 2016/11/04(Fri) 11:54:10
  *                                                                       *
  *    Header File for Input/Output Code of N-body simulation             *
  *                                                                       *
@@ -16,27 +16,21 @@
 
 
 //-------------------------------------------------------------------------
-#ifndef MACRO_H
-#       include <macro.h>
-#endif//MACRO_H
-//-------------------------------------------------------------------------
+#include <macro.h>
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
-#       ifndef MPILIB_H
 #include <mpilib.h>
-#       endif//MPILIB_H
 #endif//defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 //-------------------------------------------------------------------------
-#ifndef BENCHMARK_H
-#       include "../misc/benchmark.h"
-#endif//BENCHMARK_H
+#include "../misc/benchmark.h"
+#include "../misc/structure.h"
+#include "../misc/tune.h"
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD) && !defined(BRENT_H)
+#include "../misc/brent.h"
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD) && !defined(BRENT_H)
 //-------------------------------------------------------------------------
-#ifndef STRUCTURE_H
-#       include "../misc/structure.h"
-#endif//STRUCTURE_H
-//-------------------------------------------------------------------------
-#   if  defined(USE_HDF5_FORMAT) && !defined(_HDF5_H)
+#ifdef  USE_HDF5_FORMAT
 #       include <hdf5.h>
-#endif//defined(USE_HDF5_FORMAT) && !defined(_HDF5_H)
+#endif//USE_HDF5_FORMAT
 //-------------------------------------------------------------------------
 
 
@@ -76,6 +70,8 @@ typedef struct
 {
   hid_t real;
   hid_t str4unit;
+  hid_t rebuildTree, measuredTime, statVal, guessTime;/* to take over the current status of auto-tuning about tree rebuild interval */
+  hid_t brentFunc, brentStatus, brentMemory;/* to take over the current status of auto-tuning to remove low-dense regions */
 } hdf5struct;
 #endif//USE_HDF5_FORMAT
 //-------------------------------------------------------------------------
@@ -110,26 +106,44 @@ extern "C"
   void removeHDF5DataType(hdf5struct  type);
 #endif//USE_HDF5_FORMAT
   //-----------------------------------------------------------------------
-  void  readTentativeData        (double *time, double *dt, ulong *steps, int num, iparticle body, char file[], int  last
-#ifdef  USE_HDF5_FORMAT
-				  , hdf5struct type
+void  readTentativeData(double *time, double *dt, ulong *steps, int num, iparticle body, char file[], int  last, hdf5struct type
+			, int *dropPrevTune, rebuildTree *rebuild, measuredTime *measured
+#ifdef  WALK_TREE_COMBINED_MODEL
+			, autoTuningParam *rebuildParam
+#endif//WALK_TREE_COMBINED_MODEL
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+			, brentStatus *status, brentMemory *memory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #ifdef  MONITOR_ENERGY_ERROR
-				  , energyError *relEneErr
+			, energyError *relEneErr
 #endif//MONITOR_ENERGY_ERROR
-#endif//USE_HDF5_FORMAT
-				  );
+			);
   void writeTentativeData        (double  time, double  dt, ulong  steps, int num, iparticle body, char file[], int *last
 #ifdef  USE_HDF5_FORMAT
 				  , hdf5struct type
+				  , rebuildTree rebuild, measuredTime measured
+#ifdef  WALK_TREE_COMBINED_MODEL
+				  , autoTuningParam rebuildParam
+#endif//WALK_TREE_COMBINED_MODEL
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+				  , brentStatus status, brentMemory memory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #ifdef  MONITOR_ENERGY_ERROR
 				  , energyError relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #endif//USE_HDF5_FORMAT
 				  );
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
-  void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int num, iparticle body, char file[], int  last, MPIcfg_dataio *mpi, ulong Ntot
+  void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int *num, iparticle body, char file[], int  last, MPIcfg_dataio *mpi, ulong Ntot
 #ifdef  USE_HDF5_FORMAT
 				  , hdf5struct type
+				  , int *dropPrevTune, rebuildTree *rebuild, measuredTime *measured
+#ifdef  WALK_TREE_COMBINED_MODEL
+				  , autoTuningParam *rebuildParam
+#endif//WALK_TREE_COMBINED_MODEL
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+				  , brentStatus *status, brentMemory *memory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #ifdef  MONITOR_ENERGY_ERROR
 				  , energyError *relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -138,6 +152,13 @@ extern "C"
   void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num, iparticle body, char file[], int *last, MPIcfg_dataio *mpi, ulong Ntot
 #ifdef  USE_HDF5_FORMAT
 				  , hdf5struct type
+				  , rebuildTree rebuild, measuredTime measured
+#ifdef  WALK_TREE_COMBINED_MODEL
+				  , autoTuningParam rebuildParam
+#endif//WALK_TREE_COMBINED_MODEL
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+				  , brentStatus status, brentMemory memory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #ifdef  MONITOR_ENERGY_ERROR
 				  , energyError  relEneErr
 #endif//MONITOR_ENERGY_ERROR

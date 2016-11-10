@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/10(Thu) 19:35:41
+                  last updated on 2016/11/05(Sat) 15:38:37
  *                                                                       *
  *    Header File for N-body calculation with MPI parallelization        *
  *                                                                       *
@@ -17,12 +17,10 @@
 #include <mpilib.h>
 //-------------------------------------------------------------------------
 #include "../misc/structure.h"
-#ifdef  EXCHANGE_USING_GPUS
 #include "../misc/tune.h"
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #include "../misc/brent.h"
 #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
-#endif//EXCHANGE_USING_GPUS
 //-------------------------------------------------------------------------
 #include "../para/mpicfg.h"
 //-------------------------------------------------------------------------
@@ -34,38 +32,15 @@
 #define DEFAULT_SAMPLING_NUMBER (64.0f)
 /* #define DEFAULT_SAMPLING_NUMBER (512.0f) */
 //-------------------------------------------------------------------------
-typedef struct
-{
-  int *rnum, *disp;/* former recvNum and recvDsp */
-  float *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;
-  float rate;/* former samplingRate */
-  int Nmax;/* former sampleNumMax */
-} sampling;
-//-------------------------------------------------------------------------
-typedef struct
-{
-  float *x_hst, *y_hst, *z_hst;
-  float *x_dev, *y_dev, *z_dev;
-  int *i_hst, *i_dev;
-} samplePos;
-//-------------------------------------------------------------------------
-typedef struct
-{
-  float *x, *y, *z;
-} particlePos;
-//-------------------------------------------------------------------------
 
 
 //-------------------------------------------------------------------------
+#define NDIM (3)
+//-------------------------------------------------------------------------
 typedef struct
 {
-#ifdef  EXCHANGE_USING_GPUS
-  float *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;
-  MPI_Request *req;
-#else///EXCHANGE_USING_GPUS
-  real min[3], max[3];
+  real min[NDIM], max[NDIM];
   MPI_Request req;
-#endif//EXCHANGE_USING_GPUS
 } domainCfg;
 //-------------------------------------------------------------------------
 typedef struct
@@ -99,15 +74,13 @@ typedef struct
 //-------------------------------------------------------------------------
 typedef struct
 {
-#ifdef  EXCHANGE_USING_GPUS
-  int *dstRank_hst, *dstRank_dev, *bodyIdx_dev;
-#else///EXCHANGE_USING_GPUS
   int dstRank, bodyIdx;
-#endif//EXCHANGE_USING_GPUS
 } domainDecomposeKey;
 //-------------------------------------------------------------------------
 
 
+//-------------------------------------------------------------------------
+#ifdef  REDUCE_EXCHANGING
 //-------------------------------------------------------------------------
 /* constant to detect load imbalance */
 static const double loadImbalanceCrit = 0.9;
@@ -115,9 +88,13 @@ static const double loadImbalanceCrit = 0.9;
 //-------------------------------------------------------------------------
 typedef struct
 {
-  double tmin, tmax;
+  MPI_Comm comm;
+  double invsize;
+  double tmax, tmin;
   bool enable, execute;
 } loadImbalanceDetector;
+//-------------------------------------------------------------------------
+#endif//REDUCE_EXCHANGING
 //-------------------------------------------------------------------------
 
 
@@ -129,35 +106,32 @@ extern "C"
 {
 #endif//__CUDACC__
   //-----------------------------------------------------------------------
-#ifdef  EXCHANGE_USING_GPUS
-  //-----------------------------------------------------------------------
-  muse allocateORMtopology(float **dxmin, float **dxmax, float **dymin, float **dymax, float **dzmin, float **dzmax, MPI_Request **dmreq,
-			   float **sxmin, float **sxmax, float **symin, float **symax, float **szmin, float **szmax,
-			   sendCfg **sendBuf, recvCfg **recvBuf, int **rnum, int **disp,
-			   MPIinfo orm[], MPIinfo rep[],
-			   const int Nx, const int Ny, const int Nz, MPIcfg_tree *mpi,
-			   domainCfg *dom, sampling *sample, const ulong Ntot);
-  void  releaseORMtopology(float  *dxmin, float  *dxmax, float  *dymin, float  *dymax, float  *dzmin, float  *dzmax, MPI_Request  *dmreq,
-			   float  *sxmin, float  *sxmax, float  *symin, float  *symax, float  *szmin, float  *szmax,
-			   sendCfg  *sendBuf, recvCfg  *recvBuf, int  *rnum, int  *disp,
-			   MPIinfo orm[], MPIinfo rep[]);
-  //-----------------------------------------------------------------------
-#else///EXCHANGE_USING_GPUS
-  //-----------------------------------------------------------------------
   void configORBtopology
-  (domainCfg **box, sendCfg **sendBuf, recvCfg **recvBuf, MPIcfg_tree *mpi, int *ndim, MPIinfo **orb,
+  (domainCfg **box, sendCfg **sendBuf, recvCfg **recvBuf, MPIcfg_tree *mpi,
+#ifdef  REDUCE_EXCHANGING
+   MPIinfo orb[],
+#else///REDUCE_EXCHANGING
+   int *ndim, MPIinfo **orb,
+#endif//REDUCE_EXCHANGING
    const ulong Ntot, real *samplingRate, int *sampleNumMax, real **sampleLoc, real **sampleFul,
    int **recvNum, int **recvDsp, real **boxMin, real **boxMax);
   void removeORBtopology
-  (domainCfg  *box, sendCfg  *sendBuf, recvCfg  *recvBuf, const int ndim, MPIinfo  *orb,
+  (domainCfg  *box, sendCfg  *sendBuf, recvCfg  *recvBuf,
+#ifndef REDUCE_EXCHANGING
+   const int ndim, MPIinfo  *orb,
+#endif//REDUCE_EXCHANGING
    real  *sampleLoc, real  *sampleFul, int  *recvNum, int  *recvDsp, real  *boxMin, real  *boxMax);
   //-----------------------------------------------------------------------
   void exchangeParticles
   (const int numOld, const int numMax, int *numNew, iparticle ibody_dev, iparticle src, iparticle dst,
-   domainDecomposeKey *key,
+   domainDecomposeKey * restrict key,
    sendCfg *sendBuf, recvCfg *recvBuf,
    const float samplingRate, const int sampleNumMax, const double tloc, real *sampleLoc, real *sampleFul, int *recvNum, int *recvDsp, real *boxMin, real *boxMax,
+#ifdef  REDUCE_EXCHANGING
+   double *exchangeInterval, loadImbalanceDetector balancer[], MPIinfo orb[],
+#else///REDUCE_EXCHANGING
    const int ndim, MPIinfo *orb,
+#endif//REDUCE_EXCHANGING
    domainCfg *domain, MPIcfg_tree mpi, measuredTime *measured
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
    , brentStatus *status, brentMemory *memory
@@ -166,8 +140,6 @@ extern "C"
    , wall_clock_time *execTime
 #endif//EXEC_BENCHMARK
    );
-  //-----------------------------------------------------------------------
-#endif//EXCHANGE_USING_GPUS
   //-----------------------------------------------------------------------
 #ifdef  __CUDACC__
 }

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2015/10/12(Mon) 15:41:29
+                  last updated on 2016/10/28(Fri) 16:59:13
  *                                                                       *
  *    Header File to examine tree statistics                             *
  *                                                                       *
@@ -13,24 +13,14 @@
 #ifndef STAT_DEV_H
 #define STAT_DEV_H
 //-------------------------------------------------------------------------
-
-
+#include <macro.h>
+#include <cudalib.h>
 //-------------------------------------------------------------------------
-#ifndef MACRO_H
-#       include <macro.h>
-#endif//MACRO_H
-//-------------------------------------------------------------------------
-#ifndef CUDALIB_H
-#       include <cudalib.h>
-#endif//CUDALIB_H
-//-------------------------------------------------------------------------
-#   if  defined(LOCALIZE_I_PARTICLES) && !defined(PEANO_H)
+#ifdef  LOCALIZE_I_PARTICLES
 #       include "../sort/peano.h"
-#endif//defined(LOCALIZE_I_PARTICLES) && !defined(PEANO_H)
+#endif//LOCALIZE_I_PARTICLES
 //-------------------------------------------------------------------------
-#ifndef MAKE_H
-#       include "../tree/make.h"
-#endif//MAKE_H
+#include "../tree/make.h"
 //-------------------------------------------------------------------------
 
 

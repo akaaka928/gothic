@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/09/08(Thu) 17:16:49
+                  last updated on 2016/10/28(Fri) 16:22:40
  *                                                                       *
  *    Header File for Definition to generate initial condition           *
  *                                                                       *
@@ -12,16 +12,9 @@
 #ifndef MAGI_H
 #define MAGI_H
 //-------------------------------------------------------------------------
-
-
+#include <stdbool.h>
 //-------------------------------------------------------------------------
-#   if  !defined(_STDBOOL_H) && !defined(_STDBOOL)
-#       include <stdbool.h>
-#endif//!defined(_STDBOOL_H) && !defined(_STDBOOL)
-//-------------------------------------------------------------------------
-#ifndef MACRO_H
-#      include <macro.h>
-#endif//MACRO_H
+#include <macro.h>
 //-------------------------------------------------------------------------
 
 

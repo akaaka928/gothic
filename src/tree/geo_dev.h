@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/15(Fri) 13:48:03
+                  last updated on 2016/10/28(Fri) 16:30:47
  *                                                                       *
  *    Header File for generating enclosing ball as GEO                   *
  *                                                                       *
@@ -13,32 +13,15 @@
 #ifndef GEO_DEV_H
 #define GEO_DEV_H
 //-------------------------------------------------------------------------
-
-
+#include <sys/time.h>
 //-------------------------------------------------------------------------
-#ifndef _SYS_TIME_H
-#      include <sys/time.h>
-#endif//_SYS_TIME_H
+#include <macro.h>
+#include <cudalib.h>
 //-------------------------------------------------------------------------
-#ifndef MACRO_H
-#       include <macro.h>
-#endif//MACRO_H
+#include "../misc/benchmark.h"
+#include "../misc/structure.h"
 //-------------------------------------------------------------------------
-#ifndef CUDALIB_H
-#       include <cudalib.h>
-#endif//CUDALIB_H
-//-------------------------------------------------------------------------
-#ifndef BENCHMARK_H
-#       include "../misc/benchmark.h"
-#endif//BENCHMARK_H
-//-------------------------------------------------------------------------
-#ifndef STRUCTURE_H
-#       include "../misc/structure.h"
-#endif//STRUCTURE_H
-//-------------------------------------------------------------------------
-#ifndef MAKE_H
-#       include "../tree/make.h"
-#endif//MAKE_H
+#include "../tree/make.h"
 //-------------------------------------------------------------------------
 
 

@@ -13,27 +13,16 @@ EXTENSION=$3
 ##################################################################
 OPTION="`echo $@ | sed -e "s|$EXEC||" -e "s/$FILENAME//" -e "s/$EXTENSION//"`"
 ##################################################################
-# $EXEC -file=$FILENAME $OPTION -dev ${EXTENSION}cairo
-##################################################################
 HOSTNAME=`hostname`
-NODES=1
-NCORE_PER_NODE=1
+HOSTFILE=host/$HOSTNAME
+NODES=2
+NCORE_PER_NODE=8
 if [ $HOSTNAME = augustus ]; then
 NODES=1
 NCORE_PER_NODE=4
 fi
-if [ $HOSTNAME = mw ]; then
-NODES=2
-NCORE_PER_NODE=8
-fi
-if [ $HOSTNAME = dm ]; then
-NODES=2
-NCORE_PER_NODE=8
-fi
-HOSTFILE=host/$HOSTNAME
 ##################################################################
 NCORE=`expr $NODES \* $NCORE_PER_NODE`
 ##################################################################
 mpirun_rsh -np $NCORE -hostfile $HOSTFILE $EXEC -file=$FILENAME $OPTION -dev ${EXTENSION}cairo
-# mpirun_rsh -np $NCORE -hostfile $HOSTFILE $EXEC -file=$FILENAME $OPTION -dev ${EXTENSION}
 ##################################################################

@@ -23,13 +23,19 @@ fi
 # PROCS_PER_SOCKET=1
 # fi
 ##################################################################
-# echo "mpirun_rsh -np $PROCS -hostfile $HOSTFILE sh/local/numarun.sh $PROCS_PER_SOCKET $LOG $EXEC $OPTION" >> $LOG
-# mpirun_rsh -np $PROCS -hostfile $HOSTFILE sh/local/numarun.sh $PROCS_PER_SOCKET $LOG $EXEC $OPTION
-##################################################################
-echo "mpirun_rsh -np $PROCS -hostfile $HOSTFILE $EXEC $OPTION" >> $LOG
-mpirun_rsh -np $PROCS -hostfile $HOSTFILE $EXEC $OPTION
+if [ `which numactl` ]; then
+    # run with numactl
+    echo "mpirun_rsh -np $PROCS -hostfile $HOSTFILE sh/local/numarun.sh $PROCS_PER_SOCKET $LOG $EXEC $OPTION" >> $LOG
+    mpirun_rsh -np $PROCS -hostfile $HOSTFILE sh/local/numarun.sh $PROCS_PER_SOCKET $LOG $EXEC $OPTION
+else
+    # run without numactl
+    echo "mpirun_rsh -np $PROCS -hostfile $HOSTFILE $EXEC $OPTION" >> $LOG
+    mpirun_rsh -np $PROCS -hostfile $HOSTFILE $EXEC $OPTION
+fi
 ##################################################################
 # # collecting data with nvprof
-# echo "mpirun_rsh -np $PROCS -hostfile $HOSTFILE nvprof -o exec.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION" >> $LOG
-# mpirun_rsh -np $PROCS -hostfile $HOSTFILE nvprof -o exec.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION
-##################################################################
+# echo "mpirun_rsh -np $PROCS -hostfile $HOSTFILE nvprof --timeout 4 --force-overwrite -o $LOG.$$.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION" >> $LOG
+# mpirun_rsh -np $PROCS -hostfile $HOSTFILE nvprof --timeout 4 --force-overwrite -o $LOG.$$.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION
+# # echo "mpirun_rsh -np $PROCS -hostfile $HOSTFILE nvprof --timeout 3 --device-buffer-size 128 --device-cdp-buffer-size 128 --system-profiling on --force-overwrite -o $LOG.$$.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION" >> $LOG
+# # mpirun_rsh -np $PROCS -hostfile $HOSTFILE nvprof --timeout 3 --device-buffer-size 128 --device-cdp-buffer-size 128 --system-profiling on --force-overwrite -o $LOG.$$.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION
+#################################################################

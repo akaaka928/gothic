@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/19(Wed) 11:21:34
+                  last updated on 2016/11/01(Tue) 19:38:53
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -49,6 +49,18 @@
 //-------------------------------------------------------------------------
 #include "walk_dev.h"
 //-------------------------------------------------------------------------
+#   if  !defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
+#define USE_GPU_BASE_CLOCK_FREQ
+#if 1
+#   if  (__CUDACC_VER_MINOR__ + 10 * __CUDACC_VER_MAJOR__) >= 80
+#include <nvml.h>
+#undef  USE_GPU_BASE_CLOCK_FREQ
+#define USE_MEASURED_CLOCK_FREQ
+nvmlDevice_t deviceHandler;
+#endif//(__CUDACC_VER_MINOR__ + 10 * __CUDACC_VER_MAJOR__) >= 80
+#endif
+#endif//!defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
+//-------------------------------------------------------------------------
 #define PARTIAL_SUM_ACCELERATION
 //-------------------------------------------------------------------------
 #ifdef  PARTIAL_SUM_ACCELERATION
@@ -78,7 +90,11 @@ __constant__ jnode jnode0;
 /* set CUDA streams */
 //-------------------------------------------------------------------------
 extern "C"
-muse setCUDAstreams_dev(cudaStream_t **stream, kernelStream *sinfo, deviceInfo *info, deviceProp *prop)
+muse setCUDAstreams_dev(cudaStream_t **stream, kernelStream *sinfo, deviceInfo *info, deviceProp *prop
+/* #   if  defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)) */
+/* 			, cudaEvent_t **iniEvent, cudaEvent_t **finEvent */
+/* #endif//defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)) */
+			)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -123,6 +139,18 @@ muse setCUDAstreams_dev(cudaStream_t **stream, kernelStream *sinfo, deviceInfo *
 /*     checkCudaErrors(cudaStreamCreate(&((*stream)[ii]))); */
 /* #endif */
   //-----------------------------------------------------------------------
+/*   /\* allocate and set CUDA events *\/ */
+/* #   if  defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)) */
+/*   *iniEvent = (cudaEvent_t *)malloc((size_t)(sinfo->num) * sizeof(cudaEvent_t));  if( *iniEvent == NULL ){    __KILL__(stderr, "ERROR: failure to allocate iniEvent\n");  } */
+/*   *finEvent = (cudaEvent_t *)malloc((size_t)(sinfo->num) * sizeof(cudaEvent_t));  if( *finEvent == NULL ){    __KILL__(stderr, "ERROR: failure to allocate finEvent\n");  } */
+/*   alloc.host +=                     (size_t)(sinfo->num) * sizeof(cudaEvent_t); */
+/*   alloc.host +=                     (size_t)(sinfo->num) * sizeof(cudaEvent_t); */
+/*   for(int ii = 0; ii < sinfo->num; ii++){ */
+/*     checkCudaErrors(cudaEventCreate(&((*iniEvent)[ii]))); */
+/*     checkCudaErrors(cudaEventCreate(&((*finEvent)[ii]))); */
+/*   }/\* for(int ii = 0; ii < sinfo->num; ii++){ *\/ */
+/* #endif//defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)) */
+  //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
@@ -130,6 +158,101 @@ muse setCUDAstreams_dev(cudaStream_t **stream, kernelStream *sinfo, deviceInfo *
   return (alloc);
   //-----------------------------------------------------------------------
 }
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
+/* set CUDA streams */
+//-------------------------------------------------------------------------
+#   if  defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
+//-------------------------------------------------------------------------
+extern "C"
+muse allocateCUDAevents_dev
+(cudaEvent_t **iniWalk, cudaEvent_t **finWalk
+#ifdef  MONITOR_LETGEN_TIME
+ , cudaEvent_t **iniMake, cudaEvent_t **finMake
+#endif//MONITOR_LETGEN_TIME
+ , const int Ngpu)
+{
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "start");
+  //-----------------------------------------------------------------------
+  muse alloc = {0, 0};
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* allocate array for CUDA events */
+  *iniWalk = (cudaEvent_t *)malloc((size_t)Ngpu * sizeof(cudaEvent_t));  if( *iniWalk == NULL ){    __KILL__(stderr, "ERROR: failure to allocate iniWalk\n");  }
+  *finWalk = (cudaEvent_t *)malloc((size_t)Ngpu * sizeof(cudaEvent_t));  if( *finWalk == NULL ){    __KILL__(stderr, "ERROR: failure to allocate finWalk\n");  }
+  alloc.host +=                    (size_t)Ngpu * sizeof(cudaEvent_t) ;
+  alloc.host +=                    (size_t)Ngpu * sizeof(cudaEvent_t) ;
+#ifdef  MONITOR_LETGEN_TIME
+  *iniMake = (cudaEvent_t *)malloc((size_t)(Ngpu - 1) * sizeof(cudaEvent_t));	 if( *iniMake == NULL ){    __KILL__(stderr, "ERROR: failure to allocate iniMake\n");  }
+  *finMake = (cudaEvent_t *)malloc((size_t)(Ngpu - 1) * sizeof(cudaEvent_t));	 if( *finMake == NULL ){    __KILL__(stderr, "ERROR: failure to allocate finMake\n");  }
+  alloc.host +=                    (size_t)(Ngpu - 1) * sizeof(cudaEvent_t) ;
+  alloc.host +=                    (size_t)(Ngpu - 1) * sizeof(cudaEvent_t) ;
+#endif//MONITOR_LETGEN_TIME
+  //-----------------------------------------------------------------------
+  /* set CUDA events */
+  for(int ii = 0; ii < Ngpu; ii++){
+    checkCudaErrors(cudaEventCreate(&((*iniWalk)[ii])));
+    checkCudaErrors(cudaEventCreate(&((*finWalk)[ii])));
+  }/* for(int ii = 0; ii < Ngpu; ii++){ */
+#ifdef  MONITOR_LETGEN_TIME
+  for(int ii = 0; ii < Ngpu - 1; ii++){
+    checkCudaErrors(cudaEventCreate(&((*iniMake)[ii])));
+    checkCudaErrors(cudaEventCreate(&((*finMake)[ii])));
+  }/* for(int ii = 0; ii < Ngpu; ii++){ */
+#endif//MONITOR_LETGEN_TIME
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "end");
+  //-----------------------------------------------------------------------
+  return (alloc);
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
+extern "C"
+void  releaseCUDAevents_dev
+(cudaEvent_t  *iniWalk, cudaEvent_t  *finWalk
+#ifdef  MONITOR_LETGEN_TIME
+ , cudaEvent_t  *iniMake, cudaEvent_t  *finMake
+#endif//MONITOR_LETGEN_TIME
+ , const int Ngpu)
+{
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "start");
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* destroy CUDA events */
+  for(int ii = 0; ii < Ngpu; ii++){
+    mycudaEventDestroy(iniWalk[ii]);
+    mycudaEventDestroy(finWalk[ii]);
+  }/* for(int ii = 0; ii < Ngpu; ii++){ */
+#ifdef  MONITOR_LETGEN_TIME
+  for(int ii = 0; ii < Ngpu - 1; ii++){
+    mycudaEventDestroy(iniMake[ii]);
+    mycudaEventDestroy(finMake[ii]);
+  }/* for(int ii = 0; ii < Ngpu - 1; ii++){ */
+#endif//MONITOR_LETGEN_TIME
+  //-----------------------------------------------------------------------
+  /* deallocate CUDA events */
+  free(iniWalk);
+  free(finWalk);
+#ifdef  MONITOR_LETGEN_TIME
+  free(iniMake);
+  free(finMake);
+#endif//MONITOR_LETGEN_TIME
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "end");
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
+#endif//defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
 //-------------------------------------------------------------------------
 
 
@@ -197,12 +320,14 @@ void  freeTreeBuffer_dev
 #   if  !defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
  , uint  *freeNum, int  *active
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
+#ifndef USE_CUDA_EVENT
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
  , unsigned long long int  *cycles_hst, unsigned long long int  *cycles_dev
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
  , unsigned long long int  *cycles_let_hst, unsigned long long int  *cycles_let_dev
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
+#endif//USE_CUDA_EVENT
  )
 {
   //-----------------------------------------------------------------------
@@ -215,6 +340,7 @@ void  freeTreeBuffer_dev
   mycudaFree(freeNum);
   mycudaFree(active);
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
+#ifndef USE_CUDA_EVENT
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
   mycudaFree    (cycles_dev);
   mycudaFreeHost(cycles_hst);
@@ -223,6 +349,11 @@ void  freeTreeBuffer_dev
   mycudaFree    (cycles_let_dev);
   mycudaFreeHost(cycles_let_hst);
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
+#endif//USE_CUDA_EVENT
+  //-----------------------------------------------------------------------
+#ifdef  USE_MEASURED_CLOCK_FREQ
+  nvmlShutdown();
+#endif//USE_MEASURED_CLOCK_FREQ
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
@@ -234,12 +365,14 @@ muse allocTreeBuffer_dev
 #   if  !defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
  uint **freeNum, int **active,
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
+#ifndef USE_CUDA_EVENT
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
  unsigned long long int **cycles_hst, unsigned long long int **cycles_dev,
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
  unsigned long long int **cycles_let_hst, unsigned long long int **cycles_let_dev,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
+#endif//USE_CUDA_EVENT
  soaTreeWalkBuf *buf, const int num_max, const muse used, const deviceProp gpu)
 {
   //-----------------------------------------------------------------------
@@ -290,6 +423,7 @@ muse allocTreeBuffer_dev
 			      );
 #endif//USE_SMID_TO_GET_BUFID
   //-----------------------------------------------------------------------
+#ifndef USE_CUDA_EVENT
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
   mycudaMalloc    ((void **)cycles_dev, sizeof(unsigned long long int));  alloc.device += sizeof(unsigned long long int);
   mycudaMallocHost((void **)cycles_hst, sizeof(unsigned long long int));  alloc.host   += sizeof(unsigned long long int);
@@ -299,6 +433,19 @@ muse allocTreeBuffer_dev
   mycudaMalloc    ((void **)cycles_let_dev, sizeof(unsigned long long int));  alloc.device += sizeof(unsigned long long int);
   mycudaMallocHost((void **)cycles_let_hst, sizeof(unsigned long long int));  alloc.host   += sizeof(unsigned long long int);
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
+#endif//USE_CUDA_EVENT
+  //-----------------------------------------------------------------------
+#ifdef  USE_MEASURED_CLOCK_FREQ
+  nvmlInit();
+#if 1
+  nvmlDeviceGetHandleByIndex(gpu.idx, &deviceHandler);
+#else
+  nvmlReturn_t nvmlMsg = nvmlDeviceGetHandleByIndex(gpu.idx, &deviceHandler);
+  printf("nvmlMsg = %d\n", nvmlMsg);
+  MPI_Finalize();
+  exit(0);
+#endif
+#endif//USE_MEASURED_CLOCK_FREQ
   //-----------------------------------------------------------------------
 
 
@@ -1635,9 +1782,9 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
       const int freeNum,
 #endif//!defined(USE_SMID_TO_GET_BUFID) &&  defined(TRY_MODE_ABOUT_BUFFER)
       uint * RESTRICT freeLst, uint * RESTRICT buffer, const int bufSize, int * RESTRICT overflow
-#   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#   if  !defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
       , unsigned long long int * RESTRICT cycles
-#endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#endif//!defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
 #ifdef  COUNT_INTERACTIONS
       , int * RESTRICT stockNj, int * RESTRICT stockNbuf
 #endif//COUNT_INTERACTIONS
@@ -1646,9 +1793,9 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
   //-----------------------------------------------------------------------
   /* start stop watch */
   //-----------------------------------------------------------------------
-#   if  !defined(SERIALIZED_EXECUTION) && !defined(PRINT_PSEUDO_PARTICLE_INFO)
+#   if  !defined(USE_CUDA_EVENT) && !defined(SERIALIZED_EXECUTION) && !defined(PRINT_PSEUDO_PARTICLE_INFO)
   const long long int initCycle = clock64();
-#endif//!defined(SERIALIZED_EXECUTION) && !defined(PRINT_PSEUDO_PARTICLE_INFO)
+#endif//!defined(USE_CUDA_EVENT) && !defined(SERIALIZED_EXECUTION) && !defined(PRINT_PSEUDO_PARTICLE_INFO)
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -1764,9 +1911,9 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 
 
   //-----------------------------------------------------------------------
-#ifdef  PRINT_PSEUDO_PARTICLE_INFO
+#   if  !defined(USE_CUDA_EVENT) && defined(PRINT_PSEUDO_PARTICLE_INFO)
   const long long int initCycle = clock64();
-#endif//PRINT_PSEUDO_PARTICLE_INFO
+#endif//!defined(USE_CUDA_EVENT) && defined(PRINT_PSEUDO_PARTICLE_INFO)
   //-----------------------------------------------------------------------
   /* set an enclosing sphere contains whole i-particles within TSUB threads */
   //-----------------------------------------------------------------------
@@ -2003,14 +2150,14 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     printf("%d: %f, %f, %f w/ r2max = %e\n", GLOBALIDX_X1D, icom.x, icom.y, icom.z, icom.m);
 #endif//DBG_TREE_WALK
   //-----------------------------------------------------------------------
-#ifdef  PRINT_PSEUDO_PARTICLE_INFO
+#   if  !defined(USE_CUDA_EVENT) && defined(PRINT_PSEUDO_PARTICLE_INFO)
   long long int exitCycle = clock64();
   if( lane == 0 ){
     unsigned long long int elapsed = (unsigned long long int)(exitCycle - initCycle);
     atomicAdd(cycles, elapsed);
     iacc[DIV_TSUB(GLOBALIDX_X1D)].pi = icom;
   }/* if( tidx == 0 ){ */
-#endif//PRINT_PSEUDO_PARTICLE_INFO
+#endif//!defined(USE_CUDA_EVENT) && defined(PRINT_PSEUDO_PARTICLE_INFO)
   //-----------------------------------------------------------------------
 
 
@@ -2491,13 +2638,13 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 #endif//TRY_MODE_ABOUT_BUFFER
 #endif//USE_SMID_TO_GET_BUFID
   //-----------------------------------------------------------------------
-#   if  !defined(SERIALIZED_EXECUTION) && !defined(PRINT_PSEUDO_PARTICLE_INFO)
+#   if  !defined(USE_CUDA_EVENT) && !defined(SERIALIZED_EXECUTION) && !defined(PRINT_PSEUDO_PARTICLE_INFO)
   long long int exitCycle = clock64();
   if( tidx == 0 ){
     unsigned long long int elapsed = (unsigned long long int)(exitCycle - initCycle);
     atomicAdd(cycles, elapsed);
   }/* if( tidx == 0 ){ */
-#endif//!defined(SERIALIZED_EXECUTION) && !defined(PRINT_PSEUDO_PARTICLE_INFO)
+#endif//!defined(USE_CUDA_EVENT) && !defined(SERIALIZED_EXECUTION) && !defined(PRINT_PSEUDO_PARTICLE_INFO)
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -2521,7 +2668,11 @@ static inline void callCalcGravityFunc
  , const int grpNum, const int jhead
 #endif//SERIALIZED_EXECUTION
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#ifdef  USE_CUDA_EVENT
+ , int *Nwalk, cudaEvent_t *iniEvent, cudaEvent_t *finEvent
+#else///USE_CUDA_EVENT
  , unsigned long long int * RESTRICT cycles
+#endif//USE_CUDA_EVENT
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
  , const soaTreeWalkBuf buf
 #ifdef  COUNT_INTERACTIONS
@@ -2536,6 +2687,10 @@ static inline void callCalcGravityFunc
   fprintf(stdout, "jhead = %d on device %d\n", jhead, deviceID);
   fflush(stdout);
 #endif
+  //-----------------------------------------------------------------------
+#   if  defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
+  checkCudaErrors(cudaEventRecord(iniEvent[*Nwalk], 0));
+#endif//defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
   //-----------------------------------------------------------------------
 #   if  defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
   if( grpNum != 0 ){
@@ -2567,9 +2722,9 @@ static inline void callCalcGravityFunc
 	 buf.freeNum,
 #endif//USE_SMID_TO_GET_BUFID
 	 buf.freeLst, buf.buffer, buf.bufSize, buf.fail
-#   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#   if  !defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
 	 , cycles
-#endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#endif//!defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
 #ifdef  COUNT_INTERACTIONS
 	 , treeInfo.Nj, treeInfo.Nbuf
 #endif//COUNT_INTERACTIONS
@@ -2615,9 +2770,9 @@ static inline void callCalcGravityFunc
 	   buf.freeNum,
 #endif//USE_SMID_TO_GET_BUFID
 	   buf.freeLst, buf.buffer, buf.bufSize, buf.fail
-#   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#   if  !defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
 	   , cycles
-#endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#endif//!defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
 #ifdef  COUNT_INTERACTIONS
 	   , treeInfo.Nj, treeInfo.Nbuf
 #endif//COUNT_INTERACTIONS
@@ -2641,6 +2796,11 @@ static inline void callCalcGravityFunc
   }/* if( grpNum != 0 ){ */
 #endif//defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
   //-----------------------------------------------------------------------
+#   if  defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
+  checkCudaErrors(cudaEventRecord(finEvent[*Nwalk], 0));
+  *Nwalk += 1;
+#endif//defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
+  //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
 extern "C"
@@ -2655,7 +2815,11 @@ void calcGravity_dev
  , char *file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#ifdef  USE_CUDA_EVENT
+ , cudaEvent_t *iniCalcAcc, cudaEvent_t *finCalcAcc
+#else///USE_CUDA_EVENT
  , unsigned long long int *cycles_hst, unsigned long long int *cycles_dev
+#endif//USE_CUDA_EVENT
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
  , double *twalk, const int pjNum
@@ -2664,7 +2828,12 @@ void calcGravity_dev
 #endif//LET_COMMUNICATION_VIA_HOST
  , const int Nlet, domainInfo *let, const int Nstream_let, cudaStream_t stream_let[], MPIcfg_tree mpi
 #ifdef  MONITOR_LETGEN_TIME
- , double *tlet, unsigned long long int *cycles_let_hst, unsigned long long int *cycles_let_dev
+ , double *tlet
+#ifdef  USE_CUDA_EVENT
+ , cudaEvent_t *iniMakeLET, cudaEvent_t *finMakeLET
+#else///USE_CUDA_EVENT
+ , unsigned long long int *cycles_let_hst, unsigned long long int *cycles_let_dev
+#endif//USE_CUDA_EVENT
 #endif//MONITOR_LETGEN_TIME
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
@@ -2714,8 +2883,16 @@ void calcGravity_dev
   fflush(stdout);
 #endif
   //-----------------------------------------------------------------------
+  /* initialize measurement counters */
+#ifdef  USE_CUDA_EVENT
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
-  /* initialize clock cycle counter */
+  int Nwalk = 0;
+#endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
+  int Nmake = 0;
+#endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
+#else///USE_CUDA_EVENT
+#   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
   *cycles_hst = 0;
   checkCudaErrors(cudaMemcpy(cycles_dev, cycles_hst, sizeof(unsigned long long int), cudaMemcpyHostToDevice));
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
@@ -2723,11 +2900,18 @@ void calcGravity_dev
   *cycles_let_hst = 0;
   checkCudaErrors(cudaMemcpy(cycles_let_dev, cycles_let_hst, sizeof(unsigned long long int), cudaMemcpyHostToDevice));
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
+#endif//USE_CUDA_EVENT
   //-----------------------------------------------------------------------
+#ifdef  USE_MEASURED_CLOCK_FREQ
+  uint clockWalk;/* in MHz */
+#endif//USE_MEASURED_CLOCK_FREQ
+  //-----------------------------------------------------------------------
+#   if  defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
   static struct timeval start;
   checkCudaErrors(cudaDeviceSynchronize());
   gettimeofday(&start, NULL);
   /* initStopwatch_dev(devInfo); */
+#endif//defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
   //-----------------------------------------------------------------------
 
 
@@ -2820,7 +3004,11 @@ void calcGravity_dev
 			  , grpNum, 0
 #endif//SERIALIZED_EXECUTION
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#ifdef  USE_CUDA_EVENT
+			  , &Nwalk, iniCalcAcc, finCalcAcc
+#else///USE_CUDA_EVENT
 			  , cycles_dev
+#endif//USE_CUDA_EVENT
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 			  , buf
 #ifdef  COUNT_INTERACTIONS
@@ -2839,6 +3027,11 @@ void calcGravity_dev
 #endif//WALK_TREE_COMBINED_MODEL
 #endif//BLOCK_TIME_STEP
       //-------------------------------------------------------------------
+#ifdef  USE_MEASURED_CLOCK_FREQ
+      /* measure clock frequency as a reference value */
+      nvmlDeviceGetClock(deviceHandler, NVML_CLOCK_SM, NVML_CLOCK_ID_CURRENT, &clockWalk);
+#endif//USE_MEASURED_CLOCK_FREQ
+      //-------------------------------------------------------------------
 
 
       //-------------------------------------------------------------------
@@ -2854,6 +3047,9 @@ void calcGravity_dev
       int idxProcs = 0;
       int remProcs = Nlet - 1;
       int LETsteps = 0;
+#   if  defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
+      int prevLETstreams = 0;
+#endif//defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
       while( true ){
 	//-----------------------------------------------------------------
 	/* get maximum number of processes which possible to communicate by limitation of memory capacity */
@@ -2910,9 +3106,16 @@ void calcGravity_dev
 	  //---------------------------------------------------------------
 	  callGenLET(stream_let[streamIdxLET], &let[ii], mpi, tree, buf
 #ifdef  MONITOR_LETGEN_TIME
+#ifdef  USE_CUDA_EVENT
+		     , iniMakeLET[Nmake], finMakeLET[Nmake]
+#else///USE_CUDA_EVENT
 		     , cycles_let_dev
+#endif//USE_CUDA_EVENT
 #endif//MONITOR_LETGEN_TIME
 		     );
+#   if  defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
+	  Nmake++;
+#endif//defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
 	  //---------------------------------------------------------------
 #if 1
 	  checkCudaErrors(cudaMemcpyAsync(let[ii].numSend_hst, let[ii].numSend_dev, sizeof(int), cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
@@ -3102,7 +3305,19 @@ void calcGravity_dev
 	  chkMPIerr(MPI_Barrier(mpi.comm));
 #endif
 	  //---------------------------------------------------------------
-	  callCalcGravityFunc(blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree, grpNum, let[ii].headRecv, cycles_dev, buf
+/* #   if  defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)) */
+/* 	  checkCudaErrors(cudaEventSynchronize(finCalcAcc[sidx ^ 1])); */
+/* 	  checkCudaErrors(cudaEventElapsedTime(&calcAcc_ms, iniCalcAcc[sidx ^ 1], finCalcAcc[sidx ^ 1])); */
+/* 	  calcAcc += (double)calcAcc_ms * 1.0e-3; */
+/* #endif//defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)) */
+	  //---------------------------------------------------------------
+	  callCalcGravityFunc(blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree, grpNum, let[ii].headRecv
+#ifdef  USE_CUDA_EVENT
+			      , &Nwalk, iniCalcAcc, finCalcAcc
+#else///USE_CUDA_EVENT
+			      , cycles_dev
+#endif//USE_CUDA_EVENT
+			      , buf
 #ifdef  COUNT_INTERACTIONS
 			      , treeInfo
 #endif//COUNT_INTERACTIONS
@@ -3195,6 +3410,20 @@ void calcGravity_dev
 	__KILL__(stderr, "ERROR: bufUsed exceeds bufSize of %d at least %u times.\nPLEASE re-simulate after decreasing NUM_BODY_MAX(%d) or GLOBAL_MEMORY_SYSBUF(%zu) defined in src/misc/structure.h or TREE_SAFETY_VAL(%f) defined in src/tree/make.h, or EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h.\n", buf.bufSize, fail_hst, NUM_BODY_MAX, (size_t)GLOBAL_MEMORY_SYSBUF, TREE_SAFETY_VAL, EXTEND_NUM_TREE_NODE);
 #endif//SERIALIZED_EXECUTION
       }/* if( fail_hst != 0 ){ */
+      //-------------------------------------------------------------------
+/* #   if  !defined(SERIALIZED_EXECUTION) && defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME) */
+/*       for(int ii = 0; ii < prevLETstreams; ii++){ */
+/* 	checkCudaErrors(cudaEventSynchronize(finMakeLET[ii])); */
+/* 	checkCudaErrors(cudaEventElapsedTime(&makeLET_ms, iniCalcAcc[ii], finCalcAcc[ii])); */
+/* 	makeLET += (double)makeLET_ms * 1.0e-3; */
+/*       }/\* for(int jj = 0; jj < prevLETstreams; jj++){ *\/ */
+/* #endif//!defined(SERIALIZED_EXECUTION) && defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME) */
+      //-------------------------------------------------------------------
+/* #   if  defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)) */
+/*       checkCudaErrors(cudaEventSynchronize(finCalcAcc[sidx ^ 1])); */
+/*       checkCudaErrors(cudaEventElapsedTime(&calcAcc_ms, iniCalcAcc[sidx ^ 1], finCalcAcc[sidx ^ 1])); */
+/*       calcAcc += (double)calcAcc_ms * 1.0e-3; */
+/* #endif//defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)) */
       //-------------------------------------------------------------------
     }
   //-----------------------------------------------------------------------
@@ -3374,24 +3603,72 @@ void calcGravity_dev
 
 
   //-----------------------------------------------------------------------
+#   if  defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
   static struct timeval finish;
   checkCudaErrors(cudaDeviceSynchronize());
   gettimeofday(&finish, NULL);
   *time = calcElapsedTimeInSec(start, finish);
-  //-----------------------------------------------------------------------
-#ifndef SERIALIZED_EXECUTION
-  /* evaluate GPU time based on clock cycle counter */
-  checkCudaErrors(cudaMemcpy(cycles_hst, cycles_dev, sizeof(unsigned long long int), cudaMemcpyDeviceToHost));
-  *twalk += (double)(*cycles_hst)     / (devProp.coreClk * 1.0e+9 * (double)((NTHREADS          >> 5) * devProp.numSM * NBLOCKS_PER_SM));
-#ifdef  MONITOR_LETGEN_TIME
-  checkCudaErrors(cudaMemcpy(cycles_let_hst, cycles_let_dev, sizeof(unsigned long long int), cudaMemcpyDeviceToHost));
-  *tlet  += (double)(*cycles_let_hst) / (devProp.coreClk * 1.0e+9 * (double)((NTHREADS_MAKE_LET >> 5) * devProp.numSM * NBLOCKS_PER_SM));
-#endif//MONITOR_LETGEN_TIME
-#endif//SERIALIZED_EXECUTION
-  //-----------------------------------------------------------------------
 #ifdef  EXEC_BENCHMARK
   elapsed->calcGravity_dev += *time;
 #endif//EXEC_BENCHMARK
+#endif//defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
+  //-----------------------------------------------------------------------
+  /* evaluate GPU time */
+#ifndef SERIALIZED_EXECUTION
+  checkCudaErrors(cudaDeviceSynchronize());
+#ifdef  USE_CUDA_EVENT
+  double calcAcc = 0.0;
+  for(int ii = 0; ii < Nwalk; ii++){
+    float tmp_ms;
+    checkCudaErrors(cudaEventElapsedTime(&tmp_ms, iniCalcAcc[ii], finCalcAcc[ii]));
+    calcAcc += (double)tmp_ms;
+  }/* for(int ii = 0; ii < Nwalk; ii++){ */
+  calcAcc *= 1.0e-3;
+#else///USE_CUDA_EVENT
+  checkCudaErrors(cudaMemcpy(cycles_hst, cycles_dev, sizeof(unsigned long long int), cudaMemcpyDeviceToHost));
+  /* # of launched blocks for tree traversal = # of blocks per kernel function * (# of local tree + # of LETs) = # of blocks per kernel function * # of GPUs */
+#ifdef  USE_MEASURED_CLOCK_FREQ
+  double devClock = (double)clockWalk * 1.0e+6;
+#if 0
+  printf("%e Hz on rank %d\n", devClock, mpi.rank);
+  MPI_Finalize();
+  exit(0);
+#endif
+#endif//USE_MEASURED_CLOCK_FREQ
+#ifdef  USE_GPU_BASE_CLOCK_FREQ
+  const double devClock = devProp.coreClk * 1.0e+9;
+#endif//USE_GPU_BASE_CLOCK_FREQ
+  /* const double calcAcc = ((double)(*cycles_hst) / (devClock * (double)(blck.x * mpi.size))) * (double)BLOCKSIZE(blck.x * mpi.size, devProp.numSM * NBLOCKS_PER_SM); */
+  const double calcAcc = ((double)(*cycles_hst) / (devClock * (double)(blck.x * mpi.size))) * (double)BLOCKSIZE(blck.x * mpi.size, devProp.numSM);
+#endif//USE_CUDA_EVENT
+  *twalk += calcAcc;
+  *time   = calcAcc;
+#ifdef  MONITOR_LETGEN_TIME
+#ifdef  USE_CUDA_EVENT
+  double makeLET = 0.0;
+  for(int ii = 0; ii < Nmake; ii++){
+    float tmp_ms;
+    checkCudaErrors(cudaEventElapsedTime(&tmp_ms, iniMakeLET[ii], finMakeLET[ii]));
+    makeLET += (double)tmp_ms;
+  }/* for(int ii = 0; ii < Nwalk; ii++){ */
+  makeLET *= 1.0e-3;
+#else///USE_CUDA_EVENT
+  checkCudaErrors(cudaMemcpy(cycles_let_hst, cycles_let_dev, sizeof(unsigned long long int), cudaMemcpyDeviceToHost));
+  /* # of launched blocks for LET generator = # of LETs = # of GPUs - 1 = # of MPI processes - 1 */
+  /* const double makeLET = ((double)(*cycles_let_hst) / (devClock * (double)(mpi.size - 1))) * BLOCKSIZE(mpi.size - 1, devProp.numSM * NBLOCKS_PER_SM); */
+  const double makeLET = ((double)(*cycles_let_hst) / (devClock * (double)(mpi.size - 1))) * BLOCKSIZE(mpi.size - 1, devProp.numSM);
+#endif//USE_CUDA_EVENT
+  *tlet  += makeLET;
+  /* *time  += makeLET; */
+#if 0
+  static struct timeval finish;
+  checkCudaErrors(cudaDeviceSynchronize());
+  gettimeofday(&finish, NULL);
+  fprintf(stdout, "rank %d: %e + %e | %e\n", mpi.rank, calcAcc, makeLET, calcElapsedTimeInSec(start, finish));
+  fflush(stdout);
+#endif
+#endif//MONITOR_LETGEN_TIME
+#endif//SERIALIZED_EXECUTION
   //-----------------------------------------------------------------------
 /* #if 0 */
 /*   const int nblocks = NBLOCKS_PER_SM * devProp.numSM; */

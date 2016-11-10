@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2015/11/10(Tue) 15:46:41
+                  last updated on 2016/10/28(Fri) 16:27:18
  *                                                                       *
  *    Header File for constructing octree structure                      *
  *                                                                       *
@@ -13,24 +13,12 @@
 #ifndef PEANO_H
 #define PEANO_H
 //-------------------------------------------------------------------------
-
-
+#include <sys/time.h>
 //-------------------------------------------------------------------------
-#ifndef _SYS_TIME_H
-#      include <sys/time.h>
-#endif//_SYS_TIME_H
+#include <macro.h>
 //-------------------------------------------------------------------------
-#ifndef MACRO_H
-#       include <macro.h>
-#endif//MACRO_H
-//-------------------------------------------------------------------------
-#ifndef BENCHMARK_H
-#       include "../misc/benchmark.h"
-#endif//BENCHMARK_H
-//-------------------------------------------------------------------------
-#ifndef STRUCTURE_H
-#       include "../misc/structure.h"
-#endif//STRUCTURE_H
+#include "../misc/benchmark.h"
+#include "../misc/structure.h"
 //-------------------------------------------------------------------------
 
 

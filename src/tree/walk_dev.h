@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/03(Wed) 15:25:29
+                  last updated on 2016/11/01(Tue) 10:46:01
  *                                                                       *
  *    Header File for tree traversal based on octree structure           *
  *                                                                       *
@@ -13,56 +13,27 @@
 #ifndef WALK_DEV_H
 #define WALK_DEV_H
 //-------------------------------------------------------------------------
-
-
+#include <macro.h>
+#include <cudalib.h>
 //-------------------------------------------------------------------------
-#ifndef MACRO_H
-#       include <macro.h>
-#endif//MACRO_H
+#include "../misc/benchmark.h"
+#include "../misc/structure.h"
+#include "../misc/device.h"
 //-------------------------------------------------------------------------
-#ifndef CUDALIB_H
-#       include <cudalib.h>
-#endif//CUDALIB_H
-//-------------------------------------------------------------------------
-#ifndef BENCHMARK_H
-#       include "../misc/benchmark.h"
-#endif//BENCHMARK_H
-//-------------------------------------------------------------------------
-#ifndef STRUCTURE_H
-#       include "../misc/structure.h"
-#endif//STRUCTURE_H
-//-------------------------------------------------------------------------
-#ifndef DEVICE_H
-#       include "../misc/device.h"
-#endif//DEVICE_H
-//-------------------------------------------------------------------------
-#ifndef MACUTIL_H
-#       include "../tree/macutil.h"
-#endif//MACUTIL_H
-//-------------------------------------------------------------------------
-#ifndef MAKE_H
-#       include "../tree/make.h"
-#endif//MAKE_H
-//-------------------------------------------------------------------------
-#ifndef BUF_INC_H
-#       include "../tree/buf_inc.h"
-#endif//BUF_INC_H
+#include "../tree/macutil.h"
+#include "../tree/make.h"
+#include "../tree/buf_inc.h"
 //-------------------------------------------------------------------------
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
-//-------------------------------------------------------------------------
-#   if  !defined(SERIALIZED_EXECUTION) && !defined(MPICFG_H)
-#       include "../para/mpicfg.h"
-#endif//!defined(SERIALIZED_EXECUTION) && !defined(MPICFG_H)
-//-------------------------------------------------------------------------
-#   if  !defined(SERIALIZED_EXECUTION) && !defined(LET_H)
-#       include "../tree/let.h"
-#endif//!defined(SERIALIZED_EXECUTION) && !defined(LET_H)
-//-------------------------------------------------------------------------
+#ifndef SERIALIZED_EXECUTION
+#include "../para/mpicfg.h"
+#include "../tree/let.h"
+#endif//SERIALIZED_EXECUTION
 #endif//defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 //-------------------------------------------------------------------------
-#   if  defined(COMPARE_WITH_DIRECT_SOLVER) && !defined(_STDBOOL_H) && !defined(_STDBOOL)
+#ifdef  COMPARE_WITH_DIRECT_SOLVER
 #       include <stdbool.h>
-#endif//defined(COMPARE_WITH_DIRECT_SOLVER) && !defined(_STDBOOL_H) && !defined(_STDBOOL)
+#endif//COMPARE_WITH_DIRECT_SOLVER
 //-------------------------------------------------------------------------
 
 
@@ -353,31 +324,54 @@ extern "C"
 {
 #endif//__CUDACC__
   //-----------------------------------------------------------------------
-  muse setCUDAstreams_dev(cudaStream_t **stream, kernelStream *sinfo, deviceInfo *info, deviceProp *prop);
+  muse setCUDAstreams_dev(cudaStream_t **stream, kernelStream *sinfo, deviceInfo *info, deviceProp *prop
+/* #   if  defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)) */
+/* 			  , cudaEvent_t **iniEvent, cudaEvent_t **finEvent */
+/* #endif//defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)) */
+			  );
+  //-----------------------------------------------------------------------
+#   if  defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
+  muse allocateCUDAevents_dev
+  (cudaEvent_t **iniWalk, cudaEvent_t **finWalk
+#ifdef  MONITOR_LETGEN_TIME
+   , cudaEvent_t **iniMake, cudaEvent_t **finMake
+#endif//MONITOR_LETGEN_TIME
+   , const int Ngpu);
+  void  releaseCUDAevents_dev
+  (cudaEvent_t  *iniWalk, cudaEvent_t  *finWalk
+#ifdef  MONITOR_LETGEN_TIME
+   , cudaEvent_t  *iniMake, cudaEvent_t  *finMake
+#endif//MONITOR_LETGEN_TIME
+   , const int Ngpu);
+#endif//defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
   //-----------------------------------------------------------------------
   void  freeTreeBuffer_dev
   (int  *failure, uint  *buffer, uint  *freeLst
 #   if  !defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
    , uint  *freeNum, int  *active
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
+#ifndef USE_CUDA_EVENT
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
    , unsigned long long int  *cycles_hst, unsigned long long int  *cycles_dev
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
    , unsigned long long int  *cycles_let_hst, unsigned long long int  *cycles_let_dev
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
+#endif//USE_CUDA_EVENT
    );
   muse allocTreeBuffer_dev
   (int **failure, uint **buffer, uint **freeLst,
 #   if  !defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
    uint **freeNum, int **active,
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
+#ifndef USE_CUDA_EVENT
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
    unsigned long long int **cycles_hst, unsigned long long int **cycles_dev,
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
    unsigned long long int **cycles_let_hst, unsigned long long int **cycles_let_dev,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
+#endif//USE_CUDA_EVENT
    soaTreeWalkBuf *buf, const int num_max, const muse used, const deviceProp gpu);
   //-----------------------------------------------------------------------
   void calcGravity_dev
@@ -391,7 +385,11 @@ extern "C"
    , char *file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#ifdef  USE_CUDA_EVENT
+   , cudaEvent_t *iniCalcAcc, cudaEvent_t *finCalcAcc
+#else///USE_CUDA_EVENT
    , unsigned long long int *cycles_hst, unsigned long long int *cycles_dev
+#endif//USE_CUDA_EVENT
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 #ifndef SERIALIZED_EXECUTION
@@ -401,7 +399,12 @@ extern "C"
 #endif//LET_COMMUNICATION_VIA_HOST
    , const int Nlet, domainInfo *let, const int Nstream_let, cudaStream_t stream_let[], MPIcfg_tree mpi
 #ifdef  MONITOR_LETGEN_TIME
-   , double *tlet, unsigned long long int *cycles_let_hst, unsigned long long int *cycles_let_dev
+   , double *tlet
+#ifdef  USE_CUDA_EVENT
+   , cudaEvent_t *iniMakeLET, cudaEvent_t *finMakeLET
+#else///USE_CUDA_EVENT
+   , unsigned long long int *cycles_let_hst, unsigned long long int *cycles_let_dev
+#endif//USE_CUDA_EVENT
 #endif//MONITOR_LETGEN_TIME
 #endif//SERIALIZED_EXECUTION
 #endif//defined(MPI_INCLUDED) || defined(OMPI_MPI_H)

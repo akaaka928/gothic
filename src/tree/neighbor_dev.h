@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2015/12/09(Wed) 16:25:45
+                  last updated on 2016/10/28(Fri) 16:34:58
  *                                                                       *
  *    Header File for neighbor searching using breadth-first tree        *
  *                                                                       *
@@ -13,32 +13,15 @@
 #ifndef NEIGHBOR_DEV_H
 #define NEIGHBOR_DEV_H
 //-------------------------------------------------------------------------
-
-
+#include <stdbool.h>
 //-------------------------------------------------------------------------
-#   if  !defined(_STDBOOL_H) && !defined(_STDBOOL)
-#       include <stdbool.h>
-#endif//!defined(_STDBOOL_H) && !defined(_STDBOOL)
+#include <macro.h>
 //-------------------------------------------------------------------------
-#ifndef MACRO_H
-#       include <macro.h>
-#endif//MACRO_H
+#include "../misc/benchmark.h"
+#include "../misc/structure.h"
 //-------------------------------------------------------------------------
-#ifndef BENCHMARK_H
-#       include "../misc/benchmark.h"
-#endif//BENCHMARK_H
-//-------------------------------------------------------------------------
-#ifndef STRUCTURE_H
-#       include "../misc/structure.h"
-#endif//STRUCTURE_H
-//-------------------------------------------------------------------------
-#ifndef MAKE_H
-#       include "../tree/make.h"
-#endif//MAKE_H
-//-------------------------------------------------------------------------
-#ifndef WALK_DEV_H
+#include "../tree/make.h"
 #include "../tree/walk_dev.h"
-#endif//WALK_DEV_H
 //-------------------------------------------------------------------------
 
 

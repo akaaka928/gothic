@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/03/08(Tue) 09:43:05
+                  last updated on 2016/10/28(Fri) 16:38:00
  *                                                                       *
  *    Header File to examine tree statistics                             *
  *                                                                       *
@@ -13,32 +13,19 @@
 #ifndef SHRINK_DEV_H
 #define SHRINK_DEV_H
 //-------------------------------------------------------------------------
-
-
+#include <macro.h>
+#include <cudalib.h>
 //-------------------------------------------------------------------------
-#ifndef MACRO_H
-#       include <macro.h>
-#endif//MACRO_H
+#include "../tree/make.h"
+#include "../tree/make_dev.h"
 //-------------------------------------------------------------------------
-#ifndef CUDALIB_H
-#       include <cudalib.h>
-#endif//CUDALIB_H
-//-------------------------------------------------------------------------
-#ifndef MAKE_H
-#       include "../tree/make.h"
-#endif//MAKE_H
-//-------------------------------------------------------------------------
-#ifndef MAKE_DEV_H
-#       include "../tree/make_dev.h"
-#endif//MAKE_DEV_H
-//-------------------------------------------------------------------------
-#   if  !defined(NEIGHBOR_DEV_H) && defined(LOCALIZE_I_PARTICLES)
+#ifdef  LOCALIZE_I_PARTICLES
 #       include "../tree/neighbor_dev.h"
-#endif//!defined(NEIGHBOR_DEV_H) && defined(LOCALIZE_I_PARTICLES)
+#endif//LOCALIZE_I_PARTICLES
 //-------------------------------------------------------------------------
-#   if  defined(USE_BRENT_METHOD) && !defined(BRENT_H)
+#ifdef  USE_BRENT_METHOD
 #       include "../misc/brent.h"
-#endif//defined(USE_BRENT_METHOD) && !defined(BRENT_H)
+#endif//USE_BRENT_METHOD
 //-------------------------------------------------------------------------
 
 

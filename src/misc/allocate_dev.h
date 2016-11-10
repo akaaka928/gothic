@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/08(Mon) 16:29:22
+                  last updated on 2016/10/28(Fri) 16:24:52
  *                                                                       *
  *    Header File for memory allocation code of N-body calculation       *
  *                                                                       *
@@ -13,16 +13,9 @@
 #ifndef ALLOCATE_DEV_H
 #define ALLOCATE_DEV_H
 //-------------------------------------------------------------------------
-
-
+#include <macro.h>
 //-------------------------------------------------------------------------
-#ifndef MACRO_H
-#       include <macro.h>
-#endif//MACRO_H
-//-------------------------------------------------------------------------
-#ifndef STRUCTURE_H
-#       include "../misc/structure.h"
-#endif//STRUCTURE_H
+#include "../misc/structure.h"
 //-------------------------------------------------------------------------
 
 

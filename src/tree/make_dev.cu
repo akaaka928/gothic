@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/16(Sun) 16:40:38
+                  last updated on 2016/11/04(Fri) 14:34:24
  *                                                                       *
  *    Constructing octree structure for collisionless systems            *
  *                                                                       *
@@ -3135,6 +3135,9 @@ void calcMultipole_dev
 #   if  !defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE)
  , const soaTreeNode node_hst, real * RESTRICT bmax_root_hst
 #endif//!defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE)
+#ifndef SERIALIZED_EXECUTION
+ , double *tmac
+#endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
  , const soaTreeCell cell_hst, tree_stats * RESTRICT stats_hst
 #endif//COUNT_INTERACTIONS
@@ -3152,9 +3155,9 @@ void calcMultipole_dev
   initStatistics_kernel<<<1, 1>>>(stats_dev);
 #endif//COUNT_INTERACTIONS
   //-----------------------------------------------------------------------
-#ifdef  EXEC_BENCHMARK
+#   if  defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
   initStopwatch();
-#endif//EXEC_BENCHMARK
+#endif//defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
   //-----------------------------------------------------------------------
 
 
@@ -3295,9 +3298,16 @@ void calcMultipole_dev
     __KILL__(stderr, "ERROR: buffer (%d elements per %d threads group) overflow at least %d times.\nPLEASE re-simulate after increasing NUM_ALLOC_MACBUF defined in src/tree/make.h.\n", NUM_ALLOC_MACBUF, TSUB_MAC, fail_hst);
   }
   //-----------------------------------------------------------------------
+#   if  defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
+  double time = 0.0;
+  stopStopwatch(&time);
+#ifdef  SERIALIZED_EXECUTION
+  *tmac += time;
+#endif//SERIALIZED_EXECUTION
 #ifdef  EXEC_BENCHMARK
-  stopStopwatch(&(elapsed->calcMultipole));
+  elapsed->calcMultipole += time;
 #endif//EXEC_BENCHMARK
+#endif//defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
   //-----------------------------------------------------------------------
 
 

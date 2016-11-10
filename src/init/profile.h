@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/24(Mon) 18:08:03
+                  last updated on 2016/10/28(Fri) 16:23:47
  *                                                                       *
  *    Header File to describe radial profile of spherical component(s)   *
  *                                                                       *
@@ -12,16 +12,9 @@
 #ifndef PROFILE_H
 #define PROFILE_H
 //-------------------------------------------------------------------------
-
-
+#include <stdbool.h>
 //-------------------------------------------------------------------------
-#   if  !defined(_STDBOOL_H) && !defined(_STDBOOL)
-#       include <stdbool.h>
-#endif//!defined(_STDBOOL_H) && !defined(_STDBOOL)
-//-------------------------------------------------------------------------
-#ifndef MACRO_H
-#      include <macro.h>
-#endif//MACRO_H
+#include <macro.h>
 //-------------------------------------------------------------------------
 
 

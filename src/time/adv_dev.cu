@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/30(Sat) 15:00:15
+                  last updated on 2016/11/08(Tue) 14:38:05
  *                                                                       *
  *    Orbit integration of N-body particles in collisionless systems     *
  *                                                                       *
@@ -1319,6 +1319,67 @@ void copyParticle_dev2hst(const int Ni, iparticle dev, iparticle hst
 #ifdef  EXEC_BENCHMARK
   stopStopwatch(&(elapsed->copyParticle_dev2hst));
 #endif//EXEC_BENCHMARK
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "end");
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
+extern "C"
+void copyParticleAsync_hst2dev(const int Ni, iparticle hst, iparticle dev, cudaStream_t stream)
+{
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "start");
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* send i-particles from the host to the device using the default CUDA stream */
+#ifdef  GENERATE_PHKEY_ON_DEVICE
+  checkCudaErrors(cudaMemcpyAsync(dev. idx, hst. idx, sizeof(       ulong) * Ni, cudaMemcpyHostToDevice, stream));
+#endif//GENERATE_PHKEY_ON_DEVICE
+  checkCudaErrors(cudaMemcpyAsync(dev. pos, hst. pos, sizeof(    position) * Ni, cudaMemcpyHostToDevice, stream));
+  checkCudaErrors(cudaMemcpyAsync(dev. acc, hst. acc, sizeof(acceleration) * Ni, cudaMemcpyHostToDevice, stream));
+#ifdef  BLOCK_TIME_STEP
+  checkCudaErrors(cudaMemcpyAsync(dev. vel, hst. vel, sizeof(    velocity) * Ni, cudaMemcpyHostToDevice, stream));
+  checkCudaErrors(cudaMemcpyAsync(dev.time, hst.time, sizeof(  ibody_time) * Ni, cudaMemcpyHostToDevice, stream));
+#else///BLOCK_TIME_STEP
+  checkCudaErrors(cudaMemcpyAsync(dev.  vx, hst.  vx, sizeof(        real) * Ni, cudaMemcpyHostToDevice, stream));
+  checkCudaErrors(cudaMemcpyAsync(dev.  vy, hst.  vy, sizeof(        real) * Ni, cudaMemcpyHostToDevice, stream));
+  checkCudaErrors(cudaMemcpyAsync(dev.  vz, hst.  vz, sizeof(        real) * Ni, cudaMemcpyHostToDevice, stream));
+#endif//BLOCK_TIME_STEP
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "end");
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
+extern "C"
+void copyParticleAsync_dev2hst(const int Ni, iparticle dev, iparticle hst, cudaStream_t stream)
+{
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "start");
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* send i-particles from the device to the host using the default CUDA stream */
+#ifdef  GENERATE_PHKEY_ON_DEVICE
+  checkCudaErrors(cudaMemcpyAsync(hst. idx, dev. idx, sizeof(       ulong) * Ni, cudaMemcpyDeviceToHost, stream));
+#endif//GENERATE_PHKEY_ON_DEVICE
+  checkCudaErrors(cudaMemcpyAsync(hst. pos, dev. pos, sizeof(    position) * Ni, cudaMemcpyDeviceToHost, stream));
+  checkCudaErrors(cudaMemcpyAsync(hst. acc, dev. acc, sizeof(acceleration) * Ni, cudaMemcpyDeviceToHost, stream));
+#ifdef  BLOCK_TIME_STEP
+  checkCudaErrors(cudaMemcpyAsync(hst. vel, dev. vel, sizeof(    velocity) * Ni, cudaMemcpyDeviceToHost, stream));
+  checkCudaErrors(cudaMemcpyAsync(hst.time, dev.time, sizeof(  ibody_time) * Ni, cudaMemcpyDeviceToHost, stream));
+#else///BLOCK_TIME_STEP
+  checkCudaErrors(cudaMemcpyAsync(hst.  vx, dev.  vx, sizeof(        real) * Ni, cudaMemcpyDeviceToHost, stream));
+  checkCudaErrors(cudaMemcpyAsync(hst.  vy, dev.  vy, sizeof(        real) * Ni, cudaMemcpyDeviceToHost, stream));
+  checkCudaErrors(cudaMemcpyAsync(hst.  vz, dev.  vz, sizeof(        real) * Ni, cudaMemcpyDeviceToHost, stream));
+#endif//BLOCK_TIME_STEP
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------

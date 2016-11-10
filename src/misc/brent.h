@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2015/11/18(Wed) 16:30:25
+                  last updated on 2016/10/28(Fri) 17:15:32
  *                                                                       *
  *    Header File for implementing Brent's algorithm                     *
  *                                                                       *
@@ -15,6 +15,8 @@
 #ifndef USE_BRENT_METHOD
 #define TEST_BRENT_METHOD
 #endif//USE_BRENT_METHOD
+//-------------------------------------------------------------------------
+#include <stdbool.h>
 //-------------------------------------------------------------------------
 
 
@@ -42,6 +44,7 @@ typedef struct
   double a, b;/* a and b: edges of the region; a < b */
   double d, e;/* displacement in the previous step and the step prior to the previous one, respectively */
   double gold;/* the golden ratio */
+  bool initialized;
 } brentStatus;
 //-------------------------------------------------------------------------
 #ifdef  USE_BRENT_METHOD

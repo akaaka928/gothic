@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/10(Wed) 15:53:26
+                  last updated on 2016/10/28(Fri) 16:25:25
  *                                                                       *
  *    Header File for converting type of arrays (SoA <--> AoS)           *
  *                                                                       *
@@ -13,16 +13,9 @@
 #ifndef CONVERT_H
 #define CONVERT_H
 //-------------------------------------------------------------------------
-
-
+#include <macro.h>
 //-------------------------------------------------------------------------
-#ifndef MACRO_H
-#       include <macro.h>
-#endif//MACRO_H
-//-------------------------------------------------------------------------
-#ifndef STRUCTURE_H
-#       include "../misc/structure.h"
-#endif//STRUCTURE_H
+#include "../misc/structure.h"
 //-------------------------------------------------------------------------
 
 

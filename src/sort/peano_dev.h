@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/03/08(Tue) 09:45:41
+                  last updated on 2016/10/28(Fri) 16:27:53
  *                                                                       *
  *    Header File for constructing octree structure                      *
  *                                                                       *
@@ -13,32 +13,15 @@
 #ifndef PEANO_DEV_H
 #define PEANO_DEV_H
 //-------------------------------------------------------------------------
-
-
+#include <sys/time.h>
 //-------------------------------------------------------------------------
-#ifndef _SYS_TIME_H
-#      include <sys/time.h>
-#endif//_SYS_TIME_H
+#include <macro.h>
+#include <cudalib.h>
 //-------------------------------------------------------------------------
-#ifndef MACRO_H
-#       include <macro.h>
-#endif//MACRO_H
+#include "../misc/benchmark.h"
+#include "../misc/structure.h"
 //-------------------------------------------------------------------------
-#ifndef CUDALIB_H
-#       include <cudalib.h>
-#endif//CUDALIB_H
-//-------------------------------------------------------------------------
-#ifndef BENCHMARK_H
-#       include "../misc/benchmark.h"
-#endif//BENCHMARK_H
-//-------------------------------------------------------------------------
-#ifndef STRUCTURE_H
-#       include "../misc/structure.h"
-#endif//STRUCTURE_H
-//-------------------------------------------------------------------------
-#ifndef PEANO_H
-#       include "../sort/peano.h"
-#endif//PEANO_H
+#include "../sort/peano.h"
 //-------------------------------------------------------------------------
 
 

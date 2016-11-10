@@ -1,16 +1,30 @@
 #!/bin/sh
 ###############################################################
-if [ $# -lt 2 ]; then
-    echo "$# input(s) is/are detected while at least 2 inputs are required to specify <test problem> and <# of MPI processes>" 1>&2
+if [ $# -lt 1 ]; then
+    echo "$# input(s) is/are detected while at least 1 input is required to specify <test problem>" 1>&2
     exit 1
 fi
-PROBLEM=$1
-PROCS=$2
 JOB_ID=$$
+PROBLEM=$1
+###############################################################
+NX=1
+NY=1
+NZ=1
+if [ $# -eq 4 ]; then
+    NX=$2
+    NY=$3
+    NZ=$4
+fi
+PROCS=`expr $NX \* $NY \* $NZ`
 ###############################################################
 DO_MEMCHK=0
-if [ $# -eq 3 ]; then
-    DO_MEMCHK=$3
+if [ $# -eq 2 ]; then
+    if [ $PROCS -eq 1 ]; then
+	DO_MEMCHK=$2
+    fi
+fi
+if [ $# -eq 5 ]; then
+    DO_MEMCHK=$5
 fi
 ###############################################################
 #
@@ -259,19 +273,19 @@ TIME=`date`
 echo "$TIME: $EXE start" >> $LOG
 if [ $PROCS -eq 1 ]; then
     if [ $DO_MEMCHK -eq 0 ]; then
-	echo "$EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
-	$EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
+	echo "sh/local/numarun.sh 1 $LOG $EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
+	sh/local/numarun.sh 1 $LOG $EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
     else
 	echo "$MEMCHK $EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
 	$MEMCHK $EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
     fi
 else
     if [ $DO_MEMCHK -eq 0 ]; then
-	echo "$MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
-	$MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
+	echo "$MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
+	$MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
     else
-	echo "$MEMCHK $MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
-	$MEMCHK $MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
+	echo "$MEMCHK $MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
+	$MEMCHK $MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
     fi
 fi
 TIME=`date`

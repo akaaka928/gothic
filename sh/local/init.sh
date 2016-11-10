@@ -39,7 +39,10 @@ NTOT=262144
 # NTOT=2147483648
 # NTOT=4294967296
 # NTOT=8589934592
-SAVE=60.0
+###############################################################
+SAVE=140.0
+# SAVE=60.0
+# SAVE=2.0
 ###############################################################
 #
 #
@@ -514,12 +517,26 @@ STDERR=log/$FILE.e$JOB_ID
 TIME=`date`
 echo "$TIME: $INI start" >> $LOG
 if [ $PROBLEM -eq 0 ]; then
-echo "$INI -file=$FILE -Ntot=$NTOT -Mtot=$MTOT -sigma=$SIGMA -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR" >> $LOG
-$INI -file=$FILE -Ntot=$NTOT -Mtot=$MTOT -sigma=$SIGMA -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+if [ `which numactl` ]; then
+    # run with numactl
+    echo "numactl --localalloc $INI -file=$FILE -Ntot=$NTOT -Mtot=$MTOT -sigma=$SIGMA -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR" >> $LOG
+    numactl --localalloc $INI -file=$FILE -Ntot=$NTOT -Mtot=$MTOT -sigma=$SIGMA -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+else
+    # run without numactl
+    echo "$INI -file=$FILE -Ntot=$NTOT -Mtot=$MTOT -sigma=$SIGMA -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR" >> $LOG
+    $INI -file=$FILE -Ntot=$NTOT -Mtot=$MTOT -sigma=$SIGMA -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+fi
 fi
 if [ $PROBLEM -ge 1 ]; then
-echo "$INI -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR" >> $LOG
-$INI -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+if [ `which numactl` ]; then
+    # run with numactl
+    echo "numactl --localalloc $INI -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR" >> $LOG
+    numactl --localalloc $INI -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+else
+    # run without numactl
+    echo "$INI -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR" >> $LOG
+    $INI -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+fi
 fi
 TIME=`date`
 echo "$TIME: $INI finish" >> $LOG

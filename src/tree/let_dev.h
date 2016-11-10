@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/05(Fri) 12:05:13
+                  last updated on 2016/11/01(Tue) 10:23:50
  *                                                                       *
  *    Header File for constructing octree structure                      *
  *                                                                       *
@@ -13,54 +13,29 @@
 #ifndef LET_DEV_H
 #define LET_DEV_H
 //-------------------------------------------------------------------------
-
-
+#include <mpi.h>
 //-------------------------------------------------------------------------
-#   if  !defined(MPI_INCLUDED) && !defined(OMPI_MPI_H)
-#       include <mpi.h>
-#endif//!defined(MPI_INCLUDED) && !defined(OMPI_MPI_H)
+#include <macro.h>
+#include <cudalib.h>
 //-------------------------------------------------------------------------
-#ifndef MACRO_H
-#       include <macro.h>
-#endif//MACRO_H
+#include "../sort/peano.h"
 //-------------------------------------------------------------------------
-#ifndef CUDALIB_H
-#       include <cudalib.h>
-#endif//CUDALIB_H
+#include "../para/mpicfg.h"
 //-------------------------------------------------------------------------
-#ifndef PEANO_H
-#       include "../sort/peano.h"
-#endif//PEANO_H
-//-------------------------------------------------------------------------
-#ifndef MACUTIL_H
-#       include "../tree/macutil.h"
-#endif//MACUTIL_H
-//-------------------------------------------------------------------------
-#ifndef MAKE_H
-#       include "../tree/make.h"
-#endif//MAKE_H
-//-------------------------------------------------------------------------
-#ifndef BUF_INC_H
-#       include "../tree/buf_inc.h"
-#endif//BUF_INC_H
-//-------------------------------------------------------------------------
-#ifndef MPICFG_H
-#       include "../para/mpicfg.h"
-#endif//MPICFG_H
-//-------------------------------------------------------------------------
-#ifndef LET_H
-#       include "../tree/let.h"
-#endif//LET_H
-//-------------------------------------------------------------------------
-#ifndef WALK_DEV_H
-#       include "../tree/walk_dev.h"
-#endif//WALK_DEV_H
+#include "../tree/macutil.h"
+#include "../tree/make.h"
+#include "../tree/buf_inc.h"
+#include "../tree/let.h"
+#include "../tree/walk_dev.h"
 //-------------------------------------------------------------------------
 
 
 //-------------------------------------------------------------------------
 #ifndef NTHREADS_MAKE_LET
-#define NTHREADS_MAKE_LET (128)
+/* #define NTHREADS_MAKE_LET (128) */
+/* #define NTHREADS_MAKE_LET (256) */
+/* #define NTHREADS_MAKE_LET (512) */
+#define NTHREADS_MAKE_LET (1024)
 #endif//NTHREADS_MAKE_LET
 //-------------------------------------------------------------------------
 /* maximum value of NTHREADS_MAKE_LET is 1024 to calculate prefix sum in 2 stages (32^2) */
@@ -146,6 +121,9 @@ extern "C"
 #ifdef  ALLOCATE_LETBUFFER
 			  uint **buf, soaTreeWalkBuf *treebuf,
 #endif//ALLOCATE_LETBUFFER
+/* #ifdef  USE_CUDA_EVENT */
+/* 			  cudaEvent_t **iniEvent, cudaEvent_t **finEvent, */
+/* #endif//USE_CUDA_EVENT */
 			  cudaStream_t **stream, int *Nstream, const deviceProp gpu, MPIcfg_tree mpi);
   void releaseLETtopology(domainInfo  *info, position  *ipos,
 #ifdef  GADGET_MAC
@@ -157,6 +135,9 @@ extern "C"
 #ifdef  ALLOCATE_LETBUFFER
 			  uint  *buf,
 #endif//ALLOCATE_LETBUFFER
+/* #ifdef  USE_CUDA_EVENT */
+/* 			  cudaEvent_t  *iniEvent, cudaEvent_t  *finEvent, */
+/* #endif//USE_CUDA_EVENT */
 			  cudaStream_t  *stream, int  Nstream);
   //-----------------------------------------------------------------------
 #ifdef  DBG_LETGEN_ON_GPU
@@ -165,7 +146,11 @@ extern "C"
   void callGenLET
   (const cudaStream_t stream, domainInfo *let, MPIcfg_tree mpi, const soaTreeNode tree, const soaTreeWalkBuf buf
 #ifdef  MONITOR_LETGEN_TIME
+#ifdef  USE_CUDA_EVENT
+   , const cudaEvent_t iniEvent, const cudaEvent_t finEvent
+#else///USE_CUDA_EVENT
    , unsigned long long int * RESTRICT cycles
+#endif//USE_CUDA_EVENT
 #endif//MONITOR_LETGEN_TIME
    );
   //-----------------------------------------------------------------------

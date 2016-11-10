@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/21(Thu) 16:21:55
+                  last updated on 2016/11/04(Fri) 14:29:12
  *                                                                       *
  *    Header File for constructing octree structure                      *
  *                                                                       *
@@ -13,36 +13,17 @@
 #ifndef MAKE_DEV_H
 #define MAKE_DEV_H
 //-------------------------------------------------------------------------
-
-
+#include <stdbool.h>
 //-------------------------------------------------------------------------
-#   if  !defined(_STDBOOL_H) && !defined(_STDBOOL)
-#       include <stdbool.h>
-#endif//!defined(_STDBOOL_H) && !defined(_STDBOOL)
+#include <macro.h>
 //-------------------------------------------------------------------------
-#ifndef MACRO_H
-#       include <macro.h>
-#endif//MACRO_H
+#include "../misc/benchmark.h"
+#include "../misc/structure.h"
 //-------------------------------------------------------------------------
-#ifndef BENCHMARK_H
-#       include "../misc/benchmark.h"
-#endif//BENCHMARK_H
+#include "../sort/peano.h"
 //-------------------------------------------------------------------------
-#ifndef STRUCTURE_H
-#       include "../misc/structure.h"
-#endif//STRUCTURE_H
-//-------------------------------------------------------------------------
-#ifndef PEANO_H
-#       include "../sort/peano.h"
-#endif//PEANO_H
-//-------------------------------------------------------------------------
-#ifndef MACUTIL_H
-#       include "../tree/macutil.h"
-#endif//MACUTIL_H
-//-------------------------------------------------------------------------
-#ifndef MAKE_H
-#       include "../tree/make.h"
-#endif//MAKE_H
+#include "../tree/macutil.h"
+#include "../tree/make.h"
 //-------------------------------------------------------------------------
 
 
@@ -259,72 +240,6 @@ extern "C"
    );
 #endif//MAKE_TREE_ON_DEVICE
   //-----------------------------------------------------------------------
-/*   muse allocTreeNode_dev */
-/*   (uint **more_dev, jparticle **pj_dev, jmass **mj_dev, */
-/* #ifndef MAKE_TREE_ON_DEVICE */
-/*    uint **more_hst, int **n2c_hst, */
-/* #endif//MAKE_TREE_ON_DEVICE */
-/* #ifdef  GADGET_MAC */
-/*    real **mac_dev, */
-/* #endif//GADGET_MAC */
-/* #ifdef  CALC_MULTIPOLE_ON_DEVICE */
-/* #       ifdef  WS93_MAC */
-/*    real **mr2_dev, */
-/* #       endif//WS93_MAC */
-/*    real **bmax_dev, int **n2c_dev, int **gsync0, int **gsync1, deviceProp devProp, */
-/* #else///CALC_MULTIPOLE_ON_DEVICE */
-/* #       ifdef  WS93_MAC */
-/*    real **mr2_hst, */
-/* #       endif//WS93_MAC */
-/*    real **bmax_hst, */
-/* #endif//CALC_MULTIPOLE_ON_DEVICE */
-/* #   if  !defined(CALC_MULTIPOLE_ON_DEVICE) || (!defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE)) */
-/*    jparticle **pj_hst, jmass **mj_hst, */
-/* #endif//!defined(CALC_MULTIPOLE_ON_DEVICE) || (!defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE)) */
-/* #   if  defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH) */
-/*    int **niSub_dev, */
-/* #ifndef MAKE_TREE_ON_DEVICE */
-/*    int **niSub_hst, */
-/* #endif//MAKE_TREE_ON_DEVICE */
-/* #endif//defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH) */
-/* #ifdef  MAKE_TREE_ON_DEVICE */
-/*    int **gmem_make_tree, int **gsync0_make_tree, int **gsync1_make_tree, int **gsync2_make_tree, int **gsync3_make_tree, */
-/*    int **gmem_link_tree, int **gsync0_link_tree, int **gsync1_link_tree, */
-/* #endif//MAKE_TREE_ON_DEVICE */
-/*    int **more0Buf, int **more1Buf, real **rjmaxBuf, int **fail_dev, soaTreeNode *dev, soaTreeNode *hst, soaMakeTreeBuf *buf); */
-/*   void  freeTreeNode_dev */
-/*   (uint  *more_dev, jparticle  *pj_dev, jmass  *mj_dev, */
-/* #ifndef MAKE_TREE_ON_DEVICE */
-/*    uint  *more_hst, int  *n2c_hst, */
-/* #endif//MAKE_TREE_ON_DEVICE */
-/* #ifdef  GADGET_MAC */
-/*    real  *mac_dev, */
-/* #endif//GADGET_MAC */
-/* #ifdef  CALC_MULTIPOLE_ON_DEVICE */
-/* #       ifdef  WS93_MAC */
-/*    real  *mr2_dev, */
-/* #       endif//WS93_MAC */
-/*    real  *bmax_dev, int  *n2c_dev, int  *gsync0, int  *gsync1, */
-/* #else///CALC_MULTIPOLE_ON_DEVICE */
-/* #       ifdef  WS93_MAC */
-/*    real  *mr2_hst, */
-/* #       endif//WS93_MAC */
-/*    real  *bmax_hst, */
-/* #endif//CALC_MULTIPOLE_ON_DEVICE */
-/* #   if  !defined(CALC_MULTIPOLE_ON_DEVICE) || (!defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE)) */
-/*    jparticle  *pj_hst, jmass  *mj_hst, */
-/* #endif//!defined(CALC_MULTIPOLE_ON_DEVICE) || (!defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE)) */
-/* #   if  defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH) */
-/*    int  *niSub_dev, */
-/* #ifndef MAKE_TREE_ON_DEVICE */
-/*    int  *niSub_hst, */
-/* #endif//MAKE_TREE_ON_DEVICE */
-/* #endif//defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH) */
-/* #ifdef  MAKE_TREE_ON_DEVICE */
-/*    int  *gmem_make_tree, int  *gsync0_make_tree, int  *gsync1_make_tree, int  *gsync2_make_tree, int  *gsync3_make_tree, */
-/*    int  *gmem_link_tree, int  *gsync0_link_tree, int  *gsync1_link_tree, */
-/* #endif//MAKE_TREE_ON_DEVICE */
-/*    int  *more0Buf, int  *more1Buf, real  *rjmaxBuf, int  *fail_dev); */
   muse allocTreeNode_dev
   (uint **more_dev, jparticle **pj_dev, jmass **mj_dev,
 #ifdef  CALC_MULTIPOLE_ON_DEVICE
@@ -434,14 +349,6 @@ extern "C"
 #ifdef  CALC_MULTIPOLE_ON_DEVICE
   //-----------------------------------------------------------------------
 #ifndef MAKE_TREE_ON_DEVICE
-/*   void setTreeCell_dev */
-/*   (const size_t num, */
-/*    treecell *cell_dev, bool *leaf_dev, uint *node_dev, PHinfo *info_dev, */
-/*    treecell *cell_hst, bool *leaf_hst, uint *node_hst, PHinfo *info_hst */
-/* #ifdef  EXEC_BENCHMARK */
-/*    , wall_clock_time *elapsed */
-/* #endif//EXEC_BENCHMARK */
-/*    ); */
   void setTreeCell_dev(const size_t num, const soaTreeCell dev, const soaTreeCell hst
 #ifdef  EXEC_BENCHMARK
 		       , wall_clock_time *elapsed
@@ -450,37 +357,10 @@ extern "C"
 #endif//MAKE_TREE_ON_DEVICE
   //-----------------------------------------------------------------------
 #ifdef  GADGET_MAC
-  /* void enforceBarnesHutMAC_dev */
-  /* (const int Ni, acceleration * RESTRICT ai_dev, */
-  /*  const int Nj, jparticle * RESTRICT pj_dev, real * RESTRICT mac_dev, real * RESTRICT bmax_dev); */
-  /* void recoverGADGET_MAC_dev */
-  /* (const int Nj, jparticle * RESTRICT pj_dev, real * RESTRICT mac_dev); */
   void enforceBarnesHutMAC_dev(const int Ni, const iparticle pi, const int Nj, const soaTreeNode pj);
   void recoverGADGET_MAC_dev(const int Nj, const soaTreeNode pj);
 #endif//GADGET_MAC
   //-----------------------------------------------------------------------
-/*   void calcMultipole_dev */
-/*   (const int bottomLev, PHinfo * RESTRICT level, PHinfo * RESTRICT level_dev, treecell * RESTRICT cell, bool * RESTRICT leaf, */
-/*    const int piNum, position * RESTRICT pi, int * RESTRICT jtag, */
-/*    const int pjNum, uint * RESTRICT node, uint * RESTRICT more, int * RESTRICT node2cell, jparticle * RESTRICT pj, jmass * RESTRICT mj, real * RESTRICT bmax, */
-/*    int * RESTRICT more0Buf, int * RESTRICT more1Buf, real * RESTRICT rjmaxBuf, int * RESTRICT fail_dev, */
-/*    int * RESTRICT gsync0, int * RESTRICT gsync1, deviceProp devProp */
-/* #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING */
-/*    , const real eps2 */
-/* #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING */
-/* #ifdef  WS93_MAC */
-/*    , real * RESTRICT mr2 */
-/* #endif//WS93_MAC */
-/* #   if  !defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE) */
-/*    , jparticle * RESTRICT pj_hst, jmass * RESTRICT mj_hst, real * RESTRICT bmax_root_hst */
-/* #endif//!defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE) */
-/* #ifdef  COUNT_INTERACTIONS */
-/*    , tree_stats * RESTRICT stats_hst */
-/* #endif//COUNT_INTERACTIONS */
-/* #ifdef  EXEC_BENCHMARK */
-/*    , wall_clock_time *elapsed */
-/* #endif//EXEC_BENCHMARK */
-/*    ); */
   void calcMultipole_dev
   (const int bottomLev, const soaTreeCell cell,
    const int piNum, const iparticle pi, const int pjNum, const soaTreeNode node,
@@ -491,6 +371,9 @@ extern "C"
 #   if  !defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE)
    , const soaTreeNode node_hst, real * RESTRICT bmax_root_hst
 #endif//!defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE)
+#ifndef SERIALIZED_EXECUTION
+   , double *tmac
+#endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
    , const soaTreeCell cell_hst, tree_stats * RESTRICT stats_hst
 #endif//COUNT_INTERACTIONS

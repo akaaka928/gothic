@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/03/11(Fri) 14:19:18
+                  last updated on 2016/11/08(Tue) 14:37:45
  *                                                                       *
  *    Header File for orbit integration of N-body simulation             *
  *                                                                       *
@@ -13,28 +13,14 @@
 #ifndef ADV_DEV_H
 #define ADV_DEV_H
 //-------------------------------------------------------------------------
-
-
+#include <sys/time.h>
 //-------------------------------------------------------------------------
-#ifndef _SYS_TIME_H
-#      include <sys/time.h>
-#endif//_SYS_TIME_H
+#include <macro.h>
 //-------------------------------------------------------------------------
-#ifndef MACRO_H
-#       include <macro.h>
-#endif//MACRO_H
+#include "../misc/benchmark.h"
+#include "../misc/structure.h"
 //-------------------------------------------------------------------------
-#ifndef BENCHMARK_H
-#       include "../misc/benchmark.h"
-#endif//BENCHMARK_H
-//-------------------------------------------------------------------------
-#ifndef STRUCTURE_H
-#       include "../misc/structure.h"
-#endif//STRUCTURE_H
-//-------------------------------------------------------------------------
-#ifndef WALK_DEV_H
-#       include "../tree/walk_dev.h"
-#endif//WALK_DEV_H
+#include "../tree/walk_dev.h"
 //-------------------------------------------------------------------------
 
 
@@ -91,19 +77,6 @@
 
 
 //-------------------------------------------------------------------------
-/* #ifdef  CUB_AVAILABLE */
-/* typedef struct */
-/* { */
-/*   laneinfo *info; */
-/*   double *time; */
-/*   void *temp_storage; */
-/*   size_t temp_storage_size; */
-/* } soaCUBtime; */
-/* #endif//CUB_AVAILABLE */
-//-------------------------------------------------------------------------
-
-
-//-------------------------------------------------------------------------
 //-- List of functions appeared in "adv_dev.cu"
 //-------------------------------------------------------------------------
 #ifdef  __CUDACC__
@@ -116,18 +89,10 @@ extern "C"
   void  freeTimeStep_dev(real  *dt_dev);
 #endif//BLOCK_TIME_STEP
   //-----------------------------------------------------------------------
-/* #   if  defined(CUB_AVAILABLE) && defined(BLOCK_TIME_STEP) */
-/*   muse allocTimeStep_dev(void **temp_storage, laneinfo **info, double **time, soaCUBtime *buf, laneinfo *laneInfo_dev, double *laneTime_dev, const int Ngrp); */
-/*   void  freeTimeStep_dev(void  *temp_storage, laneinfo  *info, double  *time); */
-/* #endif//defined(CUB_AVAILABLE) && defined(BLOCK_TIME_STEP) */
-  //-----------------------------------------------------------------------
 #ifdef  BLOCK_TIME_STEP
   void setTimeStep_dev
   (const int Ngrp, laneinfo * RESTRICT laneInfo_dev, double * RESTRICT laneTime_dev, int *grpNum, const iparticle pi,
    const double told, double *tnew, double *dt, bool adjustAllTimeStep, const double invSnapshotInterval, const uint previous, uint *present
-/* #ifdef  CUB_AVAILABLE */
-/*    , soaCUBtime buf */
-/* #endif//CUB_AVAILABLE */
 #ifndef SERIALIZED_EXECUTION
    , MPIcfg_tree mpi
 #endif//SERIALIZED_EXECUTION
@@ -147,14 +112,6 @@ extern "C"
 #endif//BLOCK_TIME_STEP
   //-----------------------------------------------------------------------
 #ifdef  BLOCK_TIME_STEP
-/*   void prediction_dev(const int Nj, const real tnew, const iparticle pi */
-/* #ifndef CALC_MULTIPOLE_ON_DEVICE */
-/* 		      , const iparticle pi_hst */
-/* #endif//CALC_MULTIPOLE_ON_DEVICE */
-/* #ifdef  EXEC_BENCHMARK */
-/* 		      , wall_clock_time *elapsed */
-/* #endif//EXEC_BENCHMARK */
-/* 		      ); */
   void prediction_dev(const int Nj, const double tnew, const iparticle pi
 #ifndef CALC_MULTIPOLE_ON_DEVICE
 		      , const iparticle pi_hst
@@ -163,31 +120,16 @@ extern "C"
 		      , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
 		      );
-/*   void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, real * RESTRICT laneTime, const real eps, const real eta, const iparticle pi, const int reuseTree */
-/* #ifdef  EXEC_BENCHMARK */
-/* 		      , wall_clock_time *elapsed */
-/* #endif//EXEC_BENCHMARK */
-/* 		      ); */
   void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTRICT laneTime, const real eps, const real eta, const iparticle pi, const int reuseTree
 #ifdef  EXEC_BENCHMARK
 		      , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
 		      );
-/*   void adjustParticleTime_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, real * RESTRICT laneTime, const real eps, const real eta, const iparticle pi */
-/* #ifdef  EXEC_BENCHMARK */
-/* 			      , wall_clock_time *elapsed */
-/* #endif//EXEC_BENCHMARK */
-/* 			      ); */
   void adjustParticleTime_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTRICT laneTime, const real eps, const real eta, const iparticle pi
 #ifdef  EXEC_BENCHMARK
 			      , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
 			      );
-/*   void setLaneTime_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, real * RESTRICT laneTime, const iparticle pi */
-/* #ifdef  EXEC_BENCHMARK */
-/* 		       , wall_clock_time *elapsed */
-/* #endif//EXEC_BENCHMARK */
-/* 		       ); */
   void setLaneTime_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTRICT laneTime, const iparticle pi
 #ifdef  EXEC_BENCHMARK
 		       , wall_clock_time *elapsed
@@ -216,6 +158,9 @@ extern "C"
 			    , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
 			    );
+  //-----------------------------------------------------------------------
+  void copyParticleAsync_hst2dev(const int Ni, iparticle hst, iparticle dev, cudaStream_t stream);
+  void copyParticleAsync_dev2hst(const int Ni, iparticle dev, iparticle hst, cudaStream_t stream);
   //-----------------------------------------------------------------------
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
   void copyAccel_dev2hst(const int Ni, acceleration * RESTRICT dev, acceleration * RESTRICT hst);

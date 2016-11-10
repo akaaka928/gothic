@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2016/10/24(Mon) 10:42:41
+# last updated on 2016/11/10(Thu) 16:28:35
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -21,8 +21,11 @@ DEBUG	:= -DNDEBUG
 # PROFILE	:= -pg
 #################################################################################################
 # Execution options
+FORCE_SINGLE_GPU_RUN	:= 0
+EXCHANGE_USING_GPUS	:= 1
 MONITOR_ENERGY_ERROR	:= 1
-FORCE_SINGLE_GPU_RUN	:= 1
+MONITOR_LETGEN_TIME	:= 1
+MEASURE_BY_CUDA_EVENT	:= 0
 COMMUNICATION_VIA_HOST	:= 1
 CONSTRUCT_LET_ON_GPU	:= 1
 DIVERT_GEOMETRIC_CENTER	:= 1
@@ -128,6 +131,11 @@ ifeq ($(REPORT_ELAPSED_TIME), 1)
 CCARG	+= -DREPORT_TOTAL_ELAPSED_TIME
 endif
 #################################################################################################
+ifeq ($(MEASURE_BY_CUDA_EVENT), 1)
+CCARG	+= -DUSE_CUDA_EVENT
+CUARG	+= -DUSE_CUDA_EVENT
+endif
+#################################################################################################
 ifeq ($(CHECK_FUNCTION_CALLS), 1)
 DEBUG	:=
 PROFILE	:=
@@ -191,9 +199,17 @@ CONSTRUCT_LET_ON_GPU	:= 0
 else
 # direct solver is not parallelized
 EVALUATE_FORCE_ERROR	:= 0
+ifeq ($(EXCHANGE_USING_GPUS), 1)
+CCARG	+= -DEXCHANGE_USING_GPUS
+CUARG	+= -DEXCHANGE_USING_GPUS
+endif
 ifeq ($(CONSTRUCT_LET_ON_GPU), 1)
 CCARG	+= -DBUILD_LET_ON_DEVICE
 CUARG	+= -DBUILD_LET_ON_DEVICE
+ifeq ($(MONITOR_LETGEN_TIME), 1)
+CCARG	+= -DMONITOR_LETGEN_TIME
+CUARG	+= -DMONITOR_LETGEN_TIME
+endif
 ifeq ($(COMMUNICATION_VIA_HOST), 1)
 CCARG	+= -DLET_COMMUNICATION_VIA_HOST
 CUARG	+= -DLET_COMMUNICATION_VIA_HOST
@@ -227,7 +243,7 @@ CCARG	+= -DYMIKI_MAC
 CUARG	+= -DYMIKI_MAC
 # YMIKI_MAC is very similar to GADGET MAC
 ADOPT_GADGET_TYPE_MAC	:= 1
-# LET generator for YMIKI_MAC is not yet implementated
+# LET generator for YMIKI_MAC is not yet implementated (also, would not been implemented in future)
 FORCE_SINGLE_GPU_RUN	:= 1
 endif
 #################################################################################################
@@ -533,6 +549,7 @@ FINDSRC	:= showOptConfig.c
 #################################################################################################
 ALLCLIB	:= allocate.c
 CNVTLIB	:= convert.c
+TUNELIB	:= tune.c
 BRNTLIB	:= brent.c
 UTILGPU	:= allocate_dev.cu
 #################################################################################################
@@ -580,6 +597,9 @@ PJETSRC	:= plot.needle.c
 PDSKSRC	:= plot.disk.c
 #################################################################################################
 LETHOST	+= exchange.c mpicfg.c
+ifeq ($(EXCHANGE_USING_GPUS), 1)
+EXCGGPU	:= exchange_dev.cu
+endif
 #################################################################################################
 
 
@@ -592,13 +612,16 @@ else
 OBJMPGT	:= $(patsubst %.c,  $(OBJDIR)/%.mpi.o,      $(notdir $(NBDYSRC) $(FILELIB)))
 OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.o,          $(notdir $(ALLCLIB) $(CNVTLIB)))
 endif
-OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.o,          $(notdir $(TREESRC)))
+OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.o,          $(notdir $(TREESRC) $(TUNELIB)))
 OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.o,          $(notdir $(UTILGPU)))
 ifeq ($(FORCE_SINGLE_GPU_RUN), 1)
 OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.o,          $(notdir $(TREEGPU)))
 else
 OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.mpi.o,      $(notdir $(TREEGPU) $(LET_GPU)))
 OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.mpi.o,      $(notdir $(LETHOST)))
+ifeq ($(EXCHANGE_USING_GPUS), 1)
+OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.mpi.o,      $(notdir $(EXCGGPU)))
+endif
 endif
 ifeq ($(USE_BRENT_METHOD), 1)
 OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.o,          $(notdir $(BRNTLIB)))
@@ -932,7 +955,7 @@ COMMON_DEP	:=	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h
 #################################################################################################
 ## $(MAINDIR)/*
 GOTHIC_DEP	:=	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/name.h	$(MYINC)/constants.h	$(MYINC)/timer.h	$(MYINC)/cudalib.h
-GOTHIC_DEP	+=	$(MISCDIR)/device.h	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h	$(MISCDIR)/allocate_dev.h	$(MISCDIR)/convert.h
+GOTHIC_DEP	+=	$(MISCDIR)/device.h	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h	$(MISCDIR)/allocate_dev.h	$(MISCDIR)/convert.h	$(MISCDIR)/tune.h
 GOTHIC_DEP	+=	$(FILEDIR)/io.h
 GOTHIC_DEP	+=	$(SORTDIR)/peano.h
 GOTHIC_DEP	+=	$(TREEDIR)/macutil.h	$(TREEDIR)/make.h	$(TREEDIR)/let.h	$(TREEDIR)/buf_inc.h	$(TREEDIR)/make_dev.h	$(TREEDIR)/walk_dev.h
@@ -966,10 +989,11 @@ $(OBJDIR)/allocate_dev.o:	$(COMMON_DEP)	$(MISCDIR)/structure.h	$(MISCDIR)/alloca
 $(OBJDIR)/convert.mpi.hdf5.o:	$(COMMON_DEP)	$(MISCDIR)/structure.h	$(MISCDIR)/convert.h
 $(OBJDIR)/convert.o:		$(COMMON_DEP)	$(MISCDIR)/structure.h	$(MISCDIR)/convert.h
 $(OBJDIR)/brent.o:		$(COMMON_DEP)	$(MISCDIR)/brent.h
+$(OBJDIR)/tune.o:		$(COMMON_DEP)	$(MISCDIR)/tune.h
 #################################################################################################
 ## $(FILEDIR)/*
 IO_DEP	:=	$(COMMON_DEP)	$(MYINC)/constants.h	$(MYINC)/name.h	$(MYINC)/mpilib.h
-IO_DEP	+=	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(FILEDIR)/io.h
+IO_DEP	+=	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(MISCDIR)/tune.h	$(MISCDIR)/brent.h	$(FILEDIR)/io.h
 ifeq ($(HUNT_OPTIMAL_WALK_TREE), 1)
 IO_DEP	+=	$(TREEDIR)/walk_dev.h
 ifeq ($(BRUTE_FORCE_LOCALIZER), 1)
@@ -1062,7 +1086,7 @@ $(OBJDIR)/potdens.omp.gsl.o:	$(DISK_DEP)
 $(OBJDIR)/diskDF.omp.gsl.o:	$(DISK_DEP)	$(MISCDIR)/structure.h	$(INITDIR)/diskDF.h
 $(OBJDIR)/disk.omp.gsl.o:	$(DISK_DEP)	$(MISCDIR)/structure.h	$(INITDIR)/disk.h
 IOFILE_DEP	:=	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/constants.h	$(MYINC)/timer.h	$(MYINC)/name.h
-IOFILE_DEP	+=	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h	$(FILEDIR)/io.h
+IOFILE_DEP	+=	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h	$(MISCDIR)/tune.h	$(MISCDIR)/brent.h	$(FILEDIR)/io.h
 $(OBJDIR)/uniformsphere.mpi.gsl.hdf5.o:	$(IOFILE_DEP)			$(MYINC)/hdf5lib.h
 $(OBJDIR)/uniformsphere.gsl.o:		$(IOFILE_DEP)
 MAGI_DEP	:=	$(MYINC)/rotate.h	$(INITDIR)/magi.h	$(INITDIR)/king.h	$(INITDIR)/profile.h	$(INITDIR)/eddington.h
@@ -1094,8 +1118,14 @@ $(OBJDIR)/cdflib.o:	$(COMMON_DEP)	$(PLOTDIR)/cdflib.h
 #################################################################################################
 ## $(PARADIR)/*
 PARA_DEP	:=	$(COMMON_DEP)	$(MYINC)/name.h	$(MYINC)/mpilib.h
-PARA_DEP	+=	$(MISCDIR)/structure.h	$(TREEDIR)/make.h	$(PARADIR)/mpicfg.h
-$(OBJDIR)/exchange.mpi.o:	$(PARA_DEP)	$(TIMEDIR)/adv_dev.h	$(PARADIR)/exchange.h
-$(OBJDIR)/mpicfg.mpi.o:		$(PARA_DEP)
+PARA_DEP	+=	$(MISCDIR)/structure.h	$(PARADIR)/mpicfg.h
+EXCG_DEP	:=	$(PARA_DEP)	$(TIMEDIR)/adv_dev.h	$(PARADIR)/exchange.h	$(MISCDIR)/tune.h	$(MISCDIR)/brent.h
+ifeq ($(EXCHANGE_USING_GPUS), 1)
+$(OBJDIR)/exchange.mpi.o:	$(PARA_DEP)	$(PARADIR)/exchange.h
+$(OBJDIR)/exchange_dev.mpi.o:	$(EXCG_DEP)	$(MYINC)/cudalib.h	$(MISCDIR)/benchmark.h	$(MISCDIR)/gsync_dev.cu	$(PARADIR)/exchange_dev.h
+else
+$(OBJDIR)/exchange.mpi.o:	$(EXCG_DEP)
+endif
+$(OBJDIR)/mpicfg.mpi.o:		$(PARA_DEP)	$(TREEDIR)/make.h
 #################################################################################################
 #################################################################################################

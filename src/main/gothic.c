@@ -1,6 +1,6 @@
 /************************************************************************* \
  *                                                                       *
-                  last updated on 2016/10/16(Sun) 16:49:49
+                  last updated on 2016/11/10(Thu) 19:27:40
  *                                                                       *
  *    N-body code based on Barnes--Hut tree                              *
  *                                                                       *
@@ -13,12 +13,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <sys/time.h>/* for on-the-fly monitoring of execution time of multiple functions */
+#include <unistd.h>/* to check the existence of files */
 #include <mpi.h>
-#include <sys/time.h>
-//-------------------------------------------------------------------------
-#ifdef  COMPARE_WITH_DIRECT_SOLVER
-#       include <unistd.h>
-#endif//COMPARE_WITH_DIRECT_SOLVER
 //-------------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
 #       include <hdf5.h>
@@ -35,7 +32,6 @@
 #        ifndef SERIALIZED_EXECUTION
 #include <mpilib.h>
 #include "../para/mpicfg.h"
-#include "../para/exchange.h"
 #        endif//SERIALIZED_EXECUTION
 //-------------------------------------------------------------------------
 #include "../misc/device.h"
@@ -44,9 +40,17 @@
 #include "../misc/allocate.h"
 #include "../misc/allocate_dev.h"
 #include "../misc/convert.h"
+#include "../misc/tune.h"
 #           if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #include "../misc/brent.h"
 #        endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+//-------------------------------------------------------------------------
+#        ifndef SERIALIZED_EXECUTION
+#include "../para/exchange.h"
+#ifdef  EXCHANGE_USING_GPUS
+#include "../para/exchange_dev.h"
+#endif//EXCHANGE_USING_GPUS
+#        endif//SERIALIZED_EXECUTION
 //-------------------------------------------------------------------------
 #include "../file/io.h"
 //-------------------------------------------------------------------------
@@ -86,24 +90,6 @@
 real theta2;
 #endif//WS93_MAC
 //-------------------------------------------------------------------------
-#ifdef  WALK_TREE_COMBINED_MODEL
-#define USE_PARABOLIC_GROWTH_MODEL
-#else///WALK_TREE_COMBINED_MODEL
-/* choose one of listed below: */
-#define WALK_TREE_TOTAL_SUM_MODEL
-/* #define WALK_TREE_ARITHMETIC_PROGRESSION_MODEL */
-/* #define WALK_TREE_GEOMETRIC_PROGRESSION_MODEL */
-#endif//WALK_TREE_COMBINED_MODEL
-//-------------------------------------------------------------------------
-#ifdef  USE_PARABOLIC_GROWTH_MODEL
-/* this macro must be switched ON */
-#define WALK_TREE_USE_REDUCED_CHISQ
-/* this macro is optional */
-#define USE_ADDITIONAL_SWITCH
-#endif//USE_PARABOLIC_GROWTH_MODEL
-//-------------------------------------------------------------------------
-#define FORCE_ADJUSTING_PARTICLE_TIME_STEPS
-//-------------------------------------------------------------------------
 #   if  defined(WALK_TREE_COMBINED_MODEL) || defined(WALK_TREE_TOTAL_SUM_MODEL) || defined(WALK_TREE_GEOMETRIC_PROGRESSION_MODEL) || defined(COUNT_INTERACTIONS)
 #       include <math.h>
 #endif//defined(WALK_TREE_COMBINED_MODEL) || defined(WALK_TREE_TOTAL_SUM_MODEL) || defined(WALK_TREE_GEOMETRIC_PROGRESSION_MODEL) || defined(COUNT_INTERACTIONS)
@@ -111,171 +97,6 @@ real theta2;
 #   if  defined(HUNT_MAKE_PARAMETER) || (defined(HUNT_FIND_PARAMETER) && defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES))
 int treeBuildCalls = 0;
 #endif//defined(HUNT_MAKE_PARAMETER) || (defined(HUNT_FIND_PARAMETER) && defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES))
-//-------------------------------------------------------------------------
-
-
-//-------------------------------------------------------------------------
-#ifdef  WALK_TREE_COMBINED_MODEL
-//-------------------------------------------------------------------------
-typedef struct
-{
-  double S, Sx, Sy, Sxx, Sxy, Syy;
-#ifdef  USE_PARABOLIC_GROWTH_MODEL
-  double Sxxxx, Sxxx, Sxxy;
-#endif//USE_PARABOLIC_GROWTH_MODEL
-} statVal;
-//-------------------------------------------------------------------------
-typedef struct
-{
-  double slope, icept, rchisq;
-  double time;
-#ifdef  USE_PARABOLIC_GROWTH_MODEL
-  double second;
-#endif//USE_PARABOLIC_GROWTH_MODEL
-} guessTime;
-//-------------------------------------------------------------------------
-/* static const double tolerance4chisq = 0.125; */
-static const double tolerance4chisq = 1.5625e-2;
-//-------------------------------------------------------------------------
-static inline void initStatVal(statVal *val)
-{
-  //-----------------------------------------------------------------------
-  val->S   = 0.0;
-  val->Sx  = 0.0;
-  val->Sy  = 0.0;
-  val->Sxx = 0.0;
-  val->Sxy = 0.0;
-  val->Syy = 0.0;
-  //-----------------------------------------------------------------------
-#ifdef  USE_PARABOLIC_GROWTH_MODEL
-  val->Sxxy  = 0.0;
-  val->Sxxx  = 0.0;
-  val->Sxxxx = 0.0;
-#endif//USE_PARABOLIC_GROWTH_MODEL
-  //-----------------------------------------------------------------------
-}
-//-------------------------------------------------------------------------
-static inline void calcStatVal(statVal *val, const double xx, const double yy, const double sigma)
-{
-  //-----------------------------------------------------------------------
-  const double s2inv = 1.0 / (sigma * sigma);
-  //-----------------------------------------------------------------------
-  val->S   += s2inv;
-  val->Sx  += s2inv * xx;
-  val->Sy  += s2inv * yy;
-  val->Sxx += s2inv * xx * xx;
-  val->Sxy += s2inv * xx * yy;
-  val->Syy += s2inv * yy * yy;
-  //-----------------------------------------------------------------------
-#ifdef  USE_PARABOLIC_GROWTH_MODEL
-  val->Sxxy  += s2inv * xx * xx * yy;
-  val->Sxxx  += s2inv * xx * xx * xx;
-  val->Sxxxx += s2inv * xx * xx * xx * xx;
-#endif//USE_PARABOLIC_GROWTH_MODEL
-  //-----------------------------------------------------------------------
-}
-//-------------------------------------------------------------------------
-static inline void initGuessTime(guessTime *model)
-{
-  //-----------------------------------------------------------------------
-  model->slope  = 0.0;
-  model->icept  = 0.0;
-#ifdef  USE_PARABOLIC_GROWTH_MODEL
-  model->second = 0.0;
-#endif//USE_PARABOLIC_GROWTH_MODEL
-  model->rchisq = DBL_MAX;
-  model->time   = -1.0;
-  //-----------------------------------------------------------------------
-}
-//-------------------------------------------------------------------------
-static inline void evalStatVal(guessTime *model, const statVal val)
-{
-  //-----------------------------------------------------------------------
-  model->slope = (val.S * val.Sxy - val.Sx * val.Sy) / (val.S * val.Sxx - val.Sx * val.Sx);
-  model->icept = (val.Sy - val.Sx * model->slope) / val.S;
-  //-----------------------------------------------------------------------
-  /* model->chisq = val.Syy + model->slope * (model->slope * val.Sxx - 2.0 * val.Sxy) - val.S * model->icept * model->icept; */
-  model->rchisq = val.Syy - (model->slope * (model->slope * val.Sxx + model->icept * val.Sx) +
-			     model->icept * (model->icept * val.S   + model->slope * val.Sx));
-  //-----------------------------------------------------------------------
-}
-//-------------------------------------------------------------------------
-static inline void linearModel(guessTime *model, statVal *val, const double steps, const double twalk, const double reduce)
-{
-  //-----------------------------------------------------------------------
-  calcStatVal(val, steps, twalk, tolerance4chisq * reduce * twalk);
-  //-----------------------------------------------------------------------
-  if( steps > 2.5 ){
-    evalStatVal(model, *val);
-#ifdef  WALK_TREE_USE_REDUCED_CHISQ
-    model->rchisq /= (steps - 2.0);
-#endif//WALK_TREE_USE_REDUCED_CHISQ
-    model->time = 0.5 * model->slope * (steps + 0.5) * (steps + 0.5);
-  }/* if( steps > 2.5 ){ */
-  //-----------------------------------------------------------------------
-}
-//-------------------------------------------------------------------------
-static inline void  powerModel(guessTime *model, statVal *val, const double steps, const double twalk, const double reduce)
-{
-  //-----------------------------------------------------------------------
-  calcStatVal(val, steps, log(twalk), tolerance4chisq * reduce);
-  //-----------------------------------------------------------------------
-  if( steps > 2.5 ){
-    //---------------------------------------------------------------------
-    evalStatVal(model, *val);
-    //---------------------------------------------------------------------
-    const double np1_2 = (steps + 0.5);
-    const double rr = pow(M_E, model->slope);
-    const double cc = pow(M_E, model->icept);
-    const double rn = pow(M_E, model->slope * np1_2);
-    //---------------------------------------------------------------------
-    model->time = (1.0 + (-1.0 + np1_2 * model->slope) * rn) * cc * rr / (rr - 1.0);
-    //---------------------------------------------------------------------
-    if( rr < 1.0 )
-      model->rchisq = DBL_MAX;
-#ifdef  WALK_TREE_USE_REDUCED_CHISQ
-    model->rchisq /= (steps - 2.0);
-#endif//WALK_TREE_USE_REDUCED_CHISQ
-    //---------------------------------------------------------------------
-  }/* if( steps > 2.5 ){ */
-  //-----------------------------------------------------------------------
-}
-//-------------------------------------------------------------------------
-#ifdef  USE_PARABOLIC_GROWTH_MODEL
-static inline void parabolicModel(guessTime *model, statVal *val, const double steps, const double twalk, const double reduce)
-{
-  //-----------------------------------------------------------------------
-  calcStatVal(val, steps, twalk, tolerance4chisq * reduce * twalk);
-  //-----------------------------------------------------------------------
-  if( steps > 3.5 ){
-    //---------------------------------------------------------------------
-    const double tmp0 = val->S * val->Sxxx - val->Sxx * val->Sx;
-    const double tmp1 = val->S * val->Sxx  - val->Sx  * val->Sx;
-    const double tmp2 = val->S * val->Sxy  - val->Sx  * val->Sy;
-    //---------------------------------------------------------------------
-    model->second = (tmp0 * tmp2 + (val->Sy * val->Sxx - val->S * val->Sxxy) * tmp1) / ((val->S * val->Sxxxx - val->Sxx * val->Sxx) * tmp1 - tmp0 * tmp0);
-    model->slope  = (tmp2 - tmp0 * model->second) / tmp1;
-    model->icept  = (val->Sy - model->second * val->Sxx - model->slope * val->Sx) / val->S;
-    //---------------------------------------------------------------------
-    model->rchisq = val->Syy - (model->second * (model->second * val->Sxxxx + 2.0 * model->slope  * val->Sxxx) +
-				model->slope  * (model->slope  * val->Sxx   + 2.0 * model->icept  * val->Sx  ) +
-				model->icept  * (model->icept  * val->S     + 2.0 * model->second * val->Sxx ));
-    //---------------------------------------------------------------------
-    const double np1_2 = (steps + 0.5);
-    const double aa = model->second;
-    const double bb = model->slope - 2.0 * model->second;
-    model->time = (2.0 * np1_2 * aa / 3.0 + 0.5 * (bb - aa)) * np1_2 * np1_2;
-    //---------------------------------------------------------------------
-    if( (bb + (-1.0 + 2.0 * np1_2) * aa) < 0.0 )
-      model->rchisq = DBL_MAX;
-    model->rchisq /= (steps - 3.0);
-    //---------------------------------------------------------------------
-  }/* if( steps > 3.5 ){ */
-  //-----------------------------------------------------------------------
-}
-#endif//USE_PARABOLIC_GROWTH_MODEL
-//-------------------------------------------------------------------------
-#endif//WALK_TREE_COMBINED_MODEL
 //-------------------------------------------------------------------------
 
 
@@ -297,6 +118,9 @@ static inline void setMultipoleMoment
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
  , const real eps2
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
+#ifndef SERIALIZED_EXECUTION
+ , double *tmac
+#endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
  , tree_stats *level
 #endif//COUNT_INTERACTIONS
@@ -323,6 +147,9 @@ static inline void setMultipoleMoment
 #   if  !defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE)
 		    , node_hst, bmax_root
 #endif//!defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE)
+#ifndef SERIALIZED_EXECUTION
+		    , tmac
+#endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
 		    , cell_hst, level
 #endif//COUNT_INTERACTIONS
@@ -395,8 +222,77 @@ static inline void setMultipoleMoment
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
+#ifndef SERIALIZED_EXECUTION
+static inline void updateDomain
+(int *num, const int num_max, int *Ni,
+#ifdef  EXCHANGE_USING_GPUS
+ iparticle *ibody0_dev, iparticle *ibody1_dev, iparticle *ibody0_hst, iparticle *ibody1_hst, const ulong Ntot,
+ particlePos pos_hst, particlePos pos_dev, domainCfg domain, domainDecomposeKey key,
+ sampling sample, samplePos loc, samplePos ful, soaBoxSize soa, const deviceProp devProp, const deviceInfo devInfo,
+ double *exchangeInterval, MPIinfo orm[restrict], MPIinfo rep[restrict],
+#else///EXCHANGE_USING_GPUS
+ iparticle ibody0_dev, iparticle ibody0_hst, iparticle ibody1_hst,
+ const int ndim, MPIinfo *orbCfg, domainCfg *domCfg, domainDecomposeKey *domDecKey,
+ const real samplingRate, const int sampleNumMax, real *sampleLoc, real *sampleFul, int *sampleRecvNum, int *sampleRecvDsp, real *domainMin, real *domainMax,
+#endif//EXCHANGE_USING_GPUS
+ const MPIcfg_tree letcfg, sendCfg *iparticleSendBuf, recvCfg *iparticleRecvBuf, measuredTime *measured
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+ , brentStatus *status, brentMemory *memory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+#ifdef  EXEC_BENCHMARK
+ , wall_clock_time *execTime
+#endif//EXEC_BENCHMARK
+)
+{
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "start");
+  //-----------------------------------------------------------------------
+#ifdef  EXCHANGE_USING_GPUS
+  exchangeParticles_dev
+    (*num, Ntot, num_max, num, ibody0_dev, ibody1_dev, ibody0_hst, ibody1_hst,
+     pos_hst, pos_dev, key, iparticleSendBuf, iparticleRecvBuf,
+     orm, rep, domain, letcfg,
+#ifdef  MONITOR_LETGEN_TIME
+     measured->genTree + measured->calcAcc + measured->calcMAC + measured->makeLET,
+#else///MONITOR_LETGEN_TIME
+     measured->genTree + measured->calcAcc + measured->calcMAC,
+#endif//MONITOR_LETGEN_TIME
+     sample, loc, ful, soa, devProp, devInfo, exchangeInterval, measured
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+     , status, memory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+#ifdef  EXEC_BENCHMARK
+     , execTime
+#endif//EXEC_BENCHMARK
+     );
+#else///EXCHANGE_USING_GPUS
+  exchangeParticles(*num, num_max, num, ibody0_dev, ibody0_hst, ibody1_hst,
+		    domDecKey, iparticleSendBuf, iparticleRecvBuf,
+		    samplingRate, sampleNumMax,
+#ifdef  MONITOR_LETGEN_TIME
+		    measured->genTree + measured->calcAcc + measured->calcMAC + measured->makeLET,
+#else///MONITOR_LETGEN_TIME
+		    measured->genTree + measured->calcAcc + measured->calcMAC,
+#endif//MONITOR_LETGEN_TIME
+		    sampleLoc, sampleFul, sampleRecvNum, sampleRecvDsp, domainMin, domainMax,
+		    ndim, orbCfg, domCfg, letcfg, measured
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+		    , status, memory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+#ifdef  EXEC_BENCHMARK
+		    , execTime
+#endif//EXEC_BENCHMARK
+		    );
+#endif//EXCHANGE_USING_GPUS
+  *Ni = *num;
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "end");
+  //-----------------------------------------------------------------------
+}
+#endif//SERIALIZED_EXECUTION
+//-------------------------------------------------------------------------
 static inline void buildTreeStructure
-(int *num,
+(int num,
 #   if  !defined(MAKE_TREE_ON_DEVICE) || !defined(GENERATE_PHKEY_ON_DEVICE)
  const soaPHsort soaPH_hst,
 #endif//!defined(MAKE_TREE_ON_DEVICE) || !defined(GENERATE_PHKEY_ON_DEVICE)
@@ -417,15 +313,6 @@ static inline void buildTreeStructure
 #   if  defined(CALC_MULTIPOLE_ON_DEVICE) || defined(MAKE_TREE_ON_DEVICE)
  , const soaTreeCell cell_dev, const soaTreeNode node_dev
 #endif//defined(CALC_MULTIPOLE_ON_DEVICE) || defined(MAKE_TREE_ON_DEVICE)
-#ifndef SERIALIZED_EXECUTION
- , const int num_max, int *Ni,
-#ifdef  GENERATE_PHKEY_ON_DEVICE
- iparticle *ibody0_hst, iparticle *ibody1_hst,
-#endif//GENERATE_PHKEY_ON_DEVICE
- domainDecomposeKey *domDecKey, sendCfg *iparticleSendBuf, recvCfg *iparticleRecvBuf, const real samplingRate, const int sampleNumMax, double *elapsedCalc, real *sampleLoc, real *sampleFul, int *sampleRecvNum, int *sampleRecvDsp, real *domainMin, real *domainMax,
- const int ndim, MPIinfo *orbCfg, domainCfg *domCfg, const MPIcfg_tree letcfg
-#endif//SERIALIZED_EXECUTION
- /* , double *time */
  , struct timeval *start
 #ifdef  EXEC_BENCHMARK
  , wall_clock_time *execTime
@@ -442,42 +329,11 @@ static inline void buildTreeStructure
   treeBuildCalls++;
 #endif//defined(HUNT_MAKE_PARAMETER) || (defined(HUNT_FIND_PARAMETER) && defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES))
   //-----------------------------------------------------------------------
-  /* exchange N-body particles if the simulation is parallelized */
-#ifndef SERIALIZED_EXECUTION
-  exchangeParticles(*num, *ibody0_hst,
-#ifdef  GENERATE_PHKEY_ON_DEVICE
-		    *ibody0_dev,
-#else///GENERATE_PHKEY_ON_DEVICE
-#       ifndef CALC_MULTIPOLE_ON_DEVICE
-		    ibody_dev,
-#       endif//CALC_MULTIPOLE_ON_DEVICE
-#endif//GENERATE_PHKEY_ON_DEVICE
-		    num_max, num, *ibody1_hst,
-		    domDecKey, iparticleSendBuf, iparticleRecvBuf,
-		    samplingRate, sampleNumMax, *elapsedCalc, sampleLoc, sampleFul,
-		    sampleRecvNum, sampleRecvDsp, domainMin, domainMax,
-		    ndim, orbCfg, domCfg, letcfg
-#ifdef  EXEC_BENCHMARK
-		    , execTime
-#endif//EXEC_BENCHMARK
-		    );
-  *elapsedCalc = 0.0;
-#if 1
-  *Ni = *num;
-#endif
-#endif//SERIALIZED_EXECUTION
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-/* #ifndef EXEC_BENCHMARK */
-/*   static struct timeval start; */
-/* #else///EXEC_BENCHMARK */
-/*   *time = 0.0; */
-/* #endif//EXEC_BENCHMARK */
   //-----------------------------------------------------------------------
   /* sort N-body particles in Peano-Hilbert order */
 #ifdef  GENERATE_PHKEY_ON_DEVICE
-  sortParticlesPHcurve_dev(*num, ibody0_dev, ibody1_dev, soaPH_dev, devProp
+  sortParticlesPHcurve_dev(num, ibody0_dev, ibody1_dev, soaPH_dev, devProp
 #ifdef  CUB_AVAILABLE
 			   , soaPH_pre
 #endif//CUB_AVAILABLE
@@ -490,7 +346,7 @@ static inline void buildTreeStructure
 #endif//EXEC_BENCHMARK
 			   );
 #else///GENERATE_PHKEY_ON_DEVICE
-  sortParticlesPHcurve(*num, ibody0_hst, ibody1_hst, tag, peano
+  sortParticlesPHcurve(num, ibody0_hst, ibody1_hst, tag, peano
 		       , start
 #ifdef  EXEC_BENCHMARK
 		       , execTime
@@ -500,19 +356,14 @@ static inline void buildTreeStructure
   //-----------------------------------------------------------------------
   /* build a breadth-first octree structure */
 #ifdef  MAKE_TREE_ON_DEVICE
-  makeTreeStructure_dev
-    (*num, soaPH_dev.key,
-     leafLev, leafLev_dev, scanNum_dev,
-     numCell, numCell_dev, cell_dev,
-     numNode, numNode_dev, node_dev,
-     buf, devProp
+  makeTreeStructure_dev(num, soaPH_dev.key, leafLev, leafLev_dev, scanNum_dev, numCell, numCell_dev, cell_dev, numNode, numNode_dev, node_dev, buf, devProp
 #ifdef  EXEC_BENCHMARK
-     , execTime
+			, execTime
 #endif//EXEC_BENCHMARK
-     );
+			);
 #else///MAKE_TREE_ON_DEVICE
   makeTree(cell_hst.level, numCell, remCell, cell_hst.cell, cell_hst.hkey, cell_hst.parent, cell_hst.children, cell_hst.leaf,
-	   *num, soaPH_hst.key, numNode, cell_hst.ptag, node_hst.more, node_hst.jtag, node_hst.node2cell
+	   num, soaPH_hst.key, numNode, cell_hst.ptag, node_hst.more, node_hst.jtag, node_hst.node2cell
 #   if  defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH)
 	   , node_hst.niSub
 #endif//defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH)
@@ -525,62 +376,11 @@ static inline void buildTreeStructure
       *leafLev = levelIdx;
       break;
     }
-#if 0
-  fflush(stderr);
-  fprintf(stdout, "leafLev = %d, numCell = %d, numNode = %d\n", *leafLev, *numCell, *numNode);
-  for(int ii = 0; ii < NUM_PHKEY_LEVEL; ii++)
-    fprintf(stdout, "lev = %d: head = %d, num = %d\n", ii, cell_hst.level[ii].head, cell_hst.level[ii].num);
-  fflush(stdout);
-  exit(0);
-#endif
-#if 1
-  FILE *fp;
-
-  fp = fopen("log/info.hst.log", "w");  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", "log/info.hst.log");  }
-  fprintf(fp, "#idx\thead\tnum\n");
-  for(int ii = 0; ii < *leafLev; ii++)
-    fprintf(fp, "%d\t%d\t%d\n", ii, cell_hst.level[ii].head, cell_hst.level[ii].num);
-  fclose(fp);
-
-  fp = fopen("log/cell.hst.log", "w");  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", "log/info.hst.log");  }
-  fprintf(fp, "#cidx\thead\tnum\tleaf\tptag.head\tptag.num\tparent\tchild.head\tchild.num\thkey\n");
-  for(int ii = 0; ii < *numCell; ii++)
-    fprintf(fp, "%d\t%d\t%d\t%d\t%u\t%u\t%u\t%u\t%u\t%zu\n", ii, cell_hst.cell[ii].head, cell_hst.cell[ii].num, cell_hst.leaf[ii], cell_hst.ptag[ii] & IDXMASK, (cell_hst.ptag[ii] >> IDXBITS) + 1, cell_hst.parent[ii], cell_hst.children[ii] & IDXMASK, (cell_hst.children[ii] >> IDXBITS) + 1, cell_hst.hkey[ii]);
-  fclose(fp);
-
-  fp = fopen("log/node.hst.log", "w");  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", "log/node.hst.log");  }
-  fprintf(fp, "#pidx\tmore.head\tmore.num\tnode2cell\n");
-  for(int ii = 0; ii < *numNode; ii++)
-    fprintf(fp, "%d\t%u\t%u\t%d\n", ii, node_hst.more[ii] & IDXMASK, (node_hst.more[ii] >> IDXBITS) + 1, node_hst.node2cell[ii]);
-  fclose(fp);
-
-  fp = fopen("log/jtag.hst.log", "w");  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", "log/jtag.hst.log");  }
-  fprintf(fp, "#pidx\tjtag\n");
-  for(int ii = 0; ii < *num; ii++)
-    fprintf(fp, "%d\t%d\n", ii, node_hst.jtag[ii]);
-  fclose(fp);
-
-
-  exit(0);
-#endif
 #endif//MAKE_TREE_ON_DEVICE
-  //-----------------------------------------------------------------------
-/* #ifndef SERIALIZED_EXECUTION */
-/*   commitLETnodes(*numNode, cell_hst.level, cell_hst.ptag, nodeList, nodeLeafLevel); */
-/* #ifndef NDEBUG */
-/*   for(int jj = 0; jj < letcfg.size; jj++) */
-/*     if( jj == letcfg.rank ){ */
-/*       printf("#*numNode = %d, while *Ni = %d @ rank %d\n", *numNode, *Ni, letcfg.rank); */
-/*       for(int ii = 0; ii < NUM_PHKEY_LEVEL; ii++) */
-/* 	printf("#ii = %d, level[ii].head = %d, nodeHead = %u, list[ii].x = %d, list[ii].y = %d\n", ii, cell_hst.level[ii].head, cell_hst.ptag[cell_hst.level[ii].head] & IDXMASK, nodeList[ii].x, nodeList[ii].y); */
-/*       MPI_Barrier(MPI_COMM_WORLD); */
-/*     } */
-/* #endif//NDEBUG */
-/* #endif//SERIALIZED_EXECUTION */
   //-----------------------------------------------------------------------
   /* copy tree cells from host to device if necessary */
 #   if  defined(CALC_MULTIPOLE_ON_DEVICE) && !defined(MAKE_TREE_ON_DEVICE)
-  setTreeNode_dev((size_t)(*numNode), node_dev, node_hst, *num
+  setTreeNode_dev((size_t)(*numNode), node_dev, node_hst, num
 #ifdef  EXEC_BENCHMARK
 		  , execTime
 #endif//EXEC_BENCHMARK
@@ -594,27 +394,12 @@ static inline void buildTreeStructure
   //-----------------------------------------------------------------------
   /* set N-body particles on device */
 #ifndef GENERATE_PHKEY_ON_DEVICE
-  copyParticle_hst2dev(*num, *ibody0_hst, ibody_dev
+  copyParticle_hst2dev(num, *ibody0_hst, ibody_dev
 #ifdef  EXEC_BENCHMARK
 		       , execTime
 #endif//EXEC_BENCHMARK
 		       );
 #endif//GENERATE_PHKEY_ON_DEVICE
-  //-----------------------------------------------------------------------
-/* #ifndef EXEC_BENCHMARK */
-/*   static struct timeval finish; */
-/*   gettimeofday(&finish, NULL); */
-/*   *time = calcElapsedTimeInSec(start, finish); */
-/* #else///EXEC_BENCHMARK */
-/*   *time += (execTime->sortParticlesPHcurve + execTime->makeTree + execTime->setTreeNode_dev + execTime->setTreeCell_dev); */
-/* #       ifndef GENERATE_PHKEY_ON_DEVICE */
-/*   *time += execTime->copyParticle_hst2dev; */
-/* #       endif//GENERATE_PHKEY_ON_DEVICE */
-/* #endif//EXEC_BENCHMARK */
-  //-----------------------------------------------------------------------
-/* #ifndef SERIALIZED_EXECUTION */
-/*   *elapsedCalc = *time; */
-/* #endif//SERIALIZED_EXECUTION */
   //-----------------------------------------------------------------------
 
 
@@ -648,7 +433,7 @@ static inline void configDistribution
  , real *dt_dev, real *dt_hst, int *dtInfo_num, histogram_dt **dtInfo
 #       endif//USE_VARIABLE_NEIGHBOR_LEVEL
 #endif//BLOCK_TIME_STEP
- , const struct timeval start, double *time
+ , const struct timeval start, measuredTime *time
 #ifdef  EXEC_BENCHMARK
  , wall_clock_time *execTime
 #endif//EXEC_BENCHMARK
@@ -699,7 +484,10 @@ static inline void configDistribution
   //-----------------------------------------------------------------------
   static struct timeval finish;
   gettimeofday(&finish, NULL);
-  *time = calcElapsedTimeInSec(start, finish);
+  time->makeTree = calcElapsedTimeInSec(start, finish);
+#ifndef SERIALIZED_EXECUTION
+  time->genTree += time->makeTree;
+#endif//SERIALIZED_EXECUTION
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -861,6 +649,13 @@ static inline void dumpRestarter
 (const int num, iparticle ibody_dev, iparticle ibody_hst, const double time, const double dt, const ulong steps, char *file, int *last, double *formerTime
 #ifdef  USE_HDF5_FORMAT
  , hdf5struct hdf5type
+ , rebuildTree rebuild, measuredTime measured
+#ifdef  WALK_TREE_COMBINED_MODEL
+ , autoTuningParam rebuildParam
+#endif//WALK_TREE_COMBINED_MODEL
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+ , brentStatus status, brentMemory memory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #ifdef  MONITOR_ENERGY_ERROR
  , energyError relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -878,6 +673,8 @@ static inline void dumpRestarter
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
+  /* output tentative results of the current running simulation */
+  //-----------------------------------------------------------------------
   /* set particle data on host */
   copyParticle_dev2hst(num, ibody_dev, ibody_hst
 #ifdef  EXEC_BENCHMARK
@@ -893,6 +690,17 @@ static inline void dumpRestarter
   writeTentativeData        (time, dt, steps, num, ibody_hst, file, last
 #ifdef  USE_HDF5_FORMAT
 			     , hdf5type
+			     , rebuild, measured
+#ifdef  WALK_TREE_COMBINED_MODEL
+			     , rebuildParam
+/* 			     , linearStats, linearGuess, powerStats, powerGuess */
+/* #ifdef  USE_PARABOLIC_GROWTH_MODEL */
+/* 			     , parabolicStats, parabolicGuess */
+/* #endif//USE_PARABOLIC_GROWTH_MODEL */
+#endif//WALK_TREE_COMBINED_MODEL
+#ifdef  USE_BRENT_METHOD
+			     , status, memory
+#endif//USE_BRENT_METHOD
 #ifdef  MONITOR_ENERGY_ERROR
 			     , relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -902,6 +710,17 @@ static inline void dumpRestarter
   writeTentativeDataParallel(time, dt, steps, num, ibody_hst, file, last, iocfg, Ntot
 #ifdef  USE_HDF5_FORMAT
 			     , hdf5type
+			     , rebuild, measured
+#ifdef  WALK_TREE_COMBINED_MODEL
+			     , rebuildParam
+/* 			     , linearStats, linearGuess, powerStats, powerGuess */
+/* #ifdef  USE_PARABOLIC_GROWTH_MODEL */
+/* 			     , parabolicStats, parabolicGuess */
+/* #endif//USE_PARABOLIC_GROWTH_MODEL */
+#endif//WALK_TREE_COMBINED_MODEL
+#ifdef  USE_BRENT_METHOD
+			     , status, memory
+#endif//USE_BRENT_METHOD
 #ifdef  MONITOR_ENERGY_ERROR
 			     , relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -974,6 +793,7 @@ int main(int argc, char **argv)
     __FPRINTF__(stderr, "          -theta=<real>\n");
 #endif//WS93_MAC
 #endif//GADGET_MAC
+    __FPRINTF__(stderr, "          -dropPrevTune=<int> (optional)\n");
     __KILL__(stderr, "%s\n", "insufficient command line arguments");
   }
   char *file;  requiredCmdArg(getCmdArgStr(argc, (const char * const *)(void *)argv,  "file", &file));
@@ -991,6 +811,20 @@ int main(int argc, char **argv)
 #ifdef  EXEC_BENCHMARK
   static int jobID;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)(void *)argv, "jobID", &jobID));
 #endif//EXEC_BENCHMARK
+#if 1
+  static int dropPrevTune;
+  if( optionalCmdArg(getCmdArgInt(argc, (const char * const *)(void *)argv, "dropPrevTune", &dropPrevTune)) != myUtilAvail )
+    dropPrevTune = 0;
+#endif
+  //-----------------------------------------------------------------------
+#ifndef SERIALIZED_EXECUTION
+  static int Nx;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)(void *)argv, "Nx", &Nx));
+  static int Ny;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)(void *)argv, "Ny", &Ny));
+  static int Nz;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)(void *)argv, "Nz", &Nz));
+  if( (Nx * Ny * Nz) != mpi.size ){
+    __KILL__(stderr, "ERROR: Invalid input arguments: Nx = %d, Ny = %d, Nz = %d while mpi.size = %d\n", Nx, Ny, Nz, mpi.size);
+  }/* if( (Nx * Ny * Nz) != mpi.size ){ */
+#endif//SERIALIZED_EXECUTION
   //-----------------------------------------------------------------------
   /* read settings about the simulation */
   static ulong Ntot;
@@ -1029,6 +863,26 @@ int main(int argc, char **argv)
   cudaStream_t *stream;
   kernelStream sinfo;
   setCUDAstreams_dev(&stream, &sinfo, &devInfo, &devProp);
+  //-----------------------------------------------------------------------
+  /* set CUDA events */
+  /* maximum # of CUDA events = # of GPUs for tree traversal, # of GPUs - 1 for LET construction */
+  /* this code assumes that # of GPUs = # of MPI processes (1 GPU / 1 MPI process) */
+#   if  defined(USE_CUDA_EVENT) && !defined(SERIALIZED_EXECUTION)
+  cudaEvent_t *iniCalcAcc, *finCalcAcc;
+#ifdef  MONITOR_LETGEN_TIME
+  cudaEvent_t *iniMakeLET, *finMakeLET;
+#endif//MONITOR_LETGEN_TIME
+  allocateCUDAevents_dev(&iniCalcAcc, &finCalcAcc
+#ifdef  MONITOR_LETGEN_TIME
+			, &iniMakeLET, &finMakeLET
+#endif//MONITOR_LETGEN_TIME
+			 , mpi.size);
+#else///defined(USE_CUDA_EVENT) && !defined(SERIALIZED_EXECUTION)
+#   if  defined(USE_CUDA_EVENT) && defined(PRINT_PSEUDO_PARTICLE_INFO)
+  cudaEvent_t *iniCalcAcc, *finCalcAcc;
+  allocateCUDAevents_dev(&iniCalcAcc, &finCalcAcc, 1);
+#endif//defined(USE_CUDA_EVENT) && defined(PRINT_PSEUDO_PARTICLE_INFO)
+#endif//defined(USE_CUDA_EVENT) && !defined(SERIALIZED_EXECUTION)
   //-----------------------------------------------------------------------
 
 
@@ -1426,10 +1280,50 @@ int main(int argc, char **argv)
 #endif//defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH)
   //-----------------------------------------------------------------------
 #ifndef SERIALIZED_EXECUTION
+  sendCfg *iparticleSendBuf;
+  recvCfg *iparticleRecvBuf;
+  int *sampleRecvNum, *sampleRecvDsp;
+#ifdef  EXCHANGE_USING_GPUS
+  static MPIinfo ormCfg[3], repCfg[3];
+  float *dxmin, *dxmax, *dymin, *dymax, *dzmin, *dzmax;
+  float *sxmin, *sxmax, *symin, *symax, *szmin, *szmax;
+  MPI_Request *dmreq;
+  domainCfg domCfg;
+  sampling sample;
+  const muse alloc_dd = allocateORMtopology(&dxmin, &dxmax, &dymin, &dymax, &dzmin, &dzmax, &dmreq,
+					    &sxmin, &sxmax, &symin, &symax, &szmin, &szmax,
+					    &iparticleSendBuf, &iparticleRecvBuf, &sampleRecvNum, &sampleRecvDsp,
+					    ormCfg, repCfg, Nx, Ny, Nz, &letcfg, &domCfg, &sample, Ntot);
+  float4 *pmin_hst, *pmax_hst, *pmin_dev, *pmax_dev;
+  int *gsync_box0, *gsync_box1;
+  soaBoxSize soaBox;
+  const muse alloc_box = allocateBoxSize_dev(&pmin_hst, &pmax_hst, &pmin_dev, &pmax_dev, &gsync_box0, &gsync_box1, &soaBox, devProp);
+  float *x0hst, *x1hst, *y0hst, *y1hst, *z0hst, *z1hst;  int *idhst;
+  float *x0dev, *x1dev, *y0dev, *y1dev, *z0dev, *z1dev;  int *iddev;
+  samplePos samplePos0, samplePos1;
+  const muse alloc_spl = allocateSamplePos(&x0hst, &x1hst, &y0hst, &y1hst, &z0hst, &z1hst, &idhst,
+					   &x0dev, &x1dev, &y0dev, &y1dev, &z0dev, &z1dev, &iddev, &samplePos0, &samplePos1, sample);
+  float *xhst, *yhst, *zhst;  particlePos particlePos_hst;
+  float *xdev, *ydev, *zdev;  particlePos particlePos_dev;
+  int *rank_hst, *rank_dev, *idx_dev;
+  domainDecomposeKey domDecKey;
+  const muse alloc_pos = allocateParticlePosition(&xhst, &yhst, &zhst, &particlePos_hst, &xdev, &ydev, &zdev, &particlePos_dev, &rank_hst, &rank_dev, &idx_dev, &domDecKey);
+#else///EXCHANGE_USING_GPUS
   domainDecomposeKey *domDecKey;
   domDecKey = (domainDecomposeKey *)malloc(num_max * sizeof(domainDecomposeKey));
-  const muse alloc_ddkey = {num_max * sizeof(domainDecomposeKey), 0};
+  const muse alloc_dd = {num_max * sizeof(domainDecomposeKey), 0};
   if( domDecKey == NULL ){    __KILL__(stderr, "ERROR: failure to allocate domDecKey\n");  }
+  int ndim;
+  MPIinfo   *orbCfg;
+  domainCfg *domCfg;
+  real samplingRate;
+  int sampleNumMax;
+  real *sampleLoc, *sampleFul;
+  real *domainMin, *domainMax;
+  configORBtopology(&domCfg, &iparticleSendBuf, &iparticleRecvBuf, &letcfg, &ndim, &orbCfg,
+		    Ntot, &samplingRate, &sampleNumMax, &sampleLoc, &sampleFul,
+		    &sampleRecvNum, &sampleRecvDsp, &domainMin, &domainMax);
+#endif//EXCHANGE_USING_GPUS
 #ifdef  BUILD_LET_ON_DEVICE
   soaGEO soaGEO_dev;
   real *r2geo_dev;
@@ -1464,6 +1358,9 @@ int main(int argc, char **argv)
 #ifdef  ALLOCATE_LETBUFFER
 						   &buf4LET, &soaWalk_dev,
 #endif//ALLOCATE_LETBUFFER
+/* #ifdef  USE_CUDA_EVENT */
+/* 						   &iniMakeLET, &finMakeLET, */
+/* #endif//USE_CUDA_EVENT */
 						   &stream_let, &Nstream_let, devProp, letcfg);
 #endif//SERIALIZED_EXECUTION
   //-----------------------------------------------------------------------
@@ -1502,6 +1399,47 @@ int main(int argc, char **argv)
   //-----------------------------------------------------------------------
   /* initialize the simulation run */
   //-----------------------------------------------------------------------
+  /* variables for automatic optimization */
+  static struct timeval start;
+  static measuredTime elapsed;
+#ifndef SERIALIZED_EXECUTION
+  elapsed.genTree = 1.0;
+  elapsed.calcAcc = 1.0;
+  elapsed.calcMAC = 1.0;
+#ifdef  MONITOR_LETGEN_TIME
+  elapsed.makeLET = 1.0;
+#endif//MONITOR_LETGEN_TIME
+#endif//SERIALIZED_EXECUTION
+#ifdef  WALK_TREE_COMBINED_MODEL
+  static autoTuningParam rebuildParam;
+  initStatVal(&rebuildParam.linearStats);  initGuessTime(&rebuildParam.linearGuess);
+  initStatVal(&rebuildParam. powerStats);  initGuessTime(&rebuildParam. powerGuess);
+#       ifdef  USE_PARABOLIC_GROWTH_MODEL
+  initStatVal  (&rebuildParam.parabolicStats);
+  initGuessTime(&rebuildParam.parabolicGuess);
+#ifdef  USE_ADDITIONAL_SWITCH
+  static int useParabolicGuess = 0;
+#endif//USE_ADDITIONAL_SWITCH
+#       endif//USE_PARABOLIC_GROWTH_MODEL
+#endif//WALK_TREE_COMBINED_MODEL
+  //-----------------------------------------------------------------------
+  /* variables to control tree rebuild interval */
+  static rebuildTree rebuild;
+  rebuild.reuse = 1;
+  rebuild.interval = 0.0;
+#ifdef  BLOCK_TIME_STEP
+  rebuild.adjust = false;
+#endif//BLOCK_TIME_STEP
+#   if  defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP)
+  rebuild.avg = 0.0;
+  rebuild.var = 0.0;
+#endif//defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP)
+  //-----------------------------------------------------------------------
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+  static brentStatus brentDistance;  brentDistance.initialized = false;
+  static brentMemory brentHistory = {0.0, 0.0, 0, 0};
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+  //-----------------------------------------------------------------------
   /* read initial condition */
 #   if  defined(MONITOR_ENERGY_ERROR) && defined(USE_HDF5_FORMAT)
   static energyError relEneErr;
@@ -1517,15 +1455,29 @@ int main(int argc, char **argv)
   readTentativeData        (&time, &dt, &steps, num, ibody0, file, last
 #ifdef  USE_HDF5_FORMAT
 			    , hdf5type
+			    , &dropPrevTune, &rebuild, &elapsed
+#ifdef  WALK_TREE_COMBINED_MODEL
+			    , &rebuildParam
+#endif//WALK_TREE_COMBINED_MODEL
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+			    , &brentDistance, &brentHistory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #ifdef  MONITOR_ENERGY_ERROR
 			    , &relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #endif//USE_HDF5_FORMAT
 			    );
 #else///SERIALIZED_EXECUTION
-  readTentativeDataParallel(&time, &dt, &steps, num, ibody0, file, last, &iocfg, Ntot
+  readTentativeDataParallel(&time, &dt, &steps, &num, ibody0, file, last, &iocfg, Ntot
 #ifdef  USE_HDF5_FORMAT
 			    , hdf5type
+			    , &dropPrevTune, &rebuild, &elapsed
+#ifdef  WALK_TREE_COMBINED_MODEL
+			    , &rebuildParam
+#endif//WALK_TREE_COMBINED_MODEL
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+			    , &brentDistance, &brentHistory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #ifdef  MONITOR_ENERGY_ERROR
 			    , &relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -1573,10 +1525,16 @@ int main(int argc, char **argv)
   used_mem.host   = body_mem.host   + tree_mem.host   + misc_mem.host  ;
   used_mem.device = body_mem.device + tree_mem.device + misc_mem.device;
 #ifndef SERIALIZED_EXECUTION
-  const muse  let_mem = {alloc_ddkey.host   + alloc_LETtopology.host  ,
-			 alloc_ddkey.device + alloc_LETtopology.device};
+  const muse  let_mem = {alloc_dd.host	 + alloc_LETtopology.host  ,
+			 alloc_dd.device + alloc_LETtopology.device};
   used_mem.host   += let_mem.host;
   used_mem.device += let_mem.device;
+#ifdef  EXCHANGE_USING_GPUS
+  const muse box_mem = {alloc_box.host   + alloc_spl.host   + alloc_pos.host  ,
+			alloc_box.device + alloc_spl.device + alloc_pos.device};
+  used_mem.host   += box_mem.host;
+  used_mem.device += box_mem.device;
+#endif//EXCHANGE_USING_GPUS
 #ifdef  BUILD_LET_ON_DEVICE
   const muse ball_mem = {alloc_r2geo.host,
 			 alloc_r2geo.device};
@@ -1607,23 +1565,27 @@ int main(int argc, char **argv)
   uint *freeNum;
   int *active;
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
+#ifndef USE_CUDA_EVENT
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
   unsigned long long int *cycles_hst, *cycles_dev;
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
   unsigned long long int *cycles_let_hst, *cycles_let_dev;
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
+#endif//USE_CUDA_EVENT
   const muse alloc_buf_dev = allocTreeBuffer_dev
     (&fail_dev, &buffer, &freeLst,
 #   if  !defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
      &freeNum, &active,
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
+#ifndef USE_CUDA_EVENT
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
      &cycles_hst, &cycles_dev,
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
      &cycles_let_hst, &cycles_let_dev,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
+#endif//USE_CUDA_EVENT
      &soaWalk_dev, num_max, used_mem, devProp);
   used_mem.host   += alloc_buf_dev.host;
   used_mem.device += alloc_buf_dev.device;
@@ -1657,6 +1619,12 @@ int main(int argc, char **argv)
       fprintf(fp, "\t%zu MiB (%zu GiB) for tree walk buffer\n"  , alloc_buf_dev.device >> 20, alloc_buf_dev.device >> 30);
 #ifndef SERIALIZED_EXECUTION
       fprintf(fp, "\t%zu MiB (%zu KiB) for LET related data\n"  ,  let_mem.device >> 20,  let_mem.device >> 10);
+#ifdef  EXCHANGE_USING_GPUS
+      fprintf(fp, "\t%zu MiB (%zu KiB) for domain decomposition related data\n", box_mem.device >> 20, box_mem.device >> 10);
+#endif//EXCHANGE_USING_GPUS
+#ifdef  BUILD_LET_ON_DEVICE
+      fprintf(fp, "\t%zu MiB (%zu KiB) for enclosing ball related data\n", ball_mem.device >> 20, ball_mem.device >> 10);
+#endif//BUILD_LET_ON_DEVICE
 #endif//SERIALIZED_EXECUTION
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
       fprintf(fp, "\t%zu MiB (%zu GiB) for accuracy test data\n", alloc_acc_dev.device >> 20, alloc_acc_dev.device >> 30);
@@ -1672,6 +1640,12 @@ int main(int argc, char **argv)
       fprintf(fp, "\t%zu MiB (%zu GiB) for tree walk buffer\n"  , alloc_buf_dev.host >> 20, alloc_buf_dev.host >> 30);
 #ifndef SERIALIZED_EXECUTION
       fprintf(fp, "\t%zu MiB (%zu KiB) for LET related data\n"  ,  let_mem.host >> 20,  let_mem.host >> 10);
+#ifdef  EXCHANGE_USING_GPUS
+      fprintf(fp, "\t%zu MiB (%zu KiB) for domain decomposition related data\n", box_mem.host >> 20, box_mem.host >> 10);
+#endif//EXCHANGE_USING_GPUS
+#ifdef  BUILD_LET_ON_DEVICE
+      fprintf(fp, "\t%zu MiB (%zu KiB) for enclosing ball related data\n", ball_mem.host >> 20, ball_mem.host >> 10);
+#endif//BUILD_LET_ON_DEVICE
 #endif//SERIALIZED_EXECUTION
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
       fprintf(fp, "\t%zu MiB (%zu GiB) for accuracy test data\n", alloc_acc_dev.host >> 20, alloc_acc_dev.host >> 30);
@@ -1757,36 +1731,49 @@ int main(int argc, char **argv)
   //-----------------------------------------------------------------------
 #ifndef SERIALIZED_EXECUTION
   //-----------------------------------------------------------------------
-  int ndim;
-  MPIinfo   *orbCfg;
-  domainCfg *domCfg;
-  sendCfg *iparticleSendBuf;
-  recvCfg *iparticleRecvBuf;
-  real samplingRate;
-  int sampleNumMax;
-  real *sampleLoc, *sampleFul;
-  int *sampleRecvNum, *sampleRecvDsp;
-  real *domainMin, *domainMax;
-  configORBtopology(&ndim, &orbCfg, &domCfg, &iparticleSendBuf, &iparticleRecvBuf, &letcfg,
-		    Ntot, &samplingRate, &sampleNumMax, &sampleLoc, &sampleFul,
-		    &sampleRecvNum, &sampleRecvDsp, &domainMin, &domainMax);
+#ifdef  EXCHANGE_USING_GPUS
+  static loadImbalanceDetector balancer;
+  balancer.enable  = false;
+  balancer.execute =  true;
+
+
+  /* 計算時間の増大による particle exchange は，どれかの process で tree rebuild が起こるタイミングでしか trigger できないようにしておくのが良い?? */
+  /* 本当は，1回の tree rebuild までを 1 step と見なさせたいのだけど，その場合には tree rebuild interval を all processes 間で共有することになるため，そこまではしたくない． */
+  /* 計算時間が増大した process を detect できれば良い（減少した processes は放置で良い）と思えば，tree rebuild までを 1 step と見なして，そこまでの計算時間を step あたりかで平均した値を覚えておけば良いという気がしてきた． */
+  /* load balancing をとったことによる計算時間の増大は問題ないので，粒子数で割っておいた方が良いのだろうか? -->> Ni_new / Ni_old をかけて補正しておく */
+  /* 計算時間の増大が検出された proccesses 数が一定の割合を越えたら particle exchange を行うとか?? */
+  /* 割合は?? --> 50% 以下にしないと，2 processes のときに動作しない */
+  /* とりあえず 1割ぐらいにしておく?? --> プロセス数は整数なので， 1/16 = 4 bits shift が簡単だと思う．= は含めないこととする */
+  static double exchangeInterval = 0.0;/* rebuildTree.interval に相当 */
+  /* 計算時間については，measuredTime 中の genTree, calcAcc, calcMAC, makeLET の communicator 内での MPI_MIN, MPI_MAX を参照する <-- Ni_new / Ni_old は補正済み */
+  static autoTuningParam exchangeParam;
+  initStatVal(&exchangeParam.linearStats);  initGuessTime(&exchangeParam.linearGuess);
+  initStatVal(&exchangeParam. powerStats);  initGuessTime(&exchangeParam. powerGuess);
+#ifdef  USE_PARABOLIC_GROWTH_MODEL
+  initStatVal  (&exchangeParam.parabolicStats);
+  initGuessTime(&exchangeParam.parabolicGuess);
+#endif//USE_PARABOLIC_GROWTH_MODEL
+#endif//EXCHANGE_USING_GPUS
   //-----------------------------------------------------------------------
-/*   { */
-/* #ifndef EXEC_BENCHMARK */
-/*     struct timeval start; */
-/* #endif//EXEC_BENCHMARK */
-/*     sortParticlesPHcurve(num, &ibody0, &ibody1, tag, peano */
-/* #ifndef EXEC_BENCHMARK */
-/* 			 , &start */
-/* #else///EXEC_BENCHMARK */
-/* 			 , &execTime[0] */
-/* #endif//EXEC_BENCHMARK */
-/* 			 ); */
-/*   } */
-/*   //----------------------------------------------------------------------- */
-/* #ifdef  EXEC_BENCHMARK */
-/*   execTime[0].sortParticlesPHcurve = 0.0; */
-/* #endif//EXEC_BENCHMARK */
+  updateDomain(&num, num_max, &Ni,
+#ifdef  EXCHANGE_USING_GPUS
+	       &ibody0_dev, &ibody1_dev, &ibody0, &ibody1, Ntot,
+	       particlePos_hst, particlePos_dev, domCfg, domDecKey,
+	       sample, samplePos0, samplePos1, soaBox, devProp, devInfo,
+	       &exchangeInterval, ormCfg, repCfg,
+#else///EXCHANGE_USING_GPUS
+	       ibody0_dev, ibody0, ibody1,
+	       ndim, orbCfg, domCfg, domDecKey,
+ samplingRate, sampleNumMax, sampleLoc, sampleFul, sampleRecvNum, sampleRecvDsp, domainMin, domainMax,
+#endif//EXCHANGE_USING_GPUS
+	       letcfg, iparticleSendBuf, iparticleRecvBuf, &elapsed
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+	       , &brentDistance, &brentHistory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+#ifdef  EXEC_BENCHMARK
+	       , &execTime[steps - bench_begin]
+#endif//EXEC_BENCHMARK
+      );
   //-----------------------------------------------------------------------
 #endif//SERIALIZED_EXECUTION
   //-----------------------------------------------------------------------
@@ -1801,75 +1788,33 @@ int main(int argc, char **argv)
   int numCell = NUM_ALLOC_TREE_CELL;
   int numNode = NUM_ALLOC_TREE_NODE;
   //-----------------------------------------------------------------------
-  /* variables for automatic optimization */
-#ifndef SERIALIZED_EXECUTION
-  static double elapsedCalcAcc = 1.0;
-#ifdef  MONITOR_LETGEN_TIME
-  static double elapsedMakeLET;
-#endif//MONITOR_LETGEN_TIME
-#endif//SERIALIZED_EXECUTION
-  static struct timeval start;
-  static double elapsedTreeMake;
-  static double elapsedTreeWalk[2];
-#ifdef  WALK_TREE_COMBINED_MODEL
-  static  statVal  linearStat,  powerStat;
-  static guessTime linearGuess, powerGuess;
-  initStatVal(&linearStat);  initGuessTime(&linearGuess);
-  initStatVal(& powerStat);  initGuessTime(& powerGuess);
-#       ifdef  USE_PARABOLIC_GROWTH_MODEL
-  static  statVal  parabolicStat ;  initStatVal  (&parabolicStat);
-  static guessTime parabolicGuess;  initGuessTime(&parabolicGuess);
-#ifdef  USE_ADDITIONAL_SWITCH
-  static int useParabolicGuess = 0;
-#endif//USE_ADDITIONAL_SWITCH
-#       endif//USE_PARABOLIC_GROWTH_MODEL
-#endif//WALK_TREE_COMBINED_MODEL
-  static double rebuildInterval = 0.0;
-#ifdef  WALK_TREE_TOTAL_SUM_MODEL
-  static double elapsedIncSum = 0.0;
-#endif//WALK_TREE_TOTAL_SUM_MODEL
-#   if  defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP)
-  static double reduceAvg = 0.0;
-  static double reduceVar = 0.0;
-#endif//defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP)
-  //-----------------------------------------------------------------------
   int bottomLev;
-  buildTreeStructure
-    (&num,
+  buildTreeStructure(num,
 #   if  !defined(MAKE_TREE_ON_DEVICE) || !defined(GENERATE_PHKEY_ON_DEVICE)
-     soaPH_hst,
+		     soaPH_hst,
 #endif//!defined(MAKE_TREE_ON_DEVICE) || !defined(GENERATE_PHKEY_ON_DEVICE)
 #ifdef  GENERATE_PHKEY_ON_DEVICE
-     &ibody0_dev, &ibody1_dev, soaPH_dev, devProp,
+		     &ibody0_dev, &ibody1_dev, soaPH_dev, devProp,
 #ifdef  CUB_AVAILABLE
-     soaPH_pre,
+		     soaPH_pre,
 #endif//CUB_AVAILABLE
 #else///GENERATE_PHKEY_ON_DEVICE
-     &ibody0, &ibody1, ibody0_dev, tag,
+		     &ibody0, &ibody1, ibody0_dev, tag,
 #endif//GENERATE_PHKEY_ON_DEVICE
-     &bottomLev, &numCell, &numNode,
+		     &bottomLev, &numCell, &numNode,
 #ifdef  MAKE_TREE_ON_DEVICE
-     bottomLev_dev, scanNum_dev, numCell_dev, numNode_dev, soaMakeBuf
+		     bottomLev_dev, scanNum_dev, numCell_dev, numNode_dev, soaMakeBuf
 #else///MAKE_TREE_ON_DEVICE
-     &remCell, soaCell_hst, soaNode_hst
+		     &remCell, soaCell_hst, soaNode_hst
 #endif//MAKE_TREE_ON_DEVICE
 #   if  defined(CALC_MULTIPOLE_ON_DEVICE) || defined(MAKE_TREE_ON_DEVICE)
-     , soaCell_dev, soaNode_dev
+		     , soaCell_dev, soaNode_dev
 #endif//defined(CALC_MULTIPOLE_ON_DEVICE) || defined(MAKE_TREE_ON_DEVICE)
-#ifndef SERIALIZED_EXECUTION
-     , num_max, &Ni,
-#ifdef  GENERATE_PHKEY_ON_DEVICE
-     &ibody0, &ibody1,
-#endif//GENERATE_PHKEY_ON_DEVICE
-     domDecKey, iparticleSendBuf, iparticleRecvBuf, samplingRate, sampleNumMax, &elapsedCalcAcc, sampleLoc, sampleFul, sampleRecvNum, sampleRecvDsp, domainMin, domainMax,
-     ndim, orbCfg, domCfg, letcfg
-#endif//SERIALIZED_EXECUTION
-     /* , &elapsedTreeMake */
-     , &start
+		     , &start
 #ifdef  EXEC_BENCHMARK
-     , &execTime[steps - bench_begin]
+		     , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-     );
+		     );
   //-----------------------------------------------------------------------
 #ifdef  BLOCK_TIME_STEP
   prediction_dev(num, time, ibody0_dev
@@ -1901,6 +1846,9 @@ int main(int argc, char **argv)
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
      , eps * eps
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
+#ifndef SERIALIZED_EXECUTION
+     , &(elapsed.calcMAC)
+#endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
      , treeProp[steps - bench_begin].level
 #endif//COUNT_INTERACTIONS
@@ -1918,27 +1866,27 @@ int main(int argc, char **argv)
                                                                            
   //-----------------------------------------------------------------------
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
-  static brentStatus brentDistance;
-  static brentMemory brentHistory = {0.0, 0.0, 0, 0};
-  /* first call of examineParticleSeparation() */
-  /* therefore, brentDistance.a, brentDistance.b, brentDistance.x.pos are set by calling brentInit1st() */
-  examineParticleSeparation
-    (num, ibody0_dev
+  if( dropPrevTune == 1 ){
+    /* first call of examineParticleSeparation() */
+    /* therefore, brentDistance.a, brentDistance.b, brentDistance.x.pos are set by calling brentInit1st() */
+    examineParticleSeparation
+      (num, ibody0_dev
 #ifdef  USE_BRENT_METHOD
-     , &brentDistance
+       , &brentDistance
 #else///USE_BRENT_METHOD
 #ifdef  CUB_AVAILABLE
-     , soaCUBneighbor
+       , soaCUBneighbor
 #endif//CUB_AVAILABLE
 #endif//USE_BRENT_METHOD
 #ifndef FACILE_NEIGHBOR_SEARCH
-     , soaCell_dev, soaNode_dev, soaMakeBuf, soaNeighbor_dev, devProp
+       , soaCell_dev, soaNode_dev, soaMakeBuf, soaNeighbor_dev, devProp
 #endif//FACILE_NEIGHBOR_SEARCH
 #ifdef  EXEC_BENCHMARK
-     , execTime
+       , execTime
 #endif//EXEC_BENCHMARK
-     );
-  brentDistance.u = brentDistance.x;
+       );
+    brentDistance.u = brentDistance.x;
+ }/* if( dropPrevTune == 1 ){ */
 #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
   //-----------------------------------------------------------------------
   /* commit i-particle groups */
@@ -1969,7 +1917,7 @@ int main(int argc, char **argv)
      , ibody_dt_dev, ibody_dt_hst, &dtInfo_num, &dtInfo
 #       endif//USE_VARIABLE_NEIGHBOR_LEVEL
 #endif//BLOCK_TIME_STEP
-     , start, &elapsedTreeMake
+     , start, &elapsed
 #ifdef  EXEC_BENCHMARK
      , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
@@ -2018,21 +1966,30 @@ int main(int argc, char **argv)
 #ifdef  BLOCK_TIME_STEP
 		    Ngrp, &reduce,
 #endif//BLOCK_TIME_STEP
-		    Ngrp, laneInfo_dev, Ni, ibody0_dev, soaNode_dev, soaWalk_dev, &sinfo, devProp, &elapsedTreeWalk[0]
+		    Ngrp, laneInfo_dev, Ni, ibody0_dev, soaNode_dev, soaWalk_dev, &sinfo, devProp, &elapsed.walkTree[0]
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
 		    , file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#ifdef  USE_CUDA_EVENT
+		    , iniCalcAcc, finCalcAcc
+#else///USE_CUDA_EVENT
 		    , cycles_hst, cycles_dev
+#endif//USE_CUDA_EVENT
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
-		    , &elapsedCalcAcc, numNode
+		    , &elapsed.calcAcc, numNode
 #ifdef  LET_COMMUNICATION_VIA_HOST
 		    , soaNode_hst
 #endif//LET_COMMUNICATION_VIA_HOST
 		    , letcfg.size, nodeInfo, Nstream_let, stream_let, letcfg
 #ifdef  MONITOR_LETGEN_TIME
-		    , &elapsedMakeLET, cycles_let_hst, cycles_let_dev
+		    , &elapsed.makeLET
+#ifdef  USE_CUDA_EVENT
+		    , iniMakeLET, finMakeLET
+#else///USE_CUDA_EVENT
+		    , cycles_let_hst, cycles_let_dev
+#endif//USE_CUDA_EVENT
 #endif//MONITOR_LETGEN_TIME
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
@@ -2051,7 +2008,7 @@ int main(int argc, char **argv)
     /* set GADGET-MAC */
     recoverGADGET_MAC_dev(numNode, soaNode_dev);
     /* reset stop watch */
-    elapsedTreeWalk[0] = 0.0;
+    elapsed.walkTree[0] = 0.0;
 #ifdef  EXEC_BENCHMARK
     execTime[steps - bench_begin].calcGravity_dev = 0.0;
 #endif//EXEC_BENCHMARK
@@ -2087,21 +2044,30 @@ int main(int argc, char **argv)
 #ifdef  BLOCK_TIME_STEP
 		    Ngrp, &reduce,
 #endif//BLOCK_TIME_STEP
-		    Ngrp, laneInfo_dev, Ni, ibody0_dev, soaNode_dev, soaWalk_dev, &sinfo, devProp, &elapsedTreeWalk[0]
+		    Ngrp, laneInfo_dev, Ni, ibody0_dev, soaNode_dev, soaWalk_dev, &sinfo, devProp, &elapsed.walkTree[0]
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
 		    , file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#ifdef  USE_CUDA_EVENT
+		    , iniCalcAcc, finCalcAcc
+#else///USE_CUDA_EVENT
 		    , cycles_hst, cycles_dev
+#endif//USE_CUDA_EVENT
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
-		    , &elapsedCalcAcc, numNode
+		    , &elapsed.calcAcc, numNode
 #ifdef  LET_COMMUNICATION_VIA_HOST
 		    , soaNode_hst
 #endif//LET_COMMUNICATION_VIA_HOST
 		    , letcfg.size, nodeInfo, Nstream_let, stream_let, letcfg
 #ifdef  MONITOR_LETGEN_TIME
-		    , &elapsedMakeLET, cycles_let_hst, cycles_let_dev
+		    , &elapsed.makeLET
+#ifdef  USE_CUDA_EVENT
+		    , iniMakeLET, finMakeLET
+#else///USE_CUDA_EVENT
+		    , cycles_let_hst, cycles_let_dev
+#endif//USE_CUDA_EVENT
 #endif//MONITOR_LETGEN_TIME
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
@@ -2118,26 +2084,23 @@ int main(int argc, char **argv)
 #endif//COMPARE_WITH_DIRECT_SOLVER
 		    );
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
-    brentDistance.u.val += elapsedTreeWalk[0];
+    brentDistance.u.val += elapsed.walkTree[0];
     brentHistory.totNum += Ngrp;
 #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
-/* #ifndef SERIALIZED_EXECUTION */
-/*     elapsedCalc += elapsedTreeWalk[0]; */
-/* #endif//SERIALIZED_EXECUTION */
-    rebuildInterval += 1.0;
+    rebuild.interval += 1.0;
 #ifdef  WALK_TREE_COMBINED_MODEL
-    linearModel(&linearGuess, &linearStat, rebuildInterval, elapsedTreeWalk[0], 1.0);
-     powerModel(& powerGuess, & powerStat, rebuildInterval, elapsedTreeWalk[0], 1.0);
+    linearModel(&(rebuildParam.linearGuess), &(rebuildParam.linearStats), rebuild.interval, elapsed.walkTree[0], 1.0);
+    powerModel (&(rebuildParam. powerGuess), &(rebuildParam. powerStats), rebuild.interval, elapsed.walkTree[0], 1.0);
 #       ifdef  USE_PARABOLIC_GROWTH_MODEL
-     parabolicModel(&parabolicGuess, &parabolicStat, rebuildInterval, elapsedTreeWalk[0], 1.0);
+    parabolicModel(&(rebuildParam.parabolicGuess), &(rebuildParam.parabolicStats), rebuild.interval, elapsed.walkTree[0], 1.0);
 #ifdef  USE_ADDITIONAL_SWITCH
-     useParabolicGuess |= (elapsedTreeWalk[0] < elapsedTreeMake);
+    useParabolicGuess |= (elapsed.walkTree[0] < elapsed.makeTree);
 #endif//USE_ADDITIONAL_SWITCH
 #       endif//USE_PARABOLIC_GROWTH_MODEL
 #endif//WALK_TREE_COMBINED_MODEL
 #   if  defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP)
-    reduceAvg += reduce;
-    reduceVar += reduce * reduce;
+    rebuild.avg += reduce;
+    rebuild.var += reduce * reduce;
 #endif//defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP)
     //---------------------------------------------------------------------
 #ifdef  COUNT_INTERACTIONS
@@ -2231,16 +2194,10 @@ int main(int argc, char **argv)
   //-----------------------------------------------------------------------
   /* calculate time evolution */
   //-----------------------------------------------------------------------
-  static int reuse = 1;
-#ifdef  BLOCK_TIME_STEP
-  static bool adjustAllTimeStep = false;
-#endif//BLOCK_TIME_STEP
-  //-----------------------------------------------------------------------
   while( time < ft ){
     //---------------------------------------------------------------------
     __NOTE__("t = %e(%zu step(s)), ft = %e\n", time, steps, ft);
     //---------------------------------------------------------------------
-
 
     //---------------------------------------------------------------------
 #ifdef  EXEC_BENCHMARK
@@ -2293,53 +2250,127 @@ int main(int argc, char **argv)
 #endif//CALC_MULTIPOLE_ON_DEVICE
     //---------------------------------------------------------------------
     /* rebuild tree structure if required */
-                                                                           
-                                                                           
 #ifndef SERIALIZED_EXECUTION
-    /* TENTATIVE IMPLEMENTATION: if tree structure is rebuild, then always exchange N-body particles among all MPI processes */
-    chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &reuse, 1, MPI_INT, MPI_LAND, letcfg.comm));
-#endif//SERIALIZED_EXECUTION
-                                                                           
-                                                                           
-    if( !reuse ){
+#ifdef  EXCHANGE_USING_GPUS
+
+    if( balancer.enable ){
+#ifdef  MONITOR_LETGEN_TIME
+      balancer.tmin = balancer.tmax = elapsed.genTree + elapsed.calcAcc + elapsed.calcMAC + elapsed.makeLET;
+#else///MONITOR_LETGEN_TIME
+      balancer.tmin = balancer.tmax = elapsed.genTree + elapsed.calcAcc + elapsed.calcMAC;
+#endif//MONITOR_LETGEN_TIME
+      chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.tmin), 1, MPI_DOUBLE, MPI_MIN, letcfg.comm));
+      chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.tmax), 1, MPI_DOUBLE, MPI_MIN, letcfg.comm));
+      if( balancer.tmin < (loadImbalanceCrit * balancer.tmax) )
+	balancer.execute = true;
+    }/* if( balancer.enable ){ */
+
+    //---------------------------------------------------------------------
+    if( balancer.execute ){
       //-------------------------------------------------------------------
-/* #ifdef  COUNT_INTERACTIONS */
-/*       /\* if tree rebuild occur, simulation after the rebuild does not correspond to the original run. *\/ */
-/*       dumpStatistics(jobID, file, steps - bench_begin, MAXIMUM_PHKEY_LEVEL, treeProp); */
-/*       goto force_escape_from_count_interactions; */
-/* #endif//COUNT_INTERACTIONS */
+      updateDomain(&num, num_max, &Ni,
+#ifdef  EXCHANGE_USING_GPUS
+		   &ibody0_dev, &ibody1_dev, &ibody0, &ibody1, Ntot,
+		   particlePos_hst, particlePos_dev, domCfg, domDecKey,
+		   sample, samplePos0, samplePos1, soaBox, devProp, devInfo,
+		   &exchangeInterval, ormCfg, repCfg,
+#else///EXCHANGE_USING_GPUS
+		   ibody0_dev, ibody0, ibody1,
+		   ndim, orbCfg, domCfg, domDecKey,
+		   samplingRate, sampleNumMax, sampleLoc, sampleFul, sampleRecvNum, sampleRecvDsp, domainMin, domainMax,
+#endif//EXCHANGE_USING_GPUS
+		   letcfg, iparticleSendBuf, iparticleRecvBuf, &elapsed
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+		   , &brentDistance, &brentHistory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+#ifdef  EXEC_BENCHMARK
+		   , &execTime[steps - bench_begin]
+#endif//EXEC_BENCHMARK
+		   );
+      //-------------------------------------------------------------------
+      rebuild.reuse = 0;
+      balancer.enable = false;
+      //-------------------------------------------------------------------
+    }/* if( balancer.execute ){ */
+    //---------------------------------------------------------------------
+#else///EXCHANGE_USING_GPUS
+    //---------------------------------------------------------------------
+    /* TENTATIVE IMPLEMENTATION: if the tree structure will be rebuild, then always exchange N-body particles among all MPI processes */
+    chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &rebuild.reuse, 1, MPI_INT, MPI_LAND, letcfg.comm));
+    if( !rebuild.reuse )
+      updateDomain(&num, num_max, &Ni,
+#ifdef  EXCHANGE_USING_GPUS
+		   &ibody0_dev, &ibody1_dev, &ibody0, &ibody1, Ntot,
+		   particlePos_hst, particlePos_dev, domCfg, domDecKey,
+		   sample, samplePos0, samplePos1, soaBox, devProp, devInfo,
+		   &exchangeInterval, ormCfg, repCfg,
+#else///EXCHANGE_USING_GPUS
+		   ibody0_dev, ibody0, ibody1,
+		   ndim, orbCfg, domCfg, domDecKey,
+		   samplingRate, sampleNumMax, sampleLoc, sampleFul, sampleRecvNum, sampleRecvDsp, domainMin, domainMax,
+#endif//EXCHANGE_USING_GPUS
+		   letcfg, iparticleSendBuf, iparticleRecvBuf, &elapsed
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+		   , &brentDistance, &brentHistory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+#ifdef  EXEC_BENCHMARK
+		   , &execTime[steps - bench_begin]
+#endif//EXEC_BENCHMARK
+		   );
+/*       updateDomain(&num, num_max, &Ni, ibody0_dev, ibody0, ibody1, */
+/* 		   ndim, orbCfg, domCfg, domDecKey, */
+/* 		   samplingRate, sampleNumMax, sampleLoc, sampleFul, sampleRecvNum, sampleRecvDsp, domainMin, domainMax, */
+/* 		   letcfg, iparticleSendBuf, iparticleRecvBuf, &elapsed */
+/* #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD) */
+/* 		   , &brentDistance, &brentHistory */
+/* #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD) */
+/* #ifdef  EXEC_BENCHMARK */
+/* 		   , &execTime[steps - bench_begin] */
+/* #endif//EXEC_BENCHMARK */
+/* 		   ); */
+#endif//EXCHANGE_USING_GPUS
+#endif//SERIALIZED_EXECUTION
+    if( !rebuild.reuse ){
+      //-------------------------------------------------------------------
+      if( !balancer.execute ){
+	balancer.enable = true;
+	exchangeInterval += 1.0;
+      }/* if( !balancer.execute ){ */
+      else
+	balancer.execute = false;
       //-------------------------------------------------------------------
 #   if  defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP)
       /* if Var(reduce) < (Avg(reduce))^2, set time of all particles same */
       /* if( ((rebuildInterval * reduceVar) / (reduceAvg * reduceAvg) - 1.0) < (1.0 - DBL_EPSILON) ) */
-      if( DBL_EPSILON + rebuildInterval * reduceVar < (2.0 * reduceAvg * reduceAvg) )
-	adjustAllTimeStep = true;
+      if( DBL_EPSILON + rebuild.interval * rebuild.var < (2.0 * rebuild.avg * rebuild.avg) )
+	rebuild.adjust = true;
 	/* resetAllTimeStep = true; */
-      reduceAvg = 0.0;
-      reduceVar = 0.0;
+      rebuild.avg = 0.0;
+      rebuild.var = 0.0;
 #endif//defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP)
-      rebuildInterval = 0.0;
+      rebuild.interval = 0.0;
 #ifdef  WALK_TREE_COMBINED_MODEL
-      initStatVal(&   linearStat);      initGuessTime(&   linearGuess);
-      initStatVal(&    powerStat);      initGuessTime(&    powerGuess);
+      initStatVal(&(rebuildParam.   linearStats));      initGuessTime(&(rebuildParam.   linearGuess));
+      initStatVal(&(rebuildParam.    powerStats));      initGuessTime(&(rebuildParam.    powerGuess));
 #       ifdef  USE_PARABOLIC_GROWTH_MODEL
-      initStatVal(&parabolicStat);      initGuessTime(&parabolicGuess);
+      initStatVal(&(rebuildParam.parabolicStats));      initGuessTime(&(rebuildParam.parabolicGuess));
 #ifdef  USE_ADDITIONAL_SWITCH
       useParabolicGuess = 0;
 #endif//USE_ADDITIONAL_SWITCH
 #       endif//USE_PARABOLIC_GROWTH_MODEL
 #endif//WALK_TREE_COMBINED_MODEL
 #ifdef  WALK_TREE_TOTAL_SUM_MODEL
-      elapsedIncSum = 0.0;
+      elapsed.incSum = 0.0;
 #endif//WALK_TREE_TOTAL_SUM_MODEL
 #ifdef  EXEC_BENCHMARK
       printf("#rebuild @ %zu-th step\n", steps);
       fflush(stdout);
 #endif//EXEC_BENCHMARK
       //-------------------------------------------------------------------
-      __NOTE__("rebuild @ %zu-th step, t = %e, elapsedCalc = %e @ rank %d\n", steps, time, elapsedCalcAcc, mpi.rank);
+      __NOTE__("rebuild @ %zu-th step, t = %e, elapsedCalc = %e @ rank %d\n", steps, time, elapsed.calcAcc, mpi.rank);
       //-------------------------------------------------------------------
       /* copy position of N-body particles from device to host if necessary */
+#ifndef SERIALIZED_EXECUTION
 #   if  !defined(GENERATE_PHKEY_ON_DEVICE) && defined(CALC_MULTIPOLE_ON_DEVICE)
       copyParticle_dev2hst(num, ibody0_dev, ibody0
 #ifdef  EXEC_BENCHMARK
@@ -2347,43 +2378,34 @@ int main(int argc, char **argv)
 #endif//EXEC_BENCHMARK
 			   );
 #endif//!defined(GENERATE_PHKEY_ON_DEVICE) && defined(CALC_MULTIPOLE_ON_DEVICE)
+#endif//SERIALIZED_EXECUTION
       //-------------------------------------------------------------------
-      buildTreeStructure
-	(&num,
+      buildTreeStructure(num,
 #   if  !defined(MAKE_TREE_ON_DEVICE) || !defined(GENERATE_PHKEY_ON_DEVICE)
-	 soaPH_hst,
+			 soaPH_hst,
 #endif//!defined(MAKE_TREE_ON_DEVICE) || !defined(GENERATE_PHKEY_ON_DEVICE)
 #ifdef  GENERATE_PHKEY_ON_DEVICE
-	 &ibody0_dev, &ibody1_dev, soaPH_dev, devProp,
+			 &ibody0_dev, &ibody1_dev, soaPH_dev, devProp,
 #ifdef  CUB_AVAILABLE
-	 soaPH_pre,
+			 soaPH_pre,
 #endif//CUB_AVAILABLE
 #else///GENERATE_PHKEY_ON_DEVICE
-	 &ibody0, &ibody1, ibody0_dev, tag,
+			 &ibody0, &ibody1, ibody0_dev, tag,
 #endif//GENERATE_PHKEY_ON_DEVICE
-	 &bottomLev, &numCell, &numNode,
+			 &bottomLev, &numCell, &numNode,
 #ifdef  MAKE_TREE_ON_DEVICE
-	 bottomLev_dev, scanNum_dev, numCell_dev, numNode_dev, soaMakeBuf
+			 bottomLev_dev, scanNum_dev, numCell_dev, numNode_dev, soaMakeBuf
 #else///MAKE_TREE_ON_DEVICE
-	 &remCell, soaCell_hst, soaNode_hst
+			 &remCell, soaCell_hst, soaNode_hst
 #endif//MAKE_TREE_ON_DEVICE
 #   if  defined(CALC_MULTIPOLE_ON_DEVICE) || defined(MAKE_TREE_ON_DEVICE)
-	 , soaCell_dev, soaNode_dev
+			 , soaCell_dev, soaNode_dev
 #endif//defined(CALC_MULTIPOLE_ON_DEVICE) || defined(MAKE_TREE_ON_DEVICE)
-#ifndef SERIALIZED_EXECUTION
-	 , num_max, &Ni,
-#ifdef  GENERATE_PHKEY_ON_DEVICE
-	 &ibody0, &ibody1,
-#endif//GENERATE_PHKEY_ON_DEVICE
-	 domDecKey, iparticleSendBuf, iparticleRecvBuf, samplingRate, sampleNumMax, &elapsedCalcAcc, sampleLoc, sampleFul, sampleRecvNum, sampleRecvDsp, domainMin, domainMax,
-	 ndim, orbCfg, domCfg, letcfg
-#endif//SERIALIZED_EXECUTION
-	 /* , &elapsedTreeMake */
-	 , &start
+			 , &start
 #ifdef  EXEC_BENCHMARK
-	 , &execTime[steps - bench_begin]
+			 , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-	 );
+			 );
       //-------------------------------------------------------------------
 #   if  defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH)
 #ifdef  BLOCK_TIME_STEP
@@ -2405,6 +2427,9 @@ int main(int argc, char **argv)
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
 	 , eps * eps
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
+#ifndef SERIALIZED_EXECUTION
+	 , &(elapsed.calcMAC)
+#endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
 	 , treeProp[steps - bench_begin].level
 #endif//COUNT_INTERACTIONS
@@ -2415,13 +2440,6 @@ int main(int argc, char **argv)
 #   if  !defined(CALC_MULTIPOLE_ON_DEVICE) && !defined(SERIALIZED_EXECUTION)
       bmax_root = bmax[0];
 #endif//!defined(CALC_MULTIPOLE_ON_DEVICE) && !defined(SERIALIZED_EXECUTION)
-
-/* #ifdef  COUNT_INTERACTIONS */
-/*       clear treeProp[steps - bench_begin].level; */
-/* #endif//COUNT_INTERACTIONS */
-/* #ifdef  EXEC_BENCHMARK */
-/*       clear execTime[steps - bench_begin]; */
-/* #endif//EXEC_BENCHMARK */
 
 #endif//defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH)
       //-------------------------------------------------------------------
@@ -2520,13 +2538,13 @@ int main(int argc, char **argv)
 	 , ibody_dt_dev, ibody_dt_hst, &dtInfo_num, &dtInfo
 #       endif//USE_VARIABLE_NEIGHBOR_LEVEL
 #endif//BLOCK_TIME_STEP
-     , start, &elapsedTreeMake
+     , start, &elapsed
 #ifdef  EXEC_BENCHMARK
 	 , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
 	 );
       //-------------------------------------------------------------------
-    }/* if( !reuse ){ */
+    }/* if( !rebuild.reuse ){ */
     //---------------------------------------------------------------------
 
 
@@ -2542,7 +2560,7 @@ int main(int argc, char **argv)
 		    );
     int grpNum = 0;
     setTimeStep_dev(Ngrp, laneInfo_dev, laneTime_dev, &grpNum, ibody0_dev,
-		    time, &time, &dt, adjustAllTimeStep, invSnapshotInterval, previous, &present
+		    time, &time, &dt, rebuild.adjust, invSnapshotInterval, previous, &present
 /* #ifdef  CUB_AVAILABLE */
 /* 		    , soaCUBtimeBuf */
 /* #endif//CUB_AVAILABLE */
@@ -2557,7 +2575,7 @@ int main(int argc, char **argv)
 /*     adjustAllTimeStep = resetAllTimeStep; */
 /* #endif//defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP) */
 #ifdef  BLOCK_TIME_STEP
-    adjustAllTimeStep = false;
+    rebuild.adjust = false;
 #endif//BLOCK_TIME_STEP
     //---------------------------------------------------------------------
 #else///BLOCK_TIME_STEP
@@ -2644,6 +2662,9 @@ int main(int argc, char **argv)
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
        , eps * eps
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
+#ifndef SERIALIZED_EXECUTION
+       , &(elapsed.calcMAC)
+#endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
        , treeProp[steps - bench_begin].level
 #endif//COUNT_INTERACTIONS
@@ -2674,7 +2695,7 @@ int main(int argc, char **argv)
 #endif//GADGET_MAC
 		      letcfg);
     /* this function must be called when tree structure is rebuild */
-    if( rebuildInterval < 0.5 )
+    if( rebuild.interval < 0.5 )
       guessLETpartition(letcfg.size, nodeInfo, numNode, *(ibody0_dev.encBall_hst), letcfg);
 #else///BUILD_LET_ON_DEVICE
     encBall.x = pj[0].x;
@@ -2687,7 +2708,7 @@ int main(int argc, char **argv)
 #endif//GADGET_MAC
 		      letcfg);
     /* this function must be called when tree structure is rebuild */
-    if( rebuildInterval < 0.5 )
+    if( rebuild.interval < 0.5 )
       guessLETpartition(letcfg.size, nodeInfo, numNode, encBall, letcfg);
 #endif//BUILD_LET_ON_DEVICE
 #endif//SERIALIZED_EXECUTION
@@ -2704,21 +2725,30 @@ int main(int argc, char **argv)
 #ifdef  BLOCK_TIME_STEP
 		      grpNum, &reduce,
 #endif//BLOCK_TIME_STEP
-		      Ngrp, laneInfo_dev, Ni, ibody0_dev, soaNode_dev, soaWalk_dev, &sinfo, devProp, &elapsedTreeWalk[reuse]
+		      Ngrp, laneInfo_dev, Ni, ibody0_dev, soaNode_dev, soaWalk_dev, &sinfo, devProp, &elapsed.walkTree[rebuild.reuse]
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
 		      , file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#ifdef  USE_CUDA_EVENT
+		      , iniCalcAcc, finCalcAcc
+#else///USE_CUDA_EVENT
 		      , cycles_hst, cycles_dev
+#endif//USE_CUDA_EVENT
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
-		      , &elapsedCalcAcc, numNode
+		      , &elapsed.calcAcc, numNode
 #ifdef  LET_COMMUNICATION_VIA_HOST
 		      , soaNode_hst
 #endif//LET_COMMUNICATION_VIA_HOST
 		      , letcfg.size, nodeInfo, Nstream_let, stream_let, letcfg
 #ifdef  MONITOR_LETGEN_TIME
-		      , &elapsedMakeLET, cycles_let_hst, cycles_let_dev
+		      , &elapsed.makeLET
+#ifdef  USE_CUDA_EVENT
+		      , iniMakeLET, finMakeLET
+#else///USE_CUDA_EVENT
+		      , cycles_let_hst, cycles_let_dev
+#endif//USE_CUDA_EVENT
 #endif//MONITOR_LETGEN_TIME
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
@@ -2735,7 +2765,7 @@ int main(int argc, char **argv)
 #endif//COMPARE_WITH_DIRECT_SOLVER
 		      );
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
-      brentDistance.u.val += elapsedTreeWalk[reuse];
+      brentDistance.u.val += elapsed.walkTree[rebuild.reuse];
 #ifdef  BLOCK_TIME_STEP
       brentHistory.totNum += grpNum;
 #else///BLOCK_TIME_STEP
@@ -2743,7 +2773,7 @@ int main(int argc, char **argv)
 #endif//BLOCK_TIME_STEP
 #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 /* #ifndef SERIALIZED_EXECUTION */
-/*       elapsedCalc += elapsedTreeWalk[reuse]; */
+/*       elapsedCalc += elapsed.walkTree[reuse]; */
 /* #endif//SERIALIZED_EXECUTION */
       //-------------------------------------------------------------------
 #ifdef  SHOW_NI_DEPENDENCE
@@ -2759,82 +2789,82 @@ int main(int argc, char **argv)
     //---------------------------------------------------------------------
 #endif//SHOW_NI_DEPENDENCE
     //---------------------------------------------------------------------
-    rebuildInterval += 1.0;
+    rebuild.interval += 1.0;
 #   if  defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP)
-    reduceAvg += reduce;
-    reduceVar += reduce * reduce;
+    rebuild.avg += reduce;
+    rebuild.var += reduce * reduce;
 #endif//defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP)
     //---------------------------------------------------------------------
 #ifdef  WALK_TREE_COMBINED_MODEL
-    linearModel(&linearGuess, &linearStat, rebuildInterval, elapsedTreeWalk[reuse] * reduce, reduce);
-     powerModel(& powerGuess, & powerStat, rebuildInterval, elapsedTreeWalk[reuse] * reduce, reduce);
+    linearModel(&(rebuildParam.linearGuess), &(rebuildParam.linearStats), rebuild.interval, elapsed.walkTree[rebuild.reuse] * reduce, reduce);
+    powerModel (&(rebuildParam. powerGuess), &(rebuildParam. powerStats), rebuild.interval, elapsed.walkTree[rebuild.reuse] * reduce, reduce);
 #       ifdef  USE_PARABOLIC_GROWTH_MODEL
-     parabolicModel(&parabolicGuess, &parabolicStat, rebuildInterval, elapsedTreeWalk[reuse] * reduce, reduce);
+    parabolicModel(&(rebuildParam.parabolicGuess), &(rebuildParam.parabolicStats), rebuild.interval, elapsed.walkTree[rebuild.reuse] * reduce, reduce);
 #ifdef  USE_ADDITIONAL_SWITCH
-     useParabolicGuess |= (elapsedTreeWalk[reuse] < elapsedTreeMake);
+     useParabolicGuess |= (elapsed.walkTree[rebuild.reuse] < elapsed.makeTree);
 #endif//USE_ADDITIONAL_SWITCH
 #       endif//USE_PARABOLIC_GROWTH_MODEL
-    reuse = 1;
+    rebuild.reuse = 1;
 #       ifdef  USE_PARABOLIC_GROWTH_MODEL
-    if( rebuildInterval > 3.5 ){
-      double rchi2 = linearGuess.rchisq;
-      double guess = linearGuess.time;
-      if( rchi2 >     powerGuess.rchisq ){	rchi2 =     powerGuess.rchisq;	guess =     powerGuess.time;      }
+    if( rebuild.interval > 3.5 ){
+      double rchi2 = rebuildParam.linearGuess.rchisq;
+      double guess = rebuildParam.linearGuess.time;
+      if( rchi2 >     rebuildParam.powerGuess.rchisq ){	rchi2 =     rebuildParam.powerGuess.rchisq;	guess =     rebuildParam.powerGuess.time;      }
 #ifdef  USE_ADDITIONAL_SWITCH
       if( useParabolicGuess )
 #endif//USE_ADDITIONAL_SWITCH
-      if( rchi2 > parabolicGuess.rchisq ){	rchi2 = parabolicGuess.rchisq;	guess = parabolicGuess.time;      }
-      if( guess > (elapsedTreeMake * reduce) )
-	reuse = 0;
+      if( rchi2 > rebuildParam.parabolicGuess.rchisq ){	rchi2 = rebuildParam.parabolicGuess.rchisq;	guess = rebuildParam.parabolicGuess.time;      }
+      if( guess > (elapsed.makeTree * reduce) )
+	rebuild.reuse = 0;
     }
 #       else///USE_PARABOLIC_GROWTH_MODEL
-    if( (rebuildInterval > 3.5) &&
-	((linearGuess.rchisq < 1.0e-30 + powerGuess.rchisq) ? (linearGuess.time) : (powerGuess.time)) > (elapsedTreeMake * reduce) )
-	reuse = 0;
+    if( (rebuild.interval > 3.5) &&
+	((rebuildParam.linearGuess.rchisq < 1.0e-30 + rebuildParam.powerGuess.rchisq) ? (rebuildParam.linearGuess.time) : (rebuildParam.powerGuess.time)) > (elapsed.makeTree * reduce) )
+	rebuild.reuse = 0;
 #       endif//USE_PARABOLIC_GROWTH_MODEL
 #endif//WALK_TREE_COMBINED_MODEL
     //---------------------------------------------------------------------
 #ifdef  WALK_TREE_TOTAL_SUM_MODEL
 #ifdef  BLOCK_TIME_STEP
-    if( !reuse )
-      elapsedTreeWalk[0] /= reduce;
+    if( !rebuild.reuse )
+      elapsed.walkTree[0] /= reduce;
 #endif//BLOCK_TIME_STEP
-    const double diff = elapsedTreeWalk[reuse] - reduce * elapsedTreeWalk[0];
+    const double diff = elapsed.walkTree[rebuild.reuse] - reduce * elapsed.walkTree[0];
     if( diff > 0.0 )
-      elapsedIncSum += diff;
-    reuse = ((elapsedIncSum + 0.5 * rebuildInterval * diff) < elapsedTreeMake) ? 1 : 0;
+      elapsed.incSum += diff;
+    reuse = ((elapsed.incSum + 0.5 * rebuildInterval * diff) < elapsed.makeTree) ? 1 : 0;
 #endif//WALK_TREE_TOTAL_SUM_MODEL
     //---------------------------------------------------------------------
 #ifdef  WALK_TREE_ARITHMETIC_PROGRESSION_MODEL
     /* based on model assuming arithmetic progression */
     /* if BLOCK_TIME_STEP is not defined, then reduce is unity */
 #ifdef  BLOCK_TIME_STEP
-    if( !reuse )
-      elapsedTreeWalk[0] /= reduce;
+    if( !rebuild.reuse )
+      elapsed.walkTree[0] /= reduce;
 #endif//BLOCK_TIME_STEP
-    reuse = 1;
-    if( (rebuildInterval > 1.5) &&
-    	( ((rebuildInterval * rebuildInterval) * (elapsedTreeWalk[reuse] - reduce * elapsedTreeWalk[0])) > (2.0 * (rebuildInterval - 1.0) * elapsedTreeMake)) )
-      reuse = 0;
+    rebuild.reuse = 1;
+    if( (rebuild.interval > 1.5) &&
+    	( ((rebuild.interval * rebuild.interval) * (elapsed.walkTree[rebuild.reuse] - reduce * elapsed.walkTree[0])) > (2.0 * (rebuild.interval - 1.0) * elapsed.makeTree)) )
+      rebuild.reuse = 0;
 #endif//WALK_TREE_ARITHMETIC_PROGRESSION_MODEL
     //---------------------------------------------------------------------
 #ifdef  WALK_TREE_GEOMETRIC_PROGRESSION_MODEL
     /* based on model assuming geometric progression */
     /* if BLOCK_TIME_STEP is not defined, then reduce is unity */
 #ifdef  BLOCK_TIME_STEP
-    if( !reuse )
-      elapsedTreeWalk[0] /= reduce;
+    if( !rebuild.reuse )
+      elapsed.walkTree[0] /= reduce;
 #endif//BLOCK_TIME_STEP
-    reuse = 1;
-    if( rebuildInterval > 1.5 ){
-      const double tinit = reduce * elapsedTreeWalk[0];
-      const double ratio = elapsedTreeWalk[reuse] / tinit;/* = ratio^(n-1) */
+    rebuild.reuse = 1;
+    if( rebuild.interval > 1.5 ){
+      const double tinit = reduce * elapsed.walkTree[0];
+      const double ratio = elapsed.walkTree[rebuild.reuse] / tinit;/* = ratio^(n-1) */
       if( ratio > DBL_EPSILON + 1.0 ){
-	const double growth = pow(ratio, 1.0 / (rebuildInterval - 1.0));
-	if( (rebuildInterval * rebuildInterval * elapsedTreeWalk[reuse]) > ((growth - 1.0) * elapsedTreeMake + (ratio * growth - 1.0) * tinit) )
-	  reuse = 0;
+	const double growth = pow(ratio, 1.0 / (rebuild.interval - 1.0));
+	if( (rebuildInterval * rebuildInterval * elapsed.walkTree[rebuild.reuse]) > ((growth - 1.0) * elapsed.makeTree + (ratio * growth - 1.0) * tinit) )
+	  rebuild.reuse = 0;
       }/* if( ratio > DBL_EPSILON + 1.0 ){ */
-    }/* if( rebuildInterval > 1.5 ){ */
+    }/* if( rebuild.interval > 1.5 ){ */
 #endif//WALK_TREE_GEOMETRIC_PROGRESSION_MODEL
     //---------------------------------------------------------------------
 
@@ -2844,7 +2874,7 @@ int main(int argc, char **argv)
     //---------------------------------------------------------------------
 #ifdef  BLOCK_TIME_STEP
     //---------------------------------------------------------------------
-    correction_dev(grpNum, laneInfo_dev, laneTime_dev, eps, eta, ibody0_dev, reuse
+    correction_dev(grpNum, laneInfo_dev, laneTime_dev, eps, eta, ibody0_dev, rebuild.reuse
 #ifdef  EXEC_BENCHMARK
 		   , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
@@ -2913,6 +2943,13 @@ int main(int argc, char **argv)
 	(num, ibody0_dev, ibody0, time, dt, steps, file, &last, &formerTime
 #ifdef  USE_HDF5_FORMAT
 	 , hdf5type
+	 , rebuild, elapsed
+#ifdef  WALK_TREE_COMBINED_MODEL
+	 , rebuildParam
+#endif//WALK_TREE_COMBINED_MODEL
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+	 , brentDistance, brentHistory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #ifdef  MONITOR_ENERGY_ERROR
 	 , relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -2926,9 +2963,9 @@ int main(int argc, char **argv)
 	 );
 #endif//COMPARE_WITH_DIRECT_SOLVER
       //-------------------------------------------------------------------
-      reuse = 0;
+      rebuild.reuse = 0;
 #ifdef  BLOCK_TIME_STEP
-      adjustAllTimeStep = false;
+      rebuild.adjust = false;
 #endif//BLOCK_TIME_STEP
       //-------------------------------------------------------------------
     }/* if( currentTime > formerTime + saveInterval ){ */
@@ -2970,9 +3007,9 @@ int main(int argc, char **argv)
 #endif//COMPARE_WITH_DIRECT_SOLVER
 	 );
       //-------------------------------------------------------------------
-      reuse = 0;
+      rebuild.reuse = 0;
 #ifdef  BLOCK_TIME_STEP
-      adjustAllTimeStep = false;
+      rebuild.adjust = false;
 #endif//BLOCK_TIME_STEP
       //-------------------------------------------------------------------
     }
@@ -3046,6 +3083,13 @@ int main(int argc, char **argv)
     (num, ibody0_dev, ibody0, time, dt, steps, file, &last, &formerTime
 #ifdef  USE_HDF5_FORMAT
      , hdf5type
+     , rebuild, elapsed
+#ifdef  WALK_TREE_COMBINED_MODEL
+     , rebuildParam
+#endif//WALK_TREE_COMBINED_MODEL
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+     , brentDistance, brentHistory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #ifdef  MONITOR_ENERGY_ERROR
      , relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -3059,15 +3103,6 @@ int main(int argc, char **argv)
      );
   //-----------------------------------------------------------------------
 #endif//!defined(EXEC_BENCHMARK) && !defined(COMPARE_WITH_DIRECT_SOLVER)
-  //-----------------------------------------------------------------------
-
-
-  //-----------------------------------------------------------------------
-/* #ifdef  COUNT_INTERACTIONS */
-/*   //----------------------------------------------------------------------- */
-/*  force_escape_from_count_interactions: */
-/*   //----------------------------------------------------------------------- */
-/* #endif//COUNT_INTERACTIONS */
   //-----------------------------------------------------------------------
 
 
@@ -3222,12 +3257,14 @@ int main(int argc, char **argv)
 #   if  !defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
 		     , freeNum, active
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
+#ifndef USE_CUDA_EVENT
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 		     , cycles_hst, cycles_dev
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
 		     , cycles_let_hst, cycles_let_dev
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
+#endif//USE_CUDA_EVENT
 		     );
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
   freeAccel_dev(direct_dev, direct
@@ -3254,9 +3291,20 @@ int main(int argc, char **argv)
 		     buf4LET,
 #endif//ALLOCATE_LETBUFFER
 		     stream_let, Nstream_let);
+#ifdef  EXCHANGE_USING_GPUS
+  releaseORMtopology(dxmin, dxmax, dymin, dymax, dzmin, dzmax, dmreq,
+		     sxmin, sxmax, symin, symax, szmin, szmax,
+		     iparticleSendBuf, iparticleRecvBuf, sampleRecvNum, sampleRecvDsp,
+		     ormCfg, repCfg);
+  releaseBoxSize_dev(pmin_hst, pmax_hst, pmin_dev, pmax_dev, gsync_box0, gsync_box1);
+  releaseSamplePos(x0hst, x1hst, y0hst, y1hst, z0hst, z1hst, idhst,
+		   x0dev, x1dev, y0dev, y1dev, z0dev, z1dev, iddev);
+  releaseParticlePosition(xhst, yhst, zhst, xdev, ydev, zdev, rank_hst, rank_dev, idx_dev);
+#else///EXCHANGE_USING_GPUS
   free(domDecKey);
-  removeORBtopology(ndim, orbCfg, domCfg, iparticleSendBuf, iparticleRecvBuf,
+  removeORBtopology(domCfg, iparticleSendBuf, iparticleRecvBuf, ndim, orbCfg,
 		    sampleLoc, sampleFul, sampleRecvNum, sampleRecvDsp, domainMin, domainMax);
+#endif//EXCHANGE_USING_GPUS
 #ifdef  BUILD_LET_ON_DEVICE
   freeGeometricEnclosingBall_dev(r2geo_dev
 /* #ifdef  CUB_AVAILABLE */
@@ -3266,9 +3314,24 @@ int main(int argc, char **argv)
 #endif//BUILD_LET_ON_DEVICE
 #endif//SERIALIZED_EXECUTION
   //-----------------------------------------------------------------------
+  /* destroy CUDA events */
+#   if  defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
+  releaseCUDAevents_dev(iniCalcAcc, finCalcAcc
+#ifdef  MONITOR_LETGEN_TIME
+			, iniMakeLET, finMakeLET
+#endif//MONITOR_LETGEN_TIME
+#ifndef SERIALIZED_EXECUTION
+			, mpi.size
+#else///SERIALIZED_EXECUTION
+			, 1
+#endif//SERIALIZED_EXECUTION
+			);
+#endif//defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
+  //-----------------------------------------------------------------------
   /* destroy CUDA streams */
-  for(int ii = 0; ii < sinfo.num; ii++)
+  for(int ii = 0; ii < sinfo.num; ii++){
     mycudaStreamDestroy(stream[ii]);
+  }/* for(int ii = 0; ii < sinfo.num; ii++){ */
   free(stream);
   //-----------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT

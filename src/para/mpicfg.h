@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/28(Thu) 17:46:02
+                  last updated on 2016/11/08(Tue) 10:59:29
  *                                                                       *
  *    Header File for N-body calculation with MPI parallelization        *
  *                                                                       *
@@ -11,20 +11,10 @@
 #ifndef MPICFG_H
 #define MPICFG_H
 //-------------------------------------------------------------------------
-
-
+#include <mpi.h>
 //-------------------------------------------------------------------------
-#   if  !defined(MPI_INCLUDED) && !defined(OMPI_MPI_H)
-#       include <mpi.h>
-#endif//!defined(MPI_INCLUDED) && !defined(OMPI_MPI_H)
-//-------------------------------------------------------------------------
-#ifndef MACRO_H
-#       include <macro.h>
-#endif//MACRO_H
-//-------------------------------------------------------------------------
-#ifndef MPILIB_H
-#       include <mpilib.h>
-#endif//MPILIB_H
+#include <macro.h>
+#include <mpilib.h>
 //-------------------------------------------------------------------------
 
 
@@ -33,10 +23,11 @@
 #define GPUS_PER_PROCESS (1)
 #endif//GPUS_PER_PROCESS
 //-------------------------------------------------------------------------
-#define MAX_FACTOR_FROM_EQUIPARTITION (2.0f)
-/* #define MAX_FACTOR_FROM_EQUIPARTITION (1.9f) */
-/* #define MAX_FACTOR_FROM_EQUIPARTITION (1.8f) */
-/* #define MAX_FACTOR_FROM_EQUIPARTITION (1.5f) */
+#define MAX_FACTOR_INCREASE (1.3f)
+/* #define MAX_FACTOR_INCREASE (1.5f) */
+//-------------------------------------------------------------------------
+#define MAX_FACTOR_SAFETY (1.05f)
+#define MAX_FACTOR_FROM_EQUIPARTITION (MAX_FACTOR_INCREASE * MAX_FACTOR_SAFETY)
 //-------------------------------------------------------------------------
 
 

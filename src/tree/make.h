@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/01(Fri) 14:03:34
+                  last updated on 2016/10/28(Fri) 16:33:46
  *                                                                       *
  *    Header File for constructing octree structure                      *
  *                                                                       *
@@ -13,32 +13,16 @@
 #ifndef MAKE_H
 #define MAKE_H
 //-------------------------------------------------------------------------
-
-
+#include <stdbool.h>
 //-------------------------------------------------------------------------
-#   if  !defined(_STDBOOL_H) && !defined(_STDBOOL)
-#       include <stdbool.h>
-#endif//!defined(_STDBOOL_H) && !defined(_STDBOOL)
+#include <macro.h>
 //-------------------------------------------------------------------------
-#ifndef MACRO_H
-#       include <macro.h>
-#endif//MACRO_H
+#include "../misc/benchmark.h"
+#include "../misc/structure.h"
 //-------------------------------------------------------------------------
-#ifndef BENCHMARK_H
-#       include "../misc/benchmark.h"
-#endif//BENCHMARK_H
+#include "../sort/peano.h"
 //-------------------------------------------------------------------------
-#ifndef STRUCTURE_H
-#       include "../misc/structure.h"
-#endif//STRUCTURE_H
-//-------------------------------------------------------------------------
-#ifndef PEANO_H
-#       include "../sort/peano.h"
-#endif//PEANO_H
-//-------------------------------------------------------------------------
-#ifndef MACUTIL_H
-#       include "../tree/macutil.h"
-#endif//MACUTIL_H
+#include "../tree/macutil.h"
 //-------------------------------------------------------------------------
 
 

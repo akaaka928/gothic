@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/10(Wed) 12:08:44
+                  last updated on 2016/11/04(Fri) 14:52:07
  *                                                                       *
  *    Input/Output Code of N-body calculation                            *
  *                                                                       *
@@ -33,6 +33,10 @@
 //-------------------------------------------------------------------------
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
+#include "../misc/tune.h"
+#           if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+#include "../misc/brent.h"
+#        endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 //-------------------------------------------------------------------------
 #include "io.h"
 //-------------------------------------------------------------------------
@@ -366,12 +370,11 @@ void createHDF5DataType(hdf5struct *type)
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
 
-
   //-----------------------------------------------------------------------
   /* commit a data type to write unit name as strings */
   //-----------------------------------------------------------------------
   type->str4unit = H5Tcopy(H5T_C_S1);
-  chkHDF5err(H5Tset_size(type->str4unit, CONSTANTS_H_CHAR_WORDS));
+  chkHDF5err(H5Tset_size(type->str4unit, CONSTANTS_H_CHAR_WORDS));/* memo: sizeof(char) is unity */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -385,6 +388,112 @@ void createHDF5DataType(hdf5struct *type)
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
+  /* commit a data type of rebuildTree */
+  //-----------------------------------------------------------------------
+  type->rebuildTree = H5Tcreate(H5T_COMPOUND, sizeof(rebuildTree));
+  chkHDF5err(H5Tinsert(type->rebuildTree, "interval", HOFFSET(rebuildTree, interval), H5T_NATIVE_DOUBLE));
+#   if  defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP)
+  chkHDF5err(H5Tinsert(type->rebuildTree, "avg", HOFFSET(rebuildTree, avg), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->rebuildTree, "var", HOFFSET(rebuildTree, var), H5T_NATIVE_DOUBLE));
+#endif//defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP)
+  chkHDF5err(H5Tinsert(type->rebuildTree, "reuse", HOFFSET(rebuildTree, reuse), H5T_NATIVE_INT));
+#ifdef  BLOCK_TIME_STEP
+  chkHDF5err(H5Tinsert(type->rebuildTree, "adjust", HOFFSET(rebuildTree, adjust), H5T_NATIVE_BOOL));
+#endif//BLOCK_TIME_STEP
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* commit a data type of measuredTime */
+  //-----------------------------------------------------------------------
+  type->measuredTime = H5Tcreate(H5T_COMPOUND, sizeof(measuredTime));
+  chkHDF5err(H5Tinsert(type->measuredTime, "walkTree[0]", HOFFSET(measuredTime, walkTree[0]), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->measuredTime, "walkTree[1]", HOFFSET(measuredTime, walkTree[1]), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->measuredTime, "makeTree"   , HOFFSET(measuredTime, makeTree   ), H5T_NATIVE_DOUBLE));
+#ifdef  WALK_TREE_TOTAL_SUM_MODEL
+  chkHDF5err(H5Tinsert(type->measuredTime,   "incSum"   , HOFFSET(measuredTime,  incSum    ), H5T_NATIVE_DOUBLE));
+#endif//WALK_TREE_TOTAL_SUM_MODEL
+#ifndef SERIALIZED_EXECUTION
+  chkHDF5err(H5Tinsert(type->measuredTime,  "calcAcc"   , HOFFSET(measuredTime, calcAcc    ), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->measuredTime,  "calcMAC"   , HOFFSET(measuredTime, calcMAC    ), H5T_NATIVE_DOUBLE));
+#ifdef  MONITOR_LETGEN_TIME
+  chkHDF5err(H5Tinsert(type->measuredTime,  "makeLET"   , HOFFSET(measuredTime, makeLET    ), H5T_NATIVE_DOUBLE));
+#endif//MONITOR_LETGEN_TIME
+#endif//SERIALIZED_EXECUTION
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+#ifdef  WALK_TREE_COMBINED_MODEL
+  //-----------------------------------------------------------------------
+  /* commit a data type of statVal */
+  //-----------------------------------------------------------------------
+  type->statVal = H5Tcreate(H5T_COMPOUND, sizeof(statVal));
+  chkHDF5err(H5Tinsert(type->statVal, "S"  , HOFFSET(statVal, S  ), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->statVal, "Sx" , HOFFSET(statVal, Sx ), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->statVal, "Sy" , HOFFSET(statVal, Sy ), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->statVal, "Sxx", HOFFSET(statVal, Sxx), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->statVal, "Sxy", HOFFSET(statVal, Sxy), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->statVal, "Syy", HOFFSET(statVal, Syy), H5T_NATIVE_DOUBLE));
+#ifdef  USE_PARABOLIC_GROWTH_MODEL
+  chkHDF5err(H5Tinsert(type->statVal, "Sxxxx", HOFFSET(statVal, Sxxxx), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->statVal, "Sxxx" , HOFFSET(statVal, Sxxx ), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->statVal, "Sxxy" , HOFFSET(statVal, Sxxy ), H5T_NATIVE_DOUBLE));
+#endif//USE_PARABOLIC_GROWTH_MODEL
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* commit a data type of guessTime */
+  //-----------------------------------------------------------------------
+  type->guessTime = H5Tcreate(H5T_COMPOUND, sizeof(guessTime));
+  chkHDF5err(H5Tinsert(type->guessTime,  "slope", HOFFSET(guessTime,  slope), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->guessTime,  "icept", HOFFSET(guessTime,  icept), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->guessTime, "rchisq", HOFFSET(guessTime, rchisq), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->guessTime,   "time", HOFFSET(guessTime,   time), H5T_NATIVE_DOUBLE));
+#ifdef  USE_PARABOLIC_GROWTH_MODEL
+  chkHDF5err(H5Tinsert(type->guessTime, "second", HOFFSET(guessTime, second), H5T_NATIVE_DOUBLE));
+#endif//USE_PARABOLIC_GROWTH_MODEL
+  //-----------------------------------------------------------------------
+#endif//WALK_TREE_COMBINED_MODEL
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+#ifdef  USE_BRENT_METHOD
+  //-----------------------------------------------------------------------
+  /* commit a data type of brentFunc */
+  //-----------------------------------------------------------------------
+  type->brentFunc = H5Tcreate(H5T_COMPOUND, sizeof(brentFunc));
+  chkHDF5err(H5Tinsert(type->brentFunc, "pos", HOFFSET(brentFunc, pos), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->brentFunc, "val", HOFFSET(brentFunc, val), H5T_NATIVE_DOUBLE));
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* commit a data type of brentStatus */
+  //-----------------------------------------------------------------------
+  type->brentStatus = H5Tcreate(H5T_COMPOUND, sizeof(brentStatus));
+  chkHDF5err(H5Tinsert(type->brentStatus, "x", HOFFSET(brentStatus, x), type->brentFunc));
+  chkHDF5err(H5Tinsert(type->brentStatus, "w", HOFFSET(brentStatus, w), type->brentFunc));
+  chkHDF5err(H5Tinsert(type->brentStatus, "v", HOFFSET(brentStatus, v), type->brentFunc));
+  chkHDF5err(H5Tinsert(type->brentStatus, "u", HOFFSET(brentStatus, u), type->brentFunc));
+  chkHDF5err(H5Tinsert(type->brentStatus, "a", HOFFSET(brentStatus, a), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->brentStatus, "b", HOFFSET(brentStatus, b), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->brentStatus, "d", HOFFSET(brentStatus, d), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->brentStatus, "e", HOFFSET(brentStatus, e), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->brentStatus, "gold", HOFFSET(brentStatus, gold), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->brentStatus, "initialized", HOFFSET(brentStatus, initialized), H5T_NATIVE_BOOL));
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* commit a data type of brentMemory */
+  //-----------------------------------------------------------------------
+  type->brentMemory = H5Tcreate(H5T_COMPOUND, sizeof(brentMemory));
+  chkHDF5err(H5Tinsert(type->brentMemory, "previous", HOFFSET(brentMemory, previous), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->brentMemory,   "totNum", HOFFSET(brentMemory,   totNum), H5T_NATIVE_INT));
+  chkHDF5err(H5Tinsert(type->brentMemory, "degraded", HOFFSET(brentMemory, degraded), H5T_NATIVE_INT));
+  chkHDF5err(H5Tinsert(type->brentMemory, "interval", HOFFSET(brentMemory, interval), H5T_NATIVE_INT));
+  //-----------------------------------------------------------------------
+#endif//USE_BRENT_METHOD
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
 }
@@ -394,13 +503,38 @@ void removeHDF5DataType(hdf5struct  type)
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+#ifdef  USE_BRENT_METHOD
+  chkHDF5err(H5Tclose(type.brentMemory));
+  chkHDF5err(H5Tclose(type.brentStatus));
+  chkHDF5err(H5Tclose(type.brentFunc));
+#endif//USE_BRENT_METHOD
+  //-----------------------------------------------------------------------
+#ifdef  WALK_TREE_COMBINED_MODEL
+  chkHDF5err(H5Tclose(type.guessTime));
+  chkHDF5err(H5Tclose(type.statVal));
+#endif//WALK_TREE_COMBINED_MODEL
+  chkHDF5err(H5Tclose(type.measuredTime));
+  chkHDF5err(H5Tclose(type.rebuildTree));
+  //-----------------------------------------------------------------------
   chkHDF5err(H5Tclose(type.str4unit));
+  //-----------------------------------------------------------------------
+
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
 void  readTentativeData(double *time, double *dt, ulong *steps, int num, iparticle body, char file[], int  last, hdf5struct type
+			, int *dropPrevTune
+			, rebuildTree *rebuild, measuredTime *measured
+#ifdef  WALK_TREE_COMBINED_MODEL
+			, autoTuningParam *rebuildParam
+#endif//WALK_TREE_COMBINED_MODEL
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+			, brentStatus *status, brentMemory *memory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #ifdef  MONITOR_ENERGY_ERROR
 			, energyError *relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -419,42 +553,6 @@ void  readTentativeData(double *time, double *dt, ulong *steps, int num, ipartic
   //-----------------------------------------------------------------------
   /* open an existing group */
   hid_t group = H5Gopen(target, "nbody", H5P_DEFAULT);
-  //-----------------------------------------------------------------------
-  /* read particle data */
-  hid_t dataset;
-  /* read particle position */
-  dataset = H5Dopen(group, "position", H5P_DEFAULT);
-  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.pos));
-  chkHDF5err(H5Dclose(dataset));
-  /* read particle acceleration */
-  dataset = H5Dopen(group, "acceleration", H5P_DEFAULT);
-  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.acc));
-  chkHDF5err(H5Dclose(dataset));
-#ifdef  BLOCK_TIME_STEP
-  /* read particle velocity */
-  dataset = H5Dopen(group, "velocity", H5P_DEFAULT);
-  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.vel));
-  chkHDF5err(H5Dclose(dataset));
-  /* read particle time */
-  dataset = H5Dopen(group, "time", H5P_DEFAULT);
-  chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.time));
-  chkHDF5err(H5Dclose(dataset));
-#else///BLOCK_TIME_STEP
-  /* read particle velocity */
-  dataset = H5Dopen(group, "vx", H5P_DEFAULT);
-  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.vx));
-  chkHDF5err(H5Dclose(dataset));
-  dataset = H5Dopen(group, "vy", H5P_DEFAULT);
-  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.vy));
-  chkHDF5err(H5Dclose(dataset));
-  dataset = H5Dopen(group, "vz", H5P_DEFAULT);
-  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.vz));
-  chkHDF5err(H5Dclose(dataset));
-#endif//BLOCK_TIME_STEP
-  /* read particle index */
-  dataset = H5Dopen(group, "index", H5P_DEFAULT);
-  chkHDF5err(H5Dread(dataset, H5T_NATIVE_ULONG, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.idx));
-  chkHDF5err(H5Dclose(dataset));
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -511,15 +609,6 @@ void  readTentativeData(double *time, double *dt, ulong *steps, int num, ipartic
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-  /* close the file */
-  //-----------------------------------------------------------------------
-  /* end access to the dataset and release the corresponding resource */
-  chkHDF5err(H5Gclose(group));
-  //-----------------------------------------------------------------------
-  chkHDF5err(H5Fclose(target));
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
   /* simple error check */
   //-----------------------------------------------------------------------
   if( num_ulong != (ulong)num ){    __KILL__(stderr, "ERROR: number of N-body particles in the file (%zu) differs with that in the code (%d)\n", num_ulong, num);  }
@@ -546,11 +635,195 @@ void  readTentativeData(double *time, double *dt, ulong *steps, int num, ipartic
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
+  /* read particle data */
+  //-----------------------------------------------------------------------
+  hid_t dataset;
+  /* read particle position */
+  dataset = H5Dopen(group, "position", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.pos));
+  chkHDF5err(H5Dclose(dataset));
+  /* read particle acceleration */
+  dataset = H5Dopen(group, "acceleration", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.acc));
+  chkHDF5err(H5Dclose(dataset));
+#ifdef  BLOCK_TIME_STEP
+  /* read particle velocity */
+  dataset = H5Dopen(group, "velocity", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.vel));
+  chkHDF5err(H5Dclose(dataset));
+  /* read particle time */
+  dataset = H5Dopen(group, "time", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.time));
+  chkHDF5err(H5Dclose(dataset));
+#else///BLOCK_TIME_STEP
+  /* read particle velocity */
+  dataset = H5Dopen(group, "vx", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.vx));
+  chkHDF5err(H5Dclose(dataset));
+  dataset = H5Dopen(group, "vy", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.vy));
+  chkHDF5err(H5Dclose(dataset));
+  dataset = H5Dopen(group, "vz", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.vz));
+  chkHDF5err(H5Dclose(dataset));
+#endif//BLOCK_TIME_STEP
+  /* read particle index */
+  dataset = H5Dopen(group, "index", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, H5T_NATIVE_ULONG, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.idx));
+  chkHDF5err(H5Dclose(dataset));
+  //-----------------------------------------------------------------------
+  /* end access to the dataset and release the corresponding resource */
+  chkHDF5err(H5Gclose(group));
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  if( (*steps != 0) && (*dropPrevTune == 0) ){
+    //---------------------------------------------------------------------
+    group = H5Gopen(target, "parameters in auto-tuning", H5P_DEFAULT);
+    //---------------------------------------------------------------------
+    /* read attributes */
+    //---------------------------------------------------------------------
+    /* read flag about FORCE_ADJUSTING_PARTICLE_TIME_STEPS */
+    int forceAdjust;
+    attribute = H5Aopen(group, "FORCE_ADJUSTING_PARTICLE_TIME_STEPS", H5P_DEFAULT);
+    chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &forceAdjust));
+    chkHDF5err(H5Aclose(attribute));
+    //---------------------------------------------------------------------
+    /* read flag about WALK_TREE_COMBINED_MODEL */
+    int combined;
+    attribute = H5Aopen(group, "WALK_TREE_COMBINED_MODEL", H5P_DEFAULT);
+    chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &combined));
+    chkHDF5err(H5Aclose(attribute));
+    /* read flag about WALK_TREE_TOTAL_SUM_MODEL */
+    int totSum;
+    attribute = H5Aopen(group, "WALK_TREE_TOTAL_SUM_MODEL", H5P_DEFAULT);
+    chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &totSum));
+    chkHDF5err(H5Aclose(attribute));
+    /* read flag about USE_PARABOLIC_GROWTH_MODEL */
+    int parabolic;
+    attribute = H5Aopen(group, "USE_PARABOLIC_GROWTH_MODEL", H5P_DEFAULT);
+    chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &parabolic));
+    chkHDF5err(H5Aclose(attribute));
+    //---------------------------------------------------------------------
+    /* read flag about LOCALIZE_I_PARTICLES */
+    int localize;
+    attribute = H5Aopen(group, "LOCALIZE_I_PARTICLES", H5P_DEFAULT);
+    chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &localize));
+    chkHDF5err(H5Aclose(attribute));
+    /* read flag about USE_BRENT_METHOD */
+    int useBrent;
+    attribute = H5Aopen(group, "USE_BRENT_METHOD", H5P_DEFAULT);
+    chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &useBrent));
+    chkHDF5err(H5Aclose(attribute));
+    //---------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
+    /* read parameters */
+    //---------------------------------------------------------------------
+    /* read rebuildTree */
+#ifdef  FORCE_ADJUSTING_PARTICLE_TIME_STEPS
+    if( forceAdjust == 1 )
+#else///FORCE_ADJUSTING_PARTICLE_TIME_STEPS
+      if( forceAdjust == 0 )
+#endif//FORCE_ADJUSTING_PARTICLE_TIME_STEPS
+	{
+	  dataset = H5Dopen(group, "rebuild tree", H5P_DEFAULT);
+	  chkHDF5err(H5Dread(dataset, type.rebuildTree, H5S_ALL, H5S_ALL, H5P_DEFAULT, rebuild));
+	  chkHDF5err(H5Dclose(dataset));
+	}
+    /* read measuredTime */
+#ifdef  WALK_TREE_TOTAL_SUM_MODEL
+    if( totSum == 1 )
+#else///WALK_TREE_TOTAL_SUM_MODEL
+      if( totSum == 0 )
+#endif//WALK_TREE_TOTAL_SUM_MODEL
+	{
+	  dataset = H5Dopen(group, "measured time", H5P_DEFAULT);
+	  chkHDF5err(H5Dread(dataset, type.measuredTime, H5S_ALL, H5S_ALL, H5P_DEFAULT, measured));
+	  chkHDF5err(H5Dclose(dataset));
+	}
+    //---------------------------------------------------------------------
+#ifdef  WALK_TREE_COMBINED_MODEL
+    if( combined == 1 ){
+#ifdef  USE_PARABOLIC_GROWTH_MODEL
+      if( parabolic == 1 )
+#else///USE_PARABOLIC_GROWTH_MODEL
+	if( parabolic == 0 )
+#endif//USE_PARABOLIC_GROWTH_MODEL
+	  {
+	    /* read statVal for linear growth model */
+	    dataset = H5Dopen(group, "stats (linear)", H5P_DEFAULT);
+	    chkHDF5err(H5Dread(dataset, type.statVal, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(rebuildParam->linearStats)));
+	    chkHDF5err(H5Dclose(dataset));
+	    /* read guessTime for linear growth model */
+	    dataset = H5Dopen(group, "guess (linear)", H5P_DEFAULT);
+	    chkHDF5err(H5Dread(dataset, type.guessTime, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(rebuildParam->linearGuess)));
+	    chkHDF5err(H5Dclose(dataset));
+	    /* read statVal for power-law growth model */
+	    dataset = H5Dopen(group, "stats (power)", H5P_DEFAULT);
+	    chkHDF5err(H5Dread(dataset, type.statVal, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(rebuildParam->powerStats)));
+	    chkHDF5err(H5Dclose(dataset));
+	    /* read guessTime for power-law growth model */
+	    dataset = H5Dopen(group, "guess (power)", H5P_DEFAULT);
+	    chkHDF5err(H5Dread(dataset, type.guessTime, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(rebuildParam->powerGuess)));
+	    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_PARABOLIC_GROWTH_MODEL
+	    /* read statVal for parabolic growth model */
+	    dataset = H5Dopen(group, "stats (parabolic)", H5P_DEFAULT);
+	    chkHDF5err(H5Dread(dataset, type.statVal, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(rebuildParam->parabolicStats)));
+	    chkHDF5err(H5Dclose(dataset));
+	    /* read guessTime for parabolic growth model */
+	    dataset = H5Dopen(group, "guess (parabolic)", H5P_DEFAULT);
+	    chkHDF5err(H5Dread(dataset, type.guessTime, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(rebuildParam->parabolicGuess)));
+	    chkHDF5err(H5Dclose(dataset));
+#endif//USE_PARABOLIC_GROWTH_MODEL
+	  }
+    }/* if( combined == 1 ){ */
+#endif//WALK_TREE_COMBINED_MODEL
+    //---------------------------------------------------------------------
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+    if( (localize == 1) && (useBrent == 1) ){
+      /* read brentStatus */
+      dataset = H5Dopen(group, "Brent status", H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, type.brentStatus, H5S_ALL, H5S_ALL, H5P_DEFAULT, status));
+      chkHDF5err(H5Dclose(dataset));
+      /* read brentMemory */
+      dataset = H5Dopen(group, "Brent memory", H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, type.brentMemory, H5S_ALL, H5S_ALL, H5P_DEFAULT, memory));
+      chkHDF5err(H5Dclose(dataset));
+    }/* if( (localize == 1) && (useBrent == 1) ){ */
+    else
+      *dropPrevTune = 1;
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+    //---------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
+    chkHDF5err(H5Gclose(group));
+    //---------------------------------------------------------------------
+  }/* if( (*steps != 0) && (*dropPrevTune == 0) ){ */
+  else
+    *dropPrevTune = 1;
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* close the file */
+  //-----------------------------------------------------------------------
+  chkHDF5err(H5Fclose(target));
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int num, iparticle body, char file[], int  last, MPIcfg_dataio *mpi, ulong Ntot, hdf5struct type
+void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int *num, iparticle body, char file[], int  last, MPIcfg_dataio *mpi, ulong Ntot, hdf5struct type
+				, int *dropPrevTune, rebuildTree *rebuild, measuredTime *measured
+#ifdef  WALK_TREE_COMBINED_MODEL
+				, autoTuningParam *rebuildParam
+#endif//WALK_TREE_COMBINED_MODEL
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+				, brentStatus *status, brentMemory *memory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #ifdef  MONITOR_ENERGY_ERROR
 				, energyError *relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -576,124 +849,6 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int num,
   /* create property list for collective dataset read */
   hid_t r_property = H5Pcreate(H5P_DATASET_XFER);
   chkHDF5err(H5Pset_dxpl_mpio(r_property, H5FD_MPIO_COLLECTIVE));
-  //-----------------------------------------------------------------------
-  /* reset MPI_Offset */
-  updateMPIcfg_dataio(mpi, num);
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
-  /* dataset for real4 arrays */
-  //-----------------------------------------------------------------------
-  /* dataspace */
-  hsize_t dims_loc = 4 * num;
-  hid_t locSpace = H5Screate_simple(1, &dims_loc, NULL);
-  //-----------------------------------------------------------------------
-  /* configuration about domain decomposition */
-  hsize_t  count = 1;
-  hsize_t stride = 1;
-  hsize_t  block = dims_loc;
-  hsize_t offset = mpi->head * 4;
-  //-----------------------------------------------------------------------
-  hid_t dataset, hyperslab;
-  /* read particle position */
-  dataset = H5Dopen(group, "position", H5P_DEFAULT);
-  hyperslab = H5Dget_space(dataset);
-  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
-  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.pos));
-  chkHDF5err(H5Sclose(hyperslab));
-  chkHDF5err(H5Dclose(dataset));
-  /* read particle acceleration */
-  dataset = H5Dopen(group, "acceleration", H5P_DEFAULT);
-  hyperslab = H5Dget_space(dataset);
-  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
-  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.acc));
-  chkHDF5err(H5Sclose(hyperslab));
-  chkHDF5err(H5Dclose(dataset));
-#ifdef  BLOCK_TIME_STEP
-  dataset = H5Dopen(group, "velocity", H5P_DEFAULT);
-  hyperslab = H5Dget_space(dataset);
-  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
-  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.vel));
-  chkHDF5err(H5Sclose(hyperslab));
-  chkHDF5err(H5Dclose(dataset));
-#endif//BLOCK_TIME_STEP
-  //-----------------------------------------------------------------------
-  chkHDF5err(H5Sclose(locSpace));
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
-#ifdef  BLOCK_TIME_STEP
-  //-----------------------------------------------------------------------
-  /* dataset for double2 array */
-  //-----------------------------------------------------------------------
-  /* dataspace */
-  dims_loc = 2 * num;
-  locSpace = H5Screate_simple(1, &dims_loc, NULL);
-  //-----------------------------------------------------------------------
-  /* configuration about domain decomposition */
-  count  = 1;
-  stride = 1;
-  block  = dims_loc;
-  offset = mpi->head * 2;
-  //-----------------------------------------------------------------------
-  /* read particle time */
-  dataset = H5Dopen(group, "time", H5P_DEFAULT);
-  hyperslab = H5Dget_space(dataset);
-  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
-  chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, locSpace, hyperslab, r_property, body.time));
-  chkHDF5err(H5Sclose(hyperslab));
-  chkHDF5err(H5Dclose(dataset));
-  //-----------------------------------------------------------------------
-  chkHDF5err(H5Sclose(locSpace));
-  //-----------------------------------------------------------------------
-#endif//BLOCK_TIME_STEP
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
-  /* dataset for num array */
-  //-----------------------------------------------------------------------
-  /* dataspace */
-  dims_loc = num;
-  locSpace = H5Screate_simple(1, &dims_loc, NULL);
-  //-----------------------------------------------------------------------
-  /* configuration about domain decomposition */
-  count  = 1;
-  stride = 1;
-  block  = dims_loc;
-  offset = mpi->head;
-  //-----------------------------------------------------------------------
-#ifndef BLOCK_TIME_STEP
-  /* read particle velocity */
-  dataset = H5Dopen(group, "vx", H5P_DEFAULT);
-  hyperslab = H5Dget_space(dataset);
-  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
-  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.vx));
-  chkHDF5err(H5Sclose(hyperslab));
-  chkHDF5err(H5Dclose(dataset));
-  dataset = H5Dopen(group, "vy", H5P_DEFAULT);
-  hyperslab = H5Dget_space(dataset);
-  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
-  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.vy));
-  chkHDF5err(H5Sclose(hyperslab));
-  chkHDF5err(H5Dclose(dataset));
-  dataset = H5Dopen(group, "vz", H5P_DEFAULT);
-  hyperslab = H5Dget_space(dataset);
-  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
-  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.vz));
-  chkHDF5err(H5Sclose(hyperslab));
-  chkHDF5err(H5Dclose(dataset));
-#endif//BLOCK_TIME_STEP
-  dataset = H5Dopen(group, "index", H5P_DEFAULT);
-  hyperslab = H5Dget_space(dataset);
-  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
-  chkHDF5err(H5Dread(dataset, H5T_NATIVE_ULONG, locSpace, hyperslab, r_property, body.idx));
-  chkHDF5err(H5Sclose(hyperslab));
-  chkHDF5err(H5Dclose(dataset));
-  //-----------------------------------------------------------------------
-  chkHDF5err(H5Sclose(locSpace));
-  //-----------------------------------------------------------------------
-  /* finish collective dataset read */
-  chkHDF5err(H5Pclose(r_property));
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -766,15 +921,6 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int num,
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-  /* close the file */
-  //-----------------------------------------------------------------------
-  /* end access to the dataset and release the corresponding resource */
-  chkHDF5err(H5Gclose(group));
-  //-----------------------------------------------------------------------
-  chkHDF5err(H5Fclose(target));
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
   /* simple error check */
   //-----------------------------------------------------------------------
   if( Nread != Ntot ){
@@ -803,11 +949,351 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int num,
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
+  if( (*steps != 0) && (*dropPrevTune == 0) ){
+    //---------------------------------------------------------------------
+    chkHDF5err(H5Gclose(group));
+    group = H5Gopen(target, "parameters in auto-tuning", H5P_DEFAULT);
+    //---------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
+    /* read attributes */
+    //---------------------------------------------------------------------
+    int forceAdjust;
+    int monitor, combined, totSum, parabolic;
+    int localize, useBrent;
+    //---------------------------------------------------------------------
+    if( mpi->rank == 0 ){
+      //-------------------------------------------------------------------
+      hid_t attribute;
+      //-------------------------------------------------------------------
+      /* read flag about FORCE_ADJUSTING_PARTICLE_TIME_STEPS */
+      attribute = H5Aopen(group, "FORCE_ADJUSTING_PARTICLE_TIME_STEPS", H5P_DEFAULT);
+      chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &forceAdjust));
+      chkHDF5err(H5Aclose(attribute));
+      //-------------------------------------------------------------------
+      /* read flag about MONITOR_LETGEN_TIME */
+      attribute = H5Aopen(group, "MONITOR_LETGEN_TIME", H5P_DEFAULT);
+      chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &monitor));
+      chkHDF5err(H5Aclose(attribute));
+      /* read flag about WALK_TREE_COMBINED_MODEL */
+      attribute = H5Aopen(group, "WALK_TREE_COMBINED_MODEL", H5P_DEFAULT);
+      chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &combined));
+      chkHDF5err(H5Aclose(attribute));
+      /* read flag about WALK_TREE_TOTAL_SUM_MODEL */
+      attribute = H5Aopen(group, "WALK_TREE_TOTAL_SUM_MODEL", H5P_DEFAULT);
+      chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &totSum));
+      chkHDF5err(H5Aclose(attribute));
+      /* read flag about USE_PARABOLIC_GROWTH_MODEL */
+      attribute = H5Aopen(group, "USE_PARABOLIC_GROWTH_MODEL", H5P_DEFAULT);
+      chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &parabolic));
+      chkHDF5err(H5Aclose(attribute));
+      //-------------------------------------------------------------------
+      /* read flag about LOCALIZE_I_PARTICLES */
+      attribute = H5Aopen(group, "LOCALIZE_I_PARTICLES", H5P_DEFAULT);
+      chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &localize));
+      chkHDF5err(H5Aclose(attribute));
+      /* read flag about USE_BRENT_METHOD */
+      attribute = H5Aopen(group, "USE_BRENT_METHOD", H5P_DEFAULT);
+      chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &useBrent));
+      chkHDF5err(H5Aclose(attribute));
+      //-------------------------------------------------------------------
+    }/* if( mpi->rank == 0 ){ */
+    //---------------------------------------------------------------------
+    chkMPIerr(MPI_Bcast(&forceAdjust, 1, MPI_INT, 0, mpi->comm));
+    chkMPIerr(MPI_Bcast(&    monitor, 1, MPI_INT, 0, mpi->comm));
+    chkMPIerr(MPI_Bcast(&   combined, 1, MPI_INT, 0, mpi->comm));
+    chkMPIerr(MPI_Bcast(&     totSum, 1, MPI_INT, 0, mpi->comm));
+    chkMPIerr(MPI_Bcast(&  parabolic, 1, MPI_INT, 0, mpi->comm));
+    chkMPIerr(MPI_Bcast(&   localize, 1, MPI_INT, 0, mpi->comm));
+    chkMPIerr(MPI_Bcast(&   useBrent, 1, MPI_INT, 0, mpi->comm));
+    //---------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
+    /* read parameters */
+    //---------------------------------------------------------------------
+    hsize_t dims_loc = 1;
+    hid_t locSpace = H5Screate_simple(1, &dims_loc, NULL);
+    /* configuration about domain decomposition */
+    hsize_t  count = 1;
+    hsize_t stride = 1;
+    hsize_t  block = dims_loc;
+    hsize_t offset = mpi->rank;
+    hid_t dataset, hyperslab;
+    //---------------------------------------------------------------------
+    /* read rebuildTree */
+#ifdef  FORCE_ADJUSTING_PARTICLE_TIME_STEPS
+    if( forceAdjust == 1 )
+#else///FORCE_ADJUSTING_PARTICLE_TIME_STEPS
+      if( forceAdjust == 0 )
+#endif//FORCE_ADJUSTING_PARTICLE_TIME_STEPS
+	{
+	  dataset = H5Dopen(group, "rebuild tree", H5P_DEFAULT);
+	  hyperslab = H5Dget_space(dataset);
+	  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+	  chkHDF5err(H5Dread(dataset, type.rebuildTree, locSpace, hyperslab, r_property, rebuild));
+	  chkHDF5err(H5Sclose(hyperslab));
+	  chkHDF5err(H5Dclose(dataset));
+	}
+    /* read measuredTime */
+    /* WALK_TREE_TOTAL_SUM_MODEL, MONITOR_LETGEN_TIME */
+#ifdef  WALK_TREE_TOTAL_SUM_MODEL
+    if( totSum == 1 )
+#else///WALK_TREE_TOTAL_SUM_MODEL
+      if( totSum == 0 )
+#endif//WALK_TREE_TOTAL_SUM_MODEL
+#ifdef  MONITOR_LETGEN_TIME
+	if( monitor == 1 )
+#else///MONITOR_LETGEN_TIME
+	  if( monitor == 0 )
+#endif//MONITOR_LETGEN_TIME
+	    {
+	      dataset = H5Dopen(group, "measured time", H5P_DEFAULT);
+	      hyperslab = H5Dget_space(dataset);
+	      chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+	      chkHDF5err(H5Dread(dataset, type.measuredTime, locSpace, hyperslab, r_property, measured));
+	      chkHDF5err(H5Sclose(hyperslab));
+	      chkHDF5err(H5Dclose(dataset));
+	    }
+    //---------------------------------------------------------------------
+#ifdef  WALK_TREE_COMBINED_MODEL
+    if( combined == 1 ){
+#ifdef  USE_PARABOLIC_GROWTH_MODEL
+      if( parabolic == 1 )
+#else///USE_PARABOLIC_GROWTH_MODEL
+	if( parabolic == 0 )
+#endif//USE_PARABOLIC_GROWTH_MODEL
+	  {
+	    /* read statVal for linear growth model */
+	    dataset = H5Dopen(group, "stats (linear)", H5P_DEFAULT);
+	    hyperslab = H5Dget_space(dataset);
+	    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+	    chkHDF5err(H5Dread(dataset, type.statVal, locSpace, hyperslab, r_property, &(rebuildParam->linearStats)));
+	    chkHDF5err(H5Sclose(hyperslab));
+	    chkHDF5err(H5Dclose(dataset));
+	    /* read guessTime for linear growth model */
+	    dataset = H5Dopen(group, "guess (linear)", H5P_DEFAULT);
+	    hyperslab = H5Dget_space(dataset);
+	    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+	    chkHDF5err(H5Dread(dataset, type.guessTime, locSpace, hyperslab, r_property, &(rebuildParam->linearGuess)));
+	    chkHDF5err(H5Sclose(hyperslab));
+	    chkHDF5err(H5Dclose(dataset));
+	    /* read statVal for power-law growth model */
+	    dataset = H5Dopen(group, "stats (power)", H5P_DEFAULT);
+	    hyperslab = H5Dget_space(dataset);
+	    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+	    chkHDF5err(H5Dread(dataset, type.statVal, locSpace, hyperslab, r_property, &(rebuildParam->powerStats)));
+	    chkHDF5err(H5Sclose(hyperslab));
+	    chkHDF5err(H5Dclose(dataset));
+	    /* read guessTime for power-law growth model */
+	    dataset = H5Dopen(group, "guess (power)", H5P_DEFAULT);
+	    hyperslab = H5Dget_space(dataset);
+	    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+	    chkHDF5err(H5Dread(dataset, type.guessTime, locSpace, hyperslab, r_property, &(rebuildParam->powerGuess)));
+	    chkHDF5err(H5Sclose(hyperslab));
+	    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_PARABOLIC_GROWTH_MODEL
+	    /* read statVal for parabolic growth model */
+	    dataset = H5Dopen(group, "stats (parabolic)", H5P_DEFAULT);
+	    hyperslab = H5Dget_space(dataset);
+	    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+	    chkHDF5err(H5Dread(dataset, type.statVal, locSpace, hyperslab, r_property, &(rebuildParam->parabolicStats)));
+	    chkHDF5err(H5Sclose(hyperslab));
+	    chkHDF5err(H5Dclose(dataset));
+	    /* read guessTime for parabolic growth model */
+	    dataset = H5Dopen(group, "guess (parabolic)", H5P_DEFAULT);
+	    hyperslab = H5Dget_space(dataset);
+	    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+	    chkHDF5err(H5Dread(dataset, type.guessTime, locSpace, hyperslab, r_property, &(rebuildParam->parabolicGuess)));
+	    chkHDF5err(H5Sclose(hyperslab));
+	    chkHDF5err(H5Dclose(dataset));
+#endif//USE_PARABOLIC_GROWTH_MODEL
+	  }
+    }/* if( combined == 1 ){ */
+#endif//WALK_TREE_COMBINED_MODEL
+    //---------------------------------------------------------------------
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+    if( (localize == 1) && (useBrent == 1) ){
+      /* read brentStatus */
+      dataset = H5Dopen(group, "Brent status", H5P_DEFAULT);
+      hyperslab = H5Dget_space(dataset);
+      chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+      chkHDF5err(H5Dread(dataset, type.brentStatus, locSpace, hyperslab, r_property, status));
+      chkHDF5err(H5Sclose(hyperslab));
+      chkHDF5err(H5Dclose(dataset));
+      /* read brentMemory */
+      dataset = H5Dopen(group, "Brent memory", H5P_DEFAULT);
+      hyperslab = H5Dget_space(dataset);
+      chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+      chkHDF5err(H5Dread(dataset, type.brentMemory, locSpace, hyperslab, r_property, memory));
+      chkHDF5err(H5Sclose(hyperslab));
+      chkHDF5err(H5Dclose(dataset));
+    }/* if( (localize == 1) && (useBrent == 1) ){ */
+    else
+      *dropPrevTune = 1;
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+    //---------------------------------------------------------------------
+    /* read # of particles in each process */
+    dataset = H5Dopen(group, "num", H5P_DEFAULT);
+    hyperslab = H5Dget_space(dataset);
+    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+    chkHDF5err(H5Dread(dataset, H5T_NATIVE_INT, locSpace, hyperslab, r_property, num));
+    chkHDF5err(H5Sclose(hyperslab));
+    chkHDF5err(H5Dclose(dataset));
+    //---------------------------------------------------------------------
+    chkHDF5err(H5Sclose(locSpace));
+    //---------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
+    chkHDF5err(H5Gclose(group));
+    group = H5Gopen(target, "nbody", H5P_DEFAULT);
+    //---------------------------------------------------------------------
+  }/* if( (*steps != 0) && (*dropPrevTune == 0) ){ */
+  else
+    *dropPrevTune = 1;
+  //-----------------------------------------------------------------------
+  /* reset MPI_Offset */
+  updateMPIcfg_dataio(mpi, *num);
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* read particle data */
+  //-----------------------------------------------------------------------
+  /* dataset for real4 arrays */
+  //-----------------------------------------------------------------------
+  /* dataspace */
+  hsize_t dims_loc = 4 * (*num);
+  hid_t locSpace = H5Screate_simple(1, &dims_loc, NULL);
+  //-----------------------------------------------------------------------
+  /* configuration about domain decomposition */
+  hsize_t  count = 1;
+  hsize_t stride = 1;
+  hsize_t  block = dims_loc;
+  hsize_t offset = mpi->head * 4;
+  //-----------------------------------------------------------------------
+  hid_t dataset, hyperslab;
+  /* read particle position */
+  dataset = H5Dopen(group, "position", H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.pos));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+  /* read particle acceleration */
+  dataset = H5Dopen(group, "acceleration", H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.acc));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+#ifdef  BLOCK_TIME_STEP
+  dataset = H5Dopen(group, "velocity", H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.vel));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+#endif//BLOCK_TIME_STEP
+  //-----------------------------------------------------------------------
+  chkHDF5err(H5Sclose(locSpace));
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+#ifdef  BLOCK_TIME_STEP
+  //-----------------------------------------------------------------------
+  /* dataset for double2 array */
+  //-----------------------------------------------------------------------
+  /* dataspace */
+  dims_loc = 2 * (*num);
+  locSpace = H5Screate_simple(1, &dims_loc, NULL);
+  //-----------------------------------------------------------------------
+  /* configuration about domain decomposition */
+  count  = 1;
+  stride = 1;
+  block  = dims_loc;
+  offset = mpi->head * 2;
+  //-----------------------------------------------------------------------
+  /* read particle time */
+  dataset = H5Dopen(group, "time", H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, locSpace, hyperslab, r_property, body.time));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+  //-----------------------------------------------------------------------
+  chkHDF5err(H5Sclose(locSpace));
+  //-----------------------------------------------------------------------
+#endif//BLOCK_TIME_STEP
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* dataset for num array */
+  //-----------------------------------------------------------------------
+  /* dataspace */
+  dims_loc = *num;
+  locSpace = H5Screate_simple(1, &dims_loc, NULL);
+  //-----------------------------------------------------------------------
+  /* configuration about domain decomposition */
+  count  = 1;
+  stride = 1;
+  block  = dims_loc;
+  offset = mpi->head;
+  //-----------------------------------------------------------------------
+#ifndef BLOCK_TIME_STEP
+  /* read particle velocity */
+  dataset = H5Dopen(group, "vx", H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.vx));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+  dataset = H5Dopen(group, "vy", H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.vy));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+  dataset = H5Dopen(group, "vz", H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.vz));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+#endif//BLOCK_TIME_STEP
+  dataset = H5Dopen(group, "index", H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dread(dataset, H5T_NATIVE_ULONG, locSpace, hyperslab, r_property, body.idx));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+  //-----------------------------------------------------------------------
+  chkHDF5err(H5Sclose(locSpace));
+  //-----------------------------------------------------------------------
+  /* finish collective dataset read */
+  chkHDF5err(H5Pclose(r_property));
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* close the file */
+  //-----------------------------------------------------------------------
+  /* end access to the dataset and release the corresponding resource */
+  chkHDF5err(H5Gclose(group));
+  //-----------------------------------------------------------------------
+  chkHDF5err(H5Fclose(target));
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
 void writeTentativeData(double  time, double  dt, ulong  steps, int num, iparticle body, char file[], int *last, hdf5struct type
+			, rebuildTree rebuild, measuredTime measured
+#ifdef  WALK_TREE_COMBINED_MODEL
+			, autoTuningParam rebuildParam
+#endif//WALK_TREE_COMBINED_MODEL
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+			, brentStatus status, brentMemory memory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #ifdef  MONITOR_ENERGY_ERROR
 			, energyError relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -1010,12 +1496,154 @@ void writeTentativeData(double  time, double  dt, ulong  steps, int num, ipartic
   //-----------------------------------------------------------------------
   /* close the dataspace */
   chkHDF5err(H5Sclose(dataspace));
+  chkHDF5err(H5Gclose(group));
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* output parameters for auto-tuning (when steps > 0) */
+  //-----------------------------------------------------------------------
+  if( steps != 0 ){
+    //---------------------------------------------------------------------
+    group = H5Gcreate(target, "parameters in auto-tuning", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    //---------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
+    /* write parameters */
+    //---------------------------------------------------------------------
+    dims = 1;
+    dataspace = H5Screate_simple(1, &dims, NULL);
+    //---------------------------------------------------------------------
+    /* output rebuildTree */
+    dataset = H5Dcreate(group, "rebuild tree", type.rebuildTree, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.rebuildTree, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rebuild));
+    chkHDF5err(H5Dclose(dataset));
+    /* output measuredTime */
+    dataset = H5Dcreate(group, "measured time", type.measuredTime, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.measuredTime, H5S_ALL, H5S_ALL, H5P_DEFAULT, &measured));
+    chkHDF5err(H5Dclose(dataset));
+    //---------------------------------------------------------------------
+#ifdef  WALK_TREE_COMBINED_MODEL
+    /* output statVal for linear growth model */
+    dataset = H5Dcreate(group, "stats (linear)", type.statVal, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.statVal, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(rebuildParam.linearStats)));
+    chkHDF5err(H5Dclose(dataset));
+    /* output guessTime for linear growth model */
+    dataset = H5Dcreate(group, "guess (linear)", type.guessTime, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.guessTime, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(rebuildParam.linearGuess)));
+    chkHDF5err(H5Dclose(dataset));
+    /* output statVal for power-law growth model */
+    dataset = H5Dcreate(group, "stats (power)", type.statVal, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.statVal, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(rebuildParam.powerStats)));
+    chkHDF5err(H5Dclose(dataset));
+    /* output guessTime for power-law growth model */
+    dataset = H5Dcreate(group, "guess (power)", type.guessTime, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.guessTime, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(rebuildParam.powerGuess)));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_PARABOLIC_GROWTH_MODEL
+    /* output statVal for parabolic growth model */
+    dataset = H5Dcreate(group, "stats (parabolic)", type.statVal, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.statVal, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(rebuildParam.parabolicStats)));
+    chkHDF5err(H5Dclose(dataset));
+    /* output guessTime for parabolic growth model */
+    dataset = H5Dcreate(group, "guess (parabolic)", type.guessTime, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.guessTime, H5S_ALL, H5S_ALL, H5P_DEFAULT, &(rebuildParam.parabolicGuess)));
+    chkHDF5err(H5Dclose(dataset));
+#endif//USE_PARABOLIC_GROWTH_MODEL
+#endif//WALK_TREE_COMBINED_MODEL
+    //---------------------------------------------------------------------
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+    /* output brentStatus */
+    dataset = H5Dcreate(group, "Brent status", type.brentStatus, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.brentStatus, H5S_ALL, H5S_ALL, H5P_DEFAULT, &status));
+    chkHDF5err(H5Dclose(dataset));
+    /* output brentMemory */
+    dataset = H5Dcreate(group, "Brent memory", type.brentMemory, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.brentMemory, H5S_ALL, H5S_ALL, H5P_DEFAULT, &memory));
+    chkHDF5err(H5Dclose(dataset));
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+    //---------------------------------------------------------------------
+    chkHDF5err(H5Sclose(dataspace));
+    //---------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
+    /* write attributes */
+    attr_dims = 1;
+    dataspace = H5Screate_simple(1, &attr_dims, NULL);
+    int flag;
+    //---------------------------------------------------------------------
+    /* write flag about FORCE_ADJUSTING_PARTICLE_TIME_STEPS */
+#ifdef  FORCE_ADJUSTING_PARTICLE_TIME_STEPS
+    flag = 1;
+#else///FORCE_ADJUSTING_PARTICLE_TIME_STEPS
+    flag = 0;
+#endif//FORCE_ADJUSTING_PARTICLE_TIME_STEPS
+    attribute = H5Acreate(group, "FORCE_ADJUSTING_PARTICLE_TIME_STEPS", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &flag));
+    chkHDF5err(H5Aclose(attribute));
+    /* write flag about WALK_TREE_COMBINED_MODEL */
+#ifdef  WALK_TREE_COMBINED_MODEL
+    flag = 1;
+#else///WALK_TREE_COMBINED_MODEL
+    flag = 0;
+#endif//WALK_TREE_COMBINED_MODEL
+    attribute = H5Acreate(group, "WALK_TREE_COMBINED_MODEL", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &flag));
+    chkHDF5err(H5Aclose(attribute));
+    /* write flag about WALK_TREE_TOTAL_SUM_MODEL */
+#ifdef  WALK_TREE_TOTAL_SUM_MODEL
+    flag = 1;
+#else///WALK_TREE_TOTAL_SUM_MODEL
+    flag = 0;
+#endif//WALK_TREE_TOTAL_SUM_MODEL
+    attribute = H5Acreate(group, "WALK_TREE_TOTAL_SUM_MODEL", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &flag));
+    chkHDF5err(H5Aclose(attribute));
+    /* write flag about USE_PARABOLIC_GROWTH_MODEL */
+#ifdef  USE_PARABOLIC_GROWTH_MODEL
+    flag = 1;
+#else///USE_PARABOLIC_GROWTH_MODEL
+    flag = 0;
+#endif//USE_PARABOLIC_GROWTH_MODEL
+    attribute = H5Acreate(group, "USE_PARABOLIC_GROWTH_MODEL", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &flag));
+    chkHDF5err(H5Aclose(attribute));
+    /* write flag about LOCALIZE_I_PARTICLES */
+#ifdef  LOCALIZE_I_PARTICLES
+    flag = 1;
+#else///LOCALIZE_I_PARTICLES
+    flag = 0;
+#endif//LOCALIZE_I_PARTICLES
+    attribute = H5Acreate(group, "LOCALIZE_I_PARTICLES", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &flag));
+    chkHDF5err(H5Aclose(attribute));
+    /* write flag about USE_BRENT_METHOD */
+#ifdef  USE_BRENT_METHOD
+    flag = 1;
+#else///USE_BRENT_METHOD
+    flag = 0;
+#endif//USE_BRENT_METHOD
+    attribute = H5Acreate(group, "USE_BRENT_METHOD", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &flag));
+    chkHDF5err(H5Aclose(attribute));
+    /* write flag about TEST_BRENT_METHOD */
+#ifdef  TEST_BRENT_METHOD
+    flag = 1;
+#else///TEST_BRENT_METHOD
+    flag = 0;
+#endif//TEST_BRENT_METHOD
+    attribute = H5Acreate(group, "TEST_BRENT_METHOD", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &flag));
+    chkHDF5err(H5Aclose(attribute));
+    //---------------------------------------------------------------------
+    chkHDF5err(H5Sclose(dataspace));
+    chkHDF5err(H5Gclose(group));
+    //---------------------------------------------------------------------
+  }/* if( steps != 0 ){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   /* close the file */
   //-----------------------------------------------------------------------
-  chkHDF5err(H5Gclose(group));
   chkHDF5err(H5Fclose(target));
   //-----------------------------------------------------------------------
   *last ^= 1;
@@ -1028,6 +1656,13 @@ void writeTentativeData(double  time, double  dt, ulong  steps, int num, ipartic
 }
 //-------------------------------------------------------------------------
 void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num, iparticle body, char file[], int *last, MPIcfg_dataio *mpi, ulong Ntot, hdf5struct type
+				, rebuildTree rebuild, measuredTime measured
+#ifdef  WALK_TREE_COMBINED_MODEL
+				, autoTuningParam rebuildParam
+#endif//WALK_TREE_COMBINED_MODEL
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+				, brentStatus status, brentMemory memory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #ifdef  MONITOR_ENERGY_ERROR
 				, energyError relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -1063,8 +1698,8 @@ void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num,
   //-----------------------------------------------------------------------
   /* create dataspace */
   hsize_t dims_ful = 4 * Ntot            ;  hid_t fulSpace = H5Screate_simple(1, &dims_ful, NULL);
-  hsize_t dims_mem = 4 * Ntot / mpi->size;
   hsize_t dims_loc = 4 *  num            ;  hid_t locSpace = H5Screate_simple(1, &dims_loc, NULL);
+  hsize_t dims_mem = 4 * Ntot / mpi->size;
   //-----------------------------------------------------------------------
   /* configuration about domain decomposition */
   hsize_t  count = 1;
@@ -1194,8 +1829,8 @@ void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num,
   chkHDF5err(H5Sclose(locSpace));
   chkHDF5err(H5Sclose(fulSpace));
   //-----------------------------------------------------------------------
-  /* finish collective dataset write */
-  chkHDF5err(H5Pclose(w_property));
+  /* /\* finish collective dataset write *\/ */
+  /* chkHDF5err(H5Pclose(w_property)); */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -1262,12 +1897,219 @@ void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num,
   //-----------------------------------------------------------------------
   /* close the dataspace */
   chkHDF5err(H5Sclose(dataspace));
+  chkHDF5err(H5Gclose(group));
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* output parameters for auto-tuning (when steps > 0) */
+  //-----------------------------------------------------------------------
+  if( steps != 0 ){
+    //---------------------------------------------------------------------
+    group = H5Gcreate(target, "parameters in auto-tuning", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    //---------------------------------------------------------------------
+    /* /\* create property list for collective dataset write *\/ */
+    /* w_property = H5Pcreate(H5P_DATASET_XFER); */
+    /* chkHDF5err(H5Pset_dxpl_mpio(w_property, H5FD_MPIO_COLLECTIVE)); */
+    //---------------------------------------------------------------------
+    /* create dataspace */
+    dims_ful = mpi->size;    fulSpace = H5Screate_simple(1, &dims_ful, NULL);
+    dims_loc =         1;    locSpace = H5Screate_simple(1, &dims_loc, NULL);
+    dims_mem =         1;
+    //---------------------------------------------------------------------
+    /* configuration about domain decomposition */
+    count  = 1;
+    stride = 1;
+    block  = dims_loc;
+    offset = mpi->rank;
+    //---------------------------------------------------------------------
+    /* create chunked dataset */
+    data_create = H5Pcreate(H5P_DATASET_CREATE);
+    chkHDF5err(H5Pset_chunk(data_create, 1, &dims_mem));
+    //---------------------------------------------------------------------
+    /* output rebuildTree */
+    dset = H5Dcreate(group, "rebuild tree", type.rebuildTree, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+    hyperslab = H5Dget_space(dset);
+    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+    chkHDF5err(H5Dwrite(dset, type.rebuildTree, locSpace, hyperslab, w_property, &rebuild));
+    chkHDF5err(H5Sclose(hyperslab));
+    chkHDF5err(H5Dclose(dset));
+    /* output measuredTime */
+    dset = H5Dcreate(group, "measured time", type.measuredTime, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+    hyperslab = H5Dget_space(dset);
+    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+    chkHDF5err(H5Dwrite(dset, type.measuredTime, locSpace, hyperslab, w_property, &measured));
+    chkHDF5err(H5Sclose(hyperslab));
+    chkHDF5err(H5Dclose(dset));
+    //---------------------------------------------------------------------
+#ifdef  WALK_TREE_COMBINED_MODEL
+    /* output statVal for linear growth model */
+    dset = H5Dcreate(group, "stats (linear)", type.statVal, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+    hyperslab = H5Dget_space(dset);
+    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+    chkHDF5err(H5Dwrite(dset, type.statVal, locSpace, hyperslab, w_property, &(rebuildParam.linearStats)));
+    chkHDF5err(H5Sclose(hyperslab));
+    chkHDF5err(H5Dclose(dset));
+    /* output guessTime for linear growth model */
+    dset = H5Dcreate(group, "guess (linear)", type.guessTime, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+    hyperslab = H5Dget_space(dset);
+    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+    chkHDF5err(H5Dwrite(dset, type.guessTime, locSpace, hyperslab, w_property, &(rebuildParam.linearGuess)));
+    chkHDF5err(H5Sclose(hyperslab));
+    chkHDF5err(H5Dclose(dset));
+    /* output statVal for power-law growth model */
+    dset = H5Dcreate(group, "stats (power)", type.statVal, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+    hyperslab = H5Dget_space(dset);
+    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+    chkHDF5err(H5Dwrite(dset, type.statVal, locSpace, hyperslab, w_property, &(rebuildParam.powerStats)));
+    chkHDF5err(H5Sclose(hyperslab));
+    chkHDF5err(H5Dclose(dset));
+    /* output guessTime for power-law growth model */
+    dset = H5Dcreate(group, "guess (power)", type.guessTime, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+    hyperslab = H5Dget_space(dset);
+    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+    chkHDF5err(H5Dwrite(dset, type.guessTime, locSpace, hyperslab, w_property, &(rebuildParam.powerGuess)));
+    chkHDF5err(H5Sclose(hyperslab));
+    chkHDF5err(H5Dclose(dset));
+#ifdef  USE_PARABOLIC_GROWTH_MODEL
+    /* output statVal for parabolic growth model */
+    dset = H5Dcreate(group, "stats (parabolic)", type.statVal, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+    hyperslab = H5Dget_space(dset);
+    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+    chkHDF5err(H5Dwrite(dset, type.statVal, locSpace, hyperslab, w_property, &(rebuildParam.parabolicStats)));
+    chkHDF5err(H5Sclose(hyperslab));
+    chkHDF5err(H5Dclose(dset));
+    /* output guessTime for parabolic growth model */
+    dset = H5Dcreate(group, "guess (parabolic)", type.guessTime, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+    hyperslab = H5Dget_space(dset);
+    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+    chkHDF5err(H5Dwrite(dset, type.guessTime, locSpace, hyperslab, w_property, &(rebuildParam.parabolicGuess)));
+    chkHDF5err(H5Sclose(hyperslab));
+    chkHDF5err(H5Dclose(dset));
+#endif//USE_PARABOLIC_GROWTH_MODEL
+#endif//WALK_TREE_COMBINED_MODEL
+    //---------------------------------------------------------------------
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+    /* output brentStatus */
+    dset = H5Dcreate(group, "Brent status", type.brentStatus, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+    hyperslab = H5Dget_space(dset);
+    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+    chkHDF5err(H5Dwrite(dset, type.brentStatus, locSpace, hyperslab, w_property, &status));
+    chkHDF5err(H5Sclose(hyperslab));
+    chkHDF5err(H5Dclose(dset));
+    /* output brentMemory */
+    dset = H5Dcreate(group, "Brent memory", type.brentMemory, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+    hyperslab = H5Dget_space(dset);
+    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+    chkHDF5err(H5Dwrite(dset, type.brentMemory, locSpace, hyperslab, w_property, &memory));
+    chkHDF5err(H5Sclose(hyperslab));
+    chkHDF5err(H5Dclose(dset));
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+    //---------------------------------------------------------------------
+    /* output # of particles in each process */
+    dset = H5Dcreate(group, "num", H5T_NATIVE_INT, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+    hyperslab = H5Dget_space(dset);
+    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+    chkHDF5err(H5Dwrite(dset, H5T_NATIVE_INT, locSpace, hyperslab, w_property, &num));
+    chkHDF5err(H5Sclose(hyperslab));
+    chkHDF5err(H5Dclose(dset));
+    //---------------------------------------------------------------------
+    /* close/release resources */
+    chkHDF5err(H5Pclose(data_create));
+    chkHDF5err(H5Sclose(locSpace));
+    chkHDF5err(H5Sclose(fulSpace));
+    //---------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
+    /* write attributes */
+    attr_dims = 1;
+    dataspace = H5Screate_simple(1, &attr_dims, NULL);
+    int flag;
+    //---------------------------------------------------------------------
+    /* write flag about FORCE_ADJUSTING_PARTICLE_TIME_STEPS */
+#ifdef  FORCE_ADJUSTING_PARTICLE_TIME_STEPS
+    flag = 1;
+#else///FORCE_ADJUSTING_PARTICLE_TIME_STEPS
+    flag = 0;
+#endif//FORCE_ADJUSTING_PARTICLE_TIME_STEPS
+    attribute = H5Acreate(group, "FORCE_ADJUSTING_PARTICLE_TIME_STEPS", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &flag));
+    chkHDF5err(H5Aclose(attribute));
+    /* write flag about MONITOR_LETGEN_TIME */
+#ifdef  MONITOR_LETGEN_TIME
+    flag = 1;
+#else///MONITOR_LETGEN_TIME
+    flag = 0;
+#endif//MONITOR_LETGEN_TIME
+    attribute = H5Acreate(group, "MONITOR_LETGEN_TIME", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &flag));
+    chkHDF5err(H5Aclose(attribute));
+    /* write flag about WALK_TREE_COMBINED_MODEL */
+#ifdef  WALK_TREE_COMBINED_MODEL
+    flag = 1;
+#else///WALK_TREE_COMBINED_MODEL
+    flag = 0;
+#endif//WALK_TREE_COMBINED_MODEL
+    attribute = H5Acreate(group, "WALK_TREE_COMBINED_MODEL", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &flag));
+    chkHDF5err(H5Aclose(attribute));
+    /* write flag about WALK_TREE_TOTAL_SUM_MODEL */
+#ifdef  WALK_TREE_TOTAL_SUM_MODEL
+    flag = 1;
+#else///WALK_TREE_TOTAL_SUM_MODEL
+    flag = 0;
+#endif//WALK_TREE_TOTAL_SUM_MODEL
+    attribute = H5Acreate(group, "WALK_TREE_TOTAL_SUM_MODEL", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &flag));
+    chkHDF5err(H5Aclose(attribute));
+    /* write flag about USE_PARABOLIC_GROWTH_MODEL */
+#ifdef  USE_PARABOLIC_GROWTH_MODEL
+    flag = 1;
+#else///USE_PARABOLIC_GROWTH_MODEL
+    flag = 0;
+#endif//USE_PARABOLIC_GROWTH_MODEL
+    attribute = H5Acreate(group, "USE_PARABOLIC_GROWTH_MODEL", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &flag));
+    chkHDF5err(H5Aclose(attribute));
+    /* write flag about LOCALIZE_I_PARTICLES */
+#ifdef  LOCALIZE_I_PARTICLES
+    flag = 1;
+#else///LOCALIZE_I_PARTICLES
+    flag = 0;
+#endif//LOCALIZE_I_PARTICLES
+    attribute = H5Acreate(group, "LOCALIZE_I_PARTICLES", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &flag));
+    chkHDF5err(H5Aclose(attribute));
+    /* write flag about USE_BRENT_METHOD */
+#ifdef  USE_BRENT_METHOD
+    flag = 1;
+#else///USE_BRENT_METHOD
+    flag = 0;
+#endif//USE_BRENT_METHOD
+    attribute = H5Acreate(group, "USE_BRENT_METHOD", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &flag));
+    chkHDF5err(H5Aclose(attribute));
+    /* write flag about TEST_BRENT_METHOD */
+#ifdef  TEST_BRENT_METHOD
+    flag = 1;
+#else///TEST_BRENT_METHOD
+    flag = 0;
+#endif//TEST_BRENT_METHOD
+    attribute = H5Acreate(group, "TEST_BRENT_METHOD", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &flag));
+    chkHDF5err(H5Aclose(attribute));
+    //---------------------------------------------------------------------
+    chkHDF5err(H5Sclose(dataspace));
+    chkHDF5err(H5Gclose(group));
+    //---------------------------------------------------------------------
+  }/* if( steps != 0 ){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   /* close the file */
   //-----------------------------------------------------------------------
-  chkHDF5err(H5Gclose(group));
+  /* finish collective dataset write */
+  chkHDF5err(H5Pclose(w_property));
+  //-----------------------------------------------------------------------
   chkHDF5err(H5Fclose(target));
   //-----------------------------------------------------------------------
   *last ^= 1;

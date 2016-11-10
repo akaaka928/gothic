@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/01/20(Wed) 14:17:09
+                  last updated on 2016/10/28(Fri) 12:56:55
  *                                                                       *
  *    Constructing octree structure for collisionless systems            *
  *                                                                       *
@@ -397,11 +397,10 @@ void examineParticleSeparation
 /*   checkCudaErrors(cudaMemcpy(&rmax, &body_dev.neighbor[Ni - 1], sizeof(real), cudaMemcpyDeviceToHost)); */
 /* #endif//CUB_AVAILABLE */
 /*   rmin = rmax * NEIGHBOR_LENGTH_SHRINK_FACTOR; */
-  static bool initialized = false;
-  if( initialized )
+  if( brent->initialized )
     brentPerturb(brent, (double)rmin, (double)rmax);
   else{
-    initialized = true;
+    brent->initialized = true;
     brentInit1st(brent, (double)rmin, (double)rmax);
   }/* else{ */
   //-----------------------------------------------------------------------
