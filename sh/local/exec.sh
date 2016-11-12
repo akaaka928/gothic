@@ -273,11 +273,11 @@ TIME=`date`
 echo "$TIME: $EXE start" >> $LOG
 if [ $PROCS -eq 1 ]; then
     if [ $DO_MEMCHK -eq 0 ]; then
-	echo "sh/local/numarun.sh 1 $LOG $EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
-	sh/local/numarun.sh 1 $LOG $EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
+	echo "sh/local/numarun.sh 1 $LOG $EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
+	sh/local/numarun.sh 1 $LOG $EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
     else
-	echo "$MEMCHK $EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
-	$MEMCHK $EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
+	echo "$MEMCHK $EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
+	$MEMCHK $EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
     fi
 else
     if [ $DO_MEMCHK -eq 0 ]; then

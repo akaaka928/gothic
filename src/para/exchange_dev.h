@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/10(Thu) 19:34:25
+                  last updated on 2016/11/11(Fri) 11:47:18
  *                                                                       *
  *    Header File for domain decomposition using GPUs                    *
  *                                                                       *
@@ -108,7 +108,7 @@ extern "C"
    float  *x0dev, float  *x1dev, float  *y0dev, float  *y1dev, float  *z0dev, float  *z1dev, int  *iddev);
   //-----------------------------------------------------------------------
   muse allocateParticlePosition(float **xhst, float **yhst, float **zhst, particlePos *hst,
-				float **xdev, float **ydev, float **zdev, particlePos *dev, int **rank_hst, int **rank_dev, int **idx_dev, domainDecomposeKey *key);
+				float **xdev, float **ydev, float **zdev, particlePos *dev, int **rank_hst, int **rank_dev, int **idx_dev, domainDecomposeKey *key, const ulong Ntot);
   void  releaseParticlePosition(float  *xhst, float  *yhst, float  *zhst,
 				float  *xdev, float  *ydev, float  *zdev,	            int  *rank_hst, int  *rank_dev, int  *idx_dev);
   //-----------------------------------------------------------------------

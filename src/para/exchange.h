@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/10(Thu) 19:35:41
+                  last updated on 2016/11/11(Fri) 11:52:16
  *                                                                       *
  *    Header File for N-body calculation with MPI parallelization        *
  *                                                                       *
@@ -31,7 +31,9 @@
 //-------------------------------------------------------------------------
 /* constants to set particle sampling rate */
 #define DEFAULT_SAMPLING_RATE   (1.0e-4f)
-#define DEFAULT_SAMPLING_NUMBER (64.0f)
+/* #define DEFAULT_SAMPLING_NUMBER (64.0f) */
+#define DEFAULT_SAMPLING_NUMBER (128.0f)
+/* #define DEFAULT_SAMPLING_NUMBER (256.0f) */
 /* #define DEFAULT_SAMPLING_NUMBER (512.0f) */
 //-------------------------------------------------------------------------
 typedef struct

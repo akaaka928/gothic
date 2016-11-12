@@ -1,6 +1,6 @@
 /************************************************************************* \
  *                                                                       *
-                  last updated on 2016/11/10(Thu) 19:27:40
+                  last updated on 2016/11/11(Fri) 17:06:34
  *                                                                       *
  *    N-body code based on Barnes--Hut tree                              *
  *                                                                       *
@@ -1307,7 +1307,7 @@ int main(int argc, char **argv)
   float *xdev, *ydev, *zdev;  particlePos particlePos_dev;
   int *rank_hst, *rank_dev, *idx_dev;
   domainDecomposeKey domDecKey;
-  const muse alloc_pos = allocateParticlePosition(&xhst, &yhst, &zhst, &particlePos_hst, &xdev, &ydev, &zdev, &particlePos_dev, &rank_hst, &rank_dev, &idx_dev, &domDecKey);
+  const muse alloc_pos = allocateParticlePosition(&xhst, &yhst, &zhst, &particlePos_hst, &xdev, &ydev, &zdev, &particlePos_dev, &rank_hst, &rank_dev, &idx_dev, &domDecKey, Ntot);
 #else///EXCHANGE_USING_GPUS
   domainDecomposeKey *domDecKey;
   domDecKey = (domainDecomposeKey *)malloc(num_max * sizeof(domainDecomposeKey));
@@ -1734,7 +1734,7 @@ int main(int argc, char **argv)
 #ifdef  EXCHANGE_USING_GPUS
   static loadImbalanceDetector balancer;
   balancer.enable  = false;
-  balancer.execute =  true;
+  balancer.execute = false;
 
 
   /* 計算時間の増大による particle exchange は，どれかの process で tree rebuild が起こるタイミングでしか trigger できないようにしておくのが良い?? */
@@ -2194,6 +2194,10 @@ int main(int argc, char **argv)
   //-----------------------------------------------------------------------
   /* calculate time evolution */
   //-----------------------------------------------------------------------
+#ifndef SERIALIZED_EXECUTION
+  bool existNewTree = false;
+#endif//SERIALIZED_EXECUTION
+  //-----------------------------------------------------------------------
   while( time < ft ){
     //---------------------------------------------------------------------
     __NOTE__("t = %e(%zu step(s)), ft = %e\n", time, steps, ft);
@@ -2252,7 +2256,7 @@ int main(int argc, char **argv)
     /* rebuild tree structure if required */
 #ifndef SERIALIZED_EXECUTION
 #ifdef  EXCHANGE_USING_GPUS
-
+    /* chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.enable), 1, MPI_LOGICAL, MPI_LOR, letcfg.comm)); */
     if( balancer.enable ){
 #ifdef  MONITOR_LETGEN_TIME
       balancer.tmin = balancer.tmax = elapsed.genTree + elapsed.calcAcc + elapsed.calcMAC + elapsed.makeLET;
@@ -2264,7 +2268,8 @@ int main(int argc, char **argv)
       if( balancer.tmin < (loadImbalanceCrit * balancer.tmax) )
 	balancer.execute = true;
     }/* if( balancer.enable ){ */
-
+    /* chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.execute), 1, MPI_LOGICAL, MPI_LOR, letcfg.comm)); */
+    __NOTE__("balancer.execute = %d @ rank %d\n", balancer.execute, letcfg.rank);
     //---------------------------------------------------------------------
     if( balancer.execute ){
       //-------------------------------------------------------------------
@@ -2331,13 +2336,6 @@ int main(int argc, char **argv)
 #endif//EXCHANGE_USING_GPUS
 #endif//SERIALIZED_EXECUTION
     if( !rebuild.reuse ){
-      //-------------------------------------------------------------------
-      if( !balancer.execute ){
-	balancer.enable = true;
-	exchangeInterval += 1.0;
-      }/* if( !balancer.execute ){ */
-      else
-	balancer.execute = false;
       //-------------------------------------------------------------------
 #   if  defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP)
       /* if Var(reduce) < (Avg(reduce))^2, set time of all particles same */
@@ -2544,7 +2542,29 @@ int main(int argc, char **argv)
 #endif//EXEC_BENCHMARK
 	 );
       //-------------------------------------------------------------------
+#ifndef SERIALIZED_EXECUTION
+      existNewTree = true;
+#ifdef  EXCHANGE_USING_GPUS
+      if( !balancer.execute ){
+	balancer.enable  =  true;
+	exchangeInterval += 1.0;
+      }/* if( !balancer.execute ){ */
+      else
+	balancer.execute = false;
+#endif//EXCHANGE_USING_GPUS
+#endif//SERIALIZED_EXECUTION
+      //-------------------------------------------------------------------
     }/* if( !rebuild.reuse ){ */
+    //---------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
+    /* share information on domain decomposition in the next time step */
+    //---------------------------------------------------------------------
+#   if  !defined(SERIALIZED_EXECUTION) && defined(EXCHANGE_USING_GPUS)
+    chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.enable), 1, MPI_BOOL, MPI_LOR, letcfg.comm));
+    __NOTE__("balancer.enable = %d @ rank %d\n", balancer.enable, letcfg.rank);
+    chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &existNewTree, 1, MPI_BOOL, MPI_LOR, letcfg.comm));
+#endif//!defined(SERIALIZED_EXECUTION) && defined(EXCHANGE_USING_GPUS)
     //---------------------------------------------------------------------
 
 
@@ -2695,7 +2715,7 @@ int main(int argc, char **argv)
 #endif//GADGET_MAC
 		      letcfg);
     /* this function must be called when tree structure is rebuild */
-    if( rebuild.interval < 0.5 )
+    if( existNewTree )
       guessLETpartition(letcfg.size, nodeInfo, numNode, *(ibody0_dev.encBall_hst), letcfg);
 #else///BUILD_LET_ON_DEVICE
     encBall.x = pj[0].x;
@@ -2708,9 +2728,10 @@ int main(int argc, char **argv)
 #endif//GADGET_MAC
 		      letcfg);
     /* this function must be called when tree structure is rebuild */
-    if( rebuild.interval < 0.5 )
+    if( existNewTree )
       guessLETpartition(letcfg.size, nodeInfo, numNode, encBall, letcfg);
 #endif//BUILD_LET_ON_DEVICE
+    existNewTree = false;
 #endif//SERIALIZED_EXECUTION
     //---------------------------------------------------------------------
     /* calculate acceleration of i-particles by j-cells */

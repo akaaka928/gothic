@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/28(Fri) 11:17:06
+                  last updated on 2016/11/11(Fri) 10:56:26
  *                                                                       *
  *    MAGI: "MAny-component Galactic Initial-conditions" generator       *
  *    Making Initial Condition Code of N-body Simulation                 *
@@ -878,12 +878,7 @@ int main(int argc, char **argv)
   static rebuildTree rebuild;
   static measuredTime measured;
 #ifdef  WALK_TREE_COMBINED_MODEL
-  static  statVal  linearStats, powerStats;
-  static guessTime linearGuess, powerGuess;
-#ifdef  USE_PARABOLIC_GROWTH_MODEL
-  static  statVal  parabolicStats;
-  static guessTime parabolicGuess;
-#endif//USE_PARABOLIC_GROWTH_MODEL
+  static autoTuningParam rebuildParam;
 #endif//WALK_TREE_COMBINED_MODEL
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
   static brentStatus status;
@@ -892,10 +887,7 @@ int main(int argc, char **argv)
   writeTentativeData(time, dt, steps, Ntot, body, file, &last, hdf5type
 		     , rebuild, measured
 #ifdef  WALK_TREE_COMBINED_MODEL
-		     , linearStats, linearGuess, powerStats, powerGuess
-#ifdef  USE_PARABOLIC_GROWTH_MODEL
-		     , parabolicStats, parabolicGuess
-#endif//USE_PARABOLIC_GROWTH_MODEL
+		     , rebuildParam
 #endif//WALK_TREE_COMBINED_MODEL
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 		     , status, memory

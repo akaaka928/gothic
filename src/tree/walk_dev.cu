@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/01(Tue) 19:38:53
+                  last updated on 2016/11/11(Fri) 14:27:37
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -2681,6 +2681,8 @@ static inline void callCalcGravityFunc
  )
 {
   //-----------------------------------------------------------------------
+  __NOTE__("%s (grpNum = %d)\n", "start", grpNum);
+  //-----------------------------------------------------------------------
 #if 0
   int deviceID;
   checkCudaErrors(cudaGetDevice(&deviceID));
@@ -2800,6 +2802,8 @@ static inline void callCalcGravityFunc
   checkCudaErrors(cudaEventRecord(finEvent[*Nwalk], 0));
   *Nwalk += 1;
 #endif//defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------

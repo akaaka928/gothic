@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/10(Thu) 19:34:07
+                  last updated on 2016/11/12(Sat) 15:21:28
  *                                                                       *
  *    Implementations related to MPI parallelization and GPU computing   *
  *                                                                       *
@@ -44,22 +44,7 @@
 /* real4 smem[NTHREADS_BOX] corresponds 16 * NTHREADS_BOX bytes */
 #define NBLOCKS_PER_SM_BOX (1024 / NTHREADS_BOX)
 //-------------------------------------------------------------------------
-#define REGISTERS_PER_THREAD_BOX (40)
-/* calcPHkey_kernel uses 32 registers @ Tesla M2090, Ttot = 1024 (registers are spilled to local memory) */
-/* calcPHkey_kernel uses 47 registers @ Tesla M2090, Ttot =  512 */
-/* calcPHkey_kernel uses 36 registers @ Tesla M2090, Ttot =  128, 256 */
-#   if  GPUVER == 20
-#undef  REGISTERS_PER_THREAD_BOX
-#          if  NTHREADS_BOX == 1024
-#define REGISTERS_PER_THREAD_BOX (32)
-#       else///NTHREADS_BOX == 1024
-#          if  NTHREADS_BOX ==  512
-#define REGISTERS_PER_THREAD_BOX (47)
-#       else///NTHREADS_BOX ==  512
-#define REGISTERS_PER_THREAD_BOX (36)
-#       endif//NTHREADS_BOX ==  512
-#       endif//NTHREADS_BOX == 1024
-#endif//GPUVER == 20
+#define REGISTERS_PER_THREAD_BOX (30)
 //-------------------------------------------------------------------------
 /* limitation from number of registers */
 #   if  NBLOCKS_PER_SM_BOX > (MAX_REGISTERS_PER_SM / (REGISTERS_PER_THREAD_BOX * NTHREADS_BOX))
@@ -770,6 +755,13 @@ muse allocateSamplePos
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
+#if 0
+  fprintf(stdout, "sample.Nmax = %d, sample.rate = %e\n", sample.Nmax, sample.rate);
+  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Finalize();
+  exit(0);
+#endif
+  //-----------------------------------------------------------------------
   mycudaMallocHost((void **)x0hst, sample.Nmax * sizeof(float));  alloc.host   += sample.Nmax * sizeof(float);
   mycudaMallocHost((void **)x1hst, sample.Nmax * sizeof(float));  alloc.host   += sample.Nmax * sizeof(float);
   mycudaMallocHost((void **)y0hst, sample.Nmax * sizeof(float));  alloc.host   += sample.Nmax * sizeof(float);
@@ -979,7 +971,7 @@ static inline void sortDomainDecomposeKey(const int num, domainDecomposeKey key,
 extern "C"
 muse allocateParticlePosition(float **xhst, float **yhst, float **zhst, particlePos *hst,
 			      float **xdev, float **ydev, float **zdev, particlePos *dev,
-			      int **rank_hst, int **rank_dev, int **idx_dev, domainDecomposeKey *key)
+			      int **rank_hst, int **rank_dev, int **idx_dev, domainDecomposeKey *key, const ulong Ntot)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -989,7 +981,8 @@ muse allocateParticlePosition(float **xhst, float **yhst, float **zhst, particle
 
   //-----------------------------------------------------------------------
   /* the size of the array is set to be a multiple of NTHREADS */
-  size_t num = (size_t)((float)NUM_BODY_MAX * MAX_FACTOR_FROM_EQUIPARTITION);
+  /* size_t num = (size_t)((float)NUM_BODY_MAX * MAX_FACTOR_FROM_EQUIPARTITION); */
+  size_t num = (size_t)((float)Ntot * MAX_FACTOR_FROM_EQUIPARTITION);
   size_t size = num;
   if( (num % NTHREADS) != 0 )
     size += NTHREADS - (num % NTHREADS);
@@ -1086,7 +1079,7 @@ void exchangeParticles_dev
   /* pick up sample particles */
   //-----------------------------------------------------------------------
   /* weight is determined using elapsed time by each process */
-  __NOTE__("rank %d: tloc = %e, numOld = %d, xmin = %e, xmax = %e\n", mpi.rank, tloc, numOld, min[0], max[0]);
+  __NOTE__("rank %d: tloc = %e, numOld = %d, xmin = %e, xmax = %e, ymin = %e, ymax = %e, zmin = %e, zmax = %e\n", mpi.rank, tloc, numOld, min.x, max.x, min.y, max.y, min.z, max.z);
   double ttot = tloc;
   chkMPIerr(MPI_Allreduce(&tloc, &ttot, 1, MPI_DOUBLE, MPI_SUM, mpi.comm));
   const float frac = fminf((float)(tloc / ttot), MAX_FACTOR_INCREASE / (float)mpi.size);
@@ -1144,6 +1137,7 @@ void exchangeParticles_dev
   if( mpi.dim[0] != 1 ){
     //---------------------------------------------------------------------
     if( orm[0].rank == 0 ){
+      __NOTE__("x-decomposition by mpi.rank = %d\n", mpi.rank);
       sendNum = recvNum;
       /* the root process determine the partition */
       if( rep[0].rank == 0 ){
@@ -1199,6 +1193,7 @@ void exchangeParticles_dev
   if( mpi.dim[1] != 1 ){
     //---------------------------------------------------------------------
     if( orm[1].rank == 0 ){
+      __NOTE__("y-decomposition by mpi.rank = %d\n", mpi.rank);
       sendNum = recvNum;
       /* the root process determine the partition */
       if( rep[1].rank == 0 ){
@@ -1219,8 +1214,8 @@ void exchangeParticles_dev
 	}/* for(int ii = 0; ii < rep[1].size; ii++){ */
 	sample.ymax[rep[1].size - 1] = 0.5f * FLT_MAX;
       }/* if( rep[1].rank == 0 ){ */
-      chkMPIerr(MPI_Scatter(sample.zmin, 1, MPI_FLOAT, &local_ymin, 1, MPI_FLOAT, 0, rep[1].comm));
-      chkMPIerr(MPI_Scatter(sample.zmax, 1, MPI_FLOAT, &local_ymax, 1, MPI_FLOAT, 0, rep[1].comm));
+      chkMPIerr(MPI_Scatter(sample.ymin, 1, MPI_FLOAT, &local_ymin, 1, MPI_FLOAT, 0, rep[1].comm));
+      chkMPIerr(MPI_Scatter(sample.ymax, 1, MPI_FLOAT, &local_ymax, 1, MPI_FLOAT, 0, rep[1].comm));
       //-------------------------------------------------------------------
       /* scatter sample particles if necessary */
       if( mpi.dim[2] != 1 ){
@@ -1252,34 +1247,37 @@ void exchangeParticles_dev
   //-----------------------------------------------------------------------
   if( mpi.dim[2] != 1 ){
     //---------------------------------------------------------------------
-    /* the root process determine the partition */
     if( orm[2].rank == 0 ){
-      //-------------------------------------------------------------------
+      __NOTE__("z-decomposition by mpi.rank = %d\n", mpi.rank);
       sendNum = recvNum;
-      sort_zpos(recvNum, &ful, &loc);
-      sample.zmin[0] = -0.5f * FLT_MAX;
-      //-------------------------------------------------------------------
-      for(int ii = 0; ii < orm[2].size; ii++){
+      /* the root process determine the partition */
+      if( rep[2].rank == 0 ){
+	sort_zpos(recvNum, &ful, &loc);
+	sample.zmin[0] = -0.5f * FLT_MAX;
 	//-----------------------------------------------------------------
-	int Nini = (sendNum * (    ii)) / orm[2].size;
-	int Nfin = (sendNum * (1 + ii)) / orm[2].size;
-	sample.rnum[ii] = Nfin - Nini;
-	//-----------------------------------------------------------------
-	if( ii != (orm[2].size - 1) ){
-	  const float middle = 0.5f * (ful.z_hst[Nfin] + ful.z_hst[Nfin + 1]);
-	  sample.zmax[ii    ] = middle;
-	  sample.zmin[ii + 1] = middle;
-	}/* if( ii != (orm[2].size - 1) ){ */
-	//-----------------------------------------------------------------
-      }/* for(int ii = 0; ii < orm[2].size; ii++){ */
-      //-------------------------------------------------------------------
-      sample.zmax[orm[2].size - 1] = 0.5f * FLT_MAX;
+	for(int ii = 0; ii < rep[2].size; ii++){
+	  //---------------------------------------------------------------
+	  int Nini = (sendNum * (    ii)) / rep[2].size;
+	  int Nfin = (sendNum * (1 + ii)) / rep[2].size;
+	  sample.rnum[ii] = Nfin - Nini;
+	  //---------------------------------------------------------------
+	  if( ii != (rep[2].size - 1) ){
+	    const float middle = 0.5f * (ful.z_hst[Nfin] + ful.z_hst[Nfin + 1]);
+	    sample.zmax[ii    ] = middle;
+	    sample.zmin[ii + 1] = middle;
+	  }/* if( ii != (rep[2].size - 1) ){ */
+	  //---------------------------------------------------------------
+	}/* for(int ii = 0; ii < rep[2].size; ii++){ */
+	sample.zmax[rep[2].size - 1] = 0.5f * FLT_MAX;
+      }/* if( rep[2].rank == 0 ){ */
+      chkMPIerr(MPI_Scatter(sample.zmin, 1, MPI_FLOAT, &local_zmin, 1, MPI_FLOAT, 0, rep[2].comm));
+      chkMPIerr(MPI_Scatter(sample.zmax, 1, MPI_FLOAT, &local_zmax, 1, MPI_FLOAT, 0, rep[2].comm));
       //-------------------------------------------------------------------
     }/* if( orm[2].rank == 0 ){ */
     //---------------------------------------------------------------------
-    /* MPI_Bcast in orm[2].comm */
-    chkMPIerr(MPI_Scatter(sample.zmin, 1, MPI_FLOAT, &local_zmin, 1, MPI_FLOAT, 0, orm[2].comm));
-    chkMPIerr(MPI_Scatter(sample.zmax, 1, MPI_FLOAT, &local_zmax, 1, MPI_FLOAT, 0, orm[2].comm));
+    /* /\* MPI_Bcast in orm[2].comm *\/ */
+    /* chkMPIerr(MPI_Bcast(&local_zmin, 1, MPI_FLOAT, 0, orm[2].comm)); */
+    /* chkMPIerr(MPI_Bcast(&local_zmax, 1, MPI_FLOAT, 0, orm[2].comm)); */
     //---------------------------------------------------------------------
   }/* if( mpi.dim[2] != 1 ){ */
   //-----------------------------------------------------------------------
@@ -1297,6 +1295,10 @@ void exchangeParticles_dev
 	   domain.xmin[mpi.rank], domain.xmax[mpi.rank],
 	   domain.ymin[mpi.rank], domain.ymax[mpi.rank],
 	   domain.zmin[mpi.rank], domain.zmax[mpi.rank]);
+#if 0
+  MPI_Finalize();
+  exit(0);
+#endif
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -1337,7 +1339,7 @@ void exchangeParticles_dev
       //-------------------------------------------------------------------
     }/* else{ */
     //---------------------------------------------------------------------
-    __NOTE__("rank %d, ii = %d\n", mpi.rank, ii);
+    __NOTE__("rank %d, dst = %d\n", mpi.rank, ii);
     //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < numProcs; ii++){ */
   //-----------------------------------------------------------------------

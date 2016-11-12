@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/27(Wed) 14:01:27
+                  last updated on 2016/11/11(Fri) 14:39:56
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -248,6 +248,7 @@ void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, c
   /* exchange # of nodes in full tree */
   //-----------------------------------------------------------------------
   const int numMax = ALIGN_BUF_FOR_LET(numNode);
+  __NOTE__("numMax = %d, numNode = %d @ rank %d\n", numMax, numNode, mpi.rank);
   for(int ii = 0; ii < Ndomain - 1; ii++){
     //---------------------------------------------------------------------
     /* initialization */
@@ -262,8 +263,8 @@ void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, c
   //-----------------------------------------------------------------------
   for(int ii = 0; ii < Ndomain - 1; ii++){
     //---------------------------------------------------------------------
-    MPI_Status statusSend;    chkMPIerr(MPI_Wait(&(info[ii].reqSendInfo), &statusSend));
     MPI_Status statusRecv;    chkMPIerr(MPI_Wait(&(info[ii].reqRecvInfo), &statusRecv));
+    MPI_Status statusSend;    chkMPIerr(MPI_Wait(&(info[ii].reqSendInfo), &statusSend));
     //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < Ndomain - 1; ii++){ */
   //-----------------------------------------------------------------------
@@ -292,9 +293,7 @@ void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, c
     real factor = LDEXP(UNITY, FMIN(CEIL(LOG2((real)256.0 * icom.m / (EPSILON + (lambda * lambda) * r2))), ZERO));
     factor *= LETSIZE_OVERESTIMATION_FACTOR;
     const int numLET = ALIGN_BUF_FOR_LET((int)CEIL((real)numNode * factor));
-#if 0
     __NOTE__("factor = %e, numLET = %d, numMax = %d @ rank %d\n", factor, numLET, numMax, mpi.rank);
-#endif
     info[ii].maxSend = (numLET < numMax) ? numLET : numMax;
     //---------------------------------------------------------------------
     chkMPIerr(MPI_Isend(&(info[ii].maxSend), 1, MPI_INT, info[ii].rank,      mpi.rank, mpi.comm, &(info[ii].reqSendInfo)));
@@ -323,9 +322,7 @@ void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, c
     numRecv += info[ii].maxRecv;
   }/* for(int ii = 0; ii < Ndomain - 1; ii++){ */
   //-----------------------------------------------------------------------
-#if 1
   __NOTE__("numSend = %d, numRecv = %d, numNode = %d @ rank %d\n", numSend, numRecv, numNode, mpi.rank);
-#endif
   //-----------------------------------------------------------------------
 #if 1
   const int upper = (int)floorf(0.9f * EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - ALIGN_BUF_FOR_LET(numNode);

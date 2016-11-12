@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/10(Thu) 19:35:30
+                  last updated on 2016/11/11(Fri) 17:30:06
  *                                                                       *
  *    Implementations related to domain decomposition (MPI)              *
  *                                                                       *
@@ -84,6 +84,15 @@ muse allocateORMtopology(float **dxmin, float **dxmax, float **dymin, float **dy
     splitMPI(org.comm, orm[ii].rank, org.rank, &(rep[ii]));
     org = orm[ii];
   }/* for(int ii = 0; ii < 3; ii++){ */
+#if 0
+  fprintf(stdout, "rank %d: dim[0] = %d, dim[1] = %d, dim[2] = %d, pos[0] = %d, pos[1] = %d, pos[2] = %d\n", mpi->rank, mpi->dim[0], mpi->dim[1], mpi->dim[2], mpi->pos[0], mpi->pos[1], mpi->pos[2]);
+  fprintf(stdout, "rank: mpi(%d/%d), orm[0](%d/%d), orm[1](%d/%d), orm[2](%d/%d), rep[0](%d/%d), rep[1](%d/%d), rep[2](%d/%d)\n", mpi->rank, mpi->size,
+	  orm[0].rank, orm[0].size, orm[1].rank, orm[1].size, orm[2].rank, orm[2].size,
+	  rep[0].rank, rep[0].size, rep[1].rank, rep[1].size, rep[2].rank, rep[2].size);
+  fflush(stdout);
+  MPI_Finalize();
+  exit(0);
+#endif
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -120,7 +129,14 @@ muse allocateORMtopology(float **dxmin, float **dxmax, float **dymin, float **dy
   //-----------------------------------------------------------------------
   /* set sampling rate and allocate corresponding size of temporary array */
   //-----------------------------------------------------------------------
-  sample->rate = DEFAULT_SAMPLING_NUMBER * (((Ntot / mpi->size) >= (int)ceilf(DEFAULT_SAMPLING_NUMBER / DEFAULT_SAMPLING_NUMBER)) ? (1.0f) : ((float)mpi->size / (float)Ntot));
+
+  /* sample->rate = DEFAULT_SAMPLING_RATE; */
+  /* if( Ntot * DEFAULT_SAMPLING_RATE < mpi->size * DEFAULT_SAMPLING_NUMBER ) */
+  /*   sample->rate = DEFAULT_SAMPLING_NUMBER * (float)mpi->size / (float)Ntot; */
+
+  sample->rate = (((float)Ntot * DEFAULT_SAMPLING_RATE) >= ((float)mpi->size * DEFAULT_SAMPLING_NUMBER)) ?
+    (DEFAULT_SAMPLING_RATE) : (DEFAULT_SAMPLING_NUMBER * (float)mpi->size / (float)Ntot);
+
   //-----------------------------------------------------------------------
   bool root = (mpi->rank != 0) ? false : true;
   for(int ii = 0; ii < 3; ii++)
@@ -137,7 +153,8 @@ muse allocateORMtopology(float **dxmin, float **dxmax, float **dymin, float **dy
     //---------------------------------------------------------------------
   }/* if( root ){ */
   //-----------------------------------------------------------------------
-  sample->Nmax = (int)ceilf((float)NUM_BODY_MAX * MAX_FACTOR_FROM_EQUIPARTITION * sample->rate);
+  /* sample->Nmax = (int)ceilf((float)NUM_BODY_MAX * MAX_FACTOR_FROM_EQUIPARTITION * sample->rate); */
+  sample->Nmax = (int)ceilf((float)Ntot * MAX_FACTOR_FROM_EQUIPARTITION * sample->rate);
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -284,7 +301,8 @@ void configORBtopology
     //---------------------------------------------------------------------
   }/* if( root ){ */
   //-----------------------------------------------------------------------
-  *sampleNumMax = (int)ceilf((float)NUM_BODY_MAX * MAX_FACTOR_FROM_EQUIPARTITION * (*samplingRate));
+  /* *sampleNumMax = (int)ceilf((float)NUM_BODY_MAX * MAX_FACTOR_FROM_EQUIPARTITION * (*samplingRate)); */
+  *sampleNumMax = (int)ceilf((float)Ntot * MAX_FACTOR_FROM_EQUIPARTITION * (*samplingRate));
   *sampleLoc = (real *)malloc((*sampleNumMax) * 3 * sizeof(real));
   if( *sampleLoc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate sampleLoc\n");  }
   //-----------------------------------------------------------------------

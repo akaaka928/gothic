@@ -123,23 +123,23 @@ void shiftCenter(108,5998
 static inline double getDF(303,14910
 double distributeSpheroidParticles(321,15823
 int main(446,22395
-  struct dump 941,48636
-    double time;942,48652
-    int nbodies;943,48669
-    int ndim;944,48686
-    int nsph;945,48700
-    int ndark;946,48714
-    int nstar;947,48729
-  typedef struct dump header;949,48749
-  struct dark_particle 959,49122
-    real mass;960,49147
-    real pos[pos961,49162
-    real vel[vel962,49179
-    real eps;963,49196
-    int idx;964,49210
-void outputFundamentalInformation1018,51130
-static void evaluateDiskProperties1662,91007
-void writeDiskData(1767,98345
+  struct dump 933,48301
+    double time;934,48317
+    int nbodies;935,48334
+    int ndim;936,48351
+    int nsph;937,48365
+    int ndark;938,48379
+    int nstar;939,48394
+  typedef struct dump header;941,48414
+  struct dark_particle 951,48787
+    real mass;952,48812
+    real pos[pos953,48827
+    real vel[vel954,48844
+    real eps;955,48861
+    int idx;956,48875
+void outputFundamentalInformation1010,50795
+static void evaluateDiskProperties1654,90672
+void writeDiskData(1759,98010
 
 src/init/test.c,59
 #define NDATA 8,117
@@ -751,9 +751,9 @@ static inline void configDistribution411,17362
 static inline void dumpSnapshot503,21125
 static inline void dumpRestarter648,26219
 int main(756,30222
-void analyzeWalkStatistics(3425,145591
-static inline void analyzeTreeStatistics(3469,147468
-void analyzeTreeMetrics(3479,148153
+void analyzeWalkStatistics(3446,146924
+static inline void analyzeTreeStatistics(3490,148801
+void analyzeTreeMetrics(3500,149486
 
 src/main/showOptConfig.c,805
 #define NADD 22,1138
@@ -1041,98 +1041,98 @@ src/para/mpicfg.h,800
   int dim[3], prd[3], pos[pos53,2111
 } MPIcfg_tree;54,2141
 
-src/para/exchange.h,2691
+src/para/exchange.h,2692
 #define EXCHANGE_H12,756
 #define DEFAULT_SAMPLING_RATE 33,1637
-#define DEFAULT_SAMPLING_NUMBER 34,1679
-  int *rnum,rnum39,1859
-  int *rnum, *disp;disp39,1859
-  float *xmin,xmin40,1911
-  float *xmin, *xmax,xmax40,1911
-  float *xmin, *xmax, *ymin,ymin40,1911
-  float *xmin, *xmax, *ymin, *ymax,ymax40,1911
-  float *xmin, *xmax, *ymin, *ymax, *zmin,zmin40,1911
-  float *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;zmax40,1911
-  float rate;41,1961
-  int Nmax;42,2000
-} sampling;43,2037
-  float *x_hst,x_hst47,2142
-  float *x_hst, *y_hst,y_hst47,2142
-  float *x_hst, *y_hst, *z_hst;z_hst47,2142
-  float *x_dev,x_dev48,2174
-  float *x_dev, *y_dev,y_dev48,2174
-  float *x_dev, *y_dev, *z_dev;z_dev48,2174
-  int *i_hst,i_hst49,2206
-  int *i_hst, *i_dev;i_dev49,2206
-} samplePos;50,2228
-  float *x,x54,2334
-  float *x, *y,y54,2334
-  float *x, *y, *z;z54,2334
-} particlePos;55,2354
-  float *xmin,xmin63,2568
-  float *xmin, *xmax,xmax63,2568
-  float *xmin, *xmax, *ymin,ymin63,2568
-  float *xmin, *xmax, *ymin, *ymax,ymax63,2568
-  float *xmin, *xmax, *ymin, *ymax, *zmin,zmin63,2568
-  float *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;zmax63,2568
-  MPI_Request *req;req64,2618
-  real min[min66,2666
-  real min[3], max[max66,2666
-  MPI_Request req;67,2689
-} domainCfg;69,2736
-  real xmin,73,2842
-  real xmin, xmax,73,2842
-  real xmin, xmax, ymin,73,2842
-  real xmin, xmax, ymin, ymax,73,2842
-  real xmin, xmax, ymin, ymax, zmin,73,2842
-  real xmin, xmax, ymin, ymax, zmin, zmax;73,2842
-  int rank,74,2885
-  int rank, num,74,2885
-  int rank, num, head;74,2885
-  MPI_Request pos,75,2908
-  MPI_Request pos, idx;75,2908
-  MPI_Request acc;77,2951
-  MPI_Request vel,80,3013
-  MPI_Request vel, time;80,3013
-  MPI_Request vx,82,3062
-  MPI_Request vx, vy,82,3062
-  MPI_Request vx, vy, vz;82,3062
-} sendCfg;84,3112
-  int num,88,3216
-  int num, head;88,3216
-  MPI_Request req,89,3233
-  MPI_Request req, pos,89,3233
-  MPI_Request req, pos, idx;89,3233
-  MPI_Request acc;91,3281
-  MPI_Request vel,94,3343
-  MPI_Request vel, time;94,3343
-  MPI_Request vx,96,3392
-  MPI_Request vx, vy,96,3392
-  MPI_Request vx, vy, vz;96,3392
-} recvCfg;98,3442
-  int *dstRank_hst,dstRank_hst103,3574
-  int *dstRank_hst, *dstRank_dev,dstRank_dev103,3574
-  int *dstRank_hst, *dstRank_dev, *bodyIdx_dev;bodyIdx_dev103,3574
-  int dstRank,105,3650
-  int dstRank, bodyIdx;105,3650
-} domainDecomposeKey;107,3702
-static const double loadImbalanceCrit 113,3918
-#define SLOW_DOWN_PROCS_CRIT(114,3963
-  double tmin,118,4103
-  double tmin, tmax;118,4103
-  bool enable,119,4124
-  bool enable, execute;119,4124
-} loadImbalanceDetector;120,4148
+#define DEFAULT_SAMPLING_NUMBER 35,1725
+  int *rnum,rnum41,1953
+  int *rnum, *disp;disp41,1953
+  float *xmin,xmin42,2005
+  float *xmin, *xmax,xmax42,2005
+  float *xmin, *xmax, *ymin,ymin42,2005
+  float *xmin, *xmax, *ymin, *ymax,ymax42,2005
+  float *xmin, *xmax, *ymin, *ymax, *zmin,zmin42,2005
+  float *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;zmax42,2005
+  float rate;43,2055
+  int Nmax;44,2094
+} sampling;45,2131
+  float *x_hst,x_hst49,2236
+  float *x_hst, *y_hst,y_hst49,2236
+  float *x_hst, *y_hst, *z_hst;z_hst49,2236
+  float *x_dev,x_dev50,2268
+  float *x_dev, *y_dev,y_dev50,2268
+  float *x_dev, *y_dev, *z_dev;z_dev50,2268
+  int *i_hst,i_hst51,2300
+  int *i_hst, *i_dev;i_dev51,2300
+} samplePos;52,2322
+  float *x,x56,2428
+  float *x, *y,y56,2428
+  float *x, *y, *z;z56,2428
+} particlePos;57,2448
+  float *xmin,xmin65,2662
+  float *xmin, *xmax,xmax65,2662
+  float *xmin, *xmax, *ymin,ymin65,2662
+  float *xmin, *xmax, *ymin, *ymax,ymax65,2662
+  float *xmin, *xmax, *ymin, *ymax, *zmin,zmin65,2662
+  float *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;zmax65,2662
+  MPI_Request *req;req66,2712
+  real min[min68,2760
+  real min[3], max[max68,2760
+  MPI_Request req;69,2783
+} domainCfg;71,2830
+  real xmin,75,2936
+  real xmin, xmax,75,2936
+  real xmin, xmax, ymin,75,2936
+  real xmin, xmax, ymin, ymax,75,2936
+  real xmin, xmax, ymin, ymax, zmin,75,2936
+  real xmin, xmax, ymin, ymax, zmin, zmax;75,2936
+  int rank,76,2979
+  int rank, num,76,2979
+  int rank, num, head;76,2979
+  MPI_Request pos,77,3002
+  MPI_Request pos, idx;77,3002
+  MPI_Request acc;79,3045
+  MPI_Request vel,82,3107
+  MPI_Request vel, time;82,3107
+  MPI_Request vx,84,3156
+  MPI_Request vx, vy,84,3156
+  MPI_Request vx, vy, vz;84,3156
+} sendCfg;86,3206
+  int num,90,3310
+  int num, head;90,3310
+  MPI_Request req,91,3327
+  MPI_Request req, pos,91,3327
+  MPI_Request req, pos, idx;91,3327
+  MPI_Request acc;93,3375
+  MPI_Request vel,96,3437
+  MPI_Request vel, time;96,3437
+  MPI_Request vx,98,3486
+  MPI_Request vx, vy,98,3486
+  MPI_Request vx, vy, vz;98,3486
+} recvCfg;100,3536
+  int *dstRank_hst,dstRank_hst105,3668
+  int *dstRank_hst, *dstRank_dev,dstRank_dev105,3668
+  int *dstRank_hst, *dstRank_dev, *bodyIdx_dev;bodyIdx_dev105,3668
+  int dstRank,107,3744
+  int dstRank, bodyIdx;107,3744
+} domainDecomposeKey;109,3796
+static const double loadImbalanceCrit 115,4012
+#define SLOW_DOWN_PROCS_CRIT(116,4057
+  double tmin,120,4197
+  double tmin, tmax;120,4197
+  bool enable,121,4218
+  bool enable, execute;121,4218
+} loadImbalanceDetector;122,4242
 
-src/para/exchange.c,283
+src/para/exchange.c,284
 muse allocateORMtopology(41,2018
-void  releaseORMtopology(150,9776
-void configORBtopology192,11731
-void removeORBtopology305,18029
-static inline void calcLocalBoxSize(342,19508
-int posAscendingOrder(379,21191
-int ddkeyAscendingOrder(396,22021
-void exchangeParticles420,23170
+void  releaseORMtopology(167,10679
+void configORBtopology209,12634
+void removeORBtopology323,19031
+static inline void calcLocalBoxSize(360,20510
+int posAscendingOrder(397,22193
+int ddkeyAscendingOrder(414,23023
+void exchangeParticles438,24172
 
 src/para/161105exchange.c,244
 void configORBtopology41,2050
