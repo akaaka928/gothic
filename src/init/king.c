@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/11(Tue) 16:57:12
+                  last updated on 2016/12/06(Tue) 12:25:14
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       King sphere                                                     *
@@ -15,8 +15,8 @@
 #include <stdbool.h>
 #include <math.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <constants.h>
+#include "macro.h"
+#include "constants.h"
 //-------------------------------------------------------------------------
 #include "magi.h"
 #include "profile.h"

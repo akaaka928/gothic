@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/11(Fri) 10:56:26
+                  last updated on 2016/12/08(Thu) 14:59:03
  *                                                                       *
  *    MAGI: "MAny-component Galactic Initial-conditions" generator       *
  *    Making Initial Condition Code of N-body Simulation                 *
@@ -25,27 +25,24 @@
 #include <math.h>
 //-------------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
-#       include <hdf5.h>
-#       include <hdf5lib.h>
+#include <hdf5.h>
+#include "hdf5lib.h"
 #endif//USE_HDF5_FORMAT
 //-------------------------------------------------------------------------
-#include <gsl/gsl_rng.h>
-#include <gsl/gsl_integration.h>
-//-------------------------------------------------------------------------
-#include <macro.h>
-#include <name.h>
-#include <myutil.h>
-#include <constants.h>
-#include <timer.h>
-#include <rotate.h>
+#include "macro.h"
+#include "name.h"
+#include "myutil.h"
+#include "constants.h"
+#include "timer.h"
+#include "rotate.h"
 //-------------------------------------------------------------------------
 #include "../misc/structure.h"
 #include "../misc/allocate.h"
 //-------------------------------------------------------------------------
 #include "../misc/tune.h"
-#           if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #include "../misc/brent.h"
-#        endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 //-------------------------------------------------------------------------
 #include "../file/io.h"
 //-------------------------------------------------------------------------
@@ -68,30 +65,65 @@ extern const double                  col_density2astro;extern const char col_den
 extern const double                      density2astro;extern const char     density_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
 extern const double                      senergy2astro;extern const char     senergy_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
 //-------------------------------------------------------------------------
+#ifdef  USE_SFMT
+#include "SFMT.h"
+sfmt_t sfmt;
+#define UNIRAND_DBL (sfmt_genrand_res53(&sfmt))
+#define UNIRAND     (CAST_D2R(UNIRAND_DBL))
+#ifdef  USE_SFMTJUMP
+#include "SFMT-jump.h"
+#include "sfmtjump_polynomial.h"
+#include <omp.h>
+#pragma omp threadprivate(sfmt)
+#endif//USE_SFMTJUMP
+#else///USE_SFMT
+#include <gsl/gsl_rng.h>
 gsl_rng *GSLRand;
 #define UNIRAND_DBL ((double)gsl_rng_uniform(GSLRand))
 #define UNIRAND     (  (real)gsl_rng_uniform(GSLRand))
+#endif//USE_SFMT
 #define RANDVAL     (TWO * (UNIRAND) - UNITY)
 //-------------------------------------------------------------------------
+#include <gsl/gsl_integration.h>
 double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[NTBL_GAUSS_QD];
 //-------------------------------------------------------------------------
+/* measured by void initBenchmark_cpu(void) and void stopBenchmark_cpu(double *result) */
+typedef struct
+{
+  double alloc, info, file;
+  double spheProf, eddington, spheDist;
+  double diskTbl, diskProf, diskVel, diskDat, diskDist;
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+  double column;
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+} breakdown;
+//-------------------------------------------------------------------------
 
 
 //-------------------------------------------------------------------------
-static inline void isotropicDistribution(const real rad, real *vecx, real *vecy, real *vecz)
+#ifndef USE_SFMTJUMP
+static inline
+#else///USE_SFMTJUMP
+void isotropicDistribution(const real rad, real *vecx, real *vecy, real *vecz);
+#endif//USE_SFMTJUMP
+void isotropicDistribution(const real rad, real *vecx, real *vecy, real *vecz)
 {
   //-----------------------------------------------------------------------
   const real proj = RANDVAL;
   *vecz = rad * proj;
   real Rproj = rad * SQRT(UNITY - proj * proj);
   //-----------------------------------------------------------------------
-  real theta = TWO * (real)M_PI * UNIRAND;
+  real theta = TWO * CAST_D2R(M_PI) * UNIRAND;
   *vecx = Rproj * COS(theta);
   *vecy = Rproj * SIN(theta);
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-#ifdef __ICC
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#ifdef  __ICC
 /* Disable ICC's remark #869: parameter "hoge" was never referenced */
 #     pragma warning (disable:869)
 #endif//__ICC
@@ -99,10 +131,53 @@ bool isInnerParticle4spherical(const double x2, const double y2, const double z2
 bool isInnerParticle4disk     (const double x2, const double y2, const double z2, const double Rmax2, const double zmax2);
 bool isInnerParticle4spherical(const double x2, const double y2, const double z2, const double rmax2, const double zmax2){  return ((x2 + y2 + z2) < rmax2);}
 bool isInnerParticle4disk     (const double x2, const double y2, const double z2, const double Rmax2, const double zmax2){  return (((x2 + y2) < Rmax2) && (z2 < zmax2));}
-#ifdef __ICC
+#ifdef  __ICC
 /* Disable ICC's remark #869: parameter "hoge" was never referenced */
 #     pragma warning ( enable:869)
 #endif//__ICC
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+//-------------------------------------------------------------------------
+static inline void pickRetrogradingParticles(const ulong num, const ulong head, const double frac, ulong *retroNum, ulong *retroHead)
+{
+  *retroNum  = (ulong)nearbyint((double)num * frac);
+  *retroHead = head + (num - (*retroNum));
+}
+void retrograder(const ulong num, const ulong head, iparticle body, const double frac);
+void retrograder(const ulong num, const ulong head, iparticle body, const double frac)
+{
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "start");
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* pick up retrograding particles */
+  ulong retroNum, retroHead;
+  pickRetrogradingParticles(num, head, frac, &retroNum, &retroHead);
+  //-----------------------------------------------------------------------
+  /* flip rotating velocity */
+#ifndef USE_SFMTJUMP
+#pragma omp parallel
+#endif//USE_SFMTJUMP
+#pragma omp for
+  for(ulong ii = retroHead; ii < retroHead + retroNum; ii++){
+    //---------------------------------------------------------------------
+#ifdef  BLOCK_TIME_STEP
+    body.vel[ii].x *= -1.0;
+    body.vel[ii].y *= -1.0;
+#else///BLOCK_TIME_STEP
+    body.vx[ii] *= -1.0;
+    body.vy[ii] *= -1.0;
+#endif//BLOCK_TIME_STEP
+    //---------------------------------------------------------------------
+  }/* for(ulong ii = retroHead; ii < retroHead + retroNum; ii++){ */
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "end");
+  //-----------------------------------------------------------------------
+}
 //-------------------------------------------------------------------------
 void shiftCenter(const ulong num, const ulong head, iparticle body, const profile_cfg cfg);
 void shiftCenter(const ulong num, const ulong head, iparticle body, const profile_cfg cfg)
@@ -111,186 +186,243 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* calculate center-of-mass and bulk-motion */
-  //-----------------------------------------------------------------------
-  double com[3] = {0.0, 0.0, 0.0};
-  double vel[3] = {0.0, 0.0, 0.0};
-  double Mtot = 0.0;
-  //-----------------------------------------------------------------------
-  /* use particles (r < 3 rs            ) for spherical components */
-  /* use particles (R < 3 Rd, |z| < 3 zd) for      disk components */
-  const double rmax2 = 9.0 * cfg.rs * cfg.rs;
-  const double zmax2 = 9.0 * ((cfg.kind < 0) ? (cfg.zd * cfg.zd) : (cfg.rs * cfg.rs));
-  bool (*isInnerParticle)(double, double, double, double, double) = (cfg.kind < 0) ? isInnerParticle4disk : isInnerParticle4spherical;
-  //-----------------------------------------------------------------------
-  for(ulong ii = head; ii < head + num; ii++){
+  //-------------------------------------------------------------------
+#ifndef USE_SFMTJUMP
+#pragma omp parallel
+#endif//USE_SFMTJUMP
+  {
     //---------------------------------------------------------------------
-    const double xx = (double)body.pos[ii].x;
-    const double yy = (double)body.pos[ii].y;
-    const double zz = (double)body.pos[ii].z;
+    /* calculate center-of-mass and bulk-motion */
     //---------------------------------------------------------------------
-    if( isInnerParticle(xx * xx, yy * yy, zz * zz, rmax2, zmax2) ){
-      //-------------------------------------------------------------------
-      const double mass = (double)body.pos[ii].m;
-      Mtot   += mass;
-      //-------------------------------------------------------------------
-      com[0] += mass * xx;
-      com[1] += mass * yy;
-      com[2] += mass * zz;
-#ifdef  BLOCK_TIME_STEP
-      vel[0] += mass * (double)body.vel[ii].x;
-      vel[1] += mass * (double)body.vel[ii].y;
-      vel[2] += mass * (double)body.vel[ii].z;
-#else///BLOCK_TIME_STEP
-      vel[0] += mass * (double)body.vx[ii];
-      vel[1] += mass * (double)body.vy[ii];
-      vel[2] += mass * (double)body.vz[ii];
-#endif//BLOCK_TIME_STEP
-      //-------------------------------------------------------------------
-    }/* if( isInnerParticle(xx * xx, yy * yy, zz * zz, rmax2, zmax2) ){ */
+    double com_loc[3] = {0.0, 0.0, 0.0};
+    double vel_loc[3] = {0.0, 0.0, 0.0};
+    double Mtot_loc = 0.0;
+    static double com[3], vel[3], Mtot;
+#pragma omp single
+    com[0] = com[1] = com[2] = vel[0] = vel[1] = vel[2] = Mtot = 0.0;
     //---------------------------------------------------------------------
-  }/* for(ulong ii = head; ii < head + num; ii++){ */
-  //-----------------------------------------------------------------------
-  double Minv = 1.0 / (DBL_MIN + Mtot);
-  com[0] *= Minv;  vel[0] *= Minv;
-  com[1] *= Minv;  vel[1] *= Minv;
-  com[2] *= Minv;  vel[2] *= Minv;
-  //-----------------------------------------------------------------------
-#ifdef  PROGRESS_REPORT_ON
-  fprintf(stdout, "# center-of-mass shift: %e, %e, %e\n", com[0], com[1], com[2]);
-  fprintf(stdout, "#    bulk motion shift: %e, %e, %e\n", vel[0], vel[1], vel[2]);
-  fflush(stdout);
-#endif//PROGRESS_REPORT_ON
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
-  /* shift the coordinate system to the center-of-mass rest frame */
-  //-----------------------------------------------------------------------
-#if 1
-  const real rcom[3] = {(real)com[0], (real)com[1], (real)com[2]};
-  const real rvel[3] = {(real)vel[0], (real)vel[1], (real)vel[2]};
-#else
-  const real rcom[3] = {ZERO, ZERO, ZERO};
-  const real rvel[3] = {ZERO, ZERO, ZERO};
-#endif
-#pragma omp parallel for
-  for(ulong ii = head; ii < head + num; ii++){
+    /* use particles (r < 3 rs            ) for spherical components */
+    /* use particles (R < 3 Rd, |z| < 3 zd) for      disk components */
+    const double rmax2 = 9.0 * cfg.rs * cfg.rs;
+    const double zmax2 = 9.0 * ((cfg.kind < 0) ? (cfg.zd * cfg.zd) : (cfg.rs * cfg.rs));
+    bool (*isInnerParticle)(double, double, double, double, double) = (cfg.kind < 0) ? isInnerParticle4disk : isInnerParticle4spherical;
+/* #pragma omp barrier */
+/*     __NOTE__("thread %d: (%zu, %zu)\n", omp_get_thread_num(), head, num); */
+/* #pragma omp barrier */
     //---------------------------------------------------------------------
-    body.pos[ii].x -= rcom[0];
-    body.pos[ii].y -= rcom[1];
-    body.pos[ii].z -= rcom[2];
-    //---------------------------------------------------------------------
-#ifdef  BLOCK_TIME_STEP
-    body.time[ii].t0 = body.time[ii].t1 = 0.0;
-    body.vel[ii].x -= rvel[0];
-    body.vel[ii].y -= rvel[1];
-    body.vel[ii].z -= rvel[2];
-    body.vel[ii].dt = ZERO;
-#else///BLOCK_TIME_STEP
-    body.vx[ii] -= rvel[0];
-    body.vy[ii] -= rvel[1];
-    body.vz[ii] -= rvel[2];
-#endif//BLOCK_TIME_STEP
-    //---------------------------------------------------------------------
-  }/* for(ulong ii = head; ii < head + num; ii++){ */
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
-#ifdef  RESET_ROTATION_AXIS
-  //-----------------------------------------------------------------------
-  /* calculate angular momentum vector */
-  //-----------------------------------------------------------------------
-  double amom[3] = {0.0, 0.0, 0.0};
-  for(ulong ii = head; ii < head + num; ii++){
-    //---------------------------------------------------------------------
-    const double rx = (double)body.pos[ii].x;
-    const double ry = (double)body.pos[ii].y;
-    const double rz = (double)body.pos[ii].z;
-    //---------------------------------------------------------------------
-    if( isInnerParticle(rx * rx, ry * ry, rz * rz, rmax2, zmax2) ){
-      //-------------------------------------------------------------------
-      const double mass = (double)body.pos[ii].m;
-      //-------------------------------------------------------------------
-#ifdef  BLOCK_TIME_STEP
-      const double px = (double)body.vel[ii].x * mass;
-      const double py = (double)body.vel[ii].y * mass;
-      const double pz = (double)body.vel[ii].z * mass;
-#else///BLOCK_TIME_STEP
-      const double px = (double)body.vx[ii] * mass;
-      const double py = (double)body.vy[ii] * mass;
-      const double pz = (double)body.vz[ii] * mass;
-#endif//BLOCK_TIME_STEP
-      //-------------------------------------------------------------------
-      amom[0] += ry * pz - rz * py;
-      amom[1] += rz * px - rx * pz;
-      amom[2] += rx * py - ry * px;
-      //-------------------------------------------------------------------
-    }/* if( isInnerParticle(rx * rx, ry * ry, rz * rz, rmax2, zmax2) ){ */
-    //---------------------------------------------------------------------
-  }/* for(ulong ii = head; ii < head + num; ii++){ */
-  //-----------------------------------------------------------------------
-  /* rotate galaxy (if necessary) */
-  //-----------------------------------------------------------------------
-#if 1
-  const double L2 = amom[0] * amom[0] + amom[1] * amom[1] + amom[2] * amom[2];
-#else
-  const double L2 = 1.0;
-#endif
-  if( L2 > 1.0e-6 ){
-    //---------------------------------------------------------------------
-#if 1
-    real ini[3] = {(real)amom[0], (real)amom[1], (real)amom[2]};
-    real fin[3] = {ZERO, ZERO, UNITY};
-#else
-    real ini[3] = {ZERO, ZERO, UNITY};
-    real fin[3] = {ZERO, UNITY, ZERO};
-#endif
-    //---------------------------------------------------------------------
-    real rot[3][3], inv[3][3];
-    initRotationMatrices(ini, fin, rot, inv);
-    //---------------------------------------------------------------------
-#pragma omp parallel for
+#pragma omp for
     for(ulong ii = head; ii < head + num; ii++){
       //-------------------------------------------------------------------
-      real bfr[3], aft[3];
+      const double xx = CAST_R2D(body.pos[ii].x);
+      const double yy = CAST_R2D(body.pos[ii].y);
+      const double zz = CAST_R2D(body.pos[ii].z);
       //-------------------------------------------------------------------
-      /* rotate position */
-      bfr[0] = body.pos[ii].x;
-      bfr[1] = body.pos[ii].y;
-      bfr[2] = body.pos[ii].z;
-      rotateVector(bfr, rot, aft);
-      body.pos[ii].x = aft[0];
-      body.pos[ii].y = aft[1];
-      body.pos[ii].z = aft[2];
-      //-------------------------------------------------------------------
-      /* rotate velocity */
+      if( isInnerParticle(xx * xx, yy * yy, zz * zz, rmax2, zmax2) ){
+	//-----------------------------------------------------------------
+	const double mass = CAST_R2D(body.pos[ii].m);
+	Mtot_loc += mass;
+	//-----------------------------------------------------------------
+	com_loc[0] += mass * xx;
+	com_loc[1] += mass * yy;
+	com_loc[2] += mass * zz;
 #ifdef  BLOCK_TIME_STEP
-      bfr[0] = body.vel[ii].x;
-      bfr[1] = body.vel[ii].y;
-      bfr[2] = body.vel[ii].z;
+	vel_loc[0] += mass * CAST_R2D(body.vel[ii].x);
+	vel_loc[1] += mass * CAST_R2D(body.vel[ii].y);
+	vel_loc[2] += mass * CAST_R2D(body.vel[ii].z);
 #else///BLOCK_TIME_STEP
-      bfr[0] = body.vx[ii];
-      bfr[1] = body.vy[ii];
-      bfr[2] = body.vz[ii];
+	vel_loc[0] += mass * CAST_R2D(body.vx[ii]);
+	vel_loc[1] += mass * CAST_R2D(body.vy[ii]);
+	vel_loc[2] += mass * CAST_R2D(body.vz[ii]);
 #endif//BLOCK_TIME_STEP
-      rotateVector(bfr, rot, aft);
+	//-----------------------------------------------------------------
+      }/* if( isInnerParticle(xx * xx, yy * yy, zz * zz, rmax2, zmax2) ){ */
+      //-------------------------------------------------------------------
+    }/* for(ulong ii = head; ii < head + num; ii++){ */
+    //---------------------------------------------------------------------
+    /* __NOTE__("thread %d exits loop\n", omp_get_thread_num()); */
+    /* omp reduction for com, vel, Mtot */
+#pragma omp atomic
+    Mtot += Mtot_loc;
+#pragma omp atomic
+    com[0] += com_loc[0];
+#pragma omp atomic
+    com[1] += com_loc[1];
+#pragma omp atomic
+    com[2] += com_loc[2];
+#pragma omp atomic
+    vel[0] += vel_loc[0];
+#pragma omp atomic
+    vel[1] += vel_loc[1];
+#pragma omp atomic
+    vel[2] += vel_loc[2];
+#pragma omp barrier
+#pragma omp single
+    {
+      double Minv = 1.0 / (DBL_MIN + Mtot);
+      com[0] *= Minv;      com[1] *= Minv;      com[2] *= Minv;
+      vel[0] *= Minv;      vel[1] *= Minv;      vel[2] *= Minv;
+    }
+    /* __NOTE__("thread %d gets sum\n", omp_get_thread_num()); */
+    //---------------------------------------------------------------------
+#ifdef  PROGRESS_REPORT_ON
+#ifdef  USE_SFMTJUMP
+#pragma omp single nowait
+#endif//USE_SFMTJUMP
+    {
+      fprintf(stdout, "# center-of-mass shift: %e, %e, %e\n", com[0], com[1], com[2]);
+      fprintf(stdout, "#    bulk motion shift: %e, %e, %e\n", vel[0], vel[1], vel[2]);
+      fflush(stdout);
+    }
+#endif//PROGRESS_REPORT_ON
+    //---------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
+    /* shift the coordinate system to the center-of-mass rest frame */
+    //---------------------------------------------------------------------
+#if 1
+    const real rcom[3] = {CAST_D2R(com[0]), CAST_D2R(com[1]), CAST_D2R(com[2])};
+    const real rvel[3] = {CAST_D2R(vel[0]), CAST_D2R(vel[1]), CAST_D2R(vel[2])};
+#else
+    const real rcom[3] = {ZERO, ZERO, ZERO};
+    const real rvel[3] = {ZERO, ZERO, ZERO};
+#endif
+#ifndef USE_SFMTJUMP
+#pragma omp parallel
+#endif//USE_SFMTJUMP
+#pragma omp for
+    for(ulong ii = head; ii < head + num; ii++){
+      //-------------------------------------------------------------------
+      body.pos[ii].x -= rcom[0];
+      body.pos[ii].y -= rcom[1];
+      body.pos[ii].z -= rcom[2];
+      //-------------------------------------------------------------------
 #ifdef  BLOCK_TIME_STEP
-      body.vel[ii].x = aft[0];
-      body.vel[ii].y = aft[1];
-      body.vel[ii].z = aft[2];
+      body.time[ii].t0 = body.time[ii].t1 = 0.0;
+      body.vel[ii].x -= rvel[0];
+      body.vel[ii].y -= rvel[1];
+      body.vel[ii].z -= rvel[2];
+      body.vel[ii].dt = ZERO;
 #else///BLOCK_TIME_STEP
-      body.vx[ii] = aft[0];
-      body.vy[ii] = aft[1];
-      body.vz[ii] = aft[2];
+      body.vx[ii] -= rvel[0];
+      body.vy[ii] -= rvel[1];
+      body.vz[ii] -= rvel[2];
 #endif//BLOCK_TIME_STEP
       //-------------------------------------------------------------------
     }/* for(ulong ii = head; ii < head + num; ii++){ */
     //---------------------------------------------------------------------
-  }/* if( L2 > 1.0e-6 ){ */
-  //-----------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
+#ifdef  RESET_ROTATION_AXIS
+    //---------------------------------------------------------------------
+    /* calculate angular momentum vector */
+    //---------------------------------------------------------------------
+    double amom_loc[3] = {0.0, 0.0, 0.0};
+    static double amom[3];
+#pragma omp single
+    amon[0] = amon[1] = amon[2] = 0.0;
+#pragma omp for
+    for(ulong ii = head; ii < head + num; ii++){
+      //-------------------------------------------------------------------
+      const double rx = CAST_R2D(body.pos[ii].x);
+      const double ry = CAST_R2D(body.pos[ii].y);
+      const double rz = CAST_R2D(body.pos[ii].z);
+      //-------------------------------------------------------------------
+      if( isInnerParticle(rx * rx, ry * ry, rz * rz, rmax2, zmax2) ){
+	//-----------------------------------------------------------------
+	const double mass = CAST_R2D(body.pos[ii].m);
+	//-----------------------------------------------------------------
+#ifdef  BLOCK_TIME_STEP
+	const double px = CAST_R2D(body.vel[ii].x) * mass;
+	const double py = CAST_R2D(body.vel[ii].y) * mass;
+	const double pz = CAST_R2D(body.vel[ii].z) * mass;
+#else///BLOCK_TIME_STEP
+	const double px = CAST_R2D(body.vx[ii]) * mass;
+	const double py = CAST_R2D(body.vy[ii]) * mass;
+	const double pz = CAST_R2D(body.vz[ii]) * mass;
+#endif//BLOCK_TIME_STEP
+        //-----------------------------------------------------------------
+	amom_loc[0] += ry * pz - rz * py;
+	amom_loc[1] += rz * px - rx * pz;
+	amom_loc[2] += rx * py - ry * px;
+	//-----------------------------------------------------------------
+      }/* if( isInnerParticle(rx * rx, ry * ry, rz * rz, rmax2, zmax2) ){ */
+      //-------------------------------------------------------------------
+    }/* for(ulong ii = head; ii < head + num; ii++){ */
+    //---------------------------------------------------------------------
+    /* rotate galaxy (if necessary) */
+    //---------------------------------------------------------------------
+    /* omp reduction for amon */
+#pragma omp atomic
+    amon[0] += amon_loc[0];
+#pragma omp atomic
+    amon[1] += amon_loc[1];
+#pragma omp atomic
+    amon[2] += amon_loc[2];
+#pragma omp barrier
+#if 1
+    const double L2 = amom[0] * amom[0] + amom[1] * amom[1] + amom[2] * amom[2];
+#else
+    const double L2 = 1.0;
+#endif
+    if( L2 > 1.0e-6 ){
+      //-------------------------------------------------------------------
+#if 1
+      real ini[3] = {CAST_D2R(amom[0]), CAST_D2R(amom[1]), CAST_D2R(amom[2])};
+      real fin[3] = {ZERO, ZERO, UNITY};
+#else
+      real ini[3] = {ZERO, ZERO, UNITY};
+      real fin[3] = {ZERO, UNITY, ZERO};
+#endif
+      //-------------------------------------------------------------------
+      real rot[3][3], inv[3][3];
+      initRotationMatrices(ini, fin, rot, inv);
+      //-------------------------------------------------------------------
+#ifndef USE_SFMTJUMP
+#pragma omp parallel
+#endif//USE_SFMTJUMP
+#pragma omp for
+      for(ulong ii = head; ii < head + num; ii++){
+	//-----------------------------------------------------------------
+	real bfr[3], aft[3];
+	//-----------------------------------------------------------------
+	/* rotate position */
+	bfr[0] = body.pos[ii].x;
+	bfr[1] = body.pos[ii].y;
+	bfr[2] = body.pos[ii].z;
+	rotateVector(bfr, rot, aft);
+	body.pos[ii].x = aft[0];
+	body.pos[ii].y = aft[1];
+	body.pos[ii].z = aft[2];
+	//-----------------------------------------------------------------
+	/* rotate velocity */
+#ifdef  BLOCK_TIME_STEP
+	bfr[0] = body.vel[ii].x;
+	bfr[1] = body.vel[ii].y;
+	bfr[2] = body.vel[ii].z;
+#else///BLOCK_TIME_STEP
+	bfr[0] = body.vx[ii];
+	bfr[1] = body.vy[ii];
+	bfr[2] = body.vz[ii];
+#endif//BLOCK_TIME_STEP
+	rotateVector(bfr, rot, aft);
+#ifdef  BLOCK_TIME_STEP
+	body.vel[ii].x = aft[0];
+	body.vel[ii].y = aft[1];
+	body.vel[ii].z = aft[2];
+#else///BLOCK_TIME_STEP
+	body.vx[ii] = aft[0];
+	body.vy[ii] = aft[1];
+	body.vz[ii] = aft[2];
+#endif//BLOCK_TIME_STEP
+        //-----------------------------------------------------------------
+      }/* for(ulong ii = head; ii < head + num; ii++){ */
+      //-------------------------------------------------------------------
+    }/* if( L2 > 1.0e-6 ){ */
+    //---------------------------------------------------------------------
 #endif//RESET_ROTATION_AXIS
-  //-----------------------------------------------------------------------
+    //---------------------------------------------------------------------
+  }
+  //-------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
@@ -328,10 +460,16 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
   const ulong num = cfg.num;
   //-----------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
-  fprintf(stdout, "#\n#\n# start distributing spherical component particles (%zu bodies: [%zu:%zu])\n", num, *Nuse, (*Nuse) + num - 1);
-  fflush(stdout);
+#ifndef USE_SFMTJUMP
   const ulong nunit = (ulong)ceilf(0.1f * (float)num);
   ulong stage = 1;
+#else///USE_SFMTJUMP
+#pragma omp single nowait
+#endif//USE_SFMTJUMP
+  {
+    fprintf(stdout, "#\n#\n# start distributing spherical component particles (%zu bodies: [%zu:%zu])\n", num, *Nuse, (*Nuse) + num - 1);
+    fflush(stdout);
+  }
 #endif//PROGRESS_REPORT_ON
   //-----------------------------------------------------------------------
   const double    Emin = df[          0].ene;
@@ -351,6 +489,9 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
   const double Mmax = cfg.Mtot;
   const double Mmin = prf[0].enc;
   //-----------------------------------------------------------------------
+#ifdef  USE_SFMTJUMP
+#pragma omp for
+#endif//USE_SFMTJUMP
   for(ulong ii = *Nuse; ii < *Nuse + num; ii++){
     //---------------------------------------------------------------------
     /* set spatial distribution by table search */
@@ -371,8 +512,8 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
     //---------------------------------------------------------------------
     const double alpha = (tmp - prf[ll].enc) / (prf[rr].enc - prf[ll].enc);
     const double rad = (1.0 - alpha) * prf[ll].rad + alpha * prf[rr].rad;
-    isotropicDistribution((real)rad, &(body.pos[ii].x), &(body.pos[ii].y), &(body.pos[ii].z));
-    __NOTE__("position of %zu-th particle determined: rad = %e\n", ii, rad);
+    isotropicDistribution(CAST_D2R(rad), &(body.pos[ii].x), &(body.pos[ii].y), &(body.pos[ii].z));
+    /* __NOTE__("position of %zu-th particle determined: rad = %e\n", ii, rad); */
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
@@ -399,11 +540,11 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
     }/* while( true ){ */
     //---------------------------------------------------------------------
 #ifdef  BLOCK_TIME_STEP
-    isotropicDistribution((real)vel, &(body.vel[ii].x), &(body.vel[ii].y), &(body.vel[ii].z));
+    isotropicDistribution(CAST_D2R(vel), &(body.vel[ii].x), &(body.vel[ii].y), &(body.vel[ii].z));
 #else///BLOCK_TIME_STEP
-    isotropicDistribution((real)vel, &(body.vx[ii]), &(body.vy[ii]), &(body.vz[ii]));
+    isotropicDistribution(CAST_D2R(vel), &(body.vx[ii]), &(body.vy[ii]), &(body.vz[ii]));
 #endif//BLOCK_TIME_STEP
-    __NOTE__("velocity of %zu-th particle determined\n", ii);
+    /* __NOTE__("velocity of %zu-th particle determined\n", ii); */
     //---------------------------------------------------------------------
     body.acc[ii].x   = body.acc[ii].y = body.acc[ii].z = ZERO;
     body.pos[ii].m   = mass;
@@ -412,11 +553,13 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
     body.idx[ii] = ii;
     //---------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
+#ifndef USE_SFMTJUMP
     if( (ii - (*Nuse)) == (stage * nunit) ){
       fprintf(stdout, "# ~%zu%% completed\n", stage * 10);
       fflush(stdout);
       stage++;
     }/* if( (ii - (*Nuse)) == (stage * nunit) ){ */
+#endif//USE_SFMTJUMP
 #endif//PROGRESS_REPORT_ON
     //---------------------------------------------------------------------
   }/* for(ulong ii = *Nuse; ii < *Nuse + num; ii++){ */
@@ -424,8 +567,14 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
   *Nuse += num;
   //-----------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
-  fprintf(stdout, "# finish distributing spherical component particles (%zu bodies)\n", num);
-  fflush(stdout);
+#ifdef  USE_SFMTJUMP
+#pragma omp barrier
+#pragma omp master
+#endif//USE_SFMTJUMP
+  {
+    fprintf(stdout, "# finish distributing spherical component particles (%zu bodies)\n", num);
+    fflush(stdout);
+  }
 #endif//PROGRESS_REPORT_ON
   //-----------------------------------------------------------------------
 
@@ -476,8 +625,10 @@ int main(int argc, char **argv)
   double tmp;
   requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "snapshotInterval", &tmp));
   double snapshotInterval = ldexp(1.0, (int)floor(log2(tmp * time_astro2com)));
-  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "eps", &tmp));  real   eps = (real)(tmp * length_astro2com);
-  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "ft",  &tmp));  double  ft =       (tmp *   time_astro2com);
+  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "eps", &tmp));  real   eps = CAST_D2R(tmp * length_astro2com);
+  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "ft",  &tmp));  double  ft =         (tmp *   time_astro2com);
+  //-----------------------------------------------------------------------
+  static breakdown execTime;
   //-----------------------------------------------------------------------
 
 
@@ -528,14 +679,16 @@ int main(int argc, char **argv)
 
 
   //-----------------------------------------------------------------------
-  /* GSL initialization */
+  /* initialization */
   //-----------------------------------------------------------------------
   /* initialize random number provided by GSL */
+#ifndef USE_SFMT
   const gsl_rng_type *RandType;
   gsl_rng_env_setup();
   RandType = gsl_rng_mt19937;
   GSLRand  = gsl_rng_alloc(RandType);
   gsl_rng_set(GSLRand, 5489);
+#endif//USE_SFMT
   //-----------------------------------------------------------------------
   /* initialize the table for Gaussian Quadrature provided by GSL */
   for(int ii = 0; ii < NTBL_GAUSS_QD; ii++){
@@ -589,6 +742,7 @@ int main(int argc, char **argv)
   /* set distribution function */
   //-----------------------------------------------------------------------
   /* memory allocation for spherical component(s) */
+  initBenchmark_cpu();
   profile **prf, *_prf;
   /* 2 * 2 bins are added in the both edge */
   _prf = (profile  *)malloc(sizeof(profile  ) * kind * (4 + NRADBIN));  if( _prf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _prf\n");  }
@@ -609,11 +763,8 @@ int main(int argc, char **argv)
   double *disk_zd;
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
   double *spline_xx, *spline_ff, *spline_f2, *spline_bp;
-  if( addDisk ){
-    //---------------------------------------------------------------------
-    /* allocate required arrays */
-    //---------------------------------------------------------------------
-    allocDiskProfile(ndisk, &disk_info, &cfg[skind], &maxLev,
+  if( addDisk )
+    allocDiskProfile(ndisk, &disk_info, &cfg[skind], &maxLev, prf[skind], logrbin, invlogrbin,
 		     &disk_hor, &disk_ver, &disk_node_hor, &disk_node_ver,
 		     &disk_pot, &disk_rho, &disk_rhoSum, &disk_rhoTot,
 		     &disk_dPhidR, &disk_d2PhidR2,
@@ -623,29 +774,10 @@ int main(int argc, char **argv)
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
 		     &sph_rad, &sph_rho, &sph_enc,
 		     &spline_xx, &spline_ff, &spline_f2, &spline_bp);
-    //---------------------------------------------------------------------
-
-    //---------------------------------------------------------------------
-    /* commit fundamental information */
-    //---------------------------------------------------------------------
-    for(int ii = 0; ii < ndisk; ii++){
-      //-------------------------------------------------------------------
-      /* disk_info[ii].cfg        = &cfg[skind + ii]; */
-      disk_info[ii].prf        =  prf[skind + ii];
-      disk_info[ii].   logrbin =    logrbin;
-      disk_info[ii].invlogrbin = invlogrbin;
-      //-------------------------------------------------------------------
-      /* initialize for Toomre's Q-value analysis */
-      disk_info[ii].cfg->vcirc_max   = -1.0;
-      disk_info[ii].cfg->vcirc_max_R = -1.0;
-      disk_info[ii].cfg->Qmin = DBL_MAX;
-      disk_info[ii].cfg->passed = false;
-      //-------------------------------------------------------------------
-    }/* for(int ii = 0; ii < ndisk; ii++){ */
-    //---------------------------------------------------------------------
-  }/* if( addDisk ){ */
+  stopBenchmark_cpu(&execTime.alloc);
   //-----------------------------------------------------------------------
   /* set density profile and mass profile for spherical component(s) */
+  initBenchmark_cpu();
   for(int ii = 0; ii < skind; ii++){
     //---------------------------------------------------------------------
     profile_abel_cfg dummy;    dummy.invRd = 1.0;
@@ -700,18 +832,22 @@ int main(int argc, char **argv)
     }/* for(int kk = 0; kk < kind; kk++){ */
     //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+  stopBenchmark_cpu(&execTime.spheProf);
   //-----------------------------------------------------------------------
   /* set density profile for the disk component */
   if( addDisk ){
     //---------------------------------------------------------------------
     /* set disk_radius, disk_height, disk_pot */
+    initBenchmark_cpu();
     makeDiskPotentialTable(ndisk, maxLev, disk_info);
 #if 0
     writeDiskData(file, ndisk, maxLev, disk_info);
     exit(0);
 #endif
+    stopBenchmark_cpu(&execTime.diskTbl);
     //---------------------------------------------------------------------
     /* set profile of spherical averaged density, mass and potential */
+    initBenchmark_cpu();
     integrateSphericalDensityProfile(ndisk, maxLev, disk_info);
 #if 0
     writeDiskData(file, ndisk, maxLev, disk_info);
@@ -737,22 +873,28 @@ int main(int argc, char **argv)
       }/* for(int kk = 0; kk < skind; kk++){ */
       //-------------------------------------------------------------------
     }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+    stopBenchmark_cpu(&execTime.diskProf);
     //---------------------------------------------------------------------
   }/* if( addDisk ){ */
   //-----------------------------------------------------------------------
   /* integrate Eddington's formula numerically */
+  initBenchmark_cpu();
   dist_func **fene, *_fene;
   _fene = (dist_func  *)malloc(sizeof(dist_func  ) * skind * NENEBIN);  if( _fene == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _fene\n");  }
   fene  = (dist_func **)malloc(sizeof(dist_func *) * skind          );  if(  fene == NULL ){    __KILL__(stderr, "ERROR: failure to allocate  fene\n");  }
   for(int ii = 0; ii < skind; ii++)
     fene[ii] = _fene + ii * NENEBIN;
   integrateEddingtonFormula(skind, prf, fene);
+  stopBenchmark_cpu(&execTime.eddington);
   //-----------------------------------------------------------------------
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
+  initBenchmark_cpu();
   calcColumnDensityProfile(skind, prf, logrmax, cfg);
+  stopBenchmark_cpu(&execTime.column);
 #endif//MAKE_COLUMN_DENSITY_PROFILE
   //-----------------------------------------------------------------------
   if( addDisk ){
+    initBenchmark_cpu();
     /* differentiate potential along the radial direction on the equatorial plane */
     diffAxisymmetricPotential(maxLev, disk_info[0]);
 #if 0
@@ -767,9 +909,12 @@ int main(int argc, char **argv)
       if( cfg[ii].vdispR0 < 0.0 )
 	cfg[ii].vdispR0 = cfg[ii].vdispz0;
     }/* for(int ii = skind; ii < kind; ii++){ */
+    stopBenchmark_cpu(&execTime.diskVel);
     //---------------------------------------------------------------------
     /* output fundamental quantities of the disk component */
+    initBenchmark_cpu();
     writeDiskData(file, ndisk, maxLev, disk_info);
+    stopBenchmark_cpu(&execTime.diskDat);
     //---------------------------------------------------------------------
   }/* if( addDisk ){ */
   //-----------------------------------------------------------------------
@@ -778,6 +923,7 @@ int main(int argc, char **argv)
   //-----------------------------------------------------------------------
   /* set particle distribution */
   //-----------------------------------------------------------------------
+  initBenchmark_cpu();
   /* nbody_particle *body; */
   /* allocParticleDataAoS((int)Ntot, &body); */
   iparticle body;
@@ -797,60 +943,107 @@ int main(int argc, char **argv)
 		    &vx, &vy, &vz
 #endif//BLOCK_TIME_STEP
 		    );
+  stopBenchmark_cpu(&execTime.alloc);
   //-----------------------------------------------------------------------
-  /* create spherical particle distribution */
-  Nuse = 0;
-  for(int ii = 0; ii < skind; ii++){
+  /* parallel region for OpenMP */
+#ifdef  USE_SFMTJUMP
+#pragma omp parallel private(Nuse)
+#endif//USE_SFMTJUMP
+  {
     //---------------------------------------------------------------------
-    /* distribute spheroid particles */
-    if( cfg[ii].kind != CENTRALBH )
-      cfg[ii].Ecut = distributeSpheroidParticles(&Nuse, body, (real)(cfg[ii].Mtot / (double)cfg[ii].num), cfg[ii], &prf[ii][2], fene[ii]);
-    else{
-      body.pos[Nuse].x = body.pos[Nuse].y = body.pos[Nuse].z = ZERO;      body.pos[Nuse].m   = (real)cfg[ii].Mtot;
-      body.acc[Nuse].x = body.acc[Nuse].y = body.acc[Nuse].z = ZERO;      body.acc[Nuse].pot = ZERO;
-#ifdef  BLOCK_TIME_STEP
-      body.vel[Nuse].x = body.vel[Nuse].y = body.vel[Nuse].z = ZERO;
-#else///BLOCK_TIME_STEP
-      body.vx[Nuse] = body.vy[Nuse] = body.vz[Nuse] = ZERO;
-#endif//BLOCK_TIME_STEP
-      body.idx[Nuse] = Nuse;
-      Nuse++;
-    }/* else{ */
+    /* initialize random number provided by SFMT */
+#ifdef  USE_SFMT
+    sfmt_init_gen_rand(&sfmt, 5489);
+    /* sfmt_init_gen_rand(&sfmt, 19650218); */
+    /* 5489 for 32 bit Mersenne Twister */
+    /* 19650218 for 64 bit Mersenne Twister */
+#endif//USE_SFMT
+#ifdef  USE_SFMTJUMP
+    for(int ii = 0; ii < omp_get_thread_num(); ii++)
+      SFMT_jump(&sfmt, SFMTJUMP_10_100);
+#endif//USE_SFMTJUMP
     //---------------------------------------------------------------------
-    /* shift center-of-mass, remove bulk motion */
-    shiftCenter(cfg[ii].num, Nuse - cfg[ii].num, body, cfg[ii]);
-    //---------------------------------------------------------------------
-  }/* for(int ii = 0; ii < skind; ii++){ */
-  //-----------------------------------------------------------------------
-  /* add disk component if required */
-  if( addDisk ){
-    //---------------------------------------------------------------------
-#ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
-    double Krand = 0.0;
-    for(ulong ii = 0; ii < Nuse; ii++){
-#ifdef  BLOCK_TIME_STEP
-      Krand += body.vel[ii].x * body.vel[ii].x + body.vel[ii].y * body.vel[ii].y + body.vel[ii].z * body.vel[ii].z;
-#else///BLOCK_TIME_STEP
-      Krand += body.vx[ii] * body.vx[ii] + body.vy[ii] * body.vy[ii] + body.vz[ii] * body.vz[ii];
-#endif//BLOCK_TIME_STEP
-    }/* for(ulong ii = 0; ii < Nuse; ii++){ */
-    for(int ii = 0; ii < ndisk; ii++)
-      disk_info[ii].Krand_sph = Krand;
-#endif//CHECK_OSTRIKER_PEEBLES_CRITERION
-    //---------------------------------------------------------------------
-    for(int ii = 0; ii < ndisk; ii++){
+    /* create spherical particle distribution */
+#ifdef  USE_SFMTJUMP
+#pragma omp barrier
+#pragma omp master
+#endif//USE_SFMTJUMP
+    initBenchmark_cpu();
+    Nuse = 0;
+    for(int ii = 0; ii < skind; ii++){
       //-------------------------------------------------------------------
-      /* distribute disk particles */
-      distributeDiskParticles(&Nuse, body, (real)(disk_info[ii].cfg->Mtot / (double)disk_info[ii].cfg->num), maxLev, disk_info[ii]);
+      /* distribute spheroid particles */
+      if( cfg[ii].kind != CENTRALBH )
+	cfg[ii].Ecut = distributeSpheroidParticles(&Nuse, body, CAST_D2R(cfg[ii].Mtot / (double)cfg[ii].num), cfg[ii], &prf[ii][2], fene[ii]);
+      else{
+	body.pos[Nuse].x = body.pos[Nuse].y = body.pos[Nuse].z = ZERO;	body.pos[Nuse].m   = CAST_D2R(cfg[ii].Mtot);
+	body.acc[Nuse].x = body.acc[Nuse].y = body.acc[Nuse].z = ZERO;	body.acc[Nuse].pot = ZERO;
+#ifdef  BLOCK_TIME_STEP
+	body.vel[Nuse].x = body.vel[Nuse].y = body.vel[Nuse].z = ZERO;
+#else///BLOCK_TIME_STEP
+	body.vx[Nuse] = body.vy[Nuse] = body.vz[Nuse] = ZERO;
+#endif//BLOCK_TIME_STEP
+	body.idx[Nuse] = Nuse;
+	Nuse++;
+      }/* else{ */
       //-------------------------------------------------------------------
       /* shift center-of-mass, remove bulk motion */
-      shiftCenter(disk_info[ii].cfg->num, Nuse - disk_info[ii].cfg->num, body, *disk_info[ii].cfg);
+      shiftCenter(cfg[ii].num, Nuse - cfg[ii].num, body, cfg[ii]);
       //-------------------------------------------------------------------
-    }/* for(int ii = 0; ii < ndisk; ii++){ */
+    }/* for(int ii = 0; ii < skind; ii++){ */
+#ifdef  USE_SFMTJUMP
+#pragma omp barrier
+#pragma omp master
+#endif//USE_SFMTJUMP
+    stopBenchmark_cpu(&execTime.spheDist);
     //---------------------------------------------------------------------
-  }/* if( addDisk ){ */
+    /* add disk component if required */
+    if( addDisk ){
+      //-------------------------------------------------------------------
+#ifdef  USE_SFMTJUMP
+#pragma omp barrier
+#pragma omp master
+#endif//USE_SFMTJUMP
+      initBenchmark_cpu();
+      //-------------------------------------------------------------------
+#ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
+      double Krand = 0.0;
+      for(ulong ii = 0; ii < Nuse; ii++){
+#ifdef  BLOCK_TIME_STEP
+	Krand += body.vel[ii].x * body.vel[ii].x + body.vel[ii].y * body.vel[ii].y + body.vel[ii].z * body.vel[ii].z;
+#else///BLOCK_TIME_STEP
+	Krand += body.vx[ii] * body.vx[ii] + body.vy[ii] * body.vy[ii] + body.vz[ii] * body.vz[ii];
+#endif//BLOCK_TIME_STEP
+      }/* for(ulong ii = 0; ii < Nuse; ii++){ */
+      for(int ii = 0; ii < ndisk; ii++)
+	disk_info[ii].Krand_sph = Krand;
+#endif//CHECK_OSTRIKER_PEEBLES_CRITERION
+      //-------------------------------------------------------------------
+      for(int ii = 0; ii < ndisk; ii++){
+	//-----------------------------------------------------------------
+	/* distribute disk particles */
+	distributeDiskParticles(&Nuse, body, CAST_D2R(disk_info[ii].cfg->Mtot / (double)disk_info[ii].cfg->num), maxLev, disk_info[ii]);
+	//-----------------------------------------------------------------
+	/* flip velocity vector to generate retrograding particles */
+	if( disk_info[ii].cfg->retrogradeFrac > 0.0 )
+	  retrograder(disk_info[ii].cfg->num, Nuse - disk_info[ii].cfg->num, body, disk_info[ii].cfg->retrogradeFrac);
+	//-----------------------------------------------------------------
+	/* shift center-of-mass, remove bulk motion */
+	shiftCenter(disk_info[ii].cfg->num, Nuse - disk_info[ii].cfg->num, body, *disk_info[ii].cfg);
+	//-----------------------------------------------------------------
+      }/* for(int ii = 0; ii < ndisk; ii++){ */
+      //-------------------------------------------------------------------
+#ifdef  USE_SFMTJUMP
+#pragma omp barrier
+#pragma omp master
+#endif//USE_SFMTJUMP
+      stopBenchmark_cpu(&execTime.diskDist);
+      //-------------------------------------------------------------------
+    }/* if( addDisk ){ */
+  }
   //-----------------------------------------------------------------------
   if( skind == 0 )
+#pragma omp parallel for
     for(int ii = 0; ii < 4 + NRADBIN; ii++){
       prf[0][ii].enc_tot  = prf[ 0][ii].enc;
       for(int jj = 1; jj < ndisk; jj++)
@@ -858,7 +1051,9 @@ int main(int argc, char **argv)
     }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
   //-----------------------------------------------------------------------
   /* write fundamental information */
+  initBenchmark_cpu();
   outputFundamentalInformation(unit, kind, skind, cfg, prf, fene, Ntot, eps, snapshotInterval, ft, file);
+  stopBenchmark_cpu(&execTime.info);
   //-----------------------------------------------------------------------
 
 
@@ -868,6 +1063,7 @@ int main(int argc, char **argv)
   int   last  = 1;
   ulong steps = 0;
   //-----------------------------------------------------------------------
+  initBenchmark_cpu();
   writeSettings(unit, Ntot, eps, eta, ft, snapshotInterval, saveInterval, file);
 #ifdef  USE_HDF5_FORMAT
   static hdf5struct hdf5type;
@@ -884,6 +1080,7 @@ int main(int argc, char **argv)
   static brentStatus status;
   static brentMemory memory;
 #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+#if 1
   writeTentativeData(time, dt, steps, Ntot, body, file, &last, hdf5type
 		     , rebuild, measured
 #ifdef  WALK_TREE_COMBINED_MODEL
@@ -896,6 +1093,66 @@ int main(int argc, char **argv)
 		     , relEneErr
 #endif//MONITOR_ENERGY_ERROR
 		     );
+#else
+  iparticle sbody;
+  ulong *sidx;
+  position *spos;
+  acceleration *sacc;
+#ifdef  BLOCK_TIME_STEP
+  velocity *svel;
+  ibody_time *sti;
+#else///BLOCK_TIME_STEP
+  real *svx, *svy, *svz;
+#endif//BLOCK_TIME_STEP
+  allocParticleData((int)Ntot, &sbody, &sidx, &spos, &sacc,
+#ifdef  BLOCK_TIME_STEP
+		    &svel, &sti
+#else///BLOCK_TIME_STEP
+		    &svx, &svy, &svz
+#endif//BLOCK_TIME_STEP
+		    );
+  int iim = 0;
+  int iip = (int)Ntot - 1;
+  for(int ii = 0; ii < (int)Ntot; ii++){
+    int dst;
+    if( body.pos[ii].x <= ZERO ){
+      dst = iim;      iim++;
+    }
+    else{
+      dst = iip;      iip--;
+    }
+    sbody.pos[dst] = body.pos[ii];
+    sbody.idx[dst] = body.idx[ii];
+    sbody.acc[dst] = body.acc[ii];
+#ifdef  BLOCK_TIME_STEP
+    sbody.vel [dst] = body.vel [ii];
+    sbody.time[dst] = body.time[ii];
+#else///BLOCK_TIME_STEP
+    sbody.vx[dst] = body.vx[ii];
+    sbody.vy[dst] = body.vy[ii];
+    sbody.vz[dst] = body.vz[ii];
+#endif//BLOCK_TIME_STEP
+  }
+  writeTentativeData(time, dt, steps, Ntot, sbody, file, &last, hdf5type
+		     , rebuild, measured
+#ifdef  WALK_TREE_COMBINED_MODEL
+		     , rebuildParam
+#endif//WALK_TREE_COMBINED_MODEL
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+		     , status, memory
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+#ifdef  MONITOR_ENERGY_ERROR
+		     , relEneErr
+#endif//MONITOR_ENERGY_ERROR
+		     );
+  freeParticleData(sidx, spos, sacc,
+#ifdef  BLOCK_TIME_STEP
+		    svel, sti
+#else///BLOCK_TIME_STEP
+		    svx, svy, svz
+#endif//BLOCK_TIME_STEP
+		    );
+#endif
   removeHDF5DataType(hdf5type);
 #else///USE_HDF5_FORMAT
   writeTentativeData(time, dt, steps, Ntot, body, file, &last);
@@ -971,8 +1228,36 @@ int main(int argc, char **argv)
   if( bonsaiSuccess != true ){    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", bonsaifile);  }
   fclose(fpbonsai);
 #endif//DUMPFILE_FOR_BONSAI
+  stopBenchmark_cpu(&execTime.file);
   //-----------------------------------------------------------------------
 
+  //-----------------------------------------------------------------------
+  /* write result of measured breakdown */
+  //-----------------------------------------------------------------------
+  double ttot = execTime.alloc + execTime.info + execTime.file;
+  ttot += execTime.spheProf + execTime.eddington + execTime.spheDist;
+  ttot += execTime.diskTbl + execTime.diskProf + execTime.diskVel + execTime.diskDat + execTime.diskDist;
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+  ttot += execTime.column;
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+  fprintf(stdout, "#\n#\n# benchmark result:\n");
+  fprintf(stdout, "# total elapsed time is %e s\n", ttot);
+  ttot = 100.0 / ttot;
+  if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskTbl  , execTime.diskTbl   * ttot, "generating potential--density pair of disk component(s)");
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.spheDist , execTime.spheDist  * ttot, "distributing N-body particles of spherical component(s)");
+  if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskDist , execTime.diskDist  * ttot, "distributing N-body particles of disk component(s)");
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.eddington, execTime.eddington * ttot, "calculating DF(s) of spherical component(s) using Eddington formula");
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.spheProf , execTime.spheProf  * ttot, "generating radial profile of spherical component(s)");
+  if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskProf , execTime.diskProf  * ttot, "calculating spherical averaged profile of disk component(s)");
+  if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskVel  , execTime.diskVel   * ttot, "calculating vertical velocity dispersion of disk component(s)");
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.file     , execTime.file      * ttot, "writing particle data");
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.info     , execTime.info      * ttot, "writing fundamental information of the system");
+  if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskDat  , execTime.diskDat   * ttot, "writing fundamental data of disk component(s)");
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.column, execTime.column * ttot, "calculating column density profile of spherical component(s)");
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.alloc, execTime.alloc * ttot, "memory allocation");
+  //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   freeParticleData(idx, pos, acc,
@@ -1086,6 +1371,7 @@ void outputFundamentalInformation
     case SIGTWOPOW:      fprintf(fp,        "Two-power model in projection\n");      break;
     case  EXP_DISK:      fprintf(fp,                     "Exponential disk\n");      break;
     case    SERSIC:      fprintf(fp,                "Sersic profile (disk)\n");      break;
+    case  TBL_DISK:      fprintf(fp,         "Disk component in table form\n");      break;
     case CENTRALBH:      fprintf(fp,           "Central massive black hole\n");      break;
     default:
       __KILL__(stderr, "ERROR: undefined profile ``%d'' specified\n", cfg[ii].kind);
@@ -1093,7 +1379,15 @@ void outputFundamentalInformation
     }/* switch( cfg[ii].kind ){ */
     fprintf(fp, "#############################################################################\n");
     fprintf(fp, "Total number of particles Ntot is %zu (about 2^%u)\n", cfg[ii].num, ilog2((int)cfg[ii].num));
-    fprintf(fp, "Range of idx for the component is [%zu, %zu]\n", ihead, ihead + cfg[ii].num - 1);    ihead += cfg[ii].num;
+    fprintf(fp, "Range of idx for the component is [%zu, %zu]\n", ihead, ihead + cfg[ii].num - 1);
+    if( cfg[ii].kind < 0 )
+      if( cfg[ii].retrogradeFrac > 0.0 ){
+	ulong retroNum, retroHead;
+	pickRetrogradingParticles(cfg[ii].num, ihead, cfg[ii].retrogradeFrac, &retroNum, &retroHead);
+	fprintf(fp, "\tRange of idx for   prograding particles is [%zu, %zu]\n", ihead, ihead + cfg[ii].num - retroNum - 1);
+	fprintf(fp, "\tRange of idx for retrograding particles is [%zu, %zu]\n", retroHead, retroHead + retroNum - 1);
+      }/* if( cfg[ii].retrogradeFrac > 0.0 ){ */
+    ihead += cfg[ii].num;
     fprintf(fp, "Mass of each N-body particle m is %e (= %e %s)\n", cfg[ii].Mtot / (double)cfg[ii].num, cfg[ii].Mtot / (double)cfg[ii].num * mass2astro, mass_astro_unit_name);
     fprintf(fp, "#############################################################################\n");
     if( cfg[ii].kind == TABLE_RHO )
@@ -1145,7 +1439,7 @@ void outputFundamentalInformation
       fprintf(fp, "Internal power-law index    beta is %e\n", cfg[ii].twopower_beta);
       fprintf(fp, "   Outer power-law index   gamma is %e\n", cfg[ii].twopower_gamma);
     }/* if( cfg[ii].kind == SIGTWOPOW ){ */
-    if( (cfg[ii].kind == EXP_DISK) || (cfg[ii].kind == SERSIC) ){
+    if( (cfg[ii].kind == EXP_DISK) || (cfg[ii].kind == SERSIC) || (cfg[ii].kind == TBL_DISK) ){
       if( cfg[ii].kind == SERSIC ){
 	fprintf(fp, "Sersic index                   n is %e\n", cfg[ii].n_sersic);
 	fprintf(fp, "Dimensionless scale factor     b is %e\n", cfg[ii].b_sersic);
@@ -1161,9 +1455,10 @@ void outputFundamentalInformation
       fprintf(fp, "Horizontal velocity dispersion   is %e (= %e %s)\n", cfg[ii].vdispR0  , cfg[ii].vdispR0   * velocity2astro, velocity_astro_unit_name);
 #endif//USE_ORIGINAL_VDISP_ESTIMATOR
       fprintf(fp, "Vertical   velocity dispersion   is %e (= %e %s)\n", cfg[ii].vdispz0  , cfg[ii].vdispz0   * velocity2astro, velocity_astro_unit_name);
+      fprintf(fp, "Retrograding fraction            is %e\n", cfg[ii].retrogradeFrac);
       fprintf(fp, "Toomre's Q-value at scale radius is %e\n", cfg[ii].toomre);
       fprintf(fp, "Minimum of Toomre's Q-value      is %e\n", cfg[ii].Qmin);
-    }/* if( (cfg[ii].kind == EXP_DISK) || (cfg[ii].kind == SERSIC) ){ */
+    }/* if( (cfg[ii].kind == EXP_DISK) || (cfg[ii].kind == SERSIC) || (cfg[ii].kind == TBL_DISK) ){ */
     if( cfg[ii].kind != CENTRALBH ){
       if( cfg[ii].cutoff ){
 	fprintf(fp, "Cutoff radius of the component   is %e (= %e %s)\n", cfg[ii].rc      , cfg[ii].rc       * length2astro, length_astro_unit_name);
@@ -1192,9 +1487,9 @@ void outputFundamentalInformation
       //-------------------------------------------------------------------
       /* estimate dynamical time at scale length for each component */
       const double Ns = (double)Ntot * (Ms / Mtot);
-      const double tff = M_PI_2 * cfg[ii].rs * sqrt(cfg[ii].rs / (2.0 * (double)newton * Ms));
-      const double t2r = tff * Ns / (32.0 * log(cfg[ii].rs / (double)eps));
-      double trot;
+      const double tff = M_PI_2 * cfg[ii].rs * sqrt(cfg[ii].rs / (2.0 * CAST_R2D(newton) * Ms));
+      const double t2r = tff * Ns / (32.0 * log(cfg[ii].rs / CAST_R2D(eps)));
+      double trot = 0.0;
       if( (cfg[ii].kind == EXP_DISK) || (cfg[ii].kind == SERSIC) )
 	trot = 2.0 * M_PI * cfg[ii].rs / cfg[ii].vcirc_Rd;
       fprintf(fp, "Total number of particles within the scale length is       %e\n", Ns);
@@ -1204,15 +1499,15 @@ void outputFundamentalInformation
 	fprintf(fp, "Rotation time scale at the scale length                 is %e (= %e x tff = %e %s)\n", trot, trot / tff, trot * time2astro, time_astro_unit_name);
       fprintf(fp, "Two-body relaxation time at the scale length            is %e (= %e %s)\n", t2r, t2r * time2astro, time_astro_unit_name);
       fprintf(fp, "#############################################################################\n");
-      fprintf(fp, "Snapshot interval in the unit of free-fall time           is %e\n", (double)snapshotInterval / tff);
+      fprintf(fp, "Snapshot interval in the unit of free-fall time           is %e\n", CAST_R2D(snapshotInterval) / tff);
       if( (cfg[ii].kind == EXP_DISK) || (cfg[ii].kind == SERSIC) )
-	fprintf(fp, "Snapshot interval in the unit of rotation time scale      is %e\n", (double)snapshotInterval / trot);
-      fprintf(fp, "Snapshot interval in the unit of two-body relaxation time is %e\n", (double)snapshotInterval / t2r);
+	fprintf(fp, "Snapshot interval in the unit of rotation time scale      is %e\n", CAST_R2D(snapshotInterval) / trot);
+      fprintf(fp, "Snapshot interval in the unit of two-body relaxation time is %e\n", CAST_R2D(snapshotInterval) / t2r);
       fprintf(fp, "#############################################################################\n");
-      fprintf(fp, "Final time of the simulation in the unit of free-fall time           is %e\n", (double)ft / tff);
+      fprintf(fp, "Final time of the simulation in the unit of free-fall time           is %e\n", CAST_R2D(ft) / tff);
       if( (cfg[ii].kind == EXP_DISK) || (cfg[ii].kind == SERSIC) )
-	fprintf(fp, "Final time of the simulation in the unit of rotation time scale      is %e\n", (double)ft / trot);
-      fprintf(fp, "Final time of the simulation in the unit of two-body relaxation time is %e\n", (double)ft / t2r);
+	fprintf(fp, "Final time of the simulation in the unit of rotation time scale      is %e\n", CAST_R2D(ft) / trot);
+      fprintf(fp, "Final time of the simulation in the unit of two-body relaxation time is %e\n", CAST_R2D(ft) / t2r);
       fprintf(fp, "#############################################################################\n");
       fprintf(fp, "#############################################################################\n");
       //-------------------------------------------------------------------
@@ -1272,12 +1567,12 @@ void outputFundamentalInformation
     //---------------------------------------------------------------------
 #pragma omp parallel for
     for(int ii = 0; ii < NRADBIN; ii++){
-      tmp_rad[ii] = (real)(prf[kk][ii].rad *  length2astro);
-      tmp_rho[ii] = (real)(prf[kk][ii].rho * density2astro);
-      tmp_enc[ii] = (real)(prf[kk][ii].enc *    mass2astro);
-      tmp_psi[ii] = (real)(prf[kk][ii].psi * senergy2astro);
+      tmp_rad[ii] = CAST_D2R(prf[kk][ii].rad *  length2astro);
+      tmp_rho[ii] = CAST_D2R(prf[kk][ii].rho * density2astro);
+      tmp_enc[ii] = CAST_D2R(prf[kk][ii].enc *    mass2astro);
+      tmp_psi[ii] = CAST_D2R(prf[kk][ii].psi * senergy2astro);
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
-      tmp_Sig[ii] = (real)(prf[kk][ii].Sigma * col_density2astro);
+      tmp_Sig[ii] = CAST_D2R(prf[kk][ii].Sigma * col_density2astro);
 #endif//MAKE_COLUMN_DENSITY_PROFILE
     }/* for(int ii = 0; ii < NRADBIN; ii++){ */
     //---------------------------------------------------------------------
@@ -1372,13 +1667,13 @@ void outputFundamentalInformation
     double enc = 0.0;
     for(int jj = 0; jj < kind; jj++)
       enc += prf[jj][ii].enc;
-    const double tff = M_PI_2 * rad * sqrt(rad / (2.0 * (double)newton * enc));
-    double t2r = tff * ((double)Ntot * (enc / Mtot)) / (32.0 * log(enc / (double)eps));
+    const double tff = M_PI_2 * rad * sqrt(rad / (2.0 * CAST_R2D(newton) * enc));
+    double t2r = tff * ((double)Ntot * (enc / Mtot)) / (32.0 * log(enc / CAST_R2D(eps)));
     if( t2r < 0.0 )
       t2r = 0.0;
-    tmp_rad[ii] = (real)(rad * length2astro);
-    tmp_tff[ii] = (real)(tff *   time2astro);
-    tmp_t2r[ii] = (real)(t2r *   time2astro);
+    tmp_rad[ii] = CAST_D2R(rad * length2astro);
+    tmp_tff[ii] = CAST_D2R(tff *   time2astro);
+    tmp_t2r[ii] = CAST_D2R(t2r *   time2astro);
   }/* for(int ii = 0; ii < NRADBIN; ii++){ */
   //-----------------------------------------------------------------------
   /* write typical timescale */
@@ -1509,8 +1804,8 @@ void outputFundamentalInformation
     //---------------------------------------------------------------------
 #pragma omp parallel for
     for(int ii = 0; ii < NENEBIN; ii++){
-      tmp_ene[ii] = (real)((double)df[kk][ii].ene * senergy2astro);
-      tmp_val[ii] =                df[kk][ii].val;
+      tmp_ene[ii] = CAST_D2R(CAST_R2D(df[kk][ii].ene) * senergy2astro);
+      tmp_val[ii] =                   df[kk][ii].val;
     }/* for(int ii = 0; ii < NENEBIN; ii++){ */
     //---------------------------------------------------------------------
     char grp[16];    sprintf(grp,  "series%d", kk);
@@ -1718,13 +2013,13 @@ static void evaluateDiskProperties
     /* memorize calculated values */
     //---------------------------------------------------------------------
     const int jj = ii - ihead;
-    _vcirc [jj] = (real)(vcirc	* velocity2astro);    /* if( isinf(_vcirc [jj]) == 1 )      _vcirc [jj] = REAL_MAX; */
-    _sigmap[jj] = (real)(sigmap * velocity2astro);    /* if( isinf(_sigmap[jj]) == 1 )      _sigmap[jj] = REAL_MAX; */
-    _sigmaR[jj] = (real)(sigmaR * velocity2astro);    if( isinf(_sigmaR[jj]) == 1 )      _sigmaR[jj] = REAL_MAX;
-    _kappa [jj] = (real)(kappa	/     time2astro);    /* if( isinf(_kappa [jj]) == 1 )      _kappa [jj] = REAL_MAX; */
-    _Omega [jj] = (real)(Omega	/     time2astro);    /* if( isinf(_Omega [jj]) == 1 )      _Omega [jj] = REAL_MAX; */
-    _lambda[jj] = (real)(lambda *   length2astro);    if( isinf(_lambda[jj]) == 1 )      _lambda[jj] = REAL_MAX;
-    _toomre[jj] = (real) toomre                  ;    if( isinf(_toomre[jj]) == 1 )      _toomre[jj] = REAL_MAX;
+    _vcirc [jj] = CAST_D2R(vcirc  * velocity2astro);    /* if( isinf(_vcirc [jj]) == 1 )	    _vcirc [jj] = REAL_MAX; */
+    _sigmap[jj] = CAST_D2R(sigmap * velocity2astro);	/* if( isinf(_sigmap[jj]) == 1 )      _sigmap[jj] = REAL_MAX; */
+    _sigmaR[jj] = CAST_D2R(sigmaR * velocity2astro);	if( isinf(_sigmaR[jj]) == 1 )	   _sigmaR[jj] = REAL_MAX;
+    _kappa [jj] = CAST_D2R(kappa  /     time2astro);    /* if( isinf(_kappa [jj]) == 1 )	    _kappa [jj] = REAL_MAX; */
+    _Omega [jj] = CAST_D2R(Omega  /     time2astro);    /* if( isinf(_Omega [jj]) == 1 )	    _Omega [jj] = REAL_MAX; */
+    _lambda[jj] = CAST_D2R(lambda *   length2astro);	if( isinf(_lambda[jj]) == 1 )	   _lambda[jj] = REAL_MAX;
+    _toomre[jj] = CAST_D2R(toomre                 );	if( isinf(_toomre[jj]) == 1 )	   _toomre[jj] = REAL_MAX;
     //---------------------------------------------------------------------
   }/* for(int ii = ihead; ii < itail + 1; ii++){ */
   //-----------------------------------------------------------------------
@@ -1860,11 +2155,11 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
       if( ndisk > 1 )
 #pragma omp parallel for
 	for(int jj = 0; jj < NDISKBIN_HOR * NDISKBIN_VER; jj++)
-	  rhoFrac[jj] = (real)((*disk[ii].rho)[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * disk[ii].rhoTot[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)]);
+	  rhoFrac[jj] = CAST_D2R((*disk[ii].rho)[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * disk[ii].rhoTot[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)]);
 #pragma omp parallel for
       for(int jj = 0; jj < NDISKBIN_HOR * NDISKBIN_VER; jj++){
-	tmp_rho[jj] = (real)((*disk[ii].rho)[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * density2astro);
-	tmp_Phi[jj] = (real)(  disk[ii].pot [INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * senergy2astro);
+	tmp_rho[jj] = CAST_D2R((*disk[ii].rho)[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * density2astro);
+	tmp_Phi[jj] = CAST_D2R(	 disk[ii].pot [INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * senergy2astro);
       }/* for(int jj = 0; jj < NDISKBIN_HOR * NDISKBIN_VER; jj++){ */
       //-------------------------------------------------------------------
       hsize_t dims[2] = {NDISKBIN_HOR, NDISKBIN_VER};
@@ -1909,16 +2204,16 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
       {
 #pragma omp for nowait
 	for(int jj = 0; jj < NDISKBIN_HOR; jj++)
-	  tmp_hor[jj] = (real)(disk[ii].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] * length2astro);
+	  tmp_hor[jj] = CAST_D2R(disk[ii].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] * length2astro);
 #pragma omp for nowait
 	for(int jj = 0; jj < NDISKBIN_VER; jj++)
-	  tmp_ver[jj] = (real)(disk[ii].ver[INDEX2D(maxLev, NDISKBIN_VER, lev, jj)] * length2astro);
+	  tmp_ver[jj] = CAST_D2R(disk[ii].ver[INDEX2D(maxLev, NDISKBIN_VER, lev, jj)] * length2astro);
 #pragma omp for nowait
 	for(int jj = 0; jj < NDISKBIN_HOR + 1; jj++)
-	  node_RR[jj] = (real)(disk[ii].node_hor[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, jj)] * length2astro);
+	  node_RR[jj] = CAST_D2R(disk[ii].node_hor[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, jj)] * length2astro);
 #pragma omp for nowait
 	for(int jj = 0; jj < NDISKBIN_VER + 1; jj++)
-	  node_zz[jj] = (real)(disk[ii].node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev, jj)] * length2astro);
+	  node_zz[jj] = CAST_D2R(disk[ii].node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev, jj)] * length2astro);
       }
       //-------------------------------------------------------------------
 
@@ -2052,17 +2347,17 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
 #pragma omp parallel for
     for(int jj = 0; jj < NDISKBIN_HOR; jj++){
       //-------------------------------------------------------------------
-      tmp_hor[jj] = (real)(disk[ii].hor   [INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, jj)] *      length2astro);
-      tmp_sig[jj] = (real)(disk[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, jj)] *    velocity2astro);
-      tmp_Sig[jj] = (real)(disk[ii].Sigma [INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, jj)] * col_density2astro);
+      tmp_hor[jj] = CAST_D2R(disk[ii].hor   [INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, jj)] *      length2astro);
+      tmp_sig[jj] = CAST_D2R(disk[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, jj)] *    velocity2astro);
+      tmp_Sig[jj] = CAST_D2R(disk[ii].Sigma [INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, jj)] * col_density2astro);
 #ifdef	ENABLE_VARIABLE_SCALE_HEIGHT
-      tmp__zd[jj] = (real)(disk[ii].zd    [INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, jj)] *      length2astro);
+      tmp__zd[jj] = CAST_D2R(disk[ii].zd    [INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, jj)] *      length2astro);
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
       //-------------------------------------------------------------------
     }/* for(int jj = 0; jj < NDISKBIN_HOR; jj++){ */
 #pragma omp parallel for
     for(int jj = 0; jj < NDISKBIN_VER; jj++)
-      tmp_ver[jj] = (real)(disk[ii].ver   [INDEX2D(maxLev, NDISKBIN_VER, maxLev - 1, jj)] *      length2astro);
+      tmp_ver[jj] = CAST_D2R(disk[ii].ver   [INDEX2D(maxLev, NDISKBIN_VER, maxLev - 1, jj)] *      length2astro);
     //---------------------------------------------------------------------
     /* data preparation in coarser grids */
     for(int lev = maxLev - 2; lev >= 0; lev--)
@@ -2079,16 +2374,16 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
       //-------------------------------------------------------------------
 #pragma omp for nowait
       for(int jj = 0; jj < (NDISKBIN_HOR >> 1); jj++){
-	tmp_hor[(NDISKBIN_HOR >> 1) * (maxLev - lev) + jj] = (real)(disk[ii].hor   [INDEX2D(maxLev, NDISKBIN_HOR, lev, (NDISKBIN_HOR >> 1) + jj)] *      length2astro);
-	tmp_sig[(NDISKBIN_HOR >> 1) * (maxLev - lev) + jj] = (real)(disk[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, (NDISKBIN_HOR >> 1) + jj)] *    velocity2astro);
-	tmp_Sig[(NDISKBIN_HOR >> 1) * (maxLev - lev) + jj] = (real)(disk[ii].Sigma [INDEX2D(maxLev, NDISKBIN_HOR, lev, (NDISKBIN_HOR >> 1) + jj)] * col_density2astro);
+	tmp_hor[(NDISKBIN_HOR >> 1) * (maxLev - lev) + jj] = CAST_D2R(disk[ii].hor   [INDEX2D(maxLev, NDISKBIN_HOR, lev, (NDISKBIN_HOR >> 1) + jj)] *      length2astro);
+	tmp_sig[(NDISKBIN_HOR >> 1) * (maxLev - lev) + jj] = CAST_D2R(disk[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, (NDISKBIN_HOR >> 1) + jj)] *    velocity2astro);
+	tmp_Sig[(NDISKBIN_HOR >> 1) * (maxLev - lev) + jj] = CAST_D2R(disk[ii].Sigma [INDEX2D(maxLev, NDISKBIN_HOR, lev, (NDISKBIN_HOR >> 1) + jj)] * col_density2astro);
 #ifdef	ENABLE_VARIABLE_SCALE_HEIGHT
-	tmp__zd[(NDISKBIN_HOR >> 1) * (maxLev - lev) + jj] = (real)(disk[ii].zd    [INDEX2D(maxLev, NDISKBIN_HOR, lev, (NDISKBIN_HOR >> 1) + jj)] *      length2astro);
+	tmp__zd[(NDISKBIN_HOR >> 1) * (maxLev - lev) + jj] = CAST_D2R(disk[ii].zd    [INDEX2D(maxLev, NDISKBIN_HOR, lev, (NDISKBIN_HOR >> 1) + jj)] *      length2astro);
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
       }/* for(int jj = 0; jj < NDISKBIN_HOR; jj++){ */
 #pragma omp for nowait
       for(int jj = 0; jj < (NDISKBIN_VER >> 1); jj++)
-	tmp_ver[(NDISKBIN_VER >> 1) * (maxLev - lev) + jj] = (real)(disk[ii].ver   [INDEX2D(maxLev, NDISKBIN_VER, lev, (NDISKBIN_VER >> 1) + jj)] *      length2astro);
+	tmp_ver[(NDISKBIN_VER >> 1) * (maxLev - lev) + jj] = CAST_D2R(disk[ii].ver   [INDEX2D(maxLev, NDISKBIN_VER, lev, (NDISKBIN_VER >> 1) + jj)] *      length2astro);
       //-------------------------------------------------------------------
     }/* for(int lev = maxLev - 2; lev >= 0; lev--){ */
     //---------------------------------------------------------------------
@@ -2311,22 +2606,22 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
       if( ndisk > 1 )
 #pragma omp parallel for
 	for(int jj = 0; jj < NDISKBIN_HOR * NDISKBIN_VER; jj++)
-	  rhoFrac[jj] = (real)((*disk[ii].rho)[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * disk[ii].rhoTot[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)]);
+	  rhoFrac[jj] = CAST_D2R((*disk[ii].rho)[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * disk[ii].rhoTot[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)]);
       evaluateDiskProperties(disk, ii, lev, 0, NDISKBIN_HOR - 1, _vcirc, _sigmap, _sigmaR, _kappa, _Omega, _toomre, _lambda);
       //-------------------------------------------------------------------
       for(int jj = 0; jj < nhorbin; jj++){
-	tmp_hor[jj] = (real)(disk[ii].hor   [INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] *     length2astro);
-	tmp_sig[jj] = (real)(disk[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] *    velocity2astro);
-	tmp_Sig[jj] = (real)(disk[ii].Sigma [INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] * col_density2astro);
+	tmp_hor[jj] = CAST_D2R(disk[ii].hor   [INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] *      length2astro);
+	tmp_sig[jj] = CAST_D2R(disk[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] *    velocity2astro);
+	tmp_Sig[jj] = CAST_D2R(disk[ii].Sigma [INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] * col_density2astro);
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-	tmp__zd[jj] = (real)(disk[ii].zd    [INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] *      length2astro);
+	tmp__zd[jj] = CAST_D2R(disk[ii].zd    [INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] *      length2astro);
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
       }/* for(int jj = 0; jj < nhorbin; jj++){ */
       for(int jj = 0; jj < nverbin; jj++)
-	tmp_ver[jj] = (real)(disk[ii].ver[INDEX2D(maxLev, NDISKBIN_VER, lev, jj)] * length2astro);
+	tmp_ver[jj] = CAST_D2R(disk[ii].ver[INDEX2D(maxLev, NDISKBIN_VER, lev, jj)] * length2astro);
       for(int jj = 0; jj < nhorbin * nverbin; jj++){
-	tmp_rho[jj] = (real)((*disk[ii].rho)[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * density2astro);
-	tmp_Phi[jj] = (real)(  disk[ii].pot [INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * senergy2astro);
+	tmp_rho[jj] = CAST_D2R((*disk[ii].rho)[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * density2astro);
+	tmp_Phi[jj] = CAST_D2R(  disk[ii].pot [INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * senergy2astro);
       }/* for(int jj = 0; jj < nhorbin * nverbin; jj++){ */
       //---------------------------------------------------------------------
       success &= (fwrite(tmp_hor, sizeof(real), nhorbin          , fp) == nhorbin          );

@@ -180,8 +180,7 @@ fi
 # execute numerical simulation
 ###############################################################
 . /opt/Modules/default/init/bash
-module load intel/15.0.5 intelmpi/5.1.1
-module load cuda/7.5.18 cuda/samples_7.5.18
+module load intel/16.0.4 mvapich2/2.2_intel_cuda-8.0.44 cuda/8.0.44 cuda-samples/8.0.44
 # module load ddt/5.1 reports/5.1
 ###############################################################
 cd $PBS_O_WORKDIR
@@ -194,7 +193,12 @@ echo "start: $TIME" >> $STDOUT
 ###############################################################
 # export ALLINEA_NO_TIMEOUT
 # perf-report mpirun -np $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE $EXEC -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID 1>>$STDOUT 2>>$STDERR
-mpirun -np $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE $EXEC -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID 1>>$STDOUT 2>>$STDERR
+###############################################################
+# # for IntelMPI
+# mpirun -np $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE $EXEC -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID 1>>$STDOUT 2>>$STDERR
+###############################################################
+# for mvapich2
+mpirun_rsh -np $PROCS -hostfile $PBS_NODEFILE $EXEC -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID 1>>$STDOUT 2>>$STDERR
 ###############################################################
 TIME=`date`
 echo "finish: $TIME" >> $STDOUT

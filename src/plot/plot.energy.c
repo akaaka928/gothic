@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/12(Wed) 11:09:43
+                  last updated on 2016/12/06(Tue) 12:40:19
  *                                                                       *
  *    Plot Code of N-body Simulations (using PLplot)                     *
  *      Time Evolution of total energy, kinetic energy, potential energy *
@@ -21,19 +21,18 @@
 #include <mpi.h>
 //-------------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
-#       include <hdf5.h>
-#       include <hdf5lib.h>
+#include <hdf5.h>
+#include "hdf5lib.h"
 #endif//USE_HDF5_FORMAT
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <myutil.h>
-#include <constants.h>
-#include <mpilib.h>
-#include <plplotlib.h>
+#include "macro.h"
+#include "myutil.h"
+#include "constants.h"
+#include "mpilib.h"
+#include "plplotlib.h"
 //-------------------------------------------------------------------------
 #include "../misc/structure.h"
 #include "../misc/allocate.h"
-//-------------------------------------------------------------------------
 #include "../file/io.h"
 //-------------------------------------------------------------------------
 extern const double     time2astro;extern const char     time_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
@@ -300,10 +299,10 @@ int main(int argc, char **argv)
       virial.ymin =  0.4901;      virial.ymax = 0.5099;      virial.ylog = LINEAR_PLOT;
       momerr.ymin = -5.0e-4;      momerr.ymax = 5.0e-4;      momerr.ylog = LINEAR_PLOT;
       break;
-    case  3:      /* NFW sphere with C = 5 */
-      evolve.ymin = -0.4000;      evolve.ymax = 0.3000;      evolve.ylog = LINEAR_PLOT;
+    case  3:      /* NFW sphere with C = 10 */
+      evolve.ymin = -0.2000;      evolve.ymax = 0.1500;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4901;      virial.ymax = 0.5099;      virial.ylog = LINEAR_PLOT;
-      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
+      momerr.ymin = -3.0e-3;      momerr.ymax = 3.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     case  4:      /* Einasto sphere with C = 10 */
       evolve.ymin = -0.4000;      evolve.ymax = 0.3000;      evolve.ylog = LINEAR_PLOT;
@@ -353,42 +352,42 @@ int main(int argc, char **argv)
     case 20:      /* M31 model determined by Fardal et al. (2007) */
       evolve.ymin = -6.3e+6;      evolve.ymax = 4.2e+6;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4971;      virial.ymax = 0.5029;      virial.ylog = LINEAR_PLOT;
-      momerr.ymin = -1.0e+0;      momerr.ymax = 1.0e+0;      momerr.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     case 22:      /* A trial multi components galaxy model */
       evolve.ymin = -1.0e+7;      evolve.ymax = 6.0e+6;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4951;      virial.ymax = 0.5049;      virial.ylog = LINEAR_PLOT;
-      momerr.ymin = -1.0e+0;      momerr.ymax = 1.0e+0;      momerr.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     case 23:      /* MW model (Sofue 2015; Akhter et al. 2012; Gillessen et al. 2009; Juric et al. 2008) */
       evolve.ymin = -8.0e+6;      evolve.ymax = 5.0e+6;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4951;      virial.ymax = 0.5049;      virial.ylog = LINEAR_PLOT;
-      momerr.ymin = -1.0e+0;      momerr.ymax = 1.0e+0;      momerr.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     case 24:      /* M31 model (Sofue 2015; Gilbert et al. 2012) */
       evolve.ymin = -1.5e+7;      evolve.ymax = 1.0e+7;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4971;      virial.ymax = 0.5029;      virial.ylog = LINEAR_PLOT;
-      momerr.ymin = -1.0e+0;      momerr.ymax = 1.0e+0;      momerr.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     case 25:      /* A trial multi components galaxy model */
       evolve.ymin = -1.0e+7;      evolve.ymax = 6.0e+6;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4951;      virial.ymax = 0.5049;      virial.ylog = LINEAR_PLOT;
-      momerr.ymin = -1.0e+0;      momerr.ymax = 1.0e+0;      momerr.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     case 26:      /* A trial multi components galaxy model (spherical model) */
       evolve.ymin = -1.0e+7;      evolve.ymax = 6.0e+6;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4951;      virial.ymax = 0.5049;      virial.ylog = LINEAR_PLOT;
-      momerr.ymin = -1.0e+0;      momerr.ymax = 1.0e+0;      momerr.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     case 27:      /* M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk)*/
       evolve.ymin = -6.3e+6;      evolve.ymax = 4.2e+6;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4971;      virial.ymax = 0.5029;      virial.ylog = LINEAR_PLOT;
-      momerr.ymin = -1.0e+0;      momerr.ymax = 1.0e+0;      momerr.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     case 28:      /* A trial multi components galaxy model (NFW halo, King bulge, thick Sersic disk, and thin exponential disk) */
       evolve.ymin = -1.0e+7;      evolve.ymax = 6.0e+6;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4951;      virial.ymax = 0.5049;      virial.ylog = LINEAR_PLOT;
-      momerr.ymin = -1.0e+0;      momerr.ymax = 1.0e+0;      momerr.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     case 29:      /* Multi components galaxy model by Vasiliev & Athanassoula (2015) */
       evolve.ymin = -2.4e+1;      evolve.ymax = 1.4e+1;      evolve.ylog = LINEAR_PLOT;
@@ -398,47 +397,47 @@ int main(int argc, char **argv)
     case 30:      /* time evolution of MW/A defined in Kuijken & Dubinski (1995) */
       evolve.ymin = -1.6e+2;      evolve.ymax = 1.2e+2;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4871;      virial.ymax = 0.5049;      virial.ylog = LINEAR_PLOT;
-      momerr.ymin = -1.0e+0;      momerr.ymax = 1.0e+0;      momerr.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     case 31:      /* time evolution of MW/B defined in Kuijken & Dubinski (1995) */
       evolve.ymin = -3.2e+2;      evolve.ymax = 2.4e+2;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4901;      virial.ymax = 0.5039;      virial.ylog = LINEAR_PLOT;
-      momerr.ymin = -1.0e+0;      momerr.ymax = 1.0e+0;      momerr.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     case 32:      /* time evolution of MW/C defined in Kuijken & Dubinski (1995) */
       evolve.ymin = -7.5e+2;      evolve.ymax = 5.0e+2;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4941;      virial.ymax = 0.5019;      virial.ylog = LINEAR_PLOT;
-      momerr.ymin = -1.0e+0;      momerr.ymax = 1.0e+0;      momerr.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     case 33:      /* time evolution of MW/D defined in Kuijken & Dubinski (1995) */
       evolve.ymin = -1.6e+3;      evolve.ymax = 1.2e+3;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4951;      virial.ymax = 0.5029;      virial.ylog = LINEAR_PLOT;
-      momerr.ymin = -1.0e+0;      momerr.ymax = 1.0e+0;      momerr.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     case 34:      /* time evolution of M31/A defined in Widrow et al. (2003) */
       evolve.ymin = -4.0e+2;      evolve.ymax = 2.0e+2;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4801;      virial.ymax = 0.5099;      virial.ylog = LINEAR_PLOT;
-      momerr.ymin = -1.0e+0;      momerr.ymax = 1.0e+0;      momerr.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     case 35:      /* time evolution of M31/D defined in Widrow et al. (2003) */
       evolve.ymin = -4.0e+2;      evolve.ymax = 2.0e+2;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4551;      virial.ymax = 0.5349;      virial.ylog = LINEAR_PLOT;
-      momerr.ymin = -1.0e+0;      momerr.ymax = 1.0e+0;      momerr.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     case 36:      /* time evolution of MWa defined in Widrow & Dubinski (2005) */
       evolve.ymin = -2.0e+2;      evolve.ymax = 1.5e+2;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4901;      virial.ymax = 0.5099;      virial.ylog = LINEAR_PLOT;
-      momerr.ymin = -1.0e+0;      momerr.ymax = 1.0e+0;      momerr.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     case 37:      /* time evolution of MWb defined in Widrow & Dubinski (2005) */
       evolve.ymin = -2.0e+2;      evolve.ymax = 1.5e+2;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4901;      virial.ymax = 0.5099;      virial.ylog = LINEAR_PLOT;
-      momerr.ymin = -1.0e+0;      momerr.ymax = 1.0e+0;      momerr.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     case 38:      /* MW like galaxy (based on Widrow et al. 2008; Bedorf et al. 2014) */
       evolve.ymin = -2.0e+6;      evolve.ymax = 1.5e+6;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4901;      virial.ymax = 0.5099;      virial.ylog = LINEAR_PLOT;
-      momerr.ymin = -1.0e+0;      momerr.ymax = 1.0e+0;      momerr.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     case 40:      /* Plummer sphere in table form with C = 20 */
       evolve.ymin = -9.0e+1;      evolve.ymax = 6.0e+1;      evolve.ylog = LINEAR_PLOT;
@@ -479,14 +478,7 @@ int main(int argc, char **argv)
     //---------------------------------------------------------------------
     evolve.ymin *= energy2astro;
     evolve.ymax *= energy2astro;
-#ifdef  NORMALIZED_MOMENTUM_ERROR
-    /* momerr.ymin = -3.0e-2; */
-    /* momerr.ymax =  3.0e-2; */
-    momerr.ymin = -1.0e-3;
-    momerr.ymax =  1.0e-3;
-    /* momerr.ymin = -2.0e-5; */
-    /* momerr.ymax =  2.0e-5; */
-#else///NORMALIZED_MOMENTUM_ERROR
+#ifndef NORMALIZED_MOMENTUM_ERROR
     momerr.ymin *= mass2astro * velocity2astro;
     momerr.ymax *= mass2astro * velocity2astro;
 #endif//NORMALIZED_MOMENTUM_ERROR

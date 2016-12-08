@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/28(Fri) 16:23:47
+                  last updated on 2016/12/08(Thu) 15:30:07
  *                                                                       *
  *    Header File to describe radial profile of spherical component(s)   *
  *                                                                       *
@@ -14,7 +14,7 @@
 //-------------------------------------------------------------------------
 #include <stdbool.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
+#include "macro.h"
 //-------------------------------------------------------------------------
 
 
@@ -26,15 +26,15 @@
 //-------------------------------------------------------------------------
 #define CENTRALBH (1000)
 //-------------------------------------------------------------------------
-#define   PLUMMER ( 0)
-#define      KING ( 1)
-#define   BURKERT ( 2)
-#define HERNQUIST ( 3)
-#define       NFW ( 4)
-#define     MOORE ( 5)
-#define   EINASTO ( 6)
-#define TWO_POWER ( 7)
-#define TRI_POWER ( 8)
+#define   PLUMMER  (0)
+#define      KING  (1)
+#define   BURKERT  (2)
+#define HERNQUIST  (3)
+#define       NFW  (4)
+#define     MOORE  (5)
+#define   EINASTO  (6)
+#define TWO_POWER  (7)
+#define TRI_POWER  (8)
 #define  APP_KING (10)
 #define APP_EVANS (11)
 #define TABLE_RHO (20)
@@ -42,8 +42,9 @@
 #define SPHSERSIC (30)
 #define SIGTWOPOW (31)
 //-------------------------------------------------------------------------
-#define  EXP_DISK (-1)
-#define    SERSIC (-2)
+#define  EXP_DISK  (-1)
+#define    SERSIC  (-2)
+#define  TBL_DISK (-10)
 //-------------------------------------------------------------------------
 
 
@@ -53,6 +54,9 @@
 #define MINRAD  (1.0 / 1048576.0)
 //-------------------------------------------------------------------------
 #define MAKE_COLUMN_DENSITY_PROFILE
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+#define SKIP_INTERVAL_FOR_COLUMN_DENSITY (128)
+#endif//MAKE_COLUMN_DENSITY_PROFILE
 //-------------------------------------------------------------------------
 typedef struct
 {
@@ -78,13 +82,14 @@ typedef struct
   double zd, Sigma0, vdispR0, vdispz0, vdisp_frac;/* parameters for disk components */
   double n_sersic, b_sersic;/* parameters for Sersic profile */
   double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin;/* properties of disk components */
-  bool passed;/* variable to estimate Toomre's Q-value */
+  double retrogradeFrac;/* fraction of retrograding disk particles */
+  double rc, rc_width;
+  double Ecut;
   ulong num;
   int forceNum;/* parameter to specify number of N-body particles for the component */
-  bool cutoff;
-  double rc, rc_width;
   int kind;
-  double Ecut;
+  bool passed;/* variable to estimate Toomre's Q-value */
+  bool cutoff;
 } profile_cfg;
 //-------------------------------------------------------------------------
 

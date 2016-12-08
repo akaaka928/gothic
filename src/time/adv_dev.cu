@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/08(Tue) 14:38:05
+                  last updated on 2016/12/06(Tue) 12:45:31
  *                                                                       *
  *    Orbit integration of N-body particles in collisionless systems     *
  *                                                                       *
@@ -25,19 +25,19 @@
 #include <thrust/sort.h>
 /* #endif//CUB_AVAILABLE */
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
-#include <sys/time.h>
-#include <timer.h>
+#include "macro.h"
+#include "cudalib.h"
+#include "sys/time.h"
+#include "timer.h"
 //-------------------------------------------------------------------------
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
 #include "../misc/device.h"
 //-------------------------------------------------------------------------
 #ifndef SERIALIZED_EXECUTION
-#       include <mpi.h>
-#       include <mpilib.h>
-#       include "../para/mpicfg.h"
+#include <mpi.h>
+#include "mpilib.h"
+#include "../para/mpicfg.h"
 #endif//SERIALIZED_EXECUTION
 //-------------------------------------------------------------------------
 #include "../tree/walk_dev.h"
@@ -345,8 +345,8 @@ __global__ void setTimeStep_kernel
       const real         vz = viz [ii];
       const acceleration ai = iacc[ii];
       //-------------------------------------------------------------------
-      const real v2 = EPSILON +   vx *   vx +   vy *   vy +   vz *   vz;
-      const real a2 = EPSILON + ai.x * ai.x + ai.y * ai.y + ai.z * ai.z;
+      const real v2 = FLT_MIN +	  vx *	 vx +	vy *   vy +   vz *   vz;
+      const real a2 = FLT_MIN + ai.x * ai.x + ai.y * ai.y + ai.z * ai.z;
       //-------------------------------------------------------------------
       const real vdt =      eps * RSQRT(v2);
       const real adt = SQRT(eps * RSQRT(a2));
@@ -373,20 +373,30 @@ __global__ void setTimeStep_kernel
   /* find minimum time step within a warp */
   real dttmp;
 #ifdef  USE_WARP_SHUFFLE_FUNC_TIME
-  dttmp = __shfl_xor(dtloc,  1, warpSize);  if( dttmp < dtloc )    dtloc = dttmp;
-  dttmp = __shfl_xor(dtloc,  2, warpSize);  if( dttmp < dtloc )    dtloc = dttmp;
-  dttmp = __shfl_xor(dtloc,  4, warpSize);  if( dttmp < dtloc )    dtloc = dttmp;
-  dttmp = __shfl_xor(dtloc,  8, warpSize);  if( dttmp < dtloc )    dtloc = dttmp;
-  dttmp = __shfl_xor(dtloc, 16, warpSize);  if( dttmp < dtloc )    dtloc = dttmp;
+  /* dttmp = __shfl_xor(dtloc,  1, warpSize);  if( dttmp < dtloc )    dtloc = dttmp; */
+  /* dttmp = __shfl_xor(dtloc,  2, warpSize);  if( dttmp < dtloc )    dtloc = dttmp; */
+  /* dttmp = __shfl_xor(dtloc,  4, warpSize);  if( dttmp < dtloc )    dtloc = dttmp; */
+  /* dttmp = __shfl_xor(dtloc,  8, warpSize);  if( dttmp < dtloc )    dtloc = dttmp; */
+  /* dttmp = __shfl_xor(dtloc, 16, warpSize);  if( dttmp < dtloc )    dtloc = dttmp; */
+  dttmp = __shfl_xor(dtloc,  1, warpSize);  dtloc = FMIN(dtloc, dttmp);
+  dttmp = __shfl_xor(dtloc,  2, warpSize);  dtloc = FMIN(dtloc, dttmp);
+  dttmp = __shfl_xor(dtloc,  4, warpSize);  dtloc = FMIN(dtloc, dttmp);
+  dttmp = __shfl_xor(dtloc,  8, warpSize);  dtloc = FMIN(dtloc, dttmp);
+  dttmp = __shfl_xor(dtloc, 16, warpSize);  dtloc = FMIN(dtloc, dttmp);
   if( (tidx & (warpSize - 1)) == 0 )
     dtmin[tidx / warpSize] = dtloc;
 #else///USE_WARP_SHUFFLE_FUNC_TIME
   dtmin[tidx] = dtloc;
-  dttmp = dtmin[tidx ^  1];  if( dttmp < dtloc ){    dtloc = dttmp;  }  dtmin[tidx] = dtloc;/* w/ \pm  1 */
-  dttmp = dtmin[tidx ^  2];  if( dttmp < dtloc ){    dtloc = dttmp;  }  dtmin[tidx] = dtloc;/* w/ \pm  2 */
-  dttmp = dtmin[tidx ^  4];  if( dttmp < dtloc ){    dtloc = dttmp;  }  dtmin[tidx] = dtloc;/* w/ \pm  4 */
-  dttmp = dtmin[tidx ^  8];  if( dttmp < dtloc ){    dtloc = dttmp;  }  dtmin[tidx] = dtloc;/* w/ \pm  8 */
-  dttmp = dtmin[tidx ^ 16];  if( dttmp < dtloc ){    dtloc = dttmp;  }  dtmin[tidx] = dtloc;/* w/ \pm 16 */
+  /* dttmp = dtmin[tidx ^  1];  if( dttmp < dtloc ){    dtloc = dttmp;  }  dtmin[tidx] = dtloc;/\* w/ \pm  1 *\/ */
+  /* dttmp = dtmin[tidx ^  2];  if( dttmp < dtloc ){    dtloc = dttmp;  }  dtmin[tidx] = dtloc;/\* w/ \pm  2 *\/ */
+  /* dttmp = dtmin[tidx ^  4];  if( dttmp < dtloc ){    dtloc = dttmp;  }  dtmin[tidx] = dtloc;/\* w/ \pm  4 *\/ */
+  /* dttmp = dtmin[tidx ^  8];  if( dttmp < dtloc ){    dtloc = dttmp;  }  dtmin[tidx] = dtloc;/\* w/ \pm  8 *\/ */
+  /* dttmp = dtmin[tidx ^ 16];  if( dttmp < dtloc ){    dtloc = dttmp;  }  dtmin[tidx] = dtloc;/\* w/ \pm 16 *\/ */
+  dttmp = dtmin[tidx ^  1];  dtloc = FMIN(dtloc, dttmp);  dtmin[tidx] = dtloc;/* w/ \pm  1 */
+  dttmp = dtmin[tidx ^  2];  dtloc = FMIN(dtloc, dttmp);  dtmin[tidx] = dtloc;/* w/ \pm  2 */
+  dttmp = dtmin[tidx ^  4];  dtloc = FMIN(dtloc, dttmp);  dtmin[tidx] = dtloc;/* w/ \pm  4 */
+  dttmp = dtmin[tidx ^  8];  dtloc = FMIN(dtloc, dttmp);  dtmin[tidx] = dtloc;/* w/ \pm  8 */
+  dttmp = dtmin[tidx ^ 16];  dtloc = FMIN(dtloc, dttmp);  dtmin[tidx] = dtloc;/* w/ \pm 16 */
 #endif//USE_WARP_SHUFFLE_FUNC_TIME
   //-----------------------------------------------------------------------
   /* warpSize^2 = 32^2 = 1024 is the maximum of the number of threads */
@@ -404,16 +414,31 @@ __global__ void setTimeStep_kernel
     //---------------------------------------------------------------------
     /* find the minimum time step within the whole threads */
 #ifdef  USE_WARP_SHUFFLE_FUNC_TIME
+/* #   if  NTHREADS_TIME >=   64 */
+/*   dttmp = __shfl_xor(dtloc,  1, NTHREADS_TIME / warpSize);  if( dttmp < dtloc )    dtloc = dttmp; */
+/* #   if  NTHREADS_TIME >=  128 */
+/*   dttmp = __shfl_xor(dtloc,  2, NTHREADS_TIME / warpSize);  if( dttmp < dtloc )    dtloc = dttmp; */
+/* #   if  NTHREADS_TIME >=  256 */
+/*   dttmp = __shfl_xor(dtloc,  4, NTHREADS_TIME / warpSize);  if( dttmp < dtloc )    dtloc = dttmp; */
+/* #   if  NTHREADS_TIME >=  512 */
+/*   dttmp = __shfl_xor(dtloc,  8, NTHREADS_TIME / warpSize);  if( dttmp < dtloc )    dtloc = dttmp; */
+/* #   if  NTHREADS_TIME == 1024 */
+/*   dttmp = __shfl_xor(dtloc, 16, NTHREADS_TIME / warpSize);  if( dttmp < dtloc )    dtloc = dttmp; */
+/* #endif//NTHREADS_TIME == 1024 */
+/* #endif//NTHREADS_TIME >=  512 */
+/* #endif//NTHREADS_TIME >=  256 */
+/* #endif//NTHREADS_TIME >=  128 */
+/* #endif//NTHREADS_TIME >=   64 */
 #   if  NTHREADS_TIME >=   64
-  dttmp = __shfl_xor(dtloc,  1, NTHREADS_TIME / warpSize);  if( dttmp < dtloc )    dtloc = dttmp;
+  dttmp = __shfl_xor(dtloc,  1, NTHREADS_TIME / warpSize);  dtloc = FMIN(dtloc, dttmp);
 #   if  NTHREADS_TIME >=  128
-  dttmp = __shfl_xor(dtloc,  2, NTHREADS_TIME / warpSize);  if( dttmp < dtloc )    dtloc = dttmp;
+  dttmp = __shfl_xor(dtloc,  2, NTHREADS_TIME / warpSize);  dtloc = FMIN(dtloc, dttmp);
 #   if  NTHREADS_TIME >=  256
-  dttmp = __shfl_xor(dtloc,  4, NTHREADS_TIME / warpSize);  if( dttmp < dtloc )    dtloc = dttmp;
+  dttmp = __shfl_xor(dtloc,  4, NTHREADS_TIME / warpSize);  dtloc = FMIN(dtloc, dttmp);
 #   if  NTHREADS_TIME >=  512
-  dttmp = __shfl_xor(dtloc,  8, NTHREADS_TIME / warpSize);  if( dttmp < dtloc )    dtloc = dttmp;
+  dttmp = __shfl_xor(dtloc,  8, NTHREADS_TIME / warpSize);  dtloc = FMIN(dtloc, dttmp);
 #   if  NTHREADS_TIME == 1024
-  dttmp = __shfl_xor(dtloc, 16, NTHREADS_TIME / warpSize);  if( dttmp < dtloc )    dtloc = dttmp;
+  dttmp = __shfl_xor(dtloc, 16, NTHREADS_TIME / warpSize);  dtloc = FMIN(dtloc, dttmp);
 #endif//NTHREADS_TIME == 1024
 #endif//NTHREADS_TIME >=  512
 #endif//NTHREADS_TIME >=  256
@@ -421,16 +446,31 @@ __global__ void setTimeStep_kernel
 #endif//NTHREADS_TIME >=   64
 #else///USE_WARP_SHUFFLE_FUNC_TIME
     dtmin[tidx] = dttmp;
+/* #   if  NTHREADS_TIME >=   64 */
+/*     dttmp = dtmin[tidx ^  1];    if( dttmp < dtloc ){      dtloc = dttmp;    }    dtmin[tidx] = dtloc; */
+/* #   if  NTHREADS_TIME >=  128 */
+/*     dttmp = dtmin[tidx ^  2];    if( dttmp < dtloc ){      dtloc = dttmp;    }    dtmin[tidx] = dtloc; */
+/* #   if  NTHREADS_TIME >=  256 */
+/*     dttmp = dtmin[tidx ^  4];    if( dttmp < dtloc ){      dtloc = dttmp;    }    dtmin[tidx] = dtloc; */
+/* #   if  NTHREADS_TIME >=  512 */
+/*     dttmp = dtmin[tidx ^  8];    if( dttmp < dtloc ){      dtloc = dttmp;    }    dtmin[tidx] = dtloc; */
+/* #   if  NTHREADS_TIME == 1024 */
+/*     dttmp = dtmin[tidx ^ 16];    if( dttmp < dtloc ){      dtloc = dttmp;    }    dtmin[tidx] = dtloc; */
+/* #endif//NTHREADS_TIME == 1024 */
+/* #endif//NTHREADS_TIME >=  512 */
+/* #endif//NTHREADS_TIME >=  256 */
+/* #endif//NTHREADS_TIME >=  128 */
+/* #endif//NTHREADS_TIME >=   64 */
 #   if  NTHREADS_TIME >=   64
-    dttmp = dtmin[tidx ^  1];    if( dttmp < dtloc ){      dtloc = dttmp;    }    dtmin[tidx] = dtloc;
+    dttmp = dtmin[tidx ^  1];    dtloc = FMIN(dtloc, dttmp);	dtmin[tidx] = dtloc;
 #   if  NTHREADS_TIME >=  128
-    dttmp = dtmin[tidx ^  2];    if( dttmp < dtloc ){      dtloc = dttmp;    }    dtmin[tidx] = dtloc;
+    dttmp = dtmin[tidx ^  2];	 dtloc = FMIN(dtloc, dttmp);	dtmin[tidx] = dtloc;
 #   if  NTHREADS_TIME >=  256
-    dttmp = dtmin[tidx ^  4];    if( dttmp < dtloc ){      dtloc = dttmp;    }    dtmin[tidx] = dtloc;
+    dttmp = dtmin[tidx ^  4];	 dtloc = FMIN(dtloc, dttmp);	dtmin[tidx] = dtloc;
 #   if  NTHREADS_TIME >=  512
-    dttmp = dtmin[tidx ^  8];    if( dttmp < dtloc ){      dtloc = dttmp;    }    dtmin[tidx] = dtloc;
+    dttmp = dtmin[tidx ^  8];	 dtloc = FMIN(dtloc, dttmp);	dtmin[tidx] = dtloc;
 #   if  NTHREADS_TIME == 1024
-    dttmp = dtmin[tidx ^ 16];    if( dttmp < dtloc ){      dtloc = dttmp;    }    dtmin[tidx] = dtloc;
+    dttmp = dtmin[tidx ^ 16];	 dtloc = FMIN(dtloc, dttmp);	dtmin[tidx] = dtloc;
 #endif//NTHREADS_TIME == 1024
 #endif//NTHREADS_TIME >=  512
 #endif//NTHREADS_TIME >=  256
@@ -537,33 +577,31 @@ __device__ __forceinline__ void   getMinimumDblTsub(      double *min, volatile 
 #ifdef  USE_WARP_SHUFFLE_FUNC_TIME
   //-----------------------------------------------------------------------
   union {int2 i; double d;} val, tmp;  val.d = min;
-/* #   if  (TSUB / NWARP) >=  2 */
-/*   tmp.i.x = __shfl_xor(val.i.x,  1, TSUB / NWARP);  tmp.i.y = __shfl_xor(val.i.y,  1, TSUB / NWARP);  if( tmp.d < val.d )    val.d = tmp.d; */
-/* #   if  (TSUB / NWARP) >=  4 */
-/*   tmp.i.x = __shfl_xor(val.i.x,  2, TSUB / NWARP);  tmp.i.y = __shfl_xor(val.i.y,  2, TSUB / NWARP);  if( tmp.d < val.d )    val.d = tmp.d; */
-/* #   if  (TSUB / NWARP) >=  8 */
-/*   tmp.i.x = __shfl_xor(val.i.x,  4, TSUB / NWARP);  tmp.i.y = __shfl_xor(val.i.y,  4, TSUB / NWARP);  if( tmp.d < val.d )    val.d = tmp.d; */
-/* #   if  (TSUB / NWARP) >= 16 */
-/*   tmp.i.x = __shfl_xor(val.i.x,  8, TSUB / NWARP);  tmp.i.y = __shfl_xor(val.i.y,  8, TSUB / NWARP);  if( tmp.d < val.d )    val.d = tmp.d; */
-/* #   if  (TSUB / NWARP) == 32 */
-/*   tmp.i.x = __shfl_xor(val.i.x, 16, TSUB / NWARP);  tmp.i.y = __shfl_xor(val.i.y, 16, TSUB / NWARP);  if( tmp.d < val.d )    val.d = tmp.d; */
-/* #endif//(TSUB / NWARP) == 32 */
-/* #endif//(TSUB / NWARP) >= 16 */
-/* #endif//(TSUB / NWARP) >=  8 */
-/* #endif//(TSUB / NWARP) >=  4 */
-/* #endif//(TSUB / NWARP) >=  2 */
-/*   tmp.i.x = __shfl(val.i.x, 0, TSUB / NWARP); */
-/*   tmp.i.y = __shfl(val.i.y, 0, TSUB / NWARP); */
+/* #   if  DIV_NWARP(TSUB) >=  2 */
+/*   tmp.i.x = __shfl_xor(val.i.x,  1, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y,  1, DIV_NWARP(TSUB));  if( tmp.d < val.d )    val.d = tmp.d; */
+/* #   if  DIV_NWARP(TSUB) >=  4 */
+/*   tmp.i.x = __shfl_xor(val.i.x,  2, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y,  2, DIV_NWARP(TSUB));  if( tmp.d < val.d )    val.d = tmp.d; */
+/* #   if  DIV_NWARP(TSUB) >=  8 */
+/*   tmp.i.x = __shfl_xor(val.i.x,  4, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y,  4, DIV_NWARP(TSUB));  if( tmp.d < val.d )    val.d = tmp.d; */
+/* #   if  DIV_NWARP(TSUB) >= 16 */
+/*   tmp.i.x = __shfl_xor(val.i.x,  8, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y,  8, DIV_NWARP(TSUB));  if( tmp.d < val.d )    val.d = tmp.d; */
+/* #   if  DIV_NWARP(TSUB) == 32 */
+/*   tmp.i.x = __shfl_xor(val.i.x, 16, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y, 16, DIV_NWARP(TSUB));  if( tmp.d < val.d )    val.d = tmp.d; */
+/* #endif//DIV_NWARP(TSUB) == 32 */
+/* #endif//DIV_NWARP(TSUB) >= 16 */
+/* #endif//DIV_NWARP(TSUB) >=  8 */
+/* #endif//DIV_NWARP(TSUB) >=  4 */
+/* #endif//DIV_NWARP(TSUB) >=  2 */
 #   if  DIV_NWARP(TSUB) >=  2
-  tmp.i.x = __shfl_xor(val.i.x,  1, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y,  1, DIV_NWARP(TSUB));  if( tmp.d < val.d )    val.d = tmp.d;
+  tmp.i.x = __shfl_xor(val.i.x,  1, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y,  1, DIV_NWARP(TSUB));  val.d = fmin(val.d, tmp.d);
 #   if  DIV_NWARP(TSUB) >=  4
-  tmp.i.x = __shfl_xor(val.i.x,  2, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y,  2, DIV_NWARP(TSUB));  if( tmp.d < val.d )    val.d = tmp.d;
+  tmp.i.x = __shfl_xor(val.i.x,  2, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y,  2, DIV_NWARP(TSUB));  val.d = fmin(val.d, tmp.d);
 #   if  DIV_NWARP(TSUB) >=  8
-  tmp.i.x = __shfl_xor(val.i.x,  4, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y,  4, DIV_NWARP(TSUB));  if( tmp.d < val.d )    val.d = tmp.d;
+  tmp.i.x = __shfl_xor(val.i.x,  4, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y,  4, DIV_NWARP(TSUB));  val.d = fmin(val.d, tmp.d);
 #   if  DIV_NWARP(TSUB) >= 16
-  tmp.i.x = __shfl_xor(val.i.x,  8, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y,  8, DIV_NWARP(TSUB));  if( tmp.d < val.d )    val.d = tmp.d;
+  tmp.i.x = __shfl_xor(val.i.x,  8, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y,  8, DIV_NWARP(TSUB));  val.d = fmin(val.d, tmp.d);
 #   if  DIV_NWARP(TSUB) == 32
-  tmp.i.x = __shfl_xor(val.i.x, 16, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y, 16, DIV_NWARP(TSUB));  if( tmp.d < val.d )    val.d = tmp.d;
+  tmp.i.x = __shfl_xor(val.i.x, 16, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y, 16, DIV_NWARP(TSUB));  val.d = fmin(val.d, tmp.d);
 #endif//DIV_NWARP(TSUB) == 32
 #endif//DIV_NWARP(TSUB) >= 16
 #endif//DIV_NWARP(TSUB) >=  8
@@ -577,33 +615,33 @@ __device__ __forceinline__ void   getMinimumDblTsub(      double *min, volatile 
   //-----------------------------------------------------------------------
   smem[tidx] = *min;
   //-----------------------------------------------------------------------
-/* #   if  (TSUB / NWARP) >=  2 */
+/* #   if  DIV_NWARP(TSUB) >=  2 */
 /*   double tmp; */
 /*   tmp = smem[tidx ^  1];  if( tmp < *min ){    *min = tmp;  }  smem[tidx] = *min; */
-/* #   if  (TSUB / NWARP) >=  4 */
+/* #   if  DIV_NWARP(TSUB) >=  4 */
 /*   tmp = smem[tidx ^  2];  if( tmp < *min ){    *min = tmp;  }  smem[tidx] = *min; */
-/* #   if  (TSUB / NWARP) >=  8 */
+/* #   if  DIV_NWARP(TSUB) >=  8 */
 /*   tmp = smem[tidx ^  4];  if( tmp < *min ){    *min = tmp;  }  smem[tidx] = *min; */
-/* #   if  (TSUB / NWARP) >= 16 */
+/* #   if  DIV_NWARP(TSUB) >= 16 */
 /*   tmp = smem[tidx ^  8];  if( tmp < *min ){    *min = tmp;  }  smem[tidx] = *min; */
-/* #   if  (TSUB / NWARP) >= 32 */
+/* #   if  DIV_NWARP(TSUB) >= 32 */
 /*   tmp = smem[tidx ^ 16];  if( tmp < *min ){    *min = tmp;  }  smem[tidx] = *min; */
-/* #endif//(TSUB / NWARP) >= 32 */
-/* #endif//(TSUB / NWARP) >= 16 */
-/* #endif//(TSUB / NWARP) >=  8 */
-/* #endif//(TSUB / NWARP) >=  4 */
-/* #endif//(TSUB / NWARP) >=  2 */
+/* #endif//DIV_NWARP(TSUB) >= 32 */
+/* #endif//DIV_NWARP(TSUB) >= 16 */
+/* #endif//DIV_NWARP(TSUB) >=  8 */
+/* #endif//DIV_NWARP(TSUB) >=  4 */
+/* #endif//DIV_NWARP(TSUB) >=  2 */
 #   if  DIV_NWARP(TSUB) >=  2
   double tmp;
-  tmp = smem[tidx ^  1];  if( tmp < *min ){    *min = tmp;  }  smem[tidx] = *min;
+  tmp = smem[tidx ^  1];  *min = fmin(*min, tmp);  smem[tidx] = *min;
 #   if  DIV_NWARP(TSUB) >=  4
-  tmp = smem[tidx ^  2];  if( tmp < *min ){    *min = tmp;  }  smem[tidx] = *min;
+  tmp = smem[tidx ^  2];  *min = fmin(*min, tmp);  smem[tidx] = *min;
 #   if  DIV_NWARP(TSUB) >=  8
-  tmp = smem[tidx ^  4];  if( tmp < *min ){    *min = tmp;  }  smem[tidx] = *min;
+  tmp = smem[tidx ^  4];  *min = fmin(*min, tmp);  smem[tidx] = *min;
 #   if  DIV_NWARP(TSUB) >= 16
-  tmp = smem[tidx ^  8];  if( tmp < *min ){    *min = tmp;  }  smem[tidx] = *min;
+  tmp = smem[tidx ^  8];  *min = fmin(*min, tmp);  smem[tidx] = *min;
 #   if  DIV_NWARP(TSUB) >= 32
-  tmp = smem[tidx ^ 16];  if( tmp < *min ){    *min = tmp;  }  smem[tidx] = *min;
+  tmp = smem[tidx ^ 16];  *min = fmin(*min, tmp);  smem[tidx] = *min;
 #endif//DIV_NWARP(TSUB) >= 32
 #endif//DIV_NWARP(TSUB) >= 16
 #endif//DIV_NWARP(TSUB) >=  8
@@ -620,11 +658,12 @@ __device__ __forceinline__ real setParticleTime(const velocity vi, const acceler
 {
   //-----------------------------------------------------------------------
   /* estimate the required time step to resolve eps */
-  const real v2 = EPSILON + vi.x * vi.x + vi.y * vi.y + vi.z * vi.z;  const real vdt =      eps * RSQRT(v2);
-  const real a2 = EPSILON + ai.x * ai.x + ai.y * ai.y + ai.z * ai.z;  const real adt = SQRT(eps * RSQRT(a2));
+  const real v2 = FLT_MIN + vi.x * vi.x + vi.y * vi.y + vi.z * vi.z;  const real vdt =      eps * RSQRT(v2);
+  const real a2 = FLT_MIN + ai.x * ai.x + ai.y * ai.y + ai.z * ai.z;  const real adt = SQRT(eps * RSQRT(a2));
   //-----------------------------------------------------------------------
   /* set new time step */
-  return (LDEXP(UNITY, (int)FLOOR(LOG2(eta * ((vdt < adt) ? (vdt) : (adt))))));
+  /* return (LDEXP(UNITY, (int)FLOOR(LOG2(eta * ((vdt < adt) ? (vdt) : (adt)))))); */
+  return (LDEXP(UNITY, (int)FLOOR(LOG2(eta * FMIN(vdt, adt)))));
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------

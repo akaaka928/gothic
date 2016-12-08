@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/28(Fri) 16:27:53
+                  last updated on 2016/12/06(Tue) 12:43:37
  *                                                                       *
  *    Header File for constructing octree structure                      *
  *                                                                       *
@@ -15,8 +15,8 @@
 //-------------------------------------------------------------------------
 #include <sys/time.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
+#include "macro.h"
+#include "cudalib.h"
 //-------------------------------------------------------------------------
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
@@ -42,6 +42,9 @@
 #endif//NTHREADS_PH < 256
 #endif//GPUGEN == 52
 //-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
 #ifndef NTHREADS_PHSORT
 #          if  (GPUGEN >= 52)
 #define NTHREADS_PHSORT (1024)
@@ -61,7 +64,11 @@ typedef struct
 {
   PHint *key;
   int *idx;
-  real4 *min, *max;
+  float4 *min, *max;
+#ifndef SERIALIZED_EXECUTION
+  float4 *box_min, *box_max;
+  float4 *min_hst, *max_hst;
+#endif//SERIALIZED_EXECUTION
   int *gsync0, *gsync1;
 #ifdef  CUB_AVAILABLE
   void *temp_storage;
@@ -81,14 +88,11 @@ extern "C"
 {
 #endif//__CUDACC__
   //-----------------------------------------------------------------------
-/*   muse allocPeanoHilbertKey_dev */
-/*   (const int num, int **idx_dev, PHint **key_dev, PHint **key_hst, real4 **minall, real4 **maxall, int **gsync0, int **gsync1, const deviceProp devProp */
-/* #ifndef CALC_MULTIPOLE_ON_DEVICE */
-/*    , PHinfo **info_hst */
-/* #endif//CALC_MULTIPOLE_ON_DEVICE */
-/*    ); */
   muse allocPeanoHilbertKey_dev
-  (const int num, int **idx_dev, PHint **key_dev, PHint **key_hst, real4 **minall, real4 **maxall, int **gsync0, int **gsync1,
+  (const int num, int **idx_dev, PHint **key_dev, PHint **key_hst, float4 **minall, float4 **maxall, int **gsync0, int **gsync1,
+#ifndef SERIALIZED_EXECUTION
+   float4 **box_min, float4 **box_max, float4 **min_hst, float4 **max_hst,
+#endif//SERIALIZED_EXECUTION
 #ifndef CALC_MULTIPOLE_ON_DEVICE
    PHinfo **info_hst,
 #endif//CALC_MULTIPOLE_ON_DEVICE
@@ -98,7 +102,10 @@ extern "C"
 #endif//CUB_AVAILABLE
    const deviceProp devProp);
   void  freePeanoHilbertKey_dev
-  (int  *idx_dev, PHint  *key_dev, PHint  *key_hst, real4  *minall, real4  *maxall, int  *gsync0, int  *gsync1
+  (int  *idx_dev, PHint  *key_dev, PHint  *key_hst, float4  *minall, float4  *maxall, int  *gsync0, int  *gsync1
+#ifndef SERIALIZED_EXECUTION
+   , float4  *box_min, float4  *box_max, float4  *min_hst, float4  *max_hst
+#endif//SERIALIZED_EXECUTION
 #ifndef CALC_MULTIPOLE_ON_DEVICE
    , PHinfo  *info_hst
 #endif//CALC_MULTIPOLE_ON_DEVICE

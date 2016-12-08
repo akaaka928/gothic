@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/01(Tue) 10:23:50
+                  last updated on 2016/12/06(Tue) 12:49:58
  *                                                                       *
  *    Header File for constructing octree structure                      *
  *                                                                       *
@@ -15,13 +15,11 @@
 //-------------------------------------------------------------------------
 #include <mpi.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
+#include "macro.h"
+#include "cudalib.h"
 //-------------------------------------------------------------------------
 #include "../sort/peano.h"
-//-------------------------------------------------------------------------
 #include "../para/mpicfg.h"
-//-------------------------------------------------------------------------
 #include "../tree/macutil.h"
 #include "../tree/make.h"
 #include "../tree/buf_inc.h"
@@ -43,6 +41,12 @@
 #undef  NTHREADS_MAKE_LET
 #define NTHREADS_MAKE_LET  (1024)
 #endif//NTHREADS_MAKE_LET > 1024
+//-------------------------------------------------------------------------
+/* maximum value of NTHREADS_MAKE_LET on Fermi generation GPUs is 512 */
+#   if  (NTHREADS_MAKE_LET > 512) && (GPUGEN < 30)
+#undef   NTHREADS_MAKE_LET
+#define  NTHREADS_MAKE_LET  (512)
+#endif//(NTHREADS_MAKE_LET > 512) && (GPUGEN < 30)
 //-------------------------------------------------------------------------
 #define USE_WARP_SHUFFLE_FUNC_MAKE_LET
 //-------------------------------------------------------------------------

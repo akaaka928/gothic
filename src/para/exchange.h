@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/11(Fri) 11:52:16
+                  last updated on 2016/12/06(Tue) 12:35:44
  *                                                                       *
  *    Header File for N-body calculation with MPI parallelization        *
  *                                                                       *
@@ -13,8 +13,8 @@
 //-------------------------------------------------------------------------
 #include <mpi.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <mpilib.h>
+#include "macro.h"
+#include "mpilib.h"
 //-------------------------------------------------------------------------
 #include "../misc/structure.h"
 #ifdef  EXCHANGE_USING_GPUS
@@ -142,7 +142,7 @@ extern "C"
   void  releaseORMtopology(float  *dxmin, float  *dxmax, float  *dymin, float  *dymax, float  *dzmin, float  *dzmax, MPI_Request  *dmreq,
 			   float  *sxmin, float  *sxmax, float  *symin, float  *symax, float  *szmin, float  *szmax,
 			   sendCfg  *sendBuf, recvCfg  *recvBuf, int  *rnum, int  *disp,
-			   MPIinfo orm[], MPIinfo rep[]);
+			   MPIinfo orm[], MPIinfo rep[], const int rank);
   //-----------------------------------------------------------------------
 #else///EXCHANGE_USING_GPUS
   //-----------------------------------------------------------------------

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/10(Wed) 15:53:20
+                  last updated on 2016/12/06(Tue) 12:33:41
  *                                                                       *
  *    Converting type of arrays (SoA <--> AoS)                           *
  *                                                                       *
@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
+#include "macro.h"
 //-------------------------------------------------------------------------
 #include "structure.h"
 #include "convert.h"

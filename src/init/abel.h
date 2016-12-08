@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/28(Fri) 16:21:25
+                  last updated on 2016/12/01(Thu) 11:30:00
  *                                                                       *
  *    Header File to execute Abel transform to deproject density profile *
  *                                                                       *
@@ -46,6 +46,7 @@ typedef struct
 void execAbelTransform(profile *prf, const profile_cfg cfg, const double rmin, const double rmax, const profile_abel_cfg tmp);
 //-------------------------------------------------------------------------
 void readColumnDensityProfileTable(profile *prf, const double rs, char *file, const profile_cfg cfg);
+void readColumnDensityTable4Disk  (profile *prf, const double rs, char *file, int *num, double **xx, double **ff, double **f2, double **bp);
 //-------------------------------------------------------------------------
 
 

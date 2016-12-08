@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2015, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2016, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -103,133 +103,6 @@ void __chkHDF5err(herr_t err, const char *file, const int line)
 //-------------------------------------------------------------------------
 typedef unsigned long int ulong;
 //-------------------------------------------------------------------------
-// typedef struct
-// {
-//   ulong idx;
-//   double t0, t1;
-//   float dt;
-//   float  x,  y,  z;
-//   float vx, vy, vz;
-//   float ax, ay, az;
-//   float m, pot;
-// } nbodyBlockSP;
-//-------------------------------------------------------------------------
-// typedef struct
-// {
-//   ulong idx;
-//   double t0, t1;
-//   double dt;
-//   double  x,  y,  z;
-//   double vx, vy, vz;
-//   double ax, ay, az;
-//   double m, pot;
-// } nbodyBlockDP;
-//-------------------------------------------------------------------------
-// typedef struct
-// {
-//   ulong idx;
-//   float  x,  y,  z;
-//   float vx, vy, vz;
-//   float ax, ay, az;
-//   float m, pot;
-// } nbodyShareSP;
-//-------------------------------------------------------------------------
-// typedef struct
-// {
-//   ulong idx;
-//   double  x,  y,  z;
-//   double vx, vy, vz;
-//   double ax, ay, az;
-//   double m, pot;
-// } nbodyShareDP;
-//-------------------------------------------------------------------------
-// typedef struct
-// {
-//   hid_t blockSP, blockDP;
-//   hid_t shareSP, shareDP;
-// } hdf5struct;
-//-------------------------------------------------------------------------
-// void createHDF5DataType(hdf5struct *type)
-// {
-//   //-----------------------------------------------------------------------
-//   /* commit data type of nbodyBlockSP */
-//   type->blockSP = H5Tcreate(H5T_COMPOUND, sizeof(nbodyBlockSP));
-//   chkHDF5err(H5Tinsert(type->blockSP,  "index", HOFFSET(nbodyBlockSP, idx), H5T_NATIVE_ULONG));
-//   chkHDF5err(H5Tinsert(type->blockSP,   "time", HOFFSET(nbodyBlockSP,  t0), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->blockSP, "t + dt", HOFFSET(nbodyBlockSP,  t1), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->blockSP,     "dt", HOFFSET(nbodyBlockSP,  dt), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->blockSP,      "x", HOFFSET(nbodyBlockSP,   x), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->blockSP,      "y", HOFFSET(nbodyBlockSP,   y), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->blockSP,      "z", HOFFSET(nbodyBlockSP,   z), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->blockSP,     "vx", HOFFSET(nbodyBlockSP,  vx), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->blockSP,     "vy", HOFFSET(nbodyBlockSP,  vy), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->blockSP,     "vz", HOFFSET(nbodyBlockSP,  vz), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->blockSP,     "ax", HOFFSET(nbodyBlockSP,  ax), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->blockSP,     "ay", HOFFSET(nbodyBlockSP,  ay), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->blockSP,     "az", HOFFSET(nbodyBlockSP,  az), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->blockSP,      "m", HOFFSET(nbodyBlockSP,   m), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->blockSP,    "pot", HOFFSET(nbodyBlockSP, pot), H5T_NATIVE_FLOAT));
-//   //-----------------------------------------------------------------------
-//   /* commit data type of nbodyBlockDP */
-//   type->blockDP = H5Tcreate(H5T_COMPOUND, sizeof(nbodyBlockDP));
-//   chkHDF5err(H5Tinsert(type->blockDP,  "index", HOFFSET(nbodyBlockDP, idx), H5T_NATIVE_ULONG));
-//   chkHDF5err(H5Tinsert(type->blockDP,   "time", HOFFSET(nbodyBlockDP,  t0), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->blockDP, "t + dt", HOFFSET(nbodyBlockDP,  t1), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->blockDP,     "dt", HOFFSET(nbodyBlockDP,  dt), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->blockDP,      "x", HOFFSET(nbodyBlockDP,   x), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->blockDP,      "y", HOFFSET(nbodyBlockDP,   y), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->blockDP,      "z", HOFFSET(nbodyBlockDP,   z), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->blockDP,     "vx", HOFFSET(nbodyBlockDP,  vx), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->blockDP,     "vy", HOFFSET(nbodyBlockDP,  vy), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->blockDP,     "vz", HOFFSET(nbodyBlockDP,  vz), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->blockDP,     "ax", HOFFSET(nbodyBlockDP,  ax), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->blockDP,     "ay", HOFFSET(nbodyBlockDP,  ay), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->blockDP,     "az", HOFFSET(nbodyBlockDP,  az), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->blockDP,      "m", HOFFSET(nbodyBlockDP,   m), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->blockDP,    "pot", HOFFSET(nbodyBlockDP, pot), H5T_NATIVE_DOUBLE));
-//   //-----------------------------------------------------------------------
-//   /* commit data type of nbodyShareSP */
-//   type->shareSP = H5Tcreate(H5T_COMPOUND, sizeof(nbodyShareSP));
-//   chkHDF5err(H5Tinsert(type->shareSP, "index", HOFFSET(nbodyShareSP, idx), H5T_NATIVE_ULONG));
-//   chkHDF5err(H5Tinsert(type->shareSP,     "x", HOFFSET(nbodyShareSP,   x), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->shareSP,     "y", HOFFSET(nbodyShareSP,   y), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->shareSP,     "z", HOFFSET(nbodyShareSP,   z), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->shareSP,    "vx", HOFFSET(nbodyShareSP,  vx), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->shareSP,    "vy", HOFFSET(nbodyShareSP,  vy), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->shareSP,    "vz", HOFFSET(nbodyShareSP,  vz), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->shareSP,    "ax", HOFFSET(nbodyShareSP,  ax), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->shareSP,    "ay", HOFFSET(nbodyShareSP,  ay), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->shareSP,    "az", HOFFSET(nbodyShareSP,  az), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->shareSP,     "m", HOFFSET(nbodyShareSP,   m), H5T_NATIVE_FLOAT));
-//   chkHDF5err(H5Tinsert(type->shareSP,   "pot", HOFFSET(nbodyShareSP, pot), H5T_NATIVE_FLOAT));
-//   //-----------------------------------------------------------------------
-//   /* commit data type of nbodyShareDP */
-//   type->shareDP = H5Tcreate(H5T_COMPOUND, sizeof(nbodyShareDP));
-//   chkHDF5err(H5Tinsert(type->shareDP, "index", HOFFSET(nbodyShareDP, idx), H5T_NATIVE_ULONG));
-//   chkHDF5err(H5Tinsert(type->shareDP,     "x", HOFFSET(nbodyShareDP,   x), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->shareDP,     "y", HOFFSET(nbodyShareDP,   y), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->shareDP,     "z", HOFFSET(nbodyShareDP,   z), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->shareDP,    "vx", HOFFSET(nbodyShareDP,  vx), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->shareDP,    "vy", HOFFSET(nbodyShareDP,  vy), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->shareDP,    "vz", HOFFSET(nbodyShareDP,  vz), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->shareDP,    "ax", HOFFSET(nbodyShareDP,  ax), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->shareDP,    "ay", HOFFSET(nbodyShareDP,  ay), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->shareDP,    "az", HOFFSET(nbodyShareDP,  az), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->shareDP,     "m", HOFFSET(nbodyShareDP,   m), H5T_NATIVE_DOUBLE));
-//   chkHDF5err(H5Tinsert(type->shareDP,   "pot", HOFFSET(nbodyShareDP, pot), H5T_NATIVE_DOUBLE));
-//   //-----------------------------------------------------------------------
-// }
-//-------------------------------------------------------------------------
-// void removeHDF5DataType(hdf5struct  type)
-// {
-//   //-----------------------------------------------------------------------
-//   chkHDF5err(H5Tclose(type.blockSP));
-//   chkHDF5err(H5Tclose(type.blockDP));
-//   chkHDF5err(H5Tclose(type.shareSP));
-//   chkHDF5err(H5Tclose(type.shareDP));
-//   //-----------------------------------------------------------------------
-// }
-//-------------------------------------------------------------------------
 
 
 using     std::string;
@@ -239,7 +112,7 @@ using     std::string;
 //  Method: avtGOTHICFileFormat constructor
 //
 //  Programmer: ymiki -- generated by xml2avt
-//  Creation:   Thu Feb 4 11:45:33 PDT 2016
+//  Creation:   Mon Nov 14 19:54:08 PST 2016
 //
 // ****************************************************************************
 
@@ -260,7 +133,7 @@ avtGOTHICFileFormat::avtGOTHICFileFormat(const char *filename)
 //      that.
 //
 //  Programmer: ymiki -- generated by xml2avt
-//  Creation:   Thu Feb 4 11:45:33 PDT 2016
+//  Creation:   Mon Nov 14 19:54:08 PST 2016
 //
 // ****************************************************************************
 
@@ -279,7 +152,7 @@ avtGOTHICFileFormat::FreeUpResources(void)
 //      information it can request from you.
 //
 //  Programmer: ymiki -- generated by xml2avt
-//  Creation:   Thu Feb 4 11:45:33 PDT 2016
+//  Creation:   Mon Nov 14 19:54:08 PST 2016
 //
 // ****************************************************************************
 
@@ -327,7 +200,7 @@ avtGOTHICFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
 //                  there is only one mesh.
 //
 //  Programmer: ymiki -- generated by xml2avt
-//  Creation:   Thu Feb 4 11:45:33 PDT 2016
+//  Creation:   Mon Nov 14 19:54:08 PST 2016
 //
 // ****************************************************************************
 
@@ -443,7 +316,7 @@ avtGOTHICFileFormat::GetMesh(const char *meshname)
 //      varname    The name of the variable requested.
 //
 //  Programmer: ymiki -- generated by xml2avt
-//  Creation:   Thu Feb 4 11:45:33 PDT 2016
+//  Creation:   Mon Nov 14 19:54:08 PST 2016
 //
 // ****************************************************************************
 
@@ -554,7 +427,7 @@ avtGOTHICFileFormat::GetVar(const char *varname)
 //      varname    The name of the variable requested.
 //
 //  Programmer: ymiki -- generated by xml2avt
-//  Creation:   Thu Feb 4 11:45:33 PDT 2016
+//  Creation:   Mon Nov 14 19:54:08 PST 2016
 //
 // ****************************************************************************
 

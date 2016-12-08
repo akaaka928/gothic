@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/28(Fri) 16:38:00
+                  last updated on 2016/12/06(Tue) 12:57:45
  *                                                                       *
  *    Header File to examine tree statistics                             *
  *                                                                       *
@@ -13,18 +13,18 @@
 #ifndef SHRINK_DEV_H
 #define SHRINK_DEV_H
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
+#include "macro.h"
+#include "cudalib.h"
 //-------------------------------------------------------------------------
 #include "../tree/make.h"
 #include "../tree/make_dev.h"
 //-------------------------------------------------------------------------
 #ifdef  LOCALIZE_I_PARTICLES
-#       include "../tree/neighbor_dev.h"
+#include "../tree/neighbor_dev.h"
 #endif//LOCALIZE_I_PARTICLES
 //-------------------------------------------------------------------------
 #ifdef  USE_BRENT_METHOD
-#       include "../misc/brent.h"
+#include "../misc/brent.h"
 #endif//USE_BRENT_METHOD
 //-------------------------------------------------------------------------
 
@@ -147,6 +147,10 @@ extern "C"
    , const iparticle body_dev, int *inum_dev, int *inum_hst
 #ifdef  USE_BRENT_METHOD
    , const real rmax
+#else///USE_BRENT_METHOD
+#ifdef  CUB_AVAILABLE
+   , soaCUBreal util
+#endif//CUB_AVAILABLE
 #endif//USE_BRENT_METHOD
 #   if  !defined(FACILE_NEIGHBOR_SEARCH) && !defined(USE_BRENT_METHOD)
    , const soaTreeCell cell, const soaTreeNode node, const soaMakeTreeBuf makeBuf, const soaNeighborSearchBuf searchBuf, deviceProp devProp

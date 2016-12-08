@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/04/29(Fri) 17:04:49
+                  last updated on 2016/12/06(Tue) 12:26:27
  *                                                                       *
  *    Generate sample table for MAGI                                     *
  *                                                                       *
@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <math.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
+#include "macro.h"
 //-------------------------------------------------------------------------
 
 
@@ -65,7 +65,7 @@ int main(void)
   /* set density profile in table form */
   //-----------------------------------------------------------------------
   static real xx[NRAD], core[NRAD], cusp[NRAD], twop[NRAD];
-  static real RR[NHOR], proj[NHOR];
+  static real RR[NHOR], proj[NHOR], disk[NHOR];
   //-----------------------------------------------------------------------
   for(int ii = 0; ii < NRAD; ii++)
     xx[ii] = POW10(logrmin + logrbin * (real)ii);
@@ -96,6 +96,10 @@ int main(void)
   const real bb = (real)getAsymptoticSersicScale(4.0);
   for(int ii = 0; ii < NHOR; ii++)
     proj[ii] = EXP(-bb * POW(RR[ii], QUARTER));
+  //-----------------------------------------------------------------------
+  /* exponential disk */
+  for(int ii = 0; ii < NHOR; ii++)
+    disk[ii] = EXP(-RR[ii]);
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -133,6 +137,14 @@ int main(void)
   fprintf(fp, "%d\n", NHOR);
   for(int ii = 0; ii < NHOR; ii++)
     fprintf(fp, "%e\t%e\n", RR[ii], proj[ii]);
+  fclose(fp);
+  //-----------------------------------------------------------------------
+  sprintf(filename, "%s/%s/%s.dat", CFGFOLDER, DSTDIR, "disktbl");
+  fp = fopen(filename, "w");
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
+  fprintf(fp, "%d\n", NHOR);
+  for(int ii = 0; ii < NHOR; ii++)
+    fprintf(fp, "%e\t%e\n", RR[ii], disk[ii]);
   fclose(fp);
   //-----------------------------------------------------------------------
 

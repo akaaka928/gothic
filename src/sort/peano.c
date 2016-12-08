@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/11(Tue) 17:08:21
+                  last updated on 2016/12/06(Tue) 12:42:00
  *                                                                       *
  *    Key generation of Peano-Hilbert space filling curve                *
  *    sort N-body particles to obey Peano-Hilbert space filling curve    *
@@ -17,7 +17,7 @@
 #include <sys/time.h>
 #include <math.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
+#include "macro.h"
 //-------------------------------------------------------------------------
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"

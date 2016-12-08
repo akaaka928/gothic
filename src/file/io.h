@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/04(Fri) 11:54:10
+                  last updated on 2016/12/06(Tue) 18:02:26
  *                                                                       *
  *    Header File for Input/Output Code of N-body simulation             *
  *                                                                       *
@@ -16,7 +16,7 @@
 
 
 //-------------------------------------------------------------------------
-#include <macro.h>
+#include "macro.h"
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 #include <mpilib.h>
 #endif//defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
@@ -29,7 +29,7 @@
 #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD) && !defined(BRENT_H)
 //-------------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
-#       include <hdf5.h>
+#include <hdf5.h>
 #endif//USE_HDF5_FORMAT
 //-------------------------------------------------------------------------
 
@@ -48,6 +48,7 @@
 #define ERRFILE_NUM "err.num"
 #define ERRFILE_LST "err.lst"
 #define ERRFILE_CDF "err.cdf"
+#define ACCERR "accerr"
 //-------------------------------------------------------------------------
 #define TREE_STAT "stat.tree"
 #define WALK_STAT "stat.walk"
@@ -106,18 +107,20 @@ extern "C"
   void removeHDF5DataType(hdf5struct  type);
 #endif//USE_HDF5_FORMAT
   //-----------------------------------------------------------------------
-void  readTentativeData(double *time, double *dt, ulong *steps, int num, iparticle body, char file[], int  last, hdf5struct type
-			, int *dropPrevTune, rebuildTree *rebuild, measuredTime *measured
+  void  readTentativeData(double *time, double *dt, ulong *steps, int num, iparticle body, char file[], int  last
+#ifdef  USE_HDF5_FORMAT
+			  , hdf5struct type, int *dropPrevTune, rebuildTree *rebuild, measuredTime *measured
 #ifdef  WALK_TREE_COMBINED_MODEL
-			, autoTuningParam *rebuildParam
+			  , autoTuningParam *rebuildParam
 #endif//WALK_TREE_COMBINED_MODEL
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
-			, brentStatus *status, brentMemory *memory
+			  , brentStatus *status, brentMemory *memory
 #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #ifdef  MONITOR_ENERGY_ERROR
-			, energyError *relEneErr
+			  , energyError *relEneErr
 #endif//MONITOR_ENERGY_ERROR
-			);
+#endif//USE_HDF5_FORMAT
+			  );
   void writeTentativeData        (double  time, double  dt, ulong  steps, int num, iparticle body, char file[], int *last
 #ifdef  USE_HDF5_FORMAT
 				  , hdf5struct type

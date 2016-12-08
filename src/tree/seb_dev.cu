@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/04/20(Wed) 10:26:42
+                  last updated on 2016/12/06(Tue) 12:56:36
  *                                                                       *
  *    Generate Smallest Enclosing Ball                                   *
  *                                                                       *
@@ -18,19 +18,19 @@
 #include <math.h>
 #include <helper_cuda.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
+#include "macro.h"
+#include "cudalib.h"
 //-------------------------------------------------------------------------
 #include "walk_dev.h"
 //-------------------------------------------------------------------------
 #ifdef  DOUBLE_PRECISION
-#       define SEB_EPS  (1.0e-15)
-#       define SEB_EPS2 (1.0e-30)
-#       define SEB_TINY (DBL_MIN)
+#define SEB_EPS  (1.0e-15)
+#define SEB_EPS2 (1.0e-30)
+#define SEB_TINY (DBL_MIN)
 #else///DOUBLE_PRECISION
-#       define SEB_EPS  (1.0e-6f)
-#       define SEB_EPS2 (1.0e-12f)
-#       define SEB_TINY (FLT_MIN)
+#define SEB_EPS  (1.0e-6f)
+#define SEB_EPS2 (1.0e-12f)
+#define SEB_TINY (FLT_MIN)
 #endif//DOUBLE_PRECISION
 //-------------------------------------------------------------------------
 

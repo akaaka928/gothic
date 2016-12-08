@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/28(Fri) 16:24:52
+                  last updated on 2016/12/06(Tue) 12:32:48
  *                                                                       *
  *    Header File for memory allocation code of N-body calculation       *
  *                                                                       *
@@ -13,9 +13,10 @@
 #ifndef ALLOCATE_DEV_H
 #define ALLOCATE_DEV_H
 //-------------------------------------------------------------------------
-#include <macro.h>
+#include "macro.h"
 //-------------------------------------------------------------------------
 #include "../misc/structure.h"
+#include "../tree/walk_dev.h"
 //-------------------------------------------------------------------------
 
 
@@ -48,6 +49,12 @@ extern "C"
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
    , position **encBall, position **encBall_hst
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  DPADD_FOR_ACC
+   , DPacc **tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+   , acceleration **res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
    );
   muse allocParticleDataSoA_hst
   (const int num, iparticle *body_hst,
@@ -80,6 +87,12 @@ extern "C"
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
    , position  *encBall, position  *encBall_hst
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  DPADD_FOR_ACC
+   , DPacc  *tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+   , acceleration  *res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
    );
   void  freeParticleDataSoA_hst
   (ulong  *idx_hst, position  *pos_hst, acceleration  *acc_hst,

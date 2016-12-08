@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/11(Fri) 17:30:06
+                  last updated on 2016/12/06(Tue) 12:35:32
  *                                                                       *
  *    Implementations related to domain decomposition (MPI)              *
  *                                                                       *
@@ -16,15 +16,15 @@
 #include <math.h>
 #include <mpi.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <mpilib.h>
+#include "macro.h"
+#include "mpilib.h"
 //-------------------------------------------------------------------------
 #include "../misc/structure.h"
 #ifndef EXCHANGE_USING_GPUS
 #include "../misc/tune.h"
-#           if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #include "../misc/brent.h"
-#        endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #include "../time/adv_dev.h"
 #endif//EXCHANGE_USING_GPUS
 //-------------------------------------------------------------------------
@@ -167,17 +167,17 @@ muse allocateORMtopology(float **dxmin, float **dxmax, float **dymin, float **dy
 void  releaseORMtopology(float  *dxmin, float  *dxmax, float  *dymin, float  *dymax, float  *dzmin, float  *dzmax, MPI_Request  *dmreq,
 			 float  *sxmin, float  *sxmax, float  *symin, float  *symax, float  *szmin, float  *szmax,
 			 sendCfg  *sendBuf, recvCfg  *recvBuf, int  *rnum, int  *disp,
-			 MPIinfo orm[], MPIinfo rep[])
+			 MPIinfo orm[], MPIinfo rep[], const int rank)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-  for(int ii = 0; ii < 2; ii++){
-    freeMPIgroup(&(orm[ii + 1]));
-    freeMPIgroup(&(rep[ii    ]));
-  }/* for(int ii = 0; ii < 2; ii++){ */
+  for(int ii = 2; ii >= 0; ii--){
+    freeMPIgroup(&(rep[ii]));
+    freeMPIgroup(&(orm[ii]));
+  }/* for(int ii = 2; ii >= 0; ii--){ */
   //-----------------------------------------------------------------------
   free(dxmin);  free(dymin);  free(dzmin);
   free(dxmax);  free(dymax);  free(dzmax);  free(dmreq);
@@ -188,10 +188,10 @@ void  releaseORMtopology(float  *dxmin, float  *dxmax, float  *dymin, float  *dy
   free(sendBuf);
   free(recvBuf);
   //-----------------------------------------------------------------------
-  if( rnum != NULL ){
+  if( rank == 0 ){
     free(rnum);
     free(disp);
-  }/* if( ful != NULL ){ */
+  }/* if( rank == 0 ){ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------

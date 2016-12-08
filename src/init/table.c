@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/11(Tue) 16:55:40
+                  last updated on 2016/12/06(Tue) 12:26:52
  *                                                                       *
  *    Generate table of f'& f''from f using  Cubic Spline Interpolation  *
  *                                                                       *
@@ -14,7 +14,7 @@
 #include <stdbool.h>
 #include <math.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
+#include "macro.h"
 //-------------------------------------------------------------------------
 #include "spline.h"
 #include "profile.h"

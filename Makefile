@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2016/11/12(Sat) 15:25:59
+# last updated on 2016/12/08(Thu) 15:54:25
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -22,6 +22,8 @@ DEBUG	:= -DNDEBUG
 #################################################################################################
 # Execution options
 FORCE_SINGLE_GPU_RUN	:= 0
+ACC_ACCUMULATION_IN_DP	:= 0
+KAHAN_SUM_CORRECTION	:= 0
 EXCHANGE_USING_GPUS	:= 1
 MONITOR_ENERGY_ERROR	:= 1
 MONITOR_LETGEN_TIME	:= 1
@@ -47,6 +49,8 @@ DATAFILE_FORMAT_HDF5	:= 1
 HDF5_FOR_ZINDAIJI	:= 1
 APPEND_ASCII_ICDATA	:= 0
 DUMPFILE_FOR_BONSAI	:= 0
+USE_OFFICIAL_SFMT	:= 1
+USE_OFFICIAL_SFMT_JUMP	:= 1
 #################################################################################################
 # Debugging options
 EVALUATE_FORCE_ERROR	:= 0
@@ -191,6 +195,19 @@ ifeq ($(MONITOR_ENERGY_ERROR), 1)
 CCARG	+= -DMONITOR_ENERGY_ERROR
 endif
 #################################################################################################
+ifeq ($(ACC_ACCUMULATION_IN_DP), 1)
+ifeq ($(USEDP), 0)
+KAHAN_SUM_CORRECTION	:= 0
+CCARG	+= -DDPADD_FOR_ACC
+CUARG	+= -DDPADD_FOR_ACC
+endif
+endif
+#################################################################################################
+ifeq ($(KAHAN_SUM_CORRECTION), 1)
+CCARG	+= -DKAHAN_SUM_CORRECTION
+CUARG	+= -DKAHAN_SUM_CORRECTION
+endif
+#################################################################################################
 ifeq ($(FORCE_SINGLE_GPU_RUN), 1)
 CCARG	+= -DSERIALIZED_EXECUTION
 CUARG	+= -DSERIALIZED_EXECUTION
@@ -310,6 +327,20 @@ endif
 #################################################################################################
 ifeq ($(USEPAPI), 0)
 PAPIOPT	:=
+endif
+#################################################################################################
+ifeq ($(USESFMT), 0)
+USE_OFFICIAL_SFMT	:= 0
+endif
+ifeq ($(USE_OFFICIAL_SFMT), 1)
+CCARG	+= -DUSE_SFMT
+endif
+#################################################################################################
+ifeq ($(USESMTJ), 0)
+USE_OFFICIAL_SFMT_JUMP	:= 0
+endif
+ifeq ($(USE_OFFICIAL_SFMT_JUMP), 1)
+CCARG	+= -DUSE_SFMTJUMP
 endif
 #################################################################################################
 NUM_NTHREADS	:= 512
@@ -486,7 +517,8 @@ TREEDIR	:= $(SRCDIR)/tree
 INITDIR	:= $(SRCDIR)/init
 PLOTDIR	:= $(SRCDIR)/plot
 PARADIR	:= $(SRCDIR)/para
-VPATH	:= $(MAINDIR) $(MISCDIR) $(FILEDIR) $(TIMEDIR) $(SORTDIR) $(TREEDIR) $(INITDIR) $(PLOTDIR) $(PARADIR)
+ANALDIR	:= $(SRCDIR)/anal
+VPATH	:= $(MAINDIR) $(MISCDIR) $(FILEDIR) $(TIMEDIR) $(SORTDIR) $(TREEDIR) $(INITDIR) $(PLOTDIR) $(PARADIR) $(ANALDIR)
 #################################################################################################
 ## Executables for collisionless N-body code
 GOTHIC	:= $(BINDIR)/gothic
@@ -504,6 +536,7 @@ PLTRAD	:= $(BINDIR)/plot.ball
 PLTDF	:= $(BINDIR)/plot.df
 PLTJET	:= $(BINDIR)/plot.needle
 PLTDISK	:= $(BINDIR)/plot.disk
+ANALERR	:= $(BINDIR)/anal.error
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 PLTCMP	:= $(BINDIR)/plot.comparison
 endif
@@ -514,30 +547,35 @@ SAMPLE	:= $(BINDIR)/sample
 PLGDIR	:= plugins
 TAGBODY	:= GOTHIC_split
 TAGSNAP	:= GOTHIC_snp
+TAGAERR	:= GOTHIC_err
 TAGDUMP	:= GOTHIC
 TAGDISK	:= MAGI_disk
 TAGDIST	:= MAGI_df
 TAGPROF	:= MAGI_profile
 DIRBODY	:= $(PLGDIR)/$(TAGBODY)
 DIRSNAP	:= $(PLGDIR)/$(TAGSNAP)
+DIRAERR	:= $(PLGDIR)/$(TAGAERR)
 DIRDUMP	:= $(PLGDIR)/$(TAGDUMP)
 DIRDISK	:= $(PLGDIR)/$(TAGDISK)
 DIRDIST	:= $(PLGDIR)/$(TAGDIST)
 DIRPROF	:= $(PLGDIR)/$(TAGPROF)
 XMLBODY	:= $(DIRBODY)/$(TAGBODY).xml
 XMLSNAP	:= $(DIRSNAP)/$(TAGSNAP).xml
+XMLAERR	:= $(DIRAERR)/$(TAGAERR).xml
 XMLDUMP	:= $(DIRDUMP)/$(TAGDUMP).xml
 XMLDISK	:= $(DIRDISK)/$(TAGDISK).xml
 XMLDIST	:= $(DIRDIST)/$(TAGDIST).xml
 XMLPROF	:= $(DIRPROF)/$(TAGPROF).xml
 SRCBODY	:= $(DIRBODY)/$(TAGBODY)CommonPluginInfo.C $(DIRBODY)/$(TAGBODY)EnginePluginInfo.C $(DIRBODY)/$(TAGBODY)MDServerPluginInfo.C
 SRCSNAP	:= $(DIRSNAP)/$(TAGSNAP)CommonPluginInfo.C $(DIRSNAP)/$(TAGSNAP)EnginePluginInfo.C $(DIRSNAP)/$(TAGSNAP)MDServerPluginInfo.C
+SRCAERR	:= $(DIRAERR)/$(TAGAERR)CommonPluginInfo.C $(DIRAERR)/$(TAGAERR)EnginePluginInfo.C $(DIRAERR)/$(TAGAERR)MDServerPluginInfo.C
 SRCDUMP	:= $(DIRDUMP)/$(TAGDUMP)CommonPluginInfo.C $(DIRDUMP)/$(TAGDUMP)EnginePluginInfo.C $(DIRDUMP)/$(TAGDUMP)MDServerPluginInfo.C
 SRCDISK	:= $(DIRDISK)/$(TAGDISK)CommonPluginInfo.C $(DIRDISK)/$(TAGDISK)EnginePluginInfo.C $(DIRDISK)/$(TAGDISK)MDServerPluginInfo.C
 SRCDIST	:= $(DIRDIST)/$(TAGDIST)CommonPluginInfo.C $(DIRDIST)/$(TAGDIST)EnginePluginInfo.C $(DIRDIST)/$(TAGDIST)MDServerPluginInfo.C
 SRCPROF	:= $(DIRPROF)/$(TAGPROF)CommonPluginInfo.C $(DIRPROF)/$(TAGPROF)EnginePluginInfo.C $(DIRPROF)/$(TAGPROF)MDServerPluginInfo.C
 SRCBODY	+= $(DIRBODY)/$(TAGBODY)PluginInfo.C $(DIRBODY)/$(TAGBODY)PluginInfo.h $(DIRBODY)/avt$(TAGBODY)FileFormat.C $(DIRBODY)/avt$(TAGBODY)FileFormat.h
 SRCSNAP	+= $(DIRSNAP)/$(TAGSNAP)PluginInfo.C $(DIRSNAP)/$(TAGSNAP)PluginInfo.h $(DIRSNAP)/avt$(TAGSNAP)FileFormat.C $(DIRSNAP)/avt$(TAGSNAP)FileFormat.h
+SRCAERR	+= $(DIRAERR)/$(TAGAERR)PluginInfo.C $(DIRAERR)/$(TAGAERR)PluginInfo.h $(DIRAERR)/avt$(TAGAERR)FileFormat.C $(DIRAERR)/avt$(TAGAERR)FileFormat.h
 SRCDUMP	+= $(DIRDUMP)/$(TAGDUMP)PluginInfo.C $(DIRDUMP)/$(TAGDUMP)PluginInfo.h $(DIRDUMP)/avt$(TAGDUMP)FileFormat.C $(DIRDUMP)/avt$(TAGDUMP)FileFormat.h
 SRCDISK	+= $(DIRDISK)/$(TAGDISK)PluginInfo.C $(DIRDISK)/$(TAGDISK)PluginInfo.h $(DIRDISK)/avt$(TAGDISK)FileFormat.C $(DIRDISK)/avt$(TAGDISK)FileFormat.h
 SRCDIST	+= $(DIRDIST)/$(TAGDIST)PluginInfo.C $(DIRDIST)/$(TAGDIST)PluginInfo.h $(DIRDIST)/avt$(TAGDIST)FileFormat.C $(DIRDIST)/avt$(TAGDIST)FileFormat.h
@@ -555,15 +593,13 @@ UTILGPU	:= allocate_dev.cu
 #################################################################################################
 FILELIB	:= io.c
 #################################################################################################
-TREEGPU	:= adv_dev.cu
-#################################################################################################
 TREESRC	:= peano.c
 ifeq ($(GENERATE_PHKEY_ON_GPU), 1)
 UTILGPU	+= peano_dev.cu
 endif
 #################################################################################################
 TREESRC	+= make.c macutil.c
-TREEGPU	+= make_dev.cu walk_dev.cu neighbor_dev.cu
+TREEGPU	:= neighbor_dev.cu
 ifeq ($(BRUTE_FORCE_LOCALIZER), 1)
 UTILGPU	+= shrink_dev.cu
 else
@@ -571,7 +607,11 @@ UTILGPU	+= stat_dev.cu
 endif
 ifeq ($(FORCE_SINGLE_GPU_RUN), 0)
 LETHOST	:= let.c
-LET_GPU	:= let_dev.cu geo_dev.cu
+LET_GPU	:= let_dev.cu
+GEO_GPU	:= geo_dev.cu
+LET_GPU	+= adv_dev.cu make_dev.cu walk_dev.cu
+else
+TREEGPU	+= adv_dev.cu make_dev.cu walk_dev.cu
 endif
 #################################################################################################
 COLDSRC	:= uniformsphere.c
@@ -601,6 +641,8 @@ ifeq ($(EXCHANGE_USING_GPUS), 1)
 EXCGGPU	:= exchange_dev.cu
 endif
 #################################################################################################
+AERRSRC	:= anal.error.c
+#################################################################################################
 
 
 #################################################################################################
@@ -613,11 +655,10 @@ OBJMPGT	:= $(patsubst %.c,  $(OBJDIR)/%.mpi.o,      $(notdir $(NBDYSRC) $(FILELI
 OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.o,          $(notdir $(ALLCLIB) $(CNVTLIB)))
 endif
 OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.o,          $(notdir $(TREESRC) $(TUNELIB)))
-OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.o,          $(notdir $(UTILGPU)))
-ifeq ($(FORCE_SINGLE_GPU_RUN), 1)
-OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.o,          $(notdir $(TREEGPU)))
-else
-OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.mpi.o,      $(notdir $(TREEGPU) $(LET_GPU)))
+OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.o,          $(notdir $(UTILGPU) $(TREEGPU)))
+ifeq ($(FORCE_SINGLE_GPU_RUN), 0)
+OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.mpi.o,      $(notdir $(LET_GPU)))
+OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.o,          $(notdir $(GEO_GPU)))
 OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.mpi.o,      $(notdir $(LETHOST)))
 ifeq ($(EXCHANGE_USING_GPUS), 1)
 OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.mpi.o,      $(notdir $(EXCGGPU)))
@@ -631,24 +672,56 @@ OBJFIND	:= $(patsubst %.c, $(OBJDIR)/%.o, $(notdir $(FINDSRC)))
 OBJSMPL	:= $(patsubst %.c, $(OBJDIR)/%.o, $(notdir $(SMPLSRC)))
 #################################################################################################
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
-OBJCOLD	:= $(patsubst %.c, $(OBJDIR)/%.mpi.gsl.hdf5.o,      $(notdir $(COLDSRC)))
-OBJCOLD	+= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o,          $(notdir $(FILELIB) $(ALLCLIB)))
+ifeq ($(USE_OFFICIAL_SFMT), 1)
+ifeq ($(USE_OFFICIAL_SFMT_JUMP), 1)
+OBJCOLD	:= $(patsubst %.c, $(OBJDIR)/%.mpi.smtj.hdf5.o, $(notdir $(COLDSRC)))
 else
-OBJCOLD	:= $(patsubst %.c, $(OBJDIR)/%.gsl.o,               $(notdir $(COLDSRC)))
-OBJCOLD	+= $(patsubst %.c, $(OBJDIR)/%.o,                   $(notdir $(ALLCLIB)))
-OBJCOLD	+= $(patsubst %.c, $(OBJDIR)/%.mpi.o,               $(notdir $(FILELIB)))
+OBJCOLD	:= $(patsubst %.c, $(OBJDIR)/%.mpi.sfmt.hdf5.o, $(notdir $(COLDSRC)))
+endif
+else
+OBJCOLD	:= $(patsubst %.c, $(OBJDIR)/%.mpi.gsl.hdf5.o,  $(notdir $(COLDSRC)))
+endif
+OBJCOLD	+= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o,      $(notdir $(FILELIB) $(ALLCLIB)))
+else
+ifeq ($(USE_OFFICIAL_SFMT), 1)
+OBJCOLD	:= $(patsubst %.c, $(OBJDIR)/%.sfmt.o,          $(notdir $(COLDSRC)))
+else
+OBJCOLD	:= $(patsubst %.c, $(OBJDIR)/%.gsl.o,           $(notdir $(COLDSRC)))
+endif
+OBJCOLD	+= $(patsubst %.c, $(OBJDIR)/%.o,               $(notdir $(ALLCLIB)))
+OBJCOLD	+= $(patsubst %.c, $(OBJDIR)/%.mpi.o,           $(notdir $(FILELIB)))
 endif
 #################################################################################################
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
-OBJMAGI	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.gsl.hdf5.o, $(notdir $(MAGISRC)))
-OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o,        $(notdir $(FILELIB) $(ALLCLIB)))
+ifeq ($(USE_OFFICIAL_SFMT), 1)
+ifeq ($(USE_OFFICIAL_SFMT_JUMP), 1)
+OBJMAGI	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.gsl.smtj.hdf5.o, $(notdir $(MAGISRC)))
 else
-OBJMAGI	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.gsl.o,      $(notdir $(MAGISRC)))
-OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.o,                 $(notdir $(ALLCLIB)))
-OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.mpi.o,             $(notdir $(FILELIB)))
+OBJMAGI	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.gsl.sfmt.hdf5.o, $(notdir $(MAGISRC)))
 endif
-OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.omp.gsl.o,         $(notdir $(DISKLIB)))
-OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.omp.o,             $(notdir $(MAGILIB)))
+else
+OBJMAGI	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.gsl.hdf5.o,      $(notdir $(MAGISRC)))
+endif
+OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o,             $(notdir $(FILELIB) $(ALLCLIB)))
+else
+ifeq ($(USE_OFFICIAL_SFMT), 1)
+ifeq ($(USE_OFFICIAL_SFMT_JUMP), 1)
+OBJMAGI	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.gsl.smtj.o,      $(notdir $(MAGISRC)))
+else
+OBJMAGI	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.gsl.sfmt.o,      $(notdir $(MAGISRC)))
+endif
+else
+OBJMAGI	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.gsl.o,           $(notdir $(MAGISRC)))
+endif
+OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.o,                      $(notdir $(ALLCLIB)))
+OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.mpi.o,                  $(notdir $(FILELIB)))
+endif
+ifeq ($(USE_OFFICIAL_SFMT), 1)
+OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.omp.gsl.sfmt.o,         $(notdir $(DISKLIB)))
+else
+OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.omp.gsl.o,              $(notdir $(DISKLIB)))
+endif
+OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.omp.o,                  $(notdir $(MAGILIB)))
 #################################################################################################
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 OBJPENE	:= $(patsubst %.c, $(OBJDIR)/%.mpi.pl.hdf5.o, $(notdir $(PENESRC)))
@@ -719,14 +792,21 @@ else
 OBJPDSK	:= $(patsubst %.c, $(OBJDIR)/%.pl.o,          $(notdir $(PDSKSRC)))
 endif
 #################################################################################################
+ifeq ($(DATAFILE_FORMAT_HDF5), 1)
+OBJAERR	:= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o, $(notdir $(AERRSRC) $(FILELIB) $(ALLCLIB)))
+else
+OBJPCDF	:= $(patsubst %.c, $(OBJDIR)/%.mpi.o,      $(notdir $(AERRSRC) $(FILELIB)))
+OBJPCDF	+= $(patsubst %.c, $(OBJDIR)/%.o,          $(notdir $(ALLCLIB)))
+endif
+#################################################################################################
 
 
 #################################################################################################
 ## Rules
 #################################################################################################
-all:	TAGS $(GOTHIC) $(MAGI) $(MKCOLD) $(PLTENE) $(PLTDST) $(PLTCDF)# $(PLTMUL)# $(OBJASM)
+all:	TAGS $(GOTHIC) $(MAGI) $(PLTENE) $(PLTDST)# $(MKCOLD) $(PLTCDF)# $(PLTMUL)# $(OBJASM)
 #################################################################################################
-.PHONY:	gothic init magi cold edf plot bench sample disk
+.PHONY:	gothic init magi cold edf plot bench sample disk anal
 gothic:	TAGS $(GOTHIC)
 init:	TAGS $(MAGI) $(MKCOLD)
 magi:	TAGS $(MAGI)
@@ -736,6 +816,7 @@ plot:	TAGS $(PLTENE) $(PLTDST) $(PLTCDF)# $(PLTMUL)
 bench:	TAGS $(OPTCFG) $(PLTELP) $(PLTDEP) $(PLTBRK) $(PLTCMP) $(PLTFLP) $(PLTRAD)
 sample:	TAGS $(SAMPLE) $(PLTDF)
 disk:	TAGS $(PLTJET) $(PLTDISK)
+anal:	TAGS $(ANALERR)
 sass:	TAGS $(GOTHIC).sass
 #################################################################################################
 ## Making TAGS file for Emacs
@@ -758,10 +839,24 @@ $(OPTCFG):	$(OBJFIND)	$(MYLIB)/lib$(LIBPREC)myutil.a
 $(SAMPLE):	$(OBJSMPL)
 	$(VERBOSE)$(CC)    $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJSMPL) $(CCLIB)
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
+ifeq ($(USE_OFFICIAL_SFMT), 1)
+ifeq ($(USE_OFFICIAL_SFMT_JUMP), 1)
+$(MKCOLD):	$(OBJCOLD)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a	$(MYLIB)/libsfmt$(SFMTPER).a	$(MYLIB)/libsmtj$(SFMTPER).a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJCOLD) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib $(GSLLIB) -l$(LIBPREC)timer -l$(LIBPREC)hdf5lib $(HDF5LIB) $(SMTJLIB)
+$(MAGI):	$(OBJMAGI)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a	$(MYLIB)/libsfmt$(SFMTPER).a	$(MYLIB)/libsmtj$(SFMTPER).a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib $(GSLLIB) -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib $(HDF5LIB) $(SMTJLIB)
+else
+$(MKCOLD):	$(OBJCOLD)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a	$(MYLIB)/libsfmt$(SFMTPER).a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJCOLD) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib $(GSLLIB) -l$(LIBPREC)timer -l$(LIBPREC)hdf5lib $(HDF5LIB) $(SFMTLIB)
+$(MAGI):	$(OBJMAGI)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a	$(MYLIB)/libsfmt$(SFMTPER).a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib $(GSLLIB) -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib $(HDF5LIB) $(SFMTLIB)
+endif
+else
 $(MKCOLD):	$(OBJCOLD)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJCOLD) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib $(GSLLIB) -l$(LIBPREC)timer -l$(LIBPREC)hdf5lib $(HDF5LIB)
 $(MAGI):	$(OBJMAGI)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib $(GSLLIB) -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib $(HDF5LIB)
+endif
 $(PLTENE):	$(OBJPENE)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPENE) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib -l$(LIBPREC)hdf5lib $(HDF5LIB)
 $(PLTDST):	$(OBJDIST)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
@@ -770,11 +865,28 @@ $(PLTCDF):	$(OBJPCDF)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)const
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPCDF) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib -l$(LIBPREC)hdf5lib $(HDF5LIB)
 $(PLTMUL):	$(OBJPMUL)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPMUL) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib $(GSLLIB) -l$(LIBPREC)hdf5lib $(HDF5LIB)
+$(ANALERR):	$(OBJAERR)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAERR) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)hdf5lib $(HDF5LIB)
+else
+ifeq ($(USE_OFFICIAL_SFMT), 1)
+ifeq ($(USE_OFFICIAL_SFMT_JUMP), 1)
+
+$(MKCOLD):	$(OBJCOLD)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/libsfmt$(SFMTPER).a	$(MYLIB)/libsmtj$(SFMTPER).a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJCOLD) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib $(GSLLIB) -l$(LIBPREC)timer $(SMTJLIB)
+$(MAGI):	$(OBJMAGI)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/libsfmt$(SFMTPER).a	$(MYLIB)/libsmtj$(SFMTPER).a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib $(GSLLIB) -l$(LIBPREC)timer -l$(LIBPREC)rotate $(SMTJLIB)
+else
+$(MKCOLD):	$(OBJCOLD)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/libsfmt$(SFMTPER).a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJCOLD) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib $(GSLLIB) -l$(LIBPREC)timer $(SFMTLIB)
+$(MAGI):	$(OBJMAGI)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/libsfmt$(SFMTPER).a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib $(GSLLIB) -l$(LIBPREC)timer -l$(LIBPREC)rotate $(SFMTLIB)
+endif
 else
 $(MKCOLD):	$(OBJCOLD)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)timer.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJCOLD) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib $(GSLLIB) -l$(LIBPREC)timer
 $(MAGI):	$(OBJMAGI)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib $(GSLLIB) -l$(LIBPREC)timer -l$(LIBPREC)rotate
+endif
 $(PLTENE):	$(OBJPENE)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPENE) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib
 $(PLTDST):	$(OBJDIST)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a
@@ -783,6 +895,8 @@ $(PLTCDF):	$(OBJPCDF)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)const
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPCDF) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib
 $(PLTMUL):	$(OBJPMUL)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPMUL) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib $(GSLLIB)
+$(ANALERR):	$(OBJAERR)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAERR) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib
 endif
 $(PLTELP):	$(OBJPELP)	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)mpilib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPELP) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib
@@ -821,9 +935,9 @@ $(GOTHIC).sass:	$(GOTHIC)
 #################################################################################################
 # original version
 check-syntax:
-	$(CC) $(DEBUG) $(CCFLAG) $(CCARG) -fsyntax-only $(CCINC) $(OMPINC) $(MPIINC) $(GSLINC) $(PLINC) -I/$(HOME)/tau/include $(HDF5INC) $(PREC) $(UNIT) $(CHK_SOURCES)
+	$(CC) $(DEBUG) $(CCFLAG) $(CCARG) -fsyntax-only $(CCINC) $(OMPINC) $(MPIINC) $(GSLINC) $(SFMTINC) $(SMTJINC) $(PLINC) -I/$(HOME)/tau/include $(HDF5INC) $(PREC) $(UNIT) $(CHK_SOURCES)
 check-syntax-cu:
-	$(CU) $(DEBUG) $(CUARG) -Xcompiler -fsyntax-only $(CCINC) $(CUINC) $(OMPINC) $(MPIINC) $(GSLINC) $(PLINC) -I/$(HOME)/tau/include $(HDF5INC) $(PREC) $(UNIT) -o /dev/null -c $(CHK_SOURCES)
+	$(CU) $(DEBUG) $(CUARG) -Xcompiler -fsyntax-only $(CCINC) $(CUINC) $(OMPINC) $(MPIINC) $(GSLINC) $(SFMTINC) $(SMTJINC) $(PLINC) -I/$(HOME)/tau/include $(HDF5INC) $(PREC) $(UNIT) -o /dev/null -c $(CHK_SOURCES)
 #################################################################################################
 # depend:
 # 	makedepend -- $(CCINC) $(CUINC) $(OMPINC) $(MPIINC) $(GSLINC) $(PLINC) -I/$(HOME)/tau/include $(HDF5INC) -- $(CC_FILE) $(CU_FILE)
@@ -841,7 +955,7 @@ zip:
 	fi
 	$(VERBOSE)tar cvJf $(DATE)tree.tar.xz \
 	README Makefile $(SRCDIR) sh cfg host plt plugins/README \
-	$(XMLBODY) $(SRCBODY) $(XMLSNAP) $(SRCSNAP) $(XMLDUMP) $(SRCDUMP) $(XMLDISK) $(SRCDISK) $(XMLDIST) $(SRCDIST) $(XMLPROF) $(SRCPROF)
+	$(XMLBODY) $(SRCBODY) $(XMLSNAP) $(SRCSNAP) $(XMLAERR) $(SRCAERR) $(XMLDUMP) $(SRCDUMP) $(XMLDISK) $(SRCDISK) $(XMLDIST) $(SRCDIST) $(XMLPROF) $(SRCPROF)
 	$(VERBOSE)mv       $(DATE)tree.tar.xz pub/
 #################################################################################################
 clean:
@@ -867,9 +981,10 @@ clean:
 	$(VERBOSE)rm -f $(SAMPLE) $(OBJSMPL)
 	$(VERBOSE)rm -f $(PLTDF)  $(OBJPDF)
 	$(VERBOSE)rm -f $(PLTDISK) $(OBJPDSK)
+	$(VERBOSE)rm -f $(ANALERR) $(OBJAERR)
 	$(VERBOSE)rm -f $(OBJDIR)/*.o
 #################################################################################################
-visit:	$(DIRBODY)/Makefile $(DIRSNAP)/Makefile $(DIRDUMP)/Makefile $(DIRDISK)/Makefile $(DIRDIST)/Makefile $(DIRPROF)/Makefile
+visit:	$(DIRBODY)/Makefile $(DIRSNAP)/Makefile $(DIRAERR)/Makefile $(DIRDUMP)/Makefile $(DIRDISK)/Makefile $(DIRDIST)/Makefile $(DIRPROF)/Makefile
 #################################################################################################
 $(DIRBODY)/Makefile:	$(XMLBODY) $(SRCBODY)
 	$(VERBOSE)cd $(DIRBODY);\
@@ -882,6 +997,13 @@ $(DIRSNAP)/Makefile:	$(XMLSNAP) $(SRCSNAP)
 	$(VERBOSE)cd $(DIRSNAP);\
 	$(VERBOSE)xml2info $(TAGSNAP).xml;\
 	$(VERBOSE)xml2cmake $(TAGSNAP).xml;\
+	$(VERBOSE)cmake -DCMAKE_BUILD_TYPE:STRING=Debug;\
+	$(VERBOSE)make
+	$(VERBOSE)touch $@
+$(DIRAERR)/Makefile:	$(XMLAERR) $(SRCAERR)
+	$(VERBOSE)cd $(DIRAERR);\
+	$(VERBOSE)xml2info $(TAGAERR).xml;\
+	$(VERBOSE)xml2cmake $(TAGAERR).xml;\
 	$(VERBOSE)cmake -DCMAKE_BUILD_TYPE:STRING=Debug;\
 	$(VERBOSE)make
 	$(VERBOSE)touch $@
@@ -925,6 +1047,11 @@ rmvisit:
 	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libE$(TAGSNAP)Database_???.so
 	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libI$(TAGSNAP)Database.so
 	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libM$(TAGSNAP)Database.so
+	$(VERBOSE)rm  -f $(DIRAERR)/CMakeCache.txt $(DIRAERR)/CMakeLists.txt $(DIRAERR)/Makefile $(DIRAERR)/cmake_install.cmake $(DIRAERR)/make.log
+	$(VERBOSE)rm -rf $(DIRAERR)/CMakeFiles
+	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libE$(TAGAERR)Database_???.so
+	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libI$(TAGAERR)Database.so
+	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libM$(TAGAERR)Database.so
 	$(VERBOSE)rm  -f $(DIRDUMP)/CMakeCache.txt $(DIRDUMP)/CMakeLists.txt $(DIRDUMP)/Makefile $(DIRDUMP)/cmake_install.cmake $(DIRDUMP)/make.log
 	$(VERBOSE)rm -rf $(DIRDUMP)/CMakeFiles
 	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libE$(TAGDUMP)Database_???.so
@@ -949,7 +1076,7 @@ rmvisit:
 
 
 #################################################################################################
-## Dependence
+## Dependency
 #################################################################################################
 COMMON_DEP	:=	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h
 #################################################################################################
@@ -1027,7 +1154,7 @@ $(OBJDIR)/io.mpi.o:		$(IO_DEP)
 ## $(SORTDIR)/*
 PEANO_DEP	:=	$(COMMON_DEP)	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(SORTDIR)/peano.h	$(TREEDIR)/make.h
 $(OBJDIR)/peano.o:	$(PEANO_DEP)
-$(OBJDIR)/peano_dev.o:	$(PEANO_DEP)	$(TREEDIR)/macutil.h	$(MYINC)/cudalib.h	$(MISCDIR)/gsync_dev.cu	$(SORTDIR)/peano_dev.h
+$(OBJDIR)/peano_dev.o:	$(PEANO_DEP)	$(TREEDIR)/macutil.h	$(MYINC)/cudalib.h	$(MISCDIR)/gsync_dev.cu	$(SORTDIR)/peano_dev.h	$(PARADIR)/exchange_dev.h
 #################################################################################################
 ## $(TIMEDIR)/*
 ADV_DEV_DEP	:=	$(COMMON_DEP)	$(MYINC)/timer.h	$(MYINC)/cudalib.h
@@ -1082,17 +1209,26 @@ $(OBJDIR)/eddington.omp.o:	$(PROFILE_DEP)	$(INITDIR)/eddington.h
 $(OBJDIR)/king.omp.o:		$(PROFILE_DEP)	$(INITDIR)/king.h
 $(OBJDIR)/profile.omp.o:	$(PROFILE_DEP)
 DISK_DEP	:=	$(PROFILE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/spline.h	$(INITDIR)/blas.h	$(INITDIR)/potdens.h
-$(OBJDIR)/potdens.omp.gsl.o:	$(DISK_DEP)
+$(OBJDIR)/potdens.omp.gsl.o:	$(DISK_DEP)	$(INITDIR)/abel.h
+$(OBJDIR)/potdens.omp.gsl.sfmt.o:	$(DISK_DEP)	$(INITDIR)/abel.h
+$(OBJDIR)/diskDF.omp.gsl.sfmt.o:	$(DISK_DEP)	$(MISCDIR)/structure.h	$(INITDIR)/diskDF.h
 $(OBJDIR)/diskDF.omp.gsl.o:	$(DISK_DEP)	$(MISCDIR)/structure.h	$(INITDIR)/diskDF.h
 $(OBJDIR)/disk.omp.gsl.o:	$(DISK_DEP)	$(MISCDIR)/structure.h	$(INITDIR)/disk.h
 IOFILE_DEP	:=	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/constants.h	$(MYINC)/timer.h	$(MYINC)/name.h
 IOFILE_DEP	+=	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h	$(MISCDIR)/tune.h	$(MISCDIR)/brent.h	$(FILEDIR)/io.h
+$(OBJDIR)/uniformsphere.mpi.smtj.gsl.hdf5.o:	$(IOFILE_DEP)			$(MYINC)/hdf5lib.h	$(MYINC)/sfmtjump_polynomial.h
+$(OBJDIR)/uniformsphere.mpi.sfmt.gsl.hdf5.o:	$(IOFILE_DEP)			$(MYINC)/hdf5lib.h
 $(OBJDIR)/uniformsphere.mpi.gsl.hdf5.o:	$(IOFILE_DEP)			$(MYINC)/hdf5lib.h
+$(OBJDIR)/uniformsphere.sfmt.o:		$(IOFILE_DEP)
 $(OBJDIR)/uniformsphere.gsl.o:		$(IOFILE_DEP)
 MAGI_DEP	:=	$(MYINC)/rotate.h	$(INITDIR)/magi.h	$(INITDIR)/king.h	$(INITDIR)/profile.h	$(INITDIR)/eddington.h
 MAGI_DEP	+=	$(INITDIR)/table.h	$(INITDIR)/abel.h	$(INITDIR)/potdens.h	$(INITDIR)/diskDF.h
+$(OBJDIR)/magi.ompmpi.gsl.smtj.hdf5.o:	$(IOFILE_DEP)	$(MAGI_DEP)	$(MYINC)/hdf5lib.h	$(MYINC)/sfmtjump_polynomial.h
+$(OBJDIR)/magi.ompmpi.gsl.sfmt.hdf5.o:	$(IOFILE_DEP)	$(MAGI_DEP)	$(MYINC)/hdf5lib.h
 $(OBJDIR)/magi.ompmpi.gsl.hdf5.o:	$(IOFILE_DEP)	$(MAGI_DEP)	$(MYINC)/hdf5lib.h
-$(OBJDIR)/magi.omp.gsl.o:		$(IOFILE_DEP)	$(MAGI_DEP)
+$(OBJDIR)/magi.ompmpi.gsl.smtj.o:	$(IOFILE_DEP)	$(MAGI_DEP)	$(MYINC)/sfmtjump_polynomial.h
+$(OBJDIR)/magi.ompmpi.gsl.sfmt.o:	$(IOFILE_DEP)	$(MAGI_DEP)
+$(OBJDIR)/magi.ompmpi.gsl.o:		$(IOFILE_DEP)	$(MAGI_DEP)
 #################################################################################################
 ## $(PLOTDIR)/*
 PLOT_DEP	:=	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/constants.h	\
@@ -1122,10 +1258,19 @@ PARA_DEP	+=	$(MISCDIR)/structure.h	$(PARADIR)/mpicfg.h
 EXCG_DEP	:=	$(PARA_DEP)	$(TIMEDIR)/adv_dev.h	$(PARADIR)/exchange.h	$(MISCDIR)/tune.h	$(MISCDIR)/brent.h
 ifeq ($(EXCHANGE_USING_GPUS), 1)
 $(OBJDIR)/exchange.mpi.o:	$(PARA_DEP)	$(PARADIR)/exchange.h
-$(OBJDIR)/exchange_dev.mpi.o:	$(EXCG_DEP)	$(MYINC)/cudalib.h	$(MISCDIR)/benchmark.h	$(MISCDIR)/gsync_dev.cu	$(PARADIR)/exchange_dev.h
+$(OBJDIR)/exchange_dev.mpi.o:	$(EXCG_DEP)	$(MYINC)/cudalib.h	$(MISCDIR)/benchmark.h	$(MISCDIR)/gsync_dev.cu	$(SORTDIR)/peano_dev.h	$(PARADIR)/exchange_dev.h
 else
 $(OBJDIR)/exchange.mpi.o:	$(EXCG_DEP)
 endif
 $(OBJDIR)/mpicfg.mpi.o:		$(PARA_DEP)	$(TREEDIR)/make.h
+#################################################################################################
+# ## $(ANALDIR)/*
+# PARA_DEP	:=	$(COMMON_DEP)	$(MYINC)/name.h	$(MYINC)/mpilib.h
+# PARA_DEP	+=	$(MISCDIR)/structure.h	$(PARADIR)/mpicfg.h
+# EXCG_DEP	:=	$(PARA_DEP)	$(TIMEDIR)/adv_dev.h	$(PARADIR)/exchange.h	$(MISCDIR)/tune.h	$(MISCDIR)/brent.h
+AERR_DEP	:=	$(COMMON_DEP)	$(MYINC)/constants.h	$(MYINC)/name.h	$(MYINC)/mpilib.h
+AERR_DEP	+=	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h	$(FILEDIR)/io.h
+$(OBJDIR)/anal.error.mpi.hdf5.o:	$(AERR_DEP)	$(MYINC)/hdf5lib.h
+$(OBJDIR)/anal.error.mpi.o:		$(AERR_DEP)
 #################################################################################################
 #################################################################################################

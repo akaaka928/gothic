@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/04(Fri) 14:52:07
+                  last updated on 2016/12/06(Tue) 18:04:20
  *                                                                       *
  *    Input/Output Code of N-body calculation                            *
  *                                                                       *
@@ -22,14 +22,14 @@
 #endif//MONITOR_ENERGY_ERROR
 //-------------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
-#       include <hdf5.h>
-#       include <hdf5lib.h>
+#include <hdf5.h>
+#include "hdf5lib.h"
 #endif//USE_HDF5_FORMAT
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <name.h>
-#include <mpilib.h>
-#include <constants.h>
+#include "macro.h"
+#include "name.h"
+#include "mpilib.h"
+#include "constants.h"
 //-------------------------------------------------------------------------
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
@@ -1280,6 +1280,22 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int *num
   //-----------------------------------------------------------------------
   chkHDF5err(H5Fclose(target));
   //-----------------------------------------------------------------------
+#if 0
+  sprintf(filename, "%s/%s.%s%d_%d.txt", DATAFOLDER, file, "rank", mpi->rank, mpi->size);
+  FILE *fp;
+  fp = fopen(filename, "w");
+  if( fp == NULL ){
+    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);
+  }
+  for(int ii = 0; ii < *num; ii++)
+    fprintf(fp, "%e\t%e\t%e\t%e\t%e\t%e\t%e\t%zu\n",
+	    body.pos[ii].m,
+	    body.pos[ii].x, body.pos[ii].y, body.pos[ii].z,
+	    body.vel[ii].x, body.vel[ii].y, body.vel[ii].z,
+	    body.idx[ii]);
+  fclose(fp);
+#endif
+  //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
@@ -2163,7 +2179,7 @@ void readTentativeData(double *time, double *dt, ulong *steps, int num, iparticl
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-void readTentativeDataParallel(double *time, double *dt, ulong *steps, int num, iparticle body, char file[], int last, MPIcfg_dataio *mpi, ulong Ntot)
+void readTentativeDataParallel(double *time, double *dt, ulong *steps, int *num, iparticle body, char file[], int last, MPIcfg_dataio *mpi, ulong Ntot)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -2171,7 +2187,7 @@ void readTentativeDataParallel(double *time, double *dt, ulong *steps, int num, 
 
   //-----------------------------------------------------------------------
   /* reset MPI_Offset */
-  updateMPIcfg_dataio(mpi, num);
+  updateMPIcfg_dataio(mpi, *num);
   //-----------------------------------------------------------------------
   /* open the target file */
   char filename[128];
@@ -2211,37 +2227,37 @@ void readTentativeDataParallel(double *time, double *dt, ulong *steps, int num, 
   //-----------------------------------------------------------------------
   /* the whole processes read position */
   chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(position), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
-  chkMPIerr(MPI_File_read(fh, body.pos, num * 4, MPI_REALDAT, &status));
+  chkMPIerr(MPI_File_read(fh, body.pos, (*num) * 4, MPI_REALDAT, &status));
   disp += Ntot * (MPI_Offset)sizeof(position);
   //-----------------------------------------------------------------------
   /* the whole processes read acceleration */
   chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(acceleration), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
-  chkMPIerr(MPI_File_read(fh, body.acc, num * 4, MPI_REALDAT, &status));
+  chkMPIerr(MPI_File_read(fh, body.acc, (*num) * 4, MPI_REALDAT, &status));
   disp += Ntot * (MPI_Offset)sizeof(acceleration);
   //-----------------------------------------------------------------------
   /* the whole processes read velocity and time */
 #ifdef  BLOCK_TIME_STEP
   chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(velocity), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
-  chkMPIerr(MPI_File_read(fh, body.vel, num * 4, MPI_REALDAT, &status));
+  chkMPIerr(MPI_File_read(fh, body.vel, (*num) * 4, MPI_REALDAT, &status));
   disp += Ntot * (MPI_Offset)sizeof(velocity);
   chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(ibody_time), MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL));
-  chkMPIerr(MPI_File_read(fh, body.time, num * 2, MPI_DOUBLE, &status));
+  chkMPIerr(MPI_File_read(fh, body.time, (*num) * 2, MPI_DOUBLE, &status));
   disp += Ntot * (MPI_Offset)sizeof(ibody_time);
 #else///BLOCK_TIME_STEP
   chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(real), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
-  chkMPIerr(MPI_File_read(fh, body.vx, num, MPI_REALDAT, &status));
+  chkMPIerr(MPI_File_read(fh, body.vx, *num, MPI_REALDAT, &status));
   disp += Ntot * (MPI_Offset)sizeof(real);
   chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(real), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
-  chkMPIerr(MPI_File_read(fh, body.vy, num, MPI_REALDAT, &status));
+  chkMPIerr(MPI_File_read(fh, body.vy, *num, MPI_REALDAT, &status));
   disp += Ntot * (MPI_Offset)sizeof(real);
   chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(real), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
-  chkMPIerr(MPI_File_read(fh, body.vz, num, MPI_REALDAT, &status));
+  chkMPIerr(MPI_File_read(fh, body.vz, *num, MPI_REALDAT, &status));
   disp += Ntot * (MPI_Offset)sizeof(real);
 #endif//BLOCK_TIME_STEP
   //-----------------------------------------------------------------------
   /* the whole processes read index */
   chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(ulong), MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG, "native", MPI_INFO_NULL));
-  chkMPIerr(MPI_File_read(fh, body.idx, num, MPI_UNSIGNED_LONG, &status));
+  chkMPIerr(MPI_File_read(fh, body.idx, *num, MPI_UNSIGNED_LONG, &status));
   disp += Ntot * (MPI_Offset)sizeof(ulong);
   //-----------------------------------------------------------------------
   /* close the target file */

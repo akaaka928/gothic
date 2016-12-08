@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2015/08/24(Mon) 14:57:53
+                  last updated on 2016/12/06(Tue) 12:44:17
  *                                                                       *
  *    Utility tool for stable sort based on radix sort                   *
  *                                                                       *
@@ -36,11 +36,11 @@
 #include <helper_cuda.h>
 //-------------------------------------------------------------------------
 #ifdef  IMPLEMENTATION_CHECK_MODE
-#       include <math.h>/* <-- for isfinite in test code */
+#include <math.h>/* <-- for isfinite in test code */
 #define TEST_SORT_ONLY_MODE
 #ifdef  TEST_SORT_ONLY_MODE
-#       include <thrust/device_ptr.h>
-#       include <thrust/sort.h>
+#include <thrust/device_ptr.h>
+#include <thrust/sort.h>
 #endif//TEST_SORT_ONLY_MODE
 #endif//IMPLEMENTATION_CHECK_MODE
 //-------------------------------------------------------------------------
@@ -48,11 +48,10 @@
 #define MEASURE_ITERATION_NUM (16)
 #endif//PERFORMANCE_COMPARISON_MODE
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
+#include "macro.h"
+#include "cudalib.h"
 //-------------------------------------------------------------------------
 #include "../misc/gsync_dev.cu"
-//-------------------------------------------------------------------------
 #include "../sort/radix_dev.h"
 //-------------------------------------------------------------------------
 /* limitation from capacity of shared memory */

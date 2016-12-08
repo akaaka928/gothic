@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/02/07(Sun) 19:17:40
+                  last updated on 2016/12/06(Tue) 12:52:31
  *                                                                       *
  *    Constructing octree structure for collisionless systems            *
  *                                                                       *
@@ -15,13 +15,12 @@
 #include <stdbool.h>
 #include <math.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
+#include "macro.h"
 //-------------------------------------------------------------------------
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
 //-------------------------------------------------------------------------
 #include "../sort/peano.h"
-//-------------------------------------------------------------------------
 #include "macutil.h"
 #include "make.h"
 //-------------------------------------------------------------------------
@@ -1156,7 +1155,7 @@ void calcMultipole
 		  const real dy = jpos.y - jcom.y;
 		  const real dz = jpos.z - jcom.z;
 		  /* const real disp = SQRT(EPSILON + dx * dx + dy * dy + dz * dz); */
-		  const real disp = SQRT(1.0e-30f + dx * dx + dy * dy + dz * dz);
+		  const real disp = SQRT(FLT_MIN + dx * dx + dy * dy + dz * dz);
 		  const real rjmax = disp + bmax[kidx];
 		  //---------------------------------------------------------
 		  /* const real rjmin = -rjmax + TWO * disp; */

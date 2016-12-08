@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/18(Tue) 23:35:29
+                  last updated on 2016/12/07(Wed) 16:40:34
  *                                                                       *
  *    Plot Code of N-body Simulations (using PLplot)                     *
  *      Time Evolution of Spatial Distribution Maps                      *
@@ -27,26 +27,25 @@
 #include <mpi.h>
 //-------------------------------------------------------------------------
 #ifdef  DUMP_SPLITTED_SNAPSHOT
-#       include <unistd.h>
+#include <unistd.h>
 #endif//DUMP_SPLITTED_SNAPSHOT
 //-------------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
-#       include <hdf5.h>
-#       include <hdf5lib.h>
+#include <hdf5.h>
+#include "hdf5lib.h"
 #endif//USE_HDF5_FORMAT
 //-------------------------------------------------------------------------
 #include <gsl/gsl_integration.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <myutil.h>
-#include <name.h>
-#include <constants.h>
-#include <mpilib.h>
-#include <plplotlib.h>
+#include "macro.h"
+#include "myutil.h"
+#include "name.h"
+#include "constants.h"
+#include "mpilib.h"
+#include "plplotlib.h"
 //-------------------------------------------------------------------------
 #include "../misc/structure.h"
 #include "../misc/allocate.h"
-//-------------------------------------------------------------------------
 #include "../file/io.h"
 //-------------------------------------------------------------------------
 #define NMAX_GAUSS_QD (51)
@@ -1574,11 +1573,18 @@ int main(int argc, char **argv)
       chkMPIerr(MPI_Bcast( prf_hor_num_t0, kind, MPI_INT, 0, mpi.comm));
     }/* if( filenum == (start + mpi.rank * interval) ){ */
 #endif//OVERPLOT_INITIAL_DISKHEIGHT
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
     plotHorizontalProfile(num_hor, kind, overlay_initial, group, time, hor_pos, hor_rho, Sigmarange, skind, hor_zdisp, heightrange,
 #ifdef  OVERPLOT_INITIAL_DISKHEIGHT
 			  num_hor_t0, prf_hor_head_t0, prf_hor_num_t0, hor_pos_t0, hor_zdisp_t0,
 #endif//OVERPLOT_INITIAL_DISKHEIGHT
 			  file, ifile, argc, argv);
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #ifdef  PLOT_VERTICAL_PROFILE
     plotVerticalProfile(num_ver, kind, overlay_initial, group, time, ver_pos, ver_rho, zrhorange, file, ifile, argc, argv);
 #endif//PLOT_VERTICAL_PROFILE
@@ -1622,10 +1628,17 @@ int main(int argc, char **argv)
 #endif//OUTPUT_BULK_MOTION
   //-----------------------------------------------------------------------
 #ifdef  OVERPLOT_INITIAL_DISKHEIGHT
-  if( hor_pos_t0 != NULL )    free(hor_pos_t0);
-  if( hor_zdisp_t0 != NULL )  free(hor_zdisp_t0);
   free(prf_hor_head_t0);
   free(prf_hor_num_t0);
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+  if( hor_pos_t0 != NULL )    free(hor_pos_t0);
+  if( hor_zdisp_t0 != NULL )  free(hor_zdisp_t0);
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #endif//OVERPLOT_INITIAL_DISKHEIGHT
   //-----------------------------------------------------------------------
 

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2015/11/27(Fri) 10:38:41
+                  last updated on 2016/12/06(Tue) 12:34:33
  *                                                                       *
  *    Utility tool for inter-block GPU synchronization                   *
  *         based on GPU Lock-Free Synchronization by Xiao & Feng 2009    *
@@ -18,8 +18,8 @@
 #include <stdlib.h>
 #include <helper_cuda.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
+#include "macro.h"
+#include "cudalib.h"
 //-------------------------------------------------------------------------
 
 

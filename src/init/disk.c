@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/11(Tue) 16:56:43
+                  last updated on 2016/12/06(Tue) 12:23:48
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Assume balance of force in R and z direction                    *
@@ -36,8 +36,8 @@
 #include <gsl/gsl_sf_ellint.h>
 #       endif//USE_ELLIPTIC_INTEGRAL
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <constants.h>
+#include "macro.h"
+#include "constants.h"
 //-------------------------------------------------------------------------
 #include "../misc/structure.h"
 //-------------------------------------------------------------------------

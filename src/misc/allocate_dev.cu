@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/14(Thu) 11:00:58
+                  last updated on 2016/12/06(Tue) 12:32:38
  *                                                                       *
  *    Memory Allocation Code of N-body calculation                       *
  *                                                                       *
@@ -15,12 +15,11 @@
 #include <stdbool.h>
 #include <helper_cuda.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
+#include "macro.h"
+#include "cudalib.h"
 //-------------------------------------------------------------------------
 #include "structure.h"
 #include "allocate_dev.h"
-//-------------------------------------------------------------------------
 #include "../tree/walk_dev.h"/* <-- to read NTHREADS */
 //-------------------------------------------------------------------------
 
@@ -48,6 +47,12 @@ muse allocParticleDataSoA_dev
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
  , position **encBall, position **encBall_hst
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  DPADD_FOR_ACC
+ , DPacc **tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+ , acceleration **res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
  )
 {
   //-----------------------------------------------------------------------
@@ -127,6 +132,19 @@ muse allocParticleDataSoA_dev
   body0->encBall = *encBall;  body0->encBall_hst = *encBall_hst;
   body1->encBall = *encBall;  body1->encBall_hst = *encBall_hst;
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+  //-----------------------------------------------------------------------
+#ifdef  DPADD_FOR_ACC
+  mycudaMalloc((void **)tmp, size * sizeof(DPacc));
+  alloc.device +=            size * sizeof(DPacc) ;
+  body0->tmp = *tmp;
+  body1->tmp = *tmp;
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+  mycudaMalloc((void **)res, size * sizeof(acceleration));
+  alloc.device +=            size * sizeof(acceleration) ;
+  body0->res = *res;
+  body1->res = *res;
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -218,6 +236,12 @@ void  freeParticleDataSoA_dev
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
  , position  *encBall, position  *encBall_hst
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  DPADD_FOR_ACC
+ , DPacc  *tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+ , acceleration  *res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
  )
 {
   //-----------------------------------------------------------------------
@@ -248,6 +272,12 @@ void  freeParticleDataSoA_dev
   mycudaFree    (encBall);
   mycudaFreeHost(encBall_hst);
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  DPADD_FOR_ACC
+  mycudaFree(tmp);
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+  mycudaFree(res);
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------

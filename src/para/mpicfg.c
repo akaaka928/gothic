@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/10(Thu) 11:41:24
+                  last updated on 2016/12/06(Tue) 12:36:57
  *                                                                       *
  *    Implementations related to OpenMP/MPI hybrid parallelization       *
  *                                                                       *
@@ -15,12 +15,11 @@
 #include <math.h>
 #include <mpi.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <name.h>
-#include <mpilib.h>
+#include "macro.h"
+#include "name.h"
+#include "mpilib.h"
 //-------------------------------------------------------------------------
 #include "../misc/structure.h"
-//-------------------------------------------------------------------------
 #include "../tree/make.h"
 //-------------------------------------------------------------------------
 #include "mpicfg.h"
@@ -36,6 +35,66 @@ static inline void createMPIcfg_tree(MPIcfg_tree *let, MPIinfo mpi)
   let->comm = mpi.comm;
   let->size = mpi.size;
   let->rank = mpi.rank;
+  //-----------------------------------------------------------------------
+#if 1
+  int num;
+  static int blck[4];
+  static MPI_Aint disp[4];
+  static MPI_Datatype type[4];
+  /* commit position */
+  /* typedef struct __align__(16){  real x, y, z, m;} position; */
+  num = 1;
+  type[0] = MPI_REALDAT;
+  blck[0] = 4;
+  disp[0] = 0;
+  commitMPIstruct(num, blck, disp, type, &(let->ipos));
+#ifdef  GADGET_MAC
+  /* commit acceleration */
+  /* typedef struct __align__(16){  real x, y, z, pot;} acceleration; */
+  num = 1;
+  type[0] = MPI_REALDAT;
+  blck[0] = 4;
+  disp[0] = 0;
+  commitMPIstruct(num, blck, disp, type, &(let->iacc));
+#endif//GADGET_MAC
+#ifdef  BLOCK_TIME_STEP
+  /* commit velocity */
+  /* typedef struct __align__(16){  real x, y, z, dt;} velocity; */
+  num = 1;
+  type[0] = MPI_REALDAT;
+  blck[0] = 4;
+  disp[0] = 0;
+  commitMPIstruct(num, blck, disp, type, &(let->ivel));
+  /* commit ibody_time */
+  /* typedef struct __align__(16){  double t0, t1;} ibody_time; */
+  num = 1;
+  type[0] = MPI_DOUBLE;
+  blck[0] = 2;
+  disp[0] = 0;
+  commitMPIstruct(num, blck, disp, type, &(let->time));
+#endif//BLOCK_TIME_STEP
+  /* commit jparticle */
+  /* typedef struct __align__(16){  real y, x, w, z;} jparticle; */
+  num = 1;
+  type[0] = MPI_REALDAT;
+  blck[0] = 4;
+  disp[0] = 0;
+  commitMPIstruct(num, blck, disp, type, &(let->jpos));
+  /* commit uint */
+  let->more = MPI_UNSIGNED;
+  /* commit jmass */
+#ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
+  /* typedef struct __align__(8){  real mass, eps2;} jmass; */
+  num = 1;
+  type[0] = MPI_REALDAT;
+  blck[0] = 2;
+  disp[0] = 0;
+  commitMPIstruct(num, blck, disp, type, &(let->mass));
+#else///INDIVIDUAL_GRAVITATIONAL_SOFTENING
+  /* typedef real jmass; */
+  let->mass = MPI_REALDAT;
+#endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
+#else
   commitMPIbyte(&(let->ipos), (int)sizeof(position));
 #ifdef  GADGET_MAC
   commitMPIbyte(&(let->iacc), (int)sizeof(acceleration));
@@ -46,7 +105,8 @@ static inline void createMPIcfg_tree(MPIcfg_tree *let, MPIinfo mpi)
 #endif//BLOCK_TIME_STEP
   commitMPIbyte(&(let->jpos), (int)sizeof(jparticle));
   commitMPIbyte(&(let->more), (int)sizeof(uint));
-  commitMPIbyte(&(let->mass), (int)sizeof(real));
+  commitMPIbyte(&(let->mass), (int)sizeof(jmass));
+#endif
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------

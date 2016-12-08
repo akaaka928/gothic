@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/12(Wed) 11:44:10
+                  last updated on 2016/12/07(Wed) 16:42:13
  *                                                                       *
  *    Plot Code of Cumulative distribution function for Tree code        *
  *                                                                       *
@@ -16,19 +16,18 @@
 #include <mpi.h>
 //-------------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
-#       include <hdf5.h>
-#       include <hdf5lib.h>
+#include <hdf5.h>
+#include "hdf5lib.h"
 #endif//USE_HDF5_FORMAT
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <myutil.h>
-#include <constants.h>
-#include <mpilib.h>
-#include <plplotlib.h>
-#include <name.h>
+#include "macro.h"
+#include "myutil.h"
+#include "constants.h"
+#include "mpilib.h"
+#include "plplotlib.h"
+#include "name.h"
 //-------------------------------------------------------------------------
 #include "../misc/structure.h"
-//-------------------------------------------------------------------------
 #include "../file/io.h"
 //-------------------------------------------------------------------------
 #include "cdflib.h"
@@ -235,7 +234,14 @@ int main(int argc, char **argv)
     char serfile[128];
     sprintf(serfile, "%s.%s", file, accfile);
     //---------------------------------------------------------------------
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
     double *potErrList, *grvErrList, *accErrList;
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
     if( lstNum == 1 ){
       potErrList = (double *)malloc(sizeof(double) * (size_t)nfile * NSUMMARY);      if( potErrList == NULL ){	__KILL__(stderr, "ERROR: failure to allocate potErrList\n");      }
       grvErrList = (double *)malloc(sizeof(double) * (size_t)nfile * NSUMMARY);      if( grvErrList == NULL ){	__KILL__(stderr, "ERROR: failure to allocate grvErrList\n");      }
@@ -547,8 +553,15 @@ int main(int argc, char **argv)
     //---------------------------------------------------------------------
   }/* for(int lstIdx = 0; lstIdx < lstNum; lstIdx++){ */
   //-----------------------------------------------------------------------
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   if( mpi.rank == 0 )
     fclose(lstfp);
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------

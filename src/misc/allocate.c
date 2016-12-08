@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/11(Tue) 16:52:23
+                  last updated on 2016/12/06(Tue) 12:32:12
  *                                                                       *
  *    Memory Allocation Code of N-body calculation                       *
  *                                                                       *
@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
+#include "macro.h"
 //-------------------------------------------------------------------------
 #include "structure.h"
 #include "allocate.h"

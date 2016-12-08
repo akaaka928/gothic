@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/11(Fri) 14:39:56
+                  last updated on 2016/12/06(Tue) 12:48:46
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -16,12 +16,11 @@
 #include <math.h>
 #include <mpi.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <mpilib.h>
+#include "macro.h"
+#include "mpilib.h"
 //-------------------------------------------------------------------------
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
-//-------------------------------------------------------------------------
 #include "../para/mpicfg.h"
 //-------------------------------------------------------------------------
 #include "make.h"
@@ -241,7 +240,7 @@ void setLETpartition(const int Ndomain, domainInfo *info)
 void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, const position icom, MPIcfg_tree mpi)
 {
   //-----------------------------------------------------------------------
-  __NOTE__("%s\n", "start");
+  __NOTE__("%s (icom = (%e, %e, %e, %e) @ rank %d)\n", "start", icom.x, icom.y, icom.z, icom.m, mpi.rank);
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -277,7 +276,7 @@ void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, c
     const real rx = icom.x - info[ii].icom.x;
     const real ry = icom.y - info[ii].icom.y;
     const real rz = icom.z - info[ii].icom.z;
-    const real r2 = 1.0e-30f + rx * rx + ry * ry + rz * rz;
+    const real r2 = FLT_MIN + rx * rx + ry * ry + rz * rz;
     //---------------------------------------------------------------------
     const real lambda = FMAX(UNITY - SQRTRATIO(info[ii].icom.m, r2), ZERO);
     /* const real theta = SQRTRATIO(icom.m, EPSILON + (lambda * lambda) * r2);/\* rough estimated value of theta *\/ */

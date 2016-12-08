@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/29(Fri) 11:18:40
+                  last updated on 2016/12/06(Tue) 12:47:20
  *                                                                       *
  *    Generation of enclosing ball containing all N-body particles       *
  *   the center is the geometric one of the enclosing rectangular cuboid *
@@ -25,8 +25,8 @@
 #include <thrust/device_ptr.h>
 /* #endif//CUB_AVAILABLE */
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
+#include "macro.h"
+#include "cudalib.h"
 //-------------------------------------------------------------------------
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
@@ -64,35 +64,43 @@ __global__ void init_amin_kernel(const int num, real *amin)
 /* minimum value within a block */
 /* NOTE: implicit synchronization within 32 threads (a warp) is assumed */
 //-------------------------------------------------------------------------
-__device__ __forceinline__ real getMin_block(const real val, const int tidx, const int lane, volatile real * RESTRICT smem)
+__device__ __forceinline__ real getMin_block(const real val, const int tidx, volatile real * RESTRICT smem)
 {
   //-----------------------------------------------------------------------
   /* 1. reduction within a warp */
   //-----------------------------------------------------------------------
   real min = val;
+  real tmp;
   //-----------------------------------------------------------------------
 #ifdef  USE_WARP_SHUFFLE_FUNC
   //-----------------------------------------------------------------------
-  real tmp;
-  tmp = __shfl_up(min,  1, warpSize);  if( tmp < min )    min = tmp;
-  tmp = __shfl_up(min,  2, warpSize);  if( tmp < min )    min = tmp;
-  tmp = __shfl_up(min,  4, warpSize);  if( tmp < min )    min = tmp;
-  tmp = __shfl_up(min,  8, warpSize);  if( tmp < min )    min = tmp;
-  tmp = __shfl_up(min, 16, warpSize);  if( tmp < min )    min = tmp;
+  /* tmp = __shfl_up(min,  1, warpSize);  if( tmp < min )    min = tmp; */
+  /* tmp = __shfl_up(min,  2, warpSize);  if( tmp < min )    min = tmp; */
+  /* tmp = __shfl_up(min,  4, warpSize);  if( tmp < min )    min = tmp; */
+  /* tmp = __shfl_up(min,  8, warpSize);  if( tmp < min )    min = tmp; */
+  /* tmp = __shfl_up(min, 16, warpSize);  if( tmp < min )    min = tmp; */
+  tmp = __shfl_xor(min,  1, warpSize);  min = FMIN(min, tmp);
+  tmp = __shfl_xor(min,  2, warpSize);  min = FMIN(min, tmp);
+  tmp = __shfl_xor(min,  4, warpSize);  min = FMIN(min, tmp);
+  tmp = __shfl_xor(min,  8, warpSize);  min = FMIN(min, tmp);
+  tmp = __shfl_xor(min, 16, warpSize);  min = FMIN(min, tmp);
+  smem[tidx] = min;
   //-----------------------------------------------------------------------
 #else///USE_WARP_SHUFFLE_FUNC
   //-----------------------------------------------------------------------
   smem[tidx] = min;
-  if( smem[tidx -  1] < min ){    min = smem[tidx -  1];    smem[tidx] = min;  }
-  if( smem[tidx -  2] < min ){    min = smem[tidx -  2];    smem[tidx] = min;  }
-  if( smem[tidx -  4] < min ){    min = smem[tidx -  4];    smem[tidx] = min;  }
-  if( smem[tidx -  8] < min ){    min = smem[tidx -  8];    smem[tidx] = min;  }
-  if( smem[tidx - 16] < min ){    min = smem[tidx - 16];    smem[tidx] = min;  }
+  /* if( smem[tidx -  1] < min ){    min = smem[tidx -  1];    smem[tidx] = min;  } */
+  /* if( smem[tidx -  2] < min ){    min = smem[tidx -  2];    smem[tidx] = min;  } */
+  /* if( smem[tidx -  4] < min ){    min = smem[tidx -  4];    smem[tidx] = min;  } */
+  /* if( smem[tidx -  8] < min ){    min = smem[tidx -  8];    smem[tidx] = min;  } */
+  /* if( smem[tidx - 16] < min ){    min = smem[tidx - 16];    smem[tidx] = min;  } */
+  tmp = smem[tidx ^  1];  tmp = FMIN(min, tmp);  smem[tidx] = min;
+  tmp = smem[tidx ^  2];  tmp = FMIN(min, tmp);  smem[tidx] = min;
+  tmp = smem[tidx ^  4];  tmp = FMIN(min, tmp);  smem[tidx] = min;
+  tmp = smem[tidx ^  8];  tmp = FMIN(min, tmp);  smem[tidx] = min;
+  tmp = smem[tidx ^ 16];  tmp = FMIN(min, tmp);  smem[tidx] = min;
   //-----------------------------------------------------------------------
 #endif//USE_WARP_SHUFFLE_FUNC
-  //-----------------------------------------------------------------------
-  /* return calculated inclusive prefix sum */
-  smem[tidx] = min;
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -106,43 +114,72 @@ __device__ __forceinline__ real getMin_block(const real val, const int tidx, con
     //---------------------------------------------------------------------
     min = smem[tidx * warpSize];
 #ifdef  USE_WARP_SHUFFLE_FUNC
+/* #   if  NTHREADS >=   64 */
+/*     const int groupSize = NTHREADS >> 5; */
+/*     tmp = __shfl_up(min,  1, groupSize);    if( tmp < min )      min = tmp; */
+/* #   if  NTHREADS >=  128 */
+/*     tmp = __shfl_up(min,  2, groupSize);    if( tmp < min )      min = tmp; */
+/* #   if  NTHREADS >=  256 */
+/*     tmp = __shfl_up(min,  4, groupSize);    if( tmp < min )      min = tmp; */
+/* #   if  NTHREADS >=  512 */
+/*     tmp = __shfl_up(min,  8, groupSize);    if( tmp < min )      min = tmp; */
+/* #   if  NTHREADS == 1024 */
+/*     tmp = __shfl_up(min, 16, groupSize);    if( tmp < min )      min = tmp; */
+/* #endif//NTHREADS == 1024 */
+/* #endif//NTHREADS >=  512 */
+/* #endif//NTHREADS >=  256 */
+/* #endif//NTHREADS >=  128 */
+/* #endif//NTHREADS >=   64 */
 #   if  NTHREADS >=   64
     const int groupSize = NTHREADS >> 5;
-    tmp = __shfl_up(min,  1, groupSize);    if( tmp < min )      min = tmp;
+    tmp = __shfl_xor(min,  1, groupSize);    min = FMIN(min, tmp);
 #   if  NTHREADS >=  128
-    tmp = __shfl_up(min,  2, groupSize);    if( tmp < min )      min = tmp;
+    tmp = __shfl_xor(min,  2, groupSize);    min = FMIN(min, tmp);
 #   if  NTHREADS >=  256
-    tmp = __shfl_up(min,  4, groupSize);    if( tmp < min )      min = tmp;
+    tmp = __shfl_xor(min,  4, groupSize);    min = FMIN(min, tmp);
 #   if  NTHREADS >=  512
-    tmp = __shfl_up(min,  8, groupSize);    if( tmp < min )      min = tmp;
+    tmp = __shfl_xor(min,  8, groupSize);    min = FMIN(min, tmp);
 #   if  NTHREADS == 1024
-    tmp = __shfl_up(min, 16, groupSize);    if( tmp < min )      min = tmp;
+    tmp = __shfl_xor(min, 16, groupSize);    min = FMIN(min, tmp);
 #endif//NTHREADS == 1024
 #endif//NTHREADS >=  512
 #endif//NTHREADS >=  256
 #endif//NTHREADS >=  128
 #endif//NTHREADS >=   64
+    smem[tidx] = min;
 #else///USE_WARP_SHUFFLE_FUNC
     smem[tidx] = min;
+/* #   if  NTHREADS >=   64 */
+/*     if( smem[tidx -  1] < min ){      min = smem[tidx -  1];      smem[tidx] = min;    } */
+/* #   if  NTHREADS >=  128 */
+/*     if( smem[tidx -  2] < min ){      min = smem[tidx -  2];      smem[tidx] = min;    } */
+/* #   if  NTHREADS >=  256 */
+/*     if( smem[tidx -  4] < min ){      min = smem[tidx -  4];      smem[tidx] = min;    } */
+/* #   if  NTHREADS >=  512 */
+/*     if( smem[tidx -  8] < min ){      min = smem[tidx -  8];      smem[tidx] = min;    } */
+/* #   if  NTHREADS == 1024 */
+/*     if( smem[tidx - 16] < min ){      min = smem[tidx - 16];      smem[tidx] = min;    } */
+/* #endif//NTHREADS == 1024 */
+/* #endif//NTHREADS >=  512 */
+/* #endif//NTHREADS >=  256 */
+/* #endif//NTHREADS >=  128 */
+/* #endif//NTHREADS >=   64 */
 #   if  NTHREADS >=   64
-    if( smem[tidx -  1] < min ){      min = smem[tidx -  1];      smem[tidx] = min;    }
+    tmp = smem[tidx ^  1];    min = FMIN(min, tmp);    smem[tidx] = min;
 #   if  NTHREADS >=  128
-    if( smem[tidx -  2] < min ){      min = smem[tidx -  2];      smem[tidx] = min;    }
+    tmp = smem[tidx ^  2];    min = FMIN(min, tmp);    smem[tidx] = min;
 #   if  NTHREADS >=  256
-    if( smem[tidx -  4] < min ){      min = smem[tidx -  4];      smem[tidx] = min;    }
+    tmp = smem[tidx ^  4];    min = FMIN(min, tmp);    smem[tidx] = min;
 #   if  NTHREADS >=  512
-    if( smem[tidx -  8] < min ){      min = smem[tidx -  8];      smem[tidx] = min;    }
+    tmp = smem[tidx ^  8];    min = FMIN(min, tmp);    smem[tidx] = min;
 #   if  NTHREADS == 1024
-    if( smem[tidx - 16] < min ){      min = smem[tidx - 16];      smem[tidx] = min;    }
+    tmp = smem[tidx ^ 16];    min = FMIN(min, tmp);    smem[tidx] = min;
 #endif//NTHREADS == 1024
 #endif//NTHREADS >=  512
 #endif//NTHREADS >=  256
 #endif//NTHREADS >=  128
 #endif//NTHREADS >=   64
-    min = smem[tidx];
 #endif//USE_WARP_SHUFFLE_FUNC
-    //---------------------------------------------------------------------
-    smem[tidx] = min;
     //---------------------------------------------------------------------
   }/* if( tidx < (NTHREADS >> 5) ){ */
   __syncthreads();
@@ -162,35 +199,43 @@ __device__ __forceinline__ real getMin_block(const real val, const int tidx, con
 /* maximum value within a block */
 /* NOTE: implicit synchronization within 32 threads (a warp) is assumed */
 //-------------------------------------------------------------------------
-__device__ __forceinline__ real getMax_block(const real val, const int tidx, const int lane, volatile real * RESTRICT smem)
+__device__ __forceinline__ real getMax_block(const real val, const int tidx, volatile real * RESTRICT smem)
 {
   //-----------------------------------------------------------------------
   /* 1. reduction within a warp */
   //-----------------------------------------------------------------------
   real max = val;
+  real tmp;
   //-----------------------------------------------------------------------
 #ifdef  USE_WARP_SHUFFLE_FUNC
   //-----------------------------------------------------------------------
-  real tmp;
-  tmp = __shfl_up(max,  1, warpSize);  if( tmp > max )    max = tmp;
-  tmp = __shfl_up(max,  2, warpSize);  if( tmp > max )    max = tmp;
-  tmp = __shfl_up(max,  4, warpSize);  if( tmp > max )    max = tmp;
-  tmp = __shfl_up(max,  8, warpSize);  if( tmp > max )    max = tmp;
-  tmp = __shfl_up(max, 16, warpSize);  if( tmp > max )    max = tmp;
+  /* tmp = __shfl_up(max,  1, warpSize);  if( tmp > max )    max = tmp; */
+  /* tmp = __shfl_up(max,  2, warpSize);  if( tmp > max )    max = tmp; */
+  /* tmp = __shfl_up(max,  4, warpSize);  if( tmp > max )    max = tmp; */
+  /* tmp = __shfl_up(max,  8, warpSize);  if( tmp > max )    max = tmp; */
+  /* tmp = __shfl_up(max, 16, warpSize);  if( tmp > max )    max = tmp; */
+  tmp = __shfl_xor(max,  1, warpSize);  max = FMAX(max, tmp);
+  tmp = __shfl_xor(max,  2, warpSize);  max = FMAX(max, tmp);
+  tmp = __shfl_xor(max,  4, warpSize);  max = FMAX(max, tmp);
+  tmp = __shfl_xor(max,  8, warpSize);  max = FMAX(max, tmp);
+  tmp = __shfl_xor(max, 16, warpSize);  max = FMAX(max, tmp);
+  smem[tidx] = max;
   //-----------------------------------------------------------------------
 #else///USE_WARP_SHUFFLE_FUNC
   //-----------------------------------------------------------------------
   smem[tidx] = max;
-  if( smem[tidx -  1] > max ){    max = smem[tidx -  1];    smem[tidx] = max;  }
-  if( smem[tidx -  2] > max ){    max = smem[tidx -  2];    smem[tidx] = max;  }
-  if( smem[tidx -  4] > max ){    max = smem[tidx -  4];    smem[tidx] = max;  }
-  if( smem[tidx -  8] > max ){    max = smem[tidx -  8];    smem[tidx] = max;  }
-  if( smem[tidx - 16] > max ){    max = smem[tidx - 16];    smem[tidx] = max;  }
+  /* if( smem[tidx -  1] > max ){    max = smem[tidx -  1];    smem[tidx] = max;  } */
+  /* if( smem[tidx -  2] > max ){    max = smem[tidx -  2];    smem[tidx] = max;  } */
+  /* if( smem[tidx -  4] > max ){    max = smem[tidx -  4];    smem[tidx] = max;  } */
+  /* if( smem[tidx -  8] > max ){    max = smem[tidx -  8];    smem[tidx] = max;  } */
+  /* if( smem[tidx - 16] > max ){    max = smem[tidx - 16];    smem[tidx] = max;  } */
+  tmp = smem[tidx ^  1];  tmp = FMAX(max, tmp);  smem[tidx] = max;
+  tmp = smem[tidx ^  2];  tmp = FMAX(max, tmp);  smem[tidx] = max;
+  tmp = smem[tidx ^  4];  tmp = FMAX(max, tmp);  smem[tidx] = max;
+  tmp = smem[tidx ^  8];  tmp = FMAX(max, tmp);  smem[tidx] = max;
+  tmp = smem[tidx ^ 16];  tmp = FMAX(max, tmp);  smem[tidx] = max;
   //-----------------------------------------------------------------------
 #endif//USE_WARP_SHUFFLE_FUNC
-  //-----------------------------------------------------------------------
-  /* return calculated inclusive prefix sum */
-  smem[tidx] = max;
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -204,40 +249,71 @@ __device__ __forceinline__ real getMax_block(const real val, const int tidx, con
     //---------------------------------------------------------------------
     max = smem[tidx * warpSize];
 #ifdef  USE_WARP_SHUFFLE_FUNC
+/* #   if  NTHREADS >=   64 */
+/*     const int groupSize = NTHREADS >> 5; */
+/*     tmp = __shfl_up(max,  1, groupSize);    if( tmp > max )      max = tmp; */
+/* #   if  NTHREADS >=  128 */
+/*     tmp = __shfl_up(max,  2, groupSize);    if( tmp > max )      max = tmp; */
+/* #   if  NTHREADS >=  256 */
+/*     tmp = __shfl_up(max,  4, groupSize);    if( tmp > max )      max = tmp; */
+/* #   if  NTHREADS >=  512 */
+/*     tmp = __shfl_up(max,  8, groupSize);    if( tmp > max )      max = tmp; */
+/* #   if  NTHREADS == 1024 */
+/*     tmp = __shfl_up(max, 16, groupSize);    if( tmp > max )      max = tmp; */
+/* #endif//NTHREADS == 1024 */
+/* #endif//NTHREADS >=  512 */
+/* #endif//NTHREADS >=  256 */
+/* #endif//NTHREADS >=  128 */
+/* #endif//NTHREADS >=   64 */
 #   if  NTHREADS >=   64
     const int groupSize = NTHREADS >> 5;
-    tmp = __shfl_up(max,  1, groupSize);    if( tmp > max )      max = tmp;
+    tmp = __shfl_xor(max,  1, groupSize);    max = FMAX(max, tmp);
 #   if  NTHREADS >=  128
-    tmp = __shfl_up(max,  2, groupSize);    if( tmp > max )      max = tmp;
+    tmp = __shfl_xor(max,  2, groupSize);    max = FMAX(max, tmp);
 #   if  NTHREADS >=  256
-    tmp = __shfl_up(max,  4, groupSize);    if( tmp > max )      max = tmp;
+    tmp = __shfl_xor(max,  4, groupSize);    max = FMAX(max, tmp);
 #   if  NTHREADS >=  512
-    tmp = __shfl_up(max,  8, groupSize);    if( tmp > max )      max = tmp;
+    tmp = __shfl_xor(max,  8, groupSize);    max = FMAX(max, tmp);
 #   if  NTHREADS == 1024
-    tmp = __shfl_up(max, 16, groupSize);    if( tmp > max )      max = tmp;
+    tmp = __shfl_xor(max, 16, groupSize);    max = FMAX(max, tmp);
 #endif//NTHREADS == 1024
 #endif//NTHREADS >=  512
 #endif//NTHREADS >=  256
 #endif//NTHREADS >=  128
 #endif//NTHREADS >=   64
+    smem[tidx] = max;
 #else///USE_WARP_SHUFFLE_FUNC
     smem[tidx] = max;
+/* #   if  NTHREADS >=   64 */
+/*     if( smem[tidx -  1] > max ){      max = smem[tidx -  1];      smem[tidx] = max;    } */
+/* #   if  NTHREADS >=  128 */
+/*     if( smem[tidx -  2] > max ){      max = smem[tidx -  2];      smem[tidx] = max;    } */
+/* #   if  NTHREADS >=  256 */
+/*     if( smem[tidx -  4] > max ){      max = smem[tidx -  4];      smem[tidx] = max;    } */
+/* #   if  NTHREADS >=  512 */
+/*     if( smem[tidx -  8] > max ){      max = smem[tidx -  8];      smem[tidx] = max;    } */
+/* #   if  NTHREADS == 1024 */
+/*     if( smem[tidx - 16] > max ){      max = smem[tidx - 16];      smem[tidx] = max;    } */
+/* #endif//NTHREADS == 1024 */
+/* #endif//NTHREADS >=  512 */
+/* #endif//NTHREADS >=  256 */
+/* #endif//NTHREADS >=  128 */
+/* #endif//NTHREADS >=   64 */
 #   if  NTHREADS >=   64
-    if( smem[tidx -  1] > max ){      max = smem[tidx -  1];      smem[tidx] = max;    }
+    tmp = smem[tidx ^  1];    max = FMAX(max, tmp);    smem[tidx] = max;
 #   if  NTHREADS >=  128
-    if( smem[tidx -  2] > max ){      max = smem[tidx -  2];      smem[tidx] = max;    }
+    tmp = smem[tidx ^  2];    max = FMAX(max, tmp);    smem[tidx] = max;
 #   if  NTHREADS >=  256
-    if( smem[tidx -  4] > max ){      max = smem[tidx -  4];      smem[tidx] = max;    }
+    tmp = smem[tidx ^  4];    max = FMAX(max, tmp);    smem[tidx] = max;
 #   if  NTHREADS >=  512
-    if( smem[tidx -  8] > max ){      max = smem[tidx -  8];      smem[tidx] = max;    }
+    tmp = smem[tidx ^  8];    max = FMAX(max, tmp);    smem[tidx] = max;
 #   if  NTHREADS == 1024
-    if( smem[tidx - 16] > max ){      max = smem[tidx - 16];      smem[tidx] = max;    }
+    tmp = smem[tidx ^ 16];    max = FMAX(max, tmp);    smem[tidx] = max;
 #endif//NTHREADS == 1024
 #endif//NTHREADS >=  512
 #endif//NTHREADS >=  256
 #endif//NTHREADS >=  128
 #endif//NTHREADS >=   64
-    max = smem[tidx];
 #endif//USE_WARP_SHUFFLE_FUNC
     //---------------------------------------------------------------------
     smem[tidx] = max;
@@ -313,11 +389,11 @@ __global__ void calc_r2max_kernel
     const real dx = pi.x - cen.x;
     const real dy = pi.y - cen.y;
     const real dz = pi.z - cen.z;
-    r2 = dx * dx + dy * dy + dz * dz;
+    r2 = FLT_MIN + dx * dx + dy * dy + dz * dz;
     //---------------------------------------------------------------------
   }/* if( lane < info.num ){ */
   //-----------------------------------------------------------------------
-  r2 = getMax_block(r2, tidx, tidx & (warpSize - 1), smem);
+  r2 = getMax_block(r2, tidx, smem);
   if( tidx == 0 ){
     if( singleCall )      r2_dev[BLOCKIDX_X1D] = r2;
     else      atomicMax(&r2_dev[BLOCKIDX_X1D], r2);
@@ -348,11 +424,11 @@ __global__ void calc_amin_kernel
     const int idx = info.head + lane;
     const acceleration ai = iacc[idx];
     //---------------------------------------------------------------------
-    a2 = 1.0e-30f + ai.x * ai.x + ai.y * ai.y + ai.z * ai.z;
+    a2 = FLT_MIN + ai.x * ai.x + ai.y * ai.y + ai.z * ai.z;
     //---------------------------------------------------------------------
   }/* if( lane < info.num ){ */
   //-----------------------------------------------------------------------
-  a2 = getMin_block(a2, tidx, tidx & (warpSize - 1), smem);
+  a2 = getMin_block(a2, tidx, smem);
   if( tidx == 0 ){
     a2 *= RSQRT(a2);
     if( singleCall )      amin_dev[BLOCKIDX_X1D] = a2;
@@ -394,7 +470,13 @@ void calc_r2max_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, iparticle *pi,
       /* NOTE: pi.jpos contains position of i-particle on the time of the gravity calculation */
       if( Nrem <= dev.Nblock ){
 	//-----------------------------------------------------------------
-	calc_r2max_kernel<<<Nrem, NTHREADS>>>(BLOCKSIZE(Ngrp, NGROUPS) * NGROUPS, laneInfo, (*pi).encBall, (*pi).jpos, dev.r2, true);
+	calc_r2max_kernel<<<Nrem, NTHREADS>>>(BLOCKSIZE(Ngrp, NGROUPS) * NGROUPS, laneInfo, (*pi).encBall,
+#ifdef  BLOCK_TIME_STEP
+					      (*pi).jpos,
+#else///BLOCK_TIME_STEP
+					      (*pi).pos,
+#endif//BLOCK_TIME_STEP
+					      dev.r2, true);
 	//-----------------------------------------------------------------
 	/* reduction using library */
 /* #ifdef  CUB_AVAILABLE */
@@ -422,7 +504,13 @@ void calc_r2max_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, iparticle *pi,
 	  if( Nblck > Nrem )	    Nblck = Nrem;
 	  //---------------------------------------------------------------
 	  int Nsub = Nblck * NWARP * NGROUPS;
-	  calc_r2max_kernel<<<Nblck, NTHREADS>>>(BLOCKSIZE(Nsub, NGROUPS) * NGROUPS, &laneInfo[hidx], (*pi).encBall, (*pi).jpos, dev.r2, false);
+	  calc_r2max_kernel<<<Nblck, NTHREADS>>>(BLOCKSIZE(Nsub, NGROUPS) * NGROUPS, &laneInfo[hidx], (*pi).encBall,
+#ifdef  BLOCK_TIME_STEP
+						 (*pi).jpos,
+#else///BLOCK_TIME_STEP
+						 (*pi).pos,
+#endif//BLOCK_TIME_STEP
+						 dev.r2, false);
 	  //-------------------------------------------------------------------
 	  hidx += Nsub;
 	  Nrem -= Nblck;
@@ -472,6 +560,11 @@ void calc_r2max_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, iparticle *pi,
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
+  __NOTE__("r2max = %e\n", (*pi).encBall_hst->m);
+#ifdef  GADGET_MAC
+  __NOTE__("aimin = %e\n", pi->amin);
+#endif//GADGET_MAC
+  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
 }
@@ -494,7 +587,8 @@ muse allocGeometricEnclosingBall_dev
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-  int Nblock = DIV_NTHREADS(NWARP * num_max);
+  /* int Nblock = DIV_NTHREADS(NWARP * num_max); */
+  int Nblock = BLOCKSIZE(NWARP * num_max, NTHREADS);
   if( Nblock > MAX_BLOCKS_PER_GRID )
     Nblock = MAX_BLOCKS_PER_GRID;
   //-----------------------------------------------------------------------

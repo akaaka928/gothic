@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/11(Tue) 17:10:07
+                  last updated on 2016/12/06(Tue) 12:58:09
  *                                                                       *
  *    Constructing octree structure for collisionless systems            *
  *                                                                       *
@@ -23,8 +23,8 @@
 #include <thrust/sort.h>
 #endif//USE_VARIABLE_NEIGHBOR_LEVEL
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
+#include "macro.h"
+#include "cudalib.h"
 //-------------------------------------------------------------------------
 #include "../misc/structure.h"
 #include "../misc/device.h"

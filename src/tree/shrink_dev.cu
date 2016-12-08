@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/28(Fri) 12:56:55
+                  last updated on 2016/12/06(Tue) 12:57:31
  *                                                                       *
  *    Constructing octree structure for collisionless systems            *
  *                                                                       *
@@ -18,8 +18,8 @@
 #include <math.h>
 #include <helper_cuda.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
+#include "macro.h"
+#include "cudalib.h"
 //-------------------------------------------------------------------------
 #include "../misc/structure.h"
 #include "../misc/device.h"
@@ -29,19 +29,19 @@
 #include "make_dev.h"
 //-------------------------------------------------------------------------
 #ifdef  LOCALIZE_I_PARTICLES
-#       ifdef  USE_BRENT_METHOD
+#ifdef  USE_BRENT_METHOD
 #include "../misc/brent.h"
 #include <thrust/device_ptr.h>
 #include <thrust/reduce.h>
 #include <thrust/functional.h>
-#       else///USE_BRENT_METHOD
+#else///USE_BRENT_METHOD
 #ifdef  CUB_AVAILABLE
 #include <cub/device/device_radix_sort.cuh>
 #else///CUB_AVAILABLE
 #include <thrust/device_ptr.h>
 #include <thrust/sort.h>
-# endif//CUB_AVAILABLE
-#       endif//USE_BRENT_METHOD
+#endif//CUB_AVAILABLE
+#endif//USE_BRENT_METHOD
 #include "neighbor_dev.h"
 #endif//LOCALIZE_I_PARTICLES
 //-------------------------------------------------------------------------
@@ -234,7 +234,7 @@ __global__ void countContinuousNeighbor_kernel(const int Ni, position * RESTRICT
       const real dx = pj.x - pi.x;
       const real dy = pj.y - pi.y;
       const real dz = pj.z - pi.z;
-      const real r2 = 1.0e-30f + dx * dx + dy * dy + dz * dz;
+      const real r2 = FLT_MIN + dx * dx + dy * dy + dz * dz;
       //-------------------------------------------------------------------
       if( r2 > r2max ){
 	nmax = 1 + ii;
@@ -303,7 +303,7 @@ __global__ void storeRadius(const int Ni, READ_ONLY position * RESTRICT pi, real
   if( idx < Ni ){
     //---------------------------------------------------------------------
     const position ipos = pi[idx];
-    const real r2 = ipos.x * ipos.x + ipos.y * ipos.y + ipos.z * ipos.z;
+    const real r2 = FLT_MIN + ipos.x * ipos.x + ipos.y * ipos.y + ipos.z * ipos.z;
     const real rr = r2 * RSQRT(r2);
     //---------------------------------------------------------------------
     rad[idx] = rr;
@@ -445,6 +445,10 @@ void updateParticleGroups
  , const iparticle body_dev, int *inum_dev, int *inum_hst
 #ifdef  USE_BRENT_METHOD
  , const real rmax
+#else///USE_BRENT_METHOD
+#ifdef  CUB_AVAILABLE
+ , soaCUBreal util
+#endif//CUB_AVAILABLE
 #endif//USE_BRENT_METHOD
 #   if  !defined(FACILE_NEIGHBOR_SEARCH) && !defined(USE_BRENT_METHOD)
  , const soaTreeCell cell, const soaTreeNode node, const soaMakeTreeBuf makeBuf, const soaNeighborSearchBuf searchBuf, deviceProp devProp
@@ -461,7 +465,11 @@ void updateParticleGroups
 #   if  defined(LOCALIZE_I_PARTICLES) && !defined(USE_BRENT_METHOD)
   real rmax;
   examineParticleSeparation
-    (Ni, body_dev, &rmax
+    (Ni, body_dev
+#ifdef  CUB_AVAILABLE
+     , util
+#endif//CUB_AVAILABLE
+     , &rmax
 #ifndef FACILE_NEIGHBOR_SEARCH
      , cell, node, makeBuf, searchBuf, devProp
 #endif//FACILE_NEIGHBOR_SEARCH

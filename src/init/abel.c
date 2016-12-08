@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/12(Fri) 10:53:29
+                  last updated on 2016/12/06(Tue) 12:23:07
  *                                                                       *
  *    Abel transform to deproject column density profile in MAGI         *
  *                                                                       *
@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <math.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
+#include "macro.h"
 //-------------------------------------------------------------------------
 #include "magi.h"
 #include "spline.h"
@@ -260,7 +260,7 @@ void readColumnDensityProfileTable(profile *prf, const double rs, char *file, co
   double pp, bb;
   const double rmin = 0.5 * (prf[          0].rad < xx[          NPUT]) ? (prf[          0].rad) : (xx[          NPUT]);
   const double rmax = 2.0 * (prf[NRADBIN + 3].rad > xx[num - 1 - NPUT]) ? (prf[NRADBIN + 3].rad) : (xx[num - 1 - NPUT]);
-  leastSquaredMethod(NFIT, &xx[                 NPUT], &ff[                 NPUT], &pp, &bb);
+  leastSquaredMethod(NFIT, &xx[NPUT], &ff[NPUT], &pp, &bb);
   const double logrmin = log10(rmin);
   double logrbin = (log10(xx[NPUT]) - logrmin) / (double)NPUT;
   for(int ii = 0; ii < NPUT; ii++){
@@ -302,6 +302,82 @@ void readColumnDensityProfileTable(profile *prf, const double rs, char *file, co
   //-----------------------------------------------------------------------
   free(bp);  free(f2);
   free(xx);  free(ff);
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "end");
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
+void readColumnDensityTable4Disk(profile *prf, const double rs, char *file, int *num, double **xx, double **ff, double **f2, double **bp)
+{
+  //-----------------------------------------------------------------------
+  __NOTE__("%s\n", "start");
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* read data table */
+  //-----------------------------------------------------------------------
+  char filename[128];
+  FILE *fp;
+  sprintf(filename, "%s/%s", CFGFOLDER, file);
+  fp = fopen(filename, "r");
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
+  bool success = true;
+  //-----------------------------------------------------------------------
+  if( 1 != fscanf(fp, "%d", num) )    success = false;
+  *num += 2 * NPUT;
+  //-----------------------------------------------------------------------
+  *xx = (double *)malloc((*num) * sizeof(double));  if( *xx == NULL ){    __KILL__(stderr, "ERROR: failure to allocate *xx");  }
+  *ff = (double *)malloc((*num) * sizeof(double));  if( *ff == NULL ){    __KILL__(stderr, "ERROR: failure to allocate *ff");  }
+  //-----------------------------------------------------------------------
+  for(int ii = NPUT; ii < (*num) - NPUT; ii++)
+    success &= (2 == fscanf(fp, "%le\t%le", &((*xx)[ii]), &((*ff)[ii])));
+  //-----------------------------------------------------------------------
+  fclose(fp);
+  if( success != true )
+    writeColumnDensityProfileTableFormat(filename);
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* scale length to the computational unit */
+  /* assume unity corresponds to the scale radius in the computational unit */
+  //-----------------------------------------------------------------------
+  for(int ii = NPUT; ii < (*num) - NPUT; ii++)
+    (*xx)[ii] *= rs;
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* extrapolate for the innermost position by least squared method */
+  /* extrapolate for the outermost position by least squared method */
+  //-----------------------------------------------------------------------
+  double pp, bb;
+  const double rmin = 0.5 * (prf[          0].rad < (*xx)[          NPUT]) ? (prf[          0].rad) : ((*xx)[          NPUT]);
+  const double rmax = 2.0 * (prf[NRADBIN + 3].rad > (*xx)[(*num) - 1 - NPUT]) ? (prf[NRADBIN + 3].rad) : ((*xx)[(*num) - 1 - NPUT]);
+  leastSquaredMethod(NFIT, &((*xx)[NPUT]), &((*ff)[NPUT]), &pp, &bb);
+  const double logrmin = log10(rmin);
+  double logrbin = (log10((*xx)[NPUT]) - logrmin) / (double)NPUT;
+  for(int ii = 0; ii < NPUT; ii++){
+    (*xx)[ii] = pow(10.0, logrmin + logrbin * (double)ii);
+    (*ff)[ii] = bb * pow((*xx)[ii], pp);
+  }/* for(int ii = 0; ii < NPUT; ii++){ */
+  const double fpl = bb * pp * pow(rmin, pp - 1.0);
+  leastSquaredMethod(NFIT, &((*xx)[(*num) - 1 - NFIT - NPUT]), &((*ff)[(*num) - 1 - NFIT - NPUT]), &pp, &bb);
+  const double logrmax = log10(rmax);
+  logrbin = (log10((*xx)[(*num) - 1 - NPUT]) - logrmax) / (double)NPUT;
+  for(int ii = 0; ii < NPUT; ii++){
+    (*xx)[(*num) - 1 - ii] = pow(10.0, logrmax + logrbin * (double)ii);
+    (*ff)[(*num) - 1 - ii] = bb * pow((*xx)[(*num) - 1 - ii], pp);
+  }/* for(int ii = 0; ii < NPUT; ii++){ */
+  const double fpr = bb * pp * pow(rmax, pp - 1.0);
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* execute cubic spline interpolation to specify column density at arbitrary R */
+  //-----------------------------------------------------------------------
+  *f2 = (double *)malloc((*num) * sizeof(double));  if( *f2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate *f2");  }
+  *bp = (double *)malloc((*num) * sizeof(double));  if( *bp == NULL ){    __KILL__(stderr, "ERROR: failure to allocate *bp");  }
+  genCubicSpline1D(*num, *xx, *ff, *bp, fpl, fpr, *f2);
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------

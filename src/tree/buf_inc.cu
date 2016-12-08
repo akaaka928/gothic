@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/08/05(Fri) 11:08:56
+                  last updated on 2016/12/06(Tue) 12:47:01
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -15,8 +15,8 @@
 #include <stdbool.h>
 #include <helper_cuda.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
+#include "macro.h"
+#include "cudalib.h"
 //-------------------------------------------------------------------------
 #include "../misc/device.h"
 //-------------------------------------------------------------------------

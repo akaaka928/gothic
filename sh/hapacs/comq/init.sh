@@ -375,8 +375,7 @@ EXEC=$INI
 PROCS=`expr $NODES \* $PROCS_PER_NODE`
 ###############################################################
 . /opt/Modules/default/init/bash
-module load intel/15.0.5 intelmpi/5.1.1
-module load cuda/7.5.18 cuda/samples_7.5.18
+module load intel/16.0.4 mvapich2/2.2_intel_cuda-8.0.44 cuda/8.0.44 cuda-samples/8.0.44
 ###############################################################
 cd $PBS_O_WORKDIR
 STDOUT=log/$PBS_JOBNAME.$PBS_JOBID.out
@@ -386,7 +385,11 @@ cat $PBS_NODEFILE >> $STDOUT
 TIME=`date`
 echo "start: $TIME" >> $STDOUT
 ###############################################################
-mpirun -np $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE $EXEC -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+# # IntelMPI
+# mpirun -np $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE $EXEC -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+###############################################################
+# mvapich2
+mpirun_rsh -np $PROCS -hostfile $PBS_NODEFILE $EXEC -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
 ###############################################################
 TIME=`date`
 echo "finish: $TIME" >> $STDOUT

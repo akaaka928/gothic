@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/11(Tue) 17:08:43
+                  last updated on 2016/12/06(Tue) 12:56:13
  *                                                                       *
  *    Test Code to generate Smallest Enclosing Ball                      *
  *                                                                       *
@@ -18,8 +18,8 @@
 //-------------------------------------------------------------------------
 #include <gsl/gsl_rng.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <myutil.h>
+#include "macro.h"
+#include "myutil.h"
 //-------------------------------------------------------------------------
 gsl_rng *GSLRand;
 #define UNIRAND ((real)gsl_rng_uniform(GSLRand))

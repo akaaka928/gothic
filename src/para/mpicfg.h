@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/08(Tue) 10:59:29
+                  last updated on 2016/12/06(Tue) 12:37:07
  *                                                                       *
  *    Header File for N-body calculation with MPI parallelization        *
  *                                                                       *
@@ -13,8 +13,8 @@
 //-------------------------------------------------------------------------
 #include <mpi.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <mpilib.h>
+#include "macro.h"
+#include "mpilib.h"
 //-------------------------------------------------------------------------
 
 
@@ -27,6 +27,7 @@
 /* #define MAX_FACTOR_INCREASE (1.5f) */
 //-------------------------------------------------------------------------
 #define MAX_FACTOR_SAFETY (1.05f)
+/* #define MAX_FACTOR_SAFETY (1.1f) */
 #define MAX_FACTOR_FROM_EQUIPARTITION (MAX_FACTOR_INCREASE * MAX_FACTOR_SAFETY)
 //-------------------------------------------------------------------------
 

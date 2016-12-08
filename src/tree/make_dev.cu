@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/04(Fri) 14:34:24
+                  last updated on 2016/12/06(Tue) 15:07:43
  *                                                                       *
  *    Constructing octree structure for collisionless systems            *
  *                                                                       *
@@ -15,8 +15,8 @@
 #include <stdbool.h>
 #include <helper_cuda.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
+#include "macro.h"
+#include "cudalib.h"
 //-------------------------------------------------------------------------
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
@@ -33,6 +33,10 @@
 #endif//MAKE_TREE_ON_DEVICE
 //-------------------------------------------------------------------------
 #include "../misc/gsync_dev.cu"
+//-------------------------------------------------------------------------
+#ifndef SERIALIZED_EXECUTION
+#include "../para/exchange_dev.h"/* <-- required to read NBLOCKS_PER_SM_BOX */
+#endif//SERIALIZED_EXECUTION
 //-------------------------------------------------------------------------
 
 
@@ -1447,22 +1451,14 @@ muse allocTreeNode_dev
   checkCudaErrors(cudaMemcpy(*fail_dev, &fail_hst, sizeof(int), cudaMemcpyHostToDevice));
   //-----------------------------------------------------------------------
 #ifdef  MAKE_TREE_ON_DEVICE
-  mycudaMalloc((void **)  gmem_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));
-  alloc.device                         += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
-  mycudaMalloc((void **)gsync0_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));
-  alloc.device                         += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
-  mycudaMalloc((void **)gsync1_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));
-  alloc.device                         += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
-  mycudaMalloc((void **)gsync2_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));
-  alloc.device                         += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
-  mycudaMalloc((void **)gsync3_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));
-  alloc.device                         += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
-  mycudaMalloc((void **)  gmem_link_tree, devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int));
-  alloc.device                         += devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int);
-  mycudaMalloc((void **)gsync0_link_tree, devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int));
-  alloc.device                         += devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int);
-  mycudaMalloc((void **)gsync1_link_tree, devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int));
-  alloc.device                         += devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int);
+  mycudaMalloc((void **)  gmem_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
+  mycudaMalloc((void **)gsync0_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
+  mycudaMalloc((void **)gsync1_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
+  mycudaMalloc((void **)gsync2_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
+  mycudaMalloc((void **)gsync3_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
+  mycudaMalloc((void **)  gmem_link_tree, devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int);
+  mycudaMalloc((void **)gsync0_link_tree, devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int);
+  mycudaMalloc((void **)gsync1_link_tree, devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int);
   initGsync_kernel<<<1, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE>>>(devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE, *gsync0_make_tree, *gsync1_make_tree);
   getLastCudaError("initGsync_kernel");
   initGsync_kernel<<<1, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE>>>(devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE, *gsync2_make_tree, *gsync3_make_tree);
@@ -2104,7 +2100,15 @@ __global__ void copyRealBody_kernel
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
     const jmass mj_tmp = {ipos.m, eps2};
 #else///INDIVIDUAL_GRAVITATIONAL_SOFTENING
+#if 1
     const jmass mj_tmp =  ipos.m;
+#else
+    /* const jmass mj_tmp = (jpos.x < 3.0e-1f) ? ipos.m : ZERO; */
+    const jmass mj_tmp = (jpos.x < 2.499790e-1f) ? ipos.m : ZERO;
+    /* const jmass mj_tmp = (jpos.x < 2.499790e-1f) ? ZERO : ipos.m; */
+    /* const jmass mj_tmp = (jpos.x < 3.0e-0f) ? ZERO : ipos.m; */
+    /* const jmass mj_tmp = (FABS(jpos.x - 2.499790e-1f) < 2.0e-0f) ? ZERO : ipos.m; */
+#endif
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
     //---------------------------------------------------------------------
 
@@ -2301,17 +2305,33 @@ __device__ __forceinline__ void getMaximumRealTsub(      real *max, volatile int
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
   //-----------------------------------------------------------------------
   real val = max;
+/* #   if  TSUB_MAC >=  2 */
+/*   real tmp; */
+/*   tmp = __shfl_xor(val,  1, TSUB_MAC);  if( tmp > val )    val = tmp; */
+/* #   if  TSUB_MAC >=  4 */
+/*   tmp = __shfl_xor(val,  2, TSUB_MAC);  if( tmp > val )    val = tmp; */
+/* #   if  TSUB_MAC >=  8 */
+/*   tmp = __shfl_xor(val,  4, TSUB_MAC);  if( tmp > val )    val = tmp; */
+/* #   if  TSUB_MAC >= 16 */
+/*   tmp = __shfl_xor(val,  8, TSUB_MAC);  if( tmp > val )    val = tmp; */
+/* #   if  TSUB_MAC == 32 */
+/*   tmp = __shfl_xor(val, 16, TSUB_MAC);  if( tmp > val )    val = tmp; */
+/* #endif//TSUB_MAC == 32 */
+/* #endif//TSUB_MAC >= 16 */
+/* #endif//TSUB_MAC >=  8 */
+/* #endif//TSUB_MAC >=  4 */
+/* #endif//TSUB_MAC >=  2 */
 #   if  TSUB_MAC >=  2
   real tmp;
-  tmp = __shfl_xor(val,  1, TSUB_MAC);  if( tmp > val )    val = tmp;
+  tmp = __shfl_xor(val,  1, TSUB_MAC);  val = FMAX(val, tmp);
 #   if  TSUB_MAC >=  4
-  tmp = __shfl_xor(val,  2, TSUB_MAC);  if( tmp > val )    val = tmp;
+  tmp = __shfl_xor(val,  2, TSUB_MAC);  val = FMAX(val, tmp);
 #   if  TSUB_MAC >=  8
-  tmp = __shfl_xor(val,  4, TSUB_MAC);  if( tmp > val )    val = tmp;
+  tmp = __shfl_xor(val,  4, TSUB_MAC);  val = FMAX(val, tmp);
 #   if  TSUB_MAC >= 16
-  tmp = __shfl_xor(val,  8, TSUB_MAC);  if( tmp > val )    val = tmp;
+  tmp = __shfl_xor(val,  8, TSUB_MAC);  val = FMAX(val, tmp);
 #   if  TSUB_MAC == 32
-  tmp = __shfl_xor(val, 16, TSUB_MAC);  if( tmp > val )    val = tmp;
+  tmp = __shfl_xor(val, 16, TSUB_MAC);  val = FMAX(val, tmp);
 #endif//TSUB_MAC == 32
 #endif//TSUB_MAC >= 16
 #endif//TSUB_MAC >=  8
@@ -2323,17 +2343,33 @@ __device__ __forceinline__ void getMaximumRealTsub(      real *max, volatile int
   //-----------------------------------------------------------------------
   smem[tidx].r = *max;
   //-----------------------------------------------------------------------
+/* #   if  TSUB_MAC >=  2 */
+/*   real tmp; */
+/*   tmp = smem[tidx ^  1].r;  if( tmp > *max ){    *max = tmp;  }  smem[tidx].r = *max; */
+/* #   if  TSUB_MAC >=  4 */
+/*   tmp = smem[tidx ^  2].r;  if( tmp > *max ){    *max = tmp;  }  smem[tidx].r = *max; */
+/* #   if  TSUB_MAC >=  8 */
+/*   tmp = smem[tidx ^  4].r;  if( tmp > *max ){    *max = tmp;  }  smem[tidx].r = *max; */
+/* #   if  TSUB_MAC >= 16 */
+/*   tmp = smem[tidx ^  8].r;  if( tmp > *max ){    *max = tmp;  }  smem[tidx].r = *max; */
+/* #   if  TSUB_MAC == 32 */
+/*   tmp = smem[tidx ^ 16].r;  if( tmp > *max ){    *max = tmp;  }  smem[tidx].r = *max; */
+/* #endif//TSUB_MAC == 32 */
+/* #endif//TSUB_MAC >= 16 */
+/* #endif//TSUB_MAC >=  8 */
+/* #endif//TSUB_MAC >=  4 */
+/* #endif//TSUB_MAC >=  2 */
 #   if  TSUB_MAC >=  2
   real tmp;
-  tmp = smem[tidx ^  1].r;  if( tmp > *max ){    *max = tmp;  }  smem[tidx].r = *max;
+  tmp = smem[tidx ^  1].r;  *max = FMAX(*max, tmp);  smem[tidx].r = *max;
 #   if  TSUB_MAC >=  4
-  tmp = smem[tidx ^  2].r;  if( tmp > *max ){    *max = tmp;  }  smem[tidx].r = *max;
+  tmp = smem[tidx ^  2].r;  *max = FMAX(*max, tmp);  smem[tidx].r = *max;
 #   if  TSUB_MAC >=  8
-  tmp = smem[tidx ^  4].r;  if( tmp > *max ){    *max = tmp;  }  smem[tidx].r = *max;
+  tmp = smem[tidx ^  4].r;  *max = FMAX(*max, tmp);  smem[tidx].r = *max;
 #   if  TSUB_MAC >= 16
-  tmp = smem[tidx ^  8].r;  if( tmp > *max ){    *max = tmp;  }  smem[tidx].r = *max;
+  tmp = smem[tidx ^  8].r;  *max = FMAX(*max, tmp);  smem[tidx].r = *max;
 #   if  TSUB_MAC == 32
-  tmp = smem[tidx ^ 16].r;  if( tmp > *max ){    *max = tmp;  }  smem[tidx].r = *max;
+  tmp = smem[tidx ^ 16].r;  *max = FMAX(*max, tmp);  smem[tidx].r = *max;
 #endif//TSUB_MAC == 32
 #endif//TSUB_MAC >= 16
 #endif//TSUB_MAC >=  8
@@ -2436,7 +2472,6 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
       const treecell root = (cidx < clev.head + clev.num) ? (cell[cidx]) : (null_cell_device);
       //-------------------------------------------------------------------
 
-
       //-------------------------------------------------------------------
       /* extend the pseudo particle chain */
       //-------------------------------------------------------------------
@@ -2453,10 +2488,10 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 	  jparticle jcom = {ZERO, ZERO, ZERO, ZERO};
 	  //---------------------------------------------------------------
 #ifdef  WS93_MAC
-	  real mjrj2 = ZERO;
+	  /* real mjrj2 = ZERO; */
+	  real mjrj2 = FLT_MIN;
 #endif//WS93_MAC
 	  //---------------------------------------------------------------
-
 
 	  //---------------------------------------------------------------
 	  /* sum up multipole moment(s) of child cells */
@@ -2491,7 +2526,7 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 	    //-------------------------------------------------------------
 	  }/* for(int jj = lane; jj < cnum; jj += TSUB_MAC){ */
 	  //---------------------------------------------------------------
-	  /* sum up partial sums within tsub threads */
+	  /* sum up partial sums within TSUB_MAC threads */
 	  pj_sm[tidx] = jcom;
 	  jparticle jtmp;
 #   if  TSUB_MAC >=  2
@@ -2526,7 +2561,8 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 	  //---------------------------------------------------------------
 	  /* calculate center-of-mass */
 	  real mtot = jcom.w;
-	  real minv = UNITY / mtot;
+	  /* real minv = UNITY / mtot; */
+	  real minv = UNITY / (FLT_MIN + mtot);
 	  jcom.x *= minv;
 	  jcom.y *= minv;
 	  jcom.z *= minv;
@@ -2551,7 +2587,6 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 	  local.mjSdev += mtot * mtot;
 #endif//COUNT_INTERACTIONS
 	  //---------------------------------------------------------------
-
 
 	  //---------------------------------------------------------------
 	  /* estimate size of particle distribution */
@@ -2655,12 +2690,13 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 		    const real dx = jpos.x - jcom.x;
 		    const real dy = jpos.y - jcom.y;
 		    const real dz = jpos.z - jcom.z;
-		    const real d2 = 1.0e-30f + dx * dx + dy * dy + dz * dz;
+		    const real d2 = FLT_MIN + dx * dx + dy * dy + dz * dz;
 		    const real dr = d2 * RSQRT(d2);
 		    //-----------------------------------------------------
 		    const real rjmax = bmax[kidx] + dr;
 		    const real rjmin = -rjmax + (TWO * (UNITY - EPSILON)) * dr;
-		    rmin = (rjmin > rmin) ? rjmin : rmin;
+		    /* rmin = (rjmin > rmin) ? rjmin : rmin; */
+		    rmin = FMAX(rjmin, rmin);
 		    //-----------------------------------------------------
 		    if( rjmax > rmin ){
 		      pjidx_loc.ia[kk] = kidx;
@@ -2677,12 +2713,13 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 		    const real dx = jpos.x - jcom.x;
 		    const real dy = jpos.y - jcom.y;
 		    const real dz = jpos.z - jcom.z;
-		    const real d2 = 1.0e-30f + dx * dx + dy * dy + dz * dz;
+		    const real d2 = FLT_MIN + dx * dx + dy * dy + dz * dz;
 		    const real dr = d2 * RSQRT(d2);
 		    //-----------------------------------------------------
 		    const real rjmax = bmax[kidx] + dr;
 		    const real rjmin = -rjmax + (TWO * (UNITY - EPSILON)) * dr;
-		    rmin = (rjmin > rmin) ? rjmin : rmin;
+		    /* rmin = (rjmin > rmin) ? rjmin : rmin; */
+		    rmin = FMAX(rjmin, rmin);
 		    //-----------------------------------------------------
 		    if( rjmax > rmin ){
 		      const int itmp = jj / TSUB_MAC;
@@ -2770,7 +2807,6 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 	    }/* for(int iter = 0; iter < Niter; iter++){ */
 	    //-------------------------------------------------------------
 
-
 	    //-------------------------------------------------------------
 	    if( Nbuf != 0 ){
 	      //-----------------------------------------------------------
@@ -2790,7 +2826,6 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 	    if( (lane == 0) && (Ntry > NUM_ALLOC_MACBUF) )
 	      atomicAdd(overflow, 1);
 	    //-------------------------------------------------------------
-
 
 	    //-------------------------------------------------------------
 	    /* list up all child nodes that satisfy rjmax > rmin */
@@ -2975,10 +3010,11 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 	    const real dx = ipos.x - jcom.x;
 	    const real dy = ipos.y - jcom.y;
 	    const real dz = ipos.z - jcom.z;
-	    const real r2 = 1.0e-30f + dx * dx + dy * dy + dz * dz;
+	    const real r2 = FLT_MIN + dx * dx + dy * dy + dz * dz;
 	    //-------------------------------------------------------------
-	    if( r2 > jbmax )
-	      jbmax = r2;
+	    /* if( r2 > jbmax ) */
+	    /*   jbmax = r2; */
+	    jbmax = FMAX(jbmax, r2);
 	    //-------------------------------------------------------------
 	  }/* for(int jj = lane; jj < Ncand; jj += TSUB_MAC){ */
 	  //---------------------------------------------------------------
@@ -3041,6 +3077,142 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
   }/* for(int levelIdx = (NUM_PHKEY_LEVEL - 2); levelIdx >= 0; levelIdx--){ */
   //-----------------------------------------------------------------------
 }
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
+#   if  !defined(SERIALIZED_EXECUTION) && defined(ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX)
+#if 0
+//-------------------------------------------------------------------------
+#   if  NTHREADS_MAKE_INC != NTHREADS_OUTFLOW
+#undef  NTHREADS_MAKE_INC
+#define NTHREADS_MAKE_INC    NTHREADS_OUTFLOW
+#include "../tree/make_inc.cu"
+#endif//NTHREADS_MAKE_INC != NTHREADS_OUTFLOW
+//-------------------------------------------------------------------------
+__global__ void __launch_bounds__(NTHREADS_OUTFLOW, NBLOCKS_PER_SM_OUTFLOW) checkOutflow_kernel
+     (const int topLev, READ_ONLY PHinfo * RESTRICT level,
+      READ_ONLY uint * RESTRICT ptag,
+      READ_ONLY uint * RESTRICT more, jparticle * RESTRICT pj, real * RESTRICT bmax,
+      const float3 bmin, const float3 bmax, const float skin,
+      int * RESTRICT ibuf, float * RESTRICT fbuf, int * RESTRICT overflow,
+      int * RESTRICT gmem, int * RESTRICT gsync0, int * RESTRICT gsync1
+      )
+{
+  //-----------------------------------------------------------------------
+  /* identify thread properties */
+  //-----------------------------------------------------------------------
+  const int tidx = THREADIDX_X1D;
+  const int gidx = GLOBALIDX_X1D;
+  const int bidx =  BLOCKIDX_X1D;
+  const int bnum =   GRIDDIM_X1D;
+  //-----------------------------------------------------------------------
+  const int lane = tidx & (warpSize - 1);
+  const int head = tidx - lane;
+#ifndef USE_WARP_SHUFFLE_FUNC_OUTFLOW
+  const int tail = head + warpSize - 1;
+#endif//USE_WARP_SHUFFLE_FUNC_OUTFLOW
+  //-----------------------------------------------------------------------
+  __shared__ int smem[NTHREADS_OUTFLOW];
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* initialization */
+  //-----------------------------------------------------------------------
+  int rem = 0;
+  {
+    const PHinfo clev = level[topLev];
+    for(int ii = 0; ii < bnum * BLOCKSIZE(clev.num, bnum * NTHREADS_OUTFLOW); ii += bnum){
+      const  int cidx =  clev.head + (gidx + ii * NTHREADS_OUTFLOW);
+      const uint node = (cidx < clev.head + clev.num) ? (ptag[cidx]) : (NULL_NODE);
+      int add = 0;
+      int num = 0;
+      int son = NULL_NODE;
+      if( node != NULL_NODE ){
+	num = 1 + (node >> IDXBITS);
+	son = node & IDXMASK;
+	float sep = 0.5f * FLT_MAX;
+	for(int jj = son; jj < son + num; jj++)
+	  if( more[jj] != jj ){
+	    const float rad = CAST_R2F(bmax[jj]);
+	    const jparticle jpos = pj[jj];
+	    float pjx = CAST_R2F(jpos.x);	    pjx = fminf(pjx - rad - bmin.x, bmax.x - pjx - rad);
+	    float pjy = CAST_R2F(jpos.y);	    pjy = fminf(pjy - rad - bmin.y, bmax.y - pjy - rad);
+	    float pjz = CAST_R2F(jpos.z);	    pjz = fminf(pjz - rad - bmin.z, bmax.z - pjz - rad);
+	    sep = fminf(sep, pjx);
+	    pjy = fminf(pjy, pjz);
+	    sep = fminf(pjy, sep);
+	  }/* if( more[jj] != jj ){ */
+	if( sep < 2.0f * skin )
+	  add = num;
+      }/* if( node != NULL_NODE ){ */
+      PREFIX_SUM_MAKE_INC_BLCK(add, tidx, lane, smem);
+      int headIdx, scanNum;
+      PREFIX_SUM_MAKE_INC_GRID(&headIdx, &scanNum, bnum, bidx, tidx, lane, smem, gmem, gsync0, gsync1);
+      headIdx += rem;
+      for(int jj = 0; jj < add; jj++){
+	ibuf[headIdx + jj] = son + jj;
+	fbuf[headIdx + jj] = CAST_R2F(pj[son + jj].w);
+      }/* for(int jj = 0; jj < add; jj++){ */
+      rem += scanNum;
+    }/* for(int ii = 0; ii < bnum * BLOCKSIZE(clev.num, bnum * NTHREADS_OUTFLOW); ii += bnum){ */
+  }
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* detect particles locate outside the preset domain */
+  //-----------------------------------------------------------------------
+  int hbuf = 0;
+  jparticle jcen;
+  jcen.x = CAST_F2R(0.5f * (bmin.x + bmax.x));
+  jcen.y = CAST_F2R(0.5f * (bmin.y + bmax.y));
+  jcen.z = CAST_F2R(0.5f * (bmin.z + bmax.z));
+  //-----------------------------------------------------------------------
+  while( true ){
+    //---------------------------------------------------------------------
+    /* if the queue becomes empty, then exit the while loop */
+    if( rem == 0 )
+      break;
+    //---------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
+    /* check child cells of a picked up tree node from global memory */
+    float rad = 0.0f;
+    jparticle jpos = jcen;
+    if( gidx < rem ){
+      const int jj = buf[hbuf + gidx];
+      const uint node = more[jj];
+
+
+      if( more[jj] != jj ){
+	jpos = pj[jj];
+	rad = CAST_R2F(bmax[jj]);
+      }
+    }
+    //---------------------------------------------------------------------
+    /* calculate distance from the boundary */
+    float sep = 0.5f * FLT_MAX;
+    float pjx = CAST_R2F(jpos.x);    pjx = fminf(pjx - rad - bmin.x, bmax.x - pjx - rad);
+    float pjy = CAST_R2F(jpos.y);    pjy = fminf(pjy - rad - bmin.y, bmax.y - pjy - rad);
+    float pjz = CAST_R2F(jpos.z);    pjz = fminf(pjz - rad - bmin.z, bmax.z - pjz - rad);
+    sep = fminf(sep, pjx);
+    pjy = fminf(pjy, pjz);
+    sep = fminf(pjy, sep);
+    //---------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
+    //---------------------------------------------------------------------
+
+    //---------------------------------------------------------------------
+    //---------------------------------------------------------------------
+  }/* while( true ){ */
+  //-----------------------------------------------------------------------
+
+
+}
+//-------------------------------------------------------------------------
+#endif
+#endif//!defined(SERIALIZED_EXECUTION) && defined(ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX)
 //-------------------------------------------------------------------------
 
 
@@ -3108,6 +3280,92 @@ __global__ void initStatistics_kernel(tree_stats *stats)
 }
 //-------------------------------------------------------------------------
 #endif//COUNT_INTERACTIONS
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
+#if 0
+//-------------------------------------------------------------------------
+__global__ void printJtag_kernel(const int num, READ_ONLY int * RESTRICT jtag)
+{
+  for(int ii = 0; ii < num; ii++)
+    printf("%d\t%d\n", ii, jtag[ii]);
+}
+//-------------------------------------------------------------------------
+extern "C"
+void printJtag_dev(const int num, const soaTreeNode node, MPIinfo mpi)
+{
+  for(int ii = 0; ii < mpi.size; ii++){
+    if( ii == mpi.rank )
+      printJtag_kernel<<<1, 1>>>(num, node.jtag);
+    checkCudaErrors(cudaDeviceSynchronize());
+    fflush(stdout);
+    MPI_Barrier(mpi.comm);
+    if( ii == mpi.rank )
+      printf("# rank %d / %d\n", mpi.rank, mpi.size);
+    fflush(stdout);
+    MPI_Barrier(mpi.comm);
+  }
+  MPI_Finalize();
+  exit(0);
+}
+//-------------------------------------------------------------------------
+__global__ void printRealBody_kernel(const int num, READ_ONLY int * RESTRICT jtag, READ_ONLY jparticle * RESTRICT pj, READ_ONLY jmass * RESTRICT mj)
+{
+  for(int ii = 0; ii < num; ii++){
+    const int idx = jtag[ii];
+    const jparticle jpos = pj[idx];
+    const jmass     mass = mj[idx];
+    printf("%e\t%e\t%e\t%e\n", mass, jpos.x, jpos.y, jpos.z);
+  }/* for(int ii = 0; ii < num; ii++){ */
+}
+//-------------------------------------------------------------------------
+extern "C"
+void printRealBody_dev(const int num, const soaTreeNode node, MPIinfo mpi)
+{
+  for(int ii = 0; ii < mpi.size; ii++){
+    if( ii == mpi.rank )
+      printRealBody_kernel<<<1, 1>>>(num, node.jtag, node.jpos, node.mj);
+    checkCudaErrors(cudaDeviceSynchronize());
+    fflush(stdout);
+    MPI_Barrier(mpi.comm);
+    if( ii == mpi.rank )
+      printf("# rank %d / %d\n", mpi.rank, mpi.size);
+    fflush(stdout);
+    MPI_Barrier(mpi.comm);
+  }
+  MPI_Finalize();
+  exit(0);
+}
+//-------------------------------------------------------------------------
+__global__ void printTreeNode_kernel(const int num, READ_ONLY jparticle * RESTRICT pj, READ_ONLY jmass * RESTRICT mj)
+{
+  for(int ii = 0; ii < num; ii++){
+    const jparticle jpos = pj[ii];
+    const jmass     mass = mj[ii];
+    printf("%e\t%e\t%e\t%e\n", mass, jpos.x, jpos.y, jpos.z);
+  }/* for(int ii = 0; ii < num; ii++){ */
+}
+//-------------------------------------------------------------------------
+extern "C"
+void printTreeNode_dev(const int num, const soaTreeNode node, MPIinfo mpi)
+{
+  for(int ii = 0; ii < mpi.size; ii++){
+    if( ii == mpi.rank )
+      printTreeNode_kernel<<<1, 1>>>(num, node.jpos, node.mj);
+    checkCudaErrors(cudaDeviceSynchronize());
+    fflush(stdout);
+    MPI_Barrier(mpi.comm);
+    if( ii == mpi.rank )
+      printf("# rank %d / %d\n", mpi.rank, mpi.size);
+    fflush(stdout);
+    MPI_Barrier(mpi.comm);
+  }
+  MPI_Finalize();
+  exit(0);
+}
+//-------------------------------------------------------------------------
+#endif
 //-------------------------------------------------------------------------
 
 
@@ -3271,7 +3529,7 @@ void calcMultipole_dev
   initStopwatch();
 #endif//HUNT_MAKE_PARAMETER
   //-----------------------------------------------------------------------
-
+#if 1
   //-----------------------------------------------------------------------
   /* set pseudo j-particles */
   //-----------------------------------------------------------------------
@@ -3309,6 +3567,11 @@ void calcMultipole_dev
 #endif//EXEC_BENCHMARK
 #endif//defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
   //-----------------------------------------------------------------------
+#if 0
+  checkCudaErrors(cudaMemcpy(pi.encBall, pi.jpos, sizeof(position), cudaMemcpyDeviceToDevice));
+  checkCudaErrors(cudaMemcpy(pi.encBall_hst, pi.encBall, sizeof(position), cudaMemcpyDeviceToHost));
+#endif
+  //-----------------------------------------------------------------------
 
 
   //-----------------------------------------------------------------------
@@ -3342,15 +3605,13 @@ void calcMultipole_dev
   exit(0);
 #endif//DBG_CALC_MULTIPOLE
   //-----------------------------------------------------------------------
-
+#endif
 
   //-----------------------------------------------------------------------
 #if 0
   jparticle *pj_hst;
   mycudaMallocHost((void **)&pj_hst, pjNum * sizeof(jparticle));
-
   checkCudaErrors(cudaMemcpy(pj_hst, node.jpos, pjNum * sizeof(jparticle), cudaMemcpyDeviceToHost));
-
   for(int jj = 0; jj < pjNum; jj++)
     fprintf(stdout, "%d:\t%e, %e, %e\n", jj, pj_hst[jj].x, pj_hst[jj].y, pj_hst[jj].z);
   fflush(stdout);

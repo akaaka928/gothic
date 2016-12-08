@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/01(Tue) 10:46:01
+                  last updated on 2016/12/06(Tue) 12:59:18
  *                                                                       *
  *    Header File for tree traversal based on octree structure           *
  *                                                                       *
@@ -13,8 +13,8 @@
 #ifndef WALK_DEV_H
 #define WALK_DEV_H
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
+#include "macro.h"
+#include "cudalib.h"
 //-------------------------------------------------------------------------
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
@@ -32,8 +32,24 @@
 #endif//defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 //-------------------------------------------------------------------------
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
-#       include <stdbool.h>
+#include <stdbool.h>
 #endif//COMPARE_WITH_DIRECT_SOLVER
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
+#define PARTIAL_SUM_ACCELERATION
+//-------------------------------------------------------------------------
+#ifdef  PARTIAL_SUM_ACCELERATION
+#define ACCURATE_ACCUMULATION
+/* #define ACCURATE_PARTIAL_SUM */
+#endif//PARTIAL_SUM_ACCELERATION
+//-------------------------------------------------------------------------
+#   if  defined(ACCURATE_PARTIAL_SUM) && defined(ACCURATE_ACCUMULATION)
+#undef          ACCURATE_PARTIAL_SUM
+#endif//defined(ACCURATE_PARTIAL_SUM) && defined(ACCURATE_ACCUMULATION)
+//-------------------------------------------------------------------------
+/* #define MERGE_QUEUED_TREE_NODES */
 //-------------------------------------------------------------------------
 
 
@@ -73,7 +89,9 @@
 /* NWARP must be 1, 2, 4, 8, 16, or 32 */
 #ifndef NWARP
 #          if  GPUGEN >= 52
-#define NWARP (4)
+/* #define NWARP (4) */
+/* #define NWARP (1) */
+#define NWARP (32)
 #       else///GPUGEN >= 52
 /* #          if  GPUGEN >= 30 */
 /* #define NWARP (2) */
@@ -88,6 +106,10 @@
 #define NWARP (1)
 #endif//NWARP
 #endif//IJ_PARALLELIZATION
+#ifdef  DPADD_FOR_ACC
+#undef  NWARP
+#define NWARP (1)
+#endif//DPADD_FOR_ACC
 //-------------------------------------------------------------------------
 #ifndef NTHREADS
 #          if  GPUGEN >= 30

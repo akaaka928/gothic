@@ -1,6 +1,6 @@
 /************************************************************************* \
  *                                                                       *
-                  last updated on 2016/11/11(Fri) 17:06:34
+                  last updated on 2016/12/06(Tue) 22:17:31
  *                                                                       *
  *    N-body code based on Barnes--Hut tree                              *
  *                                                                       *
@@ -18,21 +18,21 @@
 #include <mpi.h>
 //-------------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
-#       include <hdf5.h>
-#       include <hdf5lib.h>
+#include <hdf5.h>
+#include "hdf5lib.h"
 #endif//USE_HDF5_FORMAT
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <myutil.h>
-#include <name.h>
-#include <constants.h>
-#include <timer.h>
-#include <cudalib.h>
+#include "macro.h"
+#include "myutil.h"
+#include "name.h"
+#include "constants.h"
+#include "timer.h"
+#include "cudalib.h"
 //-------------------------------------------------------------------------
-#        ifndef SERIALIZED_EXECUTION
-#include <mpilib.h>
+#ifndef SERIALIZED_EXECUTION
+#include "mpilib.h"
 #include "../para/mpicfg.h"
-#        endif//SERIALIZED_EXECUTION
+#endif//SERIALIZED_EXECUTION
 //-------------------------------------------------------------------------
 #include "../misc/device.h"
 #include "../misc/benchmark.h"
@@ -41,23 +41,23 @@
 #include "../misc/allocate_dev.h"
 #include "../misc/convert.h"
 #include "../misc/tune.h"
-#           if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #include "../misc/brent.h"
-#        endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
-//-------------------------------------------------------------------------
-#        ifndef SERIALIZED_EXECUTION
-#include "../para/exchange.h"
-#ifdef  EXCHANGE_USING_GPUS
-#include "../para/exchange_dev.h"
-#endif//EXCHANGE_USING_GPUS
-#        endif//SERIALIZED_EXECUTION
+#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 //-------------------------------------------------------------------------
 #include "../file/io.h"
 //-------------------------------------------------------------------------
 #include "../sort/peano.h"
-#        ifdef  GENERATE_PHKEY_ON_DEVICE
+#ifdef  GENERATE_PHKEY_ON_DEVICE
 #include "../sort/peano_dev.h"
-#        endif//GENERATE_PHKEY_ON_DEVICE
+#endif//GENERATE_PHKEY_ON_DEVICE
+//-------------------------------------------------------------------------
+#ifndef SERIALIZED_EXECUTION
+#include "../para/exchange.h"
+#ifdef  EXCHANGE_USING_GPUS
+#include "../para/exchange_dev.h"
+#endif//EXCHANGE_USING_GPUS
+#endif//SERIALIZED_EXECUTION
 //-------------------------------------------------------------------------
 #include "../tree/macutil.h"
 #include "../tree/make.h"
@@ -65,25 +65,25 @@
 #include "../tree/buf_inc.h"
 #include "../tree/make_dev.h"
 #include "../tree/walk_dev.h"
-#        ifdef  BRUTE_FORCE_LOCALIZATION
-#        ifdef  LOCALIZE_I_PARTICLES
+#ifdef  BRUTE_FORCE_LOCALIZATION
+#ifdef  LOCALIZE_I_PARTICLES
 #include "../tree/neighbor_dev.h"
-#        endif//LOCALIZE_I_PARTICLES
+#endif//LOCALIZE_I_PARTICLES
 #include "../tree/shrink_dev.h"
-#        else///BRUTE_FORCE_LOCALIZATION
+#else///BRUTE_FORCE_LOCALIZATION
 #include "../tree/stat_dev.h"
-#        endif//BRUTE_FORCE_LOCALIZATION
-#        ifndef SERIALIZED_EXECUTION
+#endif//BRUTE_FORCE_LOCALIZATION
+#ifndef SERIALIZED_EXECUTION
 #include "../tree/geo_dev.h"
 #include "../tree/let_dev.h"
-#        endif//SERIALIZED_EXECUTION
+#endif//SERIALIZED_EXECUTION
 //-------------------------------------------------------------------------
 #include "../time/adv_dev.h"
 //-------------------------------------------------------------------------
 /* #define LEAP_FROG_INTEGRATOR */
 //-------------------------------------------------------------------------
 #   if  defined(LEAP_FROG_INTEGRATOR) && defined(BLOCK_TIME_STEP)
-#       undef   LEAP_FROG_INTEGRATOR
+#undef          LEAP_FROG_INTEGRATOR
 #endif//defined(LEAP_FROG_INTEGRATOR) && defined(BLOCK_TIME_STEP)
 //-------------------------------------------------------------------------
 #ifndef WS93_MAC
@@ -91,7 +91,7 @@ real theta2;
 #endif//WS93_MAC
 //-------------------------------------------------------------------------
 #   if  defined(WALK_TREE_COMBINED_MODEL) || defined(WALK_TREE_TOTAL_SUM_MODEL) || defined(WALK_TREE_GEOMETRIC_PROGRESSION_MODEL) || defined(COUNT_INTERACTIONS)
-#       include <math.h>
+#include <math.h>
 #endif//defined(WALK_TREE_COMBINED_MODEL) || defined(WALK_TREE_TOTAL_SUM_MODEL) || defined(WALK_TREE_GEOMETRIC_PROGRESSION_MODEL) || defined(COUNT_INTERACTIONS)
 //-------------------------------------------------------------------------
 #   if  defined(HUNT_MAKE_PARAMETER) || (defined(HUNT_FIND_PARAMETER) && defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES))
@@ -228,8 +228,11 @@ static inline void updateDomain
 #ifdef  EXCHANGE_USING_GPUS
  iparticle *ibody0_dev, iparticle *ibody1_dev, iparticle *ibody0_hst, iparticle *ibody1_hst, const ulong Ntot,
  particlePos pos_hst, particlePos pos_dev, domainCfg domain, domainDecomposeKey key,
- sampling sample, samplePos loc, samplePos ful, soaBoxSize soa, const deviceProp devProp, const deviceInfo devInfo,
+ sampling sample, samplePos loc, samplePos ful, soaPHsort soa, const deviceProp devProp, const deviceInfo devInfo,
  double *exchangeInterval, MPIinfo orm[restrict], MPIinfo rep[restrict],
+#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+ const float epsinv,
+#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
 #else///EXCHANGE_USING_GPUS
  iparticle ibody0_dev, iparticle ibody0_hst, iparticle ibody1_hst,
  const int ndim, MPIinfo *orbCfg, domainCfg *domCfg, domainDecomposeKey *domDecKey,
@@ -258,6 +261,9 @@ static inline void updateDomain
      measured->genTree + measured->calcAcc + measured->calcMAC,
 #endif//MONITOR_LETGEN_TIME
      sample, loc, ful, soa, devProp, devInfo, exchangeInterval, measured
+#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+     , epsinv
+#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
      , status, memory
 #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
@@ -416,6 +422,10 @@ static inline void configDistribution
 #ifdef  LOCALIZE_I_PARTICLES
 #ifdef  USE_BRENT_METHOD
  , brentStatus *brent
+#else///USE_BRENT_METHOD
+#ifdef  CUB_AVAILABLE
+ , soaCUBreal util
+#endif//CUB_AVAILABLE
 #endif//USE_BRENT_METHOD
 #       ifdef  BRUTE_FORCE_LOCALIZATION
  , int *inum_dev, int *inum_hst
@@ -456,6 +466,10 @@ static inline void configDistribution
 		       , ibody_dev, inum_dev, inum_hst
 #ifdef  USE_BRENT_METHOD
 		       , (real)brent->u.pos
+#else///USE_BRENT_METHOD
+#ifdef  CUB_AVAILABLE
+		       , util
+#endif//CUB_AVAILABLE
 #endif//USE_BRENT_METHOD
 #ifndef FACILE_NEIGHBOR_SEARCH
 		       , cell, node, makeBuf, searchBuf, devProp
@@ -756,16 +770,12 @@ void analyzeTreeMetrics(tree_metrics *metric);
 int main(int argc, char **argv)
 {
   //-----------------------------------------------------------------------
-#ifndef SERIALIZED_EXECUTION
-  //-----------------------------------------------------------------------
   /* parallelized region employing MPI start */
-  //-----------------------------------------------------------------------
+#ifndef SERIALIZED_EXECUTION
   static MPIinfo mpi;
   initMPI(&mpi, &argc, &argv);
-  //-----------------------------------------------------------------------
   static MPIcfg_dataio iocfg;
   createMPIcfg_dataio(&iocfg, mpi);
-  //-----------------------------------------------------------------------
 #endif//SERIALIZED_EXECUTION
   //-----------------------------------------------------------------------
 #ifdef  REPORT_TOTAL_ELAPSED_TIME
@@ -966,7 +976,10 @@ int main(int argc, char **argv)
 #ifdef  GENERATE_PHKEY_ON_DEVICE
   PHint *peano_dev;
   int   *  tag_dev;
-  real4 *min_dev, *max_dev;
+  float4 *min_dev, *max_dev;
+#ifndef SERIALIZED_EXECUTION
+  float4 *box_min, *box_max, *min_hst, *max_hst;
+#endif//SERIALIZED_EXECUTION
   int *gsync_ph0, *gsync_ph1;
   soaPHsort soaPH_dev, soaPH_hst;
 #ifdef  CUB_AVAILABLE
@@ -977,6 +990,9 @@ int main(int argc, char **argv)
 #endif//CUB_AVAILABLE
   const muse alloc_phkey = allocPeanoHilbertKey_dev
     (num_max, &tag_dev, &peano_dev, &peano, &min_dev, &max_dev, &gsync_ph0, &gsync_ph1,
+#ifndef SERIALIZED_EXECUTION
+    &box_min, &box_max, &min_hst, &max_hst,
+#endif//SERIALIZED_EXECUTION
 #ifndef CALC_MULTIPOLE_ON_DEVICE
      &list,
 #endif//CALC_MULTIPOLE_ON_DEVICE
@@ -1016,6 +1032,12 @@ int main(int argc, char **argv)
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
   position *encBall_dev, *encBall_hst;
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  DPADD_FOR_ACC
+  DPacc *tmp_dev;
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+  acceleration *res_dev;
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 #ifdef  BLOCK_TIME_STEP
   velocity     *  vel0, *  vel1, *  vel0_dev;
   ibody_time   * time0, * time1, * time0_dev;
@@ -1041,6 +1063,12 @@ int main(int argc, char **argv)
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
 							, &encBall_dev, &encBall_hst
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  DPADD_FOR_ACC
+							, &tmp_dev
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+							, &res_dev
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 							);
 #   if  !defined(CALC_MULTIPOLE_ON_DEVICE) && !defined(GENERATE_PHKEY_ON_DEVICE)
   ibody0.jpos = pos1;  ibody0.jvel = vel1;
@@ -1068,6 +1096,12 @@ int main(int argc, char **argv)
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
 							, &encBall_dev, &encBall_hst
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  DPADD_FOR_ACC
+							, &tmp_dev
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+							, &res_dev
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 							);
 #endif//BLOCK_TIME_STEP
   iparticle_treeinfo treeinfo, treeinfo_dev;
@@ -1294,10 +1328,11 @@ int main(int argc, char **argv)
 					    &sxmin, &sxmax, &symin, &symax, &szmin, &szmax,
 					    &iparticleSendBuf, &iparticleRecvBuf, &sampleRecvNum, &sampleRecvDsp,
 					    ormCfg, repCfg, Nx, Ny, Nz, &letcfg, &domCfg, &sample, Ntot);
-  float4 *pmin_hst, *pmax_hst, *pmin_dev, *pmax_dev;
-  int *gsync_box0, *gsync_box1;
-  soaBoxSize soaBox;
-  const muse alloc_box = allocateBoxSize_dev(&pmin_hst, &pmax_hst, &pmin_dev, &pmax_dev, &gsync_box0, &gsync_box1, &soaBox, devProp);
+  /* float4 *pmin_hst, *pmax_hst, *pmin_dev, *pmax_dev; */
+  /* int *gsync_box0, *gsync_box1; */
+  /* soaBoxSize soaBox; */
+  /* const muse alloc_box = allocateBoxSize_dev(&pmin_hst, &pmax_hst, &pmin_dev, &pmax_dev, &gsync_box0, &gsync_box1, &soaBox, devProp); */
+  checkBoxSize_dev(devProp);
   float *x0hst, *x1hst, *y0hst, *y1hst, *z0hst, *z1hst;  int *idhst;
   float *x0dev, *x1dev, *y0dev, *y1dev, *z0dev, *z1dev;  int *iddev;
   samplePos samplePos0, samplePos1;
@@ -1493,6 +1528,12 @@ int main(int argc, char **argv)
   stepsInit = steps;
 #endif//REPORT_TOTAL_ELAPSED_TIME
   //-----------------------------------------------------------------------
+#if 0
+  for(int ii = 0; ii < num; ii++)
+    if( ibody0.pos[ii].x > 2.499790e-1f )
+      ibody0.pos[ii].m = ZERO;
+#endif
+  //-----------------------------------------------------------------------
   /* set up for output files */
   static double formerTime;
 #ifdef  SERIALIZED_EXECUTION
@@ -1530,8 +1571,8 @@ int main(int argc, char **argv)
   used_mem.host   += let_mem.host;
   used_mem.device += let_mem.device;
 #ifdef  EXCHANGE_USING_GPUS
-  const muse box_mem = {alloc_box.host   + alloc_spl.host   + alloc_pos.host  ,
-			alloc_box.device + alloc_spl.device + alloc_pos.device};
+  const muse box_mem = {alloc_spl.host   + alloc_pos.host  ,
+			alloc_spl.device + alloc_pos.device};
   used_mem.host   += box_mem.host;
   used_mem.device += box_mem.device;
 #endif//EXCHANGE_USING_GPUS
@@ -1753,14 +1794,20 @@ int main(int argc, char **argv)
   initStatVal  (&exchangeParam.parabolicStats);
   initGuessTime(&exchangeParam.parabolicGuess);
 #endif//USE_PARABOLIC_GROWTH_MODEL
+#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+  const float epsinv = CAST_R2F(UNITY / eps);
+#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
 #endif//EXCHANGE_USING_GPUS
   //-----------------------------------------------------------------------
   updateDomain(&num, num_max, &Ni,
 #ifdef  EXCHANGE_USING_GPUS
 	       &ibody0_dev, &ibody1_dev, &ibody0, &ibody1, Ntot,
 	       particlePos_hst, particlePos_dev, domCfg, domDecKey,
-	       sample, samplePos0, samplePos1, soaBox, devProp, devInfo,
+	       sample, samplePos0, samplePos1, soaPH_dev, devProp, devInfo,
 	       &exchangeInterval, ormCfg, repCfg,
+#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+	       epsinv,
+#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
 #else///EXCHANGE_USING_GPUS
 	       ibody0_dev, ibody0, ibody1,
 	       ndim, orbCfg, domCfg, domDecKey,
@@ -1815,6 +1862,11 @@ int main(int argc, char **argv)
 		     , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
 		     );
+#if 0
+  printf("numNode = %d @ rank %d\n", numNode, letcfg.rank);
+  MPI_Finalize();
+  exit(0);
+#endif
   //-----------------------------------------------------------------------
 #ifdef  BLOCK_TIME_STEP
   prediction_dev(num, time, ibody0_dev
@@ -1856,6 +1908,18 @@ int main(int argc, char **argv)
      , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
      );
+#if 0
+  printParticleInfo_dev(num, ibody0_dev, mpi);
+#endif
+#if 0
+  printJtag_dev(num, soaNode_dev, mpi);
+#endif
+#if 0
+  printRealBody_dev(num, soaNode_dev, mpi);
+#endif
+#if 0
+  printTreeNode_dev(numNode, soaNode_dev, mpi);
+#endif
 #   if  !defined(CALC_MULTIPOLE_ON_DEVICE) && !defined(SERIALIZED_EXECUTION)
   bmax_root = bmax[0];
 #endif//!defined(CALC_MULTIPOLE_ON_DEVICE) && !defined(SERIALIZED_EXECUTION)
@@ -1901,6 +1965,10 @@ int main(int argc, char **argv)
 #ifdef  LOCALIZE_I_PARTICLES
 #ifdef  USE_BRENT_METHOD
      , &brentDistance
+#else///USE_BRENT_METHOD
+#ifdef  CUB_AVAILABLE
+     , soaCUBneighbor
+#endif//CUB_AVAILABLE
 #endif//USE_BRENT_METHOD
 #       ifdef  BRUTE_FORCE_LOCALIZATION
      , inum_dev, inum_hst
@@ -1951,6 +2019,11 @@ int main(int argc, char **argv)
 		    letcfg);
   guessLETpartition(letcfg.size, nodeInfo, numNode, encBall, letcfg);
 #endif//BUILD_LET_ON_DEVICE
+#if 0
+  printf("r2max = %e, amin = %e for rank %d\n", ibody0_dev.encBall_hst->m, ibody0_dev.amin, letcfg.rank);
+  MPI_Finalize();
+  exit(0);
+#endif
 #endif//SERIALIZED_EXECUTION
   //-----------------------------------------------------------------------
 
@@ -2165,6 +2238,18 @@ int main(int argc, char **argv)
       dt = eps * eta;
 #endif//LEAP_FROG_INTEGRATOR
     //---------------------------------------------------------------------
+#if 0
+    MPI_Finalize();
+    /* fprintf(stderr, "# for normal run:  enable 2108-th line of tree/make_dev.cu\n"); */
+    /* fprintf(stderr, "# for normal run: disable 1548-th line of main/gothic.c\n"); */
+    /* fprintf(stderr, "# for normal run: disable  441-th line of sort/peano_dev.cu\n"); */
+    /* fprintf(stderr, "# for normal run: disable  903-th line of sort/peano_dev.cu\n"); */
+    /* fprintf(stderr, "# for normal run: disable 1344-th line of para/exchange_dev.cu\n"); */
+    fprintf(stderr, "# for normal run: disable 2362-th line of main/gothic.c\n");
+    fprintf(stderr, "# exit for debug @ %s(%d)\n", __FILE__, __LINE__);
+    exit(0);
+#endif
+    //---------------------------------------------------------------------
   }/* if( steps == 0 ){ */
   //-----------------------------------------------------------------------
   /* initialize time step */
@@ -2270,6 +2355,10 @@ int main(int argc, char **argv)
     }/* if( balancer.enable ){ */
     /* chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.execute), 1, MPI_LOGICAL, MPI_LOR, letcfg.comm)); */
     __NOTE__("balancer.execute = %d @ rank %d\n", balancer.execute, letcfg.rank);
+#if 0
+    if( balancer.enable )
+      balancer.execute = true;
+#endif
     //---------------------------------------------------------------------
     if( balancer.execute ){
       //-------------------------------------------------------------------
@@ -2277,8 +2366,11 @@ int main(int argc, char **argv)
 #ifdef  EXCHANGE_USING_GPUS
 		   &ibody0_dev, &ibody1_dev, &ibody0, &ibody1, Ntot,
 		   particlePos_hst, particlePos_dev, domCfg, domDecKey,
-		   sample, samplePos0, samplePos1, soaBox, devProp, devInfo,
+		   sample, samplePos0, samplePos1, soaPH_dev, devProp, devInfo,
 		   &exchangeInterval, ormCfg, repCfg,
+#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+		   epsinv,
+#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
 #else///EXCHANGE_USING_GPUS
 		   ibody0_dev, ibody0, ibody1,
 		   ndim, orbCfg, domCfg, domDecKey,
@@ -2520,6 +2612,10 @@ int main(int argc, char **argv)
 #ifdef  LOCALIZE_I_PARTICLES
 #ifdef  USE_BRENT_METHOD
 	 , &brentDistance
+#else///USE_BRENT_METHOD
+#ifdef  CUB_AVAILABLE
+	 , soaCUBneighbor
+#endif//CUB_AVAILABLE
 #endif//USE_BRENT_METHOD
 #       ifdef  BRUTE_FORCE_LOCALIZATION
 	 , inum_dev, inum_hst
@@ -3136,6 +3232,9 @@ int main(int argc, char **argv)
 #ifdef  GENERATE_PHKEY_ON_DEVICE
   freePeanoHilbertKey_dev
     (tag_dev, peano_dev, peano, min_dev, max_dev, gsync_ph0, gsync_ph1
+#ifndef SERIALIZED_EXECUTION
+     , box_min, box_max, min_hst, max_hst
+#endif//SERIALIZED_EXECUTION
 #ifndef CALC_MULTIPOLE_ON_DEVICE
      , list
 #endif//CALC_MULTIPOLE_ON_DEVICE
@@ -3166,6 +3265,12 @@ int main(int argc, char **argv)
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
 			  , encBall_dev, encBall_hst
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  DPADD_FOR_ACC
+			  , tmp_dev
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+			  , res_dev
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 			  );
 #else///BLOCK_TIME_STEP
   freeParticleDataSoA_hst(idx0    , pos0    , acc0    , vx0    , vy0    , vz0    );
@@ -3180,6 +3285,12 @@ int main(int argc, char **argv)
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
 			  , encBall_dev, encBall_hst
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  DPADD_FOR_ACC
+			  , tmp_dev
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+			  , res_dev
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 			  );
 #endif//BLOCK_TIME_STEP
   freeParticleInfoSoA_hst(
@@ -3316,8 +3427,8 @@ int main(int argc, char **argv)
   releaseORMtopology(dxmin, dxmax, dymin, dymax, dzmin, dzmax, dmreq,
 		     sxmin, sxmax, symin, symax, szmin, szmax,
 		     iparticleSendBuf, iparticleRecvBuf, sampleRecvNum, sampleRecvDsp,
-		     ormCfg, repCfg);
-  releaseBoxSize_dev(pmin_hst, pmax_hst, pmin_dev, pmax_dev, gsync_box0, gsync_box1);
+		     ormCfg, repCfg, letcfg.rank);
+  /* releaseBoxSize_dev(pmin_hst, pmax_hst, pmin_dev, pmax_dev, gsync_box0, gsync_box1); */
   releaseSamplePos(x0hst, x1hst, y0hst, y1hst, z0hst, z1hst, idhst,
 		   x0dev, x1dev, y0dev, y1dev, z0dev, z1dev, iddev);
   releaseParticlePosition(xhst, yhst, zhst, xdev, ydev, zdev, rank_hst, rank_dev, idx_dev);

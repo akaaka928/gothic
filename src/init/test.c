@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <macro.h>
+#include "macro.h"
 #include "spline.h"
 #include "spline.c"
 

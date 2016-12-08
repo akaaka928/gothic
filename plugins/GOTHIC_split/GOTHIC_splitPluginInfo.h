@@ -1,6 +1,6 @@
 /*****************************************************************************
 *
-* Copyright (c) 2000 - 2015, Lawrence Livermore National Security, LLC
+* Copyright (c) 2000 - 2016, Lawrence Livermore National Security, LLC
 * Produced at the Lawrence Livermore National Laboratory
 * LLNL-CODE-442911
 * All rights reserved.
@@ -40,8 +40,8 @@
 //                               GOTHIC_splitPluginInfo.h
 // ****************************************************************************
 
-#ifndef GOTHIC_split_PLUGIN_INFO_H
-#define GOTHIC_split_PLUGIN_INFO_H
+#ifndef GOTHIC_SPLIT_PLUGIN_INFO_H
+#define GOTHIC_SPLIT_PLUGIN_INFO_H
 #include <DatabasePluginInfo.h>
 #include <database_plugin_exports.h>
 

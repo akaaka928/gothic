@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/12(Sat) 15:21:28
+                  last updated on 2016/12/06(Tue) 12:36:02
  *                                                                       *
  *    Implementations related to MPI parallelization and GPU computing   *
  *                                                                       *
@@ -20,9 +20,9 @@
 #include <thrust/sort.h>
 #include <thrust/device_ptr.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <mpilib.h>
-#include <cudalib.h>
+#include "macro.h"
+#include "mpilib.h"
+#include "cudalib.h"
 //-------------------------------------------------------------------------
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
@@ -33,48 +33,11 @@
 #        endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 //-------------------------------------------------------------------------
 #include "../time/adv_dev.h"
-//-------------------------------------------------------------------------
-/* #include "../tree/make.h" */
+#include "../sort/peano_dev.h"
 //-------------------------------------------------------------------------
 #include "mpicfg.h"
 #include "exchange.h"
 #include "exchange_dev.h"
-//-------------------------------------------------------------------------
-/* in L1 cache preferred configuration, capacity of shared memory is 16KiB per SM */
-/* real4 smem[NTHREADS_BOX] corresponds 16 * NTHREADS_BOX bytes */
-#define NBLOCKS_PER_SM_BOX (1024 / NTHREADS_BOX)
-//-------------------------------------------------------------------------
-#define REGISTERS_PER_THREAD_BOX (30)
-//-------------------------------------------------------------------------
-/* limitation from number of registers */
-#   if  NBLOCKS_PER_SM_BOX > (MAX_REGISTERS_PER_SM / (REGISTERS_PER_THREAD_BOX * NTHREADS_BOX))
-#undef  NBLOCKS_PER_SM_BOX
-#define NBLOCKS_PER_SM_BOX   (MAX_REGISTERS_PER_SM / (REGISTERS_PER_THREAD_BOX * NTHREADS_BOX))
-#endif//NBLOCKS_PER_SM_BOX > (MAX_REGISTERS_PER_SM / (REGISTERS_PER_THREAD_BOX * NTHREADS_BOX))
-//-------------------------------------------------------------------------
-/* maximum # of registers per SM */
-#   if  NBLOCKS_PER_SM_BOX > (MAX_THREADS_PER_SM / NTHREADS_BOX)
-#undef  NBLOCKS_PER_SM_BOX
-#define NBLOCKS_PER_SM_BOX   (MAX_THREADS_PER_SM / NTHREADS_BOX)
-#endif//NBLOCKS_PER_SM_BOX > (MAX_THREADS_PER_SM / NTHREADS_BOX)
-//-------------------------------------------------------------------------
-/* maximum # of resident blocks per SM */
-#   if  NBLOCKS_PER_SM_BOX > MAX_BLOCKS_PER_SM
-#undef  NBLOCKS_PER_SM_BOX
-#define NBLOCKS_PER_SM_BOX   MAX_BLOCKS_PER_SM
-#endif//NBLOCKS_PER_SM_BOX > MAX_BLOCKS_PER_SM
-//-------------------------------------------------------------------------
-/* maximum # of resident warps per SM */
-#   if  NBLOCKS_PER_SM_BOX > ((MAX_WARPS_PER_SM * 32) / NTHREADS_BOX)
-#undef  NBLOCKS_PER_SM_BOX
-#define NBLOCKS_PER_SM_BOX   ((MAX_WARPS_PER_SM * 32) / NTHREADS_BOX)
-#endif//NBLOCKS_PER_SM_BOX > ((MAX_WARPS_PER_SM * 32) / NTHREADS_BOX)
-//-------------------------------------------------------------------------
-/* # of blocks per SM must not be zero */
-#   if  NBLOCKS_PER_SM_BOX < 1
-#undef  NBLOCKS_PER_SM_BOX
-#define NBLOCKS_PER_SM_BOX  (1)
-#endif//NBLOCKS_PER_SM_BOX < 1
 //-------------------------------------------------------------------------
 
 
@@ -243,17 +206,11 @@ __global__ void __launch_bounds__(NTHREADS_BOX, NBLOCKS_PER_SM_BOX) getBoxSize_k
 	/* reduction within a warp */
 	//-----------------------------------------------------------------
 	smem[tidx] = min;
-	if( bnum >  1 ){
-	  tmp = smem[tidx ^  1];  min.x = fminf(min.x, tmp.x);	min.y = fminf(min.y, tmp.y);  min.z = fminf(min.z, tmp.z);  smem[tidx] = min;
-	if( bnum >  2 ){
-	  tmp = smem[tidx ^  2];  min.x = fminf(min.x, tmp.x);	min.y = fminf(min.y, tmp.y);  min.z = fminf(min.z, tmp.z);  smem[tidx] = min;
-	if( bnum >  4 ){
-	  tmp = smem[tidx ^  4];  min.x = fminf(min.x, tmp.x);	min.y = fminf(min.y, tmp.y);  min.z = fminf(min.z, tmp.z);  smem[tidx] = min;
-	if( bnum >  8 ){
-	  tmp = smem[tidx ^  8];  min.x = fminf(min.x, tmp.x);	min.y = fminf(min.y, tmp.y);  min.z = fminf(min.z, tmp.z);  smem[tidx] = min;
-	if( bnum > 16 ){
-	  tmp = smem[tidx ^ 16];  min.x = fminf(min.x, tmp.x);	min.y = fminf(min.y, tmp.y);  min.z = fminf(min.z, tmp.z);  smem[tidx] = min;
-	}}}}}
+	if( bnum >  1 ){	  tmp = smem[tidx ^  1];  min.x = fminf(min.x, tmp.x);	min.y = fminf(min.y, tmp.y);  min.z = fminf(min.z, tmp.z);  smem[tidx] = min;
+	if( bnum >  2 ){	  tmp = smem[tidx ^  2];  min.x = fminf(min.x, tmp.x);	min.y = fminf(min.y, tmp.y);  min.z = fminf(min.z, tmp.z);  smem[tidx] = min;
+	if( bnum >  4 ){	  tmp = smem[tidx ^  4];  min.x = fminf(min.x, tmp.x);	min.y = fminf(min.y, tmp.y);  min.z = fminf(min.z, tmp.z);  smem[tidx] = min;
+	if( bnum >  8 ){	  tmp = smem[tidx ^  8];  min.x = fminf(min.x, tmp.x);	min.y = fminf(min.y, tmp.y);  min.z = fminf(min.z, tmp.z);  smem[tidx] = min;
+	if( bnum > 16 ){	  tmp = smem[tidx ^ 16];  min.x = fminf(min.x, tmp.x);	min.y = fminf(min.y, tmp.y);  min.z = fminf(min.z, tmp.z);  smem[tidx] = min;	}}}}}
 	//-----------------------------------------------------------------
       }/* if( tidx < bnum  ){ */
       //-------------------------------------------------------------------
@@ -274,17 +231,11 @@ __global__ void __launch_bounds__(NTHREADS_BOX, NBLOCKS_PER_SM_BOX) getBoxSize_k
 	if( tidx < Ndata ){
 	  //---------------------------------------------------------------
 	  min = smem[tidx];
-	  if( Ndata >  1 ){
-	    tmp = smem[tidx ^  1];  min.x = fminf(min.x, tmp.x);  min.y = fminf(min.y, tmp.y);	 min.z = fminf(min.z, tmp.z);	smem[tidx] = min;
-	  if( Ndata >  2 ){
-	    tmp = smem[tidx ^  2];  min.x = fminf(min.x, tmp.x);  min.y = fminf(min.y, tmp.y);	 min.z = fminf(min.z, tmp.z);	smem[tidx] = min;
-	  if( Ndata >  4 ){
-	    tmp = smem[tidx ^  4];  min.x = fminf(min.x, tmp.x);  min.y = fminf(min.y, tmp.y);	 min.z = fminf(min.z, tmp.z);	smem[tidx] = min;
-	  if( Ndata >  8 ){
-	    tmp = smem[tidx ^  8];  min.x = fminf(min.x, tmp.x);  min.y = fminf(min.y, tmp.y);	 min.z = fminf(min.z, tmp.z);	smem[tidx] = min;
-	  if( Ndata > 16 ){
-	    tmp = smem[tidx ^ 16];  min.x = fminf(min.x, tmp.x);  min.y = fminf(min.y, tmp.y);	 min.z = fminf(min.z, tmp.z);	smem[tidx] = min;
-	  }}}}}
+	  if( Ndata >  1 ){	    tmp = smem[tidx ^  1];  min.x = fminf(min.x, tmp.x);  min.y = fminf(min.y, tmp.y);	 min.z = fminf(min.z, tmp.z);	smem[tidx] = min;
+	  if( Ndata >  2 ){	    tmp = smem[tidx ^  2];  min.x = fminf(min.x, tmp.x);  min.y = fminf(min.y, tmp.y);	 min.z = fminf(min.z, tmp.z);	smem[tidx] = min;
+	  if( Ndata >  4 ){	    tmp = smem[tidx ^  4];  min.x = fminf(min.x, tmp.x);  min.y = fminf(min.y, tmp.y);	 min.z = fminf(min.z, tmp.z);	smem[tidx] = min;
+	  if( Ndata >  8 ){	    tmp = smem[tidx ^  8];  min.x = fminf(min.x, tmp.x);  min.y = fminf(min.y, tmp.y);	 min.z = fminf(min.z, tmp.z);	smem[tidx] = min;
+	  if( Ndata > 16 ){	    tmp = smem[tidx ^ 16];  min.x = fminf(min.x, tmp.x);  min.y = fminf(min.y, tmp.y);	 min.z = fminf(min.z, tmp.z);	smem[tidx] = min;	  }}}}}
 	  //---------------------------------------------------------------
 	}/* if( tidx < Ndata ){ */
 	//-----------------------------------------------------------------
@@ -318,17 +269,11 @@ __global__ void __launch_bounds__(NTHREADS_BOX, NBLOCKS_PER_SM_BOX) getBoxSize_k
 	/* reduction within a warp */
 	//-----------------------------------------------------------------
 	smem[tidx] = max;
-	if( bnum >  1 ){
-	  tmp = smem[tidx ^  1];  max.x = fmaxf(max.x, tmp.x);  max.y = fmaxf(max.y, tmp.y);  max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;
-	if( bnum >  2 ){
-	  tmp = smem[tidx ^  2];  max.x = fmaxf(max.x, tmp.x);	max.y = fmaxf(max.y, tmp.y);  max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;
-	if( bnum >  4 ){
-	  tmp = smem[tidx ^  4];  max.x = fmaxf(max.x, tmp.x);	max.y = fmaxf(max.y, tmp.y);  max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;
-	if( bnum >  8 ){
-	  tmp = smem[tidx ^  8];  max.x = fmaxf(max.x, tmp.x);	max.y = fmaxf(max.y, tmp.y);  max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;
-	if( bnum > 16 ){
-	  tmp = smem[tidx ^ 16];  max.x = fmaxf(max.x, tmp.x);	max.y = fmaxf(max.y, tmp.y);  max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;
-	}}}}}
+	if( bnum >  1 ){	  tmp = smem[tidx ^  1];  max.x = fmaxf(max.x, tmp.x);  max.y = fmaxf(max.y, tmp.y);  max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;
+	if( bnum >  2 ){	  tmp = smem[tidx ^  2];  max.x = fmaxf(max.x, tmp.x);	max.y = fmaxf(max.y, tmp.y);  max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;
+	if( bnum >  4 ){	  tmp = smem[tidx ^  4];  max.x = fmaxf(max.x, tmp.x);	max.y = fmaxf(max.y, tmp.y);  max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;
+	if( bnum >  8 ){	  tmp = smem[tidx ^  8];  max.x = fmaxf(max.x, tmp.x);	max.y = fmaxf(max.y, tmp.y);  max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;
+	if( bnum > 16 ){	  tmp = smem[tidx ^ 16];  max.x = fmaxf(max.x, tmp.x);	max.y = fmaxf(max.y, tmp.y);  max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;	}}}}}
 	//-----------------------------------------------------------------
       }/* if( tidx < bnum  ){ */
       //-------------------------------------------------------------------
@@ -349,17 +294,11 @@ __global__ void __launch_bounds__(NTHREADS_BOX, NBLOCKS_PER_SM_BOX) getBoxSize_k
 	if( tidx < Ndata ){
 	  //---------------------------------------------------------------
 	  max = smem[tidx];
-	  if( Ndata >  1 ){
-	    tmp = smem[tidx ^  1];  max.x = fmaxf(max.x, tmp.x);  max.y = fmaxf(max.y, tmp.y);	max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;
-	  if( Ndata >  2 ){
-	    tmp = smem[tidx ^  2];  max.x = fmaxf(max.x, tmp.x);  max.y = fmaxf(max.y, tmp.y);	max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;
-	  if( Ndata >  4 ){
-	    tmp = smem[tidx ^  4];  max.x = fmaxf(max.x, tmp.x);  max.y = fmaxf(max.y, tmp.y);	max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;
-	  if( Ndata >  8 ){
-	    tmp = smem[tidx ^  8];  max.x = fmaxf(max.x, tmp.x);  max.y = fmaxf(max.y, tmp.y);	max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;
-	  if( Ndata > 16 ){
-	    tmp = smem[tidx ^ 16];  max.x = fmaxf(max.x, tmp.x);  max.y = fmaxf(max.y, tmp.y);	max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;
-	  }}}}}
+	  if( Ndata >  1 ){	    tmp = smem[tidx ^  1];  max.x = fmaxf(max.x, tmp.x);  max.y = fmaxf(max.y, tmp.y);	max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;
+	  if( Ndata >  2 ){	    tmp = smem[tidx ^  2];  max.x = fmaxf(max.x, tmp.x);  max.y = fmaxf(max.y, tmp.y);	max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;
+	  if( Ndata >  4 ){	    tmp = smem[tidx ^  4];  max.x = fmaxf(max.x, tmp.x);  max.y = fmaxf(max.y, tmp.y);	max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;
+	  if( Ndata >  8 ){	    tmp = smem[tidx ^  8];  max.x = fmaxf(max.x, tmp.x);  max.y = fmaxf(max.y, tmp.y);	max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;
+	  if( Ndata > 16 ){	    tmp = smem[tidx ^ 16];  max.x = fmaxf(max.x, tmp.x);  max.y = fmaxf(max.y, tmp.y);	max.z = fmaxf(max.z, tmp.z);  smem[tidx] = max;	  }}}}}
 	  //---------------------------------------------------------------
 	}/* if( tidx < Ndata ){ */
 	//-----------------------------------------------------------------
@@ -396,34 +335,36 @@ __global__ void __launch_bounds__(NTHREADS_BOX, NBLOCKS_PER_SM_BOX) getBoxSize_k
 
 
 //-------------------------------------------------------------------------
+/* extern "C" */
+/* muse allocateBoxSize_dev(float4 **min_hst, float4 **max_hst, float4 **min_dev, float4 **max_dev, int **gsync0, int **gsync1, soaBoxSize *soa, const deviceProp devProp) */
 extern "C"
-muse allocateBoxSize_dev(float4 **min_hst, float4 **max_hst, float4 **min_dev, float4 **max_dev, int **gsync0, int **gsync1, soaBoxSize *soa, const deviceProp devProp)
+void checkBoxSize_dev(const deviceProp devProp)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
-  muse alloc = {0, 0};
+  /* muse alloc = {0, 0}; */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   /* memory allocation */
   //-----------------------------------------------------------------------
-  mycudaMallocHost((void **)min_hst,                                      sizeof(float4));  alloc.host   +=                                      sizeof(float4);
-  mycudaMallocHost((void **)max_hst,                                      sizeof(float4));  alloc.host   +=                                      sizeof(float4);
-  mycudaMalloc    ((void **)min_dev, devProp.numSM * NBLOCKS_PER_SM_BOX * sizeof(float4));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_BOX * sizeof(float4);
-  mycudaMalloc    ((void **)max_dev, devProp.numSM * NBLOCKS_PER_SM_BOX * sizeof(float4));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_BOX * sizeof(float4);
-  mycudaMalloc    ((void **) gsync0, devProp.numSM * NBLOCKS_PER_SM_BOX * sizeof(   int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_BOX * sizeof(   int);
-  mycudaMalloc    ((void **) gsync1, devProp.numSM * NBLOCKS_PER_SM_BOX * sizeof(   int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_BOX * sizeof(   int);
+  /* mycudaMallocHost((void **)min_hst,                                      sizeof(float4));  alloc.host   +=                                      sizeof(float4); */
+  /* mycudaMallocHost((void **)max_hst,                                      sizeof(float4));  alloc.host   +=                                      sizeof(float4); */
+  /* mycudaMalloc    ((void **)min_dev, devProp.numSM * NBLOCKS_PER_SM_BOX * sizeof(float4));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_BOX * sizeof(float4); */
+  /* mycudaMalloc    ((void **)max_dev, devProp.numSM * NBLOCKS_PER_SM_BOX * sizeof(float4));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_BOX * sizeof(float4); */
+  /* mycudaMalloc    ((void **) gsync0, devProp.numSM * NBLOCKS_PER_SM_BOX * sizeof(   int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_BOX * sizeof(   int); */
+  /* mycudaMalloc    ((void **) gsync1, devProp.numSM * NBLOCKS_PER_SM_BOX * sizeof(   int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_BOX * sizeof(   int); */
   //-----------------------------------------------------------------------
-  initGsync_kernel<<<1, devProp.numSM * NBLOCKS_PER_SM_BOX>>>(devProp.numSM * NBLOCKS_PER_SM_BOX, *gsync0, *gsync1);
-  getLastCudaError("initGsync_kernel");
+  /* initGsync_kernel<<<1, devProp.numSM * NBLOCKS_PER_SM_BOX>>>(devProp.numSM * NBLOCKS_PER_SM_BOX, *gsync0, *gsync1); */
+  /* getLastCudaError("initGsync_kernel"); */
   //-----------------------------------------------------------------------
-  soa->min_hst = *min_hst;
-  soa->max_hst = *max_hst;
-  soa->min_dev = *min_dev;
-  soa->max_dev = *max_dev;
-  soa->gsync0  = *gsync0;
-  soa->gsync1  = *gsync1;
+  /* soa->min_hst = *min_hst; */
+  /* soa->max_hst = *max_hst; */
+  /* soa->min_dev = *min_dev; */
+  /* soa->max_dev = *max_dev; */
+  /* soa->gsync0  = *gsync0; */
+  /* soa->gsync1  = *gsync1; */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -448,9 +389,7 @@ muse allocateBoxSize_dev(float4 **min_hst, float4 **max_hst, float4 **min_dev, f
   if( Nblck >   MAX_BLOCKS_PER_SM                      )    Nblck = MAX_BLOCKS_PER_SM;
   if( Nblck > (( MAX_WARPS_PER_SM * 32) / NTHREADS_BOX) )    Nblck = ((MAX_WARPS_PER_SM * 32) / NTHREADS_BOX);
   if( Nblck != NBLOCKS_PER_SM_BOX ){
-    //---------------------------------------------------------------------
     __KILL__(stderr, "ERROR: # of blocks per SM for getBoxSize_kernel() is mispredicted (%d).\n\tThe limits come from register and shared memory are %d and %d, respectively.\n\tHowever, the expected value of NBLOCKS_PER_SM_BOX defined in src/para/box_dev.cu is %d.\n\tAdditional information: # of registers per thread is %d while predicted as %d (GPUGEN = %d, GPUVER = %d).\n", Nblck, regLimit, memLimit, NBLOCKS_PER_SM_BOX, funcAttr.numRegs, REGISTERS_PER_THREAD_BOX, GPUGEN, GPUVER);
-    //---------------------------------------------------------------------
   }/* if( Nblck != NBLOCKS_PER_SM ){ */
   //-----------------------------------------------------------------------
   if( (devProp.numSM * NBLOCKS_PER_SM_BOX) > NTHREADS_BOX ){
@@ -461,40 +400,40 @@ muse allocateBoxSize_dev(float4 **min_hst, float4 **max_hst, float4 **min_dev, f
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
-  return (alloc);
+  /* return (alloc); */
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-extern "C"
-void  releaseBoxSize_dev(float4  *min_hst, float4  *max_hst, float4  *min_dev, float4  *max_dev, int  *gsync0, int  *gsync1)
-{
-  //-----------------------------------------------------------------------
-  __NOTE__("%s\n", "start");
-  //-----------------------------------------------------------------------
-  mycudaFreeHost(min_hst);
-  mycudaFreeHost(max_hst);
-  mycudaFree    (min_dev);
-  mycudaFree    (max_dev);
-  mycudaFree    (gsync0);
-  mycudaFree    (gsync1);
-  //-----------------------------------------------------------------------
-  __NOTE__("%s\n", "end");
-  //-----------------------------------------------------------------------
-}
+/* extern "C" */
+/* void  releaseBoxSize_dev(float4  *min_hst, float4  *max_hst, float4  *min_dev, float4  *max_dev, int  *gsync0, int  *gsync1) */
+/* { */
+/*   //----------------------------------------------------------------------- */
+/*   __NOTE__("%s\n", "start"); */
+/*   //----------------------------------------------------------------------- */
+/*   mycudaFreeHost(min_hst); */
+/*   mycudaFreeHost(max_hst); */
+/*   mycudaFree    (min_dev); */
+/*   mycudaFree    (max_dev); */
+/*   mycudaFree    (gsync0); */
+/*   mycudaFree    (gsync1); */
+/*   //----------------------------------------------------------------------- */
+/*   __NOTE__("%s\n", "end"); */
+/*   //----------------------------------------------------------------------- */
+/* } */
 //-------------------------------------------------------------------------
 extern "C"
-void getBoxSize_dev(const int num, position * RESTRICT ipos, soaBoxSize soa, const deviceProp devProp, cudaStream_t stream)
+void getBoxSize_dev(const int num, position * RESTRICT ipos, soaPHsort soa, const deviceProp devProp, cudaStream_t stream)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-  getBoxSize_kernel<<<devProp.numSM * NBLOCKS_PER_SM_BOX, NTHREADS_BOX, SMEM_SIZE, stream>>>(num, ipos, soa.min_dev, soa.max_dev, soa.gsync0, soa.gsync1);
+  getBoxSize_kernel<<<devProp.numSM * NBLOCKS_PER_SM_BOX, NTHREADS_BOX, SMEM_SIZE, stream>>>(num, ipos, soa.min, soa.max, soa.gsync0, soa.gsync1);
   getLastCudaError("getBoxSize_kernel");
   //-----------------------------------------------------------------------
-  checkCudaErrors(cudaMemcpyAsync(soa.min_hst, soa.min_dev, sizeof(float4), cudaMemcpyDeviceToHost, stream));
-  checkCudaErrors(cudaMemcpyAsync(soa.max_hst, soa.max_dev, sizeof(float4), cudaMemcpyDeviceToHost, stream));
+  checkCudaErrors(cudaMemcpyAsync(soa.min_hst, soa.min, sizeof(float4), cudaMemcpyDeviceToHost, stream));
+  checkCudaErrors(cudaMemcpyAsync(soa.max_hst, soa.max, sizeof(float4), cudaMemcpyDeviceToHost, stream));
   //-----------------------------------------------------------------------
   checkCudaErrors(cudaDeviceSynchronize());
   //-----------------------------------------------------------------------
@@ -553,7 +492,7 @@ static inline void sort_xpos_dev(const int num, samplePos src, samplePos dst)
   //-----------------------------------------------------------------------
   /* sort using thrust */
   thrust::stable_sort_by_key((thrust::device_ptr<float>)(src.x_dev), (thrust::device_ptr<float>)((src.x_dev) + num), (thrust::device_ptr<int>)(src.i_dev));
-  checkCudaErrors(cudaMemcpy(dst.x_hst, dst.x_dev, num * sizeof(float), cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaMemcpy(dst.x_hst, src.x_dev, num * sizeof(float), cudaMemcpyDeviceToHost));
   //-----------------------------------------------------------------------
   checkCudaErrors(cudaMemcpy(src.y_dev, src.y_hst, num * sizeof(float), cudaMemcpyHostToDevice));
   checkCudaErrors(cudaMemcpy(src.z_dev, src.z_hst, num * sizeof(float), cudaMemcpyHostToDevice));
@@ -595,6 +534,7 @@ static inline void sort_xpos_hst(const int num, samplePos RESTRICT src, samplePo
   //-----------------------------------------------------------------------
   for(int ii = 0; ii < num; ii++){
     const int jj  = src.i_hst[ii];
+    dst.x_hst[ii] = src.x_hst[ii];
     dst.y_hst[ii] = src.y_hst[jj];
     dst.z_hst[ii] = src.z_hst[jj];
   }/* for(int ii = 0; ii < num; ii++){ */
@@ -639,8 +579,8 @@ static inline void sort_ypos_dev(const int num, samplePos src, samplePos dst)
   /* sort using thrust */
   thrust::stable_sort_by_key((thrust::device_ptr<float>)(src.y_dev), (thrust::device_ptr<float>)((src.y_dev) + num), (thrust::device_ptr<float>)(src.z_dev));
   //-----------------------------------------------------------------------
-  checkCudaErrors(cudaMemcpy(dst.y_hst, dst.y_dev, num * sizeof(float), cudaMemcpyDeviceToHost));
-  checkCudaErrors(cudaMemcpy(dst.z_hst, dst.z_dev, num * sizeof(float), cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaMemcpy(src.y_hst, src.y_dev, num * sizeof(float), cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaMemcpy(src.z_hst, src.z_dev, num * sizeof(float), cudaMemcpyDeviceToHost));
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -672,11 +612,11 @@ static inline void sort_ypos(const int num, samplePos * RESTRICT src, samplePos 
   if( num >= NCRIT_YPOS_SORT )    sort_ypos_dev(num, *src, *dst);
   else                            sort_ypos_hst(num, *src, *dst);
   //-----------------------------------------------------------------------
-  /* swap the list structure */
-  samplePos _tmp;
-  _tmp = *src;
-  *src = *dst;
-  *dst = _tmp;
+  /* /\* swap the list structure *\/ */
+  /* samplePos _tmp; */
+  /* _tmp = *src; */
+  /* *src = *dst; */
+  /* *dst = _tmp; */
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
@@ -697,7 +637,7 @@ static inline void sort_zpos_dev(const int num, samplePos src, samplePos dst)
   /* sort using thrust */
   thrust::stable_sort((thrust::device_ptr<float>)(src.z_dev), (thrust::device_ptr<float>)((src.z_dev) + num));
   //-----------------------------------------------------------------------
-  checkCudaErrors(cudaMemcpy(dst.z_hst, dst.z_dev, num * sizeof(float), cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaMemcpy(src.z_hst, src.z_dev, num * sizeof(float), cudaMemcpyDeviceToHost));
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -729,11 +669,11 @@ static inline void sort_zpos(const int num, samplePos * RESTRICT src, samplePos 
   if( num >= NCRIT_ZPOS_SORT )    sort_zpos_dev(num, *src, *dst);
   else                            sort_zpos_hst(num, *src, *dst);
   //-----------------------------------------------------------------------
-  /* swap the list structure */
-  samplePos _tmp;
-  _tmp = *src;
-  *src = *dst;
-  *dst = _tmp;
+  /* /\* swap the list structure *\/ */
+  /* samplePos _tmp; */
+  /* _tmp = *src; */
+  /* *src = *dst; */
+  /* *dst = _tmp; */
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
@@ -858,7 +798,9 @@ __global__ void sortParticlesDDkey_kernel
 (const int num, READ_ONLY int * RESTRICT old,
  ulong        * RESTRICT didx , READ_ONLY ulong        * RESTRICT sidx ,
  position     * RESTRICT dpos , READ_ONLY position     * RESTRICT spos ,
+#ifdef  GADGET_MAC
  acceleration * RESTRICT dacc , READ_ONLY acceleration * RESTRICT sacc ,
+#endif//GADGET_MAC
 #ifdef  BLOCK_TIME_STEP
  velocity     * RESTRICT dvel , READ_ONLY velocity     * RESTRICT svel ,
  ibody_time   * RESTRICT dtime, READ_ONLY ibody_time   * RESTRICT stime
@@ -882,7 +824,9 @@ __global__ void sortParticlesDDkey_kernel
     //---------------------------------------------------------------------
     didx [ii] = sidx [jj];
     dpos [ii] = spos [jj];
+#ifdef  GADGET_MAC
     dacc [ii] = sacc [jj];
+#endif//GADGET_MAC
 #ifdef  BLOCK_TIME_STEP
     dvel [ii] = svel [jj];
     dtime[ii] = stime[jj];
@@ -919,7 +863,7 @@ static inline void sortDomainDecomposeKey(const int num, domainDecomposeKey key,
   }/* for(int iter = 0; iter < Niter; iter++){ */
   getLastCudaError("setIndex_kernel");
   //-----------------------------------------------------------------------
-  thrust::stable_sort_by_key((thrust::device_ptr<int>)(key.dstRank_dev), (thrust::device_ptr<int>)((key.dstRank_dev) + num), (thrust::device_ptr<int>)(key.bodyIdx_dev));
+  thrust::stable_sort_by_key((thrust::device_ptr<int>)(key.dstRank_dev), (thrust::device_ptr<int>)(key.dstRank_dev + num), (thrust::device_ptr<int>)(key.bodyIdx_dev));
   //-----------------------------------------------------------------------
   Nrem = BLOCKSIZE(num, NTHREADS_DDSORT);
   Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
@@ -932,7 +876,9 @@ static inline void sortDomainDecomposeKey(const int num, domainDecomposeKey key,
       (num, key.bodyIdx_dev,
        (*dst).idx , (*src).idx,
        (*dst).pos , (*src).pos,
+#ifdef  GADGET_MAC
        (*dst).acc , (*src).acc,
+#endif//GADGET_MAC
 #ifdef  BLOCK_TIME_STEP
        (*dst).vel , (*src).vel,
        (*dst).time, (*src).time
@@ -1034,22 +980,69 @@ void  releaseParticlePosition(float  *xhst, float  *yhst, float  *zhst,
 
 
 //-------------------------------------------------------------------------
+#if 0
+//-------------------------------------------------------------------------
+__global__ void printParticleInfo_kernel(const int num, position * RESTRICT pos, velocity * RESTRICT vel, ulong * RESTRICT idx)
+{
+  for(int ii = 0; ii < num; ii++)
+    printf("%e\t%e\t%e\t%e\t%e\t%e\t%e\t%lu\n",
+	   pos[ii].m,
+	   pos[ii].x, pos[ii].y, pos[ii].z,
+	   vel[ii].x, vel[ii].y, vel[ii].z,
+	   idx[ii]);
+}
+//-------------------------------------------------------------------------
+extern "C"
+void printParticleInfo_dev(const int num, iparticle dev, MPIinfo mpi)
+{
+  for(int ii = 0; ii < mpi.size; ii++){
+    if( ii == mpi.rank )
+      printParticleInfo_kernel<<<1, 1>>>(num, dev.pos, dev.vel, dev.idx);
+    checkCudaErrors(cudaDeviceSynchronize());
+    fflush(stdout);
+    MPI_Barrier(mpi.comm);
+    if( ii == mpi.rank )
+      printf("# rank %d / %d\n", mpi.rank, mpi.size);
+    fflush(stdout);
+    MPI_Barrier(mpi.comm);
+  }
+  MPI_Finalize();
+  exit(0);
+}
+//-------------------------------------------------------------------------
+#endif
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
+#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+static inline float cutting(float ll, float rr, float min, float dL, float dLinv){  return (min + dL * nearbyintf(((0.5f * (ll + rr)) - min) * dLinv));}
+#else///ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+static inline float cutting(float ll, float rr                                  ){  return (                        0.5f * (ll + rr)                 );}
+#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+//-------------------------------------------------------------------------
+extern "C"
 void exchangeParticles_dev
 (const int numOld, const ulong Ntot, const int numMax, int *numNew,
  iparticle * RESTRICT src_dev, iparticle * RESTRICT dst_dev, iparticle * RESTRICT src_hst, iparticle * RESTRICT dst_hst,
  particlePos pos_hst, particlePos pos_dev, domainDecomposeKey key, sendCfg *sendBuf, recvCfg *recvBuf,
  MPIinfo orm[], MPIinfo rep[], domainCfg domain, MPIcfg_tree mpi,
  const double tloc, sampling sample, samplePos loc, samplePos ful,
- soaBoxSize soa, const deviceProp devProp, const deviceInfo devInfo,
+ soaPHsort soa, const deviceProp devProp, const deviceInfo devInfo,
  double *exchangeInterval, measuredTime *measured
+#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+ , const float epsinv
+#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
-   , brentStatus *status, brentMemory *memory
+ , brentStatus *status, brentMemory *memory
 #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #ifdef  EXEC_BENCHMARK
  , wall_clock_time *execTime
 #endif//EXEC_BENCHMARK
  )
 {
+  //-----------------------------------------------------------------------
+#if 1
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
@@ -1073,6 +1066,40 @@ void exchangeParticles_dev
   max.x = soa.max_hst->x;
   max.y = soa.max_hst->y;
   max.z = soa.max_hst->z;
+#if 0
+  printf("rank %d: numOld = %d, xmin = %e, xmax = %e, ymin = %e, ymax = %e, zmin = %e, zmax = %e\n", mpi.rank, numOld, min.x, max.x, min.y, max.y, min.z, max.z);
+  /* MPI_Finalize(); */
+  /* exit(0); */
+#endif
+  //-----------------------------------------------------------------------
+#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+  chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, soa.min_hst, 3, MPI_FLOAT, MPI_MIN, mpi.comm));
+  chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, soa.max_hst, 3, MPI_FLOAT, MPI_MAX, mpi.comm));
+  checkCudaErrors(cudaMemcpyAsync(soa.box_min, soa.min_hst, sizeof(float4), cudaMemcpyHostToDevice, devInfo.stream[1]));
+  checkCudaErrors(cudaMemcpyAsync(soa.box_max, soa.max_hst, sizeof(float4), cudaMemcpyHostToDevice, devInfo.stream[1]));
+  float diameter = 0.0f;
+  diameter = fmaxf(diameter, max.x - min.x);
+  diameter = fmaxf(diameter, max.y - min.y);
+  diameter = fmaxf(diameter, max.z - min.z);
+  diameter = ldexpf(1.0f, (int)ceilf(log2f(diameter)));
+  soa.min_hst->x = 0.5f * (soa.min_hst->x + soa.max_hst->x - diameter);
+  soa.min_hst->y = 0.5f * (soa.min_hst->y + soa.max_hst->y - diameter);
+  soa.min_hst->z = 0.5f * (soa.min_hst->z + soa.max_hst->z - diameter);
+  /* const float dL    = diameter * ldexpf(1.0f, -(int)ceilf(log2f(diameter * epsinv))); */
+  /* const float dL    = diameter * ldexpf(1.0f, -(int)ceilf(log2f(diameter * 0.25f * epsinv))); */
+  /* const float dL    = diameter * ldexpf(1.0f, -(int)ceilf(log2f(diameter * 0.125f * epsinv))); */
+  /* const float dL    = diameter * ldexpf(1.0f, -(int)ceilf(log2f(diameter * 0.0625f * epsinv))); */
+  /* const float dL    = diameter * ldexpf(1.0f, -(int)ceilf(log2f(diameter * 0.03125f * epsinv))); */
+  /* const float dL    = diameter * ldexpf(1.0f, -(int)ceilf(log2f(diameter * 0.015625f * epsinv))); */
+  const float dL    = diameter * ldexpf(1.0f, -(int)ceilf(log2f(diameter * 7.8125e-3f * epsinv)));
+  const float dLinv = 1.0f / dL;
+#if 0
+  if( mpi.rank == 0 )
+    printf("diameter = %e, epsinv = %e, dr = %e, dinv = %e\n", diameter, epsinv, dr, dinv);
+  MPI_Finalize();
+  exit(0);
+#endif
+#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -1150,7 +1177,11 @@ void exchangeParticles_dev
 	  sample.rnum[ii] = Nfin - Nini;
 	  //---------------------------------------------------------------
 	  if( ii != (rep[0].size - 1) ){
-	    const float middle = 0.5f * (ful.x_hst[Nfin] + ful.x_hst[Nfin + 1]);
+	    const float middle = cutting(ful.x_hst[Nfin], ful.x_hst[Nfin + 1]
+#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+					 , soa.min_hst->x, dL, dLinv
+#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+					 );
 	    sample.xmax[ii    ] = middle;
 	    sample.xmin[ii + 1] = middle;
 	  }/* if( ii != (rep[0].size - 1) ){ */
@@ -1184,6 +1215,16 @@ void exchangeParticles_dev
     chkMPIerr(MPI_Bcast(&local_xmin, 1, MPI_FLOAT, 0, orm[0].comm));
     chkMPIerr(MPI_Bcast(&local_xmax, 1, MPI_FLOAT, 0, orm[0].comm));
     //---------------------------------------------------------------------
+#if 0
+    if( mpi.rank == 0 ){
+      for(int ii = 0; ii < recvNum; ii++)
+	fprintf(stdout, "%e, ", ful.x_hst[ii]);
+      fprintf(stdout, "\n");
+    }
+    MPI_Finalize();
+    exit(0);
+#endif
+    //---------------------------------------------------------------------
   }/* if( mpi.dim[0] != 1 ){ */
   //-----------------------------------------------------------------------
 
@@ -1206,7 +1247,11 @@ void exchangeParticles_dev
 	  sample.rnum[ii] = Nfin - Nini;
 	  //---------------------------------------------------------------
 	  if( ii != (rep[1].size - 1) ){
-	    const float middle = 0.5f * (ful.y_hst[Nfin] + ful.y_hst[Nfin + 1]);
+	    const float middle = cutting(ful.y_hst[Nfin], ful.y_hst[Nfin + 1]
+#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+					 , soa.min_hst->y, dL, dLinv
+#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+					 );
 	    sample.ymax[ii    ] = middle;
 	    sample.ymin[ii + 1] = middle;
 	  }/* if( ii != (rep[1].size - 1) ){ */
@@ -1262,7 +1307,11 @@ void exchangeParticles_dev
 	  sample.rnum[ii] = Nfin - Nini;
 	  //---------------------------------------------------------------
 	  if( ii != (rep[2].size - 1) ){
-	    const float middle = 0.5f * (ful.z_hst[Nfin] + ful.z_hst[Nfin + 1]);
+	    const float middle = cutting(ful.z_hst[Nfin], ful.z_hst[Nfin + 1]
+#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+					 , soa.min_hst->z, dL, dLinv
+#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+					 );
 	    sample.zmax[ii    ] = middle;
 	    sample.zmin[ii + 1] = middle;
 	  }/* if( ii != (rep[2].size - 1) ){ */
@@ -1296,8 +1345,26 @@ void exchangeParticles_dev
 	   domain.ymin[mpi.rank], domain.ymax[mpi.rank],
 	   domain.zmin[mpi.rank], domain.zmax[mpi.rank]);
 #if 0
+  printf("rank %d: [%e, %e]\n", mpi.rank, domain.xmin[mpi.rank], domain.xmax[mpi.rank]);
+  /* rank 0: [-1.701412e+38, 2.499790e-01] */
+  /* rank 1: [2.499790e-01, 1.701412e+38] */
   MPI_Finalize();
   exit(0);
+#endif
+  //-----------------------------------------------------------------------
+#if 0
+  if( mpi.size == 2 ){
+    domain.xmax[0] = domain.xmin[1] = 0.0f;
+    domain.xmin[0] = -0.5f * FLT_MAX;
+    domain.xmax[1] =  0.5f * FLT_MAX;
+  }
+#endif
+  //-----------------------------------------------------------------------
+#if 1
+#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+  if( mpi.rank == 0 )
+    printf("wall @ %e, dL = %e, xmin = %e\n", domain.xmax[0], dL, soa.min_hst->x);
+#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
 #endif
   //-----------------------------------------------------------------------
 
@@ -1412,7 +1479,7 @@ void exchangeParticles_dev
     chkMPIerr(MPI_Wait(&(domain.req[ii]), &status));
   }/* for(int ii = 0; ii < numProcs; ii++){ */
   //-----------------------------------------------------------------------
-  /* GPU-GPU direct communication is possible */
+  /* if GPU-GPU direct communication is not available */
   copyParticle_dev2hst(numOld, *src_dev, *src_hst
 #ifdef  EXEC_BENCHMARK
 		       , execTime
@@ -1476,7 +1543,7 @@ void exchangeParticles_dev
   }/* for(int ii = 0; ii < numProcs; ii++){ */
   //-----------------------------------------------------------------------
   if( *numNew > numMax ){
-    __KILL__(stderr, "ERROR: # of required receive buffer (%d) exceeds the maximum number of particles per process (%d).\n\tsuggestion: consider increasing \"MAX_FACTOR_INCREASE\" or \"MAX_FACTOR_SAFETY\" defined in src/para/mpicfg.h (current values are %f or %f, respectively) at least %f%%.\n", *numNew, numMax, MAX_FACTOR_INCREASE, MAX_FACTOR_SAFETY, 100.0f * (float)(*numNew) / (float)numMax);
+    __KILL__(stderr, "ERROR: # of required receive buffer (%d) exceeds the maximum number of particles per process (%d).\n\tsuggestion: consider increasing \"MAX_FACTOR_INCREASE\" or \"MAX_FACTOR_SAFETY\" defined in src/para/mpicfg.h (current values are %f and %f, respectively) at least %e times.\n", *numNew, numMax, MAX_FACTOR_INCREASE, MAX_FACTOR_SAFETY, (float)(*numNew) / (float)numMax);
   }/* if( *numNew > numMax ){ */
   //-----------------------------------------------------------------------
 
@@ -1529,9 +1596,39 @@ void exchangeParticles_dev
       __KILL__(stderr, "ERROR: domain decomposition cause some error (duplication of %d particles)\n", diff_sum);
     }/* if( diff_sum != 0 ){ */
   //-----------------------------------------------------------------------
+#if 0
+  if( mpi.rank == 0 )
+    fprintf(stdout, "#rank\tidx\n");
+  for(int ii = 0; ii < mpi.size; ii++){
+    if( ii == mpi.rank )
+      for(int jj = 0; jj < *numNew; jj++)
+	fprintf(stdout, "%d\t%zu\n", mpi.rank, (*dst_hst).idx[jj]);
+    MPI_Barrier(mpi.comm);
+  }
+  MPI_Finalize();
+  exit(0);
+#endif
+  //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   /* copy N-body particles from host to device */
+  //-----------------------------------------------------------------------
+#if 0
+  char filename[128];
+  sprintf(filename, "%s/%s.%s%d_%d.txt", "dat", "DD", "rank", mpi.rank, mpi.size);
+  FILE *fp;
+  fp = fopen(filename, "w");
+  if( fp == NULL ){
+    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);
+  }
+  for(int ii = 0; ii < *numNew; ii++)
+    fprintf(fp, "%e\t%e\t%e\t%e\t%e\t%e\t%e\t%zu\n",
+	    (*dst_hst).pos[ii].m,
+	    (*dst_hst).pos[ii].x, (*dst_hst).pos[ii].y, (*dst_hst).pos[ii].z,
+	    (*dst_hst).vel[ii].x, (*dst_hst).vel[ii].y, (*dst_hst).vel[ii].z,
+	    (*dst_hst).idx[ii]);
+  fclose(fp);
+#endif
   //-----------------------------------------------------------------------
 #ifdef  GENERATE_PHKEY_ON_DEVICE
   copyParticle_hst2dev(*numNew, *dst_hst, *src_dev
@@ -1547,6 +1644,27 @@ void exchangeParticles_dev
   _tmp_hst = *src_hst;
   *src_hst = *dst_hst;
   *dst_hst = _tmp_hst;
+  //-----------------------------------------------------------------------
+#if 0
+  MPIinfo mpi_tmp;
+  mpi_tmp.rank = mpi.rank;
+  mpi_tmp.size = mpi.size;
+  mpi_tmp.comm = mpi.comm;
+  printParticleInfo_dev(*numNew, *src_dev);
+#endif
+  //-----------------------------------------------------------------------
+#if 0
+  getBoxSize_dev(*numNew, (*src_dev).pos, soa, devProp, devInfo.stream[1]);
+  min.x = soa.min_hst->x;
+  min.y = soa.min_hst->y;
+  min.z = soa.min_hst->z;
+  max.x = soa.max_hst->x;
+  max.y = soa.max_hst->y;
+  max.z = soa.max_hst->z;
+  printf("rank %d: numNew = %d, xmin = %e, xmax = %e, ymin = %e, ymax = %e, zmin = %e, zmax = %e\n", mpi.rank, *numNew, min.x, max.x, min.y, max.y, min.z, max.z);
+  /* MPI_Finalize(); */
+  /* exit(0); */
+#endif
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -1584,6 +1702,8 @@ void exchangeParticles_dev
 #endif//EXEC_BENCHMARK
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
+  //-----------------------------------------------------------------------
+#endif
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------

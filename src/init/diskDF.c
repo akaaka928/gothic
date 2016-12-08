@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/11(Tue) 16:59:04
+                  last updated on 2016/12/07(Wed) 16:13:52
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Assume balance of force in R and z direction                    *
@@ -20,10 +20,8 @@
 #include <math.h>
 #include <omp.h>
 //-------------------------------------------------------------------------
-#include <gsl/gsl_rng.h>
-//-------------------------------------------------------------------------
-#include <macro.h>
-#include <constants.h>
+#include "macro.h"
+#include "constants.h"
 //-------------------------------------------------------------------------
 #include "../misc/structure.h"
 //-------------------------------------------------------------------------
@@ -38,16 +36,31 @@ extern const real newton;
 //-------------------------------------------------------------------------
 extern double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[NTBL_GAUSS_QD];
 //-------------------------------------------------------------------------
+#ifdef  USE_SFMT
+#include "SFMT.h"
+extern sfmt_t sfmt;
+#ifdef  USE_SFMTJUMP
+#pragma omp threadprivate(sfmt)
+#endif//USE_SFMTJUMP
+#define UNIRAND_DBL (sfmt_genrand_res53(&sfmt))
+#else///USE_SFMT
+#include <gsl/gsl_rng.h>
 extern gsl_rng *GSLRand;
-#define UNIRAND_DBL (      gsl_rng_uniform(GSLRand))
-#define UNIRAND     ((real)gsl_rng_uniform(GSLRand))
+#define UNIRAND_DBL (gsl_rng_uniform(GSLRand))
+#endif//USE_SFMT
+#define UNIRAND     (CAST_D2R(UNIRAND_DBL))
 #define RANDVAL_DBL (2.0 * (UNIRAND_DBL) - 1.0)
 #define RANDVAL     (TWO * (UNIRAND    ) - UNITY)
 //-------------------------------------------------------------------------
 
 
 //-------------------------------------------------------------------------
-static inline int bisection(const double val, const int num, double * restrict tab, const bool logtbl, const double invbin, double * restrict ratio)
+#ifndef USE_SFMTJUMP
+static inline
+#else///USE_SFMTJUMP
+int bisection(const double val, const int num, double * restrict tab, const bool logtbl, const double invbin, double * restrict ratio);
+#endif//USE_SFMTJUMP
+int bisection(const double val, const int num, double * restrict tab, const bool logtbl, const double invbin, double * restrict ratio)
 {
   //-----------------------------------------------------------------------
   int ll = 0;
@@ -73,7 +86,12 @@ static inline int bisection(const double val, const int num, double * restrict t
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-static inline int findIdxSpherical(const double rad, profile *prf, const double invlogbin, double *ratio)
+#ifndef USE_SFMTJUMP
+static inline
+#else///USE_SFMTJUMP
+int findIdxSpherical(const double rad, profile *prf, const double invlogbin, double *ratio);
+#endif//USE_SFMTJUMP
+int findIdxSpherical(const double rad, profile *prf, const double invlogbin, double *ratio)
 {
   //-----------------------------------------------------------------------
   int ll = 0;
@@ -321,7 +339,7 @@ void integrateSphericalDensityProfile(const int ndisk, const int maxLev, disk_da
     //---------------------------------------------------------------------
 #pragma omp parallel for
     for(int ii = 0; ii < 4 + NRADBIN; ii++)
-      prf[ii].psi *= (double)newton;
+      prf[ii].psi *= CAST_R2D(newton);
     //---------------------------------------------------------------------
   }/* for(int kk = 0; kk < ndisk; kk++){ */
   //-----------------------------------------------------------------------
@@ -421,8 +439,8 @@ void diffAxisymmetricPotential(const int maxLev, const disk_data disk)
 	  /* Psi = -Phi + Phi0 = -Phi (i.e. Phi0 is assumed to be zero) */
 	  const double enc = (1.0 - alpha) * prf[idx].enc_tot + alpha * prf[1 + idx].enc_tot;
 	  const double rho = (1.0 - alpha) * prf[idx].rho_tot + alpha * prf[1 + idx].rho_tot;
-	  const double  dPhidr__sphe = (double)newton *                           enc * rinv * rinv;
-	  const double d2Phidr2_sphe = (double)newton * (4.0 * M_PI * rho - 2.0 * enc * rinv * rinv * rinv);
+	  const double  dPhidr__sphe = CAST_R2D(newton) *                           enc * rinv * rinv;
+	  const double d2Phidr2_sphe = CAST_R2D(newton) * (4.0 * M_PI * rho - 2.0 * enc * rinv * rinv * rinv);
 	  //---------------------------------------------------------------
 	  /* R-derivatives of potential given by the all components */
 #ifndef USE_POTENTIAL_SCALING_SCHEME
@@ -639,46 +657,23 @@ static inline void leastSquaredMethod(const int num, double * restrict xx, doubl
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-static inline int bisection4nestedGrid
+#ifndef USE_SFMTJUMP
+static inline
+#else///USE_SFMTJUMP
+int bisection4nestedGrid
+(const double val, const int num, double * restrict tab, const bool logtbl, const double invbin, double * restrict ratio, const int maxLev, int * restrict lev, double * restrict tab_lev);
+#endif//USE_SFMTJUMP
+int bisection4nestedGrid
 (const double val, const int num, double * restrict tab, const bool logtbl, const double invbin, double * restrict ratio, const int maxLev, int * restrict lev, double * restrict tab_lev)
 {
   //-----------------------------------------------------------------------
   /* 1. find the nested level */
-
   *lev = 0;
   for(int ii = maxLev - 1; ii >= 0; ii--)
     if( val <= tab_lev[ii] ){
       *lev = ii;
       break;
-    }
-
-  /* *lev = 0; */
-  /* for(int ii = 0; ii < maxLev; ii++) */
-  /*   /\* if( val < tab_lev[ii] ){ *\/ */
-  /*   if( val <= tab_lev[ii] ){ */
-  /*     *lev = maxLev - 1 - ii; */
-  /*     break; */
-  /*   } */
-  //-----------------------------------------------------------------------
-#if 0
-  fprintf(stderr, "val = %e, *lev = %d\n", val, *lev);
-  for(int ii = 0; ii < maxLev; ii++)
-    fprintf(stderr, "lev = %d: Mmax = %e\n", ii, tab_lev[ii]);
-  fflush(stderr);
-  exit(0);
-#endif
-  //-----------------------------------------------------------------------
-#if 0
-  if( *lev < 0 ){
-    fprintf(stderr, "*lev = %d, val = %e, log2Rmax = %e, log2(val) = %e\n", *lev, val, log2Rmax, log2(val));
-    exit(0);
-  }
-#endif
-  //-----------------------------------------------------------------------
-#if 0
-  fprintf(stderr, "%d\n", *lev);
-  fflush(stderr);
-#endif
+    }/* if( val <= tab_lev[ii] ){ */
   //-----------------------------------------------------------------------
   /* 2. find the index */
   int idx = bisection(val, num, &(tab[INDEX2D(maxLev, num, *lev, 0)]), logtbl, invbin, ratio);
@@ -717,13 +712,19 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
 #endif//USE_ORIGINAL_VDISP_ESTIMATOR
   const double Mmax = enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, 0, NDISKBIN_HOR)];
   //-----------------------------------------------------------------------
-  const ulong rand_half = ((gsl_rng_min(GSLRand) + gsl_rng_max(GSLRand)) >> 1);
+  /* const ulong rand_half = ((gsl_rng_min(GSLRand) + gsl_rng_max(GSLRand)) >> 1); */
   //-----------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
-  fprintf(stdout, "#\n#\n# start distributing disk particles (%zu bodies: [%zu:%zu])\n", num, *Nuse, (*Nuse) + num - 1);
-  fflush(stdout);
+#ifndef USE_SFMTJUMP
   const ulong nunit = (ulong)ceilf(0.1f * (float)num);
   ulong stage = 1;
+#else///USE_SFMTJUMP
+#pragma omp single nowait
+#endif//USE_SFMTJUMP
+  {
+    fprintf(stdout, "#\n#\n# start distributing disk particles (%zu bodies: [%zu:%zu])\n", num, *Nuse, (*Nuse) + num - 1);
+    fflush(stdout);
+  }
 #endif//PROGRESS_REPORT_ON
   //-----------------------------------------------------------------------
 #ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
@@ -737,6 +738,9 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
   for(int lev = 0; lev < maxLev; lev++)
     tab_lev[lev] = enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, NDISKBIN_HOR)];
   //-----------------------------------------------------------------------
+#ifdef  USE_SFMTJUMP
+#pragma omp for
+#endif//USE_SFMTJUMP
   for(ulong ii = *Nuse; ii < (*Nuse) + num; ii++){
     //---------------------------------------------------------------------
     /* determine Rg, phi, and z */
@@ -825,7 +829,7 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
       azz = 0.0;
     }/* else{ */
     //---------------------------------------------------------------------
-    if( gsl_rng_get(GSLRand) < rand_half )
+    if( UNIRAND_DBL < 0.5 )
       zz *= -1.0;
     //---------------------------------------------------------------------
     __NOTE__("%zu-th particle: guiding center determined\n", ii - (*Nuse));
@@ -967,31 +971,33 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
-    body.pos[ii].x = (real)xx;
-    body.pos[ii].y = (real)yy;
-    body.pos[ii].z = (real)zz;
+    body.pos[ii].x = CAST_D2R(xx);
+    body.pos[ii].y = CAST_D2R(yy);
+    body.pos[ii].z = CAST_D2R(zz);
     body.pos[ii].m = mass;
     //---------------------------------------------------------------------
     body.acc[ii].x = body.acc[ii].y = body.acc[ii].z = body.acc[ii].pot = ZERO;
     //---------------------------------------------------------------------
 #ifdef  BLOCK_TIME_STEP
-    body.vel[ii].x = (real)vx;
-    body.vel[ii].y = (real)vy;
-    body.vel[ii].z = (real)vz;
+    body.vel[ii].x = CAST_D2R(vx);
+    body.vel[ii].y = CAST_D2R(vy);
+    body.vel[ii].z = CAST_D2R(vz);
 #else///BLOCK_TIME_STEP
-    body.vx[ii] = (real)vx;
-    body.vy[ii] = (real)vy;
-    body.vz[ii] = (real)vz;
+    body.vx[ii] = CAST_D2R(vx);
+    body.vy[ii] = CAST_D2R(vy);
+    body.vz[ii] = CAST_D2R(vz);
 #endif//BLOCK_TIME_STEP
     //---------------------------------------------------------------------
     body.idx[ii] = ii;
     //---------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
+#ifndef USE_SFMTJUMP
     if( (ii - (*Nuse)) == (stage * nunit) ){
       fprintf(stdout, "# ~%zu%% completed\n", stage * 10);
       fflush(stdout);
       stage++;
     }/* if( (ii - (*Nuse)) == (stage * nunit) ){ */
+#endif//USE_SFMTJUMP
 #endif//PROGRESS_REPORT_ON
     //---------------------------------------------------------------------
   }
@@ -999,14 +1005,23 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
   *Nuse += num;
   //-----------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
+#ifdef  USE_SFMTJUMP
+#pragma omp barrier
+#pragma omp master
+#endif//USE_SFMTJUMP
   fprintf(stdout, "# finish distributing disk particles (%zu bodies)\n", num);
 #endif//PROGRESS_REPORT_ON
   //-----------------------------------------------------------------------
 #ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
-  fprintf(stdout, "# simple check based on Ostriker-Peebles criterion: Krot / (Krot + Krand) > ~0.28 is unstable to a bar-like mode\n");
-  fprintf(stdout, "# \tw/o Ekin of spherical component: Krot / (Krot + Krand) = %e; i.e., %s to a bar-like mode\n", Krot / (Krot + Krnd), ((Krot / (Krot + Krnd)) > 0.28) ? "unstable" : "  stable");
-  Krnd += disk.Krand_sph;
-  fprintf(stdout, "# \tw/z Ekin of spherical component: Krot / (Krot + Krand) = %e; i.e., %s to a bar-like mode\n", Krot / (Krot + Krnd), ((Krot / (Krot + Krnd)) > 0.28) ? "unstable" : "  stable");
+#ifdef  USE_SFMTJUMP
+#pragma omp single nowait
+#endif//USE_SFMTJUMP
+  {
+    fprintf(stdout, "# simple check based on Ostriker-Peebles criterion: Krot / (Krot + Krand) > ~0.28 is unstable to a bar-like mode\n");
+    fprintf(stdout, "# \tw/o Ekin of spherical component: Krot / (Krot + Krand) = %e; i.e., %s to a bar-like mode\n", Krot / (Krot + Krnd), ((Krot / (Krot + Krnd)) > 0.28) ? "unstable" : "  stable");
+    Krnd += disk.Krand_sph;
+    fprintf(stdout, "# \tw/z Ekin of spherical component: Krot / (Krot + Krand) = %e; i.e., %s to a bar-like mode\n", Krot / (Krot + Krnd), ((Krot / (Krot + Krnd)) > 0.28) ? "unstable" : "  stable");
+  }
 #endif//CHECK_OSTRIKER_PEEBLES_CRITERION
   //-----------------------------------------------------------------------
   free(tab_lev);

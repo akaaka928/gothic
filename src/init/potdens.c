@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/11(Tue) 16:58:43
+                  last updated on 2016/12/07(Wed) 16:28:33
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Poisson solver to yield potential--density pair                 *
@@ -20,10 +20,11 @@
 //-------------------------------------------------------------------------
 #include <gsl/gsl_integration.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <constants.h>
+#include "macro.h"
+#include "constants.h"
 //-------------------------------------------------------------------------
 #include "profile.h"
+#include "abel.h"
 #include "blas.h"
 #include "spline.h"
 #include "magi.h"
@@ -48,6 +49,10 @@ static double gsl_gaussQD_low_pos[NTBL_GAUSS_QD_LOW], gsl_gaussQD_low_weight[NTB
 
 
 //-------------------------------------------------------------------------
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #ifdef __ICC
 /* Disable ICC's remark #869: parameter "hoge" was never referenced */
 #     pragma warning (disable:869)
@@ -56,10 +61,13 @@ static double gsl_gaussQD_low_pos[NTBL_GAUSS_QD_LOW], gsl_gaussQD_low_weight[NTB
 static inline double getSmoothCutoff (const double RR, const double Rt, const double invDelta){  return (0.5 * erfc(2.0 * (RR - Rt) * invDelta));}
 double getColumnDensityExp   (double RR, double invRd, const disk_util disk);
 double getColumnDensityExp   (double RR, double invRd, const disk_util disk){
-  return (exp(-                    RR * invRd                   ) * getSmoothCutoff(RR, disk.Rcutoff, disk.invRsmooth));}
+  return (exp(-                    RR * invRd                   )   * getSmoothCutoff(RR, disk.Rcutoff, disk.invRsmooth));}
 double getColumnDensitySersic(double RR, double invRd, const disk_util disk);
 double getColumnDensitySersic(double RR, double invRd, const disk_util disk){
-  return (exp(-disk.sersic_b * pow(RR * invRd, disk.sersic_ninv)) * getSmoothCutoff(RR, disk.Rcutoff, disk.invRsmooth));}
+  return (exp(-disk.sersic_b * pow(RR * invRd, disk.sersic_ninv))   * getSmoothCutoff(RR, disk.Rcutoff, disk.invRsmooth));}
+double getColumnDensitySpline(double RR, double invRd, const disk_util disk);
+double getColumnDensitySpline(double RR, double invRd, const disk_util disk){
+  return (getCubicSpline1D(RR, disk.num, disk.xx, disk.ff, disk.f2) * getSmoothCutoff(RR, disk.Rcutoff, disk.invRsmooth));}
 //-------------------------------------------------------------------------
 static double invzd2invz0;
 static inline void setz0inv4SechProfile(void){  invzd2invz0 = 2.0 * acosh(sqrt(M_E));}
@@ -73,6 +81,9 @@ double getVerticalDensity(const double  zz, const double invzd, const disk_util 
 /* Disable ICC's remark #869: parameter "hoge" was never referenced */
 #     pragma warning ( enable:869)
 #endif//__ICC
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 //-------------------------------------------------------------------------
 
 
@@ -133,7 +144,7 @@ void   freeDiskProfile
 }
 //-------------------------------------------------------------------------
 void allocDiskProfile
-(const int ndisk, disk_data **disk, profile_cfg *disk_cfg, int *maxLev,
+(const int ndisk, disk_data **disk, profile_cfg *disk_cfg, int *maxLev, profile *disk_prf, const double logrbin, const double invlogrbin,
  double **hor, double **ver, double **node_hor, double **node_ver,
  double **pot, double **rho0, double **rho1, double **rhoTot, double **dPhidR, double **d2PhidR2,
  double **Sigma, double **vsigz, double **enc,
@@ -274,6 +285,9 @@ void allocDiskProfile
     (*disk)[ii].zmax  = maxLz;
     (*disk)[ii].hh    = hh;
     (*disk)[ii].invRd = 1.0 / disk_cfg[ii].rs;
+    (*disk)[ii].prf   = &disk_prf[ii];
+    (*disk)[ii].logrbin = logrbin;
+    (*disk)[ii].invlogrbin = invlogrbin;
     //---------------------------------------------------------------------
     /* settings for Sersic profile */
     if( disk_cfg[ii].kind == SERSIC ){
@@ -291,13 +305,19 @@ void allocDiskProfile
       //-------------------------------------------------------------------
     }/* if( disk_cfg[ii].cutoff ){ */
     //---------------------------------------------------------------------
+    /* initialize Toomre's Q-value analysis */
+    (*disk)[ii].cfg->vcirc_max   = -1.0;
+    (*disk)[ii].cfg->vcirc_max_R = -1.0;
+    (*disk)[ii].cfg->Qmin = DBL_MAX;
+    (*disk)[ii].cfg->passed = false;
+    //---------------------------------------------------------------------
     /* set function pointer */
-    /* switch 文を使って，複数の profile に対応する． */
-    /* table を読み込む形式にも対応させる． */
-    /* 中心で column density を decay させるような関数も試してみたい */
     switch( disk_cfg[ii].kind ){
     case EXP_DISK:      (*disk)[ii].getColumnDensity = getColumnDensityExp   ;      break;
     case   SERSIC:      (*disk)[ii].getColumnDensity = getColumnDensitySersic;      break;
+    case TBL_DISK:      (*disk)[ii].getColumnDensity = getColumnDensitySpline;
+      readColumnDensityTable4Disk((*disk)[ii].prf, disk_cfg[ii].rs, disk_cfg[ii].file, &((*disk)[ii].util.num), &((*disk)[ii].util.xx), &((*disk)[ii].util.ff), &((*disk)[ii].util.f2), &((*disk)[ii].util.bp));
+      break;
     default:      __KILL__(stderr, "ERROR: undefined model(%d) is specified as disk profile\n", disk_cfg[ii].kind);      break;
     }/* switch( disk_cfg[ii].kind ){ */
     //---------------------------------------------------------------------

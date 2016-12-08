@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/28(Fri) 16:25:42
+                  last updated on 2016/12/06(Tue) 12:34:41
  *                                                                       *
  *    Header File for Definition about Structures of N-body Simulation   *
  *                                                                       *
@@ -12,7 +12,7 @@
 #ifndef STRUCTURE_H
 #define STRUCTURE_H
 //-------------------------------------------------------------------------
-#include <macro.h>
+#include "macro.h"
 //-------------------------------------------------------------------------
 
 
@@ -87,6 +87,12 @@ typedef struct __align__(16)
 {
   real x, y, z, pot;
 } acceleration;
+#ifdef  DPADD_FOR_ACC
+typedef struct __align__(32)
+{
+  double x, y, z, pot;
+} DPacc;
+#endif//DPADD_FOR_ACC
 //-------------------------------------------------------------------------
 #ifdef  BLOCK_TIME_STEP
 typedef struct __align__(16)
@@ -126,6 +132,12 @@ typedef struct
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
   position *encBall, *encBall_hst;/* center and squared radius of enclosing ball which contains all i-particles */
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  DPADD_FOR_ACC
+  DPacc *tmp;
+#endif//DPADD_FOR_ACC
+#ifdef  KAHAN_SUM_CORRECTION
+  acceleration *res;/* residual for Kahan summation */
+#endif//KAHAN_SUM_CORRECTION
 #ifdef  GADGET_MAC
   real amin;
 #endif//GADGET_MAC

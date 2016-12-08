@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/07/13(Wed) 14:21:16
+                  last updated on 2016/12/06(Tue) 12:48:22
  *                                                                       *
  *    Generation of enclosing ball containing all N-body particles       *
  *                                                                       *
@@ -16,18 +16,12 @@
 #include <sys/time.h>
 #include <helper_cuda.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
+#include "macro.h"
+#include "cudalib.h"
 //-------------------------------------------------------------------------
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
-//-------------------------------------------------------------------------
-/* #include "peano.h" */
-/* #include "peano_dev.h" */
-//-------------------------------------------------------------------------
 #include "../misc/gsync_dev.cu"
-//-------------------------------------------------------------------------
-/* #include "../tree/macutil.h" */
 //-------------------------------------------------------------------------
 /* in L1 cache preferred configuration, capacity of shared memory is 16KiB per SM */
 /* real4 smem[NTHREADS_EB] corresponds 16 * NTHREADS_EB bytes */
@@ -109,7 +103,6 @@ typedef struct __align__(8){
 /* 1. estimate box size */
 /* 2. calculate Peano--Hilbert key */
 //-------------------------------------------------------------------------
-/* この関数が正しく動作することが確認できれば，MinLoc or MaxLoc 単体のデバッグもほぼ完了といえる． */
 __global__ void __launch_bounds__(NTHREADS_EB, NBLOCKS_PER_SM_EB) getMinLocMaxLoc
      (const int num, READ_ONLY position * RESTRICT ipos, rloc * RESTRICT min_all, rloc * RESTRICT max_all,
       const int nlevel, int * RESTRICT idx, PHint * RESTRICT key, int * RESTRICT gsync0, int * RESTRICT gsync1)

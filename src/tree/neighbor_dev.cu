@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2015/11/16(Mon) 12:15:33
+                  last updated on 2016/12/06(Tue) 12:55:52
  *                                                                       *
  *    Neighbor searching using breadth-first tree                        *
  *                                                                       *
@@ -15,8 +15,8 @@
 #include <stdbool.h>
 #include <helper_cuda.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
+#include "macro.h"
+#include "cudalib.h"
 //-------------------------------------------------------------------------
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
@@ -135,7 +135,7 @@ __global__ void facileNeighborSearching_kernel(const int Ni, READ_ONLY position 
 /*       const real dx = pj.x - pi.x; */
 /*       const real dy = pj.y - pi.y; */
 /*       const real dz = pj.z - pi.z; */
-/*       const real r2 = 1.0e-30f + dx * dx + dy * dy + dz * dz; */
+/*       const real r2 = FLT_MIN + dx * dx + dy * dy + dz * dz; */
 /*       //------------------------------------------------------------------- */
 /*       if( r2 > r2max ) */
 /* 	r2max = r2; */
@@ -152,10 +152,11 @@ __global__ void facileNeighborSearching_kernel(const int Ni, READ_ONLY position 
       const real dx = pj.x - pi.x;
       const real dy = pj.y - pi.y;
       const real dz = pj.z - pi.z;
-      const real r2 = 1.0e-30f + dx * dx + dy * dy + dz * dz;
+      /* const real r2 = FLT_MIN + dx * dx + dy * dy + dz * dz; */
       //-------------------------------------------------------------------
-      if( r2 > r2max )
-	r2max = r2;
+      /* if( r2 > r2max ) */
+      /* 	r2max = r2; */
+      r2max = FMAX(r2max, FLT_MIN + dx * dx + dy * dy + dz * dz);
       //-------------------------------------------------------------------
     }/* for(int ii = 0; ii < NEIGHBOR_NUM; ii++){ */
     //---------------------------------------------------------------------
@@ -681,11 +682,7 @@ __global__ void __launch_bounds__(NTHREADS_NEIGHBOR, NBLOCKS_PER_SM_NEIGHBOR) se
     /* pick up NI_NEIGHBOR_ESTIMATE i-particles in maximum to estimate bmax */
     while( inum > NI_NEIGHBOR_ESTIMATE ){
       //-------------------------------------------------------------------
-#if 1
       real rmax = REAL_MAX;
-#else
-      real rmax = 10.0f;
-#endif
       //-------------------------------------------------------------------
       int Nmin = 0;
 #pragma unroll
@@ -802,16 +799,11 @@ __global__ void __launch_bounds__(NTHREADS_NEIGHBOR, NBLOCKS_PER_SM_NEIGHBOR) se
 	      const real dx = jpos.x - ipos.x;
 	      const real dy = jpos.y - ipos.y;
 	      const real dz = jpos.z - ipos.z;
-	      const real d2 = 1.0e-30f + dx * dx + dy * dy + dz * dz;
+	      const real d2 = FLT_MIN + dx * dx + dy * dy + dz * dz;
 	      const real dr = d2 * RSQRT(d2);
 	      //-----------------------------------------------------------
 	      const real rjmax = bmax[kidx] + dr;	      /* the possible maximum distance between the i-particle and particles within the j-node */
 	      const real rjmin = -rjmax + (TWO * (UNITY - EPSILON)) * dr;
-	      //-----------------------------------------------------------
-#if 0
-	      if( iidx == 0 )
-		printf("kk = %d, lane = %d, jj = %d: kidx = %d (%e, %e, %e): rmax = %e, rjmax = %e, rjmax = %e, d2 = %e, dr = %e\n", kk, lane, jj, kidx, jpos.x, jpos.y, jpos.z, rmax, rjmax, rjmin, d2, dr);
-#endif
 	      //-----------------------------------------------------------
 	      if( rjmin < rmax ){
 		//---------------------------------------------------------
@@ -837,7 +829,7 @@ __global__ void __launch_bounds__(NTHREADS_NEIGHBOR, NBLOCKS_PER_SM_NEIGHBOR) se
 	      const real dx = jpos.x - ipos.x;
 	      const real dy = jpos.y - ipos.y;
 	      const real dz = jpos.z - ipos.z;
-	      const real d2 = 1.0e-30f + dx * dx + dy * dy + dz * dz;
+	      const real d2 = FLT_MIN + dx * dx + dy * dy + dz * dz;
 	      const real dr = d2 * RSQRT(d2);
 	      //-----------------------------------------------------------
 	      const real rjmax = bmax[kidx] + dr;	      /* the possible maximum distance between the i-particle and particles within the j-node */
@@ -890,11 +882,6 @@ __global__ void __launch_bounds__(NTHREADS_NEIGHBOR, NBLOCKS_PER_SM_NEIGHBOR) se
 		flip.f = rjmax_loc.ra[jj];
 		sort_tmp[dst] = flip32flt(flip.u);
 		sort_sub[dst] = nisub_loc.ia[jj];
-		//---------------------------------------------------------
-#if 0
-		if( iidx == 0 )
-		  printf("lane = %d, dst = %d, flip.f = %e\n", lane, dst, flip.f);
-#endif
 		//---------------------------------------------------------
 	      }/* if( share ){ */
 #ifdef  USE_WARP_SHUFFLE_FUNC_NEIGHBOR
@@ -1100,7 +1087,7 @@ __global__ void __launch_bounds__(NTHREADS_NEIGHBOR, NBLOCKS_PER_SM_NEIGHBOR) se
 	  /* flip.u  = undo32flt(sort_tmp[hp_sort + NEIGHBOR_NUM - 1]); */
 	  /* i-particle itself (r2 = ZERO; that means the minimum distance --> the head component in the sorted array) must be eliminated */
 	  flip.u  = undo32flt(sort_tmp[hp_sort + NEIGHBOR_NUM]);
-	  flip.f *= RSQRT(flip.f);
+	  flip.f *= RSQRT(FLT_MIN + flip.f);
 	  //---------------------------------------------------------------
 	  /* return the length of the neighbor arm */
 	  neighbor_length[iidx] = flip.f;
@@ -1294,7 +1281,7 @@ __global__ void __launch_bounds__(NTHREADS_NEIGHBOR, NBLOCKS_PER_SM_NEIGHBOR) se
 	const real dx = ipos_can.x - ipos.x;
 	const real dy = ipos_can.y - ipos.y;
 	const real dz = ipos_can.z - ipos.z;
-	const real r2 = 1.0e-30f + dx * dx + dy * dy + dz * dz;
+	const real r2 = FLT_MIN + dx * dx + dy * dy + dz * dz;
 	//-----------------------------------------------------------------
 	flip.f = r2;
 	sort_tmp[hp_sort + jj] = flip32flt(flip.u);
@@ -1317,17 +1304,13 @@ __global__ void __launch_bounds__(NTHREADS_NEIGHBOR, NBLOCKS_PER_SM_NEIGHBOR) se
 	/* flip.u  = undo32flt(sort_tmp[hp_sort + NEIGHBOR_NUM - 1]); */
 	/* i-particle itself (r2 = ZERO; that means the minimum distance --> the head component in the sorted array) must be eliminated */
 	flip.u  = undo32flt(sort_tmp[hp_sort + NEIGHBOR_NUM]);
-	flip.f *= RSQRT(flip.f);
+	flip.f *= RSQRT(FLT_MIN + flip.f);
 	//-----------------------------------------------------------------
 	/* return the length of the neighbor arm */
 #if 1
 	neighbor_length[iidx] = flip.f;
-#if 0
-	if( iidx < 32 )
-	  printf("iidx = %d: arm = %e from (%e, %e, %e)\n", iidx, flip.f, ipos.x, ipos.y, ipos.z);
-#endif
 #else
-	neighbor_length[iidx] = flip.f * RSQRT(ipos.x * ipos.x + ipos.y * ipos.y + ipos.z * ipos.z);
+	neighbor_length[iidx] = flip.f * RSQRT(FLT_MIN + ipos.x * ipos.x + ipos.y * ipos.y + ipos.z * ipos.z);
 #endif
 	//-----------------------------------------------------------------
       }/* if( (iidx < Ni) && (lane == 0) ){ */

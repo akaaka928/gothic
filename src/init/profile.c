@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/10/12(Wed) 18:22:04
+                  last updated on 2016/12/08(Thu) 15:35:10
  *                                                                       *
  *    MAGI: "MAny-component Galactic Initial-conditions" generator       *
  *    Making Initial Condition Code of N-body Simulation                 *
@@ -18,8 +18,8 @@
 #include <stdbool.h>
 #include <math.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <constants.h>
+#include "macro.h"
+#include "constants.h"
 //-------------------------------------------------------------------------
 #include "profile.h"
 //-------------------------------------------------------------------------
@@ -585,7 +585,9 @@ static inline void writeProfileCfgFormat(char *filename, const profile_cfg cfg)
     fprintf(stderr, "\t beta<real>: internal power-law slope of the projected two-power model\n");
     fprintf(stderr, "\tgamma<real>:    outer power-law slope of the projected two-power model\n");
   }/* if( cfg.kind == SIGTWOPOW ){ */
-  if( (cfg.kind == EXP_DISK) || (cfg.kind == SERSIC) ){
+  if( cfg.kind == TBL_DISK )
+    fprintf(stderr, "\ttable<char *>: file name to be read column density profile in table form\n");
+  if( (cfg.kind == EXP_DISK) || (cfg.kind == SERSIC) || (cfg.kind == TBL_DISK) ){
     if( cfg.kind == SERSIC )
       fprintf(stderr, "\tn_sersic<real>: Sersic index\n");
     fprintf(stderr, "\tRt<real> Rt_width<real>: cutoff radius and width of the disk mid-plane density in horizontal direction in astrophysical units, respectively\n");
@@ -593,7 +595,8 @@ static inline void writeProfileCfgFormat(char *filename, const profile_cfg cfg)
     fprintf(stderr, "\tsigmaR0<real> frac<real>: velocity dispersion in radial direction at the center in the vertical direction in astrophysical units, perpendicular velocity dispersion over circular velocity\n");
     fprintf(stderr, "\t\tif the inputted sigmaR0 is negative, then the default value (= sigma_z(R = 0)) is substituted\n");
     fprintf(stderr, "\t\tif USE_ORIGINAL_VDISP_ESTIMATOR defined in src/init/disk_polar.h is ON, then frac is used; if that is OFF, then sigmaR0 is used.\n");
-  }/* if( (cfg.kind == EXP_DISK) || (cfg.kind == SERSIC) ){ */
+    fprintf(stderr, "\t\tif the inputted retrogradeFrac<real> is not zero ([0., 1.]), then rotation axis of particles with the given fraction is anti-parallel with normal component.\n");
+  }/* if( (cfg.kind == EXP_DISK) || (cfg.kind == SERSIC) || (cfg.kind == TBL_DISK) ){ */
   //-----------------------------------------------------------------------
   /* information about density cutoff */
   if( cfg.kind != CENTRALBH ){
@@ -721,15 +724,20 @@ void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg)
       checker &= (1 == fscanf(fp, "%le", &(*cfg)[ii].twopower_gamma));
     }/* if( (*cfg)[ii].kind == SIGTWOPOW ){ */
     //---------------------------------------------------------------------
+    /* parameter for column density profile in table form */
+    if( (*cfg)[ii].kind == TBL_DISK )
+      checker &= (1 == fscanf(fp, "%s", (*cfg)[ii].table));
+    //---------------------------------------------------------------------
     /* parameters for disk component */
-    if( ((*cfg)[ii].kind == EXP_DISK) || ((*cfg)[ii].kind == SERSIC) ){
+    if( ((*cfg)[ii].kind == EXP_DISK) || ((*cfg)[ii].kind == SERSIC) || ((*cfg)[ii].kind == TBL_DISK) ){
       if( (*cfg)[ii].kind == SERSIC ){
 	checker &= (1 == fscanf(fp, "%le", &(*cfg)[ii].n_sersic));
 	(*cfg)[ii].b_sersic = getAsymptoticSersicScale((*cfg)[ii].n_sersic);
       }/* if( (*cfg)[ii].kind == SERSIC ){ */
       checker &= (1 == fscanf(fp, "%le", &(*cfg)[ii].zd));      (*cfg)[ii].zd   *= length_astro2com;
       checker &= (2 == fscanf(fp, "%le %le", &(*cfg)[ii].vdispR0, &(*cfg)[ii].vdisp_frac));      (*cfg)[ii].vdispR0 *= velocity_astro2com;
-    }/* if( ((*cfg)[ii].kind == EXP_DISK) || ((*cfg)[ii].kind == SERSIC) ){ */
+      checker &= (1 == fscanf(fp, "%le", &(*cfg)[ii].retrogradeFrac));
+    }/* if( ((*cfg)[ii].kind == EXP_DISK) || ((*cfg)[ii].kind == SERSIC) || ((*cfg)[ii].kind == TBL_DISK) ){ */
     //---------------------------------------------------------------------
     if( (*cfg)[ii].kind != CENTRALBH ){
       int input;
@@ -862,9 +870,8 @@ void calcColumnDensityProfile(const int skind, profile **prf, const double logrm
     double *tfp;    tfp = (double *)malloc(skind * sizeof(double));    if( tfp == NULL ){      __KILL__(stderr, "ERROR: failure to allocate tfp\n");    }
     double *tfm;    tfm = (double *)malloc(skind * sizeof(double));    if( tfm == NULL ){      __KILL__(stderr, "ERROR: failure to allocate tfm\n");    }
     //---------------------------------------------------------------------
-#pragma omp for nowait
-    for(int ii = 0; ii < 4 + NRADBIN; ii += 4){
-    /* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+#pragma omp for schedule(auto) nowait
+    for(int ii = 0; ii < 4 + NRADBIN; ii += SKIP_INTERVAL_FOR_COLUMN_DENSITY){
       //-------------------------------------------------------------------
       /* initialization */
       for(int kk = 0; kk < skind; kk++)
@@ -891,7 +898,21 @@ void calcColumnDensityProfile(const int skind, profile **prf, const double logrm
     //---------------------------------------------------------------------
   }
   //-----------------------------------------------------------------------
-#pragma omp parallel
+#   if  SKIP_INTERVAL_FOR_COLUMN_DENSITY != 4
+#pragma omp parallel for
+  for(int ii = 0; ii < 4 + NRADBIN - SKIP_INTERVAL_FOR_COLUMN_DENSITY; ii += SKIP_INTERVAL_FOR_COLUMN_DENSITY)
+    for(int kk = 0; kk < skind; kk++){
+      //-------------------------------------------------------------------
+      const double S0 = prf[kk][ii                                   ].Sigma;
+      const double S1 = prf[kk][ii + SKIP_INTERVAL_FOR_COLUMN_DENSITY].Sigma;
+      //-------------------------------------------------------------------
+      double slope = (S1 - S0) / (double)SKIP_INTERVAL_FOR_COLUMN_DENSITY;
+      for(int jj = 1; jj < SKIP_INTERVAL_FOR_COLUMN_DENSITY; jj++)
+	prf[kk][ii + jj].Sigma = S0 + slope * (double)jj;
+      //-------------------------------------------------------------------
+    }/* for(int kk = 0; kk < skind; kk++){ */
+#else///SKIP_INTERVAL_FOR_COLUMN_DENSITY != 4
+#pragma omp parallel for
   for(int ii = 0; ii < NRADBIN; ii += 4)
     for(int kk = 0; kk < skind; kk++){
       //-------------------------------------------------------------------
@@ -903,6 +924,7 @@ void calcColumnDensityProfile(const int skind, profile **prf, const double logrm
       prf[kk][ii + 3].Sigma = 0.25 *  S0 + 0.75 * S1;
       //-------------------------------------------------------------------
     }/* for(int kk = 0; kk < skind; kk++){ */
+#endif//SKIP_INTERVAL_FOR_COLUMN_DENSITY != 4
   //-----------------------------------------------------------------------
 #if 0
   for(int ii = 0; ii < NRADBIN; ii += 128)

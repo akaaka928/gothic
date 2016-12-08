@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/11(Fri) 11:47:18
+                  last updated on 2016/12/06(Tue) 12:36:43
  *                                                                       *
  *    Header File for domain decomposition using GPUs                    *
  *                                                                       *
@@ -13,12 +13,16 @@
 #ifndef EXCHANGE_DEV_H
 #define EXCHANGE_DEV_H
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
+#include "cudalib.h"
 //-------------------------------------------------------------------------
-#include "../misc/structure.h"
+
+
 //-------------------------------------------------------------------------
-#include "../para/exchange.h"
+/* #define ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX */
+//-------------------------------------------------------------------------
+/* #ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX */
+/* #define  */
+/* #endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX */
 //-------------------------------------------------------------------------
 
 
@@ -38,6 +42,42 @@
 #define NTHREADS_BOX  (256)
 #endif//NTHREADS_BOX < 256
 #endif//GPUGEN == 52
+//-------------------------------------------------------------------------
+/* in L1 cache preferred configuration, capacity of shared memory is 16KiB per SM */
+/* real4 smem[NTHREADS_BOX] corresponds 16 * NTHREADS_BOX bytes */
+#define NBLOCKS_PER_SM_BOX (1024 / NTHREADS_BOX)
+//-------------------------------------------------------------------------
+#define REGISTERS_PER_THREAD_BOX (30)
+//-------------------------------------------------------------------------
+/* limitation from number of registers */
+#   if  NBLOCKS_PER_SM_BOX > (MAX_REGISTERS_PER_SM / (REGISTERS_PER_THREAD_BOX * NTHREADS_BOX))
+#undef  NBLOCKS_PER_SM_BOX
+#define NBLOCKS_PER_SM_BOX   (MAX_REGISTERS_PER_SM / (REGISTERS_PER_THREAD_BOX * NTHREADS_BOX))
+#endif//NBLOCKS_PER_SM_BOX > (MAX_REGISTERS_PER_SM / (REGISTERS_PER_THREAD_BOX * NTHREADS_BOX))
+//-------------------------------------------------------------------------
+/* maximum # of registers per SM */
+#   if  NBLOCKS_PER_SM_BOX > (MAX_THREADS_PER_SM / NTHREADS_BOX)
+#undef  NBLOCKS_PER_SM_BOX
+#define NBLOCKS_PER_SM_BOX   (MAX_THREADS_PER_SM / NTHREADS_BOX)
+#endif//NBLOCKS_PER_SM_BOX > (MAX_THREADS_PER_SM / NTHREADS_BOX)
+//-------------------------------------------------------------------------
+/* maximum # of resident blocks per SM */
+#   if  NBLOCKS_PER_SM_BOX > MAX_BLOCKS_PER_SM
+#undef  NBLOCKS_PER_SM_BOX
+#define NBLOCKS_PER_SM_BOX   MAX_BLOCKS_PER_SM
+#endif//NBLOCKS_PER_SM_BOX > MAX_BLOCKS_PER_SM
+//-------------------------------------------------------------------------
+/* maximum # of resident warps per SM */
+#   if  NBLOCKS_PER_SM_BOX > ((MAX_WARPS_PER_SM * 32) / NTHREADS_BOX)
+#undef  NBLOCKS_PER_SM_BOX
+#define NBLOCKS_PER_SM_BOX   ((MAX_WARPS_PER_SM * 32) / NTHREADS_BOX)
+#endif//NBLOCKS_PER_SM_BOX > ((MAX_WARPS_PER_SM * 32) / NTHREADS_BOX)
+//-------------------------------------------------------------------------
+/* # of blocks per SM must not be zero */
+#   if  NBLOCKS_PER_SM_BOX < 1
+#undef  NBLOCKS_PER_SM_BOX
+#define NBLOCKS_PER_SM_BOX  (1)
+#endif//NBLOCKS_PER_SM_BOX < 1
 //-------------------------------------------------------------------------
 
 
@@ -78,26 +118,25 @@
 
 
 //-------------------------------------------------------------------------
-typedef struct
-{
-  float4 *min_dev, *max_dev, *min_hst, *max_hst;
-  int *gsync0, *gsync1;
-} soaBoxSize;
-//-------------------------------------------------------------------------
-
-
+#   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 //-------------------------------------------------------------------------
 //-- List of functions appeared in "exchange_dev.cu"
+//-------------------------------------------------------------------------
+#include "macro.h"
+#include "../misc/structure.h"
+#include "../sort/peano_dev.h"
+#include "../para/exchange.h"
 //-------------------------------------------------------------------------
 #ifdef  __CUDACC__
 extern "C"
 {
 #endif//__CUDACC__
   //-----------------------------------------------------------------------
-  muse allocateBoxSize_dev(float4 **min_hst, float4 **max_hst, float4 **min_dev, float4 **max_dev, int **gsync0, int **gsync1, soaBoxSize *soa, const deviceProp devProp);
-  void  releaseBoxSize_dev(float4  *min_hst, float4  *max_hst, float4  *min_dev, float4  *max_dev, int  *gsync0, int  *gsync1);
+  void checkBoxSize_dev(const deviceProp devProp);
+  /* muse allocateBoxSize_dev(float4 **min_hst, float4 **max_hst, float4 **min_dev, float4 **max_dev, int **gsync0, int **gsync1, soaBoxSize *soa, const deviceProp devProp); */
+  /* void  releaseBoxSize_dev(float4  *min_hst, float4  *max_hst, float4  *min_dev, float4  *max_dev, int  *gsync0, int  *gsync1); */
   //-----------------------------------------------------------------------
-  void getBoxSize_dev(const int num, position * RESTRICT ipos, soaBoxSize soa, const deviceProp devProp, cudaStream_t stream);
+  void getBoxSize_dev(const int num, position * RESTRICT ipos, soaPHsort soa, const deviceProp devProp, cudaStream_t stream);
   //-----------------------------------------------------------------------
   muse allocateSamplePos
   (float **x0hst, float **x1hst, float **y0hst, float **y1hst, float **z0hst, float **z1hst, int **idhst,
@@ -118,8 +157,11 @@ extern "C"
    particlePos pos_hst, particlePos pos_dev, domainDecomposeKey key, sendCfg *sendBuf, recvCfg *recvBuf,
    MPIinfo orm[], MPIinfo rep[], domainCfg domain, MPIcfg_tree mpi,
    const double tloc, sampling sample, samplePos loc, samplePos ful,
-   soaBoxSize soa, const deviceProp devProp, const deviceInfo devInfo,
+   soaPHsort soa, const deviceProp devProp, const deviceInfo devInfo,
    double *exchangeInterval, measuredTime *measured
+#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+   , const float epsinv
+#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
    , brentStatus *status, brentMemory *memory
 #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
@@ -131,6 +173,8 @@ extern "C"
 #ifdef  __CUDACC__
 }
 #endif//__CUDACC__
+//-------------------------------------------------------------------------
+#endif//defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 //-------------------------------------------------------------------------
 
 

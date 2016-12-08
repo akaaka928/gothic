@@ -18,12 +18,11 @@ INI=bin/magi
 # NTOT=2048
 # NTOT=4096
 # NTOT=8192
-# NTOT=10240
 # NTOT=16384
 # NTOT=32768
 # NTOT=65536
 # NTOT=131072
-NTOT=262144
+# NTOT=262144
 # NTOT=524288
 # NTOT=1048576
 # NTOT=2097152
@@ -33,7 +32,7 @@ NTOT=262144
 # NTOT=33554432
 # NTOT=67108864
 # NTOT=134217728
-# NTOT=268435456
+NTOT=268435456
 # NTOT=536870912
 # NTOT=1073741824
 # NTOT=2147483648
@@ -53,6 +52,7 @@ SAVE=140.0
 if [ $PROBLEM -eq 0 ]; then
 INI=bin/uniformsphere
 FILE=ccuni
+UNIT=-1
 MTOT=1.0
 SIGMA=0.25
 RAD=1.0
@@ -505,6 +505,20 @@ FINISH=1575.0
 INTERVAL=25.0
 fi
 ###############################################################
+# dynamical stability of a progenitor model for GSS determined by Kirihara et al. (2017)
+if [ $PROBLEM -eq 60 ]; then
+FILE=satellite
+CONFIG=galaxy/satellite.cfg
+EPS=1.5625e-2
+ETA=0.5
+# FINISH=75.0
+# INTERVAL=25.0
+FINISH=1575.0
+INTERVAL=25.0
+# FINISH=5175.0
+# INTERVAL=25.0
+fi
+###############################################################
 #
 #
 ###############################################################
@@ -519,12 +533,12 @@ echo "$TIME: $INI start" >> $LOG
 if [ $PROBLEM -eq 0 ]; then
 if [ `which numactl` ]; then
     # run with numactl
-    echo "numactl --localalloc $INI -file=$FILE -Ntot=$NTOT -Mtot=$MTOT -sigma=$SIGMA -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR" >> $LOG
-    numactl --localalloc $INI -file=$FILE -Ntot=$NTOT -Mtot=$MTOT -sigma=$SIGMA -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+    echo "numactl --localalloc $INI -file=$FILE -unit=$UNIT -Ntot=$NTOT -Mtot=$MTOT -sigma=$SIGMA -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR" >> $LOG
+    numactl --localalloc $INI -file=$FILE -unit=$UNIT -Ntot=$NTOT -Mtot=$MTOT -sigma=$SIGMA -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
 else
     # run without numactl
-    echo "$INI -file=$FILE -Ntot=$NTOT -Mtot=$MTOT -sigma=$SIGMA -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR" >> $LOG
-    $INI -file=$FILE -Ntot=$NTOT -Mtot=$MTOT -sigma=$SIGMA -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+    echo "$INI -file=$FILE -unit=$UNIT -Ntot=$NTOT -Mtot=$MTOT -sigma=$SIGMA -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR" >> $LOG
+    $INI -file=$FILE -unit=$UNIT -Ntot=$NTOT -Mtot=$MTOT -sigma=$SIGMA -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
 fi
 fi
 if [ $PROBLEM -ge 1 ]; then

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/11(Fri) 14:27:37
+                  last updated on 2016/12/06(Tue) 12:58:58
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -10,6 +10,8 @@
  *                                                                       *
 \*************************************************************************/
 //-------------------------------------------------------------------------
+/* #define DEBUG_PRINT_FOR_PARTICLE_ACCELERATION */
+//-------------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -17,20 +19,20 @@
 #include <helper_cuda.h>
 #include <sys/time.h>
 #ifndef SERIALIZED_EXECUTION
-#       include <mpi.h>
+#include <mpi.h>
 #endif//SERIALIZED_EXECUTION
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
-#       include <unistd.h>
+#include <unistd.h>
 #endif//PRINT_PSEUDO_PARTICLE_INFO
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
-#include <timer.h>
+#include "macro.h"
+#include "cudalib.h"
+#include "timer.h"
 #ifndef SERIALIZED_EXECUTION
-#       include <mpilib.h>
+#include "mpilib.h"
 #endif//SERIALIZED_EXECUTION
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
-#       include <name.h>
+#include "name.h"
 #endif//PRINT_PSEUDO_PARTICLE_INFO
 //-------------------------------------------------------------------------
 #include "../misc/benchmark.h"
@@ -42,9 +44,9 @@
 #include "buf_inc.h"
 //-------------------------------------------------------------------------
 #ifndef SERIALIZED_EXECUTION
-#       include "../para/mpicfg.h"
-#       include "let.h"
-#       include "let_dev.h"
+#include "../para/mpicfg.h"
+#include "let.h"
+#include "let_dev.h"
 #endif//SERIALIZED_EXECUTION
 //-------------------------------------------------------------------------
 #include "walk_dev.h"
@@ -60,19 +62,6 @@ nvmlDevice_t deviceHandler;
 #endif//(__CUDACC_VER_MINOR__ + 10 * __CUDACC_VER_MAJOR__) >= 80
 #endif
 #endif//!defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
-//-------------------------------------------------------------------------
-#define PARTIAL_SUM_ACCELERATION
-//-------------------------------------------------------------------------
-#ifdef  PARTIAL_SUM_ACCELERATION
-#define ACCURATE_ACCUMULATION
-/* #define ACCURATE_PARTIAL_SUM */
-#endif//PARTIAL_SUM_ACCELERATION
-//-------------------------------------------------------------------------
-#   if  defined(ACCURATE_PARTIAL_SUM) && defined(ACCURATE_ACCUMULATION)
-#undef          ACCURATE_PARTIAL_SUM
-#endif//defined(ACCURATE_PARTIAL_SUM) && defined(ACCURATE_ACCUMULATION)
-//-------------------------------------------------------------------------
-/* #define MERGE_QUEUED_TREE_NODES */
 //-------------------------------------------------------------------------
 __constant__  real newton;
 __constant__  real epsinv;
@@ -473,8 +462,6 @@ muse allocTreeBuffer_dev
   if( ((size_t)bufUnit * (size_t)NGROUPS) > INT_MAX ){
     __KILL__(stderr, "ERROR: expected size for bufUnit for LET (%zu) exceeds INT_MAX\n\trewrite \"makeLET_kernel()\" in \"src/tree/let_dev.cu\"\n", ((size_t)bufUnit * (size_t)NGROUPS));
   }/* if( ((size_t)bufUnit * (size_t)NGROUPS) > INT_MAX ){ */
-  /* MPI_Finalize(); */
-  /* exit(0); */
 #endif//SERIALIZED_EXECUTION
   //-----------------------------------------------------------------------
   const size_t walkBufSize = (size_t)(NGROUPS * nblocks) * (size_t)bufUnit * sizeof(uint);
@@ -545,6 +532,12 @@ __global__ void initAcc_kernel
 #ifdef  GADGET_MAC
  , acceleration * RESTRICT old
 #endif//GADGET_MAC
+#ifdef  DPADD_FOR_ACC
+ , DPacc * RESTRICT tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+ , acceleration * RESTRICT res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
  )
 {
   //-----------------------------------------------------------------------
@@ -575,8 +568,15 @@ __global__ void initAcc_kernel
     //---------------------------------------------------------------------
     const acceleration ai = {ZERO, ZERO, ZERO, ZERO};
     acc[info.head + lane] = ai;
+#ifdef  DPADD_FOR_ACC
+    const DPacc dac = {0.0, 0.0, 0.0, 0.0};
+    tmp[info.head + lane] = dac;
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+    res[info.head + lane] = ai;
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
     //---------------------------------------------------------------------
-  }
+  }/* if( lane < info.num ){ */
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -587,6 +587,12 @@ __global__ void initAcc_kernel
 #ifdef  GADGET_MAC
  , acceleration * RESTRICT old
 #endif//GADGET_MAC
+#ifdef  DPADD_FOR_ACC
+ , DPacc * RESTRICT tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+ , acceleration * RESTRICT res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
  )
 {
   //-----------------------------------------------------------------------
@@ -597,6 +603,13 @@ __global__ void initAcc_kernel
 #endif//GADGET_MAC
   //-----------------------------------------------------------------------
   acc[GLOBALIDX_X1D] = ai;
+#ifdef  DPADD_FOR_ACC
+    const DPacc dac = {0.0, 0.0, 0.0, 0.0};
+    tmp[GLOBALIDX_X1D] = dac;
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+  res[GLOBALIDX_X1D] = ai;
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
@@ -612,7 +625,14 @@ __global__ void initAcc_kernel
 //-------------------------------------------------------------------------
 #ifdef  BLOCK_TIME_STEP
 //-------------------------------------------------------------------------
-__global__ void trimAcc_kernel(acceleration * RESTRICT acc, READ_ONLY position * RESTRICT pos, const int laneNum, READ_ONLY laneinfo * RESTRICT laneInfo)
+__global__ void trimAcc_kernel(acceleration * RESTRICT acc, READ_ONLY position * RESTRICT pos, const int laneNum, READ_ONLY laneinfo * RESTRICT laneInfo
+#ifdef  DPADD_FOR_ACC
+ , READ_ONLY DPacc * RESTRICT tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+			       , READ_ONLY acceleration * RESTRICT res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+			       )
 {
   //-----------------------------------------------------------------------
 #if 0
@@ -638,12 +658,31 @@ __global__ void trimAcc_kernel(acceleration * RESTRICT acc, READ_ONLY position *
     //---------------------------------------------------------------------
     const int ii = info.head + lane;
     //---------------------------------------------------------------------
-    /* load acceleration and mass */
+#ifndef DPADD_FOR_ACC
+    /* load acceleration */
     acceleration ai = acc[ii];
-    const real   mi = pos[ii].m;
-    //---------------------------------------------------------------------
     /* eliminate self-interaction */
-    ai.pot -= epsinv * mi;
+    ai.pot -= epsinv * pos[ii].m;
+#endif//DPADD_FOR_ACC
+    //---------------------------------------------------------------------
+#ifdef  DPADD_FOR_ACC
+    DPacc dacc = tmp[ii];
+    acceleration ai;
+    ai.x   = CAST_D2R(dacc.x);
+    ai.y   = CAST_D2R(dacc.y);
+    ai.z   = CAST_D2R(dacc.z);
+    ai.pot = CAST_D2R(dacc.pot - CAST_R2D(epsinv * pos[ii].m));
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+    acceleration corr = res[ii];
+    ai.x   = CAST_D2R(CAST_R2D(ai.x  ) + CAST_R2D(corr.x  ));
+    ai.y   = CAST_D2R(CAST_R2D(ai.y  ) + CAST_R2D(corr.y  ));
+    ai.z   = CAST_D2R(CAST_R2D(ai.z  ) + CAST_R2D(corr.z  ));
+    ai.pot = CAST_D2R(CAST_R2D(ai.pot) + CAST_R2D(corr.pot));
+#if 0
+    printf("res(%e) = %e, %e, %e, %e\n", pos[ii].x, corr.x, corr.y, corr.z, corr.pot);
+#endif
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
     //---------------------------------------------------------------------
     /* multiply Gravitational constant */
     ai.x   *=  newton;
@@ -660,17 +699,40 @@ __global__ void trimAcc_kernel(acceleration * RESTRICT acc, READ_ONLY position *
 //-------------------------------------------------------------------------
 #else///BLOCK_TIME_STEP
 //-------------------------------------------------------------------------
-__global__ void trimAcc_kernel(acceleration * RESTRICT acc, READ_ONLY position * RESTRICT pos)
+__global__ void trimAcc_kernel(acceleration * RESTRICT acc, READ_ONLY position * RESTRICT pos
+#ifdef  DPADD_FOR_ACC
+			       , READ_ONLY DPacc * RESTRICT tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+			       , READ_ONLY acceleration * RESTRICT res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+			       )
 {
   //-----------------------------------------------------------------------
   const int ii = GLOBALIDX_X1D;
   //-----------------------------------------------------------------------
+#ifndef DPADD_FOR_ACC
   /* load acceleration and mass */
   acceleration ai = acc[ii];
-  const real   mi = pos[ii].m;
-  //-----------------------------------------------------------------------
   /* eliminate self-interaction */
-  ai.pot -= epsinv * mi;
+  ai.pot -= epsinv * pos[ii].m;
+#endif//DPADD_FOR_ACC
+  //-----------------------------------------------------------------------
+#ifdef  DPADD_FOR_ACC
+  DPacc dacc = tmp[ii];
+  acceleration ai;
+  ai.x   = CAST_D2R(dacc.x);
+  ai.y   = CAST_D2R(dacc.y);
+  ai.z   = CAST_D2R(dacc.z);
+  ai.pot = CAST_D2R(dacc.pot - CAST_R2D(epsinv * pos[ii].m));
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+  acceleration corr = res[ii];
+  ai.x   = CAST_D2R(CAST_R2D(ai.x  ) + CAST_R2D(corr.x  ));
+  ai.y   = CAST_D2R(CAST_R2D(ai.y  ) + CAST_R2D(corr.y  ));
+  ai.z   = CAST_D2R(CAST_R2D(ai.z  ) + CAST_R2D(corr.z  ));
+  ai.pot = CAST_D2R(CAST_R2D(ai.pot) + CAST_R2D(corr.pot));
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
   //-----------------------------------------------------------------------
   /* multiply Gravitational constant */
   ai.x   *=  newton;
@@ -794,82 +856,76 @@ __device__ __forceinline__ real getMaximumRealTsub
 #ifdef  USE_WARP_SHUFFLE_FUNC
   //-----------------------------------------------------------------------
   real val = max;
-#if 1
+/* #   if  TSUB >= ( 2 * NWARP) */
+/*   real tmp; */
+/*   tmp = __shfl_xor(val,      NWARP, TSUB);  if( tmp > val )    val = tmp; */
+/* #   if  TSUB >= ( 4 * NWARP) */
+/*   tmp = __shfl_xor(val,  2 * NWARP, TSUB);  if( tmp > val )    val = tmp; */
+/* #   if  TSUB >= ( 8 * NWARP) */
+/*   tmp = __shfl_xor(val,  4 * NWARP, TSUB);  if( tmp > val )    val = tmp; */
+/* #   if  TSUB >= (16 * NWARP) */
+/*   tmp = __shfl_xor(val,  8 * NWARP, TSUB);  if( tmp > val )    val = tmp; */
+/* #   if  TSUB == (32 * NWARP) */
+/*   tmp = __shfl_xor(val, 16 * NWARP, TSUB);  if( tmp > val )    val = tmp; */
+/* #endif//TSUB == (32 * NWARP) */
+/* #endif//TSUB >= (16 * NWARP) */
+/* #endif//TSUB >= ( 8 * NWARP) */
+/* #endif//TSUB >= ( 4 * NWARP) */
+/* #endif//TSUB >= ( 2 * NWARP) */
 #   if  TSUB >= ( 2 * NWARP)
   real tmp;
-  tmp = __shfl_xor(val,      NWARP, TSUB);  if( tmp > val )    val = tmp;
+  tmp = __shfl_xor(val,      NWARP, TSUB);  val = FMAX(val, tmp);
 #   if  TSUB >= ( 4 * NWARP)
-  tmp = __shfl_xor(val,  2 * NWARP, TSUB);  if( tmp > val )    val = tmp;
+  tmp = __shfl_xor(val,  2 * NWARP, TSUB);  val = FMAX(val, tmp);
 #   if  TSUB >= ( 8 * NWARP)
-  tmp = __shfl_xor(val,  4 * NWARP, TSUB);  if( tmp > val )    val = tmp;
+  tmp = __shfl_xor(val,  4 * NWARP, TSUB);  val = FMAX(val, tmp);
 #   if  TSUB >= (16 * NWARP)
-  tmp = __shfl_xor(val,  8 * NWARP, TSUB);  if( tmp > val )    val = tmp;
+  tmp = __shfl_xor(val,  8 * NWARP, TSUB);  val = FMAX(val, tmp);
 #   if  TSUB == (32 * NWARP)
-  tmp = __shfl_xor(val, 16 * NWARP, TSUB);  if( tmp > val )    val = tmp;
+  tmp = __shfl_xor(val, 16 * NWARP, TSUB);  val = FMAX(val, tmp);
 #endif//TSUB == (32 * NWARP)
 #endif//TSUB >= (16 * NWARP)
 #endif//TSUB >= ( 8 * NWARP)
 #endif//TSUB >= ( 4 * NWARP)
 #endif//TSUB >= ( 2 * NWARP)
-#else
-#   if  TSUB >=  2
-  real tmp;
-  tmp = __shfl_xor(val,  1, TSUB);  if( tmp > val )    val = tmp;
-#   if  TSUB >=  4
-  tmp = __shfl_xor(val,  2, TSUB);  if( tmp > val )    val = tmp;
-#   if  TSUB >=  8
-  tmp = __shfl_xor(val,  4, TSUB);  if( tmp > val )    val = tmp;
-#   if  TSUB >= 16
-  tmp = __shfl_xor(val,  8, TSUB);  if( tmp > val )    val = tmp;
-#   if  TSUB == 32
-  tmp = __shfl_xor(val, 16, TSUB);  if( tmp > val )    val = tmp;
-#endif//TSUB == 32
-#endif//TSUB >= 16
-#endif//TSUB >=  8
-#endif//TSUB >=  4
-#endif//TSUB >=  2
-#endif
   return (__shfl(val, 0, TSUB));
   //-----------------------------------------------------------------------
 #else///USE_WARP_SHUFFLE_FUNC
   //-----------------------------------------------------------------------
   smem[tidx].r = max;
   //-----------------------------------------------------------------------
-#if 1
+/* #   if  TSUB >= ( 2 * NWARP) */
+/*   real tmp; */
+/*   tmp = smem[tidx ^ (     NWARP)].r;  if( tmp > max ){    max = tmp;  }  smem[tidx].r = max; */
+/* #   if  TSUB >= ( 4 * NWARP) */
+/*   tmp = smem[tidx ^ ( 2 * NWARP)].r;  if( tmp > max ){    max = tmp;  }  smem[tidx].r = max; */
+/* #   if  TSUB >= ( 8 * NWARP) */
+/*   tmp = smem[tidx ^ ( 4 * NWARP)].r;  if( tmp > max ){    max = tmp;  }  smem[tidx].r = max; */
+/* #   if  TSUB >= (16 * NWARP) */
+/*   tmp = smem[tidx ^ ( 8 * NWARP)].r;  if( tmp > max ){    max = tmp;  }  smem[tidx].r = max; */
+/* #   if  TSUB == (32 * NWARP) */
+/*   tmp = smem[tidx ^ (16 * NWARP)].r;  if( tmp > max ){    max = tmp;  }  smem[tidx].r = max; */
+/* #endif//TSUB == (32 * NWARP) */
+/* #endif//TSUB >= (16 * NWARP) */
+/* #endif//TSUB >= ( 8 * NWARP) */
+/* #endif//TSUB >= ( 4 * NWARP) */
+/* #endif//TSUB >= ( 2 * NWARP) */
 #   if  TSUB >= ( 2 * NWARP)
   real tmp;
-  tmp = smem[tidx ^ (     NWARP)].r;  if( tmp > max ){    max = tmp;  }  smem[tidx].r = max;
+  tmp = smem[tidx ^ (     NWARP)].r;  max = FMAX(max, tmp);  smem[tidx].r = max;
 #   if  TSUB >= ( 4 * NWARP)
-  tmp = smem[tidx ^ ( 2 * NWARP)].r;  if( tmp > max ){    max = tmp;  }  smem[tidx].r = max;
+  tmp = smem[tidx ^ ( 2 * NWARP)].r;  max = FMAX(max, tmp);  smem[tidx].r = max;
 #   if  TSUB >= ( 8 * NWARP)
-  tmp = smem[tidx ^ ( 4 * NWARP)].r;  if( tmp > max ){    max = tmp;  }  smem[tidx].r = max;
+  tmp = smem[tidx ^ ( 4 * NWARP)].r;  max = FMAX(max, tmp);  smem[tidx].r = max;
 #   if  TSUB >= (16 * NWARP)
-  tmp = smem[tidx ^ ( 8 * NWARP)].r;  if( tmp > max ){    max = tmp;  }  smem[tidx].r = max;
+  tmp = smem[tidx ^ ( 8 * NWARP)].r;  max = FMAX(max, tmp);  smem[tidx].r = max;
 #   if  TSUB == (32 * NWARP)
-  tmp = smem[tidx ^ (16 * NWARP)].r;  if( tmp > max ){    max = tmp;  }  smem[tidx].r = max;
+  tmp = smem[tidx ^ (16 * NWARP)].r;  max = FMAX(max, tmp);  smem[tidx].r = max;
 #endif//TSUB == (32 * NWARP)
 #endif//TSUB >= (16 * NWARP)
 #endif//TSUB >= ( 8 * NWARP)
 #endif//TSUB >= ( 4 * NWARP)
 #endif//TSUB >= ( 2 * NWARP)
-#else
-#   if  TSUB >=  2
-  real tmp;
-  tmp = smem[tidx ^  1].r;  if( tmp > max ){    max = tmp;  }  smem[tidx].r = max;
-#   if  TSUB >=  4
-  tmp = smem[tidx ^  2].r;  if( tmp > max ){    max = tmp;  }  smem[tidx].r = max;
-#   if  TSUB >=  8
-  tmp = smem[tidx ^  4].r;  if( tmp > max ){    max = tmp;  }  smem[tidx].r = max;
-#   if  TSUB >= 16
-  tmp = smem[tidx ^  8].r;  if( tmp > max ){    max = tmp;  }  smem[tidx].r = max;
-#   if  TSUB == 32
-  tmp = smem[tidx ^ 16].r;  if( tmp > max ){    max = tmp;  }  smem[tidx].r = max;
-#endif//TSUB == 32
-#endif//TSUB >= 16
-#endif//TSUB >=  8
-#endif//TSUB >=  4
-#endif//TSUB >=  2
-#endif
   //-----------------------------------------------------------------------
   return (smem[head].r);
   //-----------------------------------------------------------------------
@@ -898,82 +954,76 @@ __device__ __forceinline__ real getMinimumRealTsub
 #ifdef  USE_WARP_SHUFFLE_FUNC
   //-----------------------------------------------------------------------
   real val = min;
-#if 1
+/* #   if  TSUB >= ( 2 * NWARP) */
+/*   real tmp; */
+/*   tmp = __shfl_xor(val,      NWARP, TSUB);  if( tmp < val )    val = tmp; */
+/* #   if  TSUB >= ( 4 * NWARP) */
+/*   tmp = __shfl_xor(val,  2 * NWARP, TSUB);  if( tmp < val )    val = tmp; */
+/* #   if  TSUB >= ( 8 * NWARP) */
+/*   tmp = __shfl_xor(val,  4 * NWARP, TSUB);  if( tmp < val )    val = tmp; */
+/* #   if  TSUB >= (16 * NWARP) */
+/*   tmp = __shfl_xor(val,  8 * NWARP, TSUB);  if( tmp < val )    val = tmp; */
+/* #   if  TSUB == (32 * NWARP) */
+/*   tmp = __shfl_xor(val, 16 * NWARP, TSUB);  if( tmp < val )    val = tmp; */
+/* #endif//TSUB == (32 * NWARP) */
+/* #endif//TSUB >= (16 * NWARP) */
+/* #endif//TSUB >= ( 8 * NWARP) */
+/* #endif//TSUB >= ( 4 * NWARP) */
+/* #endif//TSUB >= ( 2 * NWARP) */
 #   if  TSUB >= ( 2 * NWARP)
   real tmp;
-  tmp = __shfl_xor(val,      NWARP, TSUB);  if( tmp < val )    val = tmp;
+  tmp = __shfl_xor(val,      NWARP, TSUB);  val = FMIN(val, tmp);
 #   if  TSUB >= ( 4 * NWARP)
-  tmp = __shfl_xor(val,  2 * NWARP, TSUB);  if( tmp < val )    val = tmp;
+  tmp = __shfl_xor(val,  2 * NWARP, TSUB);  val = FMIN(val, tmp);
 #   if  TSUB >= ( 8 * NWARP)
-  tmp = __shfl_xor(val,  4 * NWARP, TSUB);  if( tmp < val )    val = tmp;
+  tmp = __shfl_xor(val,  4 * NWARP, TSUB);  val = FMIN(val, tmp);
 #   if  TSUB >= (16 * NWARP)
-  tmp = __shfl_xor(val,  8 * NWARP, TSUB);  if( tmp < val )    val = tmp;
+  tmp = __shfl_xor(val,  8 * NWARP, TSUB);  val = FMIN(val, tmp);
 #   if  TSUB == (32 * NWARP)
-  tmp = __shfl_xor(val, 16 * NWARP, TSUB);  if( tmp < val )    val = tmp;
+  tmp = __shfl_xor(val, 16 * NWARP, TSUB);  val = FMIN(val, tmp);
 #endif//TSUB == (32 * NWARP)
 #endif//TSUB >= (16 * NWARP)
 #endif//TSUB >= ( 8 * NWARP)
 #endif//TSUB >= ( 4 * NWARP)
 #endif//TSUB >= ( 2 * NWARP)
-#else
-#   if  TSUB >=  2
-  real tmp;
-  tmp = __shfl_xor(val,  1, TSUB);  if( tmp < val )    val = tmp;
-#   if  TSUB >=  4
-  tmp = __shfl_xor(val,  2, TSUB);  if( tmp < val )    val = tmp;
-#   if  TSUB >=  8
-  tmp = __shfl_xor(val,  4, TSUB);  if( tmp < val )    val = tmp;
-#   if  TSUB >= 16
-  tmp = __shfl_xor(val,  8, TSUB);  if( tmp < val )    val = tmp;
-#   if  TSUB == 32
-  tmp = __shfl_xor(val, 16, TSUB);  if( tmp < val )    val = tmp;
-#endif//TSUB == 32
-#endif//TSUB >= 16
-#endif//TSUB >=  8
-#endif//TSUB >=  4
-#endif//TSUB >=  2
-#endif
   return (__shfl(val, 0, TSUB));
   //-----------------------------------------------------------------------
 #else///USE_WARP_SHUFFLE_FUNC
   //-----------------------------------------------------------------------
   smem[tidx].r = min;
   //-----------------------------------------------------------------------
-#if 1
+/* #   if  TSUB >= ( 2 * NWARP) */
+/*   real tmp; */
+/*   tmp = smem[tidx ^ (     NWARP)].r;  if( tmp < min ){    min = tmp;  }  smem[tidx].r = min; */
+/* #   if  TSUB >= ( 4 * NWARP) */
+/*   tmp = smem[tidx ^ ( 2 * NWARP)].r;  if( tmp < min ){    min = tmp;  }  smem[tidx].r = min; */
+/* #   if  TSUB >= ( 8 * NWARP) */
+/*   tmp = smem[tidx ^ ( 4 * NWARP)].r;  if( tmp < min ){    min = tmp;  }  smem[tidx].r = min; */
+/* #   if  TSUB >= (16 * NWARP) */
+/*   tmp = smem[tidx ^ ( 8 * NWARP)].r;  if( tmp < min ){    min = tmp;  }  smem[tidx].r = min; */
+/* #   if  TSUB == (32 * NWARP) */
+/*   tmp = smem[tidx ^ (16 * NWARP)].r;  if( tmp < min ){    min = tmp;  }  smem[tidx].r = min; */
+/* #endif//TSUB == (32 * NWARP) */
+/* #endif//TSUB >= (16 * NWARP) */
+/* #endif//TSUB >= ( 8 * NWARP) */
+/* #endif//TSUB >= ( 4 * NWARP) */
+/* #endif//TSUB >= ( 2 * NWARP) */
 #   if  TSUB >= ( 2 * NWARP)
   real tmp;
-  tmp = smem[tidx ^ (     NWARP)].r;  if( tmp < min ){    min = tmp;  }  smem[tidx].r = min;
+  tmp = smem[tidx ^ (     NWARP)].r;  min = FMIN(min, tmp);  smem[tidx].r = min;
 #   if  TSUB >= ( 4 * NWARP)
-  tmp = smem[tidx ^ ( 2 * NWARP)].r;  if( tmp < min ){    min = tmp;  }  smem[tidx].r = min;
+  tmp = smem[tidx ^ ( 2 * NWARP)].r;  min = FMIN(min, tmp);  smem[tidx].r = min;
 #   if  TSUB >= ( 8 * NWARP)
-  tmp = smem[tidx ^ ( 4 * NWARP)].r;  if( tmp < min ){    min = tmp;  }  smem[tidx].r = min;
+  tmp = smem[tidx ^ ( 4 * NWARP)].r;  min = FMIN(min, tmp);  smem[tidx].r = min;
 #   if  TSUB >= (16 * NWARP)
-  tmp = smem[tidx ^ ( 8 * NWARP)].r;  if( tmp < min ){    min = tmp;  }  smem[tidx].r = min;
+  tmp = smem[tidx ^ ( 8 * NWARP)].r;  min = FMIN(min, tmp);  smem[tidx].r = min;
 #   if  TSUB == (32 * NWARP)
-  tmp = smem[tidx ^ (16 * NWARP)].r;  if( tmp < min ){    min = tmp;  }  smem[tidx].r = min;
+  tmp = smem[tidx ^ (16 * NWARP)].r;  min = FMIN(min, tmp);  smem[tidx].r = min;
 #endif//TSUB == (32 * NWARP)
 #endif//TSUB >= (16 * NWARP)
 #endif//TSUB >= ( 8 * NWARP)
 #endif//TSUB >= ( 4 * NWARP)
 #endif//TSUB >= ( 2 * NWARP)
-#else
-#   if  TSUB >=  2
-  real tmp;
-  tmp = smem[tidx ^  1].r;  if( tmp < min ){    min = tmp;  }  smem[tidx].r = min;
-#   if  TSUB >=  4
-  tmp = smem[tidx ^  2].r;  if( tmp < min ){    min = tmp;  }  smem[tidx].r = min;
-#   if  TSUB >=  8
-  tmp = smem[tidx ^  4].r;  if( tmp < min ){    min = tmp;  }  smem[tidx].r = min;
-#   if  TSUB >= 16
-  tmp = smem[tidx ^  8].r;  if( tmp < min ){    min = tmp;  }  smem[tidx].r = min;
-#   if  TSUB == 32
-  tmp = smem[tidx ^ 16].r;  if( tmp < min ){    min = tmp;  }  smem[tidx].r = min;
-#endif//TSUB == 32
-#endif//TSUB >= 16
-#endif//TSUB >=  8
-#endif//TSUB >=  4
-#endif//TSUB >=  2
-#endif
   //-----------------------------------------------------------------------
   return (smem[head].r);
   //-----------------------------------------------------------------------
@@ -984,9 +1034,7 @@ __device__ __forceinline__ real getMinimumRealTsub
 
 
 //-------------------------------------------------------------------------
-__device__ __forceinline__ void copyData_s2s
-(uint *src, int sidx,
- uint *dst, int didx, const int num, const int lane)
+__device__ __forceinline__ void copyData_s2s(uint *src, int sidx, uint *dst, int didx, const int num, const int lane)
 {
   //-----------------------------------------------------------------------
   const int iter = DIV_TSUB(num);
@@ -1004,8 +1052,7 @@ __device__ __forceinline__ void copyData_s2s
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-__device__ __forceinline__ void copyData_g2s
-(uint * RESTRICT gbuf, size_t srcHead, uint * RESTRICT sbuf, int dstHead, int numCopy, const int lane)
+__device__ __forceinline__ void copyData_g2s(uint * RESTRICT gbuf, size_t srcHead, uint * RESTRICT sbuf, int dstHead, int numCopy, const int lane)
 {
   //-----------------------------------------------------------------------
   /* fraction processing at loading from the head of destination array */
@@ -1027,8 +1074,7 @@ __device__ __forceinline__ void copyData_g2s
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-__device__ __forceinline__ void copyData_s2g
-(uint * RESTRICT sbuf, int srcHead, uint * RESTRICT gbuf, size_t dstHead, int numCopy, const int lane)
+__device__ __forceinline__ void copyData_s2g(uint * RESTRICT sbuf, int srcHead, uint * RESTRICT gbuf, size_t dstHead, int numCopy, const int lane)
 {
   //-----------------------------------------------------------------------
   /* fraction processing at storing to the head of destination array */
@@ -1050,8 +1096,7 @@ __device__ __forceinline__ void copyData_s2g
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-__device__ __forceinline__ void copyData_g2g
-(uint * RESTRICT gbuf, size_t srcHead, size_t dstHead, int Ncopy, const int Ndisp, const int lane)
+__device__ __forceinline__ void copyData_g2g(uint * RESTRICT gbuf, size_t srcHead, size_t dstHead, int Ncopy, const int Ndisp, const int lane)
 {
   //-----------------------------------------------------------------------
   /* configure the settings */
@@ -1769,12 +1814,52 @@ __global__ void calcAccDirect_kernel
 #include "../tree/seb_dev.cu"
 #endif//defined(ADOPT_SMALLEST_ENCLOSING_BALL) || defined(ADOPT_APPROXIMATED_ENCLOSING_BALL)
 //-------------------------------------------------------------------------
+#   if  defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
+/* after Pascal generation, native atomicAdd for FP64 is provided */
+__device__ __forceinline__ double atomicAdd(double* address, double val)
+{
+  unsigned long long int* address_as_ull = (unsigned long long int*)address;
+  unsigned long long int old = *address_as_ull, assumed;
+  do {
+    assumed = old;
+    old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+  } while (assumed != old);
+  return __longlong_as_double(old);
+}
+#endif//defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
+/* __device__ __forceinline__ float atomicAdd(float* addr, double val) */
+/* { */
+/*   unsigned int* addr_as_ui = (unsigned int*)addr; */
+/*   unsigned int old = *addr_as_ui, assumed; */
+/*   do { */
+/*     assumed = old; */
+/*     old = atomicCAS(addr_as_ui, assumed, __float_as_int((float)(val + (double)__int_as_float(assumed)))); */
+/*   } while (assumed != old); */
+/*   return __int_as_float(old); */
+/* } */
+/* __device__ __forceinline__ float atomicPrecAdd(float* addr, double val) */
+/* { */
+/*   int* addr_as_i = (int*)addr; */
+/*   int old = *addr_as_i, assumed; */
+/*   do { */
+/*     assumed = old; */
+/*     old = atomicCAS(addr_as_i, assumed, __float_as_int((float)(val + (double)__int_as_float(assumed)))); */
+/*   } while (assumed != old); */
+/*   return __int_as_float(old); */
+/* } */
+//-------------------------------------------------------------------------
 __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
      (READ_ONLY laneinfo * RESTRICT laneInfo, READ_ONLY position * RESTRICT ipos, jnode * RESTRICT iacc,
 #ifdef  GADGET_MAC
       READ_ONLY acceleration * RESTRICT iacc_old,
 #endif//GADGET_MAC
       const int root, READ_ONLY uint * RESTRICT more, READ_ONLY jparticle * RESTRICT jpos, READ_ONLY jmass * RESTRICT mj,
+#ifdef  DPADD_FOR_ACC
+      DPacc * RESTRICT dacc,
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+      jnode * RESTRICT ires,
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 #   if  !defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
       int * RESTRICT active, uint * RESTRICT freeNum,
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
@@ -1817,6 +1902,19 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
   __shared__ real  eps2[NTHREADS * (NLOOP + 1)];
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
   __shared__ uint queue[NTHREADS * NQUEUE];
+  //-----------------------------------------------------------------------
+#if 0
+  for(int ii = tidx; ii < NTHREADS * (NLOOP + 1); ii += NTHREADS){
+    const position massless = {ZERO, ZERO, ZERO, ZERO};
+    pj[ii].pi = massless;
+#ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
+    eps2[ii] = ZERO;
+#endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
+  }
+  for(int ii = tidx; ii < NTHREADS * NQUEUE; ii += NTHREADS)
+    queue[ii] = NULL_NODE;
+  __syncthreads();
+#endif
   //-----------------------------------------------------------------------
   /* const int hq = lane + (head / TSUB) * TSUB * NQUEUE;/\* head index of the shared array close and queue within a thread group *\/ */
   /* const int hp =        (head / TSUB) * TSUB * (NLOOP + 1);/\* head index of the shared array pj within a thread group *\/ */
@@ -1898,11 +1996,49 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 #endif//ADOPT_ENCLOSING_BALL
   }/* if( !skip ){ */
   //-----------------------------------------------------------------------
+#ifdef  DEBUG_PRINT_FOR_PARTICLE_ACCELERATION
+  bool writeWholeData = false;
+  if( !skip )
+    if(     (-10.270200f < pi.x) && (pi.x < -10.270000f) )
+      if(   (  0.646161f < pi.y) && (pi.y <   0.646163f) )
+	if( (- 0.884657f < pi.z) && (pi.z < - 0.884655f) )
+	  writeWholeData = true;
+#if 1
+#   if  TSUB >=  2
+  writeWholeData |= __shfl_xor(writeWholeData,  1, TSUB);
+#   if  TSUB >=  4
+  writeWholeData |= __shfl_xor(writeWholeData,  2, TSUB);
+#   if  TSUB >=  8
+  writeWholeData |= __shfl_xor(writeWholeData,  4, TSUB);
+#   if  TSUB >= 16
+  writeWholeData |= __shfl_xor(writeWholeData,  8, TSUB);
+#   if  TSUB == 32
+  writeWholeData |= __shfl_xor(writeWholeData, 16, TSUB);
+#endif//TSUB == 32
+#endif//TSUB >= 16
+#endif//TSUB >=  8
+#endif//TSUB >=  4
+#endif//TSUB >=  2
+#else
+  if( jtag != 0 )
+    writeWholeData = false;
+#endif
+#if 0
+  if( lane != 0 )
+    writeWholeData = false;
+#endif
+#endif//DEBUG_PRINT_FOR_PARTICLE_ACCELERATION
+  //-----------------------------------------------------------------------
 #if 0
   if( (idx == 0) && (tidx == 0) )
     printf("pi_x = %e; pj_x = %e\n", pi.x, jpos[0].x);
   /* if( (idx == 0) && (tidx == 0) ) */
   /*   printf("G = %e, eps2 = %e\n", newton, eps2); */
+#endif
+  //-----------------------------------------------------------------------
+#if 0
+  if( (idx == 0) && (tidx == 0) )
+    printf("(%e @ %e, %e, %e)\n", mj[0], jpos[0].x, jpos[0].y, jpos[0].z);
 #endif
   //-----------------------------------------------------------------------
   int fail = hp + lane;
@@ -1931,7 +2067,8 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     real4 sebCen;
     findSEB(lane, &pj[hp], &sebPos, &sebCen, (real *)&pj[hp + TSUB], (real *)&pj[hp + TSUB + NDIM_SEB], (int *)&pj[hp + TSUB + 2 * NDIM_SEB], (real *)&pj[hp + TSUB + 2 * NDIM_SEB + 1]
 #ifndef USE_WARP_SHUFFLE_FUNC
-	    , smem, (int *)&queue[hq - tidx], tidx, head
+	    /* , smem, (int *)&queue[hq - tidx], tidx, head */
+	    , smem, (int *)&queue[hq - lane], tidx, head
 #endif//USE_WARP_SHUFFLE_FUNC
 	    );
     icom.x = sebCen.x;
@@ -1945,7 +2082,8 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
   /* adopt the approximated enclosing ball proposed by Ritter (1990) */
   approxSEB(lane, &pj[hp], pi, &icom
 #ifndef USE_WARP_SHUFFLE_FUNC
-	    , smem, (int *)&queue[hq - tidx], tidx, head
+	    /* , smem, (int *)&queue[hq - tidx], tidx, head */
+	    , smem, (int *)&queue[hq - lane], tidx, head
 #endif//USE_WARP_SHUFFLE_FUNC
 	    );
   //-----------------------------------------------------------------------
@@ -2021,7 +2159,7 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     dx = pi.x - ball.x;
     dy = pi.y - ball.y;
     dz = pi.z - ball.z;
-    ball.m = getMaximumRealTsub(dx * dx + dy * dy + dz * dz
+    ball.m = getMaximumRealTsub(FLT_MIN + dx * dx + dy * dy + dz * dz
 #ifndef USE_WARP_SHUFFLE_FUNC
 				, smem, tidx, head
 #endif//USE_WARP_SHUFFLE_FUNC
@@ -2030,7 +2168,7 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     dx = pi.x - icom.x;
     dy = pi.y - icom.y;
     dz = pi.z - icom.z;
-    icom.m = getMaximumRealTsub(dx * dx + dy * dy + dz * dz
+    icom.m = getMaximumRealTsub(FLT_MIN + dx * dx + dy * dy + dz * dz
 #ifndef USE_WARP_SHUFFLE_FUNC
 				, smem, tidx, head
 #endif//USE_WARP_SHUFFLE_FUNC
@@ -2063,7 +2201,7 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     const real rz = pi.z - icom.z;
     //---------------------------------------------------------------------
     /* calculate maximum of r squared */
-    icom.m = getMaximumRealTsub(1.0e-30f + rx * rx + ry * ry + rz * rz
+    icom.m = getMaximumRealTsub(FLT_MIN + rx * rx + ry * ry + rz * rz
 #ifndef USE_WARP_SHUFFLE_FUNC
 				, smem, tidx, head
 #endif//USE_WARP_SHUFFLE_FUNC
@@ -2080,7 +2218,7 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     }/* if( !skip ){ */
     //---------------------------------------------------------------------
     /* calculate minimum of a squared */
-    const real tmp = getMinimumRealTsub(1.0e-30f + ai_old.x * ai_old.x + ai_old.y * ai_old.y + ai_old.z * ai_old.z
+    const real tmp = getMinimumRealTsub(FLT_MIN + ai_old.x * ai_old.x + ai_old.y * ai_old.y + ai_old.z * ai_old.z
 #ifndef USE_WARP_SHUFFLE_FUNC
 					, smem, tidx, head
 #endif//USE_WARP_SHUFFLE_FUNC
@@ -2124,12 +2262,12 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     /* amin.x *= amin.pot; */
     /* amin.y *= amin.pot; */
     /* amin.z *= amin.pot; */
-    amin.pot = SQRTRATIO(tmp, 1.0e-30f + amin.x * amin.x + amin.y * amin.y + amin.z * amin.z);
+    amin.pot = SQRTRATIO(tmp, FLT_MIN + amin.x * amin.x + amin.y * amin.y + amin.z * amin.z);
     amin.x *= amin.pot;
     amin.y *= amin.pot;
     amin.z *= amin.pot;
 #else
-    amin.pot = SQRTRATIO(tmp * amin.pot * amin.pot, 1.0e-30f + amin.x * amin.x + amin.y * amin.y + amin.z * amin.z);
+    amin.pot = SQRTRATIO(tmp * amin.pot * amin.pot, FLT_MIN + amin.x * amin.x + amin.y * amin.y + amin.z * amin.z);
     amin.x *= amin.pot;
     amin.y *= amin.pot;
     amin.z *= amin.pot;
@@ -2159,6 +2297,14 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
   }/* if( tidx == 0 ){ */
 #endif//!defined(USE_CUDA_EVENT) && defined(PRINT_PSEUDO_PARTICLE_INFO)
   //-----------------------------------------------------------------------
+/* #if 0 */
+/*   amin = ZERO; */
+/* #endif */
+/* #ifdef  DEBUG_PRINT_FOR_PARTICLE_ACCELERATION */
+/*   if( writeWholeData && (jtag == 0) ) */
+/*     printf("amin = %e, root = %d, Mj = %e\n", amin, root, mj[root]); */
+/* #endif//DEBUG_PRINT_FOR_PARTICLE_ACCELERATION */
+  //-----------------------------------------------------------------------
 
 
 
@@ -2182,6 +2328,7 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
   int bufTailMax = bufTail;
 #endif
   /* set child j-cells in queue on the shared memory */
+#if 1
   uint jcell = more[root];
   int rem = 1 + (jcell >> IDXBITS);
   jcell &= IDXMASK;
@@ -2206,6 +2353,12 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
       queue[hq] = more[jcell + lane];
     //---------------------------------------------------------------------
   }/* else{ */
+#else
+  uint jcell;
+  int rem = 1;
+  if( lane == 0 )
+    queue[hq] = 0;
+#endif
   //-----------------------------------------------------------------------
   if( info.num == 0 )
     rem = 0;
@@ -2233,6 +2386,15 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     //---------------------------------------------------------------------
     if( rem == 0 )
       break;
+    //---------------------------------------------------------------------
+/* #ifdef  DEBUG_PRINT_FOR_PARTICLE_ACCELERATION */
+/*     if( writeWholeData ){ */
+/*       printf("%u+%u", queue[hq] & IDXMASK, 1 + (queue[hq] >> IDXBITS)); */
+/*       for(int ii = 1; ii < rem; ii++) */
+/* 	printf("\t%u+%u", queue[hq + ii] & IDXMASK, 1 + (queue[hq + ii] >> IDXBITS)); */
+/*       printf("\n"); */
+/*     } */
+/* #endif//DEBUG_PRINT_FOR_PARTICLE_ACCELERATION */
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
@@ -2332,19 +2494,16 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 	const real rx = jcnd.x - icom.x;
 	const real ry = jcnd.y - icom.y;
 	const real rz = jcnd.z - icom.z;
-	const real r2 = rx * rx + ry * ry + rz * rz;
-#if 1
+	const real r2 = FLT_MIN + rx * rx + ry * ry + rz * rz;
 	real lambda = FMAX(UNITY - SQRTRATIO(icom.m, r2), ZERO);
-#else
-	real lambda = UNITY - SQRTRATIO(icom.m, r2);
-	if( lambda < EPSILON )	    lambda = ZERO;
-#endif
 	/* calculate distance between the pseudo i-particle and the candidate j-particle */
 	//-----------------------------------------------------------------
+#ifndef YMIKI_MAC
+	lambda *= lambda * r2;
+#endif//YMIKI_MAC
 #ifdef  GADGET_MAC
 #ifndef YMIKI_MAC
 	/* alpha * |a| * r^4 > G * M * l^2 */
-	lambda *= lambda * r2;
 	if( jcnd.w < lambda * lambda * amin )
 #else///YMIKI_MAC
 	/* alpha * |(a, r)| * r^3 > G * M * l^2 */
@@ -2355,14 +2514,19 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 #endif//YMIKI_MAC
 #else///GADGET_MAC
 #ifdef  WS93_MAC
-	  if(   jcnd.w < lambda * lambda * r2 )
+	  if(   jcnd.w < lambda )
 #else///WS93_MAC
 	    /* (l / r) < theta */
-	    if( jcnd.w < lambda * lambda * r2 * theta2 )
+	    if( jcnd.w < lambda * theta2 )
 #endif//WS93_MAC
 #endif//GADGET_MAC
 	      {
 		/* add the candidate j-particle to the interaction list */
+#ifdef  DEBUG_PRINT_FOR_PARTICLE_ACCELERATION
+		if( writeWholeData )
+		  printf("%e\t%e\t%e\t%e\t%e\n", mj[target], rx, ry, rz, r2);
+		  /* printf("%e\t%e\t%e\t%e\t%e\t%d\n", mj[target], jcnd.x, jcnd.y, jcnd.z, jcnd.w, target); */
+#endif//DEBUG_PRINT_FOR_PARTICLE_ACCELERATION
 		const jmass mj_tmp = mj[target];
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
 		jcnd.w = mj_tmp.mass;
@@ -2374,6 +2538,10 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 	      }
 	    else
 	      {
+/* #ifdef  DEBUG_PRINT_FOR_PARTICLE_ACCELERATION */
+/* 		if( writeWholeData ) */
+/* 		  printf("%e\t%e\t%e\t%e\t%e\n", mj[target], jcnd.x, jcnd.y, jcnd.z, jcnd.w); */
+/* #endif//DEBUG_PRINT_FOR_PARTICLE_ACCELERATION */
 		/* add child-cells of near tree-cells to the tentative stack */
 		leaf += (1 << (IDX_SHIFT_BITS * iter));
 		jidx.idx[iter] = more[target];
@@ -2426,6 +2594,12 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 	   , jtag
 #endif//IJ_PARALLELIZATION
 	   );
+	//-----------------------------------------------------------------
+/* #ifdef  DEBUG_PRINT_FOR_PARTICLE_ACCELERATION */
+/* 	if( writeWholeData ) */
+/* 	  for(int ll = 0; ll < NLOOP * TSUB; ll++) */
+/* 	    printf("%e\t%e\t%e\t%e\n", pj[hp + ll].pos.w, pj[hp + ll].pos.x, pj[hp + ll].pos.y, pj[hp + ll].pos.z); */
+/* #endif//DEBUG_PRINT_FOR_PARTICLE_ACCELERATION */
 	//-----------------------------------------------------------------
 #ifdef  DBG_TREE_WALK
 	for(int ll = 0; ll < NLOOP * TSUB; ll++)
@@ -2543,6 +2717,13 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
        , jtag
 #endif//IJ_PARALLELIZATION
        );
+    //---------------------------------------------------------------------
+/* #ifdef  DEBUG_PRINT_FOR_PARTICLE_ACCELERATION */
+/*     if( writeWholeData ) */
+/*       for(int ll = 0; ll < NLOOP * TSUB; ll++) */
+/* 	printf("%e\t%e\t%e\t%e\n", pj[hp + ll].pos.w, pj[hp + ll].pos.x, pj[hp + ll].pos.y, pj[hp + ll].pos.z); */
+/* #endif//DEBUG_PRINT_FOR_PARTICLE_ACCELERATION */
+    //---------------------------------------------------------------------
 #ifdef  DBG_TREE_WALK
     for(int ll = 0; ll < NLOOP * TSUB; ll++)
       mjtot += pj[hp + ll].pos.w;
@@ -2553,13 +2734,37 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     //---------------------------------------------------------------------
   }/* if( Nj != 0 ){ */
   //-----------------------------------------------------------------------
-  /* force accumulation */
-#ifdef  ACCURATE_ACCUMULATION
-  ai.x   += res.x;
-  ai.y   += res.y;
-  ai.z   += res.z;
-  ai.pot += res.pot;
-#endif//ACCURATE_ACCUMULATION
+  /* accumulation of residuals in Kahan summation */
+#   if  defined(ACCURATE_ACCUMULATION) && (NWARP > 1)
+  /* set index to accumulate acceleration without atomic operations */
+#   if  NWARP > 4
+  const int gtag = jtag >> 2;
+  jtag &= 3;
+#endif//NWARP > 4
+  const int itag = hp + lane - jtag;
+  pj[hp + lane].ai = res;
+#   if  NWARP == 2
+  pj[itag].val[jtag] += pj[itag + 1].val[jtag];  jtag ^= 2;
+  pj[itag].val[jtag] += pj[itag + 1].val[jtag];
+#endif//NWARP == 2
+#   if  NWARP == 4
+  pj[itag].val[jtag] += pj[itag + 1].val[jtag] + pj[itag + 2].val[jtag] + pj[itag + 3].val[jtag];
+#endif//NWARP == 4
+#   if  NWARP >= 8
+  pj[itag].val[jtag] += pj[itag + 1].val[jtag] + pj[itag + 2].val[jtag] + pj[itag + 3].val[jtag];
+#   if  NWARP == 32
+  if( gtag < 4 )
+    pj[itag].val[jtag] += pj[itag + 16].val[jtag];
+#endif//NWARP == 32
+#   if  NWARP >= 16
+  if( gtag < 2 )
+    pj[itag].val[jtag] += pj[itag + 8].val[jtag];
+#endif//NWARP >= 16
+  if( gtag == 0 )
+    pj[itag].val[jtag] += pj[itag + 4].val[jtag];
+#endif//NWARP >= 8
+  res = pj[itag].ai;
+#endif//defined(ACCURATE_ACCUMULATION) && (NWARP > 1)
   //-----------------------------------------------------------------------
 
 
@@ -2572,20 +2777,51 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 #   if  defined(SERIALIZED_EXECUTION) && (NWARP == 1)
     iacc[idx].ai = ai;
 #else///defined(SERIALIZED_EXECUTION) && (NWARP == 1)
-#          if  NWARP > 1
-    pj[hp + lane].ai = ai;
+#   if  NWARP > 1
+#ifndef ACCURATE_ACCUMULATION
     /* set index to accumulate acceleration without atomic operations */
 #   if  NWARP > 4
     const int gtag = jtag >> 2;
     jtag &= 3;
 #endif//NWARP > 4
     const int itag = hp + lane - jtag;
+#endif//ACCURATE_ACCUMULATION
+    pj[hp + lane].ai = ai;
 #   if  NWARP == 2
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION)
+    /* T := S, S := S + R; T := S - T; R := R - T */
+    real sum0 = pj[itag].val[jtag] + pj[itag + 1].val[jtag];    real tmp0 = atomicAdd(&(iacc[idx].val[jtag]), sum0);    tmp0 = (tmp0 + sum0) - tmp0;    sum0 -= tmp0;    jtag ^= 2;
+    real sum1 = pj[itag].val[jtag] + pj[itag + 1].val[jtag];    real tmp1 = atomicAdd(&(iacc[idx].val[jtag]), sum1);    tmp1 = (tmp1 + sum1) - tmp1;    sum1 -= tmp1;
+    pj[hp + lane].ai = res;
+    atomicAdd(&(ires[idx].val[jtag]), sum1 + pj[itag].val[jtag]);    jtag ^= 2;
+    atomicAdd(&(ires[idx].val[jtag]), sum0 + pj[itag].val[jtag]);
+#else///defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION)
     atomicAdd(&(iacc[idx].val[jtag]), pj[itag].val[jtag] + pj[itag + 1].val[jtag]);    jtag ^= 2;
     atomicAdd(&(iacc[idx].val[jtag]), pj[itag].val[jtag] + pj[itag + 1].val[jtag]);
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION)
 #endif//NWARP == 2
 #   if  NWARP == 4
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION)
+    /* T := S, S := S + R; T := S - T; R := R - T */
+    real sum = pj[itag].val[jtag] + pj[itag + 1].val[jtag] + pj[itag + 2].val[jtag] + pj[itag + 3].val[jtag];
+#if 1
+    real tmp = atomicAdd(&(iacc[idx].val[jtag]), sum);    tmp = (tmp + sum) - tmp;    sum -= tmp;
+#else
+    real tmp = atomicAdd(&(iacc[idx].val[jtag]), sum);    tmp = CAST_D2R(CAST_R2D(tmp + sum) - CAST_R2D(tmp));    sum = CAST_D2R(CAST_R2D(sum) - CAST_R2D(tmp));
+#endif
+    pj[hp + lane].ai = res;
+    atomicAdd(&(ires[idx].val[jtag]), sum + pj[itag].val[jtag]);
+#else///defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION)
+#if 0
+    if( jtag == 0 )
+      printf("%e\t%e\t%e\t%e\t%e\n", pi.x,
+	     pj[itag].ai.x   + pj[itag + 1].ai.x   + pj[itag + 2].ai.x   + pj[itag + 3].ai.x,
+	     pj[itag].ai.y   + pj[itag + 1].ai.y   + pj[itag + 2].ai.y   + pj[itag + 3].ai.y,
+	     pj[itag].ai.z   + pj[itag + 1].ai.z   + pj[itag + 2].ai.z   + pj[itag + 3].ai.z,
+	     pj[itag].ai.pot + pj[itag + 1].ai.pot + pj[itag + 2].ai.pot + pj[itag + 3].ai.pot);
+#endif
     atomicAdd(&(iacc[idx].val[jtag]), pj[itag].val[jtag] + pj[itag + 1].val[jtag] + pj[itag + 2].val[jtag] + pj[itag + 3].val[jtag]);
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION)
 #endif//NWARP == 4
 #   if  NWARP >= 8
     pj[itag].val[jtag] += pj[itag + 1].val[jtag] + pj[itag + 2].val[jtag] + pj[itag + 3].val[jtag];
@@ -2597,15 +2833,47 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     if( gtag < 2 )
       pj[itag].val[jtag] += pj[itag + 8].val[jtag];
 #endif//NWARP >= 16
-    if( gtag == 0 )
+    if( gtag == 0 ){
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION)
+      /* T := S, S := S + R; T := S - T; R := R - T */
+      real sum = pj[itag].val[jtag] + pj[itag + 4].val[jtag];
+      real tmp = atomicAdd(&(iacc[idx].val[jtag]), sum);      tmp = (tmp + sum) - tmp;      sum -= tmp;
+      pj[hp + lane].ai = res;
+      atomicAdd(&(ires[idx].val[jtag]), sum + pj[itag].val[jtag]);
+#else///defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION)
       atomicAdd(&(iacc[idx].val[jtag]), pj[itag].val[jtag] + pj[itag + 4].val[jtag]);
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION)
+    }/* if( gtag == 0 ){ */
 #endif//NWARP >= 8
-#       else///NWARP > 1
+#else///NWARP > 1
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION)
+    /* /\* R := R + x_i *\/ */
+    /* res.x += ai.x;    res.y += ai.y;    res.z += ai.z;    res.pot += ai.pot; */
+    /* T := S, S := S + R; T := S - T; R := R - T */
+    acceleration tmp;
+    tmp.x   = atomicAdd(&(iacc[idx].ai.x  ), ai.x  );    tmp.x   = (tmp.x   + ai.x  ) - tmp.x  ;    ai.x   -= tmp.x  ;    atomicAdd(&(ires[idx].ai.x  ), ai.x   + res.x  );
+    tmp.y   = atomicAdd(&(iacc[idx].ai.y  ), ai.y  );    tmp.y   = (tmp.y   + ai.y  ) - tmp.y  ;    ai.y   -= tmp.y  ;    atomicAdd(&(ires[idx].ai.y  ), ai.y   + res.y  );
+    tmp.z   = atomicAdd(&(iacc[idx].ai.z  ), ai.z  );    tmp.z   = (tmp.z   + ai.z  ) - tmp.z  ;    ai.z   -= tmp.z  ;    atomicAdd(&(ires[idx].ai.z  ), ai.z   + res.z  );
+    tmp.pot = atomicAdd(&(iacc[idx].ai.pot), ai.pot);    tmp.pot = (tmp.pot + ai.pot) - tmp.pot;    ai.pot -= tmp.pot;    atomicAdd(&(ires[idx].ai.pot), ai.pot + res.pot);
+    /* acceleration tmp; */
+    /* tmp.x   = atomicAdd(&(iacc[idx].ai.x  ), ai.x  );    tmp.x   = iacc[idx].ai.x   - tmp.x  ;    ai.x   -= tmp.x  ;    atomicAdd(&(ires[idx].ai.x  ), ai.x   + res.x  ); */
+    /* tmp.y   = atomicAdd(&(iacc[idx].ai.y  ), ai.y  );    tmp.y   = iacc[idx].ai.y   - tmp.y  ;    ai.y   -= tmp.y  ;    atomicAdd(&(ires[idx].ai.y  ), ai.y   + res.y  ); */
+    /* tmp.z   = atomicAdd(&(iacc[idx].ai.z  ), ai.z  );    tmp.z   = iacc[idx].ai.z   - tmp.z  ;    ai.z   -= tmp.z  ;    atomicAdd(&(ires[idx].ai.z  ), ai.z   + res.z  ); */
+    /* tmp.pot = atomicAdd(&(iacc[idx].ai.pot), ai.pot);    tmp.pot = iacc[idx].ai.pot - tmp.pot;    ai.pot -= tmp.pot;    atomicAdd(&(ires[idx].ai.pot), ai.pot + res.pot); */
+#else///defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION)
+#ifndef DPADD_FOR_ACC
     atomicAdd(&(iacc[idx].ai.x  ), ai.x  );
     atomicAdd(&(iacc[idx].ai.y  ), ai.y  );
     atomicAdd(&(iacc[idx].ai.z  ), ai.z  );
     atomicAdd(&(iacc[idx].ai.pot), ai.pot);
-#       endif//NWARP > 1
+#else///DPADD_FOR_ACC
+    atomicAdd(&(dacc[idx].x  ), CAST_R2D(ai.x  ) + CAST_R2D(res.x  ));
+    atomicAdd(&(dacc[idx].y  ), CAST_R2D(ai.y  ) + CAST_R2D(res.y  ));
+    atomicAdd(&(dacc[idx].z  ), CAST_R2D(ai.z  ) + CAST_R2D(res.z  ));
+    atomicAdd(&(dacc[idx].pot), CAST_R2D(ai.pot) + CAST_R2D(res.pot));
+#endif//DPADD_FOR_ACC
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION)
+#endif//NWARP > 1
 #endif//defined(SERIALIZED_EXECUTION) && (NWARP == 1)
     //---------------------------------------------------------------------
 #ifdef  COUNT_INTERACTIONS
@@ -2651,6 +2919,109 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 
 
 //-------------------------------------------------------------------------
+#if 1
+//-------------------------------------------------------------------------
+__global__ void printTreeNode_kernel(const int num, READ_ONLY jparticle * RESTRICT pj, READ_ONLY jmass * RESTRICT mj)
+{
+  for(int ii = 0; ii < num; ii++){
+    const jparticle jpos = pj[ii];
+    const jmass     mass = mj[ii];
+    printf("%e\t%e\t%e\t%e\n", mass, jpos.x, jpos.y, jpos.z);
+  }/* for(int ii = 0; ii < num; ii++){ */
+}
+//-------------------------------------------------------------------------
+void printTreeNode_dev(const int num, const soaTreeNode node, MPIinfo mpi)
+{
+  for(int ii = 0; ii < mpi.size; ii++){
+    if( ii == mpi.rank )
+      printTreeNode_kernel<<<1, 1>>>(num, node.jpos, node.mj);
+    checkCudaErrors(cudaDeviceSynchronize());
+    fflush(stdout);
+    MPI_Barrier(mpi.comm);
+    if( ii == mpi.rank )
+      printf("# rank %d / %d\n", mpi.rank, mpi.size);
+    fflush(stdout);
+    MPI_Barrier(mpi.comm);
+  }
+  MPI_Finalize();
+  exit(0);
+}
+//-------------------------------------------------------------------------
+void printFullTree_dev(int n0, int n1, int h1, const soaTreeNode node, MPIinfo mpi)
+{
+  for(int ii = 0; ii < mpi.size; ii++){
+    if( ii == mpi.rank ){
+      printTreeNode_kernel<<<1, 1>>>(n0,   node.jpos     ,   node.mj     );
+      printTreeNode_kernel<<<1, 1>>>(n1, &(node.jpos[h1]), &(node.mj[h1]));
+    }
+    checkCudaErrors(cudaDeviceSynchronize());
+    fflush(stdout);
+    MPI_Barrier(mpi.comm);
+    if( ii == mpi.rank )
+      printf("# rank %d / %d\n", mpi.rank, mpi.size);
+    fflush(stdout);
+    MPI_Barrier(mpi.comm);
+  }
+  MPI_Finalize();
+  exit(0);
+}
+//-------------------------------------------------------------------------
+__global__ void printTreeLink_kernel(READ_ONLY uint * RESTRICT more, READ_ONLY jparticle * RESTRICT pj, READ_ONLY jmass * RESTRICT mj, uint * RESTRICT buffer)
+{
+  buffer[0] = 0;
+  int rem = 1;
+  int head = rem;
+  int ii = 0;
+
+  while( true ){
+    if( rem == 0 )
+      break;
+
+    uint jj = buffer[ii];
+    /* printf("%e\t%e\t%e\t%e\t%e\n", mj[jj], pj[jj].x, pj[jj].y, pj[jj].z, pj[jj].w); */
+    printf("%e\t%e\t%e\t%e\n", mj[jj], pj[jj].x, pj[jj].y, pj[jj].z);
+    rem--;
+
+    uint jcell = more[jj];
+    int num = 1 + (jcell >> IDXBITS);
+    jcell &= IDXMASK;
+    if( jcell == jj )
+      num = 0;
+    for(int kk = 0; kk < num; kk++)
+      buffer[head + kk] = jcell + kk;
+
+    head += num;
+    rem += num;
+    ii++;
+  }
+}
+//-------------------------------------------------------------------------
+ void printTreeLink_dev(int head, const soaTreeNode node, uint * buf, MPIinfo mpi)
+{
+  checkCudaErrors(cudaDeviceSynchronize());
+  MPI_Barrier(mpi.comm);
+  for(int ii = 0; ii < mpi.size; ii++){
+    if( ii == mpi.rank ){
+      printTreeLink_kernel<<<1, 1>>>(  node.more       ,   node.jpos     ,     node.mj       , buf);
+      printTreeLink_kernel<<<1, 1>>>(&(node.more[head]), &(node.jpos[head]), &(node.mj[head]), buf);
+    }
+    checkCudaErrors(cudaDeviceSynchronize());
+    fflush(stdout);
+    MPI_Barrier(mpi.comm);
+    if( ii == mpi.rank )
+      printf("# rank %d / %d\n", mpi.rank, mpi.size);
+    fflush(stdout);
+    MPI_Barrier(mpi.comm);
+  }
+  MPI_Finalize();
+  exit(0);
+}
+//-------------------------------------------------------------------------
+#endif
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
 /* calculate gravitational acceleration and potential */
 //-------------------------------------------------------------------------
 /* Ni     :: input          :: total number of N-body particles stored in this process */
@@ -2681,7 +3052,12 @@ static inline void callCalcGravityFunc
  )
 {
   //-----------------------------------------------------------------------
-  __NOTE__("%s (grpNum = %d)\n", "start", grpNum);
+  __NOTE__("%s (grpNum = %d, jhead = %d)\n", "start", grpNum, jhead);
+  //-----------------------------------------------------------------------
+#ifdef  DEBUG_PRINT_FOR_PARTICLE_ACCELERATION
+  checkCudaErrors(cudaDeviceSynchronize());
+  chkMPIerr(MPI_Barrier(MPI_COMM_WORLD));
+#endif//DEBUG_PRINT_FOR_PARTICLE_ACCELERATION
   //-----------------------------------------------------------------------
 #if 0
   int deviceID;
@@ -2700,7 +3076,11 @@ static inline void callCalcGravityFunc
     //---------------------------------------------------------------------
     if( blck.x <= MAX_BLOCKS_PER_GRID ){
       //-------------------------------------------------------------------
+#if 1
       calcAcc_kernel<<<blck, thrd, SMEM_SIZE, sinfo->stream[*sidx]>>>
+#else
+      calcAcc_kernel<<<blck, thrd>>>
+#endif
 	(laneInfo,
 #ifdef  BLOCK_TIME_STEP
 	 pi.jpos,
@@ -2715,8 +3095,14 @@ static inline void callCalcGravityFunc
 #ifdef  SERIALIZED_EXECUTION
 	 tree.more, tree.jpos, tree.mj,
 #else///SERIALIZED_EXECUTION
-	 &tree.more[jhead], &tree.jpos[jhead], &tree.mj[jhead],
+	 &(tree.more[jhead]), &(tree.jpos[jhead]), &(tree.mj[jhead]),
 #endif//SERIALIZED_EXECUTION
+#ifdef  DPADD_FOR_ACC
+	 pi.tmp,
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+	 (jnode *)pi.res,
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 #ifndef USE_SMID_TO_GET_BUFID
 #ifndef TRY_MODE_ABOUT_BUFFER
 	 buf.active,
@@ -2763,8 +3149,14 @@ static inline void callCalcGravityFunc
 #ifdef  SERIALIZED_EXECUTION
 	   tree.more, tree.jpos, tree.mj,
 #else///SERIALIZED_EXECUTION
-	   &tree.more[jhead], &tree.jpos[jhead], &tree.mj[jhead],
+	   &(tree.more[jhead]), &(tree.jpos[jhead]), &(tree.mj[jhead]),
 #endif//SERIALIZED_EXECUTION
+#ifdef  DPADD_FOR_ACC
+	   pi.tmp,
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+	   (jnode *)pi.res,
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 #ifndef USE_SMID_TO_GET_BUFID
 #ifndef TRY_MODE_ABOUT_BUFFER
 	   buf.active,
@@ -2802,6 +3194,15 @@ static inline void callCalcGravityFunc
   checkCudaErrors(cudaEventRecord(finEvent[*Nwalk], 0));
   *Nwalk += 1;
 #endif//defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
+  //-----------------------------------------------------------------------
+#ifdef  DEBUG_PRINT_FOR_PARTICLE_ACCELERATION
+  checkCudaErrors(cudaDeviceSynchronize());
+  chkMPIerr(MPI_Barrier(MPI_COMM_WORLD));
+  fflush(NULL);
+  printf("calcAcc finish\n");
+  fflush(NULL);
+  chkMPIerr(MPI_Barrier(MPI_COMM_WORLD));
+#endif//DEBUG_PRINT_FOR_PARTICLE_ACCELERATION
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
   //-----------------------------------------------------------------------
@@ -2868,6 +3269,28 @@ void calcGravity_dev
 #if 0
   fprintf(stdout, "rank %d: grpNum = %d\n", mpi.rank, grpNum);
   fflush(stdout);
+#endif
+  //-----------------------------------------------------------------------
+#if 0
+  jparticle *pj_hst;
+  mycudaMallocHost((void **)&pj_hst, pjNum * sizeof(jparticle));
+  checkCudaErrors(cudaMemcpy(pj_hst, tree.jpos, pjNum * sizeof(jparticle), cudaMemcpyDeviceToHost));
+  jmass *mj_hst;
+  mycudaMallocHost((void **)&mj_hst, pjNum * sizeof(jmass));
+  checkCudaErrors(cudaMemcpy(mj_hst, tree.mj, pjNum * sizeof(jmass), cudaMemcpyDeviceToHost));
+
+  FILE *fp;
+  char filename[128];
+  sprintf(filename, "%s/%s.%d_%d.txt", "dat", "jpos", mpi.rank, mpi.size);
+  fp = fopen(filename, "w");
+  for(int ii = 0; ii < pjNum; ii++)
+    fprintf(fp, "%e\t%e\t%e\t%e\n", pj_hst[ii].x, pj_hst[ii].y, pj_hst[ii].z, mj_hst[ii]);
+
+  fclose(fp);
+  mycudaFreeHost(pj_hst);
+  mycudaFreeHost(mj_hst);
+  MPI_Finalize();
+  exit(0);
 #endif
   //-----------------------------------------------------------------------
 
@@ -2939,6 +3362,12 @@ void calcGravity_dev
 #ifdef  GADGET_MAC
 	 , pi.acc_old
 #endif//GADGET_MAC
+#ifdef  DPADD_FOR_ACC
+	 , pi.tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+	 , pi.res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 	 );
 #else///BLOCK_TIME_STEP
     initAcc_kernel<<<Nrem, NTHREADS>>>
@@ -2946,6 +3375,12 @@ void calcGravity_dev
 #ifdef  GADGET_MAC
        , pi.acc_old
 #endif//GADGET_MAC
+#ifdef  DPADD_FOR_ACC
+       , pi.tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+       , pi.res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
        );
 #endif//BLOCK_TIME_STEP
   }/* if( Nrem <= MAX_BLOCKS_PER_GRID ){ */
@@ -2968,6 +3403,12 @@ void calcGravity_dev
 #ifdef  GADGET_MAC
 	 , pi.acc_old
 #endif//GADGET_MAC
+#ifdef  DPADD_FOR_ACC
+	 , pi.tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+	 , pi.res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 	 );
 #else///BLOCK_TIME_STEP
       int Nsub = Nblck * NTHREADS;
@@ -2976,6 +3417,12 @@ void calcGravity_dev
 #ifdef  GADGET_MAC
 	 , &pi.acc_old[hidx]
 #endif//GADGET_MAC
+#ifdef  DPADD_FOR_ACC
+	 , &pi.tmp[hidx]
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+	 , &pi.res[hidx]
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 	 );
 #endif//BLOCK_TIME_STEP
       //-------------------------------------------------------------------
@@ -3048,6 +3495,15 @@ void calcGravity_dev
       const int  remLETsend = ALIGN_BUF_FOR_LET(remLETbuf >> 1);
       const int  remLETrecv = remLETbuf - remLETsend;
       const int headLETrecv = headLETsend + remLETsend;
+#if 0
+      printf("headLETsend = %d @ rank %d\n", headLETsend, mpi.rank);
+      printf(" remLETbuf  = %d @ rank %d\n",  remLETbuf , mpi.rank);
+      printf(" remLETsend = %d @ rank %d\n",  remLETsend, mpi.rank);
+      printf(" remLETrecv = %d @ rank %d\n",  remLETrecv, mpi.rank);
+      printf("headLETrecv = %d @ rank %d\n", headLETrecv, mpi.rank);
+      MPI_Finalize();
+      exit(0);
+#endif
       int idxProcs = 0;
       int remProcs = Nlet - 1;
       int LETsteps = 0;
@@ -3083,13 +3539,6 @@ void calcGravity_dev
 	//-----------------------------------------------------------------
 	/* set send buffer for LET on device */
 	let[idxProcs].headSend = headLETsend;
-	/* int numSend = 0; */
-	/* for(int ii = 0; ii < numProcs - 1; ii++){ */
-	/*   const int numSendBuf = ALIGN_BUF_FOR_LET(let[idxProcs + ii].maxSend); */
-	/*   let[idxProcs + ii + 1].headSend = numSendBuf + let[idxProcs + ii].headSend; */
-	/*   numSend                        += numSendBuf; */
-	/* }/\* for(int ii = 0; ii < numProcs - 1; ii++){ *\/ */
-	/* numSend += ALIGN_BUF_FOR_LET(let[idxProcs + numProcs - 1].maxSend); */
 	for(int ii = 0; ii < numProcs - 1; ii++)
 	  let[idxProcs + ii + 1].headSend = let[idxProcs + ii].headSend + ALIGN_BUF_FOR_LET(let[idxProcs + ii].maxSend);
 	//-----------------------------------------------------------------
@@ -3097,11 +3546,6 @@ void calcGravity_dev
 
 	//-----------------------------------------------------------------
 	/* FUTURE UPDATE: divide below procedure to overlap communication and calculation */
-	//-----------------------------------------------------------------
-#if 0
-	/* currently, the below synchronization is required to finish N-body simulation with N >= 512k with 2 GPUs (the reason is not yet understood) */
-	checkCudaErrors(cudaDeviceSynchronize());
-#endif
 	//-----------------------------------------------------------------
 	/* generate numProcs LET(s) */
 	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
@@ -3121,15 +3565,11 @@ void calcGravity_dev
 	  Nmake++;
 #endif//defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
 	  //---------------------------------------------------------------
-#if 1
 	  checkCudaErrors(cudaMemcpyAsync(let[ii].numSend_hst, let[ii].numSend_dev, sizeof(int), cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
-#else
-	  checkCudaErrors(cudaMemcpy(let[ii].numSend_hst, let[ii].numSend_dev, sizeof(int), cudaMemcpyDeviceToHost));
-#endif
 	  //---------------------------------------------------------------
 	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 	//-----------------------------------------------------------------
-	/* send numProcs LET(s) to other process(es) */
+	/* share # of LET nodes */
 	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
 	  //---------------------------------------------------------------
 	  const int streamIdxLET = ii % Nstream_let;
@@ -3139,21 +3579,30 @@ void calcGravity_dev
 	  if( let[ii].numSend > let[ii].maxSend ){
 	    __KILL__(stderr, "ERROR: predicted size of send buffer (%d) is not sufficient for true size of that (%d) @ rank %d for rand %d.\n\tsuggestion: consider increasing \"LETSIZE_REDUCE_FACTOR\" defined in src/tree/let.h (current value is %f) to at least %f.\n", let[ii].maxSend, let[ii].numSend, mpi.rank, let[ii].rank, LETSIZE_REDUCE_FACTOR, LETSIZE_REDUCE_FACTOR * (float)let[ii].numSend / (float)let[ii].maxSend);
 	  }/* if( let[ii].numSend > let[ii].maxSend ){ */
-	  //---------------------------------------------------------------
-#ifdef  LET_COMMUNICATION_VIA_HOST
-	  checkCudaErrors(cudaMemcpyAsync(&(tree_hst.more[let[ii].headSend]), &(tree.more[let[ii].headSend]), sizeof(     uint) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
-	  checkCudaErrors(cudaMemcpyAsync(&(tree_hst.jpos[let[ii].headSend]), &(tree.jpos[let[ii].headSend]), sizeof(jparticle) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
-	  checkCudaErrors(cudaMemcpyAsync(&(tree_hst.mj  [let[ii].headSend]), &(tree.mj  [let[ii].headSend]), sizeof(     real) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
-#endif//LET_COMMUNICATION_VIA_HOST
+	  __NOTE__("numSend = %d, numFull = %d @ rank %d\n", let[ii].numSend, let[ii].numFull, mpi.rank);
 	  //---------------------------------------------------------------
 	  /* send # of LET nodes */
-	  chkMPIerr(MPI_Isend(&(let[ii].numSend), 1, MPI_INT, let[ii].rank,     mpi.rank, mpi.comm, &(let[ii].reqSendInfo)));
+	  chkMPIerr(MPI_Isend(&(let[ii].numSend), 1, MPI_INT, let[ii].rank,  mpi.rank, mpi.comm, &(let[ii].reqSendInfo)));
 	  let[ii].numRecvGuess = let[ii].maxRecv;
 	  chkMPIerr(MPI_Irecv(&(let[ii].numRecv), 1, MPI_INT, let[ii].rank, let[ii].rank, mpi.comm, &(let[ii].reqRecvInfo)));
 #ifdef  DBG_LETGEN_ON_GPU
 	  fprintf(stdout, "rank = %d: ii = %d: LET(target is %d): numSend = %d out of %d nodes\n", mpi.rank, ii, let[ii].rank, let[ii].numSend, pjNum);
 	  fflush(stdout);
 #endif//DBG_LETGEN_ON_GPU
+	  //---------------------------------------------------------------
+	  /* copy LET nodes from device to host */
+#ifdef  LET_COMMUNICATION_VIA_HOST
+	  checkCudaErrors(cudaMemcpyAsync(&(tree_hst.more[let[ii].headSend]), &(tree.more[let[ii].headSend]), sizeof(     uint) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
+	  checkCudaErrors(cudaMemcpyAsync(&(tree_hst.jpos[let[ii].headSend]), &(tree.jpos[let[ii].headSend]), sizeof(jparticle) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
+	  checkCudaErrors(cudaMemcpyAsync(&(tree_hst.mj  [let[ii].headSend]), &(tree.mj  [let[ii].headSend]), sizeof(    jmass) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
+#endif//LET_COMMUNICATION_VIA_HOST
+	  //---------------------------------------------------------------
+	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
+	//-----------------------------------------------------------------
+	/* send numProcs LET(s) to other process(es) */
+	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
+	  //---------------------------------------------------------------
+	  const int streamIdxLET = ii % Nstream_let;
 	  //---------------------------------------------------------------
 	  /* send LET nodes using MPI_Isend */
 #ifdef  LET_COMMUNICATION_VIA_HOST
@@ -3162,15 +3611,10 @@ void calcGravity_dev
 	  chkMPIerr(MPI_Isend(&(tree_hst.jpos[let[ii].headSend]), let[ii].numSend, mpi.jpos, let[ii].rank, mpi.rank, mpi.comm, &(let[ii].reqSendJpos)));
 	  chkMPIerr(MPI_Isend(&(tree_hst.mj  [let[ii].headSend]), let[ii].numSend, mpi.mass, let[ii].rank, mpi.rank, mpi.comm, &(let[ii].reqSendMass)));
 #else///LET_COMMUNICATION_VIA_HOST
-	  chkMPIerr(MPI_Isend(&(tree    .more[let[ii].headSend]), let[ii].numSend, mpi.more, let[ii].rank, mpi.rank, mpi.comm, &(let[ii].reqSendMore)));
-	  chkMPIerr(MPI_Isend(&(tree    .jpos[let[ii].headSend]), let[ii].numSend, mpi.jpos, let[ii].rank, mpi.rank, mpi.comm, &(let[ii].reqSendJpos)));
-	  chkMPIerr(MPI_Isend(&(tree    .mj  [let[ii].headSend]), let[ii].numSend, mpi.mass, let[ii].rank, mpi.rank, mpi.comm, &(let[ii].reqSendMass)));
+	  chkMPIerr(MPI_Isend(&(tree.more[let[ii].headSend]), let[ii].numSend, mpi.more, let[ii].rank, mpi.rank, mpi.comm, &(let[ii].reqSendMore)));
+	  chkMPIerr(MPI_Isend(&(tree.jpos[let[ii].headSend]), let[ii].numSend, mpi.jpos, let[ii].rank, mpi.rank, mpi.comm, &(let[ii].reqSendJpos)));
+	  chkMPIerr(MPI_Isend(&(tree.mj  [let[ii].headSend]), let[ii].numSend, mpi.mass, let[ii].rank, mpi.rank, mpi.comm, &(let[ii].reqSendMass)));
 #endif//LET_COMMUNICATION_VIA_HOST
-	  //---------------------------------------------------------------
-#if 0
-	  fprintf(stdout, "rank %d: send LET to rank %d, sendNum is %d, headIdx = %d, sendTag is %d\n", mpi.rank, let[ii].rank, let[ii].numSend, let[ii].headSend, mpi.rank);
-	  fflush(stdout);
-#endif
 	  //---------------------------------------------------------------
 	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 	//-----------------------------------------------------------------
@@ -3203,7 +3647,7 @@ void calcGravity_dev
 	  let[idxProcs + ii + 1].headRecv = numRecvBuf + let[idxProcs + ii].headRecv;
 	  numRecv                        += numRecvBuf;
 	}/* for(int ii = 0; ii < numProcs - 1; ii++){ */
-	numRecv += let[idxProcs + numProcs - 1].numRecv;
+	numRecv += ALIGN_BUF_FOR_LET(let[idxProcs + numProcs - 1].numRecv);
 	//-----------------------------------------------------------------
 	if( numRecv > remLETrecv ){
 	  __KILL__(stderr, "ERROR: lack of remLETrecv(%d) to store numRecv(%d) LET nodes.\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", remLETrecv, numRecv, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
@@ -3214,6 +3658,11 @@ void calcGravity_dev
 	/* receive LET nodes */
 	//-----------------------------------------------------------------
 	/* before receiving LET nodes, gravity calculation using LET nodes stored in the receive buffer in the previous loop must be finished */
+
+	/* LET の receive buffer を 2つ設定しておいて，どちらの buffer を使うかを振り分ければ，以下の同期処理は不要になる． */
+	/* LET の send buffer も 2つ設定しておけば良いと思う． */
+	/* 色々な同期を減らせるはず */
+
 	if( LETsteps > 0 ){
 #   if  defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
 	  if( grpNum != 0 ){
@@ -3238,14 +3687,7 @@ void calcGravity_dev
 	  chkMPIerr(MPI_Irecv(&(tree    .mj  [let[ii].headRecv]), let[ii].numRecv, mpi.mass, let[ii].rank, let[ii].rank, mpi.comm, &(let[ii].reqRecvMass)));
 #endif//LET_COMMUNICATION_VIA_HOST
 	  //---------------------------------------------------------------
-#if 0
-	  fprintf(stdout, "rank %d: receive LET from rank %d, recvNum is %d, headIdx = %d, recvTag is %d\n", mpi.rank, let[ii].rank, let[ii].numRecv, let[ii].headRecv, let[ii].rank);
-	  fflush(stdout);
-#endif
-	  //---------------------------------------------------------------
 	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
-	//-----------------------------------------------------------------
-	/* chkMPIerr(MPI_Barrier(mpi.comm)); */
 	//-----------------------------------------------------------------
 
 	//-----------------------------------------------------------------
@@ -3255,19 +3697,32 @@ void calcGravity_dev
 	  //---------------------------------------------------------------
 	  /* copy LET nodes from host to device */
 	  //---------------------------------------------------------------
+/* 	  MPI_Status statusMore;	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvJpos), &statusMore)); */
+/* #ifdef  LET_COMMUNICATION_VIA_HOST */
+/* 	  const int streamIdxLET = ii % Nstream_let; */
+/* 	  checkCudaErrors(cudaMemcpyAsync(&(tree.jpos[let[ii].headRecv]), &(tree_hst.jpos[let[ii].headRecv]), sizeof(jparticle) * let[ii].numRecv, cudaMemcpyHostToDevice, stream_let[streamIdxLET])); */
+/* #endif//LET_COMMUNICATION_VIA_HOST */
+/* 	  MPI_Status statusMass;	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvMass), &statusMass)); */
+/* #ifdef  LET_COMMUNICATION_VIA_HOST */
+/* 	  checkCudaErrors(cudaMemcpyAsync(&(tree.mj  [let[ii].headRecv]), &(tree_hst.mj  [let[ii].headRecv]), sizeof(    jmass) * let[ii].numRecv, cudaMemcpyHostToDevice, stream_let[streamIdxLET])); */
+/* #endif//LET_COMMUNICATION_VIA_HOST */
+/* 	  MPI_Status statusJpos;	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvMore), &statusJpos)); */
+/* #ifdef  LET_COMMUNICATION_VIA_HOST */
+/* 	  checkCudaErrors(cudaMemcpyAsync(&(tree.more[let[ii].headRecv]), &(tree_hst.more[let[ii].headRecv]), sizeof(     uint) * let[ii].numRecv, cudaMemcpyHostToDevice, stream_let[streamIdxLET])); */
+/* 	  checkCudaErrors(cudaStreamSynchronize(stream_let[streamIdxLET])); */
+/* #endif//LET_COMMUNICATION_VIA_HOST */
+	  //---------------------------------------------------------------
 	  MPI_Status statusMore;	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvJpos), &statusMore));
 #ifdef  LET_COMMUNICATION_VIA_HOST
-	  const int streamIdxLET = ii % Nstream_let;
-	  checkCudaErrors(cudaMemcpyAsync(&(tree.jpos[let[ii].headRecv]), &(tree_hst.jpos[let[ii].headRecv]), sizeof(jparticle) * let[ii].numRecv, cudaMemcpyHostToDevice, stream_let[streamIdxLET]));
+	  checkCudaErrors(cudaMemcpyAsync(&(tree.jpos[let[ii].headRecv]), &(tree_hst.jpos[let[ii].headRecv]), sizeof(jparticle) * let[ii].numRecv, cudaMemcpyHostToDevice, sinfo->stream[sidx]));
 #endif//LET_COMMUNICATION_VIA_HOST
 	  MPI_Status statusMass;	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvMass), &statusMass));
 #ifdef  LET_COMMUNICATION_VIA_HOST
-	  checkCudaErrors(cudaMemcpyAsync(&(tree.mj  [let[ii].headRecv]), &(tree_hst.mj  [let[ii].headRecv]), sizeof(     real) * let[ii].numRecv, cudaMemcpyHostToDevice, stream_let[streamIdxLET]));
+	  checkCudaErrors(cudaMemcpyAsync(&(tree.mj  [let[ii].headRecv]), &(tree_hst.mj  [let[ii].headRecv]), sizeof(    jmass) * let[ii].numRecv, cudaMemcpyHostToDevice, sinfo->stream[sidx]));
 #endif//LET_COMMUNICATION_VIA_HOST
 	  MPI_Status statusJpos;	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvMore), &statusJpos));
 #ifdef  LET_COMMUNICATION_VIA_HOST
-	  checkCudaErrors(cudaMemcpyAsync(&(tree.more[let[ii].headRecv]), &(tree_hst.more[let[ii].headRecv]), sizeof(     uint) * let[ii].numRecv, cudaMemcpyHostToDevice, stream_let[streamIdxLET]));
-	  checkCudaErrors(cudaStreamSynchronize(stream_let[streamIdxLET]));
+	  checkCudaErrors(cudaMemcpyAsync(&(tree.more[let[ii].headRecv]), &(tree_hst.more[let[ii].headRecv]), sizeof(     uint) * let[ii].numRecv, cudaMemcpyHostToDevice, sinfo->stream[sidx]));
 #endif//LET_COMMUNICATION_VIA_HOST
 	  //---------------------------------------------------------------
 #ifdef  DBG_LETGEN_ON_GPU
@@ -3277,37 +3732,9 @@ void calcGravity_dev
 	  /* exit(0); */
 #endif//DBG_LETGEN_ON_GPU
 	  //---------------------------------------------------------------
-#if 0
-	  fprintf(stdout, "rank %d: root node (send): %u nodes from %u, mass is %e, pos is (%e, %e, %e), r2 is %e\n", mpi.rank,
-		  1 + (tree_hst.more[let[ii].headSend] >> IDXBITS), tree_hst.more[let[ii].headSend] & IDXMASK,
-		  tree_hst.mj[let[ii].headSend],
-		  tree_hst.jpos[let[ii].headSend].x, tree_hst.jpos[let[ii].headSend].y, tree_hst.jpos[let[ii].headSend].z, tree_hst.jpos[let[ii].headSend].w);
-	  fprintf(stdout, "rank %d: tail node (send): %u nodes from %u, mass is %e, pos is (%e, %e, %e), r2 is %e\n", mpi.rank,
-		  1 + (tree_hst.more[let[ii].headSend + let[ii].numSend - 1] >> IDXBITS), tree_hst.more[let[ii].headSend + let[ii].numSend - 1] & IDXMASK,
-		  tree_hst.mj[let[ii].headSend + let[ii].numSend - 1],
-		  tree_hst.jpos[let[ii].headSend + let[ii].numSend - 1].x, tree_hst.jpos[let[ii].headSend + let[ii].numSend - 1].y, tree_hst.jpos[let[ii].headSend + let[ii].numSend - 1].z, tree_hst.jpos[let[ii].headSend + let[ii].numSend - 1].w);
-	  fprintf(stdout, "rank %d: root node (recv): %u nodes from %u, mass is %e, pos is (%e, %e, %e), r2 is %e\n", mpi.rank,
-		  1 + (tree_hst.more[let[ii].headRecv] >> IDXBITS), tree_hst.more[let[ii].headRecv] & IDXMASK,
-		  tree_hst.mj[let[ii].headRecv],
-		  tree_hst.jpos[let[ii].headRecv].x, tree_hst.jpos[let[ii].headRecv].y, tree_hst.jpos[let[ii].headRecv].z, tree_hst.jpos[let[ii].headRecv].w);
-	  fprintf(stdout, "rank %d: tail node (recv): %u nodes from %u, mass is %e, pos is (%e, %e, %e), r2 is %e\n", mpi.rank,
-		  1 + (tree_hst.more[let[ii].headRecv + let[ii].numRecv - 1] >> IDXBITS), tree_hst.more[let[ii].headRecv + let[ii].numRecv - 1] & IDXMASK,
-		  tree_hst.mj[let[ii].headRecv + let[ii].numRecv - 1],
-		  tree_hst.jpos[let[ii].headRecv + let[ii].numRecv - 1].x, tree_hst.jpos[let[ii].headRecv + let[ii].numRecv - 1].y, tree_hst.jpos[let[ii].headRecv + let[ii].numRecv - 1].z, tree_hst.jpos[let[ii].headRecv + let[ii].numRecv - 1].w);
-	  fflush(stdout);
-#endif
-	  //---------------------------------------------------------------
 
 	  //---------------------------------------------------------------
 	  /* calculate gravity from LET */
-	  //---------------------------------------------------------------
-#if 0
-	  checkCudaErrors(cudaDeviceSynchronize());
-#endif
-#if 0
-	  checkCudaErrors(cudaDeviceSynchronize());
-	  chkMPIerr(MPI_Barrier(mpi.comm));
-#endif
 	  //---------------------------------------------------------------
 /* #   if  defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)) */
 /* 	  checkCudaErrors(cudaEventSynchronize(finCalcAcc[sidx ^ 1])); */
@@ -3315,6 +3742,12 @@ void calcGravity_dev
 /* 	  calcAcc += (double)calcAcc_ms * 1.0e-3; */
 /* #endif//defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)) */
 	  //---------------------------------------------------------------
+#ifdef  DEBUG_PRINT_FOR_PARTICLE_ACCELERATION
+	  printf("# %d-th LET\n", ii);
+	  checkCudaErrors(cudaDeviceSynchronize());
+	  chkMPIerr(MPI_Barrier(MPI_COMM_WORLD));
+	  fflush(NULL);
+#endif//DEBUG_PRINT_FOR_PARTICLE_ACCELERATION
 	  callCalcGravityFunc(blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree, grpNum, let[ii].headRecv
 #ifdef  USE_CUDA_EVENT
 			      , &Nwalk, iniCalcAcc, finCalcAcc
@@ -3326,6 +3759,21 @@ void calcGravity_dev
 			      , treeInfo
 #endif//COUNT_INTERACTIONS
 			      );
+	  //---------------------------------------------------------------
+#if 0
+	  MPIinfo mpi_tmp;
+	  mpi_tmp.rank = mpi.rank;
+	  mpi_tmp.size = mpi.size;
+	  mpi_tmp.comm = mpi.comm;
+	  printFullTree_dev(pjNum, let[ii].numRecv, let[ii].headRecv, tree, mpi_tmp);
+#endif
+#if 0
+	  MPIinfo mpi_tmp;
+	  mpi_tmp.rank = mpi.rank;
+	  mpi_tmp.size = mpi.size;
+	  mpi_tmp.comm = mpi.comm;
+	  printTreeLink_dev(let[ii].headRecv, tree, buf.buffer, mpi_tmp);
+#endif
 	  //---------------------------------------------------------------
 	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 	//-----------------------------------------------------------------
@@ -3382,11 +3830,6 @@ void calcGravity_dev
       fprintf(stderr, "maxSend = %d while pjNum = %d @ rank %d\n", let[0].maxSend, pjNum, mpi.rank);
       fflush(stderr);
 #endif
-      //-------------------------------------------------------------------
-      /* /\* check the size does not exceed the LET buffer *\/ */
-      /* if( let[0].maxSend + let[0].maxRecv > ((int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - headLETsend) ){ */
-      /* 	__KILL__(stderr, "ERROR: rough estimation routine predicts # of LET nodes(%d) succeed the capacity of the array(%d - %d); communication with first partner would fail due to lack of MPI buffer.\n", let[0].maxSend + let[0].maxRecv, (int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE), headLETsend); */
-      /* }/\* if( let[0].maxSend + let[0].maxRecv > ((int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - headLETsend) ){ *\/ */
       //-------------------------------------------------------------------
 #endif//SERIALIZED_EXECUTION
       //-------------------------------------------------------------------
@@ -3467,13 +3910,6 @@ void calcGravity_dev
       }/* for(int iter = 0; iter < Niter; iter++){ */
       //-------------------------------------------------------------------
     }/* else{ */
-    //---------------------------------------------------------------------
-/*     calcAccDirect_kernel<<<BLOCKSIZE(Ni, NTHREADS), NTHREADS>>> */
-/*       (pi.pos, pi.acc, pi.pos, Ni */
-/* #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING */
-/*        , eps2 */
-/* #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING */
-/*        ); */
     //---------------------------------------------------------------------
     getLastCudaError("calcAccDirect");
     //---------------------------------------------------------------------
@@ -3557,9 +3993,25 @@ void calcGravity_dev
 #ifndef SERIALIZED_EXECUTION
     if( grpNum != 0 )
 #endif//SERIALIZED_EXECUTION
-      trimAcc_kernel<<<Nrem, thrd>>>(pi.acc, pi.pos, BLOCKSIZE(grpNum, NGROUPS) * NGROUPS, laneInfo);
+      trimAcc_kernel<<<Nrem, thrd>>>
+	(pi.acc, pi.pos, BLOCKSIZE(grpNum, NGROUPS) * NGROUPS, laneInfo
+#ifdef  DPADD_FOR_ACC
+	 , pi.tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+	 , pi.res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+	 );
 #else///BLOCK_TIME_STEP
-    trimAcc_kernel<<<Nrem, NTHREADS>>>(pi.acc, pi.pos);
+    trimAcc_kernel<<<Nrem, NTHREADS>>>
+      (pi.acc, pi.pos
+#ifdef  DPADD_FOR_ACC
+       , pi.tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+       , pi.res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+       );
 #endif//BLOCK_TIME_STEP
   }/* if( Nrem <= MAX_BLOCKS_PER_GRID ){ */
   //-----------------------------------------------------------------------
@@ -3576,10 +4028,26 @@ void calcGravity_dev
       //-------------------------------------------------------------------
 #ifdef  BLOCK_TIME_STEP
       int Nsub = Nblck * NWARP * NGROUPS;
-      trimAcc_kernel<<<Nblck, thrd.x>>>(pi.acc, pi.pos, BLOCKSIZE(Nsub, NGROUPS) * NGROUPS, &laneInfo[hidx]);
+      trimAcc_kernel<<<Nblck, thrd.x>>>
+	(pi.acc, pi.pos, BLOCKSIZE(Nsub, NGROUPS) * NGROUPS, &laneInfo[hidx]
+#ifdef  DPADD_FOR_ACC
+	 , pi.tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+	 , pi.res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+	 );
 #else///BLOCK_TIME_STEP
       int Nsub = Nblck * NTHREADS;
-      trimAcc_kernel<<<Nblck, NTHREADS>>>(&pi.acc[hidx], &pi.pos[hidx]);
+      trimAcc_kernel<<<Nblck, NTHREADS>>>
+	(&pi.acc[hidx], &pi.pos[hidx]
+#ifdef  DPADD_FOR_ACC
+	 , &pi.tmp[hidx]
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+	 , &pi.res[hidx]
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+	 );
 #endif//BLOCK_TIME_STEP
       //-------------------------------------------------------------------
       hidx += Nsub;
@@ -3589,20 +4057,13 @@ void calcGravity_dev
     //---------------------------------------------------------------------
   }/* else{ */
   //-----------------------------------------------------------------------
-/* #ifdef  BLOCK_TIME_STEP */
-/* #ifndef SERIALIZED_EXECUTION */
-/*   if( grpNum != 0 ) */
-/* #endif//SERIALIZED_EXECUTION */
-/*     { */
-/*       /\* trimAcc_kernel<<<                              blck, thrd>>>(pi.acc, pi.pos, laneInfo); *\/ */
-/*       trimAcc_kernel<<<BLOCKSIZE(grpNum, NWARP * NGROUPS), thrd>>>(pi.acc, pi.pos, BLOCKSIZE(grpNum, NGROUPS) * NGROUPS, laneInfo); */
-/* #endif */
-/*     } */
-/* #else///BLOCK_TIME_STEP */
-/*   trimAcc_kernel<<<BLOCKSIZE(Ni, NTHREADS), NTHREADS>>>(pi.acc, pi.pos); */
-/* #endif//BLOCK_TIME_STEP */
-  //-----------------------------------------------------------------------
   getLastCudaError("trimAcc_kernel");
+  //-----------------------------------------------------------------------
+#if 0
+  checkCudaErrors(cudaDeviceSynchronize());
+  MPI_Finalize();
+  exit(0);
+#endif
   //-----------------------------------------------------------------------
 
 
@@ -3674,33 +4135,20 @@ void calcGravity_dev
 #endif//MONITOR_LETGEN_TIME
 #endif//SERIALIZED_EXECUTION
   //-----------------------------------------------------------------------
-/* #if 0 */
-/*   const int nblocks = NBLOCKS_PER_SM * devProp.numSM; */
-/* #ifdef  USE_SMID_TO_GET_BUFID */
-/*   int last = 0; */
-/*   int num = 0; */
-/*   int *smid_dev;  mycudaMalloc    ((void **)&smid_dev, sizeof(int) * devProp.numSM); */
-/*   int *smid_hst;  mycudaMallocHost((void **)&smid_hst, sizeof(int) * devProp.numSM); */
-/*   for(int ii = 0; ii < 64; ii++) */
-/*     if( devProp.smid[ii] != -1 ){ */
-/*       smid_hst[num] = devProp.smid[ii];      num++; */
-/*       last = ii; */
-/*     } */
-/*   last++; */
-/*   checkCudaErrors(cudaMemcpy(smid_dev, smid_hst, sizeof(int) * devProp.numSM, cudaMemcpyHostToDevice)); */
-/*   initFreeLst<<<1, NBLOCKS_PER_SM * last>>>(nblocks, buf.freeLst, NBLOCKS_PER_SM * last, smid_dev); */
-/*   mycudaFree    (smid_dev); */
-/*   mycudaFreeHost(smid_hst); */
-/* #else///USE_SMID_TO_GET_BUFID */
-/*   initFreeLst<<<1, nblocks>>>(nblocks, buf.freeLst */
-/* #ifndef TRY_MODE_ABOUT_BUFFER */
-/* 			      , buf.freeNum, buf.active */
-/* #endif//TRY_MODE_ABOUT_BUFFER */
-/* 			      ); */
-/* #endif//USE_SMID_TO_GET_BUFID */
-/* #endif */
-  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
+  //-----------------------------------------------------------------------
+#ifdef  DEBUG_PRINT_FOR_PARTICLE_ACCELERATION
+  MPI_Finalize();
+  exit(0);
+#endif//DEBUG_PRINT_FOR_PARTICLE_ACCELERATION
+  //-----------------------------------------------------------------------
+#if 0
+  MPIinfo mpi_tmp;
+  mpi_tmp.rank = mpi.rank;
+  mpi_tmp.size = mpi.size;
+  mpi_tmp.comm = mpi.comm;
+  printTreeNode_dev(pjNum, tree, mpi_tmp);
+#endif
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------

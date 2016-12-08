@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2015/02/10(Tue) 19:07:53
+                  last updated on 2016/12/06(Tue) 12:57:52
  *                                                                       *
  *    Constructing octree structure for collisionless systems            *
  *                                                                       *
@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
+#include "macro.h"
 //-------------------------------------------------------------------------
 #include "make.h"
 #include "stat.h"

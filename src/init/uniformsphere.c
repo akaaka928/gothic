@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/11(Fri) 10:56:58
+                  last updated on 2016/12/06(Tue) 15:38:53
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Uniform sphere w/ Gaussian velocity dispersion                  *
@@ -16,18 +16,16 @@
 #include <stdlib.h>
 #include <math.h>
 //-------------------------------------------------------------------------
-#include <gsl/gsl_rng.h>
-//-------------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
-#       include <hdf5.h>
-#       include <hdf5lib.h>
+#include <hdf5.h>
+#include "hdf5lib.h"
 #endif//USE_HDF5_FORMAT
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <myutil.h>
-#include <constants.h>
-#include <timer.h>
-#include <name.h>
+#include "macro.h"
+#include "myutil.h"
+#include "constants.h"
+#include "timer.h"
+#include "name.h"
 //-------------------------------------------------------------------------
 #include "../misc/structure.h"
 #include "../misc/allocate.h"
@@ -39,14 +37,21 @@
 //-------------------------------------------------------------------------
 #include "../file/io.h"
 //-------------------------------------------------------------------------
-
-
-//-------------------------------------------------------------------------
 extern const double mass_astro2com, velocity_astro2com, length_astro2com, time_astro2com;
 extern const real newton;
 //-------------------------------------------------------------------------
+#ifdef  USE_SFMT
+#include "SFMT.h"
+sfmt_t sfmt;
+#define RANDPOS (CAST_D2R(sfmt_genrand_res53(&sfmt)))
+#ifdef  USE_SFMTJUMP
+#include "SFMT-jump.h"
+#endif//USE_SFMTJUMP
+#else///USE_SFMT
+#include <gsl/gsl_rng.h>
 gsl_rng *GSLRand;
 #define RANDPOS ((real)gsl_rng_uniform(GSLRand))
+#endif//USE_SFMT
 #define RANDVAL (TWO * (RANDPOS) - UNITY)
 //-------------------------------------------------------------------------
 
@@ -293,11 +298,18 @@ int main(int argc, char **argv)
 
   //-----------------------------------------------------------------------
   /* settings about random numbers */
+#ifdef  USE_SFMT
+  sfmt_init_gen_rand(&sfmt, 5489);
+  /* sfmt_init_gen_rand(&sfmt, 19650218); */
+  /* 5489 for 32 bit Mersenne Twister */
+  /* 19650218 for 64 bit Mersenne Twister */
+#else///USE_SFMT
   const gsl_rng_type *RandType;
   gsl_rng_env_setup();
   RandType = gsl_rng_mt19937;
   GSLRand = gsl_rng_alloc(RandType);
   gsl_rng_set(GSLRand, 5489);
+#endif//USE_SFMT
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------

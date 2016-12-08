@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/01(Tue) 10:23:29
+                  last updated on 2016/12/06(Tue) 12:49:44
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -18,10 +18,10 @@
 #include <helper_cuda.h>
 #include <sys/time.h>
 //-------------------------------------------------------------------------
-#include <macro.h>
-#include <cudalib.h>
-#include <timer.h>
-#include <mpilib.h>
+#include "macro.h"
+#include "cudalib.h"
+#include "timer.h"
+#include "mpilib.h"
 //-------------------------------------------------------------------------
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
@@ -30,12 +30,10 @@
 #include "macutil.h"
 #include "make.h"
 #include "buf_inc.h"
-//-------------------------------------------------------------------------
 #include "../para/mpicfg.h"
 #include "let.h"
 #include "walk_dev.h"
 #include "let_dev.h"
-//-------------------------------------------------------------------------
 #include "buf_inc.cu"
 //-------------------------------------------------------------------------
 #   if  !defined(GADGET_MAC) && !defined(WS93_MAC)
@@ -730,11 +728,6 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
   size_t buf0Head = 0;
 #endif//ALLOCATE_LETBUFFER
   //-----------------------------------------------------------------------
-#if 0
-  if( tidx == 0 )
-    printf(" LET: SM %d, tag %d\n", bufTarget / NBLOCKS_PER_SM, bufTarget);
-#endif
-  //-----------------------------------------------------------------------
 
 
   //-----------------------------------------------------------------------
@@ -751,13 +744,6 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
   if( tidx == 0 )
     queue[0] = jcell;
   //-----------------------------------------------------------------------
-#if 0
-  if( tidx == 0 )
-    printf("rem = %d\n", rem);
-  if( tidx < rem )
-    printf("%d\t%d\t%d\n", tidx, queue[tidx] & IDXMASK, 1 + (queue[tidx] >> IDXBITS));
-#endif
-  //-----------------------------------------------------------------------
   /* initialize queue for j-cells and interaction list by a representative thread */
   int sendNum = 0;/* # of LET nodes already stored in the global memory */
   int  totNum = 1;/* total # of nodes stored to the queue */
@@ -765,10 +751,6 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
   int bufTail = 0;
   int bufOpen = bufSize;
   int bufUsed = 0;
-  //-----------------------------------------------------------------------
-/* #ifdef  ALLOCATE_LETBUFFER */
-/*   int bufTailMax = bufTail; */
-/* #endif//ALLOCATE_LETBUFFER */
   //-----------------------------------------------------------------------
 
 
@@ -872,7 +854,7 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
       const real rx = jpos_tmp.x - icom.x;
       const real ry = jpos_tmp.y - icom.y;
       const real rz = jpos_tmp.z - icom.z;
-      const real r2 = 1.0e-30f + rx * rx + ry * ry + rz * rz;
+      const real r2 = FLT_MIN + rx * rx + ry * ry + rz * rz;
       real lambda = FMAX(UNITY - SQRTRATIO(icom.m, r2), ZERO);
       /* calculate distance between the pseudo i-particle and the candidate j-particle */
       //-------------------------------------------------------------------
@@ -946,21 +928,6 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
     /* fail += (bufOpen < 0); */
     fail += (bufTail > bufSize);
     //---------------------------------------------------------------------
-#if 0
-    if( fail > 0 )
-      break;
-#endif
-    //---------------------------------------------------------------------
-#if 0
-    if( fail != 0 )
-      buffer[ULONG_MAX] = NULL_NODE;
-#endif
-    //---------------------------------------------------------------------
-/* #ifdef  ALLOCATE_LETBUFFER */
-/*     if( bufTail > bufTailMax ) */
-/*       bufTailMax = bufTail; */
-/* #endif//ALLOCATE_LETBUFFER */
-    //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
     /* if current node has child nodes in LET, then head index of more_tmp must be rewritten */
@@ -972,11 +939,6 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
     if( childNum > 0 )
       more_tmp = ((uint)(childNum - 1) << IDXBITS) + (uint)(totNum + leafHead);
       /* more_tmp = ((uint)(childNum - 1) << IDXBITS) + (uint)(sendNum + leafHead); */
-    //---------------------------------------------------------------------
-#if 0
-    if( (hidx == 154) || (hidx == 184) )
-      printf("hidx = %d, more_head = %u, more_num = %u for LET of %e\n", hidx, more_tmp & IDXMASK, 1 + (more_tmp >> IDXBITS), jpos_org[0].x);
-#endif
     //---------------------------------------------------------------------
     totNum += smem[NTHREADS_MAKE_LET - 1];
     //---------------------------------------------------------------------
@@ -990,16 +952,6 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
     }/* if( returnLET ){ */
     //---------------------------------------------------------------------
   }/* while( true ){ */
-  //-----------------------------------------------------------------------
-#if 0
-  if( tidx == 0 )
-    printf("sendNum = %d, totNum = %d\n", sendNum, totNum);
-#endif
-  //-----------------------------------------------------------------------
-/* #ifdef  ALLOCATE_LETBUFFER */
-/*   if( tidx == 0 ) */
-/*     printf("bufTailMax = %d\n", bufTailMax); */
-/* #endif//ALLOCATE_LETBUFFER */
   //-----------------------------------------------------------------------
 
 
@@ -1105,52 +1057,6 @@ void callGenLET
 #if 0
   let->amin = 0.0f;
 #endif
-#ifdef  DBG_LETGEN_ON_GPU
-#if 0
-  printf("# close limit\n");
-  let->icom.x = 0.0e+2f;
-  let->icom.y = 0.0e+2f;
-  let->icom.z = 0.0e+2f;
-  let->icom.m = 1.0e+2f;
-  let->amin   = 1.0e-6f;
-#endif
-#if 0
-  printf("# distant limit\n");
-  let->icom.x = 1.0e+2f;
-  let->icom.y = 1.0e+2f;
-  let->icom.z = 1.0e+2f;
-  let->icom.m = 1.0e-2f;
-  let->amin   = 1.0e+2f;
-#endif
-#if 0
-  printf("# intermediate case\n");
-  let->icom.x = 5.0e+0f;
-  let->icom.y = 5.0e+0f;
-  let->icom.z = 5.0e+0f;
-  let->icom.m = 1.0e+0f;
-  let->amin   = 1.0e-2f;
-#endif
-#if 0
-  printf("# overlapping case\n");
-  let->icom.x =  6.364845e-1f;
-  let->icom.y = -1.231880e-1f;
-  let->icom.z =  1.260145e-1f;
-  let->icom.m = 1.0e-6f;
-  let->amin   = 1.0e+1f;
-#endif
-#endif//DBG_LETGEN_ON_GPU
-  /* checkCudaErrors(cudaStreamSynchronize(stream)); */
-  /* makeLET_kernel<<<1, NTHREADS_MAKE_LET>>> */
-#if 0
-  checkCudaErrors(cudaDeviceSynchronize());
-#endif
-#ifdef  DBG_LETGEN_ON_GPU
-#if 0
-  int deviceID;
-  checkCudaErrors(cudaGetDevice(&deviceID));
-  if( deviceID == 0 )
-#endif
-#endif//DBG_LETGEN_ON_GPU
 #if 1
   makeLET_kernel<<<1, NTHREADS_MAKE_LET, SMEM_SIZE, stream>>>
 #else
@@ -1178,51 +1084,14 @@ void callGenLET
      , cycles
 #endif//!defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
      );
-  /* checkCudaErrors(cudaDeviceSynchronize()); */
   //-----------------------------------------------------------------------
-/* #if 0 */
-/*   checkCudaErrors(cudaMemcpy((*let).numSend_hst, (*let).numSend_dev, sizeof(int), cudaMemcpyDeviceToHost)); */
-/* #else */
-/*   checkCudaErrors(cudaMemcpyAsync((*let).numSend_hst, (*let).numSend_dev, sizeof(int), cudaMemcpyDeviceToHost, stream)); */
-/*   checkCudaErrors(cudaStreamSynchronize(stream)); */
-/* #endif */
-/*   let->numSend = *((*let).numSend_hst); */
-  //-----------------------------------------------------------------------
-/* #if 0 */
-/*   if( let->numSend != let->numFull ){ */
-/*     fprintf(stdout, "numSend = %d, numFull = %d @ amin = %e on rank %d\n", let->numSend, let->numFull, let->amin, mpi.rank); */
-/*     fflush(stdout); */
-/*     __KILL__(stderr, "ERROR related to CUDA stream\n"); */
-/*   }/\* if( let->numSend != let->numFull ){ *\/ */
-/* #endif */
-/* #if 0 */
-/*   let-> numSend = let->numFull; */
-/*   let->headSend = 0; */
-/* #endif */
-/* #if 0 */
-/*   MPI_Finalize(); */
-/*   exit(0); */
-/* #endif */
-/* #if 0 */
-/*   if( mpi.rank == 0 ){ */
-/*     printTreeNode((*let).numFull, tree.more, tree.jpos, tree.mj); */
-/*     printTreeNode((*let).numSend, &(tree.more[(*let).headSend]), &(tree.jpos[(*let).headSend]), &(tree.mj[(*let).headSend])); */
-/*   }/\* if( mpi.rank == 0 ){ *\/ */
-/*   MPI_Finalize(); */
-/*   exit(0); */
-/* #endif */
-/* #if 0 */
-/*   if( let->numSend > let->numFull ){ */
-/*     printTreeNode((*let).numFull, tree.more, tree.jpos, tree.mj); */
-/*     printTreeNode((*let).numSend, &(tree.more[(*let).headSend]), &(tree.jpos[(*let).headSend]), &(tree.mj[(*let).headSend])); */
-/*     int fail_hst; */
-/*     checkCudaErrors(cudaMemcpy(&fail_hst, buf.fail, sizeof(int), cudaMemcpyDeviceToHost)); */
-/*     __KILL__(stderr, "BUG: # of LET nodes (%d) exceeds that of local tree (%d) @ rank %d (amin = %e, r = %e, pos = (%e, %e, %e); fail = %d).\n", let->numSend, let->numFull, mpi.rank, let->amin, SQRT(let->icom.m), let->icom.x, let->icom.y, let->icom.z, fail_hst); */
-/*   }/\* if( let->numSend > let->numFull ){ *\/ */
-/* #endif */
-/*   if( let->numSend > let->maxSend ){ */
-/*     __KILL__(stderr, "ERROR: predicted size of send buffer(%d) is not sufficient for true size of that(%d) @ rank %d for rand %d.\n\tsuggestion: consider increasing \"LETSIZE_REDUCE_FACTOR\" defined in src/tree/let.h (current value is %f) to at least %f.\n", let->maxSend, let->numSend, mpi.rank, let->rank, LETSIZE_REDUCE_FACTOR, LETSIZE_REDUCE_FACTOR * (float)let->numSend / (float)let->maxSend); */
-/*   }/\* if( let->numSend > let->maxSend ){ *\/ */
+#if 0
+  if( let->numSend != let->numFull ){
+    fprintf(stdout, "numSend = %d, numFull = %d @ amin = %e on rank %d\n", let->numSend, let->numFull, let->amin, mpi.rank);
+    fflush(stdout);
+    __KILL__(stderr, "ERROR related to CUDA stream\n");
+  }/* if( let->numSend != let->numFull ){ */
+#endif
   //-----------------------------------------------------------------------
 #ifdef  DBG_LETGEN_ON_GPU
   fprintf(stderr, "numSend = %d, numFull = %d @ rank %d\n", (*let).numSend, (*let).numFull, mpi.rank);
