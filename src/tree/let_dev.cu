@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/06(Tue) 12:49:44
+                  last updated on 2016/12/21(Wed) 14:11:12
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -1054,6 +1054,10 @@ void callGenLET
   checkCudaErrors(cudaEventRecord(iniEvent, 0));
 #endif//defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
   //-----------------------------------------------------------------------
+#if 0
+  printf("icom: %f, %f, %f\n", (*let).icom.x, (*let).icom.y, (*let).icom.z);
+  fflush(NULL);
+#endif
 #if 0
   let->amin = 0.0f;
 #endif

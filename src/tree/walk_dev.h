@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/06(Tue) 12:59:18
+                  last updated on 2017/01/17(Tue) 20:01:04
  *                                                                       *
  *    Header File for tree traversal based on octree structure           *
  *                                                                       *
@@ -26,6 +26,7 @@
 //-------------------------------------------------------------------------
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 #ifndef SERIALIZED_EXECUTION
+#include "../misc/tune.h"
 #include "../para/mpicfg.h"
 #include "../tree/let.h"
 #endif//SERIALIZED_EXECUTION
@@ -415,13 +416,12 @@ extern "C"
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 #ifndef SERIALIZED_EXECUTION
-   , double *twalk, const int pjNum
+   , measuredTime *measured, const int pjNum
 #ifdef  LET_COMMUNICATION_VIA_HOST
    , const soaTreeNode tree_hst
 #endif//LET_COMMUNICATION_VIA_HOST
    , const int Nlet, domainInfo *let, const int Nstream_let, cudaStream_t stream_let[], MPIcfg_tree mpi
 #ifdef  MONITOR_LETGEN_TIME
-   , double *tlet
 #ifdef  USE_CUDA_EVENT
    , cudaEvent_t *iniMakeLET, cudaEvent_t *finMakeLET
 #else///USE_CUDA_EVENT

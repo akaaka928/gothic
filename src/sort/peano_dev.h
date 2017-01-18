@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/06(Tue) 12:43:37
+                  last updated on 2017/01/18(Wed) 11:12:04
  *                                                                       *
  *    Header File for constructing octree structure                      *
  *                                                                       *
@@ -79,6 +79,29 @@ typedef struct
 
 
 //-------------------------------------------------------------------------
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+//-------------------------------------------------------------------------
+/* #define TIME_BASED_MODIFICATION */
+//-------------------------------------------------------------------------
+typedef struct
+{
+  float3 boxmin, boxmax;
+  float *diameter_dev, *diameter_hst;
+#ifdef  TIME_BASED_MODIFICATION
+  float elapsed, dtmin, dtinv;
+  float linv;
+#else///TIME_BASED_MODIFICATION
+  float step;
+  float dL_L;
+#endif//TIME_BASED_MODIFICATION
+  float eps, eta;
+} domainLocation;
+//-------------------------------------------------------------------------
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
 #ifdef  GENERATE_PHKEY_ON_DEVICE
 //-------------------------------------------------------------------------
 //-- List of functions appeared in "peano_dev.cu"
@@ -122,6 +145,9 @@ extern "C"
 #ifndef MAKE_TREE_ON_DEVICE
 				, const soaPHsort hst
 #endif//MAKE_TREE_ON_DEVICE
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+				, domainLocation *location
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 				, struct timeval *start
 #ifdef  EXEC_BENCHMARK
 				, wall_clock_time *elapsed

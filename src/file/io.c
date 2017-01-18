@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/06(Tue) 18:04:20
+                  last updated on 2017/01/17(Tue) 20:10:24
  *                                                                       *
  *    Input/Output Code of N-body calculation                            *
  *                                                                       *
@@ -10,7 +10,7 @@
  *                                                                       *
 \*************************************************************************/
 //-------------------------------------------------------------------------
-#define USE_SZIP_COMPRESSION
+/* #define USE_SZIP_COMPRESSION */
 //-------------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,6 +24,11 @@
 #ifdef  USE_HDF5_FORMAT
 #include <hdf5.h>
 #include "hdf5lib.h"
+/* The maximum number of elements in a chunk is 2^32-1 which is equal to 4,294,967,295 */
+/* The maximum size for any chunk is 4GB */
+#define MAXIMUM_CHUNK_SIZE      ((hsize_t)1 << 31)
+#define MAXIMUM_CHUNK_SIZE_4BIT ((hsize_t)1 << 30)
+#define MAXIMUM_CHUNK_SIZE_8BIT ((hsize_t)1 << 29)
 #endif//USE_HDF5_FORMAT
 //-------------------------------------------------------------------------
 #include "macro.h"
@@ -413,10 +418,10 @@ void createHDF5DataType(hdf5struct *type)
   chkHDF5err(H5Tinsert(type->measuredTime,   "incSum"   , HOFFSET(measuredTime,  incSum    ), H5T_NATIVE_DOUBLE));
 #endif//WALK_TREE_TOTAL_SUM_MODEL
 #ifndef SERIALIZED_EXECUTION
-  chkHDF5err(H5Tinsert(type->measuredTime,  "calcAcc"   , HOFFSET(measuredTime, calcAcc    ), H5T_NATIVE_DOUBLE));
-  chkHDF5err(H5Tinsert(type->measuredTime,  "calcMAC"   , HOFFSET(measuredTime, calcMAC    ), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->measuredTime,  "sum_excg"   , HOFFSET(measuredTime, sum_excg   ), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->measuredTime,  "sum_rebuild", HOFFSET(measuredTime, sum_rebuild), H5T_NATIVE_DOUBLE));
 #ifdef  MONITOR_LETGEN_TIME
-  chkHDF5err(H5Tinsert(type->measuredTime,  "makeLET"   , HOFFSET(measuredTime, makeLET    ), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->measuredTime,  "excg"       , HOFFSET(measuredTime, excg       ), H5T_NATIVE_DOUBLE));
 #endif//MONITOR_LETGEN_TIME
 #endif//SERIALIZED_EXECUTION
   //-----------------------------------------------------------------------
@@ -1302,7 +1307,7 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int *num
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-void writeTentativeData(double  time, double  dt, ulong  steps, int num, iparticle body, char file[], int *last, hdf5struct type
+void writeTentativeData(double  time, double  dt, ulong  steps, ulong num, iparticle body, char file[], int *last, hdf5struct type
 			, rebuildTree rebuild, measuredTime measured
 #ifdef  WALK_TREE_COMBINED_MODEL
 			, autoTuningParam rebuildParam
@@ -1353,7 +1358,10 @@ void writeTentativeData(double  time, double  dt, ulong  steps, int num, ipartic
   property = H5Pcreate(H5P_DATASET_CREATE);
   hsize_t cdims_loc = cdims;
   if( dims < cdims_loc )
-    cdims_loc = 1 << ilog2((uint)dims);
+    cdims_loc = (hsize_t)1 << llog2((ulong)dims);
+  hsize_t cdims_max = (MAXIMUM_CHUNK_SIZE_4BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_4BIT : MAXIMUM_CHUNK_SIZE;
+  if( cdims_loc > cdims_max )
+    cdims_loc = cdims_max;
   chkHDF5err(H5Pset_chunk(property, 1, &cdims_loc));
   chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
 #endif//USE_SZIP_COMPRESSION
@@ -1390,7 +1398,10 @@ void writeTentativeData(double  time, double  dt, ulong  steps, int num, ipartic
   property = H5Pcreate(H5P_DATASET_CREATE);
   cdims_loc = cdims;
   if( dims < cdims_loc )
-    cdims_loc = 1 << ilog2((uint)dims);
+    cdims_loc = (hsize_t)1 << llog2((ulong)dims);
+  cdims_max = (MAXIMUM_CHUNK_SIZE_8BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_8BIT : MAXIMUM_CHUNK_SIZE;
+  if( cdims_loc > cdims_max )
+    cdims_loc = cdims_max;
   chkHDF5err(H5Pset_chunk(property, 1, &cdims_loc));
   chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
 #endif//USE_SZIP_COMPRESSION
@@ -1417,7 +1428,10 @@ void writeTentativeData(double  time, double  dt, ulong  steps, int num, ipartic
   property = H5Pcreate(H5P_DATASET_CREATE);
   cdims_loc = cdims;
   if( dims < cdims_loc )
-    cdims_loc = 1 << ilog2((uint)dims);
+    cdims_loc = (hsize_t)1 << llog2((ulong)dims);
+  cdims_max = (MAXIMUM_CHUNK_SIZE_8BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_8BIT : MAXIMUM_CHUNK_SIZE;
+  if( cdims_loc > cdims_max )
+    cdims_loc = cdims_max;
   chkHDF5err(H5Pset_chunk(property, 1, &cdims_loc));
   chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
 #endif//USE_SZIP_COMPRESSION
@@ -1725,6 +1739,9 @@ void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num,
   //-----------------------------------------------------------------------
   /* create chunked dataset */
   hid_t data_create = H5Pcreate(H5P_DATASET_CREATE);
+  hsize_t dims_max = (MAXIMUM_CHUNK_SIZE_4BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_4BIT : MAXIMUM_CHUNK_SIZE;
+  if( dims_mem > dims_max )
+    dims_mem = dims_max;
   chkHDF5err(H5Pset_chunk(data_create, 1, &dims_mem));
   hid_t dset, hyperslab;
   //-----------------------------------------------------------------------
@@ -1776,6 +1793,9 @@ void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num,
   //-----------------------------------------------------------------------
   /* create chunked dataset */
   data_create = H5Pcreate(H5P_DATASET_CREATE);
+  dims_max = (MAXIMUM_CHUNK_SIZE_8BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_8BIT : MAXIMUM_CHUNK_SIZE;
+  if( dims_mem > dims_max )
+    dims_mem = dims_max;
   chkHDF5err(H5Pset_chunk(data_create, 1, &dims_mem));
   //-----------------------------------------------------------------------
   /* write particle time */
@@ -1810,6 +1830,9 @@ void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num,
   //-----------------------------------------------------------------------
   /* create chunked dataset */
   data_create = H5Pcreate(H5P_DATASET_CREATE);
+  dims_max = (MAXIMUM_CHUNK_SIZE_8BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_8BIT : MAXIMUM_CHUNK_SIZE;
+  if( dims_mem > dims_max )
+    dims_mem = dims_max;
   chkHDF5err(H5Pset_chunk(data_create, 1, &dims_mem));
   //-----------------------------------------------------------------------
 #ifndef BLOCK_TIME_STEP
@@ -1940,6 +1963,9 @@ void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num,
     //---------------------------------------------------------------------
     /* create chunked dataset */
     data_create = H5Pcreate(H5P_DATASET_CREATE);
+    dims_max = (MAXIMUM_CHUNK_SIZE_8BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_8BIT : MAXIMUM_CHUNK_SIZE;
+    if( dims_mem > dims_max )
+      dims_mem = dims_max;
     chkHDF5err(H5Pset_chunk(data_create, 1, &dims_mem));
     //---------------------------------------------------------------------
     /* output rebuildTree */
@@ -2272,7 +2298,7 @@ void readTentativeDataParallel(double *time, double *dt, ulong *steps, int *num,
 
 
 //-------------------------------------------------------------------------
-void writeTentativeData(double time, double dt, ulong steps, int num, iparticle body, char file[], int *last)
+void writeTentativeData(double time, double dt, ulong steps, ulong num, iparticle body, char file[], int *last)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -2629,6 +2655,9 @@ void writeSnapshot(int  unit, double  time, ulong  steps, int num, nbody_hdf5 *b
   hsize_t cdims_loc[2] = {cdims[0], cdims[1]};
   if( (hsize_t)num < cdims_loc[0] )
     cdims_loc[0] = (hsize_t)num;
+  hsize_t cdims_max = (MAXIMUM_CHUNK_SIZE_4BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_4BIT : MAXIMUM_CHUNK_SIZE;
+  if( cdims_loc[0] * cdims_loc[1] > cdims_max )
+    cdims_loc[0] = cdims_max / cdims_loc[1];
   chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
   chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
 #endif//USE_SZIP_COMPRESSION
@@ -2658,6 +2687,9 @@ void writeSnapshot(int  unit, double  time, ulong  steps, int num, nbody_hdf5 *b
   cdims_loc[0] = cdims[0];
   if( (hsize_t)num < cdims_loc[0] )
     cdims_loc[0] = (hsize_t)num;
+  cdims_max = (MAXIMUM_CHUNK_SIZE_8BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_8BIT : MAXIMUM_CHUNK_SIZE;
+  if( cdims_loc[0] > cdims_max )
+    cdims_loc[0] = cdims_max;
   chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
   chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
 #endif//USE_SZIP_COMPRESSION
@@ -2946,6 +2978,9 @@ void writeSnapshotParallel(int  unit, double  time, ulong  steps, int num, nbody
   //-----------------------------------------------------------------------
   /* create chunked dataset */
   hid_t data_create = H5Pcreate(H5P_DATASET_CREATE);
+  hsize_t dims_max = (MAXIMUM_CHUNK_SIZE_4BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_4BIT : MAXIMUM_CHUNK_SIZE;
+  if( dims_mem[0] * dims_mem[1] > dims_max )
+    dims_mem[0] = dims_max / dims_mem[1];
   chkHDF5err(H5Pset_chunk(data_create, 2, dims_mem));
   hid_t dataset, hyperslab;
   //-----------------------------------------------------------------------
@@ -3008,6 +3043,9 @@ void writeSnapshotParallel(int  unit, double  time, ulong  steps, int num, nbody
   locSpace = H5Screate_simple(1, dims_loc, NULL);
   data_create = H5Pcreate(H5P_DATASET_CREATE);
   /* chkHDF5err(H5Pset_chunk(data_create, 1, dims_loc)); */
+  dims_max = (MAXIMUM_CHUNK_SIZE_8BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_8BIT : MAXIMUM_CHUNK_SIZE;
+  if( dims_mem[0] > dims_max )
+    dims_mem[0] = dims_max;
   chkHDF5err(H5Pset_chunk(data_create, 1, dims_mem));
   /* write particle mass */
   dataset = H5Dcreate(group, "mass", type.real, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
@@ -3456,13 +3494,16 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
     dataspace = H5Screate_simple(2, dims, NULL);
 #ifdef  USE_SZIP_COMPRESSION
     hsize_t cdims_loc[2] = {cdims[0], cdims[1]};
-    if( (uint)(num[ii] * 3) > szip_pixels_per_block ){
+    if( (hsize_t)(num[ii] * 3) > (hsize_t)szip_pixels_per_block ){
       property = H5Pcreate(H5P_DATASET_CREATE);
       if( (hsize_t)num[ii] < cdims_loc[0] )
 	cdims_loc[0] = (hsize_t)num[ii];
+      hsize_t cdims_max = (MAXIMUM_CHUNK_SIZE_4BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_4BIT : MAXIMUM_CHUNK_SIZE;
+      if( cdims_loc[0] * cdims_loc[1] > cdims_max )
+	cdims_loc[0] = cdims_max / cdims_loc[1];
       chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
       chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
-    }/* if( (uint)(num[ii] * 3) > szip_pixels_per_block ){ */
+    }/* if( (hsize_t)(num[ii] * 3) > (hsize_t)szip_pixels_per_block ){ */
     else
       property = H5P_DEFAULT;
 #endif//USE_SZIP_COMPRESSION
@@ -3508,7 +3549,7 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &body->acc[head[ii] * 3]));
     chkHDF5err(H5Dclose(dataset));
 #ifdef  USE_SZIP_COMPRESSION
-    if( (uint)(num[ii] * 3) > szip_pixels_per_block )
+    if( (hsize_t)(num[ii] * 3) > (hsize_t)szip_pixels_per_block )
       chkHDF5err(H5Pclose(property));
 #endif//USE_SZIP_COMPRESSION
     /* close the dataspace */
@@ -3522,10 +3563,13 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
     cdims_loc[0] = cdims[0];
     if( (hsize_t)num[ii] < cdims_loc[0] )
       cdims_loc[0] = (hsize_t)num[ii];
-    if( (uint)num[ii] > szip_pixels_per_block ){
+    if( (hsize_t)num[ii] > (hsize_t)szip_pixels_per_block ){
+      hsize_t cdims_max = (MAXIMUM_CHUNK_SIZE_8BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_8BIT : MAXIMUM_CHUNK_SIZE;
+      if( cdims_loc[0] > cdims_max )
+	cdims_loc[0] = cdims_max;
       chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
       chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
-    }/* if( (uint)num[ii] > szip_pixels_per_block ){ */
+    }/* if( (hsize_t)num[ii] > (hsize_t)szip_pixels_per_block ){ */
     else
       property = H5P_DEFAULT;
 #endif//USE_SZIP_COMPRESSION
@@ -3546,7 +3590,7 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
     chkHDF5err(H5Dwrite(dataset, H5T_NATIVE_ULONG, H5S_ALL, H5S_ALL, H5P_DEFAULT, &body->idx[head[ii]]));
     chkHDF5err(H5Dclose(dataset));
 #ifdef  USE_SZIP_COMPRESSION
-    if( (uint)num[ii] > szip_pixels_per_block )
+    if( (hsize_t)num[ii] > (hsize_t)szip_pixels_per_block )
       chkHDF5err(H5Pclose(property));
 #endif//USE_SZIP_COMPRESSION
     /* close the dataspace */

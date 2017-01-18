@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/06(Tue) 12:36:43
+                  last updated on 2017/01/17(Tue) 16:18:00
  *                                                                       *
  *    Header File for domain decomposition using GPUs                    *
  *                                                                       *
@@ -18,11 +18,13 @@
 
 
 //-------------------------------------------------------------------------
+#define SHARE_PH_BOX_BOUNDARY
+//-------------------------------------------------------------------------
 /* #define ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX */
 //-------------------------------------------------------------------------
-/* #ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX */
-/* #define  */
-/* #endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX */
+#   if  !defined(SHARE_PH_BOX_BOUNDARY) && defined(ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX)
+#define SHARE_PH_BOX_BOUNDARY
+#endif//!defined(SHARE_PH_BOX_BOUNDARY) && defined(ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX)
 //-------------------------------------------------------------------------
 
 
@@ -158,10 +160,10 @@ extern "C"
    MPIinfo orm[], MPIinfo rep[], domainCfg domain, MPIcfg_tree mpi,
    const double tloc, sampling sample, samplePos loc, samplePos ful,
    soaPHsort soa, const deviceProp devProp, const deviceInfo devInfo,
-   double *exchangeInterval, measuredTime *measured
-#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
-   , const float epsinv
-#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+   measuredTime *measured
+#ifdef  CARE_EXTERNAL_PARTICLES
+   , domainLocation *location
+#endif//CARE_EXTERNAL_PARTICLES
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
    , brentStatus *status, brentMemory *memory
 #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)

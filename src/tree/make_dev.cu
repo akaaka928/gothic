@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/06(Tue) 15:07:43
+                  last updated on 2017/01/17(Tue) 11:19:53
  *                                                                       *
  *    Constructing octree structure for collisionless systems            *
  *                                                                       *
@@ -17,6 +17,9 @@
 //-------------------------------------------------------------------------
 #include "macro.h"
 #include "cudalib.h"
+#ifndef SERIALIZED_EXECUTION
+#include "timer.h"
+#endif//SERIALIZED_EXECUTION
 //-------------------------------------------------------------------------
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
@@ -28,15 +31,13 @@
 #include "make_dev.h"
 #include "let.h"/* <-- necessary to read EXTEND_NUM_TREE_NODE */
 //-------------------------------------------------------------------------
-#ifdef  MAKE_TREE_ON_DEVICE
+#   if  defined(MAKE_TREE_ON_DEVICE) || (!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES))
+#define MODIFY_INTERNAL_DOMAIN
+#include "../misc/device.h"
 #include "../sort/peano_dev.h"
-#endif//MAKE_TREE_ON_DEVICE
+#endif//defined(MAKE_TREE_ON_DEVICE) || (!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES))
 //-------------------------------------------------------------------------
 #include "../misc/gsync_dev.cu"
-//-------------------------------------------------------------------------
-#ifndef SERIALIZED_EXECUTION
-#include "../para/exchange_dev.h"/* <-- required to read NBLOCKS_PER_SM_BOX */
-#endif//SERIALIZED_EXECUTION
 //-------------------------------------------------------------------------
 
 
@@ -107,10 +108,10 @@
 #endif//NBLOCKS_PER_SM_MAC > (MAX_REGISTERS_PER_SM / (REGISTERS_PER_THREAD_MAC * NTHREADS_MAC))
 //-------------------------------------------------------------------------
 /* maximum # of registers per SM */
-#   if  NBLOCKS_PER_SM_MAC > (MAX_THREADS_PER_SM / NTHREADS_MAC)
+#   if  NBLOCKS_PER_SM_MAC > (DIV_NTHREADS_MAC(MAX_THREADS_PER_SM))
 #undef  NBLOCKS_PER_SM_MAC
-#define NBLOCKS_PER_SM_MAC   (MAX_THREADS_PER_SM / NTHREADS_MAC)
-#endif//NBLOCKS_PER_SM_MAC > (MAX_THREADS_PER_SM / NTHREADS_MAC)
+#define NBLOCKS_PER_SM_MAC   (DIV_NTHREADS_MAC(MAX_THREADS_PER_SM))
+#endif//NBLOCKS_PER_SM_MAC > (DIV_NTHREADS_MAC(MAX_THREADS_PER_SM))
 //-------------------------------------------------------------------------
 /* maximum # of resident blocks per SM */
 #   if  NBLOCKS_PER_SM_MAC > MAX_BLOCKS_PER_SM
@@ -119,10 +120,10 @@
 #endif//NBLOCKS_PER_SM_MAC > MAX_BLOCKS_PER_SM
 //-------------------------------------------------------------------------
 /* maximum # of resident warps per SM */
-#   if  NBLOCKS_PER_SM_MAC > ((MAX_WARPS_PER_SM * 32) / NTHREADS_MAC)
+#   if  NBLOCKS_PER_SM_MAC > (DIV_NTHREADS_MAC(MAX_WARPS_PER_SM * 32))
 #undef  NBLOCKS_PER_SM_MAC
-#define NBLOCKS_PER_SM_MAC   ((MAX_WARPS_PER_SM * 32) / NTHREADS_MAC)
-#endif//NBLOCKS_PER_SM_MAC > ((MAX_WARPS_PER_SM * 32) / NTHREADS_MAC)
+#define NBLOCKS_PER_SM_MAC   (DIV_NTHREADS_MAC(MAX_WARPS_PER_SM * 32))
+#endif//NBLOCKS_PER_SM_MAC > (DIV_NTHREADS_MAC(MAX_WARPS_PER_SM * 32))
 //-------------------------------------------------------------------------
 /* # of blocks per SM must not be zero */
 #   if  NBLOCKS_PER_SM_MAC < 1
@@ -184,8 +185,8 @@
 #          if  NTHREADS_MAKE_TREE == 256
 #define REGISTERS_PER_THREAD_MAKE_TREE (66)
 #       else///NTHREADS_MAKE_TREE == 256
-/* #define REGISTERS_PER_THREAD_MAKE_TREE (64) */
-#define REGISTERS_PER_THREAD_MAKE_TREE (70)
+#define REGISTERS_PER_THREAD_MAKE_TREE (63)
+/* #define REGISTERS_PER_THREAD_MAKE_TREE (70) */
 #       endif//NTHREADS_MAKE_TREE == 256
 #undef  REGISTERS_PER_THREAD_LINK_TREE
 /* #define REGISTERS_PER_THREAD_LINK_TREE (23) */
@@ -203,14 +204,14 @@
 #endif//NBLOCKS_PER_SM_LINK_TREE > (MAX_REGISTERS_PER_SM / (REGISTERS_PER_THREAD_LINK_TREE * NTHREADS_LINK_TREE))
 //-------------------------------------------------------------------------
 /* maximum # of registers per SM */
-#   if  NBLOCKS_PER_SM_MAKE_TREE > (MAX_THREADS_PER_SM / NTHREADS_MAKE_TREE)
+#   if  NBLOCKS_PER_SM_MAKE_TREE > (DIV_NTHREADS_MAKE_TREE(MAX_THREADS_PER_SM))
 #undef  NBLOCKS_PER_SM_MAKE_TREE
-#define NBLOCKS_PER_SM_MAKE_TREE   (MAX_THREADS_PER_SM / NTHREADS_MAKE_TREE)
-#endif//NBLOCKS_PER_SM_MAKE_TREE > (MAX_THREADS_PER_SM / NTHREADS_MAKE_TREE)
-#   if  NBLOCKS_PER_SM_LINK_TREE > (MAX_THREADS_PER_SM / NTHREADS_LINK_TREE)
+#define NBLOCKS_PER_SM_MAKE_TREE   (DIV_NTHREADS_MAKE_TREE(MAX_THREADS_PER_SM))
+#endif//NBLOCKS_PER_SM_MAKE_TREE > (DIV_NTHREADS_MAKE_TREE(MAX_THREADS_PER_SM))
+#   if  NBLOCKS_PER_SM_LINK_TREE > (DIV_NTHREADS_LINK_TREE(MAX_THREADS_PER_SM))
 #undef  NBLOCKS_PER_SM_LINK_TREE
-#define NBLOCKS_PER_SM_LINK_TREE   (MAX_THREADS_PER_SM / NTHREADS_LINK_TREE)
-#endif//NBLOCKS_PER_SM_LINK_TREE > (MAX_THREADS_PER_SM / NTHREADS_LINK_TREE)
+#define NBLOCKS_PER_SM_LINK_TREE   (DIV_NTHREADS_LINK_TREE(MAX_THREADS_PER_SM))
+#endif//NBLOCKS_PER_SM_LINK_TREE > (DIV_NTHREADS_LINK_TREE(MAX_THREADS_PER_SM))
 //-------------------------------------------------------------------------
 /* maximum # of resident blocks per SM */
 #   if  NBLOCKS_PER_SM_MAKE_TREE > MAX_BLOCKS_PER_SM
@@ -223,14 +224,14 @@
 #endif//NBLOCKS_PER_SM_LINK_TREE > MAX_BLOCKS_PER_SM
 //-------------------------------------------------------------------------
 /* maximum # of resident warps per SM */
-#   if  NBLOCKS_PER_SM_MAKE_TREE > ((MAX_WARPS_PER_SM * 32) / NTHREADS_MAKE_TREE)
+#   if  NBLOCKS_PER_SM_MAKE_TREE > (DIV_NTHREADS_MAKE_TREE(MAX_WARPS_PER_SM * 32))
 #undef  NBLOCKS_PER_SM_MAKE_TREE
-#define NBLOCKS_PER_SM_MAKE_TREE   ((MAX_WARPS_PER_SM * 32) / NTHREADS_MAKE_TREE)
-#endif//NBLOCKS_PER_SM_MAKE_TREE > ((MAX_WARPS_PER_SM * 32) / NTHREADS_MAKE_TREE)
-#   if  NBLOCKS_PER_SM_LINK_TREE > ((MAX_WARPS_PER_SM * 32) / NTHREADS_LINK_TREE)
+#define NBLOCKS_PER_SM_MAKE_TREE   (DIV_NTHREADS_MAKE_TREE(MAX_WARPS_PER_SM * 32))
+#endif//NBLOCKS_PER_SM_MAKE_TREE > (DIV_NTHREADS_MAKE_TREE(MAX_WARPS_PER_SM * 32))
+#   if  NBLOCKS_PER_SM_LINK_TREE > (DIV_NTHREADS_LINK_TREE(MAX_WARPS_PER_SM * 32))
 #undef  NBLOCKS_PER_SM_LINK_TREE
-#define NBLOCKS_PER_SM_LINK_TREE   ((MAX_WARPS_PER_SM * 32) / NTHREADS_LINK_TREE)
-#endif//NBLOCKS_PER_SM_LINK_TREE > ((MAX_WARPS_PER_SM * 32) / NTHREADS_LINK_TREE)
+#define NBLOCKS_PER_SM_LINK_TREE   (DIV_NTHREADS_LINK_TREE(MAX_WARPS_PER_SM * 32))
+#endif//NBLOCKS_PER_SM_LINK_TREE > (DIV_NTHREADS_LINK_TREE(MAX_WARPS_PER_SM * 32))
 //-------------------------------------------------------------------------
 /* # of blocks per SM must not be zero */
 #   if  NBLOCKS_PER_SM_MAKE_TREE < 1
@@ -243,6 +244,55 @@
 #endif//NBLOCKS_PER_SM_LINK_TREE < 1
 //-------------------------------------------------------------------------
 #endif//MAKE_TREE_ON_DEVICE
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+//-------------------------------------------------------------------------
+#define NBLOCKS_PER_SM_OUTFLOW (2)
+//-------------------------------------------------------------------------
+#ifdef  TIME_BASED_MODIFICATION
+#define REGISTERS_PER_THREAD_OUTFLOW (32)
+#else///TIME_BASED_MODIFICATION
+#ifdef  USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES
+#define REGISTERS_PER_THREAD_OUTFLOW (35)
+#else///USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES
+#define REGISTERS_PER_THREAD_OUTFLOW (31)
+#endif//USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES
+#endif//TIME_BASED_MODIFICATION
+//-------------------------------------------------------------------------
+/* limitations from number of registers */
+#   if  NBLOCKS_PER_SM_OUTFLOW > (MAX_REGISTERS_PER_SM / (REGISTERS_PER_THREAD_OUTFLOW * NTHREADS_OUTFLOW))
+#undef  NBLOCKS_PER_SM_OUTFLOW
+#define NBLOCKS_PER_SM_OUTFLOW   (MAX_REGISTERS_PER_SM / (REGISTERS_PER_THREAD_OUTFLOW * NTHREADS_OUTFLOW))
+#endif//NBLOCKS_PER_SM_OUTFLOW > (MAX_REGISTERS_PER_SM / (REGISTERS_PER_THREAD_OUTFLOW * NTHREADS_OUTFLOW))
+//-------------------------------------------------------------------------
+/* maximum # of registers per SM */
+#   if  NBLOCKS_PER_SM_OUTFLOW > (DIV_NTHREADS_OUTFLOW(MAX_THREADS_PER_SM))
+#undef  NBLOCKS_PER_SM_OUTFLOW
+#define NBLOCKS_PER_SM_OUTFLOW   (DIV_NTHREADS_OUTFLOW(MAX_THREADS_PER_SM))
+#endif//NBLOCKS_PER_SM_OUTFLOW > (DIV_NTHREADS_OUTFLOW(MAX_THREADS_PER_SM))
+//-------------------------------------------------------------------------
+/* maximum # of resident blocks per SM */
+#   if  NBLOCKS_PER_SM_OUTFLOW > MAX_BLOCKS_PER_SM
+#undef  NBLOCKS_PER_SM_OUTFLOW
+#define NBLOCKS_PER_SM_OUTFLOW   MAX_BLOCKS_PER_SM
+#endif//NBLOCKS_PER_SM_OUTFLOW > MAX_BLOCKS_PER_SM
+//-------------------------------------------------------------------------
+/* maximum # of resident warps per SM */
+#   if  NBLOCKS_PER_SM_OUTFLOW > (DIV_NTHREADS_OUTFLOW(MAX_WARPS_PER_SM * 32))
+#undef  NBLOCKS_PER_SM_OUTFLOW
+#define NBLOCKS_PER_SM_OUTFLOW   (DIV_NTHREADS_OUTFLOW(MAX_WARPS_PER_SM * 32))
+#endif//NBLOCKS_PER_SM_OUTFLOW > (DIV_NTHREADS_OUTFLOW(MAX_WARPS_PER_SM * 32))
+//-------------------------------------------------------------------------
+/* # of blocks per SM must not be zero */
+#   if  NBLOCKS_PER_SM_OUTFLOW < 1
+#undef  NBLOCKS_PER_SM_OUTFLOW
+#define NBLOCKS_PER_SM_OUTFLOW  (1)
+#endif//NBLOCKS_PER_SM_OUTFLOW < 1
+//-------------------------------------------------------------------------
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 //-------------------------------------------------------------------------
 
 
@@ -457,7 +507,7 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
   const int ghead = tidx - lane;
   const int gtail = ghead + (TSUB_MAKE_TREE - 1);
   //-----------------------------------------------------------------------
-  const int  idx = tidx / TSUB_MAKE_TREE;
+  const int  idx = DIV_TSUB_MAKE_TREE(tidx);
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -636,62 +686,13 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
 	    //-------------------------------------------------------------
 	  }/* if( lane < (CELL_UNIT - 1) ){ */
 	  //---------------------------------------------------------------
-#if 0
-	  __syncthreads();
-	  if( tidx == 0 ){
-	    for(int ll = 0; ll < cnumSub * TSUB_MAKE_TREE; ll++)
-	      printf("cellLev = %d, cidx = %d, head = %d, itail = %d\n", cellLev, cellHead + gnum * iter + (ll / TSUB_MAKE_TREE), cell_sm[ll / TSUB_MAKE_TREE].head, cell_sm[ll].num);
-	  }
-	  __syncthreads();
-#endif
-	  //---------------------------------------------------------------
 	  /* assume implicit synchronization within a warp */
 	  if( lane > 0 )
 	    cell_sm[tidx].head = cell_sm[tidx - 1].num;
 	  cell_sm[tidx].num -= cell_sm[tidx].head;
-
-	  /* if( lane > 0 ) */
-	  /*   cell_sm[tidx].head = 1 + cell_sm[tidx - 1].num; */
-	  /* cell_sm[tidx].num -= cell_sm[tidx].head; */
-
-	  /* __syncthreads(); */
-	  /* cell_sm[tidx].num -= cell_sm[tidx].head; */
-
-	  /* if( lane == (CELL_UNIT - 1) ) */
-	  /*   cell_sm[tidx].num = root.num - cell_sm[tidx].head; */
-
-	  /* if( lane > 0 ){ */
-	  /* /\* if( lane > (int)((hkey_sm[ghead] - keyHead) / leafScale) ){ *\/ */
-	  /*   cell_sm[tidx].head = cell_sm[tidx - 1].num; */
-	  /*   cell_sm[tidx].num -= cell_sm[tidx    ].head; */
-	  /* }/\* if( lane > 0 ){ *\/ */
-	  /* /\* else *\/ */
-	  /* /\*   cell_sm[tidx].head = 0; *\/ */
 	  cell_sm[tidx].head += root.head;
-#if 0
-	  __syncthreads();
-	  if( tidx == 0 ){
-	    for(int cc = 0; cc < cnumSub; cc++){
-	      printf("cidx = %d: (head, num) = (%d, %d)", cellHead + cc, cell_sm[tidx + cc * CELL_UNIT].head, cell_sm[tidx + cc * CELL_UNIT].num);
-	      for(int ll = 1; ll < CELL_UNIT; ll++)
-		printf(", (%d, %d)", cell_sm[tidx + ll + cc * CELL_UNIT].head, cell_sm[tidx + ll + cc * CELL_UNIT].num);
-	      printf("\n");
-	    }
-	  }
-	  __syncthreads();
-#endif
 	  //---------------------------------------------------------------
 #ifdef  SPLIT_CHILD_CELL
-	  /* /\* split child cell if the number of N-body particles exceeds the upper limit *\/ */
-	  /* const int nsplit = (itail < leafNmax) ? (1) : (((itail) + (leafNmax - 1)) / (leafNmax)); */
-	  /* /\* __NOTE__("jj = %d, lone = %d, cellLev = %d, leafNmax = %d, cidx = %d, itail = %d, nsplit = %d\n", jj, lone, cellLev, leafNmax, cidx, itail, nsplit); *\/ */
-	  /* /\* const uint nchild = itail / nsplit; *\/ */
-	  /* const int nchild = (itail + (nsplit - 1)) / nsplit; */
-
-	  /* split child cell if the number of N-body particles exceeds the upper limit */
-	  /* /\* addChild = BLOCKSIZE(cell_sm[tidx].num, leafNmax); *\/ */
-	  /* addChild = (cell_sm[tidx].num < leafNmax) ? (1) : BLOCKSIZE(cell_sm[tidx].num, leafNmax); */
-	  /* addChild = (cell_sm[tidx].num < leafNmax) ? ((cell_sm[tidx].num > 0) ? 1 : 0) : BLOCKSIZE(cell_sm[tidx].num, leafNmax); */
 	  addChild = (cell_sm[tidx].num > 0) ? BLOCKSIZE(cell_sm[tidx].num, leafNmax) : 0;
 #else///SPLIT_CHILD_CELL
 	  if( cell_sm[tidx].num > 0 )
@@ -699,21 +700,6 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
 #endif//SPLIT_CHILD_CELL
 	  //---------------------------------------------------------------
 	}/* if( node ){ */
-	//-----------------------------------------------------------------
-#if 0
-	if( addChild > 0 )
-	  printf("levelIdx = %d: cidx = %d: bidx = %d: tidx = %d: addChild = %d, cell_sm.num = %d, leafNmax = %d\n", levelIdx, cidx, bidx, tidx, addChild, cell_sm[tidx].num, leafNmax);
-#endif
-	//-----------------------------------------------------------------
-	/* cellLev = 21, cidx = 0, tag = 8 */
-	/* cellLev = 20, cidx = 1, tag = 8 */
-	/* cellLev = 20, cidx = 2, tag = 6 */
-	/* cellLev = 20, cidx = 3, tag = 3 */
-	/* cellLev = 20, cidx = 4, tag = 5 */
-	/* cellLev = 20, cidx = 5, tag = 4 */
-	/* cellLev = 20, cidx = 6, tag = 3 */
-	/* cellLev = 20, cidx = 7, tag = 4 */
-	/* cellLev = 20, cidx = 8, tag = 6 */
 	//-----------------------------------------------------------------
 
 
@@ -725,14 +711,6 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
 	/* 2. save result of local prefix sum */
 	const int scanIdx = smem[tidx] - addChild;/* this must be an exclusive scan */
 	int scanNum = smem[NTHREADS_MAKE_TREE - 1];
-#if 0
-	if( tidx == 0 ){
-	  printf("levelIdx = %d: bidx = %d: smem = %d", levelIdx, bidx, smem[0]);
-	  for(int ii = 1; ii < NTHREADS_MAKE_TREE; ii++)
-	    printf(", %d", smem[ii]);
-	  printf("\n");
-	}
-#endif
 	int headIdx = 0;
 	const int tag = smem[gtail] - ((gtail >= TSUB_MAKE_TREE) ? smem[gtail - TSUB_MAKE_TREE] : 0);
 	/* 3. scan within a grid */
@@ -740,16 +718,6 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
 	/* 4. the thread (gidx = 0) store the total number of child cells added in this step */
 	if( bidx + tidx == 0 )
 	  *scanNum_gm = scanNum;
-#if 0
-	if( tidx == 0 )
-	  printf("levelIdx = %d: cellNum = %d, bnum = %d, gnum = %d: iter = %d/%d: bidx = %d/%d: scanNum(ful) = %d, scanNum(loc) = %d\n", levelIdx, cellNum, bnum, gnum, iter, Niter, bidx, bnumSub, scanNum, smem[NTHREADS_MAKE_TREE - 1]);
-#endif
-	//-----------------------------------------------------------------
-/* #if 1 */
-/* 	if( tag > NLEAF ){ */
-/* 	  __KILL__(stderr, "ERROR: # of child cells (%d) exceeds NLEAF(%d). Enlarge NLEAF and/or MAXIMUM_PHKEY_LEVEL(%d)\n", tag, NLEAF, MAXIMUM_PHKEY_LEVEL); */
-/* 	} */
-/* #endif */
 	//-----------------------------------------------------------------
 
 
@@ -759,7 +727,6 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
 	/* if performance is too low due to uncoalesced store, then try to implement coalesced version (probably, use additional shared memory to stock splitted child cells) */
 	//-----------------------------------------------------------------
 	int targetIdx = tail + headIdx + scanIdx;
-	/* if( lane == 0 ) */
 	if( (node) && (lane == 0) )
 	  children[cidx] = ((tag - 1) << IDXBITS) + targetIdx;
 	//-----------------------------------------------------------------
@@ -768,8 +735,6 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
 	treecell childCell = cell_sm[tidx];
 	int nrem = childCell.num;
 	const int nchild = BLOCKSIZE(nrem, addChild);
-	/* const int nchild = (itail + (addChild - 1)) / addChild; */
-	/* int nrem = itail; */
 	for(int childIdx = 0; childIdx < addChild; childIdx++){
 	  //---------------------------------------------------------------
 	  /* estimate the number of particles per child cell */
@@ -806,21 +771,6 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
 	//-----------------------------------------------------------------
 #endif//SPLIT_CHILD_CELL
 	//-----------------------------------------------------------------
-/* 	/\* error check *\/ */
-/* 	if( lone != 0 ){ */
-/* 	  __NOTE__("the cell has %d child-cells\n", tag); */
-/* #   if  MAXIMUM_PHKEY_LEVEL <= 10 */
-/* 	  __NOTE__("head of the key of the first child cell is %u\n", keyHead); */
-/* 	  __NOTE__("tail of the key of the  last child cell is %u\n", ktail); */
-/* 	  __NOTE__("key scale of child cells is %u\n", leafScale); */
-/* #else///MAXIMUM_PHKEY_LEVEL <= 10 */
-/* 	  __NOTE__("head of the key of the first child cell is %zu\n", keyHead); */
-/* 	  __NOTE__("tail of the key of the  last child cell is %zu\n", ktail); */
-/* 	  __NOTE__("key scale of child cells is %zu\n", leafScale); */
-/* #endif//MAXIMUM_PHKEY_LEVEL <= 10 */
-/* 	  __KILL__(stderr, "ERROR: tree construction failed. # of left particle(s) is %d(/%d).\n", lone, root.num); */
-/* 	}/\* if( lone != 0 ){ *\/ */
-	//-----------------------------------------------------------------
       }/* if( bidx < bnumSub ){ */
       //-------------------------------------------------------------------
       /* global synchronization within bnum blocks */
@@ -829,9 +779,6 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
       if( tidx == 0 )
 	smem[0] = *scanNum_gm;
       __syncthreads();
-      /* const int increment = BLOCKSIZE(scanNum, CELL_UNIT) * CELL_UNIT; */
-      /* tail += increment; */
-      /* numCell += increment; */
       const  int addCellNum = smem[0];
       tail    += addCellNum;
       numCell += addCellNum;
@@ -910,9 +857,6 @@ __device__ __forceinline__ void linkNode
   /* below procedure is switched on if head != NULL_CELL */
   /* if the cell is a leaf cell, then root.num pseudo particles are set. otherwise, a pseudo particle is set.  */
   const int nadd = (head != NULL_CELL) ? ((leaf_cell) ? (root.num) : (1)) : (0);
-  /* if( nadd > NLEAF ){ */
-  /*   __KILL__(stderr, "ERROR: nadd (%d) exceeds NLEAF(%d). Enlarge NLEAF and/or MAXIMUM_PHKEY_LEVEL(%d)\n", nadd, NLEAF, MAXIMUM_PHKEY_LEVEL); */
-  /* }/\* if( nadd > NLEAF ){ *\/ */
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -926,9 +870,6 @@ __device__ __forceinline__ void linkNode
   int headIdx = 0;
   /* 3. scan within a grid */
   PREFIX_SUM_MAKE_INC_GRID(&headIdx, &scanNum, bnum, bidx, tidx, lane, smem, gmem, gsync0, gsync1);
-  /* /\* 4. the thread (gidx = 0) store the total number of child cells added in this step *\/ */
-  /* if( bidx + tidx == 0 ) */
-  /*   *scanNum_gm = scanNum; */
   headIdx += scanIdx + (*phead);
   if( nadd > 0 )    *ptag = ((nadd - 1) << IDXBITS) + headIdx;
 #   if  defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH)
@@ -1225,12 +1166,6 @@ void makeTreeStructure_dev
   //-----------------------------------------------------------------------
   initPHhierarchy_kernel<<<1, NUM_PHKEY_LEVEL>>>(cell.level);
   //-----------------------------------------------------------------------
-  /* *cellNum = 1; */
-  /* *cellRem = NUM_ALLOC_TREE_CELL - 1; */
-  /* static int phead;/\* the head index of arrays to store pseudo j-particles (pj, mj) *\/ */
-  /* phead = 0; */
-  /* *nodeNum = 0; */
-  //-----------------------------------------------------------------------
 #ifdef  HUNT_MAKE_PARAMETER
   stopStopwatch(&(elapsed->makeTree));
   initStopwatch();
@@ -1368,6 +1303,9 @@ muse allocTreeNode_dev
 #ifdef  GADGET_MAC
  real **mac_dev,
 #endif//GADGET_MAC
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+ int **gmem_external, int **gsync0_external, int **gsync1_external, float **diameter_dev, float **diameter_hst, domainLocation *location, const float eps, const float eta,
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
  int **more0Buf, int **more1Buf, real **rjmaxBuf, int **fail_dev, soaTreeNode *dev, soaTreeNode *hst, soaMakeTreeBuf *buf)
 {
   //-----------------------------------------------------------------------
@@ -1467,6 +1405,16 @@ muse allocTreeNode_dev
   getLastCudaError("initGsync_kernel");
 #endif//MAKE_TREE_ON_DEVICE
   //-----------------------------------------------------------------------
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+  mycudaMalloc((void **)  gmem_external, devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int);
+  mycudaMalloc((void **)gsync0_external, devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int);
+  mycudaMalloc((void **)gsync1_external, devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int);
+  initGsync_kernel<<<1, devProp.numSM * NBLOCKS_PER_SM_OUTFLOW>>>(devProp.numSM * NBLOCKS_PER_SM_OUTFLOW, *gsync0_external, *gsync1_external);
+  getLastCudaError("initGsync_kernel");
+  mycudaMalloc    ((void **)diameter_dev, sizeof(float));  alloc.device += sizeof(float);
+  mycudaMallocHost((void **)diameter_hst, sizeof(float));  alloc.host   += sizeof(float);
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+  //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   buf->more0  = *more0Buf;
@@ -1486,6 +1434,28 @@ muse allocTreeNode_dev
   buf->gsync0_link_tree = *gsync0_link_tree;
   buf->gsync1_link_tree = *gsync1_link_tree;
 #endif//MAKE_TREE_ON_DEVICE
+  //-----------------------------------------------------------------------
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+#   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+  buf->  Nbuf_external = devProp.numSM * NBLOCKS_PER_SM_MAC * NGROUPS_MAC * NUM_ALLOC_MACBUF;
+  buf->  ibuf_external = *more0Buf;/* cast required */
+  buf->  rbuf_external = *rjmaxBuf;/* cast required */
+#endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+  buf->  gmem_external = *  gmem_external;
+  buf->gsync0_external = *gsync0_external;
+  buf->gsync1_external = *gsync1_external;
+  location->eps = eps;
+  location->eta = eta;
+#ifdef  TIME_BASED_MODIFICATION
+  location->elapsed = 0.0f;
+  location->dtmin   = 0.5f * FLT_MAX;
+  location->dtinv   = 1.0f / location->dtmin;
+#else///TIME_BASED_MODIFICATION
+  location->step = 0.0f;
+#endif//TIME_BASED_MODIFICATION
+  location->diameter_dev = *diameter_dev;
+  location->diameter_hst = *diameter_hst;
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -1530,12 +1500,14 @@ void  freeTreeNode_dev
 #ifdef  GADGET_MAC
  real  *mac_dev,
 #endif//GADGET_MAC
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+ int  *gmem_external, int  *gsync0_external, int  *gsync1_external, float  *diameter_dev, float  *diameter_hst,
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
  int  *more0Buf, int  *more1Buf, real  *rjmaxBuf, int  *fail_dev)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
-
 
   //-----------------------------------------------------------------------
   mycudaFree    ( more_dev);
@@ -1604,7 +1576,13 @@ void  freeTreeNode_dev
   mycudaFree(gmem_link_tree);  mycudaFree(gsync0_link_tree);  mycudaFree(gsync1_link_tree);
 #endif//MAKE_TREE_ON_DEVICE
   //-----------------------------------------------------------------------
-
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+  mycudaFree(gmem_external);
+  mycudaFree(gsync0_external);
+  mycudaFree(gsync1_external);
+  mycudaFree(diameter_dev);  mycudaFreeHost(diameter_hst);
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+  //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
@@ -1678,6 +1656,9 @@ muse allocTreeCell_dev
 #   if  defined(MAKE_TREE_ON_DEVICE) && defined(COUNT_INTERACTIONS)
  treecell **cell_hst, bool **leaf_hst, uint **node_hst, PHinfo **info_hst,
 #endif//defined(MAKE_TREE_ON_DEVICE) && defined(COUNT_INTERACTIONS)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+ deviceProp devProp,
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
  soaTreeCell *dev, soaTreeCell *hst)
 {
   //-----------------------------------------------------------------------
@@ -1711,7 +1692,14 @@ muse allocTreeCell_dev
   mycudaMallocHost((void **)node_hst, num * sizeof(    uint));  alloc.host += num * sizeof(    uint);
 #endif//defined(MAKE_TREE_ON_DEVICE) && defined(COUNT_INTERACTIONS)
   //-----------------------------------------------------------------------
-  mycudaMalloc    ((void **)info_dev, NUM_PHKEY_LEVEL * sizeof(PHinfo));  alloc.device += NUM_PHKEY_LEVEL * sizeof(PHinfo);
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+  mycudaMalloc    ((void **)info_dev, (NUM_PHKEY_LEVEL + 1) * sizeof(PHinfo));  alloc.device += (NUM_PHKEY_LEVEL + 1) * sizeof(PHinfo);
+  /* enforce BLOCKSIZE(clev.num, bnum * NGROUPS_OUTFLOW) becomes zero */
+  PHinfo info_tmp = {0, 1 - devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * NGROUPS_OUTFLOW, 0, 0};
+  checkCudaErrors(cudaMemcpy(&((*info_dev)[NUM_PHKEY_LEVEL]), &info_tmp, sizeof(PHinfo), cudaMemcpyHostToDevice));
+#else///!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+  mycudaMalloc    ((void **)info_dev,  NUM_PHKEY_LEVEL      * sizeof(PHinfo));  alloc.device +=  NUM_PHKEY_LEVEL      * sizeof(PHinfo);
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 #ifdef  MAKE_TREE_ON_DEVICE
   initPHinfo_dev(*info_dev);
 #else///MAKE_TREE_ON_DEVICE
@@ -2427,7 +2415,7 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 #ifndef USE_WARP_SHUFFLE_FUNC_MAC
   const int tail = head + TSUB_MAC - 1;
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
-  const int hbuf = (head / TSUB_MAC) * TSUB_MAC * NBUF_MAC;/* head index of the shared array close and queue within a thread group */
+  const int hbuf = DIV_TSUB_MAC(head) * TSUB_MAC * NBUF_MAC;/* head index of the shared array close and queue within a thread group */
   //-----------------------------------------------------------------------
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
   int smem;
@@ -2442,7 +2430,7 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
   /* pjidx would be able to be removed by integrating with list; however, reducing SM usage from 24KB to 20KB has no effect @ Ttot = 512 */
   //-----------------------------------------------------------------------
   /* head index of remote buffers */
-  const int bufHead = ((head / TSUB_MAC) + bidx * NGROUPS_MAC) * NUM_ALLOC_MACBUF;
+  const int bufHead = (DIV_TSUB_MAC(head) + bidx * NGROUPS_MAC) * NUM_ALLOC_MACBUF;
   //-----------------------------------------------------------------------
 
 
@@ -2466,9 +2454,9 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
     globalSync(tidx, bidx, bnum, gsync0, gsync1);
     //---------------------------------------------------------------------
     /* loop to set a maximum number for # of blocks */
-    for(int ii = 0; ii < bnum * BLOCKSIZE(clev.num, bnum * NGROUPS_MAC); ii += bnum){
+    for(int ii = 0; ii < BLOCKSIZE(clev.num, bnum * NGROUPS_MAC); ii++){
       //-------------------------------------------------------------------
-      const      int cidx =  clev.head + (gidx + ii * NTHREADS_MAC) / TSUB_MAC;
+      const      int cidx =  clev.head + DIV_TSUB_MAC(gidx + ii * bnum * NTHREADS_MAC);
       const treecell root = (cidx < clev.head + clev.num) ? (cell[cidx]) : (null_cell_device);
       //-------------------------------------------------------------------
 
@@ -2561,7 +2549,6 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 	  //---------------------------------------------------------------
 	  /* calculate center-of-mass */
 	  real mtot = jcom.w;
-	  /* real minv = UNITY / mtot; */
 	  real minv = UNITY / (FLT_MIN + mtot);
 	  jcom.x *= minv;
 	  jcom.y *= minv;
@@ -2722,7 +2709,7 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 		    rmin = FMAX(rjmin, rmin);
 		    //-----------------------------------------------------
 		    if( rjmax > rmin ){
-		      const int itmp = jj / TSUB_MAC;
+		      const int itmp = DIV_TSUB_MAC(jj);
 		      pjidx_loc.ia[itmp] = kidx;
 		      rjmax_loc.ra[itmp] = rjmax;
 		    }/* if( rjmax > rmin ){ */
@@ -3059,7 +3046,7 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 	//-----------------------------------------------------------------
       }/* if( root.head != NULL_CELL ){ */
       //-------------------------------------------------------------------
-    }/* for(int ii = 0; ii < bnum * BLOCKSIZE(clev.num, bnum * NGROUPS_MAC); ii += bnum){ */
+    }/* for(int ii = 0; ii < BLOCKSIZE(clev.num, bnum * NGROUPS_MAC); ii++){ */
     //---------------------------------------------------------------------
 #ifdef  COUNT_INTERACTIONS
     //---------------------------------------------------------------------
@@ -3081,8 +3068,7 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 
 
 //-------------------------------------------------------------------------
-#   if  !defined(SERIALIZED_EXECUTION) && defined(ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX)
-#if 0
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 //-------------------------------------------------------------------------
 #   if  NTHREADS_MAKE_INC != NTHREADS_OUTFLOW
 #undef  NTHREADS_MAKE_INC
@@ -3090,14 +3076,109 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 #include "../tree/make_inc.cu"
 #endif//NTHREADS_MAKE_INC != NTHREADS_OUTFLOW
 //-------------------------------------------------------------------------
+__device__ __forceinline__ bool detectOuterParticle(const jparticle jpos, const float rad, const float3 bmin, const float3 bmax)
+{
+  float sep = 0.5f * FLT_MAX;
+  float pjx = CAST_R2F(jpos.x);  pjx = fminf((pjx - rad) - bmin.x, bmax.x - (pjx + rad));
+  float pjy = CAST_R2F(jpos.y);  pjy = fminf((pjy - rad) - bmin.y, bmax.y - (pjy + rad));
+  float pjz = CAST_R2F(jpos.z);  pjz = fminf((pjz - rad) - bmin.z, bmax.z - (pjz + rad));
+  sep = fminf(sep, pjx);
+  pjy = fminf(pjy, pjz);
+  sep = fminf(pjy, sep);
+  return ((sep > 0.0f) ? false : true);
+}
+//-------------------------------------------------------------------------
+__device__ __forceinline__ void copyData_g2g
+  (uint * RESTRICT ubuf,
+#   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+   float * RESTRICT fbuf,
+#endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+   size_t srcHead, size_t dstHead, int Ncopy, const int Ndisp, const int gidx, const int Nthread, const int tidx, const int bidx, const int bnum, int * RESTRICT gsync0, int * RESTRICT gsync1)
+{
+  //-----------------------------------------------------------------------
+  /* configure the settings */
+  //-----------------------------------------------------------------------
+  const int Nfirst = Ndisp % Nthread;
+  /* ldIdx is Nfirst, Nfirst + 1, ..., Nthread - 1, 0, 1, ..., Nfirst - 1 for gidx of 0, 1, 2, ..., Nthread - 1 */
+  const int  ldIdx = (gidx + Nfirst) % Nthread;
+  const int grpIdx = (ldIdx < Nfirst) ? 0 : 1;
+  //-----------------------------------------------------------------------
+  srcHead += Ndisp - Nfirst;/* hereafter, srcHead is warpSize elements aligned */
+  //-----------------------------------------------------------------------
+
+
+  //-----------------------------------------------------------------------
+  /* fraction processing at loading from the head of source array */
+  //-----------------------------------------------------------------------
+  uint  utmp = ubuf[srcHead + ldIdx];
+#   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+  float ftmp = fbuf[srcHead + ldIdx];
+#endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+  srcHead += Nthread;
+  //-----------------------------------------------------------------------
+
+  //-----------------------------------------------------------------------
+  /* sequential load and store from source to destination on the global memory */
+  //-----------------------------------------------------------------------
+  const int Niter = BLOCKSIZE(Ncopy, Nthread);
+  for(int iter = 0; iter < Niter; iter++){
+    //---------------------------------------------------------------------
+    const int Nmove = (Ncopy > Nthread) ? (Nthread) : (Ncopy);
+    //---------------------------------------------------------------------
+    //
+    //---------------------------------------------------------------------
+    /* load from the source array on the global memory */
+    //---------------------------------------------------------------------
+    /* load from temp (fraction processing) as initialization */
+    uint  uloc = utmp;
+#   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+    float floc = ftmp;
+#endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+    //---------------------------------------------------------------------
+    /* load from global memory, store to shared memory or temp (fraction processing) */
+    utmp = ubuf[srcHead + ldIdx];
+#   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+    ftmp = fbuf[srcHead + ldIdx];
+#endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+    if( !grpIdx ){
+      uloc = utmp;
+#   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+      floc = ftmp;
+#endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+    }
+    //---------------------------------------------------------------------
+    //
+    //---------------------------------------------------------------------
+    /* store to the destination array on the global memory */
+    //---------------------------------------------------------------------
+    ubuf[dstHead + gidx] = uloc;
+#   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+    fbuf[dstHead + gidx] = floc;
+#endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+    //---------------------------------------------------------------------
+    Ncopy   -= Nmove;
+    srcHead += Nmove;
+    dstHead += Nmove;
+    //---------------------------------------------------------------------
+    globalSync(tidx, bidx, bnum, gsync0, gsync1);
+    //---------------------------------------------------------------------
+  }/* for(int iter = 0; iter < Niter; iter++){ */
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
 __global__ void __launch_bounds__(NTHREADS_OUTFLOW, NBLOCKS_PER_SM_OUTFLOW) checkOutflow_kernel
-     (const int topLev, READ_ONLY PHinfo * RESTRICT level,
-      READ_ONLY uint * RESTRICT ptag,
-      READ_ONLY uint * RESTRICT more, jparticle * RESTRICT pj, real * RESTRICT bmax,
-      const float3 bmin, const float3 bmax, const float skin,
-      int * RESTRICT ibuf, float * RESTRICT fbuf, int * RESTRICT overflow,
-      int * RESTRICT gmem, int * RESTRICT gsync0, int * RESTRICT gsync1
-      )
+  (const int topLev, READ_ONLY PHinfo * level, READ_ONLY uint * RESTRICT ptag,
+   READ_ONLY uint * RESTRICT more, jparticle * RESTRICT pj, real * RESTRICT bmax,
+   const float3 boxmin, const float3 boxmax,
+   uint * RESTRICT ubuf,
+#   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+#ifdef  TIME_BASED_MODIFICATION
+   const float linv,
+#endif//TIME_BASED_MODIFICATION
+   float * RESTRICT fbuf,
+#endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+   int * RESTRICT overflow, const size_t bufSize,
+   int * RESTRICT gmem, int * RESTRICT gsync0, int * RESTRICT gsync1)
 {
   //-----------------------------------------------------------------------
   /* identify thread properties */
@@ -3107,11 +3188,10 @@ __global__ void __launch_bounds__(NTHREADS_OUTFLOW, NBLOCKS_PER_SM_OUTFLOW) chec
   const int bidx =  BLOCKIDX_X1D;
   const int bnum =   GRIDDIM_X1D;
   //-----------------------------------------------------------------------
-  const int lane = tidx & (warpSize - 1);
-  const int head = tidx - lane;
-#ifndef USE_WARP_SHUFFLE_FUNC_OUTFLOW
-  const int tail = head + warpSize - 1;
-#endif//USE_WARP_SHUFFLE_FUNC_OUTFLOW
+  /* for local summation */
+  const int lane = tidx & (TSUB_OUTFLOW - 1);
+  /* for globalPrefixSum */
+  const int lane32 = tidx & (warpSize - 1);
   //-----------------------------------------------------------------------
   __shared__ int smem[NTHREADS_OUTFLOW];
   //-----------------------------------------------------------------------
@@ -3121,52 +3201,71 @@ __global__ void __launch_bounds__(NTHREADS_OUTFLOW, NBLOCKS_PER_SM_OUTFLOW) chec
   //-----------------------------------------------------------------------
   int rem = 0;
   {
+    //---------------------------------------------------------------------
     const PHinfo clev = level[topLev];
-    for(int ii = 0; ii < bnum * BLOCKSIZE(clev.num, bnum * NTHREADS_OUTFLOW); ii += bnum){
-      const  int cidx =  clev.head + (gidx + ii * NTHREADS_OUTFLOW);
-      const uint node = (cidx < clev.head + clev.num) ? (ptag[cidx]) : (NULL_NODE);
-      int add = 0;
+    //---------------------------------------------------------------------
+#if 0
+    if( gidx == 0 )
+      printf("clev.head = %d, clev.num = %d, Nloop = %d\n", clev.head, clev.num, BLOCKSIZE(clev.num, bnum * NGROUPS_OUTFLOW));
+#endif
+    for(int ii = 0; ii < BLOCKSIZE(clev.num, bnum * NGROUPS_OUTFLOW); ii++){
+      //-------------------------------------------------------------------
+      /* pick up a tree cell */
+      const  int cidx = DIV_TSUB_OUTFLOW(gidx + ii * bnum * NTHREADS_OUTFLOW);
+      const uint node = (cidx < clev.num) ? (ptag[clev.head + cidx]) : (NULL_NODE);
+      /* pick up tree nodes and check the position */
+      const uint jnum  = (node >> IDXBITS) + 1;
+      const uint jhead = (node	& IDXMASK);
       int num = 0;
-      int son = NULL_NODE;
-      if( node != NULL_NODE ){
-	num = 1 + (node >> IDXBITS);
-	son = node & IDXMASK;
-	float sep = 0.5f * FLT_MAX;
-	for(int jj = son; jj < son + num; jj++)
-	  if( more[jj] != jj ){
-	    const float rad = CAST_R2F(bmax[jj]);
-	    const jparticle jpos = pj[jj];
-	    float pjx = CAST_R2F(jpos.x);	    pjx = fminf(pjx - rad - bmin.x, bmax.x - pjx - rad);
-	    float pjy = CAST_R2F(jpos.y);	    pjy = fminf(pjy - rad - bmin.y, bmax.y - pjy - rad);
-	    float pjz = CAST_R2F(jpos.z);	    pjz = fminf(pjz - rad - bmin.z, bmax.z - pjz - rad);
-	    sep = fminf(sep, pjx);
-	    pjy = fminf(pjy, pjz);
-	    sep = fminf(pjy, sep);
-	  }/* if( more[jj] != jj ){ */
-	if( sep < 2.0f * skin )
-	  add = num;
-      }/* if( node != NULL_NODE ){ */
-      PREFIX_SUM_MAKE_INC_BLCK(add, tidx, lane, smem);
-      int headIdx, scanNum;
-      PREFIX_SUM_MAKE_INC_GRID(&headIdx, &scanNum, bnum, bidx, tidx, lane, smem, gmem, gsync0, gsync1);
-      headIdx += rem;
-      for(int jj = 0; jj < add; jj++){
-	ibuf[headIdx + jj] = son + jj;
-	fbuf[headIdx + jj] = CAST_R2F(pj[son + jj].w);
-      }/* for(int jj = 0; jj < add; jj++){ */
+      int list = 0;
+      if( node != NULL_NODE )
+	for(uint jj = lane; jj < jnum; jj += TSUB_OUTFLOW)
+	  if( more[jhead + jj] != (jhead + jj) )
+	    if( detectOuterParticle(pj[jhead + jj], CAST_R2F(bmax[jhead + jj]), boxmin, boxmax) ){
+	      num++;
+	      list |= 1 << (DIV_TSUB_OUTFLOW(jj));
+	    }/* if( detectOuterParticle(pj[jhead + jj], CAST_R2F(bmax[jhead + jj])) ){ */
+      /* exclusive scan within a grid */
+      PREFIX_SUM_MAKE_INC_BLCK(num, tidx, lane32, smem);
+      int scanIdx = smem[tidx] - num;
+      int scanNum = smem[NTHREADS_OUTFLOW - 1];
+      int headIdx = 0;
+      PREFIX_SUM_MAKE_INC_GRID(&headIdx, &scanNum, bnum, bidx, tidx, lane32, smem, gmem, gsync0, gsync1);
+      headIdx += scanIdx;
+      /* store the picked tree nodes on the global memory */
+      if( num != 0 ){
+	int kk = 0;
+	for(uint jj = lane; jj < jnum; jj += TSUB_OUTFLOW){
+	  if( (list >> DIV_TSUB_OUTFLOW(jj)) & 1 ){
+	    ubuf[rem + headIdx + kk] =          more[jhead + jj];
+#ifdef  USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES
+	    fbuf[rem + headIdx + kk] = CAST_R2F(  pj[jhead + jj].w);
+#endif//USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES
+#ifdef  TIME_BASED_MODIFICATION
+	    fbuf[rem + headIdx + kk] = ldexpf(linv, topLev);
+#endif//TIME_BASED_MODIFICATION
+	    kk++;
+	  }/* if( (list >> DIV_TSUB_OUTFLOW(jj)) & 1 ){ */
+	  if( kk == num )
+	    break;
+	}/* for(int jj = 0; jj < DIV_TSUB_OUTFLOW(NLEAF); jj++){ */
+      }/* if( num != 0 ){ */
       rem += scanNum;
-    }/* for(int ii = 0; ii < bnum * BLOCKSIZE(clev.num, bnum * NTHREADS_OUTFLOW); ii += bnum){ */
+      //-------------------------------------------------------------------
+    }/* for(int ii = 0; ii < BLOCKSIZE(clev.num, bnum * NTHREADS_OUTFLOW); ii++){ */
+    //---------------------------------------------------------------------
   }
   //-----------------------------------------------------------------------
-
+#if 0
+  if( gidx == 0 )
+    printf("rem = %d\n", rem);
+#endif
+#if 1
   //-----------------------------------------------------------------------
   /* detect particles locate outside the preset domain */
   //-----------------------------------------------------------------------
-  int hbuf = 0;
-  jparticle jcen;
-  jcen.x = CAST_F2R(0.5f * (bmin.x + bmax.x));
-  jcen.y = CAST_F2R(0.5f * (bmin.y + bmax.y));
-  jcen.z = CAST_F2R(0.5f * (bmin.z + bmax.z));
+  size_t hbuf = 0;
+  size_t tbuf = rem;
   //-----------------------------------------------------------------------
   while( true ){
     //---------------------------------------------------------------------
@@ -3176,43 +3275,109 @@ __global__ void __launch_bounds__(NTHREADS_OUTFLOW, NBLOCKS_PER_SM_OUTFLOW) chec
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
-    /* check child cells of a picked up tree node from global memory */
-    float rad = 0.0f;
-    jparticle jpos = jcen;
-    if( gidx < rem ){
-      const int jj = buf[hbuf + gidx];
-      const uint node = more[jj];
-
-
-      if( more[jj] != jj ){
-	jpos = pj[jj];
-	rad = CAST_R2F(bmax[jj]);
-      }
-    }
-    //---------------------------------------------------------------------
-    /* calculate distance from the boundary */
-    float sep = 0.5f * FLT_MAX;
-    float pjx = CAST_R2F(jpos.x);    pjx = fminf(pjx - rad - bmin.x, bmax.x - pjx - rad);
-    float pjy = CAST_R2F(jpos.y);    pjy = fminf(pjy - rad - bmin.y, bmax.y - pjy - rad);
-    float pjz = CAST_R2F(jpos.z);    pjz = fminf(pjz - rad - bmin.z, bmax.z - pjz - rad);
-    sep = fminf(sep, pjx);
-    pjy = fminf(pjy, pjz);
-    sep = fminf(pjy, sep);
+    /* pick up a tree node per TSUB_OUTFLOW threads */
+    const size_t nidx = hbuf + DIV_TSUB_OUTFLOW(gidx);
+    const uint   root = (nidx < tbuf) ? (ubuf[nidx]) : (NULL_NODE);
+    const int checked = (rem < (bnum * NGROUPS_OUTFLOW)) ? (rem) : (bnum * NGROUPS_OUTFLOW);
+    rem  -= checked;
+    hbuf += checked;
+    if( (rem == 0) && (hbuf > (checked + bnum * NGROUPS_OUTFLOW)) )
+      hbuf = tbuf = 0;
+    /* if( rem == 0 ) */
+    /*   hbuf = tbuf = 0; */
     //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
+    /* pick up tree nodes and check the position */
+    const uint jnum  = (root >> IDXBITS) + 1;
+    const uint jhead = (root  & IDXMASK);
+    int num = 0;
+    int list = 0;
+    if( root != NULL_NODE )
+      for(uint jj = lane; jj < jnum; jj += TSUB_OUTFLOW)
+	if( more[jhead + jj] != (jhead + jj) )
+	  if( detectOuterParticle(pj[jhead + jj], CAST_R2F(bmax[jhead + jj]), boxmin, boxmax) ){
+	    num++;
+	    list |= 1 << (DIV_TSUB_OUTFLOW(jj));
+	  }/* if( detectOuterParticle(pj[jhead + jj], CAST_R2F(bmax[jhead + jj])) ){ */
     //---------------------------------------------------------------------
-
+    /* exclusive scan within a grid */
+    PREFIX_SUM_MAKE_INC_BLCK(num, tidx, lane32, smem);
+    int scanIdx = smem[tidx] - num;
+    int scanNum = smem[NTHREADS_OUTFLOW - 1];
+    int headIdx = 0;
+    PREFIX_SUM_MAKE_INC_GRID(&headIdx, &scanNum, bnum, bidx, tidx, lane32, smem, gmem, gsync0, gsync1);
+    headIdx += scanIdx;
     //---------------------------------------------------------------------
+    /* edit MAC of the external tree nodes and commit their child nodes as next candidates */
+    if( num != 0 ){
+#ifdef  TIME_BASED_MODIFICATION
+      const float base_inv = fbuf[nidx];
+#endif//TIME_BASED_MODIFICATION
+#ifdef  USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES
+      const float fmac = fbuf[nidx];
+#endif//USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES
+      int kk = 0;
+      for(uint jj = lane; jj < jnum; jj += TSUB_OUTFLOW){
+	if( (list >> DIV_TSUB_OUTFLOW(jj)) & 1 ){
+	  ubuf[tbuf + (size_t)(headIdx + kk)] =          more[jhead + jj];
+#   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+#ifdef  TIME_BASED_MODIFICATION
+	  fbuf[tbuf + (size_t)(headIdx + kk)] = 2.0f * base_inv;
+	  /* we want calculate 2^(5/4)^n */
+#ifdef  GADGET_MAC
+	  pj[jhead + jj].w *= exp2f(5.0f * fmaxf(ceilf(log2(CAST_R2F(bmax[jhead + jj]) * base_inv)), 1.0f));
+#else///GADGET_MAC
+	  pj[jhead + jj].w *= exp2f(2.5f * fmaxf(ceilf(log2(CAST_R2F(bmax[jhead + jj]) * base_inv)), 1.0f));
+#endif//GADGET_MAC
+#endif//TIME_BASED_MODIFICATION
+#ifdef  USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES
+	  fbuf[tbuf + (size_t)(headIdx + kk)] = CAST_R2F(  pj[jhead + jj].w);
+	  pj[jhead + jj].w = CAST_F2R(fmac);
+#endif//USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES
+#else///defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+	  /* in the worst case, 4 processes can share the same location */
+	  /* then, m_J approaches to m_J / 4 */
+#ifdef  GADGET_MAC
+	  /* diJ^4 is \propto \propto m_J */
+	  /* pj[jhead + jj].w *= 4.0f; */
+	  pj[jhead + jj].w *= 32.0f;/* 32 = 2^5 */
+#else///GADGET_MAC
+	  /* in limit of b_J is 0, diJ^2 is \propto m_J^1/2 */
+	  /* pj[jhead + jj].w *= 2.0f; */
+	  pj[jhead + jj].w *= 5.656854249f;/* 5.656854249 = 2^2.5 */
+#endif//GADGET_MAC
+#endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+	  kk++;
+	}/* if( (list >> DIV_TSUB_OUTFLOW(jj)) & 1 ){ */
+	if( kk == num )
+	  break;
+      }/* for(uint jj = lane; jj < jnum; jj += TSUB_OUTFLOW){ */
+    }/* if( num != 0 ){ */
+    //---------------------------------------------------------------------
+    tbuf += scanNum;
+    rem  += scanNum;
+    if( (gidx == 0) && (tbuf > bufSize) )
+      atomicAdd(overflow, 1);
+    //---------------------------------------------------------------------
+    globalSync(tidx, bidx, bnum, gsync0, gsync1);
+    //---------------------------------------------------------------------
+    if( bufSize - tbuf < DIV_TSUB_OUTFLOW(bnum * NTHREADS_OUTFLOW) )
+      copyData_g2g(ubuf,
+#   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+		   fbuf,
+#endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+		   0, 0, tbuf - hbuf, hbuf, gidx, bnum * NTHREADS_OUTFLOW, tidx, bidx, bnum, gsync0, gsync1);
     //---------------------------------------------------------------------
   }/* while( true ){ */
   //-----------------------------------------------------------------------
-
-
+#else
+  if( gidx == 0 )
+    printf("rem = %d\n", rem);
+#endif
 }
 //-------------------------------------------------------------------------
-#endif
-#endif//!defined(SERIALIZED_EXECUTION) && defined(ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX)
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 //-------------------------------------------------------------------------
 
 
@@ -3390,10 +3555,13 @@ void calcMultipole_dev
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
  , const real eps2
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
-#   if  !defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE)
- , const soaTreeNode node_hst, real * RESTRICT bmax_root_hst
-#endif//!defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE)
 #ifndef SERIALIZED_EXECUTION
+#ifndef BUILD_LET_ON_DEVICE
+ , const soaTreeNode node_hst, real * RESTRICT bmax_root_hst
+#endif//BUILD_LET_ON_DEVICE
+#ifdef  CARE_EXTERNAL_PARTICLES
+ , domainLocation *location
+#endif//CARE_EXTERNAL_PARTICLES
  , double *tmac
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
@@ -3413,9 +3581,15 @@ void calcMultipole_dev
   initStatistics_kernel<<<1, 1>>>(stats_dev);
 #endif//COUNT_INTERACTIONS
   //-----------------------------------------------------------------------
-#   if  defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
+#ifdef  EXEC_BENCHMARK
   initStopwatch();
-#endif//defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
+#else///EXEC_BENCHMARK
+#ifndef SERIALIZED_EXECUTION
+  static struct timeval start;
+  checkCudaErrors(cudaDeviceSynchronize());
+  gettimeofday(&start, NULL);
+#endif//SERIALIZED_EXECUTION
+#endif//EXEC_BENCHMARK
   //-----------------------------------------------------------------------
 
 
@@ -3529,8 +3703,6 @@ void calcMultipole_dev
   initStopwatch();
 #endif//HUNT_MAKE_PARAMETER
   //-----------------------------------------------------------------------
-#if 1
-  //-----------------------------------------------------------------------
   /* set pseudo j-particles */
   //-----------------------------------------------------------------------
   calcMultipole_kernel<<<devProp.numSM * NBLOCKS_PER_SM_MAC, NTHREADS_MAC>>>
@@ -3553,24 +3725,99 @@ void calcMultipole_dev
   int fail_hst;
   checkCudaErrors(cudaMemcpy(&fail_hst, buf.fail, sizeof(int), cudaMemcpyDeviceToHost));
   if( fail_hst != 0 ){
-    __KILL__(stderr, "ERROR: buffer (%d elements per %d threads group) overflow at least %d times.\nPLEASE re-simulate after increasing NUM_ALLOC_MACBUF defined in src/tree/make.h.\n", NUM_ALLOC_MACBUF, TSUB_MAC, fail_hst);
+    __KILL__(stderr, "ERROR: buffer (%d elements per %d threads group) overflow at least %d times.\nPLEASE re-simulate after increasing NUM_ALLOC_MACBUF defined in src/tree/make.h.\n",
+	     NUM_ALLOC_MACBUF, TSUB_MAC, fail_hst);
   }
   //-----------------------------------------------------------------------
-#   if  defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+  float3 boxmin = location->boxmin;
+  float3 boxmax = location->boxmax;
+#ifdef  MODIFY_INTERNAL_DOMAIN
+#ifdef  TIME_BASED_MODIFICATION
+  const float skin = location->elapsed * location->dtinv * location->eps * location->eta;
+#else///TIME_BASED_MODIFICATION
+  const float skin =                     location->step  * location->eps * location->eta;
+#endif//TIME_BASED_MODIFICATION
+#if 0
+  fprintf(stdout, "skin = %e\n", skin);
+  fflush(NULL);
+#endif
+  boxmin.x += skin;  boxmin.y += skin;  boxmin.z += skin;
+  boxmax.x -= skin;  boxmax.y -= skin;  boxmax.z -= skin;
+#endif//MODIFY_INTERNAL_DOMAIN
+  int topLev = NUM_PHKEY_LEVEL;
+#ifdef  TIME_BASED_MODIFICATION
+  if( location->elapsed > 0.5f * location->dtmin ){
+    topLev = -(int)ceilf(log2f(location->elapsed * location->dtinv * location->eta * location->eps * location->linv)) - 1;/* commit parent tree cells */
+    if( topLev < 0 )
+      topLev = 0;
+    if( topLev >= bottomLev )
+      topLev = NUM_PHKEY_LEVEL;
+  }/* if( location->elapsed > 0.5f * location->dtmin ){ */
+#else///TIME_BASED_MODIFICATION
+  if( location->step > 0.5f ){
+    topLev = -(int)ceilf(log2f(location->step * location->dL_L)) - 1;/* commit parent tree cells */
+    if( topLev < 0 )
+      topLev = 0;
+    if( topLev >= bottomLev )
+      topLev = NUM_PHKEY_LEVEL;
+    __NOTE__("step = %f, eps = %e, eta = %e, L = %e, dL_L = %e, topLev = %d, bottomLev = %d\n", location->step, location->eps, location->eta, *(location->diameter_hst), location->dL_L, topLev, bottomLev);
+#if 0
+    fflush(stdout);
+    exit(0);
+#endif
+  }/* if( location->step > 0.5f ){ */
+#endif//TIME_BASED_MODIFICATION
+  checkOutflow_kernel<<<devProp.numSM * NBLOCKS_PER_SM_OUTFLOW, NTHREADS_OUTFLOW>>>
+    (topLev, cell.level, cell.ptag,
+     node.more, node.jpos, node.bmax,
+     boxmin, boxmax,
+#   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+     (uint *)buf.ibuf_external,
+#ifdef  TIME_BASED_MODIFICATION
+     location->linv,
+#endif//TIME_BASED_MODIFICATION
+     (float *)buf.rbuf_external,
+#else///defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+     buf.ubuf_external,
+#endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+     buf.fail, buf.Nbuf_external,
+     buf.gmem_external, buf.gsync0_external, buf.gsync1_external);
+  getLastCudaError("checkOutflow_kernel");
+  checkCudaErrors(cudaMemcpy(&fail_hst, buf.fail, sizeof(int), cudaMemcpyDeviceToHost));
+  if( fail_hst != 0 ){
+#   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+    __KILL__(stderr, "ERROR: buffer (%zu elements in total) overflow at least %d times.\nPLEASE re-simulate after increasing NUM_ALLOC_MACBUF(%d) defined in src/tree/make.h.\n",
+	     buf.Nbuf_external, fail_hst, NUM_ALLOC_MACBUF);
+#else///defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+    __KILL__(stderr, "ERROR: buffer (%zu elements in total) overflow at least %d times.\nPLEASE re-simulate after decreasing NUM_BODY_MAX(%d) or GLOBAL_MEMORY_SYSBUF(%zu) defined in src/misc/structure.h or TREE_SAFETY_VAL(%f) defined in src/tree/make.h, or EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h.\n",
+      buf.Nbuf_external, fail_hst, NUM_BODY_MAX, (size_t)GLOBAL_MEMORY_SYSBUF, TREE_SAFETY_VAL, EXTEND_NUM_TREE_NODE);
+#endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+  }
+#if 0
+  /* if( topLev != NUM_PHKEY_LEVEL ){ */
+  if( location->step > 1.5f ){
+    cudaDeviceSynchronize();
+    exit(0);
+  }
+#endif
+#ifndef TIME_BASED_MODIFICATION
+  location->step += 1.0f;
+#endif//TIME_BASED_MODIFICATION
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+  //-----------------------------------------------------------------------
+#ifdef  EXEC_BENCHMARK
   double time = 0.0;
   stopStopwatch(&time);
-#ifdef  SERIALIZED_EXECUTION
-  *tmac += time;
-#endif//SERIALIZED_EXECUTION
-#ifdef  EXEC_BENCHMARK
   elapsed->calcMultipole += time;
+#else///EXEC_BENCHMARK
+#ifndef SERIALIZED_EXECUTION
+  static struct timeval finish;
+  checkCudaErrors(cudaDeviceSynchronize());
+  gettimeofday(&finish, NULL);
+  *tmac +=calcElapsedTimeInSec(start, finish);
+#endif//SERIALIZED_EXECUTION
 #endif//EXEC_BENCHMARK
-#endif//defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
-  //-----------------------------------------------------------------------
-#if 0
-  checkCudaErrors(cudaMemcpy(pi.encBall, pi.jpos, sizeof(position), cudaMemcpyDeviceToDevice));
-  checkCudaErrors(cudaMemcpy(pi.encBall_hst, pi.encBall, sizeof(position), cudaMemcpyDeviceToHost));
-#endif
   //-----------------------------------------------------------------------
 
 
@@ -3605,19 +3852,7 @@ void calcMultipole_dev
   exit(0);
 #endif//DBG_CALC_MULTIPOLE
   //-----------------------------------------------------------------------
-#endif
 
-  //-----------------------------------------------------------------------
-#if 0
-  jparticle *pj_hst;
-  mycudaMallocHost((void **)&pj_hst, pjNum * sizeof(jparticle));
-  checkCudaErrors(cudaMemcpy(pj_hst, node.jpos, pjNum * sizeof(jparticle), cudaMemcpyDeviceToHost));
-  for(int jj = 0; jj < pjNum; jj++)
-    fprintf(stdout, "%d:\t%e, %e, %e\n", jj, pj_hst[jj].x, pj_hst[jj].y, pj_hst[jj].z);
-  fflush(stdout);
-  mycudaFreeHost(pj_hst);
-  exit(0);
-#endif
   //-----------------------------------------------------------------------
 #if 0
   printf("%s(%d): %s: tentative kill for performance tuning\n", __FILE__, __LINE__, __func__);
@@ -3685,8 +3920,9 @@ void setGlobalConstants_make_dev_cu
 
   //-----------------------------------------------------------------------
   /* error checking before running the kernel */
-  //-----------------------------------------------------------------------
   struct cudaFuncAttributes funcAttr;
+  //-----------------------------------------------------------------------
+  /* check calcMultipole_kernel() */
   checkCudaErrors(cudaFuncGetAttributes(&funcAttr, calcMultipole_kernel));
   if( funcAttr.numRegs != REGISTERS_PER_THREAD_MAC ){
     //---------------------------------------------------------------------
@@ -3715,6 +3951,7 @@ void setGlobalConstants_make_dev_cu
     //---------------------------------------------------------------------
   }/* if( Nblck != NBLOCKS_PER_SM ){ */
   //-----------------------------------------------------------------------
+  /* check makeTree_kernel() */
   checkCudaErrors(cudaFuncGetAttributes(&funcAttr, makeTree_kernel));
   if( funcAttr.numRegs != REGISTERS_PER_THREAD_MAKE_TREE ){
     //---------------------------------------------------------------------
@@ -3723,7 +3960,7 @@ void setGlobalConstants_make_dev_cu
     fprintf(stderr, "note: GPUGEN = %d, GPUVER = %d, NTHREADS_MAKE_TREE = %d.\n", GPUGEN, GPUVER, NTHREADS_MAKE_TREE);
     fflush (stderr);
     //---------------------------------------------------------------------
-  }/* if( funcAttr.numRegs != REGISTERS_PER_THREAD_MAC ){ */
+  }/* if( funcAttr.numRegs != REGISTERS_PER_THREAD_MAKE_TREE ){ */
   regLimit = MAX_REGISTERS_PER_SM / (funcAttr.numRegs * NTHREADS_MAKE_TREE);
   if( regLimit > (MAX_REGISTERS_PER_SM / NTHREADS_MAKE_TREE) )
     regLimit = (MAX_REGISTERS_PER_SM / NTHREADS_MAKE_TREE);
@@ -3738,6 +3975,7 @@ void setGlobalConstants_make_dev_cu
     //---------------------------------------------------------------------
   }/* if( Nblck != NBLOCKS_PER_SM ){ */
   //-----------------------------------------------------------------------
+  /* check linkTree_kernel() */
   checkCudaErrors(cudaFuncGetAttributes(&funcAttr, linkTree_kernel));
   if( funcAttr.numRegs != REGISTERS_PER_THREAD_LINK_TREE ){
     //---------------------------------------------------------------------
@@ -3746,7 +3984,7 @@ void setGlobalConstants_make_dev_cu
     fprintf(stderr, "note: GPUGEN = %d, GPUVER = %d, NTHREADS_LINK_TREE = %d.\n", GPUGEN, GPUVER, NTHREADS_LINK_TREE);
     fflush (stderr);
     //---------------------------------------------------------------------
-  }/* if( funcAttr.numRegs != REGISTERS_PER_THREAD_MAC ){ */
+  }/* if( funcAttr.numRegs != REGISTERS_PER_THREAD_LINK_TREE ){ */
   regLimit = MAX_REGISTERS_PER_SM / (funcAttr.numRegs * NTHREADS_LINK_TREE);
   if( regLimit > (MAX_REGISTERS_PER_SM / NTHREADS_LINK_TREE) )
     regLimit = (MAX_REGISTERS_PER_SM / NTHREADS_LINK_TREE);
@@ -3760,6 +3998,32 @@ void setGlobalConstants_make_dev_cu
     __KILL__(stderr, "ERROR: # of blocks per SM for linkTree_kernel() is mispredicted (%d).\n\tThe limits come from register and shared memory are %d and %d, respectively.\n\tHowever, the expected value of NBLOCKS_PER_SM_LINK_TREE defined in src/tree/make_dev.cu is %d.\n\tAdditional information: # of registers per thread is %d while predicted as %d (GPUGEN = %d, GPUVER = %d).\n", Nblck, regLimit, memLimit, NBLOCKS_PER_SM_LINK_TREE, funcAttr.numRegs, REGISTERS_PER_THREAD_LINK_TREE, GPUGEN, GPUVER);
     //---------------------------------------------------------------------
   }/* if( Nblck != NBLOCKS_PER_SM ){ */
+  //-----------------------------------------------------------------------
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+  /* check checkOutflow_kernel() */
+  checkCudaErrors(cudaFuncGetAttributes(&funcAttr, checkOutflow_kernel));
+  if( funcAttr.numRegs != REGISTERS_PER_THREAD_OUTFLOW ){
+    //---------------------------------------------------------------------
+    fprintf(stderr, "%s(%d): %s\n", __FILE__, __LINE__, __func__);
+    fprintf(stderr, "warning: # of registers used (%d) in checkOutflow_kernel() is not match with the predicted value (%d).\n", funcAttr.numRegs, REGISTERS_PER_THREAD_OUTFLOW);
+    fprintf(stderr, "note: GPUGEN = %d, GPUVER = %d, NTHREADS_OUTFLOW = %d.\n", GPUGEN, GPUVER, NTHREADS_OUTFLOW);
+    fflush (stderr);
+    //---------------------------------------------------------------------
+  }/* if( funcAttr.numRegs != REGISTERS_PER_THREAD_OUTFLOW ){ */
+  regLimit = MAX_REGISTERS_PER_SM / (funcAttr.numRegs * NTHREADS_OUTFLOW);
+  if( regLimit > (MAX_REGISTERS_PER_SM / NTHREADS_OUTFLOW) )
+    regLimit = (MAX_REGISTERS_PER_SM / NTHREADS_OUTFLOW);
+  memLimit = (16 * 1024) / funcAttr.sharedSizeBytes;
+  Nblck = (regLimit <= memLimit) ? regLimit : memLimit;
+  if( Nblck > (MAX_THREADS_PER_SM       / NTHREADS_OUTFLOW) )    Nblck = MAX_THREADS_PER_SM / NTHREADS_OUTFLOW;
+  if( Nblck >   MAX_BLOCKS_PER_SM                           )    Nblck = MAX_BLOCKS_PER_SM;
+  if( Nblck > (( MAX_WARPS_PER_SM * 32) / NTHREADS_OUTFLOW) )    Nblck = ((MAX_WARPS_PER_SM * 32) / NTHREADS_OUTFLOW);
+  if( Nblck != NBLOCKS_PER_SM_OUTFLOW ){
+    //---------------------------------------------------------------------
+    __KILL__(stderr, "ERROR: # of blocks per SM for checkOutflow_kernel() is mispredicted (%d).\n\tThe limits come from register and shared memory are %d and %d, respectively.\n\tHowever, the expected value of NBLOCKS_PER_SM_OUTFLOW defined in src/tree/make_dev.cu is %d.\n\tAdditional information: # of registers per thread is %d while predicted as %d (GPUGEN = %d, GPUVER = %d).\n", Nblck, regLimit, memLimit, NBLOCKS_PER_SM_OUTFLOW, funcAttr.numRegs, REGISTERS_PER_THREAD_OUTFLOW, GPUGEN, GPUVER);
+    //---------------------------------------------------------------------
+  }/* if( Nblck != NBLOCKS_PER_SM ){ */
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------

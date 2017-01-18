@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/06(Tue) 18:02:26
+                  last updated on 2017/01/16(Mon) 11:40:37
  *                                                                       *
  *    Header File for Input/Output Code of N-body simulation             *
  *                                                                       *
@@ -121,7 +121,7 @@ extern "C"
 #endif//MONITOR_ENERGY_ERROR
 #endif//USE_HDF5_FORMAT
 			  );
-  void writeTentativeData        (double  time, double  dt, ulong  steps, int num, iparticle body, char file[], int *last
+  void writeTentativeData        (double  time, double  dt, ulong  steps, ulong num, iparticle body, char file[], int *last
 #ifdef  USE_HDF5_FORMAT
 				  , hdf5struct type
 				  , rebuildTree rebuild, measuredTime measured

@@ -1,6 +1,6 @@
 /************************************************************************* \
  *                                                                       *
-                  last updated on 2016/12/06(Tue) 22:17:31
+                  last updated on 2017/01/18(Wed) 11:05:29
  *                                                                       *
  *    N-body code based on Barnes--Hut tree                              *
  *                                                                       *
@@ -119,7 +119,10 @@ static inline void setMultipoleMoment
  , const real eps2
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 #ifndef SERIALIZED_EXECUTION
- , double *tmac
+#ifdef  CARE_EXTERNAL_PARTICLES
+ , domainLocation *location
+#endif//CARE_EXTERNAL_PARTICLES
+ , measuredTime *elapsed
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
  , tree_stats *level
@@ -139,16 +142,22 @@ static inline void setMultipoleMoment
 #ifdef  CALC_MULTIPOLE_ON_DEVICE
   //-----------------------------------------------------------------------
   /* calculate multipole moment on device */
+#ifndef SERIALIZED_EXECUTION
+  double tmac = 0.0;
+#endif//SERIALIZED_EXECUTION
   calcMultipole_dev(bottomLev, cell_dev,
 		    num, ibody, numNode, node_dev, buf, devProp
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
 		    , eps2
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
-#   if  !defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE)
-		    , node_hst, bmax_root
-#endif//!defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE)
 #ifndef SERIALIZED_EXECUTION
-		    , tmac
+#ifndef BUILD_LET_ON_DEVICE
+		    , node_hst, bmax_root
+#endif//BUILD_LET_ON_DEVICE
+#ifdef  CARE_EXTERNAL_PARTICLES
+		    , location
+#endif//CARE_EXTERNAL_PARTICLES
+		    , &tmac
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
 		    , cell_hst, level
@@ -157,6 +166,10 @@ static inline void setMultipoleMoment
 		    , execTime
 #endif//EXEC_BENCHMARK
 		    );
+#ifndef SERIALIZED_EXECUTION
+  elapsed->sum_excg    += tmac;
+  elapsed->sum_rebuild += tmac;
+#endif//SERIALIZED_EXECUTION
   //-----------------------------------------------------------------------
 #else///CALC_MULTIPOLE_ON_DEVICE
   //-----------------------------------------------------------------------
@@ -229,15 +242,15 @@ static inline void updateDomain
  iparticle *ibody0_dev, iparticle *ibody1_dev, iparticle *ibody0_hst, iparticle *ibody1_hst, const ulong Ntot,
  particlePos pos_hst, particlePos pos_dev, domainCfg domain, domainDecomposeKey key,
  sampling sample, samplePos loc, samplePos ful, soaPHsort soa, const deviceProp devProp, const deviceInfo devInfo,
- double *exchangeInterval, MPIinfo orm[restrict], MPIinfo rep[restrict],
-#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
- const float epsinv,
-#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+ autoTuningParam *exchangeParam, double *exchangeInterval, MPIinfo orm[restrict], MPIinfo rep[restrict],
 #else///EXCHANGE_USING_GPUS
  iparticle ibody0_dev, iparticle ibody0_hst, iparticle ibody1_hst,
  const int ndim, MPIinfo *orbCfg, domainCfg *domCfg, domainDecomposeKey *domDecKey,
  const real samplingRate, const int sampleNumMax, real *sampleLoc, real *sampleFul, int *sampleRecvNum, int *sampleRecvDsp, real *domainMin, real *domainMax,
 #endif//EXCHANGE_USING_GPUS
+#ifdef  CARE_EXTERNAL_PARTICLES
+ domainLocation *location,
+#endif//CARE_EXTERNAL_PARTICLES
  const MPIcfg_tree letcfg, sendCfg *iparticleSendBuf, recvCfg *iparticleRecvBuf, measuredTime *measured
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
  , brentStatus *status, brentMemory *memory
@@ -251,19 +264,29 @@ static inline void updateDomain
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
 #ifdef  EXCHANGE_USING_GPUS
+  /* clear counters */
+  *exchangeInterval = 0.0;
+  initStatVal(&((*exchangeParam).linearStats));  initGuessTime(&((*exchangeParam).linearGuess));
+  initStatVal(&((*exchangeParam). powerStats));  initGuessTime(&((*exchangeParam). powerGuess));
+#ifdef  USE_PARABOLIC_GROWTH_MODEL
+  initStatVal  (&((*exchangeParam).parabolicStats));
+  initGuessTime(&((*exchangeParam).parabolicGuess));
+#endif//USE_PARABOLIC_GROWTH_MODEL
+  /* execute particle exchanging */
   exchangeParticles_dev
     (*num, Ntot, num_max, num, ibody0_dev, ibody1_dev, ibody0_hst, ibody1_hst,
      pos_hst, pos_dev, key, iparticleSendBuf, iparticleRecvBuf,
      orm, rep, domain, letcfg,
-#ifdef  MONITOR_LETGEN_TIME
-     measured->genTree + measured->calcAcc + measured->calcMAC + measured->makeLET,
-#else///MONITOR_LETGEN_TIME
-     measured->genTree + measured->calcAcc + measured->calcMAC,
-#endif//MONITOR_LETGEN_TIME
-     sample, loc, ful, soa, devProp, devInfo, exchangeInterval, measured
-#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
-     , epsinv
-#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+     measured->sum_excg,
+/* #ifdef  MONITOR_LETGEN_TIME */
+/*      measured->genTree + measured->calcAcc + measured->calcMAC + measured->makeLET, */
+/* #else///MONITOR_LETGEN_TIME */
+/*      measured->genTree + measured->calcAcc + measured->calcMAC, */
+/* #endif//MONITOR_LETGEN_TIME */
+     sample, loc, ful, soa, devProp, devInfo, measured
+#ifdef  CARE_EXTERNAL_PARTICLES
+     , location
+#endif//CARE_EXTERNAL_PARTICLES
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
      , status, memory
 #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
@@ -282,6 +305,9 @@ static inline void updateDomain
 #endif//MONITOR_LETGEN_TIME
 		    sampleLoc, sampleFul, sampleRecvNum, sampleRecvDsp, domainMin, domainMax,
 		    ndim, orbCfg, domCfg, letcfg, measured
+#ifdef  CARE_EXTERNAL_PARTICLES
+		    , location
+#endif//CARE_EXTERNAL_PARTICLES
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 		    , status, memory
 #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
@@ -319,6 +345,9 @@ static inline void buildTreeStructure
 #   if  defined(CALC_MULTIPOLE_ON_DEVICE) || defined(MAKE_TREE_ON_DEVICE)
  , const soaTreeCell cell_dev, const soaTreeNode node_dev
 #endif//defined(CALC_MULTIPOLE_ON_DEVICE) || defined(MAKE_TREE_ON_DEVICE)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+   , domainLocation *location
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
  , struct timeval *start
 #ifdef  EXEC_BENCHMARK
  , wall_clock_time *execTime
@@ -346,6 +375,9 @@ static inline void buildTreeStructure
 #ifndef MAKE_TREE_ON_DEVICE
 			   , soaPH_hst
 #endif//MAKE_TREE_ON_DEVICE
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+			   , location
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 			   , start
 #ifdef  EXEC_BENCHMARK
 			   , execTime
@@ -353,6 +385,9 @@ static inline void buildTreeStructure
 			   );
 #else///GENERATE_PHKEY_ON_DEVICE
   sortParticlesPHcurve(num, ibody0_hst, ibody1_hst, tag, peano
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+		       , location
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 		       , start
 #ifdef  EXEC_BENCHMARK
 		       , execTime
@@ -500,7 +535,8 @@ static inline void configDistribution
   gettimeofday(&finish, NULL);
   time->makeTree = calcElapsedTimeInSec(start, finish);
 #ifndef SERIALIZED_EXECUTION
-  time->genTree += time->makeTree;
+  time->sum_excg    += time->makeTree;
+  time->sum_rebuild += time->makeTree;
 #endif//SERIALIZED_EXECUTION
   //-----------------------------------------------------------------------
 
@@ -1211,6 +1247,9 @@ int main(int argc, char **argv)
 #   if  defined(MAKE_TREE_ON_DEVICE) && defined(COUNT_INTERACTIONS)
 		      &cell    , &leaf    , &node    , &list    ,
 #endif//defined(MAKE_TREE_ON_DEVICE) && defined(COUNT_INTERACTIONS)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+		      devProp,
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 		      &soaCell_dev, &soaCell_hst);
 #endif//defined(CALC_MULTIPOLE_ON_DEVICE) || defined(MAKE_TREE_ON_DEVICE)
   //-----------------------------------------------------------------------
@@ -1253,6 +1292,11 @@ int main(int argc, char **argv)
 #ifdef  GADGET_MAC
   real *mac_dev;
 #endif//GADGET_MAC
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+  int *gmem_external_dev, *gsync0_external_dev, *gsync1_external_dev;
+  domainLocation location;
+  float *diameter_dev, *diameter_hst;
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
   int  *more0Buf, *more1Buf, *makeFail;
   real *rjmaxBuf;
   soaTreeNode soaNode_dev, soaNode_hst;
@@ -1290,6 +1334,9 @@ int main(int argc, char **argv)
 #ifdef  GADGET_MAC
 						&mac_dev,
 #endif//GADGET_MAC
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+						&gmem_external_dev, &gsync0_external_dev, &gsync1_external_dev, &diameter_dev, &diameter_hst, &location, CAST_R2F(eps), CAST_R2F(eta),
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 						&more0Buf, &more1Buf, &rjmaxBuf, &makeFail, &soaNode_dev, &soaNode_hst, &soaMakeBuf);
   //-----------------------------------------------------------------------
   soaNode_dev.jtag = jtag_dev;
@@ -1438,12 +1485,7 @@ int main(int argc, char **argv)
   static struct timeval start;
   static measuredTime elapsed;
 #ifndef SERIALIZED_EXECUTION
-  elapsed.genTree = 1.0;
-  elapsed.calcAcc = 1.0;
-  elapsed.calcMAC = 1.0;
-#ifdef  MONITOR_LETGEN_TIME
-  elapsed.makeLET = 1.0;
-#endif//MONITOR_LETGEN_TIME
+  elapsed.sum_excg = elapsed.sum_rebuild = elapsed.excg = 0.0;
 #endif//SERIALIZED_EXECUTION
 #ifdef  WALK_TREE_COMBINED_MODEL
   static autoTuningParam rebuildParam;
@@ -1631,6 +1673,11 @@ int main(int argc, char **argv)
   used_mem.host   += alloc_buf_dev.host;
   used_mem.device += alloc_buf_dev.device;
   //-----------------------------------------------------------------------
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES) && !defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) && !defined(TIME_BASED_MODIFICATION)
+  soaMakeBuf.ubuf_external = buffer;
+  soaMakeBuf.Nbuf_external = soaWalk_dev.bufSize * (size_t)(NGROUPS * NBLOCKS_PER_SM * devProp.numSM);
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES) && !defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) && !defined(TIME_BASED_MODIFICATION)
+  //-----------------------------------------------------------------------
   /* output memory usage */
 #ifndef SERIALIZED_EXECUTION
   if( mpi.rank == 0 )
@@ -1656,10 +1703,10 @@ int main(int argc, char **argv)
       fprintf(fp, "\nBreakdown of allocated memory on device:\n");
       fprintf(fp, "\t%zu MiB (%zu GiB) for N-body particles\n"  , body_mem.device >> 20, body_mem.device >> 30);
       fprintf(fp, "\t%zu MiB (%zu GiB) for tree structure\n"    , tree_mem.device >> 20, tree_mem.device >> 30);
-      fprintf(fp, "\t%zu MiB (%zu KiB) for miscellaneous data\n", misc_mem.device >> 20, misc_mem.device >> 10);
+      fprintf(fp, "\t%zu MiB for miscellaneous data\n", misc_mem.device >> 20);
       fprintf(fp, "\t%zu MiB (%zu GiB) for tree walk buffer\n"  , alloc_buf_dev.device >> 20, alloc_buf_dev.device >> 30);
 #ifndef SERIALIZED_EXECUTION
-      fprintf(fp, "\t%zu MiB (%zu KiB) for LET related data\n"  ,  let_mem.device >> 20,  let_mem.device >> 10);
+      fprintf(fp, "\t%zu MiB (%zu B) for LET related data\n"  ,  let_mem.device >> 20,  let_mem.device);
 #ifdef  EXCHANGE_USING_GPUS
       fprintf(fp, "\t%zu MiB (%zu KiB) for domain decomposition related data\n", box_mem.device >> 20, box_mem.device >> 10);
 #endif//EXCHANGE_USING_GPUS
@@ -1677,15 +1724,15 @@ int main(int argc, char **argv)
       fprintf(fp, "\nBreakdown of allocated memory on host:\n");
       fprintf(fp, "\t%zu MiB (%zu GiB) for N-body particles\n"  , body_mem.host >> 20, body_mem.host >> 30);
       fprintf(fp, "\t%zu MiB (%zu GiB) for tree structure\n"    , tree_mem.host >> 20, tree_mem.host >> 30);
-      fprintf(fp, "\t%zu MiB (%zu KiB) for miscellaneous data\n", misc_mem.host >> 20, misc_mem.host >> 10);
-      fprintf(fp, "\t%zu MiB (%zu GiB) for tree walk buffer\n"  , alloc_buf_dev.host >> 20, alloc_buf_dev.host >> 30);
+      fprintf(fp, "\t%zu MiB for miscellaneous data\n", misc_mem.host >> 20);
+      fprintf(fp, "\t%zu MiB (%zu B) for tree walk buffer\n", alloc_buf_dev.host >> 20, alloc_buf_dev.host);
 #ifndef SERIALIZED_EXECUTION
-      fprintf(fp, "\t%zu MiB (%zu KiB) for LET related data\n"  ,  let_mem.host >> 20,  let_mem.host >> 10);
+      fprintf(fp, "\t%zu MiB (%zu B) for LET related data\n", let_mem.host >> 20, let_mem.host);
 #ifdef  EXCHANGE_USING_GPUS
       fprintf(fp, "\t%zu MiB (%zu KiB) for domain decomposition related data\n", box_mem.host >> 20, box_mem.host >> 10);
 #endif//EXCHANGE_USING_GPUS
 #ifdef  BUILD_LET_ON_DEVICE
-      fprintf(fp, "\t%zu MiB (%zu KiB) for enclosing ball related data\n", ball_mem.host >> 20, ball_mem.host >> 10);
+      fprintf(fp, "\t%zu MiB (%zu B) for enclosing ball related data\n", ball_mem.host >> 20, ball_mem.host);
 #endif//BUILD_LET_ON_DEVICE
 #endif//SERIALIZED_EXECUTION
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
@@ -1776,17 +1823,7 @@ int main(int argc, char **argv)
   static loadImbalanceDetector balancer;
   balancer.enable  = false;
   balancer.execute = false;
-
-
-  /* 計算時間の増大による particle exchange は，どれかの process で tree rebuild が起こるタイミングでしか trigger できないようにしておくのが良い?? */
-  /* 本当は，1回の tree rebuild までを 1 step と見なさせたいのだけど，その場合には tree rebuild interval を all processes 間で共有することになるため，そこまではしたくない． */
-  /* 計算時間が増大した process を detect できれば良い（減少した processes は放置で良い）と思えば，tree rebuild までを 1 step と見なして，そこまでの計算時間を step あたりかで平均した値を覚えておけば良いという気がしてきた． */
-  /* load balancing をとったことによる計算時間の増大は問題ないので，粒子数で割っておいた方が良いのだろうか? -->> Ni_new / Ni_old をかけて補正しておく */
-  /* 計算時間の増大が検出された proccesses 数が一定の割合を越えたら particle exchange を行うとか?? */
-  /* 割合は?? --> 50% 以下にしないと，2 processes のときに動作しない */
-  /* とりあえず 1割ぐらいにしておく?? --> プロセス数は整数なので， 1/16 = 4 bits shift が簡単だと思う．= は含めないこととする */
-  static double exchangeInterval = 0.0;/* rebuildTree.interval に相当 */
-  /* 計算時間については，measuredTime 中の genTree, calcAcc, calcMAC, makeLET の communicator 内での MPI_MIN, MPI_MAX を参照する <-- Ni_new / Ni_old は補正済み */
+  static double exchangeInterval = 0.0;/* corresponding to rebuildTree.interval */
   static autoTuningParam exchangeParam;
   initStatVal(&exchangeParam.linearStats);  initGuessTime(&exchangeParam.linearGuess);
   initStatVal(&exchangeParam. powerStats);  initGuessTime(&exchangeParam. powerGuess);
@@ -1794,9 +1831,6 @@ int main(int argc, char **argv)
   initStatVal  (&exchangeParam.parabolicStats);
   initGuessTime(&exchangeParam.parabolicGuess);
 #endif//USE_PARABOLIC_GROWTH_MODEL
-#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
-  const float epsinv = CAST_R2F(UNITY / eps);
-#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
 #endif//EXCHANGE_USING_GPUS
   //-----------------------------------------------------------------------
   updateDomain(&num, num_max, &Ni,
@@ -1804,15 +1838,15 @@ int main(int argc, char **argv)
 	       &ibody0_dev, &ibody1_dev, &ibody0, &ibody1, Ntot,
 	       particlePos_hst, particlePos_dev, domCfg, domDecKey,
 	       sample, samplePos0, samplePos1, soaPH_dev, devProp, devInfo,
-	       &exchangeInterval, ormCfg, repCfg,
-#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
-	       epsinv,
-#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+	       &exchangeParam, &exchangeInterval, ormCfg, repCfg,
 #else///EXCHANGE_USING_GPUS
 	       ibody0_dev, ibody0, ibody1,
 	       ndim, orbCfg, domCfg, domDecKey,
  samplingRate, sampleNumMax, sampleLoc, sampleFul, sampleRecvNum, sampleRecvDsp, domainMin, domainMax,
 #endif//EXCHANGE_USING_GPUS
+#ifdef  CARE_EXTERNAL_PARTICLES
+	       &location,
+#endif//CARE_EXTERNAL_PARTICLES
 	       letcfg, iparticleSendBuf, iparticleRecvBuf, &elapsed
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 	       , &brentDistance, &brentHistory
@@ -1857,6 +1891,9 @@ int main(int argc, char **argv)
 #   if  defined(CALC_MULTIPOLE_ON_DEVICE) || defined(MAKE_TREE_ON_DEVICE)
 		     , soaCell_dev, soaNode_dev
 #endif//defined(CALC_MULTIPOLE_ON_DEVICE) || defined(MAKE_TREE_ON_DEVICE)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+		     , &location
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 		     , &start
 #ifdef  EXEC_BENCHMARK
 		     , &execTime[steps - bench_begin]
@@ -1882,6 +1919,16 @@ int main(int argc, char **argv)
 #   if  !defined(CALC_MULTIPOLE_ON_DEVICE) || (!defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE))
   real bmax_root;
 #endif//!defined(CALC_MULTIPOLE_ON_DEVICE) || (!defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE))
+#if 0
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES) && defined(TIME_BASED_MODIFICATION)
+  /* since dt is initialized as zero by MAGI, the below statement cause division by zero */
+  /* since elapsed = 0.0f in here, wrong dtmin never cause problem */
+  if( location.dtmin > dt ){
+    location.dtmin = dt;
+    location.dtinv = 1.0f / location.dtmin;
+  }/* if( location.dtmin < dt ){ */
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES) && defined(TIME_BASED_MODIFICATION)
+#endif
   setMultipoleMoment
     (NUM_PHKEY_LEVEL - 1, soaCell_dev, numNode, soaNode_dev, num
 #ifdef  CALC_MULTIPOLE_ON_DEVICE
@@ -1899,7 +1946,10 @@ int main(int argc, char **argv)
      , eps * eps
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 #ifndef SERIALIZED_EXECUTION
-     , &(elapsed.calcMAC)
+#ifdef  CARE_EXTERNAL_PARTICLES
+     , &location
+#endif//CARE_EXTERNAL_PARTICLES
+     , &elapsed
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
      , treeProp[steps - bench_begin].level
@@ -2051,13 +2101,12 @@ int main(int argc, char **argv)
 #endif//USE_CUDA_EVENT
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
-		    , &elapsed.calcAcc, numNode
+		    , &elapsed, numNode
 #ifdef  LET_COMMUNICATION_VIA_HOST
 		    , soaNode_hst
 #endif//LET_COMMUNICATION_VIA_HOST
 		    , letcfg.size, nodeInfo, Nstream_let, stream_let, letcfg
 #ifdef  MONITOR_LETGEN_TIME
-		    , &elapsed.makeLET
 #ifdef  USE_CUDA_EVENT
 		    , iniMakeLET, finMakeLET
 #else///USE_CUDA_EVENT
@@ -2129,13 +2178,12 @@ int main(int argc, char **argv)
 #endif//USE_CUDA_EVENT
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
-		    , &elapsed.calcAcc, numNode
+		    , &elapsed, numNode
 #ifdef  LET_COMMUNICATION_VIA_HOST
 		    , soaNode_hst
 #endif//LET_COMMUNICATION_VIA_HOST
 		    , letcfg.size, nodeInfo, Nstream_let, stream_let, letcfg
 #ifdef  MONITOR_LETGEN_TIME
-		    , &elapsed.makeLET
 #ifdef  USE_CUDA_EVENT
 		    , iniMakeLET, finMakeLET
 #else///USE_CUDA_EVENT
@@ -2287,6 +2335,10 @@ int main(int argc, char **argv)
     //---------------------------------------------------------------------
     __NOTE__("t = %e(%zu step(s)), ft = %e\n", time, steps, ft);
     //---------------------------------------------------------------------
+#if 0
+    __FPRINTF__(stdout, "%zu-th step: excg = %e, sum_excg = %e, sum_rebuild = %e: interval = %d\n", steps, elapsed.excg, elapsed.sum_excg, elapsed.sum_rebuild, (int)nearbyint(exchangeInterval));
+#endif
+    //---------------------------------------------------------------------
 
     //---------------------------------------------------------------------
 #ifdef  EXEC_BENCHMARK
@@ -2341,41 +2393,65 @@ int main(int argc, char **argv)
     /* rebuild tree structure if required */
 #ifndef SERIALIZED_EXECUTION
 #ifdef  EXCHANGE_USING_GPUS
-    /* chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.enable), 1, MPI_LOGICAL, MPI_LOR, letcfg.comm)); */
-    if( balancer.enable ){
-#ifdef  MONITOR_LETGEN_TIME
-      balancer.tmin = balancer.tmax = elapsed.genTree + elapsed.calcAcc + elapsed.calcMAC + elapsed.makeLET;
-#else///MONITOR_LETGEN_TIME
-      balancer.tmin = balancer.tmax = elapsed.genTree + elapsed.calcAcc + elapsed.calcMAC;
-#endif//MONITOR_LETGEN_TIME
+    /* detect slow down */
+    if( !rebuild.reuse ){
+      exchangeInterval += 1.0;
+      linearModel(&(exchangeParam.linearGuess), &(exchangeParam.linearStats), exchangeInterval, elapsed.sum_rebuild, 1.0);
+      powerModel (&(exchangeParam. powerGuess), &(exchangeParam. powerStats), exchangeInterval, elapsed.sum_rebuild, 1.0);
+#ifdef  USE_PARABOLIC_GROWTH_MODEL
+      parabolicModel(&(exchangeParam.parabolicGuess), &(exchangeParam.parabolicStats), exchangeInterval, elapsed.sum_rebuild, 1.0);
+#endif//USE_PARABOLIC_GROWTH_MODEL
+      balancer.execute = false;
+      /* detect slow down of gravity calculation */
+      if( balancer.enable ){
+	double rchi2 = exchangeParam.linearGuess.rchisq;
+	double guess = exchangeParam.linearGuess.time;
+	if( rchi2 > exchangeParam.powerGuess.rchisq ){
+	  rchi2 = exchangeParam.powerGuess.rchisq;
+	  guess = exchangeParam.powerGuess.time;
+	}/* if( rchi2 > exchangeParam.powerGuess.rchisq ){ */
+#ifdef  USE_PARABOLIC_GROWTH_MODEL
+	if( rchi2 > exchangeParam.parabolicGuess.rchisq ){
+	  rchi2 = exchangeParam.parabolicGuess.rchisq;
+	  guess = exchangeParam.parabolicGuess.time;
+	}/* if( rchi2 > exchangeParam.parabolicGuess.rchisq ){ */
+#endif//USE_PARABOLIC_GROWTH_MODEL
+	if( guess > elapsed.excg )
+	  balancer.execute = true;
+#if 0
+	__FPRINTF__(stdout, "%zu-th step: rchi2 = %e, guess = %e, exchange = %e\n", steps, rchi2, guess, elapsed.excg);
+#endif
+      }/* if( balancer.enable ){ */
+    }/* if( !rebuild.reuse ){ */
+    chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.execute), 1, MPI_BOOL, MPI_LOR, letcfg.comm));
+
+    /* detect load imbalance */
+    if( balancer.enable & !balancer.execute ){
+      balancer.tmin = balancer.tmax = elapsed.sum_excg;
       chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.tmin), 1, MPI_DOUBLE, MPI_MIN, letcfg.comm));
-      chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.tmax), 1, MPI_DOUBLE, MPI_MIN, letcfg.comm));
+      chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.tmax), 1, MPI_DOUBLE, MPI_MAX, letcfg.comm));
+#if 0
+      if( mpi.rank == 0 )
+	__FPRINTF__(stdout, "%zu-th step: tmin / tmax = %e, crit = %e\n", steps, balancer.tmin / balancer.tmax, loadImbalanceCrit);
+#endif
       if( balancer.tmin < (loadImbalanceCrit * balancer.tmax) )
 	balancer.execute = true;
-    }/* if( balancer.enable ){ */
-    /* chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.execute), 1, MPI_LOGICAL, MPI_LOR, letcfg.comm)); */
+    }/* if( balancer.enable & !balancer.execute ){ */
     __NOTE__("balancer.execute = %d @ rank %d\n", balancer.execute, letcfg.rank);
-#if 0
-    if( balancer.enable )
-      balancer.execute = true;
-#endif
     //---------------------------------------------------------------------
     if( balancer.execute ){
       //-------------------------------------------------------------------
+#if 1
+      __FPRINTF__(stdout, "particle exchanging @ %zu-th step\n", steps);
+#endif
       updateDomain(&num, num_max, &Ni,
-#ifdef  EXCHANGE_USING_GPUS
 		   &ibody0_dev, &ibody1_dev, &ibody0, &ibody1, Ntot,
 		   particlePos_hst, particlePos_dev, domCfg, domDecKey,
 		   sample, samplePos0, samplePos1, soaPH_dev, devProp, devInfo,
-		   &exchangeInterval, ormCfg, repCfg,
-#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
-		   epsinv,
-#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
-#else///EXCHANGE_USING_GPUS
-		   ibody0_dev, ibody0, ibody1,
-		   ndim, orbCfg, domCfg, domDecKey,
-		   samplingRate, sampleNumMax, sampleLoc, sampleFul, sampleRecvNum, sampleRecvDsp, domainMin, domainMax,
-#endif//EXCHANGE_USING_GPUS
+		   &exchangeParam, &exchangeInterval, ormCfg, repCfg,
+#ifdef  CARE_EXTERNAL_PARTICLES
+		   &location,
+#endif//CARE_EXTERNAL_PARTICLES
 		   letcfg, iparticleSendBuf, iparticleRecvBuf, &elapsed
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 		   , &brentDistance, &brentHistory
@@ -2396,16 +2472,12 @@ int main(int argc, char **argv)
     chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &rebuild.reuse, 1, MPI_INT, MPI_LAND, letcfg.comm));
     if( !rebuild.reuse )
       updateDomain(&num, num_max, &Ni,
-#ifdef  EXCHANGE_USING_GPUS
-		   &ibody0_dev, &ibody1_dev, &ibody0, &ibody1, Ntot,
-		   particlePos_hst, particlePos_dev, domCfg, domDecKey,
-		   sample, samplePos0, samplePos1, soaBox, devProp, devInfo,
-		   &exchangeInterval, ormCfg, repCfg,
-#else///EXCHANGE_USING_GPUS
 		   ibody0_dev, ibody0, ibody1,
 		   ndim, orbCfg, domCfg, domDecKey,
 		   samplingRate, sampleNumMax, sampleLoc, sampleFul, sampleRecvNum, sampleRecvDsp, domainMin, domainMax,
-#endif//EXCHANGE_USING_GPUS
+#ifdef  CARE_EXTERNAL_PARTICLES
+		   &location,
+#endif//CARE_EXTERNAL_PARTICLES
 		   letcfg, iparticleSendBuf, iparticleRecvBuf, &elapsed
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 		   , &brentDistance, &brentHistory
@@ -2414,20 +2486,13 @@ int main(int argc, char **argv)
 		   , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
 		   );
-/*       updateDomain(&num, num_max, &Ni, ibody0_dev, ibody0, ibody1, */
-/* 		   ndim, orbCfg, domCfg, domDecKey, */
-/* 		   samplingRate, sampleNumMax, sampleLoc, sampleFul, sampleRecvNum, sampleRecvDsp, domainMin, domainMax, */
-/* 		   letcfg, iparticleSendBuf, iparticleRecvBuf, &elapsed */
-/* #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD) */
-/* 		   , &brentDistance, &brentHistory */
-/* #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD) */
-/* #ifdef  EXEC_BENCHMARK */
-/* 		   , &execTime[steps - bench_begin] */
-/* #endif//EXEC_BENCHMARK */
-/* 		   ); */
 #endif//EXCHANGE_USING_GPUS
 #endif//SERIALIZED_EXECUTION
     if( !rebuild.reuse ){
+      //-------------------------------------------------------------------
+#   if  !defined(SERIALIZED_EXECUTION) && defined(EXCHANGE_USING_GPUS)
+      elapsed.sum_rebuild = 0.0;
+#endif//!defined(SERIALIZED_EXECUTION) && defined(EXCHANGE_USING_GPUS)
       //-------------------------------------------------------------------
 #   if  defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP)
       /* if Var(reduce) < (Avg(reduce))^2, set time of all particles same */
@@ -2457,7 +2522,7 @@ int main(int argc, char **argv)
       fflush(stdout);
 #endif//EXEC_BENCHMARK
       //-------------------------------------------------------------------
-      __NOTE__("rebuild @ %zu-th step, t = %e, elapsedCalc = %e @ rank %d\n", steps, time, elapsed.calcAcc, mpi.rank);
+      __NOTE__("rebuild @ %zu-th step, t = %e, sum_rebuild = %e @ rank %d\n", steps, time, elapsed.sum_rebuild, mpi.rank);
       //-------------------------------------------------------------------
       /* copy position of N-body particles from device to host if necessary */
 #ifndef SERIALIZED_EXECUTION
@@ -2491,6 +2556,9 @@ int main(int argc, char **argv)
 #   if  defined(CALC_MULTIPOLE_ON_DEVICE) || defined(MAKE_TREE_ON_DEVICE)
 			 , soaCell_dev, soaNode_dev
 #endif//defined(CALC_MULTIPOLE_ON_DEVICE) || defined(MAKE_TREE_ON_DEVICE)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+			 , &location
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 			 , &start
 #ifdef  EXEC_BENCHMARK
 			 , &execTime[steps - bench_begin]
@@ -2518,7 +2586,10 @@ int main(int argc, char **argv)
 	 , eps * eps
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 #ifndef SERIALIZED_EXECUTION
-	 , &(elapsed.calcMAC)
+#ifdef  CARE_EXTERNAL_PARTICLES
+	 , &location
+#endif//CARE_EXTERNAL_PARTICLES
+	 , &elapsed
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
 	 , treeProp[steps - bench_begin].level
@@ -2641,12 +2712,8 @@ int main(int argc, char **argv)
 #ifndef SERIALIZED_EXECUTION
       existNewTree = true;
 #ifdef  EXCHANGE_USING_GPUS
-      if( !balancer.execute ){
-	balancer.enable  =  true;
-	exchangeInterval += 1.0;
-      }/* if( !balancer.execute ){ */
-      else
-	balancer.execute = false;
+      if( !balancer.execute )      	balancer.enable  =  true;
+      else	                        balancer.execute = false;
 #endif//EXCHANGE_USING_GPUS
 #endif//SERIALIZED_EXECUTION
       //-------------------------------------------------------------------
@@ -2711,6 +2778,14 @@ int main(int argc, char **argv)
     time += dt;
     //---------------------------------------------------------------------
 #endif//BLOCK_TIME_STEP
+    //---------------------------------------------------------------------
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES) && defined(TIME_BASED_MODIFICATION)
+    location.elapsed = (float)((double)location.elapsed + dt);
+    if( location.dtmin > dt ){
+      location.dtmin = dt;
+      location.dtinv = 1.0f / location.dtmin;
+    }/* if( location.dtmin < dt ){ */
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES) && defined(TIME_BASED_MODIFICATION)
     //---------------------------------------------------------------------
 
 
@@ -2779,7 +2854,10 @@ int main(int argc, char **argv)
        , eps * eps
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 #ifndef SERIALIZED_EXECUTION
-       , &(elapsed.calcMAC)
+#ifdef  CARE_EXTERNAL_PARTICLES
+       , &location
+#endif//CARE_EXTERNAL_PARTICLES
+       , &elapsed
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
        , treeProp[steps - bench_begin].level
@@ -2854,13 +2932,12 @@ int main(int argc, char **argv)
 #endif//USE_CUDA_EVENT
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
-		      , &elapsed.calcAcc, numNode
+		      , &elapsed, numNode
 #ifdef  LET_COMMUNICATION_VIA_HOST
 		      , soaNode_hst
 #endif//LET_COMMUNICATION_VIA_HOST
 		      , letcfg.size, nodeInfo, Nstream_let, stream_let, letcfg
 #ifdef  MONITOR_LETGEN_TIME
-		      , &elapsed.makeLET
 #ifdef  USE_CUDA_EVENT
 		      , iniMakeLET, finMakeLET
 #else///USE_CUDA_EVENT
@@ -3377,6 +3454,9 @@ int main(int argc, char **argv)
 #ifdef  GADGET_MAC
 		   mac_dev,
 #endif//GADGET_MAC
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+		   gmem_external_dev, gsync0_external_dev, gsync1_external_dev, diameter_dev, diameter_hst,
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 		   more0Buf, more1Buf, rjmaxBuf, makeFail);
 #   if  defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH)
   freeNeighborSearch_dev(gsync_ns0, gsync_ns1, freeLst_ns

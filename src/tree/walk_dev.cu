@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/06(Tue) 12:58:58
+                  last updated on 2017/01/17(Tue) 20:11:35
  *                                                                       *
  *    Octree N-body calculation for collisionless systems on NVIDIA GPUs *
  *                                                                       *
@@ -11,6 +11,7 @@
 \*************************************************************************/
 //-------------------------------------------------------------------------
 /* #define DEBUG_PRINT_FOR_PARTICLE_ACCELERATION */
+#define DOUBLE_BUFFER_FOR_LET
 //-------------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,6 +45,7 @@
 #include "buf_inc.h"
 //-------------------------------------------------------------------------
 #ifndef SERIALIZED_EXECUTION
+#include "../misc/tune.h"
 #include "../para/mpicfg.h"
 #include "let.h"
 #include "let_dev.h"
@@ -2919,7 +2921,7 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 
 
 //-------------------------------------------------------------------------
-#if 1
+#if 0
 //-------------------------------------------------------------------------
 __global__ void printTreeNode_kernel(const int num, READ_ONLY jparticle * RESTRICT pj, READ_ONLY jmass * RESTRICT mj)
 {
@@ -3227,13 +3229,12 @@ void calcGravity_dev
 #endif//USE_CUDA_EVENT
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
- , double *twalk, const int pjNum
+ , measuredTime *measured, const int pjNum
 #ifdef  LET_COMMUNICATION_VIA_HOST
  , const soaTreeNode tree_hst
 #endif//LET_COMMUNICATION_VIA_HOST
  , const int Nlet, domainInfo *let, const int Nstream_let, cudaStream_t stream_let[], MPIcfg_tree mpi
 #ifdef  MONITOR_LETGEN_TIME
- , double *tlet
 #ifdef  USE_CUDA_EVENT
  , cudaEvent_t *iniMakeLET, cudaEvent_t *finMakeLET
 #else///USE_CUDA_EVENT
@@ -3337,7 +3338,6 @@ void calcGravity_dev
   static struct timeval start;
   checkCudaErrors(cudaDeviceSynchronize());
   gettimeofday(&start, NULL);
-  /* initStopwatch_dev(devInfo); */
 #endif//defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
   //-----------------------------------------------------------------------
 
@@ -3490,23 +3490,32 @@ void calcGravity_dev
       //-------------------------------------------------------------------
       /* gravity from j-particles within other process(es) */
       //-------------------------------------------------------------------
+      /* rewrite from MPI_Isend/MPI_Irecv to MPI_Put may accelerate the simulation */
+      //-------------------------------------------------------------------
+      int idxProcs = 0;
+      int remProcs = Nlet - 1;
+#ifdef  DOUBLE_BUFFER_FOR_LET
+      static int headLETsend[2], headLETrecv[2], sizeLETbuf[2], sizeLETsend[2], sizeLETrecv[2];
+      /* 1st half */
+      headLETsend[0] = ALIGN_BUF_FOR_LET(pjNum);
+      sizeLETbuf [0] = ((int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - headLETsend[0]) >> 1;
+      headLETrecv[0] = ALIGN_BUF_FOR_LET(headLETsend[0] + (sizeLETbuf[0] >> 1));
+      sizeLETsend[0] = headLETrecv[0] - headLETsend[0];
+      sizeLETrecv[0] = sizeLETbuf [0] - sizeLETsend[0];
+      /* 2nd half */
+      headLETsend[1] = ALIGN_BUF_FOR_LET(headLETrecv[0] + sizeLETrecv[0]);
+      sizeLETbuf [1] = (int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - headLETsend[1];
+      headLETrecv[1] = ALIGN_BUF_FOR_LET(headLETsend[1] + (sizeLETbuf[1] >> 1));
+      sizeLETsend[1] = headLETrecv[1] - headLETsend[1];
+      sizeLETrecv[1] = sizeLETbuf [1] - sizeLETsend[1];
+#else///DOUBLE_BUFFER_FOR_LET
+      int LETsteps = 0;
       const int headLETsend = ALIGN_BUF_FOR_LET(pjNum);
       const int  remLETbuf  = (int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - headLETsend;
       const int  remLETsend = ALIGN_BUF_FOR_LET(remLETbuf >> 1);
       const int  remLETrecv = remLETbuf - remLETsend;
       const int headLETrecv = headLETsend + remLETsend;
-#if 0
-      printf("headLETsend = %d @ rank %d\n", headLETsend, mpi.rank);
-      printf(" remLETbuf  = %d @ rank %d\n",  remLETbuf , mpi.rank);
-      printf(" remLETsend = %d @ rank %d\n",  remLETsend, mpi.rank);
-      printf(" remLETrecv = %d @ rank %d\n",  remLETrecv, mpi.rank);
-      printf("headLETrecv = %d @ rank %d\n", headLETrecv, mpi.rank);
-      MPI_Finalize();
-      exit(0);
-#endif
-      int idxProcs = 0;
-      int remProcs = Nlet - 1;
-      int LETsteps = 0;
+#endif//DOUBLE_BUFFER_FOR_LET
 #   if  defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
       int prevLETstreams = 0;
 #endif//defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
@@ -3514,17 +3523,19 @@ void calcGravity_dev
 	//-----------------------------------------------------------------
 	/* get maximum number of processes which possible to communicate by limitation of memory capacity */
 	//-----------------------------------------------------------------
-	/* int remBuf = remLETbuf; */
+#ifdef  DOUBLE_BUFFER_FOR_LET
+	int remSend = sizeLETsend[sidx];
+	int remRecv = sizeLETrecv[sidx];
+#else///DOUBLE_BUFFER_FOR_LET
 	int remSend = remLETsend;
 	int remRecv = remLETrecv;
+#endif//DOUBLE_BUFFER_FOR_LET
 	int numProcs = remProcs;
 	for(int ii = 0; ii < remProcs; ii++){
 	  //---------------------------------------------------------------
-	  /* remBuf -= let[idxProcs + ii].maxSend + let[idxProcs + ii].maxRecv; */
 	  remSend -= let[idxProcs + ii].maxSend;
 	  remRecv -= let[idxProcs + ii].maxRecv;
 	  //---------------------------------------------------------------
-	  /* if( remBuf < 0 ){ */
 	  if( (remSend < 0) || (remRecv < 0) ){
 	    numProcs = ii - 1;
 	    break;
@@ -3533,12 +3544,22 @@ void calcGravity_dev
 	}/* for(int ii = 0; ii < remProcs; ii++){ */
 	//-----------------------------------------------------------------
 	if( (numProcs < 1) && (mpi.size > 1) ){
-	  __KILL__(stderr, "ERROR: numProcs is %d, due to lack of remLETbuf(%d) while 0-th target requires numSend(%d) and numRecv(%d) @ rank %d.\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", numProcs, remLETbuf, let[idxProcs].maxSend, let[idxProcs].maxRecv, mpi.rank, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
+	  __KILL__(stderr, "ERROR: numProcs is %d, due to lack of sizeLETsend(%d) or sizeLETrecv(%d) while 0-th target requires numSend(%d) and numRecv(%d) @ rank %d.\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", numProcs,
+#ifdef  DOUBLE_BUFFER_FOR_LET
+		   sizeLETsend[sidx], sizeLETrecv[sidx],
+#else///DOUBLE_BUFFER_FOR_LET
+		   remLETsend, remLETrecv,
+#endif//DOUBLE_BUFFER_FOR_LET
+		   let[idxProcs].maxSend, let[idxProcs].maxRecv, mpi.rank, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
 	}/* if( (numProcs < 1) && (mpi.size > 1) ){ */
 	chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &numProcs, 1, MPI_INT, MPI_MIN, mpi.comm));
 	//-----------------------------------------------------------------
 	/* set send buffer for LET on device */
+#ifdef  DOUBLE_BUFFER_FOR_LET
+	let[idxProcs].headSend = headLETsend[sidx];
+#else///DOUBLE_BUFFER_FOR_LET
 	let[idxProcs].headSend = headLETsend;
+#endif//DOUBLE_BUFFER_FOR_LET
 	for(int ii = 0; ii < numProcs - 1; ii++)
 	  let[idxProcs + ii + 1].headSend = let[idxProcs + ii].headSend + ALIGN_BUF_FOR_LET(let[idxProcs + ii].maxSend);
 	//-----------------------------------------------------------------
@@ -3566,6 +3587,11 @@ void calcGravity_dev
 #endif//defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
 	  //---------------------------------------------------------------
 	  checkCudaErrors(cudaMemcpyAsync(let[ii].numSend_hst, let[ii].numSend_dev, sizeof(int), cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
+	  //---------------------------------------------------------------
+#if 0
+	  printf("rank %d: grpNum = %d, Nlet = %d\n", mpi.rank, grpNum, *(let[ii].numSend_hst));
+	  fflush(stdout);
+#endif
 	  //---------------------------------------------------------------
 	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 	//-----------------------------------------------------------------
@@ -3639,8 +3665,11 @@ void calcGravity_dev
 	/* chkMPIerr(MPI_Barrier(mpi.comm)); */
 	//-----------------------------------------------------------------
 	/* set receive buffer for LET on device */
-	/* const int headLETrecv = headLETsend + numSend; */
+#ifdef  DOUBLE_BUFFER_FOR_LET
+	let[idxProcs].headRecv = headLETrecv[sidx];
+#else///DOUBLE_BUFFER_FOR_LET
 	let[idxProcs].headRecv = headLETrecv;
+#endif//DOUBLE_BUFFER_FOR_LET
 	int numRecv = 0;
 	for(int ii = 0; ii < numProcs - 1; ii++){
 	  const int numRecvBuf = ALIGN_BUF_FOR_LET(let[idxProcs + ii].numRecv);
@@ -3649,20 +3678,27 @@ void calcGravity_dev
 	}/* for(int ii = 0; ii < numProcs - 1; ii++){ */
 	numRecv += ALIGN_BUF_FOR_LET(let[idxProcs + numProcs - 1].numRecv);
 	//-----------------------------------------------------------------
-	if( numRecv > remLETrecv ){
-	  __KILL__(stderr, "ERROR: lack of remLETrecv(%d) to store numRecv(%d) LET nodes.\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", remLETrecv, numRecv, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
-	}/* if( numRecv > remLETbuf ){ */
+#ifdef  DOUBLE_BUFFER_FOR_LET
+	if( numRecv > sizeLETrecv[sidx] )
+#else///DOUBLE_BUFFER_FOR_LET
+	if( numRecv > remLETrecv )
+#endif//DOUBLE_BUFFER_FOR_LET
+	  {
+	    __KILL__(stderr, "ERROR: lack of remLETrecv(%d) to store numRecv(%d) LET nodes.\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n",
+#ifdef  DOUBLE_BUFFER_FOR_LET
+		     sizeLETrecv[sidx],
+#else///DOUBLE_BUFFER_FOR_LET
+		     remLETrecv,
+#endif//DOUBLE_BUFFER_FOR_LET
+		     numRecv, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
+	  }
 	//-----------------------------------------------------------------
 
 	//-----------------------------------------------------------------
 	/* receive LET nodes */
 	//-----------------------------------------------------------------
 	/* before receiving LET nodes, gravity calculation using LET nodes stored in the receive buffer in the previous loop must be finished */
-
-	/* LET の receive buffer を 2つ設定しておいて，どちらの buffer を使うかを振り分ければ，以下の同期処理は不要になる． */
-	/* LET の send buffer も 2つ設定しておけば良いと思う． */
-	/* 色々な同期を減らせるはず */
-
+#ifndef DOUBLE_BUFFER_FOR_LET
 	if( LETsteps > 0 ){
 #   if  defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
 	  if( grpNum != 0 ){
@@ -3674,6 +3710,7 @@ void calcGravity_dev
 	  }/* if( grpNum != 0 ){ */
 #endif//defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
 	}/* if( LETsteps > 0 ){ */
+#endif//DOUBLE_BUFFER_FOR_LET
 	//-----------------------------------------------------------------
 	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
 	  //---------------------------------------------------------------
@@ -3696,21 +3733,6 @@ void calcGravity_dev
 	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
 	  //---------------------------------------------------------------
 	  /* copy LET nodes from host to device */
-	  //---------------------------------------------------------------
-/* 	  MPI_Status statusMore;	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvJpos), &statusMore)); */
-/* #ifdef  LET_COMMUNICATION_VIA_HOST */
-/* 	  const int streamIdxLET = ii % Nstream_let; */
-/* 	  checkCudaErrors(cudaMemcpyAsync(&(tree.jpos[let[ii].headRecv]), &(tree_hst.jpos[let[ii].headRecv]), sizeof(jparticle) * let[ii].numRecv, cudaMemcpyHostToDevice, stream_let[streamIdxLET])); */
-/* #endif//LET_COMMUNICATION_VIA_HOST */
-/* 	  MPI_Status statusMass;	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvMass), &statusMass)); */
-/* #ifdef  LET_COMMUNICATION_VIA_HOST */
-/* 	  checkCudaErrors(cudaMemcpyAsync(&(tree.mj  [let[ii].headRecv]), &(tree_hst.mj  [let[ii].headRecv]), sizeof(    jmass) * let[ii].numRecv, cudaMemcpyHostToDevice, stream_let[streamIdxLET])); */
-/* #endif//LET_COMMUNICATION_VIA_HOST */
-/* 	  MPI_Status statusJpos;	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvMore), &statusJpos)); */
-/* #ifdef  LET_COMMUNICATION_VIA_HOST */
-/* 	  checkCudaErrors(cudaMemcpyAsync(&(tree.more[let[ii].headRecv]), &(tree_hst.more[let[ii].headRecv]), sizeof(     uint) * let[ii].numRecv, cudaMemcpyHostToDevice, stream_let[streamIdxLET])); */
-/* 	  checkCudaErrors(cudaStreamSynchronize(stream_let[streamIdxLET])); */
-/* #endif//LET_COMMUNICATION_VIA_HOST */
 	  //---------------------------------------------------------------
 	  MPI_Status statusMore;	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvJpos), &statusMore));
 #ifdef  LET_COMMUNICATION_VIA_HOST
@@ -3736,12 +3758,6 @@ void calcGravity_dev
 	  //---------------------------------------------------------------
 	  /* calculate gravity from LET */
 	  //---------------------------------------------------------------
-/* #   if  defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)) */
-/* 	  checkCudaErrors(cudaEventSynchronize(finCalcAcc[sidx ^ 1])); */
-/* 	  checkCudaErrors(cudaEventElapsedTime(&calcAcc_ms, iniCalcAcc[sidx ^ 1], finCalcAcc[sidx ^ 1])); */
-/* 	  calcAcc += (double)calcAcc_ms * 1.0e-3; */
-/* #endif//defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)) */
-	  //---------------------------------------------------------------
 #ifdef  DEBUG_PRINT_FOR_PARTICLE_ACCELERATION
 	  printf("# %d-th LET\n", ii);
 	  checkCudaErrors(cudaDeviceSynchronize());
@@ -3760,21 +3776,6 @@ void calcGravity_dev
 #endif//COUNT_INTERACTIONS
 			      );
 	  //---------------------------------------------------------------
-#if 0
-	  MPIinfo mpi_tmp;
-	  mpi_tmp.rank = mpi.rank;
-	  mpi_tmp.size = mpi.size;
-	  mpi_tmp.comm = mpi.comm;
-	  printFullTree_dev(pjNum, let[ii].numRecv, let[ii].headRecv, tree, mpi_tmp);
-#endif
-#if 0
-	  MPIinfo mpi_tmp;
-	  mpi_tmp.rank = mpi.rank;
-	  mpi_tmp.size = mpi.size;
-	  mpi_tmp.comm = mpi.comm;
-	  printTreeLink_dev(let[ii].headRecv, tree, buf.buffer, mpi_tmp);
-#endif
-	  //---------------------------------------------------------------
 	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 	//-----------------------------------------------------------------
 	for(int ii = 0; ii < numProcs; ii++){
@@ -3788,7 +3789,9 @@ void calcGravity_dev
 	//-----------------------------------------------------------------
 	idxProcs += numProcs;
 	remProcs -= numProcs;
+#ifndef DOUBLE_BUFFER_FOR_LET
 	LETsteps++;
+#endif//DOUBLE_BUFFER_FOR_LET
 	//-----------------------------------------------------------------
 
 	//-----------------------------------------------------------------
@@ -3852,9 +3855,9 @@ void calcGravity_dev
       checkCudaErrors(cudaMemcpy(&fail_hst, buf.fail, sizeof(int), cudaMemcpyDeviceToHost));
       if( fail_hst != 0 ){
 #ifdef  SERIALIZED_EXECUTION
-	__KILL__(stderr, "ERROR: bufUsed exceeds bufSize of %d at least %u times.\nPLEASE re-simulate after decreasing NUM_BODY_MAX(%d) or GLOBAL_MEMORY_SYSBUF(%zu) defined in src/misc/structure.h or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", buf.bufSize, fail_hst, NUM_BODY_MAX, (size_t)GLOBAL_MEMORY_SYSBUF, TREE_SAFETY_VAL);
+	__KILL__(stderr, "ERROR: bufUsed exceeds bufSize of %d at least %d times.\nPLEASE re-simulate after decreasing NUM_BODY_MAX(%d) or GLOBAL_MEMORY_SYSBUF(%zu) defined in src/misc/structure.h or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", buf.bufSize, fail_hst, NUM_BODY_MAX, (size_t)GLOBAL_MEMORY_SYSBUF, TREE_SAFETY_VAL);
 #else///SERIALIZED_EXECUTION
-	__KILL__(stderr, "ERROR: bufUsed exceeds bufSize of %d at least %u times.\nPLEASE re-simulate after decreasing NUM_BODY_MAX(%d) or GLOBAL_MEMORY_SYSBUF(%zu) defined in src/misc/structure.h or TREE_SAFETY_VAL(%f) defined in src/tree/make.h, or EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h.\n", buf.bufSize, fail_hst, NUM_BODY_MAX, (size_t)GLOBAL_MEMORY_SYSBUF, TREE_SAFETY_VAL, EXTEND_NUM_TREE_NODE);
+	__KILL__(stderr, "ERROR: bufUsed exceeds bufSize of %d at least %d times.\nPLEASE re-simulate after decreasing NUM_BODY_MAX(%d) or GLOBAL_MEMORY_SYSBUF(%zu) defined in src/misc/structure.h or TREE_SAFETY_VAL(%f) defined in src/tree/make.h, or EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h.\n", buf.bufSize, fail_hst, NUM_BODY_MAX, (size_t)GLOBAL_MEMORY_SYSBUF, TREE_SAFETY_VAL, EXTEND_NUM_TREE_NODE);
 #endif//SERIALIZED_EXECUTION
       }/* if( fail_hst != 0 ){ */
       //-------------------------------------------------------------------
@@ -4106,7 +4109,8 @@ void calcGravity_dev
   /* const double calcAcc = ((double)(*cycles_hst) / (devClock * (double)(blck.x * mpi.size))) * (double)BLOCKSIZE(blck.x * mpi.size, devProp.numSM * NBLOCKS_PER_SM); */
   const double calcAcc = ((double)(*cycles_hst) / (devClock * (double)(blck.x * mpi.size))) * (double)BLOCKSIZE(blck.x * mpi.size, devProp.numSM);
 #endif//USE_CUDA_EVENT
-  *twalk += calcAcc;
+  measured->sum_excg    += calcAcc;
+  measured->sum_rebuild += calcAcc;
   *time   = calcAcc;
 #ifdef  MONITOR_LETGEN_TIME
 #ifdef  USE_CUDA_EVENT
@@ -4123,8 +4127,8 @@ void calcGravity_dev
   /* const double makeLET = ((double)(*cycles_let_hst) / (devClock * (double)(mpi.size - 1))) * BLOCKSIZE(mpi.size - 1, devProp.numSM * NBLOCKS_PER_SM); */
   const double makeLET = ((double)(*cycles_let_hst) / (devClock * (double)(mpi.size - 1))) * BLOCKSIZE(mpi.size - 1, devProp.numSM);
 #endif//USE_CUDA_EVENT
-  *tlet  += makeLET;
-  /* *time  += makeLET; */
+  measured->sum_excg    += makeLET;
+  measured->sum_rebuild += makeLET;
 #if 0
   static struct timeval finish;
   checkCudaErrors(cudaDeviceSynchronize());

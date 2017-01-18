@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/08(Thu) 14:59:03
+                  last updated on 2017/01/16(Mon) 15:22:36
  *                                                                       *
  *    MAGI: "MAny-component Galactic Initial-conditions" generator       *
  *    Making Initial Condition Code of N-body Simulation                 *
@@ -101,12 +101,7 @@ typedef struct
 
 
 //-------------------------------------------------------------------------
-#ifndef USE_SFMTJUMP
-static inline
-#else///USE_SFMTJUMP
-void isotropicDistribution(const real rad, real *vecx, real *vecy, real *vecz);
-#endif//USE_SFMTJUMP
-void isotropicDistribution(const real rad, real *vecx, real *vecy, real *vecz)
+static inline void isotropicDistribution(const real rad, real *vecx, real *vecy, real *vecz)
 {
   //-----------------------------------------------------------------------
   const real proj = RANDVAL;
@@ -460,10 +455,14 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
   const ulong num = cfg.num;
   //-----------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
-#ifndef USE_SFMTJUMP
-  const ulong nunit = (ulong)ceilf(0.1f * (float)num);
-  ulong stage = 1;
+#ifdef  USE_SFMTJUMP
+  const ulong nunit = (ulong)ceilf(0.1f * (float)num / (float)omp_get_num_threads());
 #else///USE_SFMTJUMP
+  const ulong nunit = (ulong)ceilf(0.1f * (float)num);
+#endif//USE_SFMTJUMP
+  ulong stage = 1;
+  ulong Npart = 0;
+#ifdef  USE_SFMTJUMP
 #pragma omp single nowait
 #endif//USE_SFMTJUMP
   {
@@ -553,13 +552,16 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
     body.idx[ii] = ii;
     //---------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
-#ifndef USE_SFMTJUMP
-    if( (ii - (*Nuse)) == (stage * nunit) ){
-      fprintf(stdout, "# ~%zu%% completed\n", stage * 10);
+    Npart++;
+    if( Npart == (stage * nunit) ){
+#ifdef  USE_SFMTJUMP
+      fprintf(stdout, "# ~%zu%% on thread %d\n", stage * 10, omp_get_thread_num());
+#else///USE_SFMTJUMP
+      fprintf(stdout, "# ~%zu%%\n", stage * 10);
+#endif//USE_SFMTJUMP
       fflush(stdout);
       stage++;
-    }/* if( (ii - (*Nuse)) == (stage * nunit) ){ */
-#endif//USE_SFMTJUMP
+    }/* if( Npart == (stage * nunit) ){ */
 #endif//PROGRESS_REPORT_ON
     //---------------------------------------------------------------------
   }/* for(ulong ii = *Nuse; ii < *Nuse + num; ii++){ */
@@ -764,7 +766,7 @@ int main(int argc, char **argv)
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
   double *spline_xx, *spline_ff, *spline_f2, *spline_bp;
   if( addDisk )
-    allocDiskProfile(ndisk, &disk_info, &cfg[skind], &maxLev, prf[skind], logrbin, invlogrbin,
+    allocDiskProfile(ndisk, &disk_info, &cfg[skind], &maxLev, prf, skind, logrbin, invlogrbin,
 		     &disk_hor, &disk_ver, &disk_node_hor, &disk_node_ver,
 		     &disk_pot, &disk_rho, &disk_rhoSum, &disk_rhoTot,
 		     &disk_dPhidR, &disk_d2PhidR2,
@@ -959,8 +961,13 @@ int main(int argc, char **argv)
     /* 19650218 for 64 bit Mersenne Twister */
 #endif//USE_SFMT
 #ifdef  USE_SFMTJUMP
-    for(int ii = 0; ii < omp_get_thread_num(); ii++)
-      SFMT_jump(&sfmt, SFMTJUMP_10_100);
+#ifndef NTL_THREADS
+#pragma omp critical
+#endif//NTL_THREADS
+    {
+      for(int ii = 0; ii < omp_get_thread_num(); ii++)
+	SFMT_jump(&sfmt, SFMTJUMP_10_100);
+    }
 #endif//USE_SFMTJUMP
     //---------------------------------------------------------------------
     /* create spherical particle distribution */
@@ -976,14 +983,23 @@ int main(int argc, char **argv)
       if( cfg[ii].kind != CENTRALBH )
 	cfg[ii].Ecut = distributeSpheroidParticles(&Nuse, body, CAST_D2R(cfg[ii].Mtot / (double)cfg[ii].num), cfg[ii], &prf[ii][2], fene[ii]);
       else{
-	body.pos[Nuse].x = body.pos[Nuse].y = body.pos[Nuse].z = ZERO;	body.pos[Nuse].m   = CAST_D2R(cfg[ii].Mtot);
-	body.acc[Nuse].x = body.acc[Nuse].y = body.acc[Nuse].z = ZERO;	body.acc[Nuse].pot = ZERO;
+#ifdef  USE_SFMTJUMP
+#pragma omp single nowait
+#endif//USE_SFMTJUMP
+	{
+	  fprintf(stdout, "#\n#\n# start distributing spherical component particles (%zu bodies: [%zu:%zu])\n", cfg[ii].num, Nuse, Nuse + cfg[ii].num - 1);
+	  fflush(stdout);
+	  body.pos[Nuse].x = body.pos[Nuse].y = body.pos[Nuse].z = ZERO;	  body.pos[Nuse].m   = CAST_D2R(cfg[ii].Mtot);
+	  body.acc[Nuse].x = body.acc[Nuse].y = body.acc[Nuse].z = ZERO;	  body.acc[Nuse].pot = ZERO;
 #ifdef  BLOCK_TIME_STEP
-	body.vel[Nuse].x = body.vel[Nuse].y = body.vel[Nuse].z = ZERO;
+	  body.vel[Nuse].x = body.vel[Nuse].y = body.vel[Nuse].z = ZERO;
 #else///BLOCK_TIME_STEP
-	body.vx[Nuse] = body.vy[Nuse] = body.vz[Nuse] = ZERO;
+	  body.vx[Nuse] = body.vy[Nuse] = body.vz[Nuse] = ZERO;
 #endif//BLOCK_TIME_STEP
-	body.idx[Nuse] = Nuse;
+	  body.idx[Nuse] = Nuse;
+	  fprintf(stdout, "# finish distributing spherical component particles (%zu bodies)\n", cfg[ii].num);
+	  fflush(stdout);
+	}
 	Nuse++;
       }/* else{ */
       //-------------------------------------------------------------------
@@ -1218,9 +1234,15 @@ int main(int argc, char **argv)
     tmp.pos[0] = body.pos[ii].x;
     tmp.pos[1] = body.pos[ii].y;
     tmp.pos[2] = body.pos[ii].z;
+#ifdef  BLOCK_TIME_STEP
     tmp.vel[0] = body.vel[ii].x;
     tmp.vel[1] = body.vel[ii].y;
     tmp.vel[2] = body.vel[ii].z;
+#else///BLOCK_TIME_STEP
+    tmp.vel[0] = body.vx[ii];
+    tmp.vel[1] = body.vy[ii];
+    tmp.vel[2] = body.vz[ii];
+#endif//BLOCK_TIME_STEP
     tmp.eps    = eps;
     tmp.idx    = (int)body.idx[ii];
     bonsaiCount = 1;    if( bonsaiCount != fwrite(&tmp, sizeof(struct dark_particle), bonsaiCount, fpbonsai) )      bonsaiSuccess = false;
@@ -2624,14 +2646,14 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
 	tmp_Phi[jj] = CAST_D2R(  disk[ii].pot [INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, jj)] * senergy2astro);
       }/* for(int jj = 0; jj < nhorbin * nverbin; jj++){ */
       //---------------------------------------------------------------------
-      success &= (fwrite(tmp_hor, sizeof(real), nhorbin          , fp) == nhorbin          );
-      success &= (fwrite(tmp_ver, sizeof(real),           nverbin, fp) ==           nverbin);
-      success &= (fwrite(tmp_rho, sizeof(real), nhorbin * nverbin, fp) == nhorbin * nverbin);
-      success &= (fwrite(tmp_Phi, sizeof(real), nhorbin * nverbin, fp) == nhorbin * nverbin);
-      success &= (fwrite(tmp_sig, sizeof(real), nhorbin          , fp) == nhorbin          );
-      success &= (fwrite(tmp_Sig, sizeof(real), nhorbin          , fp) == nhorbin          );
+      success &= (fwrite(tmp_hor, sizeof(real), nhorbin          , fp) == (size_t)nhorbin                  );
+      success &= (fwrite(tmp_ver, sizeof(real),           nverbin, fp) ==                   (size_t)nverbin);
+      success &= (fwrite(tmp_rho, sizeof(real), nhorbin * nverbin, fp) == (size_t)nhorbin * (size_t)nverbin);
+      success &= (fwrite(tmp_Phi, sizeof(real), nhorbin * nverbin, fp) == (size_t)nhorbin * (size_t)nverbin);
+      success &= (fwrite(tmp_sig, sizeof(real), nhorbin          , fp) == (size_t)nhorbin                  );
+      success &= (fwrite(tmp_Sig, sizeof(real), nhorbin          , fp) == (size_t)nhorbin                  );
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-      success &= (fwrite(tmp__zd, sizeof(real), nhorbin          , fp) == nhorbin          );
+      success &= (fwrite(tmp__zd, sizeof(real), nhorbin          , fp) == (size_t)nhorbin                  );
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
       //-------------------------------------------------------------------
     }/* for(int lev = 0; lev < maxLev; lev++){ */

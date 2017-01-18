@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/07(Wed) 16:13:52
+                  last updated on 2016/12/15(Thu) 15:06:46
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Assume balance of force in R and z direction                    *
@@ -55,12 +55,7 @@ extern gsl_rng *GSLRand;
 
 
 //-------------------------------------------------------------------------
-#ifndef USE_SFMTJUMP
-static inline
-#else///USE_SFMTJUMP
-int bisection(const double val, const int num, double * restrict tab, const bool logtbl, const double invbin, double * restrict ratio);
-#endif//USE_SFMTJUMP
-int bisection(const double val, const int num, double * restrict tab, const bool logtbl, const double invbin, double * restrict ratio)
+static inline int bisection(const double val, const int num, double * restrict tab, const bool logtbl, const double invbin, double * restrict ratio)
 {
   //-----------------------------------------------------------------------
   int ll = 0;
@@ -86,12 +81,7 @@ int bisection(const double val, const int num, double * restrict tab, const bool
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-#ifndef USE_SFMTJUMP
-static inline
-#else///USE_SFMTJUMP
-int findIdxSpherical(const double rad, profile *prf, const double invlogbin, double *ratio);
-#endif//USE_SFMTJUMP
-int findIdxSpherical(const double rad, profile *prf, const double invlogbin, double *ratio)
+static inline int findIdxSpherical(const double rad, profile *prf, const double invlogbin, double *ratio)
 {
   //-----------------------------------------------------------------------
   int ll = 0;
@@ -657,13 +647,7 @@ static inline void leastSquaredMethod(const int num, double * restrict xx, doubl
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-#ifndef USE_SFMTJUMP
-static inline
-#else///USE_SFMTJUMP
-int bisection4nestedGrid
-(const double val, const int num, double * restrict tab, const bool logtbl, const double invbin, double * restrict ratio, const int maxLev, int * restrict lev, double * restrict tab_lev);
-#endif//USE_SFMTJUMP
-int bisection4nestedGrid
+static inline int bisection4nestedGrid
 (const double val, const int num, double * restrict tab, const bool logtbl, const double invbin, double * restrict ratio, const int maxLev, int * restrict lev, double * restrict tab_lev)
 {
   //-----------------------------------------------------------------------
@@ -715,10 +699,14 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
   /* const ulong rand_half = ((gsl_rng_min(GSLRand) + gsl_rng_max(GSLRand)) >> 1); */
   //-----------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
-#ifndef USE_SFMTJUMP
-  const ulong nunit = (ulong)ceilf(0.1f * (float)num);
-  ulong stage = 1;
+#ifdef  USE_SFMTJUMP
+  const ulong nunit = (ulong)ceilf(0.1f * (float)num / (float)omp_get_num_threads());
 #else///USE_SFMTJUMP
+  const ulong nunit = (ulong)ceilf(0.1f * (float)num);
+#endif//USE_SFMTJUMP
+  ulong stage = 1;
+  ulong Npart = 0;
+#ifdef  USE_SFMTJUMP
 #pragma omp single nowait
 #endif//USE_SFMTJUMP
   {
@@ -991,13 +979,16 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     body.idx[ii] = ii;
     //---------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
-#ifndef USE_SFMTJUMP
-    if( (ii - (*Nuse)) == (stage * nunit) ){
-      fprintf(stdout, "# ~%zu%% completed\n", stage * 10);
+    Npart++;
+    if( Npart == (stage * nunit) ){
+#ifdef  USE_SFMTJUMP
+      fprintf(stdout, "# ~%zu%% on thread %d\n", stage * 10, omp_get_thread_num());
+#else///USE_SFMTJUMP
+      fprintf(stdout, "# ~%zu%%\n", stage * 10);
+#endif//USE_SFMTJUMP
       fflush(stdout);
       stage++;
-    }/* if( (ii - (*Nuse)) == (stage * nunit) ){ */
-#endif//USE_SFMTJUMP
+    }/* if( Npart == (stage * nunit) ){ */
 #endif//PROGRESS_REPORT_ON
     //---------------------------------------------------------------------
   }

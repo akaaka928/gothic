@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/07(Wed) 16:40:34
+                  last updated on 2016/12/09(Fri) 17:50:59
  *                                                                       *
  *    Plot Code of N-body Simulations (using PLplot)                     *
  *      Time Evolution of Spatial Distribution Maps                      *
@@ -64,7 +64,8 @@ extern const double        mass2astro;extern const char        mass_astro_unit_n
 extern const double     density2astro;extern const char     density_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
 extern const double col_density2astro;extern const char col_density_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
 //-------------------------------------------------------------------------
-static int ncrit;
+static int ncrit_base;
+static const int Nminimum = 16;
 //-------------------------------------------------------------------------
 static const int NAllocUnit = 32;
 //-------------------------------------------------------------------------
@@ -532,7 +533,7 @@ int main(int argc, char **argv)
   int      end;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv,      "end", &end));
   int interval;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv, "interval", &interval));
   int  problem;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv,  "problem", &problem));
-  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv, "ncrit", &ncrit));
+  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv, "ncrit", &ncrit_base));
   //-----------------------------------------------------------------------
   modifyArgcArgv4PLplot(&argc, argv, 7);
   //-----------------------------------------------------------------------
@@ -694,8 +695,8 @@ int main(int argc, char **argv)
     break;
   case 26:    /* A trial multi components galaxy model (spherical model) */
     radius = 1.0e+1;
-    radmin = 1.0e-1;    rhomin = 1.0e-8;    encmin = 2.0e-1;    Sigmamin = 5.0e-5;    /* zrhomin = 1.0e-5; */    Rmin =  0.0;    zmin = 0.0;
-    radmax = 1.0e+3;    rhomax = 2.0e+2;    encmax = 4.0e+4;    Sigmamax = 5.0e+2;    /* zrhomax = 1.0e+5; */    Rmax = 50.0;    zmax = 2.0;
+    radmin = 1.0e-1;    rhomin = 1.0e-8;    encmin = 2.0e-1;    Sigmamin = 5.0e-6;    /* zrhomin = 1.0e-5; */    Rmin =  0.0;    zmin = 0.0;
+    radmax = 1.0e+3;    rhomax = 2.0e+2;    encmax = 4.0e+4;    Sigmamax = 1.0e+2;    /* zrhomax = 1.0e+5; */    Rmax = 50.0;    zmax = 2.0;
     break;
   case 27:    /* M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk) */
     radius = 1.0e+1;
@@ -2553,10 +2554,10 @@ void plotHorizontalProfile
     allocChar4PLplot(&zt0legTxt, dkind);    allocPointer4Char4PLplot(&(zt0leg.text), dkind);    assignChar4PLplot(dkind, zt0leg.text, zt0legTxt);
     if( ndisk == 1 )
       for(int ii = 0; ii < dkind; ii++)
-	sprintf(zt0leg.text[ii], "#fit#fr = %.1f (%s)", (((ii / ndisk) == 0) ? ((double)time) : 0.0) * time2astro, time_astro_unit_name4plot);
+	sprintf(zt0leg.text[ii], "#fit#fr=%.1f (%s)", (((ii / ndisk) == 0) ? ((double)time) : 0.0) * time2astro, time_astro_unit_name4plot);
     else
       for(int ii = 0; ii < dkind; ii++)
-	sprintf(zt0leg.text[ii], "disk%d (#fit#fr = %.1f %s)", ii % ndisk, (((ii / ndisk) == 0) ? ((double)time) : 0.0) * time2astro, time_astro_unit_name4plot);
+	sprintf(zt0leg.text[ii], "disk%d (#fit#fr=%.1f %s)", ii % ndisk, (((ii / ndisk) == 0) ? ((double)time) : 0.0) * time2astro, time_astro_unit_name4plot);
   }
   zt0leg.pos = PL_POSITION_LEFT | PL_POSITION_TOP | PL_POSITION_INSIDE;
 #endif//OVERPLOT_INITIAL_DISKHEIGHT
@@ -3110,6 +3111,7 @@ void analyzeRadialProfile
     prad = *rad;
     prho = *rho;
     penc = *enc;
+    const int ncrit = ((int)(group[kk].num / ncrit_base) > Nminimum) ? ncrit_base : (int)(group[kk].num / Nminimum);
     for(int head = 0; head < (int)group[kk].num; head += ncrit){
       //-------------------------------------------------------------------
       /* check # of unused elements */
@@ -3194,6 +3196,7 @@ void analyzeDecomposedProfile(nbody_particle *body_tot, const int kind, model *g
     prho   = *hor_rho;
     pzdisp = *hor_zdisp;
     //---------------------------------------------------------------------
+    const int ncrit = ((int)(group[kk].num / ncrit_base) > Nminimum) ? ncrit_base : (int)(group[kk].num / Nminimum);
     for(int head = 0; head < (int)group[kk].num; head += ncrit){
       //-------------------------------------------------------------------
       /* check # of unused elements */

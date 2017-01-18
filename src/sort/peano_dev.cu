@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/06(Tue) 12:43:16
+                  last updated on 2017/01/17(Tue) 10:37:10
  *                                                                       *
  *    Key generation of Peano-Hilbert space filling curve                *
  *    sort N-body particles to ovey Peano-Hilbert space filling curve    *
@@ -142,17 +142,18 @@ __device__ __forceinline__ PHint dilate3D(const PHint val)
 /* 1. estimate box size */
 /* 2. calculate Peano--Hilbert key */
 //-------------------------------------------------------------------------
-#if 1
-//-------------------------------------------------------------------------
 __global__ void __launch_bounds__(NTHREADS_PH, NBLOCKS_PER_SM_PH) calcPHkey_kernel
      (const int num, READ_ONLY position * RESTRICT ipos, float4 * RESTRICT min_all, float4 * RESTRICT max_all,
       const int nlevel, int * RESTRICT idx, PHint * RESTRICT key, int * RESTRICT gsync0, int * RESTRICT gsync1
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
       , position * RESTRICT center_dev
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
-#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+#ifdef  SHARE_PH_BOX_BOUNDARY
       , READ_ONLY float4 * RESTRICT box_min, READ_ONLY float4 * RESTRICT box_max
-#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+#endif//SHARE_PH_BOX_BOUNDARY
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+      , float * RESTRICT length
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
       )
 {
   //-----------------------------------------------------------------------
@@ -461,12 +462,12 @@ __global__ void __launch_bounds__(NTHREADS_PH, NBLOCKS_PER_SM_PH) calcPHkey_kern
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
-#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+#ifdef  SHARE_PH_BOX_BOUNDARY
   //-----------------------------------------------------------------------
   tmp = *box_min;  min.x = fminf(min.x, tmp.x);  min.y = fminf(min.y, tmp.y);  min.z = fminf(min.z, tmp.z);
   tmp = *box_max;  max.x = fmaxf(max.x, tmp.x);  max.y = fmaxf(max.y, tmp.y);  max.z = fmaxf(max.z, tmp.z);
   //-----------------------------------------------------------------------
-#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+#endif//SHARE_PH_BOX_BOUNDARY
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -477,6 +478,11 @@ __global__ void __launch_bounds__(NTHREADS_PH, NBLOCKS_PER_SM_PH) calcPHkey_kern
   diameter = fmaxf(diameter, max.y - min.y);
   diameter = fmaxf(diameter, max.z - min.z);
   diameter = ldexpf(1.0f, (int)ceilf(log2f(diameter)));
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+  /* store diameter to global memory (purpose: detect external particles) */
+  if( (bidx + tidx) == 0 )
+    *length = diameter;
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
   const float dinv = 1.0f / diameter;
   //-----------------------------------------------------------------------
   min.x = 0.5f * (min.x + max.x - diameter);
@@ -537,464 +543,6 @@ __global__ void __launch_bounds__(NTHREADS_PH, NBLOCKS_PER_SM_PH) calcPHkey_kern
   }/* for(int ih = ihead; ih < itail; ih += bnum * NTHREADS_PH){ */
   //-----------------------------------------------------------------------
 }
-//-------------------------------------------------------------------------
-#else
-//-------------------------------------------------------------------------
-__global__ void __launch_bounds__(NTHREADS_PH, NBLOCKS_PER_SM_PH) calcPHkey_kernel
-     (const int num, READ_ONLY position * RESTRICT ipos, real4 * RESTRICT min_all, real4 * RESTRICT max_all,
-      const int nlevel, int * RESTRICT idx, PHint * RESTRICT key, int * RESTRICT gsync0, int * RESTRICT gsync1
-#ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
-      , position * RESTRICT center_dev
-#endif//RETURN_CENTER_BY_PHKEY_GENERATOR
-      )
-{
-  //-----------------------------------------------------------------------
-  /* identify thread properties */
-  //-----------------------------------------------------------------------
-  const int tidx = THREADIDX_X1D;
-  const int bidx =  BLOCKIDX_X1D;
-  const int bnum =   GRIDDIM_X1D;
-  //-----------------------------------------------------------------------
-  const int uidx = tidx + (NTHREADS_PH >> 1);
-  const int hidx = tidx - (tidx & (warpSize - 1));
-  //-----------------------------------------------------------------------
-  const int ihead = (num *      bidx ) / bnum;
-  const int itail = (num * (1 + bidx)) / bnum;
-  //-----------------------------------------------------------------------
-
-
-  //-----------------------------------------------------------------------
-  /* calculate required box size to contain all N-body particles in the local domain */
-  //-----------------------------------------------------------------------
-  real4 min = { REAL_MAX,  REAL_MAX,  REAL_MAX,  REAL_MAX};
-  real4 max = {-REAL_MAX, -REAL_MAX, -REAL_MAX, -REAL_MAX};
-  //-----------------------------------------------------------------------
-  for(int ih = ihead; ih < itail; ih += NTHREADS_PH){
-    //---------------------------------------------------------------------
-    const int ii = ih + tidx;
-    //---------------------------------------------------------------------
-    if( ii < itail ){
-      //-------------------------------------------------------------------
-      const position pi = ipos[ii];
-      //-------------------------------------------------------------------
-      /* if( pi.x < min.x )	min.x = pi.x; */
-      /* if( pi.y < min.y )	min.y = pi.y; */
-      /* if( pi.z < min.z )	min.z = pi.z; */
-      //-------------------------------------------------------------------
-      /* if( pi.x > max.x )	max.x = pi.x; */
-      /* if( pi.y > max.y )	max.y = pi.y; */
-      /* if( pi.z > max.z )	max.z = pi.z; */
-      //-------------------------------------------------------------------
-      min.x = FMIN(min.x, pi.x);      max.x = FMAX(max.x, pi.x);
-      min.y = FMIN(min.y, pi.y);      max.y = FMAX(max.y, pi.y);
-      min.z = FMIN(min.z, pi.z);      max.z = FMAX(max.z, pi.z);
-      //-------------------------------------------------------------------
-    }/* if( ii < itail ){ */
-    //---------------------------------------------------------------------
-  }/* for(int ih = ihead; ih < itail; ih += NTHREADS_PH){ */
-  //-----------------------------------------------------------------------
-
-
-  //-----------------------------------------------------------------------
-  /* get the box size within a warp */
-  //-----------------------------------------------------------------------
-  __shared__  real4 smem[NTHREADS_PH];
-  real4 tmp;
-  //-----------------------------------------------------------------------
-  /* get minimum */
-  smem[tidx] = min;
-  /* tmp = smem[tidx ^  1];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-  /* tmp = smem[tidx ^  2];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-  /* tmp = smem[tidx ^  4];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-  /* tmp = smem[tidx ^  8];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-  /* tmp = smem[tidx ^ 16];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-  tmp = smem[tidx ^  1];  min.x = FMIN(min.x, tmp.x);  min.y = FMIN(min.y, tmp.y);  min.z = FMIN(min.z, tmp.z);  smem[tidx] = min;
-  tmp = smem[tidx ^  2];  min.x = FMIN(min.x, tmp.x);  min.y = FMIN(min.y, tmp.y);  min.z = FMIN(min.z, tmp.z);  smem[tidx] = min;
-  tmp = smem[tidx ^  4];  min.x = FMIN(min.x, tmp.x);  min.y = FMIN(min.y, tmp.y);  min.z = FMIN(min.z, tmp.z);  smem[tidx] = min;
-  tmp = smem[tidx ^  8];  min.x = FMIN(min.x, tmp.x);  min.y = FMIN(min.y, tmp.y);  min.z = FMIN(min.z, tmp.z);  smem[tidx] = min;
-  tmp = smem[tidx ^ 16];  min.x = FMIN(min.x, tmp.x);  min.y = FMIN(min.y, tmp.y);  min.z = FMIN(min.z, tmp.z);  smem[tidx] = min;
-  //-----------------------------------------------------------------------
-  /* get maximum */
-  smem[tidx] = max;
-  /* tmp = smem[tidx ^  1];  if( tmp.x > max.x )    max.x = tmp.x;  if( tmp.y > max.y )    max.y = tmp.y;  if( tmp.z > max.z )    max.z = tmp.z;  smem[tidx] = max; */
-  /* tmp = smem[tidx ^  2];  if( tmp.x > max.x )    max.x = tmp.x;  if( tmp.y > max.y )    max.y = tmp.y;  if( tmp.z > max.z )    max.z = tmp.z;  smem[tidx] = max; */
-  /* tmp = smem[tidx ^  4];  if( tmp.x > max.x )    max.x = tmp.x;  if( tmp.y > max.y )    max.y = tmp.y;  if( tmp.z > max.z )    max.z = tmp.z;  smem[tidx] = max; */
-  /* tmp = smem[tidx ^  8];  if( tmp.x > max.x )    max.x = tmp.x;  if( tmp.y > max.y )    max.y = tmp.y;  if( tmp.z > max.z )    max.z = tmp.z;  smem[tidx] = max; */
-  /* tmp = smem[tidx ^ 16];  if( tmp.x > max.x )    max.x = tmp.x;  if( tmp.y > max.y )    max.y = tmp.y;  if( tmp.z > max.z )    max.z = tmp.z;  smem[tidx] = max; */
-  tmp = smem[tidx ^  1];  max.x = FMAX(max.x, tmp.x);  max.y = FMAX(max.y, tmp.y);  max.z = FMAX(max.z, tmp.z);  smem[tidx] = max;
-  tmp = smem[tidx ^  2];  max.x = FMAX(max.x, tmp.x);  max.y = FMAX(max.y, tmp.y);  max.z = FMAX(max.z, tmp.z);  smem[tidx] = max;
-  tmp = smem[tidx ^  4];  max.x = FMAX(max.x, tmp.x);  max.y = FMAX(max.y, tmp.y);  max.z = FMAX(max.z, tmp.z);  smem[tidx] = max;
-  tmp = smem[tidx ^  8];  max.x = FMAX(max.x, tmp.x);  max.y = FMAX(max.y, tmp.y);  max.z = FMAX(max.z, tmp.z);  smem[tidx] = max;
-  tmp = smem[tidx ^ 16];  max.x = FMAX(max.x, tmp.x);  max.y = FMAX(max.y, tmp.y);  max.z = FMAX(max.z, tmp.z);  smem[tidx] = max;
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
-  /* get the box size within a block */
-  //-----------------------------------------------------------------------
-  /* 1024 = 32^2 = warpSize^2 is the maximum of the number of threads; therefore, Nwarp <= warpSize */
-  const int Nwarp = NTHREADS_PH >> 5;/* := NTHREADS_PH / warpSize; */
-  __syncthreads();
-  //-----------------------------------------------------------------------
-  if( hidx == tidx ){
-    //---------------------------------------------------------------------
-    smem[                     (tidx >> 5)] = min;/* := smem[                     (tidx / warpSize)] = min; */
-    smem[(NTHREADS_PH >> 1) + (tidx >> 5)] = max;/* := smem[(NTHREADS_PH >> 1) + (tidx / warpSize)] = max; */
-    //---------------------------------------------------------------------
-  }/* if( hidx == tidx ){ */
-  __syncthreads();
-  //-----------------------------------------------------------------------
-  if( tidx < Nwarp ){
-    //---------------------------------------------------------------------
-    /* get minimum */
-    min = smem[tidx];
-/* #   if  NTHREADS_PH >=   64 */
-/*     tmp = smem[tidx ^  1];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-/* #   if  NTHREADS_PH >=  128 */
-/*     tmp = smem[tidx ^  2];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-/* #   if  NTHREADS_PH >=  256 */
-/*     tmp = smem[tidx ^  4];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-/* #   if  NTHREADS_PH >=  512 */
-/*     tmp = smem[tidx ^  8];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-/* #   if  NTHREADS_PH == 1024 */
-/*     tmp = smem[tidx ^ 16];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-#   if  NTHREADS_PH >=   64
-    tmp = smem[tidx ^  1];  min.x = FMIN(min.x, tmp.x);  min.y = FMIN(min.y, tmp.y);  min.z = FMIN(min.z, tmp.z);  smem[tidx] = min;
-#   if  NTHREADS_PH >=  128
-    tmp = smem[tidx ^  2];  min.x = FMIN(min.x, tmp.x);  min.y = FMIN(min.y, tmp.y);  min.z = FMIN(min.z, tmp.z);  smem[tidx] = min;
-#   if  NTHREADS_PH >=  256
-    tmp = smem[tidx ^  4];  min.x = FMIN(min.x, tmp.x);  min.y = FMIN(min.y, tmp.y);  min.z = FMIN(min.z, tmp.z);  smem[tidx] = min;
-#   if  NTHREADS_PH >=  512
-    tmp = smem[tidx ^  8];  min.x = FMIN(min.x, tmp.x);  min.y = FMIN(min.y, tmp.y);  min.z = FMIN(min.z, tmp.z);  smem[tidx] = min;
-#   if  NTHREADS_PH == 1024
-    tmp = smem[tidx ^ 16];  min.x = FMIN(min.x, tmp.x);  min.y = FMIN(min.y, tmp.y);  min.z = FMIN(min.z, tmp.z);  smem[tidx] = min;
-#endif//NTHREADS_PH == 1024
-#endif//NTHREADS_PH >=  512
-#endif//NTHREADS_PH >=  256
-#endif//NTHREADS_PH >=  128
-#endif//NTHREADS_PH >=   64
-    min = smem[0];
-    //---------------------------------------------------------------------
-    /* get maximum */
-    max = smem[uidx];
-    /* smem[tidx] = max; */
-/* #   if  NTHREADS_PH >=   64 */
-/*     tmp = smem[uidx ^  1];  if( tmp.x > max.x )    max.x = tmp.x;  if( tmp.y > max.y )    max.y = tmp.y;  if( tmp.z > max.z )    max.z = tmp.z;  smem[uidx] = max; */
-/* #   if  NTHREADS_PH >=  128 */
-/*     tmp = smem[uidx ^  2];  if( tmp.x > max.x )    max.x = tmp.x;  if( tmp.y > max.y )    max.y = tmp.y;  if( tmp.z > max.z )    max.z = tmp.z;  smem[uidx] = max; */
-/* #   if  NTHREADS_PH >=  256 */
-/*     tmp = smem[uidx ^  4];  if( tmp.x > max.x )    max.x = tmp.x;  if( tmp.y > max.y )    max.y = tmp.y;  if( tmp.z > max.z )    max.z = tmp.z;  smem[uidx] = max; */
-/* #   if  NTHREADS_PH >=  512 */
-/*     tmp = smem[uidx ^  8];  if( tmp.x > max.x )    max.x = tmp.x;  if( tmp.y > max.y )    max.y = tmp.y;  if( tmp.z > max.z )    max.z = tmp.z;  smem[uidx] = max; */
-/* #   if  NTHREADS_PH == 1024 */
-/*     tmp = smem[uidx ^ 16];  if( tmp.x > max.x )    max.x = tmp.x;  if( tmp.y > max.y )    max.y = tmp.y;  if( tmp.z > max.z )    max.z = tmp.z;  smem[uidx] = max; */
-#   if  NTHREADS_PH >=   64
-    tmp = smem[uidx ^  1];  max.x = FMAX(max.x, tmp.x);  max.y = FMAX(max.y, tmp.y);  max.z = FMAX(max.z, tmp.z);  smem[uidx] = max;
-#   if  NTHREADS_PH >=  128
-    tmp = smem[uidx ^  2];  max.x = FMAX(max.x, tmp.x);  max.y = FMAX(max.y, tmp.y);  max.z = FMAX(max.z, tmp.z);  smem[uidx] = max;
-#   if  NTHREADS_PH >=  256
-    tmp = smem[uidx ^  4];  max.x = FMAX(max.x, tmp.x);  max.y = FMAX(max.y, tmp.y);  max.z = FMAX(max.z, tmp.z);  smem[uidx] = max;
-#   if  NTHREADS_PH >=  512
-    tmp = smem[uidx ^  8];  max.x = FMAX(max.x, tmp.x);  max.y = FMAX(max.y, tmp.y);  max.z = FMAX(max.z, tmp.z);  smem[uidx] = max;
-#   if  NTHREADS_PH == 1024
-    tmp = smem[uidx ^ 16];  max.x = FMAX(max.x, tmp.x);  max.y = FMAX(max.y, tmp.y);  max.z = FMAX(max.z, tmp.z);  smem[uidx] = max;
-#endif//NTHREADS_PH == 1024
-#endif//NTHREADS_PH >=  512
-#endif//NTHREADS_PH >=  256
-#endif//NTHREADS_PH >=  128
-#endif//NTHREADS_PH >=   64
-    max = smem[NTHREADS_PH >> 1];
-    //---------------------------------------------------------------------
-  }/* if( tidx < Nwarp ){ */
-  //-----------------------------------------------------------------------
-  __syncthreads();
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
-  /* get the box size within a grid */
-  //-----------------------------------------------------------------------
-  if( bnum > 1 ){
-    //---------------------------------------------------------------------
-    if( tidx == 0 ){
-      //-------------------------------------------------------------------
-      min_all[bidx] = min;
-      max_all[bidx] = max;
-      //-------------------------------------------------------------------
-    }/* if( tidx == 0 ){ */
-    //---------------------------------------------------------------------
-    globalSync(tidx, bidx, bnum, gsync0, gsync1);
-    //---------------------------------------------------------------------
-
-    //---------------------------------------------------------------------
-    /* get minimum */
-    //---------------------------------------------------------------------
-    /* bnum is set to (# of SMs) * NBLOCKS_PER_SM_PH <= NTHREADS_PH */
-    /* ---> # of working block is 1 (bidx = 0) */
-    if( bidx == 0 ){
-      //-------------------------------------------------------------------
-      smem[tidx] = min;
-      //-------------------------------------------------------------------
-      if( tidx < bnum  ){
-	//-----------------------------------------------------------------
-	min = min_all[tidx];
-	//-----------------------------------------------------------------
-
-	//-----------------------------------------------------------------
-	/* reduction within a warp */
-	//-----------------------------------------------------------------
-	smem[tidx] = min;
-	/* if( bnum >  1 ){ */
-	/*   tmp = smem[tidx ^  1];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-	/* if( bnum >  2 ){ */
-	/*   tmp = smem[tidx ^  2];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-	/* if( bnum >  4 ){ */
-	/*   tmp = smem[tidx ^  4];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-	/* if( bnum >  8 ){ */
-	/*   tmp = smem[tidx ^  8];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-	/* if( bnum > 16 ){ */
-	/*   tmp = smem[tidx ^ 16];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-	/* }}}}} */
-	if( bnum >  1 ){	  tmp = smem[tidx ^  1];	  min.x = FMIN(min.x, tmp.x);	  min.y = FMIN(min.y, tmp.y);	  min.z = FMIN(min.z, tmp.z);	  smem[tidx] = min;
-	if( bnum >  2 ){	  tmp = smem[tidx ^  2];	  min.x = FMIN(min.x, tmp.x);	  min.y = FMIN(min.y, tmp.y);	  min.z = FMIN(min.z, tmp.z);	  smem[tidx] = min;
-	if( bnum >  4 ){	  tmp = smem[tidx ^  4];	  min.x = FMIN(min.x, tmp.x);	  min.y = FMIN(min.y, tmp.y);	  min.z = FMIN(min.z, tmp.z);	  smem[tidx] = min;
-	if( bnum >  8 ){	  tmp = smem[tidx ^  8];	  min.x = FMIN(min.x, tmp.x);	  min.y = FMIN(min.y, tmp.y);	  min.z = FMIN(min.z, tmp.z);	  smem[tidx] = min;
-	if( bnum > 16 ){	  tmp = smem[tidx ^ 16];	  min.x = FMIN(min.x, tmp.x);	  min.y = FMIN(min.y, tmp.y);	  min.z = FMIN(min.z, tmp.z);	  smem[tidx] = min;	}}}}}
-	//-----------------------------------------------------------------
-      }/* if( tidx < bnum  ){ */
-      //-------------------------------------------------------------------
-
-      //-------------------------------------------------------------------
-      /* reduction within a block (final step) */
-      //-------------------------------------------------------------------
-      if( bnum > warpSize ){
-	//-----------------------------------------------------------------
-	const int Ndata = BLOCKSIZE(bnum, warpSize);
-	__syncthreads();
-	//-----------------------------------------------------------------
-	if( (hidx == tidx) && (tidx < bnum) )
-	  smem[(tidx >> 5)] = min;/* := (tidx / warpSize) */
-	__syncthreads();
-	//-----------------------------------------------------------------
-	/* bnum <= 1024 --->>> Ndata <= 32 */
-	if( tidx < Ndata ){
-	  //---------------------------------------------------------------
-	  min = smem[tidx];
-	  /* if( Ndata >  1 ){ */
-	  /*   tmp = smem[tidx ^  1];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-	  /* if( Ndata >  2 ){ */
-	  /*   tmp = smem[tidx ^  2];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-	  /* if( Ndata >  4 ){ */
-	  /*   tmp = smem[tidx ^  4];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-	  /* if( Ndata >  8 ){ */
-	  /*   tmp = smem[tidx ^  8];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-	  /* if( Ndata > 16 ){ */
-	  /*   tmp = smem[tidx ^ 16];  if( tmp.x < min.x )    min.x = tmp.x;  if( tmp.y < min.y )    min.y = tmp.y;  if( tmp.z < min.z )    min.z = tmp.z;  smem[tidx] = min; */
-	  /* }}}}} */
-	  if( Ndata >  1 ){	    tmp = smem[tidx ^  1];  min.x = FMIN(min.x, tmp.x);  min.y = FMIN(min.y, tmp.y);	min.z = FMIN(min.z, tmp.z);	smem[tidx] = min;
-	  if( Ndata >  2 ){	    tmp = smem[tidx ^  2];  min.x = FMIN(min.x, tmp.x);	 min.y = FMIN(min.y, tmp.y);	min.z = FMIN(min.z, tmp.z);	smem[tidx] = min;
-	  if( Ndata >  4 ){	    tmp = smem[tidx ^  4];  min.x = FMIN(min.x, tmp.x);	 min.y = FMIN(min.y, tmp.y);	min.z = FMIN(min.z, tmp.z);	smem[tidx] = min;
-	  if( Ndata >  8 ){	    tmp = smem[tidx ^  8];  min.x = FMIN(min.x, tmp.x);	 min.y = FMIN(min.y, tmp.y);	min.z = FMIN(min.z, tmp.z);	smem[tidx] = min;
-	  if( Ndata > 16 ){	    tmp = smem[tidx ^ 16];  min.x = FMIN(min.x, tmp.x);	 min.y = FMIN(min.y, tmp.y);	min.z = FMIN(min.z, tmp.z);	smem[tidx] = min;	  }}}}}
-	  //---------------------------------------------------------------
-	}/* if( tidx < Ndata ){ */
-	//-----------------------------------------------------------------
-	__syncthreads();
-	//-----------------------------------------------------------------
-      }/* if( bnum > warpSize ){ */
-      //-------------------------------------------------------------------
-
-      //-------------------------------------------------------------------
-      if( tidx == 0 )
-	min_all[0] = min;
-      //-------------------------------------------------------------------
-    }/* if( bidx == 0 ){ */
-    //---------------------------------------------------------------------
-
-    //---------------------------------------------------------------------
-    /* get maximum */
-    //---------------------------------------------------------------------
-    /* bnum is set to (# of SMs) * NBLOCKS_PER_SM_PH <= NTHREADS_PH */
-    /* ---> # of working block is 1 (bidx = bnum - 1) */
-    if( bidx == (bnum - 1) ){
-      //-------------------------------------------------------------------
-      smem[tidx] = max;
-      //-------------------------------------------------------------------
-      if( tidx < bnum  ){
-	//-----------------------------------------------------------------
-	max = max_all[tidx];
-	//-----------------------------------------------------------------
-
-	//-----------------------------------------------------------------
-	/* reduction within a warp */
-	//-----------------------------------------------------------------
-	smem[tidx] = max;
-	/* if( bnum >  1 ){ */
-	/*   tmp = smem[tidx ^  1];  if( tmp.x > max.x )    max.x = tmp.x;  if( tmp.y > max.y )    max.y = tmp.y;  if( tmp.z > max.z )    max.z = tmp.z;  smem[tidx] = max; */
-	/* if( bnum >  2 ){ */
-	/*   tmp = smem[tidx ^  2];  if( tmp.x > max.x )    max.x = tmp.x;  if( tmp.y > max.y )    max.y = tmp.y;  if( tmp.z > max.z )    max.z = tmp.z;  smem[tidx] = max; */
-	/* if( bnum >  4 ){ */
-	/*   tmp = smem[tidx ^  4];  if( tmp.x > max.x )    max.x = tmp.x;  if( tmp.y > max.y )    max.y = tmp.y;  if( tmp.z > max.z )    max.z = tmp.z;  smem[tidx] = max; */
-	/* if( bnum >  8 ){ */
-	/*   tmp = smem[tidx ^  8];  if( tmp.x > max.x )    max.x = tmp.x;  if( tmp.y > max.y )    max.y = tmp.y;  if( tmp.z > max.z )    max.z = tmp.z;  smem[tidx] = max; */
-	/* if( bnum > 16 ){ */
-	/*   tmp = smem[tidx ^ 16];  if( tmp.x > max.x )    max.x = tmp.x;  if( tmp.y > max.y )    max.y = tmp.y;  if( tmp.z > max.z )    max.z = tmp.z;  smem[tidx] = max; */
-	/* }}}}} */
-	if( bnum >  1 ){	  tmp = smem[tidx ^  1];  max.x = FMAX(max.x, tmp.x);  max.y = FMAX(max.y, tmp.y);	max.z = FMAX(max.z, tmp.z);	smem[tidx] = max;
-	if( bnum >  2 ){	  tmp = smem[tidx ^  2];  max.x = FMAX(max.x, tmp.x);  max.y = FMAX(max.y, tmp.y);	max.z = FMAX(max.z, tmp.z);	smem[tidx] = max;
-	if( bnum >  4 ){	  tmp = smem[tidx ^  4];  max.x = FMAX(max.x, tmp.x);  max.y = FMAX(max.y, tmp.y);	max.z = FMAX(max.z, tmp.z);	smem[tidx] = max;
-	if( bnum >  8 ){	  tmp = smem[tidx ^  8];  max.x = FMAX(max.x, tmp.x);  max.y = FMAX(max.y, tmp.y);	max.z = FMAX(max.z, tmp.z);	smem[tidx] = max;
-	if( bnum > 16 ){	  tmp = smem[tidx ^ 16];  max.x = FMAX(max.x, tmp.x);  max.y = FMAX(max.y, tmp.y);	max.z = FMAX(max.z, tmp.z);	smem[tidx] = max;	}}}}}
-	//-----------------------------------------------------------------
-      }/* if( tidx < bnum  ){ */
-      //-------------------------------------------------------------------
-
-      //-------------------------------------------------------------------
-      /* reduction within a block (final step) */
-      //-------------------------------------------------------------------
-      if( bnum > warpSize ){
-	//-----------------------------------------------------------------
-	const int Ndata = BLOCKSIZE(bnum, warpSize);
-	__syncthreads();
-	//-----------------------------------------------------------------
-	if( (hidx == tidx) && (tidx < bnum) )
-	  smem[(tidx >> 5)] = max;/* := (tidx / warpSize) */
-	__syncthreads();
-	//-----------------------------------------------------------------
-	/* bnum <= 1024 --->>> Ndata <= 32 */
-	if( tidx < Ndata ){
-	  //---------------------------------------------------------------
-	  max = smem[tidx];
-	  if( Ndata >  1 ){	    tmp = smem[tidx ^  1];  max.x = FMAX(max.x, tmp.x);  max.y = FMAX(max.y, tmp.y);	max.z = FMAX(max.z, tmp.z);	smem[tidx] = max;
-	  if( Ndata >  2 ){	    tmp = smem[tidx ^  2];  max.x = FMAX(max.x, tmp.x);	 max.y = FMAX(max.y, tmp.y);	max.z = FMAX(max.z, tmp.z);	smem[tidx] = max;
-	  if( Ndata >  4 ){	    tmp = smem[tidx ^  4];  max.x = FMAX(max.x, tmp.x);	 max.y = FMAX(max.y, tmp.y);	max.z = FMAX(max.z, tmp.z);	smem[tidx] = max;
-	  if( Ndata >  8 ){	    tmp = smem[tidx ^  8];  max.x = FMAX(max.x, tmp.x);	 max.y = FMAX(max.y, tmp.y);	max.z = FMAX(max.z, tmp.z);	smem[tidx] = max;
-	  if( Ndata > 16 ){	    tmp = smem[tidx ^ 16];  max.x = FMAX(max.x, tmp.x);	 max.y = FMAX(max.y, tmp.y);	max.z = FMAX(max.z, tmp.z);	smem[tidx] = max;	  }}}}}
-	  //---------------------------------------------------------------
-	}/* if( tidx < Ndata ){ */
-	//-----------------------------------------------------------------
-	__syncthreads();
-	//-----------------------------------------------------------------
-      }/* if( bnum > warpSize ){ */
-      //-------------------------------------------------------------------
-
-      //-------------------------------------------------------------------
-      if( tidx == 0 )
-	max_all[0] = max;
-      //-------------------------------------------------------------------
-    }/* if( bidx == (bnum - 1) ){ */
-    //---------------------------------------------------------------------
-
-    //---------------------------------------------------------------------
-    globalSync(tidx, bidx, bnum, gsync0, gsync1);
-    //---------------------------------------------------------------------
-    min = min_all[0];
-    max = max_all[0];
-    //---------------------------------------------------------------------
-  }/* if( bnum > 1 ){ */
-  else{
-    //---------------------------------------------------------------------
-    min = smem[               0];
-    max = smem[NTHREADS_PH >> 1];
-    //---------------------------------------------------------------------
-  }/* else{ */
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
-#if 0
-  min.x = -1.5e+1f;  max.x = 1.5e+1f;
-  min.y = -1.5e+1f;  max.y = 1.5e+1f;
-  min.z = -1.5e+1f;  max.z = 1.5e+1f;
-#endif
-  //-----------------------------------------------------------------------
-#ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
-  //-----------------------------------------------------------------------
-  if( (tidx + bidx) == 0 ){
-    //---------------------------------------------------------------------
-    position center;
-    center.x = HALF * (min.x + max.x);
-    center.y = HALF * (min.y + max.y);
-    center.z = HALF * (min.z + max.z);
-    center.m = ZERO;
-    //---------------------------------------------------------------------
-    *center_dev = center;
-    //---------------------------------------------------------------------
-  }/* if( (tidx + bidx) == 0 ){ */
-  //-----------------------------------------------------------------------
-#endif//RETURN_CENTER_BY_PHKEY_GENERATOR
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
-  /* set box */
-  //-----------------------------------------------------------------------
-  real diameter = ZERO;
-  diameter = FMAX(diameter, max.x - min.x);
-  diameter = FMAX(diameter, max.y - min.y);
-  diameter = FMAX(diameter, max.z - min.z);
-  diameter = LDEXP(UNITY, (int)CEIL(LOG2(diameter)));
-  const real dinv = UNITY / diameter;
-  //-----------------------------------------------------------------------
-  min.x = HALF * (min.x + max.x - diameter);
-  min.y = HALF * (min.y + max.y - diameter);
-  min.z = HALF * (min.z + max.z - diameter);
-  //-----------------------------------------------------------------------
-
-  //-----------------------------------------------------------------------
-  /* calculate Peano--Hilbert key */
-  //-----------------------------------------------------------------------
-  const PHint keymax = (PHint)1 << nlevel;
-  const  real dscale = dinv * (real)keymax;
-  //-----------------------------------------------------------------------
-  for(int ih = ihead; ih < itail; ih += NTHREADS_PH){
-    //---------------------------------------------------------------------
-    const int ii = ih + tidx;
-    //---------------------------------------------------------------------
-    if( ii < itail ){
-      //-------------------------------------------------------------------
-      const position pi = ipos[ii];
-      PHint px = (PHint)(dscale * (pi.x - min.x));
-      PHint py = (PHint)(dscale * (pi.y - min.y));
-      PHint pz = (PHint)(dscale * (pi.z - min.z));
-      /* PHint px = (PHint)(dscale * CAST_D2R(CAST_R2D(pi.x) - CAST_R2D(min.x))); */
-      /* PHint py = (PHint)(dscale * CAST_D2R(CAST_R2D(pi.y) - CAST_R2D(min.y))); */
-      /* PHint pz = (PHint)(dscale * CAST_D2R(CAST_R2D(pi.z) - CAST_R2D(min.z))); */
-#if 0
-      PHint tkey = ((dilate3D(px) << 2) | (dilate3D(py) << 1) | (dilate3D(pz)));
-#endif
-      PHint tkey = 0;
-      //-------------------------------------------------------------------
-      for(int jj = nlevel - 1; jj >= 0; jj--){
-	//-----------------------------------------------------------------
-	/* get xi, yi, zi from given position */
-	PHint xi = (px >> jj) & 1;
-	PHint yi = (py >> jj) & 1;
-	PHint zi = (pz >> jj) & 1;
-	//-----------------------------------------------------------------
-	/* turn px, py, and pz */
-	px ^= -( xi & ((!yi) |   zi));
-	py ^= -((xi & (  yi  |   zi)) | (yi & (!zi)));
-	pz ^= -((xi &  (!yi) & (!zi)) | (yi & (!zi)));
-	//-----------------------------------------------------------------
-	/* append 3 bits to the key */
-	tkey |= ((xi << 2) | ((xi ^ yi) << 1) | ((xi ^ zi) ^ yi)) << (3 * jj);
-	//-----------------------------------------------------------------
-	/* if zi == 1, then rotate uncyclic (x->z->y->x) */
-	if( zi ){	    PHint pt = px;	    px = py;	    py = pz;	  pz = pt;	}
-	else{
-	  /* if yi == 0, then exchange x and z */
-	  if( !yi ){	    PHint pt = px;	    px = pz;	                  pz = pt;	}
-	}
-	//-----------------------------------------------------------------
-      }/* for(int jj = nlevel - 1; jj >= 0; jj--){ */
-      //-------------------------------------------------------------------
-      idx[ii] = ii;
-      key[ii] = tkey;
-      //-------------------------------------------------------------------
-    }/* if( ii < itail ){ */
-    //---------------------------------------------------------------------
-  }/* for(int ih = ihead; ih < itail; ih += bnum * NTHREADS_PH){ */
-  //-----------------------------------------------------------------------
-}
-//-------------------------------------------------------------------------
-#endif
 //-------------------------------------------------------------------------
 
 
@@ -1279,6 +827,9 @@ void sortParticlesPHcurve_dev(const int num, iparticle * RESTRICT src, iparticle
 #ifndef MAKE_TREE_ON_DEVICE
 			      , const soaPHsort hst
 #endif//MAKE_TREE_ON_DEVICE
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+			      , domainLocation *location
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 			      , struct timeval *start
 #ifdef EXEC_BENCHMARK
 			      , wall_clock_time *elapsed
@@ -1306,18 +857,24 @@ void sortParticlesPHcurve_dev(const int num, iparticle * RESTRICT src, iparticle
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
 								       , (*dst).encBall
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
-#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+#ifdef  SHARE_PH_BOX_BOUNDARY
 								       , dev.box_min, dev.box_max
-#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+#endif//SHARE_PH_BOX_BOUNDARY
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+								       , (*location).diameter_dev
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 								       );
 #else///CUB_AVAILABLE
   calcPHkey_kernel<<<devProp.numSM * NBLOCKS_PER_SM_PH, NTHREADS_PH>>>(num, (*src).pos, dev.min, dev.max, MAXIMUM_PHKEY_LEVEL, dev.idx, dev.key, dev.gsync0, dev.gsync1
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
 								       , (*dst).encBall
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
-#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+#ifdef  SHARE_PH_BOX_BOUNDARY
 								       , dev.box_min, dev.box_max
-#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+#endif//SHARE_PH_BOX_BOUNDARY
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+								       , (*location).diameter_dev
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 								       );
 #endif//CUB_AVAILABLE
   getLastCudaError("calcPHkey_kernel");
@@ -1330,6 +887,14 @@ void sortParticlesPHcurve_dev(const int num, iparticle * RESTRICT src, iparticle
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
   checkCudaErrors(cudaMemcpy((*dst).encBall_hst, (*dst).encBall, sizeof(position), cudaMemcpyDeviceToHost));
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+  checkCudaErrors(cudaMemcpy((*location).diameter_hst, (*location).diameter_dev, sizeof(float), cudaMemcpyDeviceToHost));
+#ifdef  TIME_BASED_MODIFICATION
+  location->linv = 2.0f / (*(*location).diameter_hst);
+#else///TIME_BASED_MODIFICATION
+  location->dL_L = location->eta * location->eps / (*(*location).diameter_hst);
+#endif//TIME_BASED_MODIFICATION
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
   //-----------------------------------------------------------------------
 #ifdef  HUNT_MAKE_PARAMETER
   stopStopwatch(&(elapsed->genPHkey_kernel));

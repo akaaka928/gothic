@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/06(Tue) 12:36:02
+                  last updated on 2017/01/17(Tue) 20:12:33
  *                                                                       *
  *    Implementations related to MPI parallelization and GPU computing   *
  *                                                                       *
@@ -23,6 +23,7 @@
 #include "macro.h"
 #include "mpilib.h"
 #include "cudalib.h"
+#include "timer.h"
 //-------------------------------------------------------------------------
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
@@ -1029,10 +1030,10 @@ void exchangeParticles_dev
  MPIinfo orm[], MPIinfo rep[], domainCfg domain, MPIcfg_tree mpi,
  const double tloc, sampling sample, samplePos loc, samplePos ful,
  soaPHsort soa, const deviceProp devProp, const deviceInfo devInfo,
- double *exchangeInterval, measuredTime *measured
-#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
- , const float epsinv
-#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+ measuredTime *measured
+#ifdef  CARE_EXTERNAL_PARTICLES
+ , domainLocation *location
+#endif//CARE_EXTERNAL_PARTICLES
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
  , brentStatus *status, brentMemory *memory
 #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
@@ -1046,9 +1047,9 @@ void exchangeParticles_dev
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
   //-----------------------------------------------------------------------
-#ifdef  EXEC_BENCHMARK
-  initStopwatch_dev(devInfo);
-#endif//EXEC_BENCHMARK
+  static struct timeval start;
+  checkCudaErrors(cudaDeviceSynchronize());
+  gettimeofday(&start, NULL);
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -1072,11 +1073,13 @@ void exchangeParticles_dev
   /* exit(0); */
 #endif
   //-----------------------------------------------------------------------
-#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+#ifdef  SHARE_PH_BOX_BOUNDARY
   chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, soa.min_hst, 3, MPI_FLOAT, MPI_MIN, mpi.comm));
   chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, soa.max_hst, 3, MPI_FLOAT, MPI_MAX, mpi.comm));
   checkCudaErrors(cudaMemcpyAsync(soa.box_min, soa.min_hst, sizeof(float4), cudaMemcpyHostToDevice, devInfo.stream[1]));
   checkCudaErrors(cudaMemcpyAsync(soa.box_max, soa.max_hst, sizeof(float4), cudaMemcpyHostToDevice, devInfo.stream[1]));
+#endif//SHARE_PH_BOX_BOUNDARY
+#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
   float diameter = 0.0f;
   diameter = fmaxf(diameter, max.x - min.x);
   diameter = fmaxf(diameter, max.y - min.y);
@@ -1085,20 +1088,9 @@ void exchangeParticles_dev
   soa.min_hst->x = 0.5f * (soa.min_hst->x + soa.max_hst->x - diameter);
   soa.min_hst->y = 0.5f * (soa.min_hst->y + soa.max_hst->y - diameter);
   soa.min_hst->z = 0.5f * (soa.min_hst->z + soa.max_hst->z - diameter);
-  /* const float dL    = diameter * ldexpf(1.0f, -(int)ceilf(log2f(diameter * epsinv))); */
-  /* const float dL    = diameter * ldexpf(1.0f, -(int)ceilf(log2f(diameter * 0.25f * epsinv))); */
-  /* const float dL    = diameter * ldexpf(1.0f, -(int)ceilf(log2f(diameter * 0.125f * epsinv))); */
-  /* const float dL    = diameter * ldexpf(1.0f, -(int)ceilf(log2f(diameter * 0.0625f * epsinv))); */
-  /* const float dL    = diameter * ldexpf(1.0f, -(int)ceilf(log2f(diameter * 0.03125f * epsinv))); */
-  /* const float dL    = diameter * ldexpf(1.0f, -(int)ceilf(log2f(diameter * 0.015625f * epsinv))); */
-  const float dL    = diameter * ldexpf(1.0f, -(int)ceilf(log2f(diameter * 7.8125e-3f * epsinv)));
+  /* Nlevel ~ log_8(Ntot) = log_2(Ntot) / 3 */
+  const float dL    = diameter * ldexpf(1.0f, -(((int)ceilf(log2f((float)Ntot) / 3.0f)) >> 1));
   const float dLinv = 1.0f / dL;
-#if 0
-  if( mpi.rank == 0 )
-    printf("diameter = %e, epsinv = %e, dr = %e, dinv = %e\n", diameter, epsinv, dr, dinv);
-  MPI_Finalize();
-  exit(0);
-#endif
 #endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
   //-----------------------------------------------------------------------
 
@@ -1360,12 +1352,28 @@ void exchangeParticles_dev
   }
 #endif
   //-----------------------------------------------------------------------
-#if 1
+#if 0
 #ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
   if( mpi.rank == 0 )
     printf("wall @ %e, dL = %e, xmin = %e\n", domain.xmax[0], dL, soa.min_hst->x);
 #endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
 #endif
+  //-----------------------------------------------------------------------
+#ifdef  CARE_EXTERNAL_PARTICLES
+  location->boxmin.x = local_xmin;
+  location->boxmin.y = local_ymin;
+  location->boxmin.z = local_zmin;
+  location->boxmax.x = local_xmax;
+  location->boxmax.y = local_ymax;
+  location->boxmax.z = local_zmax;
+#ifdef  TIME_BASED_MODIFICATION
+  location->elapsed = 0.0f;
+  location->dtmin   = 0.5f * FLT_MAX;
+  location->dtinv   = 1.0f / location->dtmin;
+#else///TIME_BASED_MODIFICATION
+  location->step = 0;
+#endif//TIME_BASED_MODIFICATION
+#endif//CARE_EXTERNAL_PARTICLES
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
@@ -1678,12 +1686,6 @@ void exchangeParticles_dev
 #ifdef  WALK_TREE_TOTAL_SUM_MODEL
   measured->incSum  *= scale;
 #endif//WALK_TREE_TOTAL_SUM_MODEL
-  measured->genTree = 0.0;
-  measured->calcAcc = 0.0;
-  measured->calcMAC = 0.0;
-#ifdef  MONITOR_LETGEN_TIME
-  measured->makeLET = 0.0;
-#endif//MONITOR_LETGEN_TIME
   //-----------------------------------------------------------------------
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
   status->x.val *= scale;
@@ -1693,12 +1695,17 @@ void exchangeParticles_dev
   memory->previous *= scale;
 #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
   //-----------------------------------------------------------------------
-  *exchangeInterval = 0.0;
+  /* reset counter */
+  measured->sum_excg = 0.0;
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------
+  static struct timeval finish;
+  checkCudaErrors(cudaDeviceSynchronize());
+  gettimeofday(&finish, NULL);
+  measured->excg = calcElapsedTimeInSec(start, finish);
 #ifdef  EXEC_BENCHMARK
-  stopStopwatch(&(elapsed->excgBody));
+  elapsed->excgBody = measured->excg;
 #endif//EXEC_BENCHMARK
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/04(Fri) 15:02:27
+                  last updated on 2017/01/17(Tue) 19:46:53
  *                                                                       *
  *    Header File for applying auto-tuning                               *
  *                                                                       *
@@ -54,16 +54,21 @@ typedef struct
 //-------------------------------------------------------------------------
 typedef struct
 {
+  /* counters for automatic tree rebuild */
   double walkTree[2];
   double makeTree;
 #ifdef  WALK_TREE_TOTAL_SUM_MODEL
   double incSum;
 #endif//WALK_TREE_TOTAL_SUM_MODEL
 #ifndef SERIALIZED_EXECUTION
-  double genTree, calcAcc, calcMAC;
-#ifdef  MONITOR_LETGEN_TIME
-  double makeLET;
-#endif//MONITOR_LETGEN_TIME
+  /* counter for automatic load balancing, reset when particle exchanging */
+  double sum_excg;
+/*   double genTree, calcAcc, calcMAC; */
+/* #ifdef  MONITOR_LETGEN_TIME */
+/*   double makeLET; */
+/* #endif//MONITOR_LETGEN_TIME */
+  /* counters for detecting slow-down due to particle mixing, reset when tree rebuilding */
+  double sum_rebuild, excg;
 #endif//SERIALIZED_EXECUTION
 } measuredTime;
 //-------------------------------------------------------------------------

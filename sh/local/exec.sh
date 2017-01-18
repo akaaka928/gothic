@@ -56,8 +56,8 @@ ABSERR=3.906250000e-3
 # THETA=0.8
 # THETA=0.7
 # THETA=0.6
-THETA=0.5
-# THETA=0.4
+# THETA=0.5
+THETA=0.4
 # THETA=0.3
 ###############################################################
 # multipole moment MAC by Warren & Salmon (1993)

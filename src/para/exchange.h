@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/06(Tue) 12:35:44
+                  last updated on 2017/01/17(Tue) 12:08:00
  *                                                                       *
  *    Header File for N-body calculation with MPI parallelization        *
  *                                                                       *
@@ -112,7 +112,8 @@ typedef struct
 
 //-------------------------------------------------------------------------
 /* constant to detect load imbalance */
-static const double loadImbalanceCrit = 0.9;
+/* static const double loadImbalanceCrit = 0.9; */
+static const double loadImbalanceCrit = 0.95;
 #define SLOW_DOWN_PROCS_CRIT(tot) ((tot) >> 4)
 //-------------------------------------------------------------------------
 typedef struct

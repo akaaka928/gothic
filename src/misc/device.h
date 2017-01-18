@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/11/25(Fri) 18:12:05
+                  last updated on 2016/12/12(Mon) 10:08:05
  *                                                                       *
  *    Header File for configuration of accelerator devices (GPUs)        *
  *                                                                       *
@@ -51,7 +51,8 @@
 
 
 //-------------------------------------------------------------------------
-#define GLOBAL_MEMORY_SYSBUF (128 * 1048576)
+/* #define GLOBAL_MEMORY_SYSBUF (128 * 1048576) */
+#define GLOBAL_MEMORY_SYSBUF (256 * 1048576)
 /* /\* for nvprof *\/ */
 /* #define GLOBAL_MEMORY_SYSBUF (512 * 1048576) */
 //-------------------------------------------------------------------------

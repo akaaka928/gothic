@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/07(Wed) 16:28:33
+                  last updated on 2016/12/10(Sat) 15:25:05
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Poisson solver to yield potential--density pair                 *
@@ -144,7 +144,7 @@ void   freeDiskProfile
 }
 //-------------------------------------------------------------------------
 void allocDiskProfile
-(const int ndisk, disk_data **disk, profile_cfg *disk_cfg, int *maxLev, profile *disk_prf, const double logrbin, const double invlogrbin,
+(const int ndisk, disk_data **disk, profile_cfg *disk_cfg, int *maxLev, profile **disk_prf, const int skind, const double logrbin, const double invlogrbin,
  double **hor, double **ver, double **node_hor, double **node_ver,
  double **pot, double **rho0, double **rho1, double **rhoTot, double **dPhidR, double **d2PhidR2,
  double **Sigma, double **vsigz, double **enc,
@@ -285,7 +285,8 @@ void allocDiskProfile
     (*disk)[ii].zmax  = maxLz;
     (*disk)[ii].hh    = hh;
     (*disk)[ii].invRd = 1.0 / disk_cfg[ii].rs;
-    (*disk)[ii].prf   = &disk_prf[ii];
+    /* (*disk)[ii].prf   = &((*disk_prf)[ii]); */
+    (*disk)[ii].prf   = disk_prf[skind + ii];
     (*disk)[ii].logrbin = logrbin;
     (*disk)[ii].invlogrbin = invlogrbin;
     //---------------------------------------------------------------------

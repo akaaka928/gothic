@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/06(Tue) 12:55:00
+                  last updated on 2017/01/14(Sat) 12:33:37
  *                                                                       *
  *    Header File for constructing octree structure                      *
  *                                                                       *
@@ -23,6 +23,14 @@
 #include "../sort/peano.h"
 #include "../tree/macutil.h"
 #include "../tree/make.h"
+//-------------------------------------------------------------------------
+#ifndef SERIALIZED_EXECUTION
+#include "../sort/peano_dev.h"
+#endif//SERIALIZED_EXECUTION
+//-------------------------------------------------------------------------
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES) && !defined(TIME_BASED_MODIFICATION)
+/* #define USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES */
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES) && !defined(TIME_BASED_MODIFICATION)
 //-------------------------------------------------------------------------
 
 
@@ -48,6 +56,19 @@
 #undef  NTHREADS_MAC
 #define NTHREADS_MAC  (512)
 #endif//NTHREADS_MAC > 512
+//-------------------------------------------------------------------------
+#ifdef  DIV_NTHREADS_MAC
+#undef  DIV_NTHREADS_MAC
+#endif//DIV_NTHREADS_MAC
+#   if  NTHREADS_MAC == 512
+#define DIV_NTHREADS_MAC(a) ((a) >> 9)
+#endif//NTHREADS_MAC == 512
+#   if  NTHREADS_MAC == 256
+#define DIV_NTHREADS_MAC(a) ((a) >> 8)
+#endif//NTHREADS_MAC == 256
+#   if  NTHREADS_MAC == 128
+#define DIV_NTHREADS_MAC(a) ((a) >> 7)
+#endif//NTHREADS_MAC == 128
 //-------------------------------------------------------------------------
 #ifndef TSUB_MAC
 #define TSUB_MAC (32)
@@ -80,8 +101,6 @@
 #endif//NTHREADS_MAC >= 256
 #endif//NTHREADS_MAC >= 128
 //-------------------------------------------------------------------------
-#define NGROUPS_MAC (NTHREADS_MAC / TSUB_MAC)
-//-------------------------------------------------------------------------
 #define NBUF_MAC (((NJ_BMAX_ESTIMATE) + (TSUB_MAC) - 1) / TSUB_MAC)
 //-------------------------------------------------------------------------
 /* maximum number of NBUF_MAC is 4 to use float4 in union */
@@ -89,8 +108,32 @@
 #undef  NBUF_MAC
 #define NBUF_MAC (4)
 #undef  TSUB_MAC
-#define TSUB_MAC ((NJ_BMAX_ESTIMATE + (NBUF_MAC) - 1) / NBUF_MAC)
+#define TSUB_MAC ((NJ_BMAX_ESTIMATE + (NBUF_MAC) - 1) >> 2)
 #endif//NBUF_MAC > 4
+//-------------------------------------------------------------------------
+#ifdef  DIV_TSUB_MAC
+#undef  DIV_TSUB_MAC
+#endif//DIV_TSUB_MAC
+#   if  TSUB_MAC == 32
+#define DIV_TSUB_MAC(a) ((a) >> 5)
+#endif//TSUB_MAC == 32
+#   if  TSUB_MAC == 16
+#define DIV_TSUB_MAC(a) ((a) >> 4)
+#endif//TSUB_MAC == 16
+#   if  TSUB_MAC ==  8
+#define DIV_TSUB_MAC(a) ((a) >> 3)
+#endif//TSUB_MAC ==  8
+#   if  TSUB_MAC ==  4
+#define DIV_TSUB_MAC(a) ((a) >> 2)
+#endif//TSUB_MAC ==  4
+#   if  TSUB_MAC ==  2
+#define DIV_TSUB_MAC(a) ((a) >> 1)
+#endif//TSUB_MAC ==  2
+#   if  TSUB_MAC ==  1
+#define DIV_TSUB_MAC(a) (a)
+#endif//TSUB_MAC ==  1
+//-------------------------------------------------------------------------
+#define NGROUPS_MAC (DIV_TSUB_MAC(NTHREADS_MAC))
 //-------------------------------------------------------------------------
 
 
@@ -140,6 +183,35 @@
 #define NTHREADS_MAKE_TREE  (512)
 #endif//NTHREADS_MAKE_TREE > 512
 //-------------------------------------------------------------------------
+#ifdef  DIV_NTHREADS_MAKE_TREE
+#undef  DIV_NTHREADS_MAKE_TREE
+#endif//DIV_NTHREADS_MAKE_TREE
+#   if  NTHREADS_MAKE_TREE == 512
+#define DIV_NTHREADS_MAKE_TREE(a) ((a) >> 9)
+#endif//NTHREADS_MAKE_TREE == 512
+#   if  NTHREADS_MAKE_TREE == 256
+#define DIV_NTHREADS_MAKE_TREE(a) ((a) >> 8)
+#endif//NTHREADS_MAKE_TREE == 256
+#   if  NTHREADS_MAKE_TREE == 128
+#define DIV_NTHREADS_MAKE_TREE(a) ((a) >> 7)
+#endif//NTHREADS_MAKE_TREE == 128
+//-------------------------------------------------------------------------
+#ifdef  DIV_NTHREADS_LINK_TREE
+#undef  DIV_NTHREADS_LINK_TREE
+#endif//DIV_NTHREADS_LINK_TREE
+#   if  NTHREADS_LINK_TREE == 1024
+#define DIV_NTHREADS_LINK_TREE(a) ((a) >> 10)
+#endif//NTHREADS_LINK_TREE == 1024
+#   if  NTHREADS_LINK_TREE ==  512
+#define DIV_NTHREADS_LINK_TREE(a) ((a) >>  9)
+#endif//NTHREADS_LINK_TREE ==  512
+#   if  NTHREADS_LINK_TREE ==  256
+#define DIV_NTHREADS_LINK_TREE(a) ((a) >>  8)
+#endif//NTHREADS_LINK_TREE ==  256
+#   if  NTHREADS_LINK_TREE ==  128
+#define DIV_NTHREADS_LINK_TREE(a) ((a) >>  7)
+#endif//NTHREADS_LINK_TREE ==  128
+//-------------------------------------------------------------------------
 #ifndef TSUB_MAKE_TREE
 #define TSUB_MAKE_TREE   CELL_UNIT
 #endif//TSUB_MAKE_TREE
@@ -147,7 +219,30 @@
 #undef  TSUB_MAKE_TREE
 #define TSUB_MAKE_TREE   CELL_UNIT
 #endif//TSUB_MAKE_TREE > CELL_UNIT
-#define NGROUPS_MAKE_TREE (NTHREADS_MAKE_TREE / TSUB_MAKE_TREE)
+//-------------------------------------------------------------------------
+#ifdef  DIV_TSUB_MAKE_TREE
+#undef  DIV_TSUB_MAKE_TREE
+#endif//DIV_TSUB_MAKE_TREE
+#   if  TSUB_MAKE_TREE == 32
+#define DIV_TSUB_MAKE_TREE(a) ((a) >> 5)
+#endif//TSUB_MAKE_TREE == 32
+#   if  TSUB_MAKE_TREE == 16
+#define DIV_TSUB_MAKE_TREE(a) ((a) >> 4)
+#endif//TSUB_MAKE_TREE == 16
+#   if  TSUB_MAKE_TREE ==  8
+#define DIV_TSUB_MAKE_TREE(a) ((a) >> 3)
+#endif//TSUB_MAKE_TREE ==  8
+#   if  TSUB_MAKE_TREE ==  4
+#define DIV_TSUB_MAKE_TREE(a) ((a) >> 2)
+#endif//TSUB_MAKE_TREE ==  4
+#   if  TSUB_MAKE_TREE ==  2
+#define DIV_TSUB_MAKE_TREE(a) ((a) >> 1)
+#endif//TSUB_MAKE_TREE ==  2
+#   if  TSUB_MAKE_TREE ==  1
+#define DIV_TSUB_MAKE_TREE(a) (a)
+#endif//TSUB_MAKE_TREE ==  1
+//-------------------------------------------------------------------------
+#define NGROUPS_MAKE_TREE (DIV_TSUB_MAKE_TREE(NTHREADS_MAKE_TREE))
 //-------------------------------------------------------------------------
 
 //-------------------------------------------------------------------------
@@ -203,6 +298,59 @@
 
 
 //-------------------------------------------------------------------------
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+//-------------------------------------------------------------------------
+#define NTHREADS_OUTFLOW (1024)
+#ifdef  DIV_NTHREADS_OUTFLOW
+#undef  DIV_NTHREADS_OUTFLOW
+#endif//DIV_NTHREADS_OUTFLOW
+#   if  NTHREADS_OUTFLOW == 1024
+#define DIV_NTHREADS_OUTFLOW(a) ((a) >> 10)
+#endif//NTHREADS_OUTFLOW == 1024
+#   if  NTHREADS_OUTFLOW ==  512
+#define DIV_NTHREADS_OUTFLOW(a) ((a) >>  9)
+#endif//NTHREADS_OUTFLOW ==  512
+#   if  NTHREADS_OUTFLOW ==  256
+#define DIV_NTHREADS_OUTFLOW(a) ((a) >>  8)
+#endif//NTHREADS_OUTFLOW ==  256
+#   if  NTHREADS_OUTFLOW ==  128
+#define DIV_NTHREADS_OUTFLOW(a) ((a) >>  7)
+#endif//NTHREADS_OUTFLOW ==  128
+//-------------------------------------------------------------------------
+#define TSUB_OUTFLOW (8)
+/* TSUB_OUTFLOW must be equal or greater than NLEAF / 32 to store NLEAF / TSUB_OUTFLOW flags in an integer (32bit) */
+#   if  TSUB_OUTFLOW < (NLEAF >> 5)
+#undef  TSUB_OUTFLOW
+#define TSUB_OUTFLOW   (NLEAF >> 5)
+#endif//TSUB_OUTFLOW < (NLEAF >> 5)
+#ifdef  DIV_TSUB_OUTFLOW
+#undef  DIV_TSUB_OUTFLOW
+#endif//DIV_TSUB_OUTFLOW
+#   if  TSUB_OUTFLOW == 32
+#define DIV_TSUB_OUTFLOW(a) ((a) >> 5)
+#endif//TSUB_OUTFLOW == 32
+#   if  TSUB_OUTFLOW == 16
+#define DIV_TSUB_OUTFLOW(a) ((a) >> 4)
+#endif//TSUB_OUTFLOW == 16
+#   if  TSUB_OUTFLOW ==  8
+#define DIV_TSUB_OUTFLOW(a) ((a) >> 3)
+#endif//TSUB_OUTFLOW ==  8
+#   if  TSUB_OUTFLOW ==  4
+#define DIV_TSUB_OUTFLOW(a) ((a) >> 2)
+#endif//TSUB_OUTFLOW ==  4
+#   if  TSUB_OUTFLOW ==  2
+#define DIV_TSUB_OUTFLOW(a) ((a) >> 1)
+#endif//TSUB_OUTFLOW ==  2
+#   if  TSUB_OUTFLOW ==  1
+#define DIV_TSUB_OUTFLOW(a) (a)
+#endif//TSUB_OUTFLOW ==  1
+#define NGROUPS_OUTFLOW (DIV_TSUB_OUTFLOW(NTHREADS_OUTFLOW))
+//-------------------------------------------------------------------------
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
 typedef struct
 {
   int *more0, *more1;
@@ -214,6 +362,16 @@ typedef struct
   int *gsync0_make_tree, *gsync1_make_tree, *gsync2_make_tree, *gsync3_make_tree;
   int *gsync0_link_tree, *gsync1_link_tree;
 #endif//MAKE_TREE_ON_DEVICE
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+#   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+  int  *ibuf_external;
+  real *rbuf_external;
+#else///defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+  uint *ubuf_external;
+#endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+  int *gmem_external, *gsync0_external, *gsync1_external;
+  size_t Nbuf_external;
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 } soaMakeTreeBuf;
 //-------------------------------------------------------------------------
 
@@ -273,6 +431,9 @@ extern "C"
 #ifdef  GADGET_MAC
    real **mac_dev,
 #endif//GADGET_MAC
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+   int **gmem_external, int **gsync0_external, int **gsync1_external, float **diameter_dev, float **diameter_hst, domainLocation *location, const float eps, const float eta,
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
    int **more0Buf, int **more1Buf, real **rjmaxBuf, int **fail_dev, soaTreeNode *dev, soaTreeNode *hst, soaMakeTreeBuf *buf);
   void  freeTreeNode_dev
   (uint  *more_dev, jparticle  *pj_dev, jmass  *mj_dev,
@@ -308,6 +469,9 @@ extern "C"
 #ifdef  GADGET_MAC
    real  *mac_dev,
 #endif//GADGET_MAC
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+   int  *gmem_external, int  *gsync0_external, int  *gsync1_external, float  *diameter_dev, float  *diameter_hst,
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
    int  *more0Buf, int  *more1Buf, real  *rjmaxBuf, int  *fail_dev);
   //-----------------------------------------------------------------------
   void setTreeNode_dev
@@ -331,6 +495,9 @@ extern "C"
 #   if  defined(MAKE_TREE_ON_DEVICE) && defined(COUNT_INTERACTIONS)
    treecell **cell_hst, bool **leaf_hst, uint **node_hst, PHinfo **info_hst,
 #endif//defined(MAKE_TREE_ON_DEVICE) && defined(COUNT_INTERACTIONS)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+   deviceProp devProp,
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
    soaTreeCell *dev, soaTreeCell *hst);
   void  freeTreeCell_dev
   (treecell  *cell_dev, bool  *leaf_dev, uint  *node_dev, PHinfo  *info_dev,
@@ -367,10 +534,13 @@ extern "C"
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
    , const real eps2
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
-#   if  !defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE)
-   , const soaTreeNode node_hst, real * RESTRICT bmax_root_hst
-#endif//!defined(SERIALIZED_EXECUTION) && !defined(BUILD_LET_ON_DEVICE)
 #ifndef SERIALIZED_EXECUTION
+#ifndef BUILD_LET_ON_DEVICE
+   , const soaTreeNode node_hst, real * RESTRICT bmax_root_hst
+#endif//BUILD_LET_ON_DEVICE
+#ifdef  CARE_EXTERNAL_PARTICLES
+   , domainLocation *location
+#endif//CARE_EXTERNAL_PARTICLES
    , double *tmac
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS

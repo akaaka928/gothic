@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/06(Tue) 12:49:05
+                  last updated on 2016/12/11(Sun) 17:14:17
  *                                                                       *
  *    Header File for constructing octree structure                      *
  *                                                                       *
@@ -13,7 +13,9 @@
 #ifndef LET_H
 #define LET_H
 //-------------------------------------------------------------------------
+#ifndef SERIALIZED_EXECUTION
 #include <mpi.h>
+#endif//SERIALIZED_EXECUTION
 //-------------------------------------------------------------------------
 #include "macro.h"
 #include "cudalib.h"
@@ -21,7 +23,10 @@
 #include "../sort/peano.h"
 #include "../tree/macutil.h"
 #include "../tree/make.h"
+//-------------------------------------------------------------------------
+#ifndef SERIALIZED_EXECUTION
 #include "../para/mpicfg.h"
+#endif//SERIALIZED_EXECUTION
 //-------------------------------------------------------------------------
 
 

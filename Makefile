@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2016/12/08(Thu) 15:54:25
+# last updated on 2017/01/18(Wed) 11:12:10
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -22,6 +22,7 @@ DEBUG	:= -DNDEBUG
 #################################################################################################
 # Execution options
 FORCE_SINGLE_GPU_RUN	:= 0
+CARE_EXTERNAL_PARTICLES	:= 0
 ACC_ACCUMULATION_IN_DP	:= 0
 KAHAN_SUM_CORRECTION	:= 0
 EXCHANGE_USING_GPUS	:= 1
@@ -46,7 +47,7 @@ BRUTE_FORCE_LOCALIZER	:= 1
 FACILE_NEIGHBOR_SEARCH	:= 1
 ADAPTIVE_PHYEY_JUMP	:= 0
 DATAFILE_FORMAT_HDF5	:= 1
-HDF5_FOR_ZINDAIJI	:= 1
+HDF5_FOR_ZINDAIJI	:= 0
 APPEND_ASCII_ICDATA	:= 0
 DUMPFILE_FOR_BONSAI	:= 0
 USE_OFFICIAL_SFMT	:= 1
@@ -193,6 +194,11 @@ endif
 #################################################################################################
 ifeq ($(MONITOR_ENERGY_ERROR), 1)
 CCARG	+= -DMONITOR_ENERGY_ERROR
+endif
+#################################################################################################
+ifeq ($(CARE_EXTERNAL_PARTICLES), 1)
+CCARG	+= -DCARE_EXTERNAL_PARTICLES
+CUARG	+= -DCARE_EXTERNAL_PARTICLES
 endif
 #################################################################################################
 ifeq ($(ACC_ACCUMULATION_IN_DP), 1)
@@ -1089,7 +1095,7 @@ GOTHIC_DEP	+=	$(TREEDIR)/macutil.h	$(TREEDIR)/make.h	$(TREEDIR)/let.h	$(TREEDIR)
 GOTHIC_DEP	+=	$(TIMEDIR)/adv_dev.h
 ifeq ($(FORCE_SINGLE_GPU_RUN), 0)
 GOTHIC_DEP	+=	$(MYINC)/mpilib.h	$(PARADIR)/mpicfg.h	$(PARADIR)/exchange.h
-GOTHIC_DEP	+=	$(TREEDIR)/geo_dev.h	$(TREEDIR)/let_dev.h
+GOTHIC_DEP	+=	$(TREEDIR)/geo_dev.h	$(TREEDIR)/let_dev.h	$(PARADIR)/exchange_dev.h
 endif
 ifeq ($(USE_BRENT_METHOD), 1)
 GOTHIC_DEP	+=	$(MISCDIR)/brent.h
@@ -1172,7 +1178,7 @@ TREE_BUF_DEP	:=	$(TREEDIR)/buf_inc.h	$(TREEDIR)/buf_inc.cu
 TREE_LET_DEP	:=	$(MYINC)/mpilib.h	$(TREEDIR)/let.h	$(TREEDIR)/let_dev.h	$(PARADIR)/mpicfg.h
 $(OBJDIR)/let_dev.mpi.o:	$(TREE_DEV_DEP)	$(TREE_BUF_DEP)	$(TREE_LET_DEP)	$(MYINC)/timer.h	$(TREEDIR)/walk_dev.h
 MAKE_DEV_DEP	:=	$(MISCDIR)/gsync_dev.cu	$(TREEDIR)/make_dev.h	$(TREEDIR)/let.h	$(TREEDIR)/make_inc.cu	$(TREEDIR)/make_inc.h	$(TREEDIR)/make_del.h
-$(OBJDIR)/make_dev.mpi.o:	$(TREE_DEV_DEP)	$(SORTDIR)/peano.h	$(SORTDIR)/peano_dev.h	$(MAKE_DEV_DEP)
+$(OBJDIR)/make_dev.mpi.o:	$(TREE_DEV_DEP)	$(SORTDIR)/peano.h	$(SORTDIR)/peano_dev.h	$(MAKE_DEV_DEP)	$(MYINC)/timer.h	$(MISCDIR)/device.h
 $(OBJDIR)/make_dev.o:		$(TREE_DEV_DEP)	$(SORTDIR)/peano.h	$(SORTDIR)/peano_dev.h	$(MAKE_DEV_DEP)
 $(OBJDIR)/make.o:		$(TREE_DEP)	$(SORTDIR)/peano.h	$(TREEDIR)/macutil.h
 TREE_RSORT_DEP	:=	$(MISCDIR)/gsync_dev.cu	$(SORTDIR)/radix_dev.h	$(SORTDIR)/radix_inc.cu	$(SORTDIR)/radix_inc.h	$(SORTDIR)/radix_del.h
@@ -1194,7 +1200,7 @@ else
 $(OBJDIR)/stat_dev.o:	$(TREE_DEP)	$(MYINC)/cudalib.h	$(MISCDIR)/device.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/stat_dev.h
 endif
 WALK_DEV_DEP	:=	$(TREE_DEV_DEP)	$(TREE_BUF_DEP)	$(MYINC)/timer.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/seb_dev.cu
-$(OBJDIR)/walk_dev.mpi.o:	$(WALK_DEV_DEP)	$(TREE_LET_DEP)
+$(OBJDIR)/walk_dev.mpi.o:	$(WALK_DEV_DEP)	$(TREE_LET_DEP)	$(MISCDIR)/tune.h
 $(OBJDIR)/walk_dev.o:		$(WALK_DEV_DEP)
 #################################################################################################
 ## $(INITDIR)/*
@@ -1258,7 +1264,7 @@ PARA_DEP	+=	$(MISCDIR)/structure.h	$(PARADIR)/mpicfg.h
 EXCG_DEP	:=	$(PARA_DEP)	$(TIMEDIR)/adv_dev.h	$(PARADIR)/exchange.h	$(MISCDIR)/tune.h	$(MISCDIR)/brent.h
 ifeq ($(EXCHANGE_USING_GPUS), 1)
 $(OBJDIR)/exchange.mpi.o:	$(PARA_DEP)	$(PARADIR)/exchange.h
-$(OBJDIR)/exchange_dev.mpi.o:	$(EXCG_DEP)	$(MYINC)/cudalib.h	$(MISCDIR)/benchmark.h	$(MISCDIR)/gsync_dev.cu	$(SORTDIR)/peano_dev.h	$(PARADIR)/exchange_dev.h
+$(OBJDIR)/exchange_dev.mpi.o:	$(EXCG_DEP)	$(MYINC)/cudalib.h	$(MYINC)/timer.h	$(MISCDIR)/benchmark.h	$(MISCDIR)/gsync_dev.cu	$(SORTDIR)/peano_dev.h	$(PARADIR)/exchange_dev.h
 else
 $(OBJDIR)/exchange.mpi.o:	$(EXCG_DEP)
 endif
