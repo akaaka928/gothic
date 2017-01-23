@@ -13,32 +13,32 @@ void readSettings(239,11420
 void readSettingsParallel(277,13445
 void writeSettings(331,16537
 void createHDF5DataType(372,18626
-void removeHDF5DataType(506,27426
-void  readTentativeData(534,28656
-void  readTentativeDataParallel(824,42845
-void writeTentativeData(1310,67269
-void writeTentativeDataParallel(1688,86724
-void readTentativeData(2168,112102
-void readTentativeDataParallel(2208,114473
-void writeTentativeData(2301,120239
-void writeTentativeDataParallel(2344,122675
-void  readSnapshot(2454,128951
-void writeSnapshot(2564,134266
-void writeSnapshotParallel(2883,151814
-  union {double d;3082,162461
-  union {double d; ulong i;3082,162461
-  union {double r;3139,164982
-  union {double r; ulong i;3139,164982
-  union {float  r;3142,165128
-  union {float  r; uint  i;3142,165128
-void writeSnapshotMultiGroups(3372,176719
-void readSnapshot(3654,191959
-void writeSnapshot(3698,194256
-void writeSnapshotParallel(3739,196519
-void  readApproxAccel(3838,202019
-void writeApproxAccel(3867,203493
-void dumpBenchmark(3899,205151
-void dumpStatistics(4276,225260
+void removeHDF5DataType(506,27429
+void  readTentativeData(534,28659
+void  readTentativeDataParallel(824,42848
+void writeTentativeData(1310,67272
+void writeTentativeDataParallel(1688,86727
+void readTentativeData(2168,112105
+void readTentativeDataParallel(2208,114476
+void writeTentativeData(2301,120242
+void writeTentativeDataParallel(2344,122678
+void  readSnapshot(2454,128954
+void writeSnapshot(2564,134269
+void writeSnapshotParallel(2883,151817
+  union {double d;3082,162464
+  union {double d; ulong i;3082,162464
+  union {double r;3139,164985
+  union {double r; ulong i;3139,164985
+  union {float  r;3142,165131
+  union {float  r; uint  i;3142,165131
+void writeSnapshotMultiGroups(3372,176722
+void readSnapshot(3654,191962
+void writeSnapshot(3698,194259
+void writeSnapshotParallel(3739,196522
+void  readApproxAccel(3838,202022
+void writeApproxAccel(3867,203496
+void dumpBenchmark(3899,205154
+void dumpStatistics(4276,225263
 
 src/file/io.h,904
 #define IO_H14,900
@@ -779,15 +779,15 @@ src/main/gothic.c,514
 real theta2;90,3824
 int treeBuildCalls 98,4487
 static inline void setMultipoleMoment104,4806
-static inline void updateDomain232,9239
-static inline void buildTreeStructure315,12940
-static inline void configDistribution441,18269
-static inline void dumpSnapshot541,22205
-static inline void dumpRestarter686,27299
-int main(794,31302
-void analyzeWalkStatistics(3635,154548
-static inline void analyzeTreeStatistics(3679,156425
-void analyzeTreeMetrics(3689,157110
+static inline void updateDomain239,9450
+static inline void buildTreeStructure326,13481
+static inline void configDistribution452,18810
+static inline void dumpSnapshot553,22789
+static inline void dumpRestarter698,27883
+int main(806,31886
+void analyzeWalkStatistics(3637,154198
+static inline void analyzeTreeStatistics(3681,156075
+void analyzeTreeMetrics(3691,156760
 
 src/main/showOptConfig.c,805
 #define NADD 22,1138
@@ -1000,7 +1000,7 @@ void linearModel(94,4322
 void  powerModel(109,5065
 void parabolicModel(136,6471
 
-src/misc/tune.h,1384
+src/misc/tune.h,1350
 #define TUNE_H13,827
 #define USE_PARABOLIC_GROWTH_MODEL21,1126
 #define WALK_TREE_TOTAL_SUM_MODEL24,1228
@@ -1013,38 +1013,37 @@ src/misc/tune.h,1384
   int reuse;49,2296
   bool adjust;51,2333
 } rebuildTree;53,2372
-  double walkTree[walkTree57,2480
-  double makeTree;58,2502
-  double incSum;60,2555
-  double genTree,63,2635
-  double genTree, calcAcc,63,2635
-  double genTree, calcAcc, calcMAC;63,2635
-  double makeLET;65,2699
-} measuredTime;68,2774
-  double S,73,2916
-  double S, Sx,73,2916
-  double S, Sx, Sy,73,2916
-  double S, Sx, Sy, Sxx,73,2916
-  double S, Sx, Sy, Sxx, Sxy,73,2916
-  double S, Sx, Sy, Sxx, Sxy, Syy;73,2916
-  double Sxxxx,75,2986
-  double Sxxxx, Sxxx,75,2986
-  double Sxxxx, Sxxx, Sxxy;75,2986
-} statVal;77,3049
-  double slope,81,3153
-  double slope, icept,81,3153
-  double slope, icept, rchisq;81,3153
-  double time;82,3184
-  double second;84,3248
-} guessTime;86,3300
-  statVal   linearStats,91,3439
-  statVal   linearStats, powerStats;91,3439
-  statVal parabolicStats;93,3511
-  guessTime linearGuess,95,3572
-  guessTime linearGuess, powerGuess;95,3572
-  guessTime parabolicGuess;97,3644
-} autoTuningParam;99,3707
-static const double tolerance4chisq 103,3886
+  double walkTree[walkTree58,2524
+  double makeTree;59,2546
+  double incSum;61,2599
+  double sum_excg;65,2756
+  double sum_rebuild,71,3001
+  double sum_rebuild, excg;71,3001
+} measuredTime;73,3058
+  double S,78,3200
+  double S, Sx,78,3200
+  double S, Sx, Sy,78,3200
+  double S, Sx, Sy, Sxx,78,3200
+  double S, Sx, Sy, Sxx, Sxy,78,3200
+  double S, Sx, Sy, Sxx, Sxy, Syy;78,3200
+  double Sxxxx,80,3270
+  double Sxxxx, Sxxx,80,3270
+  double Sxxxx, Sxxx, Sxxy;80,3270
+} statVal;82,3333
+  double slope,86,3437
+  double slope, icept,86,3437
+  double slope, icept, rchisq;86,3437
+  double time;87,3468
+  double second;89,3532
+} guessTime;91,3584
+  statVal   linearStats,96,3723
+  statVal   linearStats, powerStats;96,3723
+  statVal parabolicStats;98,3795
+  guessTime linearGuess,100,3856
+  guessTime linearGuess, powerGuess;100,3856
+  guessTime parabolicGuess;102,3928
+} autoTuningParam;104,3991
+static const double tolerance4chisq 108,4170
 
 src/para/mpicfg.c,75
 static inline void createMPIcfg_tree(30,1477
@@ -1153,13 +1152,13 @@ src/para/exchange.h,2692
   int dstRank,107,3744
   int dstRank, bodyIdx;107,3744
 } domainDecomposeKey;109,3796
-static const double loadImbalanceCrit 115,4012
-#define SLOW_DOWN_PROCS_CRIT(116,4057
-  double tmin,120,4197
-  double tmin, tmax;120,4197
-  bool enable,121,4218
-  bool enable, execute;121,4218
-} loadImbalanceDetector;122,4242
+static const double loadImbalanceCrit 116,4063
+#define SLOW_DOWN_PROCS_CRIT(117,4109
+  double tmin,121,4249
+  double tmin, tmax;121,4249
+  bool enable,122,4270
+  bool enable, execute;122,4270
+} loadImbalanceDetector;123,4294
 
 src/para/exchange.c,284
 muse allocateORMtopology(41,2002
@@ -1232,31 +1231,33 @@ static const double loadImbalanceCrit 86,3174
   bool enable, execute;94,3415
 } loadImbalanceDetector;95,3439
 
-src/para/exchange_dev.h,816
+src/para/exchange_dev.h,893
 #define EXCHANGE_DEV_H14,910
-#define NTHREADS_BOX 32,1618
-#define NTHREADS_BOX 34,1676
-#undef  NTHREADS_BOX41,1990
-#define NTHREADS_BOX 42,2011
-#define NBLOCKS_PER_SM_BOX 48,2315
-#define REGISTERS_PER_THREAD_BOX 50,2440
-#undef  NBLOCKS_PER_SM_BOX54,2692
-#define NBLOCKS_PER_SM_BOX 55,2719
-#undef  NBLOCKS_PER_SM_BOX60,3088
-#define NBLOCKS_PER_SM_BOX 61,3115
-#undef  NBLOCKS_PER_SM_BOX66,3410
-#define NBLOCKS_PER_SM_BOX 67,3437
-#undef  NBLOCKS_PER_SM_BOX72,3718
-#define NBLOCKS_PER_SM_BOX 73,3745
-#undef  NBLOCKS_PER_SM_BOX78,4034
-#define NBLOCKS_PER_SM_BOX 79,4061
-#define NTHREADS_SETIDX 86,4302
-#define NTHREADS_SORTYZ 90,4457
-#define NTHREADS_SETPOS 94,4612
-#define NTHREADS_DDSORT 98,4767
-#define NCRIT_XPOS_SORT 107,5115
-#define NCRIT_YPOS_SORT 111,5271
-#define NCRIT_ZPOS_SORT 115,5427
+#define SHARE_PH_BOX_BOUNDARY21,1184
+#define SHARE_PH_BOX_BOUNDARY26,1496
+#define NTHREADS_BOX 34,1815
+#define NTHREADS_BOX 36,1873
+#undef  NTHREADS_BOX43,2187
+#define NTHREADS_BOX 44,2208
+#define NBLOCKS_PER_SM_BOX 50,2512
+#define REGISTERS_PER_THREAD_BOX 52,2637
+#undef  NBLOCKS_PER_SM_BOX56,2889
+#define NBLOCKS_PER_SM_BOX 57,2916
+#undef  NBLOCKS_PER_SM_BOX62,3285
+#define NBLOCKS_PER_SM_BOX 63,3312
+#undef  NBLOCKS_PER_SM_BOX68,3607
+#define NBLOCKS_PER_SM_BOX 69,3634
+#undef  NBLOCKS_PER_SM_BOX74,3915
+#define NBLOCKS_PER_SM_BOX 75,3942
+#undef  NBLOCKS_PER_SM_BOX80,4231
+#define NBLOCKS_PER_SM_BOX 81,4258
+#define NTHREADS_SETIDX 88,4499
+#define NTHREADS_SORTYZ 92,4654
+#define NTHREADS_SETPOS 96,4809
+#define NTHREADS_DDSORT 100,4964
+#define NCRIT_XPOS_SORT 109,5312
+#define NCRIT_YPOS_SORT 113,5468
+#define NCRIT_ZPOS_SORT 117,5624
 
 src/plot/plot.ball.c,306
 #define NORMALIZE_COL32,1532
@@ -1433,26 +1434,26 @@ int main(57,2560
 void compareCDF179,8670
 
 src/plot/plot.df.c,581
-#define LOGPLOT_HOR34,1642
-#define LOGPLOT_VER35,1662
-#define NMAX 40,1836
-#define NDST 46,2039
-static char datname[datname47,2056
-static char  icname[icname48,2114
-#define NSER 51,2271
-static char sername[sername52,2288
-static char synonym[synonym57,2377
-#define NPLT 63,2561
-#define NERR 66,2682
-#define NORMALIZE_VARIABLES71,2853
-static double Enorm[Enorm74,2985
-int main(93,4060
-static inline int bisection(344,15602
-void readDF(370,16965
-void compareDF496,22789
-void calcPlummerDF(798,37173
-void calcHernquistDF(849,39650
-void rescaleDF2CGS(906,42418
+#define LOGPLOT_HOR35,1673
+#define LOGPLOT_VER36,1693
+#define NMAX 41,1867
+#define NDST 47,2070
+static char datname[datname48,2087
+static char  icname[icname49,2145
+#define NSER 52,2302
+static char sername[sername53,2319
+static char synonym[synonym58,2408
+#define NPLT 64,2592
+#define NERR 67,2713
+#define NORMALIZE_VARIABLES72,2884
+static double Enorm[Enorm75,3016
+int main(94,4091
+static inline int bisection(345,15633
+void readDF(371,16996
+void compareDF497,22820
+void calcPlummerDF(799,37204
+void calcHernquistDF(850,39681
+void rescaleDF2CGS(907,42449
 
 src/plot/plot.time.c,567
 #define PLOT_SUMMARY_FIGURE_ONLY12,812
@@ -1596,7 +1597,7 @@ typedef ulong PHint;40,1971
 } identity;48,2178
 typedef struct __align__(51,2299
 
-src/sort/peano_dev.h,1116
+src/sort/peano_dev.h,1076
 #define PEANO_DEV_H14,907
 #define NTHREADS_PH 31,1586
 #define NTHREADS_PH 33,1643
@@ -1618,20 +1619,19 @@ src/sort/peano_dev.h,1116
   void *temp_storage;temp_storage74,2901
   size_t temp_storage_size;75,2923
 } soaPHsort;77,2973
-#define TIME_BASED_MODIFICATION84,3291
-  float3 boxmin,88,3416
-  float3 boxmin, boxmax;88,3416
-  float *diameter_dev,diameter_dev89,3441
-  float *diameter_dev, *diameter_hst;diameter_hst89,3441
-  float elapsed,91,3511
-  float elapsed, dtmin,91,3511
-  float elapsed, dtmin, dtinv;91,3511
-  float linv;92,3542
-  float step;94,3588
-  float dL_L;95,3602
-  float eps,97,3648
-  float eps, eta;97,3648
-} domainLocation;98,3666
+  float3 boxmin,88,3422
+  float3 boxmin, boxmax;88,3422
+  float *diameter_dev,diameter_dev89,3447
+  float *diameter_dev, *diameter_hst;diameter_hst89,3447
+  float elapsed,91,3517
+  float elapsed, dtmin,91,3517
+  float elapsed, dtmin, dtinv;91,3517
+  float linv;92,3548
+  float step;94,3594
+  float dL_L;95,3608
+  float eps,97,3654
+  float eps, eta;97,3654
+} domainLocation;98,3672
 
 src/sort/radix_inc.h,4551
 #define RADIX_INC_H18,1061
@@ -2052,90 +2052,90 @@ src/tree/make_del.h,182
 #undef  PREFIX_SUM_MAKE_INC_GRID26,1400
 #undef  MAKE_INC_H28,1509
 
-src/tree/walk_dev.h,2396
+src/tree/walk_dev.h,2397
 #define WALK_DEV_H14,906
-#define PARTIAL_SUM_ACCELERATION41,1981
-#define ACCURATE_ACCUMULATION44,2123
-#undef          ACCURATE_PARTIAL_SUM49,2369
-#define ADOPT_APPROXIMATED_ENCLOSING_BALL61,2928
-#define ADOPT_ENCLOSING_BALL65,3105
-#       undef   ADOPT_APPROXIMATED_ENCLOSING_BALL68,3303
-#       undef   COMPARE_ENCLOSING_BALLS72,3653
-#        define  ADOPT_ENCLOSING_BALL76,4065
-#define USE_WARP_SHUFFLE_FUNC81,4501
-#undef          USE_WARP_SHUFFLE_FUNC85,4691
-#define NWARP 94,5020
-#define NWARP 99,5159
-#define NWARP 106,5320
-#undef  NWARP110,5401
-#define NWARP 111,5415
-#define NTHREADS 116,5576
-#define NTHREADS 118,5627
-#undef  NTHREADS125,6025
-#define NTHREADS 126,6042
-#undef  DIV_NTHREADS130,6186
-#define DIV_NTHREADS(133,6253
-#define DIV_NTHREADS(136,6339
-#define DIV_NTHREADS(139,6425
-#define DIV_NTHREADS(142,6511
-#define TSUB 147,6699
-#undef  TSUB152,6844
-#define TSUB 153,6857
-#undef  TSUB157,6962
-#define TSUB 158,6975
-#undef  TSUB162,7091
-#define TSUB 163,7104
-#undef  DIV_TSUB167,7245
-#define DIV_TSUB(170,7298
-#define DIV_TSUB(173,7367
-#define DIV_TSUB(176,7436
-#define DIV_TSUB(179,7505
-#define DIV_TSUB(182,7574
-#define DIV_TSUB(185,7643
-#undef  DIV_NWARP189,7782
-#define DIV_NWARP(192,7838
-#define DIV_NWARP(195,7910
-#define DIV_NWARP(198,7982
-#define DIV_NWARP(201,8054
-#define DIV_NWARP(204,8126
-#define DIV_NWARP(207,8198
-#define NGROUPS 210,8321
-#define NLOOP 218,8568
-#define NBLOCKS_PER_SM 223,8782
-#undef  NLOOP231,9182
-#define NLOOP 232,9196
-#define NQUEUE 235,9325
-#define NQUEUE 237,9417
-#undef  NLOOP242,9635
-#define NLOOP 243,9649
-#define NQUEUE 246,9778
-#define NQUEUE 248,9870
-#undef  NLOOP257,10344
-#define NLOOP 258,10358
-#define NQUEUE 261,10487
-#define NQUEUE 263,10579
-#undef  NLOOP268,10815
-#define NLOOP 269,10829
-#define NQUEUE 272,10994
-#define NQUEUE 274,11104
-#define NSTOCK 283,11527
-#define IDX_SHIFT_BITS 285,11622
-#define IDX_SHIFT_MASK 286,11649
-typedef struct __align__(292,11851
-  cudaStream_t *stream;stream297,12018
-  int idx,298,12042
-  int idx, num;298,12042
-} kernelStream;299,12058
-#define  NDIM_SEB 302,12188
-#define NDIM2_SEB 303,12210
-#undef  NDIM_SEB305,12275
-#undef NDIM2_SEB306,12292
-typedef struct __align__(308,12352
-typedef union __align__(313,12426
-typedef union __align__(321,12592
-  uint i;335,12901
-  real r;336,12911
-} uint_real;337,12921
+#define PARTIAL_SUM_ACCELERATION42,2007
+#define ACCURATE_ACCUMULATION45,2149
+#undef          ACCURATE_PARTIAL_SUM50,2395
+#define ADOPT_APPROXIMATED_ENCLOSING_BALL62,2954
+#define ADOPT_ENCLOSING_BALL66,3131
+#       undef   ADOPT_APPROXIMATED_ENCLOSING_BALL69,3329
+#       undef   COMPARE_ENCLOSING_BALLS73,3679
+#        define  ADOPT_ENCLOSING_BALL77,4091
+#define USE_WARP_SHUFFLE_FUNC82,4527
+#undef          USE_WARP_SHUFFLE_FUNC86,4717
+#define NWARP 95,5046
+#define NWARP 100,5185
+#define NWARP 107,5346
+#undef  NWARP111,5427
+#define NWARP 112,5441
+#define NTHREADS 117,5602
+#define NTHREADS 119,5653
+#undef  NTHREADS126,6051
+#define NTHREADS 127,6068
+#undef  DIV_NTHREADS131,6212
+#define DIV_NTHREADS(134,6279
+#define DIV_NTHREADS(137,6365
+#define DIV_NTHREADS(140,6451
+#define DIV_NTHREADS(143,6537
+#define TSUB 148,6725
+#undef  TSUB153,6870
+#define TSUB 154,6883
+#undef  TSUB158,6988
+#define TSUB 159,7001
+#undef  TSUB163,7117
+#define TSUB 164,7130
+#undef  DIV_TSUB168,7271
+#define DIV_TSUB(171,7324
+#define DIV_TSUB(174,7393
+#define DIV_TSUB(177,7462
+#define DIV_TSUB(180,7531
+#define DIV_TSUB(183,7600
+#define DIV_TSUB(186,7669
+#undef  DIV_NWARP190,7808
+#define DIV_NWARP(193,7864
+#define DIV_NWARP(196,7936
+#define DIV_NWARP(199,8008
+#define DIV_NWARP(202,8080
+#define DIV_NWARP(205,8152
+#define DIV_NWARP(208,8224
+#define NGROUPS 211,8347
+#define NLOOP 219,8594
+#define NBLOCKS_PER_SM 224,8808
+#undef  NLOOP232,9208
+#define NLOOP 233,9222
+#define NQUEUE 236,9351
+#define NQUEUE 238,9443
+#undef  NLOOP243,9661
+#define NLOOP 244,9675
+#define NQUEUE 247,9804
+#define NQUEUE 249,9896
+#undef  NLOOP258,10370
+#define NLOOP 259,10384
+#define NQUEUE 262,10513
+#define NQUEUE 264,10605
+#undef  NLOOP269,10841
+#define NLOOP 270,10855
+#define NQUEUE 273,11020
+#define NQUEUE 275,11130
+#define NSTOCK 284,11553
+#define IDX_SHIFT_BITS 286,11648
+#define IDX_SHIFT_MASK 287,11675
+typedef struct __align__(293,11877
+  cudaStream_t *stream;stream298,12044
+  int idx,299,12068
+  int idx, num;299,12068
+} kernelStream;300,12084
+#define  NDIM_SEB 303,12214
+#define NDIM2_SEB 304,12236
+#undef  NDIM_SEB306,12301
+#undef NDIM2_SEB307,12318
+typedef struct __align__(309,12378
+typedef union __align__(314,12452
+typedef union __align__(322,12618
+  uint i;336,12927
+  real r;337,12937
+} uint_real;338,12947
 
 src/tree/make_inc.h,492
 #define MAKE_INC_H18,1050

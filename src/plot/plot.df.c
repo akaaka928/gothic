@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/06(Tue) 12:38:50
+                  last updated on 2017/01/20(Fri) 14:54:45
  *                                                                       *
  *    Plot Code of Elapsed time of Tree code                             *
  *                                                                       *
@@ -23,6 +23,7 @@
 #include "constants.h"
 //-------------------------------------------------------------------------
 #include "../init/magi.h"
+#include "../init/eddington.h"
 //-------------------------------------------------------------------------
 /* extern const char senergy_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS]; */
 /* extern double senergy2astro; */
@@ -818,7 +819,7 @@ void calcPlummerDF(PLFLT ene[restrict], PLFLT val[restrict], PLFLT rad[restrict]
   const double foo = G * G * Mtot * Mtot / (rs * rs);
   //-----------------------------------------------------------------------
 #ifdef  NORMALIZE_VARIABLES
-  const double factor = sqrt((4.0 * M_PI * G) * (4.0 * M_PI * G) * (4.0 * M_PI * G) * Mtot * rs * rs * rs) * 24.0 * M_SQRT2 * rs * rs / (7.0 * M_PI * M_PI * M_PI * G * G * G * G * G * Mtot * Mtot * Mtot * Mtot);
+  const double factor = sqrt((4.0 * M_PI * G * rs) * (4.0 * M_PI * G * rs) * (4.0 * M_PI * G * rs) * Mtot) * 24.0 * M_SQRT2 * rs * rs / (7.0 * M_PI * M_PI * M_PI * G * G * G * G * G * Mtot * Mtot * Mtot * Mtot);
 #else///NORMALIZE_VARIABLES
   const double factor = 24.0 * M_SQRT2 * rs * rs / (7.0 * M_PI * M_PI * M_PI * G * G * G * G * G * Mtot * Mtot * Mtot * Mtot);
 #endif//NORMALIZE_VARIABLES

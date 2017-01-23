@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2017/01/16(Mon) 15:22:36
+                  last updated on 2017/01/22(Sun) 18:13:26
  *                                                                       *
  *    MAGI: "MAny-component Galactic Initial-conditions" generator       *
  *    Making Initial Condition Code of N-body Simulation                 *
@@ -136,7 +136,7 @@ bool isInnerParticle4disk     (const double x2, const double y2, const double z2
 //-------------------------------------------------------------------------
 static inline void pickRetrogradingParticles(const ulong num, const ulong head, const double frac, ulong *retroNum, ulong *retroHead)
 {
-  *retroNum  = (ulong)nearbyint((double)num * frac);
+  *retroNum  = (ulong)floor((double)num * frac);
   *retroHead = head + (num - (*retroNum));
 }
 void retrograder(const ulong num, const ulong head, iparticle body, const double frac);
@@ -159,11 +159,11 @@ void retrograder(const ulong num, const ulong head, iparticle body, const double
   for(ulong ii = retroHead; ii < retroHead + retroNum; ii++){
     //---------------------------------------------------------------------
 #ifdef  BLOCK_TIME_STEP
-    body.vel[ii].x *= -1.0;
-    body.vel[ii].y *= -1.0;
+    body.vel[ii].x *= -UNITY;
+    body.vel[ii].y *= -UNITY;
 #else///BLOCK_TIME_STEP
-    body.vx[ii] *= -1.0;
-    body.vy[ii] *= -1.0;
+    body.vx[ii]    *= -UNITY;
+    body.vy[ii]    *= -UNITY;
 #endif//BLOCK_TIME_STEP
     //---------------------------------------------------------------------
   }/* for(ulong ii = retroHead; ii < retroHead + retroNum; ii++){ */
@@ -189,12 +189,12 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
     //---------------------------------------------------------------------
     /* calculate center-of-mass and bulk-motion */
     //---------------------------------------------------------------------
-    double com_loc[3] = {0.0, 0.0, 0.0};
-    double vel_loc[3] = {0.0, 0.0, 0.0};
+    double comx_loc = 0.0, comy_loc = 0.0, comz_loc = 0.0;
+    double velx_loc = 0.0, vely_loc = 0.0, velz_loc = 0.0;
     double Mtot_loc = 0.0;
-    static double com[3], vel[3], Mtot;
+    static double comx, comy, comz, velx, vely, velz, Mtot;
 #pragma omp single
-    com[0] = com[1] = com[2] = vel[0] = vel[1] = vel[2] = Mtot = 0.0;
+    comx = comy = comz = velx = vely = velz = Mtot = 0.0;
     //---------------------------------------------------------------------
     /* use particles (r < 3 rs            ) for spherical components */
     /* use particles (R < 3 Rd, |z| < 3 zd) for      disk components */
@@ -217,17 +217,17 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
 	const double mass = CAST_R2D(body.pos[ii].m);
 	Mtot_loc += mass;
 	//-----------------------------------------------------------------
-	com_loc[0] += mass * xx;
-	com_loc[1] += mass * yy;
-	com_loc[2] += mass * zz;
+	comx_loc += mass * xx;
+	comy_loc += mass * yy;
+	comz_loc += mass * zz;
 #ifdef  BLOCK_TIME_STEP
-	vel_loc[0] += mass * CAST_R2D(body.vel[ii].x);
-	vel_loc[1] += mass * CAST_R2D(body.vel[ii].y);
-	vel_loc[2] += mass * CAST_R2D(body.vel[ii].z);
+	velx_loc += mass * CAST_R2D(body.vel[ii].x);
+	vely_loc += mass * CAST_R2D(body.vel[ii].y);
+	velz_loc += mass * CAST_R2D(body.vel[ii].z);
 #else///BLOCK_TIME_STEP
-	vel_loc[0] += mass * CAST_R2D(body.vx[ii]);
-	vel_loc[1] += mass * CAST_R2D(body.vy[ii]);
-	vel_loc[2] += mass * CAST_R2D(body.vz[ii]);
+	velx_loc += mass * CAST_R2D(body.vx[ii]);
+	vely_loc += mass * CAST_R2D(body.vy[ii]);
+	velz_loc += mass * CAST_R2D(body.vz[ii]);
 #endif//BLOCK_TIME_STEP
 	//-----------------------------------------------------------------
       }/* if( isInnerParticle(xx * xx, yy * yy, zz * zz, rmax2, zmax2) ){ */
@@ -239,33 +239,31 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
 #pragma omp atomic
     Mtot += Mtot_loc;
 #pragma omp atomic
-    com[0] += com_loc[0];
+    comx += comx_loc;
 #pragma omp atomic
-    com[1] += com_loc[1];
+    comy += comy_loc;
 #pragma omp atomic
-    com[2] += com_loc[2];
+    comz += comz_loc;
 #pragma omp atomic
-    vel[0] += vel_loc[0];
+    velx += velx_loc;
 #pragma omp atomic
-    vel[1] += vel_loc[1];
+    vely += vely_loc;
 #pragma omp atomic
-    vel[2] += vel_loc[2];
+    velz += velz_loc;
 #pragma omp barrier
 #pragma omp single
     {
       double Minv = 1.0 / (DBL_MIN + Mtot);
-      com[0] *= Minv;      com[1] *= Minv;      com[2] *= Minv;
-      vel[0] *= Minv;      vel[1] *= Minv;      vel[2] *= Minv;
+      comx *= Minv;      comy *= Minv;      comz *= Minv;
+      velx *= Minv;      vely *= Minv;      velz *= Minv;
     }
     /* __NOTE__("thread %d gets sum\n", omp_get_thread_num()); */
     //---------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
-#ifdef  USE_SFMTJUMP
 #pragma omp single nowait
-#endif//USE_SFMTJUMP
     {
-      fprintf(stdout, "# center-of-mass shift: %e, %e, %e\n", com[0], com[1], com[2]);
-      fprintf(stdout, "#    bulk motion shift: %e, %e, %e\n", vel[0], vel[1], vel[2]);
+      fprintf(stdout, "# center-of-mass shift: %e, %e, %e\n", comx, comy, comz);
+      fprintf(stdout, "#    bulk motion shift: %e, %e, %e\n", velx, vely, velz);
       fflush(stdout);
     }
 #endif//PROGRESS_REPORT_ON
@@ -274,33 +272,23 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
     //---------------------------------------------------------------------
     /* shift the coordinate system to the center-of-mass rest frame */
     //---------------------------------------------------------------------
-#if 1
-    const real rcom[3] = {CAST_D2R(com[0]), CAST_D2R(com[1]), CAST_D2R(com[2])};
-    const real rvel[3] = {CAST_D2R(vel[0]), CAST_D2R(vel[1]), CAST_D2R(vel[2])};
-#else
-    const real rcom[3] = {ZERO, ZERO, ZERO};
-    const real rvel[3] = {ZERO, ZERO, ZERO};
-#endif
-#ifndef USE_SFMTJUMP
-#pragma omp parallel
-#endif//USE_SFMTJUMP
 #pragma omp for
     for(ulong ii = head; ii < head + num; ii++){
       //-------------------------------------------------------------------
-      body.pos[ii].x -= rcom[0];
-      body.pos[ii].y -= rcom[1];
-      body.pos[ii].z -= rcom[2];
+      body.pos[ii].x = CAST_D2R(CAST_R2D(body.pos[ii].x) - comx);
+      body.pos[ii].y = CAST_D2R(CAST_R2D(body.pos[ii].y) - comy);
+      body.pos[ii].z = CAST_D2R(CAST_R2D(body.pos[ii].z) - comz);
       //-------------------------------------------------------------------
 #ifdef  BLOCK_TIME_STEP
       body.time[ii].t0 = body.time[ii].t1 = 0.0;
-      body.vel[ii].x -= rvel[0];
-      body.vel[ii].y -= rvel[1];
-      body.vel[ii].z -= rvel[2];
+      body.vel[ii].x = CAST_D2R(CAST_R2D(body.vel[ii].x) - velx);
+      body.vel[ii].y = CAST_D2R(CAST_R2D(body.vel[ii].y) - vely);
+      body.vel[ii].z = CAST_D2R(CAST_R2D(body.vel[ii].z) - velz);
       body.vel[ii].dt = ZERO;
 #else///BLOCK_TIME_STEP
-      body.vx[ii] -= rvel[0];
-      body.vy[ii] -= rvel[1];
-      body.vz[ii] -= rvel[2];
+      body.vx[ii] = CAST_D2R(CAST_R2D(body.vx[ii]) - velx);
+      body.vy[ii] = CAST_D2R(CAST_R2D(body.vy[ii]) - vely);
+      body.vz[ii] = CAST_D2R(CAST_R2D(body.vz[ii]) - velz);
 #endif//BLOCK_TIME_STEP
       //-------------------------------------------------------------------
     }/* for(ulong ii = head; ii < head + num; ii++){ */
@@ -311,10 +299,10 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
     //---------------------------------------------------------------------
     /* calculate angular momentum vector */
     //---------------------------------------------------------------------
-    double amom_loc[3] = {0.0, 0.0, 0.0};
-    static double amom[3];
+    double Lx_loc = 0.0, Ly_loc = 0.0, Lz_loc = 0.0;
+    static double Lx, Ly, Lz;
 #pragma omp single
-    amon[0] = amon[1] = amon[2] = 0.0;
+    Lx = Ly = Lz = 0.0;
 #pragma omp for
     for(ulong ii = head; ii < head + num; ii++){
       //-------------------------------------------------------------------
@@ -336,9 +324,9 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
 	const double pz = CAST_R2D(body.vz[ii]) * mass;
 #endif//BLOCK_TIME_STEP
         //-----------------------------------------------------------------
-	amom_loc[0] += ry * pz - rz * py;
-	amom_loc[1] += rz * px - rx * pz;
-	amom_loc[2] += rx * py - ry * px;
+	Lx_loc += ry * pz - rz * py;
+	Ly_loc += rz * px - rx * pz;
+	Lz_loc += rx * py - ry * px;
 	//-----------------------------------------------------------------
       }/* if( isInnerParticle(rx * rx, ry * ry, rz * rz, rmax2, zmax2) ){ */
       //-------------------------------------------------------------------
@@ -348,26 +336,17 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
     //---------------------------------------------------------------------
     /* omp reduction for amon */
 #pragma omp atomic
-    amon[0] += amon_loc[0];
+    Lx += Lx_loc;
 #pragma omp atomic
-    amon[1] += amon_loc[1];
+    Ly += Ly_loc;
 #pragma omp atomic
-    amon[2] += amon_loc[2];
+    Lz += Lz_loc;
 #pragma omp barrier
-#if 1
-    const double L2 = amom[0] * amom[0] + amom[1] * amom[1] + amom[2] * amom[2];
-#else
-    const double L2 = 1.0;
-#endif
+    const double L2 = Lx * Lx + Ly * Ly + Lz * Lz;
     if( L2 > 1.0e-6 ){
       //-------------------------------------------------------------------
-#if 1
-      real ini[3] = {CAST_D2R(amom[0]), CAST_D2R(amom[1]), CAST_D2R(amom[2])};
+      real ini[3] = {CAST_D2R(Lx), CAST_D2R(Ly), CAST_D2R(Lz)};
       real fin[3] = {ZERO, ZERO, UNITY};
-#else
-      real ini[3] = {ZERO, ZERO, UNITY};
-      real fin[3] = {ZERO, UNITY, ZERO};
-#endif
       //-------------------------------------------------------------------
       real rot[3][3], inv[3][3];
       initRotationMatrices(ini, fin, rot, inv);
@@ -456,9 +435,9 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
   //-----------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
 #ifdef  USE_SFMTJUMP
-  const ulong nunit = (ulong)ceilf(0.1f * (float)num / (float)omp_get_num_threads());
+  const ulong nunit = (ulong)floorf(0.1f * (float)num / (float)omp_get_num_threads());
 #else///USE_SFMTJUMP
-  const ulong nunit = (ulong)ceilf(0.1f * (float)num);
+  const ulong nunit = (ulong)floorf(0.1f * (float)num);
 #endif//USE_SFMTJUMP
   ulong stage = 1;
   ulong Npart = 0;
@@ -1023,14 +1002,21 @@ int main(int argc, char **argv)
       initBenchmark_cpu();
       //-------------------------------------------------------------------
 #ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
-      double Krand = 0.0;
+      static double Krand;
+#pragma omp single
+      Krand = 0.0;
+      double Krand_loc = 0.0;
+#pragma omp for nowait
       for(ulong ii = 0; ii < Nuse; ii++){
 #ifdef  BLOCK_TIME_STEP
-	Krand += body.vel[ii].x * body.vel[ii].x + body.vel[ii].y * body.vel[ii].y + body.vel[ii].z * body.vel[ii].z;
+	Krand_loc += body.vel[ii].x * body.vel[ii].x + body.vel[ii].y * body.vel[ii].y + body.vel[ii].z * body.vel[ii].z;
 #else///BLOCK_TIME_STEP
-	Krand += body.vx[ii] * body.vx[ii] + body.vy[ii] * body.vy[ii] + body.vz[ii] * body.vz[ii];
+	Krand_loc += body.vx[ii] * body.vx[ii] + body.vy[ii] * body.vy[ii] + body.vz[ii] * body.vz[ii];
 #endif//BLOCK_TIME_STEP
       }/* for(ulong ii = 0; ii < Nuse; ii++){ */
+#pragma omp atomic
+      Krand += Krand_loc;
+#pragma omp barrier
       for(int ii = 0; ii < ndisk; ii++)
 	disk_info[ii].Krand_sph = Krand;
 #endif//CHECK_OSTRIKER_PEEBLES_CRITERION
@@ -1468,9 +1454,9 @@ void outputFundamentalInformation
       }/* if( cfg[ii].kind == SERSIC ){ */
       fprintf(fp, "Scale height of the component zd is %e (= %e %s)\n", cfg[ii].zd, cfg[ii].zd * length2astro, length_astro_unit_name);
       fprintf(fp, "Central surface density   Sigma0 is %e (= %e %s)\n", cfg[ii].Sigma0, cfg[ii].Sigma0 * col_density2astro, col_density_astro_unit_name);
-      fprintf(fp, "Circular speed at scale radius   is %e (= %e %s)\n", cfg[ii].vcirc_Rd , cfg[ii].vcirc_Rd  * velocity2astro, velocity_astro_unit_name);
-      fprintf(fp, "Maximum circular speed           is %e (= %e %s)\n", cfg[ii].vcirc_max, cfg[ii].vcirc_max * velocity2astro, velocity_astro_unit_name);
-      fprintf(fp, "Circular speed is maximized      at %e (= %e %s)\n", cfg[ii].vcirc_Rd , cfg[ii].vcirc_Rd  *   length2astro,   length_astro_unit_name);
+      fprintf(fp, "Circular speed at scale radius   is %e (= %e %s)\n", cfg[ii].vcirc_Rd   , cfg[ii].vcirc_Rd    * velocity2astro, velocity_astro_unit_name);
+      fprintf(fp, "Maximum circular speed           is %e (= %e %s)\n", cfg[ii].vcirc_max  , cfg[ii].vcirc_max   * velocity2astro, velocity_astro_unit_name);
+      fprintf(fp, "Circular speed is maximized      at %e (= %e %s)\n", cfg[ii].vcirc_max_R, cfg[ii].vcirc_max_R *   length2astro,   length_astro_unit_name);
 #ifdef  USE_ORIGINAL_VDISP_ESTIMATOR
       fprintf(fp, "Horizontal velocity dispersion   is %e of circular velocity or vertical velocity dispersion (maximum is used)\n", cfg[ii].vdisp_frac);
 #else///USE_ORIGINAL_VDISP_ESTIMATOR
@@ -1512,22 +1498,22 @@ void outputFundamentalInformation
       const double tff = M_PI_2 * cfg[ii].rs * sqrt(cfg[ii].rs / (2.0 * CAST_R2D(newton) * Ms));
       const double t2r = tff * Ns / (32.0 * log(cfg[ii].rs / CAST_R2D(eps)));
       double trot = 0.0;
-      if( (cfg[ii].kind == EXP_DISK) || (cfg[ii].kind == SERSIC) )
+      if( (cfg[ii].kind == EXP_DISK) || (cfg[ii].kind == SERSIC) || (cfg[ii].kind == TBL_DISK) )
 	trot = 2.0 * M_PI * cfg[ii].rs / cfg[ii].vcirc_Rd;
       fprintf(fp, "Total number of particles within the scale length is       %e\n", Ns);
       fprintf(fp, "Enclosed mass of all components within the scale length is %e (= %e %s)\n",  Ms,  Ms * mass2astro, mass_astro_unit_name);
       fprintf(fp, "Free-fall time at the scale length                      is %e (= %e %s)\n", tff, tff * time2astro, time_astro_unit_name);
-      if( (cfg[ii].kind == EXP_DISK) || (cfg[ii].kind == SERSIC) )
+      if( (cfg[ii].kind == EXP_DISK) || (cfg[ii].kind == SERSIC) || (cfg[ii].kind == TBL_DISK) )
 	fprintf(fp, "Rotation time scale at the scale length                 is %e (= %e x tff = %e %s)\n", trot, trot / tff, trot * time2astro, time_astro_unit_name);
       fprintf(fp, "Two-body relaxation time at the scale length            is %e (= %e %s)\n", t2r, t2r * time2astro, time_astro_unit_name);
       fprintf(fp, "#############################################################################\n");
       fprintf(fp, "Snapshot interval in the unit of free-fall time           is %e\n", CAST_R2D(snapshotInterval) / tff);
-      if( (cfg[ii].kind == EXP_DISK) || (cfg[ii].kind == SERSIC) )
+      if( (cfg[ii].kind == EXP_DISK) || (cfg[ii].kind == SERSIC) || (cfg[ii].kind == TBL_DISK) )
 	fprintf(fp, "Snapshot interval in the unit of rotation time scale      is %e\n", CAST_R2D(snapshotInterval) / trot);
       fprintf(fp, "Snapshot interval in the unit of two-body relaxation time is %e\n", CAST_R2D(snapshotInterval) / t2r);
       fprintf(fp, "#############################################################################\n");
       fprintf(fp, "Final time of the simulation in the unit of free-fall time           is %e\n", CAST_R2D(ft) / tff);
-      if( (cfg[ii].kind == EXP_DISK) || (cfg[ii].kind == SERSIC) )
+      if( (cfg[ii].kind == EXP_DISK) || (cfg[ii].kind == SERSIC) || (cfg[ii].kind == TBL_DISK) )
 	fprintf(fp, "Final time of the simulation in the unit of rotation time scale      is %e\n", CAST_R2D(ft) / trot);
       fprintf(fp, "Final time of the simulation in the unit of two-body relaxation time is %e\n", CAST_R2D(ft) / t2r);
       fprintf(fp, "#############################################################################\n");

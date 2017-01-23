@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2017/01/18(Wed) 11:12:10
+# last updated on 2017/01/23(Mon) 10:29:58
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -21,7 +21,7 @@ DEBUG	:= -DNDEBUG
 # PROFILE	:= -pg
 #################################################################################################
 # Execution options
-FORCE_SINGLE_GPU_RUN	:= 0
+FORCE_SINGLE_GPU_RUN	:= 1
 CARE_EXTERNAL_PARTICLES	:= 0
 ACC_ACCUMULATION_IN_DP	:= 0
 KAHAN_SUM_CORRECTION	:= 0
@@ -50,8 +50,8 @@ DATAFILE_FORMAT_HDF5	:= 1
 HDF5_FOR_ZINDAIJI	:= 0
 APPEND_ASCII_ICDATA	:= 0
 DUMPFILE_FOR_BONSAI	:= 0
-USE_OFFICIAL_SFMT	:= 1
-USE_OFFICIAL_SFMT_JUMP	:= 1
+USE_OFFICIAL_SFMT	:= 0
+USE_OFFICIAL_SFMT_JUMP	:= 0
 #################################################################################################
 # Debugging options
 EVALUATE_FORCE_ERROR	:= 0
@@ -960,7 +960,7 @@ zip:
 	$(VERBOSE)mkdir pub; \
 	fi
 	$(VERBOSE)tar cvJf $(DATE)tree.tar.xz \
-	README Makefile $(SRCDIR) sh cfg host plt plugins/README \
+	README.txt LICENSE.txt Makefile $(SRCDIR) sh cfg host plt plugins/README \
 	$(XMLBODY) $(SRCBODY) $(XMLSNAP) $(SRCSNAP) $(XMLAERR) $(SRCAERR) $(XMLDUMP) $(SRCDUMP) $(XMLDISK) $(SRCDISK) $(XMLDIST) $(SRCDIST) $(XMLPROF) $(SRCPROF)
 	$(VERBOSE)mv       $(DATE)tree.tar.xz pub/
 #################################################################################################
@@ -1252,7 +1252,7 @@ $(OBJDIR)/plot.ball.pl.o:	$(COMMON_DEP)	$(MYINC)/plplotlib.h	$(MYINC)/myutil.h	$
 $(OBJDIR)/plot.breakdown.pl.o:	$(COMMON_DEP)	$(MYINC)/plplotlib.h	$(MYINC)/myutil.h	$(MYINC)/name.h	$(MISCDIR)/benchmark.h
 $(OBJDIR)/plot.time.mpi.pl.o:	$(COMMON_DEP)	$(MYINC)/plplotlib.h	$(MYINC)/myutil.h	$(MYINC)/name.h	$(MYINC)/mpilib.h	$(PLOTDIR)/cdflib.h
 $(OBJDIR)/plot.comparison.mpi.pl.hdf5.o:	$(COMMON_DEP)	$(MYINC)/plplotlib.h	$(MYINC)/name.h	$(MYINC)/hdf5lib.h
-$(OBJDIR)/plot.df.mpi.pl.hdf5.o:	$(COMMON_DEP)	$(MYINC)/plplotlib.h	$(MYINC)/name.h	$(MYINC)/hdf5lib.h	$(MYINC)/constants.h
+$(OBJDIR)/plot.df.mpi.pl.hdf5.o:	$(COMMON_DEP)	$(MYINC)/plplotlib.h	$(MYINC)/name.h	$(MYINC)/hdf5lib.h	$(MYINC)/constants.h	$(INITDIR)/magi.h	$(INITDIR)/eddington.h
 $(OBJDIR)/plot.performance.pl.o:	$(COMMON_DEP)	$(MYINC)/plplotlib.h
 $(OBJDIR)/plot.needle.mpi.pl.hdf5.o:	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/plplotlib.h	$(MYINC)/name.h	$(MYINC)/hdf5lib.h	$(MYINC)/constants.h	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h	$(FILEDIR)/io.h
 $(OBJDIR)/plot.disk.mpi.pl.hdf5.o:	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/plplotlib.h	$(MYINC)/name.h	$(MYINC)/hdf5lib.h	$(MYINC)/constants.h
