@@ -1,25 +1,39 @@
-#!/bin/bash
+#!/bin/sh
 ###############################################################
-#PBS -S /bin/bash
-#PBS -N MAGI
-#PBS -A GALAXY
-#PBS -q tcag
-#PBS -l select=1:ncpus=16:mpiprocs=1:ompthreads=16
-#PBS -l place=scatter
-#PBS -l walltime=00:30:00
-#PBS -j oe
+if [ $# -ne 2 ]; then
+    echo "$# inputs are detected while 1 input is required to specify the test problem and the number of N-body particles" 1>&2
+    exit 1
+fi
+PROBLEM=$1
+NTOT=$2
+JOB_ID=$$
 ###############################################################
-NTOT=8388608
-SAVE=55.0
+# global configurations
 ###############################################################
 INI=bin/magi
 ###############################################################
-PROBLEM=10
+SAVE=140.0
+# SAVE=60.0
+# SAVE=2.0
 ###############################################################
 #
 #
 ###############################################################
-# problem specific configurations
+# specific configurations
+###############################################################
+# cold collapse of a uniform sphere
+if [ $PROBLEM -eq 0 ]; then
+INI=bin/uniformsphere
+FILE=ccuni
+UNIT=-1
+MTOT=1.0
+SIGMA=0.25
+RAD=1.0
+EPS=1.5625e-2
+ETA=0.5
+FINISH=11.75
+INTERVAL=0.25
+fi
 ###############################################################
 # dynamical stability of a King sphere
 if [ $PROBLEM -eq 1 ]; then
@@ -27,8 +41,8 @@ FILE=king
 CONFIG=single/king.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=94.0
-INTERVAL=2.0
+FINISH=23.5
+INTERVAL=0.5
 fi
 ###############################################################
 # dynamical stability of a Hernquist sphere
@@ -37,8 +51,8 @@ FILE=hernquist
 CONFIG=single/hernquist.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=94.0
-INTERVAL=2.0
+FINISH=23.5
+INTERVAL=0.5
 fi
 ###############################################################
 # dynamical stability of an NFW sphere with small truncation radius
@@ -47,8 +61,8 @@ FILE=nfw
 CONFIG=single/nfw.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=94.0
-INTERVAL=2.0
+FINISH=23.5
+INTERVAL=0.5
 fi
 ###############################################################
 # dynamical stability of an Einasto profile
@@ -57,8 +71,8 @@ FILE=einasto
 CONFIG=single/einasto.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=94.0
-INTERVAL=2.0
+FINISH=23.5
+INTERVAL=0.5
 fi
 ###############################################################
 # dynamical stability of a Plummer profile
@@ -67,8 +81,8 @@ FILE=plummer
 CONFIG=single/plummer.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=94.0
-INTERVAL=2.0
+FINISH=23.5
+INTERVAL=0.5
 fi
 ###############################################################
 # dynamical stability of a Burkert profile
@@ -77,8 +91,8 @@ FILE=burkert
 CONFIG=single/burkert.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=94.0
-INTERVAL=2.0
+FINISH=23.5
+INTERVAL=0.5
 fi
 ###############################################################
 # dynamical stability of a Moore profile
@@ -87,8 +101,8 @@ FILE=moore
 CONFIG=single/moore.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=94.0
-INTERVAL=2.0
+FINISH=23.5
+INTERVAL=0.5
 fi
 ###############################################################
 # dynamical stability of a Two-power sphere
@@ -97,8 +111,8 @@ FILE=twopower
 CONFIG=single/twopower.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=94.0
-INTERVAL=2.0
+FINISH=23.5
+INTERVAL=0.5
 fi
 ###############################################################
 # dynamical stability of a King sphere within an Einasto profile
@@ -107,8 +121,8 @@ FILE=hb
 CONFIG=multi/hb.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=94.0
-INTERVAL=2.0
+FINISH=23.5
+INTERVAL=0.5
 fi
 ###############################################################
 # dynamical stability of an exponential disk in an NFW sphere and a King sphere
@@ -117,8 +131,8 @@ FILE=hbd
 CONFIG=multi/hbd.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=94.0
-INTERVAL=2.0
+FINISH=47.5
+INTERVAL=0.5
 # FINISH=1648.0
 # INTERVAL=16.0
 fi
@@ -129,8 +143,8 @@ FILE=hbdd
 CONFIG=multi/hbdd.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=94.0
-INTERVAL=2.0
+FINISH=47.5
+INTERVAL=0.5
 # FINISH=1400.0
 # INTERVAL=8.0
 fi
@@ -141,8 +155,8 @@ FILE=ekes
 CONFIG=multi/ekes.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=94.0
-INTERVAL=2.0
+FINISH=47.5
+INTERVAL=0.5
 # FINISH=1400.0
 # INTERVAL=8.0
 fi
@@ -153,7 +167,9 @@ FILE=m31
 CONFIG=galaxy/f07.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=75.0
+# FINISH=75.0
+# INTERVAL=25.0
+FINISH=1175.0
 INTERVAL=25.0
 # FINISH=5175.0
 # INTERVAL=25.0
@@ -203,6 +219,75 @@ FINISH=75.0
 INTERVAL=25.0
 # FINISH=3175.0
 # INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of multi components galaxy model with fixed number of particles
+if [ $PROBLEM -eq 25 ]; then
+if [ $NTOT -lt 4194304 ]; then
+    NTOT=4194304
+fi
+FILE=compare
+CONFIG=galaxy/compare.cfg
+EPS=1.5625e-2
+ETA=0.5
+# FINISH=75.0
+# INTERVAL=25.0
+FINISH=3175.0
+INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of multi components galaxy model (only spherical components)
+if [ $PROBLEM -eq 26 ]; then
+FILE=spherical
+CONFIG=galaxy/spherical.cfg
+EPS=1.5625e-2
+ETA=0.5
+# FINISH=75.0
+# INTERVAL=25.0
+FINISH=1175.0
+INTERVAL=25.0
+# FINISH=3175.0
+# INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of an M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk)
+if [ $PROBLEM -eq 27 ]; then
+FILE=m31_mod
+CONFIG=galaxy/m31.cfg
+EPS=1.5625e-2
+ETA=0.5
+FINISH=75.0
+INTERVAL=25.0
+# FINISH=3175.0
+# INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of multi components galaxy model (NFW halo, King bulge, thick Sersic disk, and thin exponential disk)
+if [ $PROBLEM -eq 28 ]; then
+FILE=ltg
+CONFIG=galaxy/ltg.cfg
+EPS=1.5625e-2
+ETA=0.5
+# ETA=0.25
+# FINISH=75.0
+# INTERVAL=25.0
+FINISH=1175.0
+INTERVAL=25.0
+# FINISH=3175.0
+# INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of multi components galaxy model (Vasiliev & Athanassoula 2015) with fixed number of particles
+if [ $PROBLEM -eq 29 ]; then
+if [ $NTOT -ne 1000000 ]; then
+    NTOT=1000000
+fi
+FILE=va15
+CONFIG=galaxy/va15.cfg
+EPS=0.01
+ETA=1.0
+FINISH=100.0
+INTERVAL=4.0
 fi
 ###############################################################
 # time evolution of MW/A defined in Kuijken & Dubinski (1995)
@@ -343,6 +428,36 @@ FINISH=1575.0
 INTERVAL=25.0
 fi
 ###############################################################
+# dynamical stability of a Hernquist profile in table form
+if [ $PROBLEM -eq 43 ]; then
+FILE=thernquist
+CONFIG=table/thernquist.cfg
+EPS=1.5625e-2
+ETA=0.5
+FINISH=1575.0
+INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of a Plummer profile in analytic form
+if [ $PROBLEM -eq 44 ]; then
+FILE=aplummer
+CONFIG=table/aplummer.cfg
+EPS=1.5625e-2
+ETA=0.5
+FINISH=1575.0
+INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of a Hernquist profile in analytic form
+if [ $PROBLEM -eq 45 ]; then
+FILE=ahernquist
+CONFIG=table/ahernquist.cfg
+EPS=1.5625e-2
+ETA=0.5
+FINISH=1575.0
+INTERVAL=25.0
+fi
+###############################################################
 # dynamical stability of a spherical Sersic profile
 if [ $PROBLEM -eq 50 ]; then
 FILE=deVaucouleurs
@@ -363,36 +478,53 @@ FINISH=1575.0
 INTERVAL=25.0
 fi
 ###############################################################
+# dynamical stability of a progenitor model for GSS determined by Kirihara et al. (2017)
+if [ $PROBLEM -eq 60 ]; then
+FILE=satellite
+CONFIG=galaxy/satellite.cfg
+EPS=1.5625e-2
+ETA=0.5
+# FINISH=75.0
+# INTERVAL=25.0
+FINISH=1575.0
+INTERVAL=25.0
+# FINISH=5175.0
+# INTERVAL=25.0
+fi
+###############################################################
 #
 #
 ###############################################################
 # generate initial condition
 ###############################################################
-NODES=1
-PROCS_PER_NODE=1
-EXEC=$INI
-###############################################################
-PROCS=`expr $NODES \* $PROCS_PER_NODE`
-###############################################################
-. /opt/Modules/default/init/bash
-export MODULEPATH=$MODULEPATH:/work/GALAXY/ymiki/opt/Modules
-module load intel/16.0.4 mvapich2/2.2_intel_cuda-8.0.44 cuda/8.0.44 cuda-samples/8.0.44
-module load gsl hdf5
-###############################################################
-cd $PBS_O_WORKDIR
-STDOUT=log/$PBS_JOBNAME.$PBS_JOBID.out
-STDERR=log/$PBS_JOBNAME.$PBS_JOBID.err
-echo "used hosts:" >> $STDOUT
-cat $PBS_NODEFILE >> $STDOUT
+# LOG=$JOB_NAME.o$JOB_ID
+LOG=log/$FILE.l
+STDOUT=log/$FILE.o$JOB_ID
+STDERR=log/$FILE.e$JOB_ID
 TIME=`date`
-echo "start: $TIME" >> $STDOUT
-###############################################################
-# # for IntelMPI
-# mpirun -np $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE $EXEC -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
-###############################################################
-# for mvapich2
-mpirun_rsh -np $PROCS -hostfile $PBS_NODEFILE $EXEC -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
-###############################################################
+echo "$TIME: $INI start" >> $LOG
+if [ $PROBLEM -eq 0 ]; then
+if [ `which numactl` ]; then
+    # run with numactl
+    echo "numactl --localalloc $INI -file=$FILE -unit=$UNIT -Ntot=$NTOT -Mtot=$MTOT -sigma=$SIGMA -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR" >> $LOG
+    numactl --localalloc $INI -file=$FILE -unit=$UNIT -Ntot=$NTOT -Mtot=$MTOT -sigma=$SIGMA -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+else
+    # run without numactl
+    echo "$INI -file=$FILE -unit=$UNIT -Ntot=$NTOT -Mtot=$MTOT -sigma=$SIGMA -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR" >> $LOG
+    $INI -file=$FILE -unit=$UNIT -Ntot=$NTOT -Mtot=$MTOT -sigma=$SIGMA -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+fi
+fi
+if [ $PROBLEM -ge 1 ]; then
+if [ `which numactl` ]; then
+    # run with numactl
+    echo "numactl --localalloc $INI -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR" >> $LOG
+    numactl --localalloc $INI -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+else
+    # run without numactl
+    echo "$INI -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR" >> $LOG
+    $INI -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+fi
+fi
 TIME=`date`
-echo "finish: $TIME" >> $STDOUT
+echo "$TIME: $INI finish" >> $LOG
 ###############################################################

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2017/01/22(Sun) 18:13:26
+                  last updated on 2017/01/25(Wed) 16:34:57
  *                                                                       *
  *    MAGI: "MAny-component Galactic Initial-conditions" generator       *
  *    Making Initial Condition Code of N-body Simulation                 *
@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <math.h>
+#include <unistd.h>
 //-------------------------------------------------------------------------
 #ifdef  USE_HDF5_FORMAT
 #include <hdf5.h>
@@ -35,6 +36,13 @@
 #include "constants.h"
 #include "timer.h"
 #include "rotate.h"
+#include "rand.h"
+//-------------------------------------------------------------------------
+#ifdef  USE_SFMTJUMP
+#include "SFMT-jump.h"
+#include "sfmtjump_polynomial.h"
+#include <omp.h>
+#endif//USE_SFMTJUMP
 //-------------------------------------------------------------------------
 #include "../misc/structure.h"
 #include "../misc/allocate.h"
@@ -65,24 +73,23 @@ extern const double                  col_density2astro;extern const char col_den
 extern const double                      density2astro;extern const char     density_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
 extern const double                      senergy2astro;extern const char     senergy_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
 //-------------------------------------------------------------------------
-#ifdef  USE_SFMT
-#include "SFMT.h"
-sfmt_t sfmt;
-#define UNIRAND_DBL (sfmt_genrand_res53(&sfmt))
-#define UNIRAND     (CAST_D2R(UNIRAND_DBL))
-#ifdef  USE_SFMTJUMP
-#include "SFMT-jump.h"
-#include "sfmtjump_polynomial.h"
-#include <omp.h>
-#pragma omp threadprivate(sfmt)
-#endif//USE_SFMTJUMP
-#else///USE_SFMT
-#include <gsl/gsl_rng.h>
-gsl_rng *GSLRand;
-#define UNIRAND_DBL ((double)gsl_rng_uniform(GSLRand))
-#define UNIRAND     (  (real)gsl_rng_uniform(GSLRand))
-#endif//USE_SFMT
-#define RANDVAL     (TWO * (UNIRAND) - UNITY)
+/* #ifdef  USE_SFMT */
+/* #include "SFMT.h" */
+/* sfmt_t sfmt; */
+/* #define UNIRAND_DBL (sfmt_genrand_res53(&sfmt)) */
+/* #ifdef  USE_SFMTJUMP */
+/* #include "SFMT-jump.h" */
+/* #include "sfmtjump_polynomial.h" */
+/* #include <omp.h> */
+/* #pragma omp threadprivate(sfmt) */
+/* #endif//USE_SFMTJUMP */
+/* #else///USE_SFMT */
+/* #include <gsl/gsl_rng.h> */
+/* gsl_rng *GSLRand; */
+/* #define UNIRAND_DBL ((double)gsl_rng_uniform(GSLRand)) */
+/* #endif//USE_SFMT */
+/* #define UNIRAND (CAST_D2R(UNIRAND_DBL)) */
+/* #define RANDVAL (TWO * (UNIRAND) - UNITY) */
 //-------------------------------------------------------------------------
 #include <gsl/gsl_integration.h>
 double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[NTBL_GAUSS_QD];
@@ -90,9 +97,9 @@ double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[NTBL_GAUSS_QD];
 /* measured by void initBenchmark_cpu(void) and void stopBenchmark_cpu(double *result) */
 typedef struct
 {
-  double alloc, info, file;
-  double spheProf, eddington, spheDist;
-  double diskTbl, diskProf, diskVel, diskDat, diskDist;
+  double bodyAlloc, file;
+  double spheAlloc, spheProf, spheDist, spheInfo, eddington;
+  double diskAlloc, diskProf, diskDist, diskInfo, diskTbl, diskVel;
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   double column;
 #endif//MAKE_COLUMN_DENSITY_PROFILE
@@ -101,14 +108,14 @@ typedef struct
 
 
 //-------------------------------------------------------------------------
-static inline void isotropicDistribution(const real rad, real *vecx, real *vecy, real *vecz)
+static inline void isotropicDistribution(const real rad, real *vecx, real *vecy, real *vecz, rand_state *rand)
 {
   //-----------------------------------------------------------------------
-  const real proj = RANDVAL;
+  const real proj = RANDVAL(rand);
   *vecz = rad * proj;
   real Rproj = rad * SQRT(UNITY - proj * proj);
   //-----------------------------------------------------------------------
-  real theta = TWO * CAST_D2R(M_PI) * UNIRAND;
+  real theta = TWO * CAST_D2R(M_PI) * UNIRAND(rand);
   *vecx = Rproj * COS(theta);
   *vecy = Rproj * SIN(theta);
   //-----------------------------------------------------------------------
@@ -423,8 +430,8 @@ static inline double getDF(const double ene, dist_func *df, const double Emin, c
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass, profile_cfg cfg, profile *prf, dist_func *df);
-double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass, profile_cfg cfg, profile *prf, dist_func *df)
+double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass, profile_cfg cfg, profile *prf, dist_func *df, rand_state *rand);
+double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass, profile_cfg cfg, profile *prf, dist_func *df, rand_state *rand)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -474,7 +481,7 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
     //---------------------------------------------------------------------
     /* set spatial distribution by table search */
     //---------------------------------------------------------------------
-    const double tmp = Mmin + (Mmax - Mmin) * UNIRAND_DBL;
+    const double tmp = Mmin + (Mmax - Mmin) * UNIRAND_DBL(rand);
     int ll = 0;
     int rr = NRADBIN - 1;
     while( true ){
@@ -490,7 +497,7 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
     //---------------------------------------------------------------------
     const double alpha = (tmp - prf[ll].enc) / (prf[rr].enc - prf[ll].enc);
     const double rad = (1.0 - alpha) * prf[ll].rad + alpha * prf[rr].rad;
-    isotropicDistribution(CAST_D2R(rad), &(body.pos[ii].x), &(body.pos[ii].y), &(body.pos[ii].z));
+    isotropicDistribution(CAST_D2R(rad), &(body.pos[ii].x), &(body.pos[ii].y), &(body.pos[ii].z), rand);
     /* __NOTE__("position of %zu-th particle determined: rad = %e\n", ii, rad); */
     //---------------------------------------------------------------------
 
@@ -508,19 +515,19 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
     double vel;
     while( true ){
       //-------------------------------------------------------------------
-      vel = vesc * UNIRAND_DBL;
+      vel = vesc * UNIRAND_DBL(rand);
       //-------------------------------------------------------------------
       const double ene = psi - 0.5 * vel * vel;
       const double val = vel * vel * getDF(ene, df, Emin, invEbin);
-      const double try = v2Fmax * UNIRAND_DBL;
+      const double try = v2Fmax * UNIRAND_DBL(rand);
       if( val > try )	break;
       //-------------------------------------------------------------------
     }/* while( true ){ */
     //---------------------------------------------------------------------
 #ifdef  BLOCK_TIME_STEP
-    isotropicDistribution(CAST_D2R(vel), &(body.vel[ii].x), &(body.vel[ii].y), &(body.vel[ii].z));
+    isotropicDistribution(CAST_D2R(vel), &(body.vel[ii].x), &(body.vel[ii].y), &(body.vel[ii].z), rand);
 #else///BLOCK_TIME_STEP
-    isotropicDistribution(CAST_D2R(vel), &(body.vx[ii]), &(body.vy[ii]), &(body.vz[ii]));
+    isotropicDistribution(CAST_D2R(vel), &(body.vx[ii]), &(body.vy[ii]), &(body.vz[ii]), rand);
 #endif//BLOCK_TIME_STEP
     /* __NOTE__("velocity of %zu-th particle determined\n", ii); */
     //---------------------------------------------------------------------
@@ -660,17 +667,6 @@ int main(int argc, char **argv)
 
 
   //-----------------------------------------------------------------------
-  /* initialization */
-  //-----------------------------------------------------------------------
-  /* initialize random number provided by GSL */
-#ifndef USE_SFMT
-  const gsl_rng_type *RandType;
-  gsl_rng_env_setup();
-  RandType = gsl_rng_mt19937;
-  GSLRand  = gsl_rng_alloc(RandType);
-  gsl_rng_set(GSLRand, 5489);
-#endif//USE_SFMT
-  //-----------------------------------------------------------------------
   /* initialize the table for Gaussian Quadrature provided by GSL */
   for(int ii = 0; ii < NTBL_GAUSS_QD; ii++){
     gsl_gaussQD_pos   [ii] = 0.0;
@@ -734,7 +730,9 @@ int main(int argc, char **argv)
   for(int ii = 0; ii < kind; ii++)
     for(int jj = 0; jj < 4 + NRADBIN; jj++)
       prf[ii][jj].rad = pow(10.0, logrmin + logrbin * (double)jj);
+  stopBenchmark_cpu(&execTime.spheAlloc);
   /* memory allocation for disk component */
+  initBenchmark_cpu();
   int maxLev;
   disk_data  *disk_info;
   double *disk_hor, *disk_ver, *disk_node_hor, *disk_node_ver, *disk_pot, *disk_dPhidR, *disk_d2PhidR2;
@@ -755,7 +753,7 @@ int main(int argc, char **argv)
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
 		     &sph_rad, &sph_rho, &sph_enc,
 		     &spline_xx, &spline_ff, &spline_f2, &spline_bp);
-  stopBenchmark_cpu(&execTime.alloc);
+  stopBenchmark_cpu(&execTime.diskAlloc);
   //-----------------------------------------------------------------------
   /* set density profile and mass profile for spherical component(s) */
   initBenchmark_cpu();
@@ -895,7 +893,7 @@ int main(int argc, char **argv)
     /* output fundamental quantities of the disk component */
     initBenchmark_cpu();
     writeDiskData(file, ndisk, maxLev, disk_info);
-    stopBenchmark_cpu(&execTime.diskDat);
+    stopBenchmark_cpu(&execTime.diskInfo);
     //---------------------------------------------------------------------
   }/* if( addDisk ){ */
   //-----------------------------------------------------------------------
@@ -924,7 +922,7 @@ int main(int argc, char **argv)
 		    &vx, &vy, &vz
 #endif//BLOCK_TIME_STEP
 		    );
-  stopBenchmark_cpu(&execTime.alloc);
+  stopBenchmark_cpu(&execTime.bodyAlloc);
   //-----------------------------------------------------------------------
   /* parallel region for OpenMP */
 #ifdef  USE_SFMTJUMP
@@ -932,21 +930,12 @@ int main(int argc, char **argv)
 #endif//USE_SFMTJUMP
   {
     //---------------------------------------------------------------------
-    /* initialize random number provided by SFMT */
-#ifdef  USE_SFMT
-    sfmt_init_gen_rand(&sfmt, 5489);
-    /* sfmt_init_gen_rand(&sfmt, 19650218); */
-    /* 5489 for 32 bit Mersenne Twister */
-    /* 19650218 for 64 bit Mersenne Twister */
-#endif//USE_SFMT
+    /* initialize pseudo random number generator */
+    rand_state *rand;
+    initRandNum(&rand);
 #ifdef  USE_SFMTJUMP
-#ifndef NTL_THREADS
-#pragma omp critical
-#endif//NTL_THREADS
-    {
-      for(int ii = 0; ii < omp_get_thread_num(); ii++)
-	SFMT_jump(&sfmt, SFMTJUMP_10_100);
-    }
+    for(int ii = 0; ii < omp_get_thread_num(); ii++)
+      SFMT_jump(rand, SFMTJUMP_10_100);
 #endif//USE_SFMTJUMP
     //---------------------------------------------------------------------
     /* create spherical particle distribution */
@@ -960,7 +949,7 @@ int main(int argc, char **argv)
       //-------------------------------------------------------------------
       /* distribute spheroid particles */
       if( cfg[ii].kind != CENTRALBH )
-	cfg[ii].Ecut = distributeSpheroidParticles(&Nuse, body, CAST_D2R(cfg[ii].Mtot / (double)cfg[ii].num), cfg[ii], &prf[ii][2], fene[ii]);
+	cfg[ii].Ecut = distributeSpheroidParticles(&Nuse, body, CAST_D2R(cfg[ii].Mtot / (double)cfg[ii].num), cfg[ii], &prf[ii][2], fene[ii], rand);
       else{
 #ifdef  USE_SFMTJUMP
 #pragma omp single nowait
@@ -1024,7 +1013,7 @@ int main(int argc, char **argv)
       for(int ii = 0; ii < ndisk; ii++){
 	//-----------------------------------------------------------------
 	/* distribute disk particles */
-	distributeDiskParticles(&Nuse, body, CAST_D2R(disk_info[ii].cfg->Mtot / (double)disk_info[ii].cfg->num), maxLev, disk_info[ii]);
+	distributeDiskParticles(&Nuse, body, CAST_D2R(disk_info[ii].cfg->Mtot / (double)disk_info[ii].cfg->num), maxLev, disk_info[ii], rand);
 	//-----------------------------------------------------------------
 	/* flip velocity vector to generate retrograding particles */
 	if( disk_info[ii].cfg->retrogradeFrac > 0.0 )
@@ -1042,6 +1031,10 @@ int main(int argc, char **argv)
       stopBenchmark_cpu(&execTime.diskDist);
       //-------------------------------------------------------------------
     }/* if( addDisk ){ */
+    //---------------------------------------------------------------------
+    /* release pseudo random number generator */
+    freeRandNum(rand);
+    //---------------------------------------------------------------------
   }
   //-----------------------------------------------------------------------
   if( skind == 0 )
@@ -1055,7 +1048,7 @@ int main(int argc, char **argv)
   /* write fundamental information */
   initBenchmark_cpu();
   outputFundamentalInformation(unit, kind, skind, cfg, prf, fene, Ntot, eps, snapshotInterval, ft, file);
-  stopBenchmark_cpu(&execTime.info);
+  stopBenchmark_cpu(&execTime.spheInfo);
   //-----------------------------------------------------------------------
 
 
@@ -1242,12 +1235,43 @@ int main(int argc, char **argv)
   //-----------------------------------------------------------------------
   /* write result of measured breakdown */
   //-----------------------------------------------------------------------
-  double ttot = execTime.alloc + execTime.info + execTime.file;
-  ttot += execTime.spheProf + execTime.eddington + execTime.spheDist;
-  ttot += execTime.diskTbl + execTime.diskProf + execTime.diskVel + execTime.diskDat + execTime.diskDist;
+  double ttot = 0.0;
+  ttot += execTime.bodyAlloc + execTime.file;
+  ttot += execTime.spheAlloc + execTime.spheProf + execTime.spheDist + execTime.spheInfo + execTime.eddington;
+  ttot += execTime.diskAlloc + execTime.diskProf + execTime.diskDist + execTime.diskInfo + execTime.diskTbl + execTime.diskVel;
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   ttot += execTime.column;
 #endif//MAKE_COLUMN_DENSITY_PROFILE
+  //-----------------------------------------------------------------------
+  FILE *fp;
+  char filename[128];
+  sprintf(filename, "%s/%s.N%zu.%s.%s.txt", LOGFOLDER, file, Ntot, "magi", "breakdown");
+  if( 0 != access(filename, F_OK) ){
+    fp = fopen(filename, "w");
+    if( fp == NULL ){
+      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);
+    }
+    fprintf(fp, "#%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+	    "ttot", "bodyAlloc", "file",
+	    "spheAlloc", "spheProf", "spheDist", "spheInfo", "eddington",
+	    "diskAlloc", "diskProf", "diskDist", "diskInfo", "diskTbl", "diskVel",
+	    "column");
+    fclose(fp);
+  }
+  fp = fopen(filename, "a");
+  if( fp == NULL ){
+    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);
+  }
+  fprintf(fp, "%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e",
+	  ttot, execTime.bodyAlloc, execTime.file,
+	  execTime.spheAlloc, execTime.spheProf, execTime.spheDist, execTime.spheInfo, execTime.eddington,
+	  execTime.diskAlloc, execTime.diskProf, execTime.diskDist, execTime.diskInfo, execTime.diskTbl, execTime.diskVel);
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+  fprintf(fp, "\t%e", execTime.column);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+  fprintf(fp, "\n");
+  fclose(fp);
+  //-----------------------------------------------------------------------
   fprintf(stdout, "#\n#\n# benchmark result:\n");
   fprintf(stdout, "# total elapsed time is %e s\n", ttot);
   ttot = 100.0 / ttot;
@@ -1259,12 +1283,14 @@ int main(int argc, char **argv)
   if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskProf , execTime.diskProf  * ttot, "calculating spherical averaged profile of disk component(s)");
   if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskVel  , execTime.diskVel   * ttot, "calculating vertical velocity dispersion of disk component(s)");
   fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.file     , execTime.file      * ttot, "writing particle data");
-  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.info     , execTime.info      * ttot, "writing fundamental information of the system");
-  if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskDat  , execTime.diskDat   * ttot, "writing fundamental data of disk component(s)");
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.spheInfo, execTime.spheInfo * ttot, "writing fundamental data of spherical component(s)");
+  if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskInfo, execTime.diskInfo * ttot, "writing fundamental data of disk component(s)");
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.column, execTime.column * ttot, "calculating column density profile of spherical component(s)");
 #endif//MAKE_COLUMN_DENSITY_PROFILE
-  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.alloc, execTime.alloc * ttot, "memory allocation");
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.spheAlloc, execTime.spheAlloc * ttot, "memory allocation for spherical component(s)");
+  if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskAlloc, execTime.diskAlloc * ttot, "memory allocation for disk component(s)");
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.bodyAlloc, execTime.bodyAlloc * ttot, "memory allocation for N-body particles");
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------

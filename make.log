@@ -1,8 +1,8 @@
 if [ ! -d pub ]; then \
 mkdir pub; \
 fi
-tar cvJf 1701231030tree.tar.xz \
-README.txt LICENSE.txt Makefile src sh cfg host plt plugins/README \
+tar cvJf 1701260941tree.tar.xz \
+README.txt LICENSE.txt Makefile src sh cfg host plt py plugins/README \
 plugins/GOTHIC_split/GOTHIC_split.xml plugins/GOTHIC_split/GOTHIC_splitCommonPluginInfo.C plugins/GOTHIC_split/GOTHIC_splitEnginePluginInfo.C plugins/GOTHIC_split/GOTHIC_splitMDServerPluginInfo.C plugins/GOTHIC_split/GOTHIC_splitPluginInfo.C plugins/GOTHIC_split/GOTHIC_splitPluginInfo.h plugins/GOTHIC_split/avtGOTHIC_splitFileFormat.C plugins/GOTHIC_split/avtGOTHIC_splitFileFormat.h plugins/GOTHIC_snp/GOTHIC_snp.xml plugins/GOTHIC_snp/GOTHIC_snpCommonPluginInfo.C plugins/GOTHIC_snp/GOTHIC_snpEnginePluginInfo.C plugins/GOTHIC_snp/GOTHIC_snpMDServerPluginInfo.C plugins/GOTHIC_snp/GOTHIC_snpPluginInfo.C plugins/GOTHIC_snp/GOTHIC_snpPluginInfo.h plugins/GOTHIC_snp/avtGOTHIC_snpFileFormat.C plugins/GOTHIC_snp/avtGOTHIC_snpFileFormat.h plugins/GOTHIC_err/GOTHIC_err.xml plugins/GOTHIC_err/GOTHIC_errCommonPluginInfo.C plugins/GOTHIC_err/GOTHIC_errEnginePluginInfo.C plugins/GOTHIC_err/GOTHIC_errMDServerPluginInfo.C plugins/GOTHIC_err/GOTHIC_errPluginInfo.C plugins/GOTHIC_err/GOTHIC_errPluginInfo.h plugins/GOTHIC_err/avtGOTHIC_errFileFormat.C plugins/GOTHIC_err/avtGOTHIC_errFileFormat.h plugins/GOTHIC/GOTHIC.xml plugins/GOTHIC/GOTHICCommonPluginInfo.C plugins/GOTHIC/GOTHICEnginePluginInfo.C plugins/GOTHIC/GOTHICMDServerPluginInfo.C plugins/GOTHIC/GOTHICPluginInfo.C plugins/GOTHIC/GOTHICPluginInfo.h plugins/GOTHIC/avtGOTHICFileFormat.C plugins/GOTHIC/avtGOTHICFileFormat.h plugins/MAGI_disk/MAGI_disk.xml plugins/MAGI_disk/MAGI_diskCommonPluginInfo.C plugins/MAGI_disk/MAGI_diskEnginePluginInfo.C plugins/MAGI_disk/MAGI_diskMDServerPluginInfo.C plugins/MAGI_disk/MAGI_diskPluginInfo.C plugins/MAGI_disk/MAGI_diskPluginInfo.h plugins/MAGI_disk/avtMAGI_diskFileFormat.C plugins/MAGI_disk/avtMAGI_diskFileFormat.h plugins/MAGI_df/MAGI_df.xml plugins/MAGI_df/MAGI_dfCommonPluginInfo.C plugins/MAGI_df/MAGI_dfEnginePluginInfo.C plugins/MAGI_df/MAGI_dfMDServerPluginInfo.C plugins/MAGI_df/MAGI_dfPluginInfo.C plugins/MAGI_df/MAGI_dfPluginInfo.h plugins/MAGI_df/avtMAGI_dfFileFormat.C plugins/MAGI_df/avtMAGI_dfFileFormat.h plugins/MAGI_profile/MAGI_profile.xml plugins/MAGI_profile/MAGI_profileCommonPluginInfo.C plugins/MAGI_profile/MAGI_profileEnginePluginInfo.C plugins/MAGI_profile/MAGI_profileMDServerPluginInfo.C plugins/MAGI_profile/MAGI_profilePluginInfo.C plugins/MAGI_profile/MAGI_profilePluginInfo.h plugins/MAGI_profile/avtMAGI_profileFileFormat.C plugins/MAGI_profile/avtMAGI_profileFileFormat.h
 README.txt
 LICENSE.txt
@@ -187,6 +187,8 @@ sh/local/bench.walk.sh
 sh/local/init.sh
 sh/local/numarun.sh
 sh/local/plplot.sh
+sh/local/bench.init.sh
+sh/local/init_bench.sh
 sh/summary.sh
 sh/gnuplot.sh
 sh/digit.sh
@@ -347,6 +349,8 @@ plt/arm.eps
 plt/relax.gp
 plt/acc.gp
 plt/near.eps
+py/
+py/median.py
 plugins/README
 plugins/GOTHIC_split/GOTHIC_split.xml
 plugins/GOTHIC_split/GOTHIC_splitCommonPluginInfo.C
@@ -404,4 +408,4 @@ plugins/MAGI_profile/MAGI_profilePluginInfo.C
 plugins/MAGI_profile/MAGI_profilePluginInfo.h
 plugins/MAGI_profile/avtMAGI_profileFileFormat.C
 plugins/MAGI_profile/avtMAGI_profileFileFormat.h
-mv       1701231030tree.tar.xz pub/
+mv       1701260941tree.tar.xz pub/

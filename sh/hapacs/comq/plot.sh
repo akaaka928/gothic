@@ -198,8 +198,10 @@ PROCS_PER_NODE=16
 PROCS=`expr $NODES \* $PROCS_PER_NODE`
 ###############################################################
 . /opt/Modules/default/init/bash
+export MODULEPATH=$MODULEPATH:/work/GALAXY/ymiki/opt/Modules
 module load intel/15.0.5 intelmpi/5.1.1
 module load cuda/7.5.18 cuda/samples_7.5.18
+module load gsl hdf5 plplot
 ###############################################################
 cd $PBS_O_WORKDIR
 STDOUT=log/$PBS_JOBNAME.$PBS_JOBID.out

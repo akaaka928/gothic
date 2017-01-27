@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/06(Tue) 15:38:53
+                  last updated on 2017/01/25(Wed) 16:38:35
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Uniform sphere w/ Gaussian velocity dispersion                  *
@@ -44,9 +44,6 @@ extern const real newton;
 #include "SFMT.h"
 sfmt_t sfmt;
 #define RANDPOS (CAST_D2R(sfmt_genrand_res53(&sfmt)))
-#ifdef  USE_SFMTJUMP
-#include "SFMT-jump.h"
-#endif//USE_SFMTJUMP
 #else///USE_SFMT
 #include <gsl/gsl_rng.h>
 gsl_rng *GSLRand;

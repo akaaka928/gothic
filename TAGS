@@ -103,65 +103,59 @@ void bicgstab230,11637
 void pbicgstab351,17555
 int main(556,26108
 
-src/init/magi.h,218
+src/init/magi.h,181
 #define MAGI_H13,827
 #define PROGRESS_REPORT_ON23,1215
-#define OUTPUT_ASCII_PROFILE26,1345
-#define NMAX_GAUSS_QD 28,1450
-#define NTBL_GAUSS_QD 29,1477
-#define NINTBIN 30,1544
-#define N_PRINT_LINES_ASCII 34,1754
+#define NMAX_GAUSS_QD 28,1456
+#define NTBL_GAUSS_QD 29,1483
+#define NINTBIN 30,1550
+#define N_PRINT_LINES_ASCII 34,1760
 
-src/init/magi.c,1691
+src/init/magi.c,1708
 #define USE_SZIP_COMPRESSION18,1275
-sfmt_t sfmt;70,3779
-#define UNIRAND_DBL 71,3792
-#define UNIRAND 72,3840
-gsl_rng *GSLRand;GSLRand81,4073
-#define UNIRAND_DBL 82,4091
-#define UNIRAND 83,4146
-#define RANDVAL 85,4218
-double gsl_gaussQD_pos[gsl_gaussQD_pos88,4373
-double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[gsl_gaussQD_weight88,4373
-  double alloc,93,4630
-  double alloc, info,93,4630
-  double alloc, info, file;93,4630
-  double spheProf,94,4658
-  double spheProf, eddington,94,4658
-  double spheProf, eddington, spheDist;94,4658
-  double diskTbl,95,4698
-  double diskTbl, diskProf,95,4698
-  double diskTbl, diskProf, diskVel,95,4698
-  double diskTbl, diskProf, diskVel, diskDat,95,4698
-  double diskTbl, diskProf, diskVel, diskDat, diskDist;95,4698
-  double column;97,4790
-} breakdown;99,4843
-static inline void isotropicDistribution(104,5010
-bool isInnerParticle4spherical(127,6175
-bool isInnerParticle4disk 128,6333
-static inline void pickRetrogradingParticles(137,6839
-void retrograder(143,7161
-void shiftCenter(178,8718
-static inline double getDF(430,19154
-double distributeSpheroidParticles(448,20067
-int main(597,27194
-  struct dump 1206,56196
-    double time;1207,56212
-    int nbodies;1208,56229
-    int ndim;1209,56246
-    int nsph;1210,56260
-    int ndark;1211,56274
-    int nstar;1212,56289
-  typedef struct dump header;1214,56309
-  struct dark_particle 1224,56682
-    real mass;1225,56707
-    real pos[pos1226,56722
-    real vel[vel1227,56739
-    real eps;1228,56756
-    int idx;1229,56770
-void outputFundamentalInformation1317,61548
-static void evaluateDiskProperties1971,102185
-void writeDiskData(2076,109519
+double gsl_gaussQD_pos[gsl_gaussQD_pos95,4641
+double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[gsl_gaussQD_weight95,4641
+  double bodyAlloc,100,4898
+  double bodyAlloc, file;100,4898
+  double spheAlloc,101,4924
+  double spheAlloc, spheProf,101,4924
+  double spheAlloc, spheProf, spheDist,101,4924
+  double spheAlloc, spheProf, spheDist, spheInfo,101,4924
+  double spheAlloc, spheProf, spheDist, spheInfo, eddington;101,4924
+  double diskAlloc,102,4985
+  double diskAlloc, diskProf,102,4985
+  double diskAlloc, diskProf, diskDist,102,4985
+  double diskAlloc, diskProf, diskDist, diskInfo,102,4985
+  double diskAlloc, diskProf, diskDist, diskInfo, diskTbl,102,4985
+  double diskAlloc, diskProf, diskDist, diskInfo, diskTbl, diskVel;102,4985
+  double column;104,5089
+} breakdown;106,5142
+static inline void isotropicDistribution(111,5309
+bool isInnerParticle4spherical(134,6504
+bool isInnerParticle4disk 135,6662
+static inline void pickRetrogradingParticles(144,7168
+void retrograder(150,7486
+void shiftCenter(185,9057
+static inline double getDF(416,19145
+double distributeSpheroidParticles(434,20076
+int main(583,27259
+  struct dump 1185,56096
+    double time;1186,56112
+    int nbodies;1187,56129
+    int ndim;1188,56146
+    int nsph;1189,56160
+    int ndark;1190,56174
+    int nstar;1191,56189
+  typedef struct dump header;1193,56209
+  struct dark_particle 1203,56582
+    real mass;1204,56607
+    real pos[pos1205,56622
+    real vel[vel1206,56639
+    real eps;1207,56656
+    int idx;1208,56670
+void outputFundamentalInformation1329,63176
+static void evaluateDiskProperties1983,103945
+void writeDiskData(2088,111279
 
 src/init/test.c,59
 #define NDATA 8,117
@@ -658,32 +652,27 @@ src/init/potdens.h,2308
   double Krand_sph;104,4992
 } disk_data;106,5053
 
-src/init/diskDF.c,606
-#define UNIRAND_DBL 45,2165
-#define UNIRAND_DBL 49,2280
-#define UNIRAND 51,2344
-#define RANDVAL_DBL 52,2388
-#define RANDVAL 53,2436
-static inline int bisection(58,2640
-static inline int findIdxSpherical(84,4074
-static inline double func4enc(112,5522
-double gaussQD4enc(123,6212
-static inline void convertCylindrical2Spherical143,7337
-void integrateSphericalDensityProfile(186,9707
-void diffAxisymmetricPotential(372,20650
-void calcVerticalVdisp(547,31754
-static inline void leastSquaredMethod(627,36116
-static inline int bisection4nestedGrid650,37214
-void distributeDiskParticles(669,38145
+src/init/diskDF.c,469
+static inline int bisection(59,2748
+static inline int findIdxSpherical(85,4182
+static inline double func4enc(113,5630
+double gaussQD4enc(124,6320
+static inline void convertCylindrical2Spherical144,7445
+void integrateSphericalDensityProfile(187,9815
+void diffAxisymmetricPotential(373,20758
+void calcVerticalVdisp(548,31862
+static inline void leastSquaredMethod(628,36224
+static inline int bisection4nestedGrid651,37322
+void distributeDiskParticles(670,38253
 
 src/init/diskDF.h,240
 #define DISKDF_H13,829
-#define USE_ORIGINAL_VDISP_ESTIMATOR23,1231
-#define SPEEDUP_CONVERGENCE24,1268
-#define SUBDIVIDE_NUM 27,1415
-#define DISK_PERP_VDISP(34,1708
-#define DISK_RADIAL_VDISP2(39,2008
-#define DISK_RADIAL_VDISP(40,2091
+#define USE_ORIGINAL_VDISP_ESTIMATOR24,1249
+#define SPEEDUP_CONVERGENCE25,1286
+#define SUBDIVIDE_NUM 28,1433
+#define DISK_PERP_VDISP(35,1726
+#define DISK_RADIAL_VDISP2(40,2026
+#define DISK_RADIAL_VDISP(41,2109
 
 src/init/z160812magi.c,1052
 #define USE_SZIP_COMPRESSION18,1275

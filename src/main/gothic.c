@@ -1,6 +1,6 @@
 /************************************************************************* \
  *                                                                       *
-                  last updated on 2017/01/18(Wed) 11:05:29
+                  last updated on 2017/01/23(Mon) 14:36:28
  *                                                                       *
  *    N-body code based on Barnes--Hut tree                              *
  *                                                                       *

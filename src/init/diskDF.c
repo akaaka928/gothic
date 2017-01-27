@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/15(Thu) 15:06:46
+                  last updated on 2017/01/25(Wed) 16:32:27
  *                                                                       *
  *    Making Initial Condition Code of N-body Simulation                 *
  *       Assume balance of force in R and z direction                    *
@@ -22,6 +22,7 @@
 //-------------------------------------------------------------------------
 #include "macro.h"
 #include "constants.h"
+#include "rand.h"
 //-------------------------------------------------------------------------
 #include "../misc/structure.h"
 //-------------------------------------------------------------------------
@@ -36,21 +37,21 @@ extern const real newton;
 //-------------------------------------------------------------------------
 extern double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[NTBL_GAUSS_QD];
 //-------------------------------------------------------------------------
-#ifdef  USE_SFMT
-#include "SFMT.h"
-extern sfmt_t sfmt;
-#ifdef  USE_SFMTJUMP
-#pragma omp threadprivate(sfmt)
-#endif//USE_SFMTJUMP
-#define UNIRAND_DBL (sfmt_genrand_res53(&sfmt))
-#else///USE_SFMT
-#include <gsl/gsl_rng.h>
-extern gsl_rng *GSLRand;
-#define UNIRAND_DBL (gsl_rng_uniform(GSLRand))
-#endif//USE_SFMT
-#define UNIRAND     (CAST_D2R(UNIRAND_DBL))
-#define RANDVAL_DBL (2.0 * (UNIRAND_DBL) - 1.0)
-#define RANDVAL     (TWO * (UNIRAND    ) - UNITY)
+/* #ifdef  USE_SFMT */
+/* #include "SFMT.h" */
+/* extern sfmt_t sfmt; */
+/* #ifdef  USE_SFMTJUMP */
+/* #pragma omp threadprivate(sfmt) */
+/* #endif//USE_SFMTJUMP */
+/* #define UNIRAND_DBL (sfmt_genrand_res53(&sfmt)) */
+/* #else///USE_SFMT */
+/* #include <gsl/gsl_rng.h> */
+/* extern gsl_rng *GSLRand; */
+/* #define UNIRAND_DBL (gsl_rng_uniform(GSLRand)) */
+/* #endif//USE_SFMT */
+/* #define UNIRAND     (CAST_D2R(UNIRAND_DBL)) */
+/* #define RANDVAL_DBL (2.0 * (UNIRAND_DBL) - 1.0) */
+/* #define RANDVAL     (TWO * (UNIRAND    ) - UNITY) */
 //-------------------------------------------------------------------------
 
 
@@ -666,7 +667,7 @@ static inline int bisection4nestedGrid
   //-----------------------------------------------------------------------
 }
 //-------------------------------------------------------------------------
-void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const int maxLev, const disk_data disk)
+void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const int maxLev, const disk_data disk, rand_state *rand)
 {
   //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
@@ -734,7 +735,7 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     /* determine Rg, phi, and z */
     //---------------------------------------------------------------------
     /* set Rg */
-    const double Renc = Mmax * UNIRAND_DBL;
+    const double Renc = Mmax * UNIRAND_DBL(rand);
     double aRg, Rg;
     int iRg, lev;
     //---------------------------------------------------------------------
@@ -762,7 +763,7 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     const double sigmaz = (1.0 - aRg) * sig[INDEX2D(maxLev, NDISKBIN_HOR, lev, iRg)] + aRg * sig[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + iRg)];
     //---------------------------------------------------------------------
     /* set z using table search */
-    const double zenc = UNIRAND_DBL;
+    const double zenc = UNIRAND_DBL(rand);
     int jzz = 0;
     double azz = 0.0;
     double zz = 0.0;
@@ -817,7 +818,7 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
       azz = 0.0;
     }/* else{ */
     //---------------------------------------------------------------------
-    if( UNIRAND_DBL < 0.5 )
+    if( UNIRAND_DBL(rand) < 0.5 )
       zz *= -1.0;
     //---------------------------------------------------------------------
     __NOTE__("%zu-th particle: guiding center determined\n", ii - (*Nuse));
@@ -914,9 +915,9 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
 #ifdef  SPEEDUP_CONVERGENCE
 	while( true ){
 	  //---------------------------------------------------------------
-	  vR = RANDVAL_DBL;
-	  vp = RANDVAL_DBL;
-	  vz = RANDVAL_DBL;
+	  vR = RANDVAL_DBL(rand);
+	  vp = RANDVAL_DBL(rand);
+	  vz = RANDVAL_DBL(rand);
 	  //---------------------------------------------------------------
 	  if( vR * vR + vp * vp + vz * vz < 1.0 )
 	    break;
@@ -927,9 +928,9 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
 	vp *= 8.0 * sigmap;
 	vz *= 8.0 * sigmaz;
 #else///SPEEDUP_CONVERGENCE
-      	vR = vmax * RANDVAL_DBL;
-      	vp = vmax * RANDVAL_DBL;
-      	vz = vmax * RANDVAL_DBL;
+      	vR = vmax * RANDVAL_DBL(rand);
+      	vp = vmax * RANDVAL_DBL(rand);
+      	vz = vmax * RANDVAL_DBL(rand);
 #endif//SPEEDUP_CONVERGENCE
 	//-----------------------------------------------------------------
 	if( vR * vR + vp * vp + vz * vz < vmax2 )
@@ -939,7 +940,7 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
       //-------------------------------------------------------------------
       /* use Schwarzschild DF */
       const double val = exp(-0.5 * (vR * vR * sR2inv + vp * vp * sp2inv + vz * vz * sz2inv));
-      const double try = UNIRAND_DBL;/* maximum of DF is unity */
+      const double try = UNIRAND_DBL(rand);/* maximum of DF is unity */
       if( val > try )	break;
       //-------------------------------------------------------------------
     }/* while( true ){ */
@@ -951,7 +952,7 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     //---------------------------------------------------------------------
     /* uniform distribution in polar angle */
     vp += vcirc;
-    const double phi = 2.0 * M_PI * UNIRAND_DBL;
+    const double phi = 2.0 * M_PI * UNIRAND_DBL(rand);
     const double cosphi = cos(phi);
     const double sinphi = sin(phi);
     xx = Rg * cosphi;    vx = vR * cosphi - vp * sinphi;

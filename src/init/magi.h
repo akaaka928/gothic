@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/06(Tue) 12:22:49
+                  last updated on 2017/01/24(Tue) 12:11:56
  *                                                                       *
  *    Header File for Definition to generate initial condition           *
  *                                                                       *
@@ -23,7 +23,7 @@
 #define PROGRESS_REPORT_ON
 #endif//PROGRESS_REPORT_ON
 //-------------------------------------------------------------------------
-#define OUTPUT_ASCII_PROFILE
+/* #define OUTPUT_ASCII_PROFILE */
 //-------------------------------------------------------------------------
 #define NMAX_GAUSS_QD (51)
 #define NTBL_GAUSS_QD ((NMAX_GAUSS_QD >> 1) + (NMAX_GAUSS_QD & 1))

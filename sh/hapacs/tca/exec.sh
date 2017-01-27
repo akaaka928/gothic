@@ -180,8 +180,10 @@ fi
 # execute numerical simulation
 ###############################################################
 . /opt/Modules/default/init/bash
+export MODULEPATH=$MODULEPATH:/work/GALAXY/ymiki/opt/Modules
 module load intel/16.0.4 mvapich2/2.2_intel_cuda-8.0.44 cuda/8.0.44 cuda-samples/8.0.44
 # module load ddt/5.1 reports/5.1
+module load hdf5 cub
 ###############################################################
 cd $PBS_O_WORKDIR
 STDOUT=log/$PBS_JOBNAME.$PBS_JOBID.out

@@ -1,6 +1,6 @@
 /*************************************************************************\
  *                                                                       *
-                  last updated on 2016/12/06(Tue) 12:24:40
+                  last updated on 2017/01/25(Wed) 16:19:37
  *                                                                       *
  *    Header File for Definition to generate initial condition of disk   *
  *                                                                       *
@@ -13,6 +13,7 @@
 #define DISKDF_H
 //-------------------------------------------------------------------------
 #include "macro.h"
+#include "rand.h"
 //-------------------------------------------------------------------------
 #include "../misc/structure.h"
 #include "../init/potdens.h"
@@ -52,7 +53,7 @@ void diffAxisymmetricPotential(const int maxLev, const disk_data disk);
 //-------------------------------------------------------------------------
 void calcVerticalVdisp(const int ndisk, const int maxLev, disk_data *disk_info);
 //-------------------------------------------------------------------------
-void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const int maxLev, const disk_data disk);
+void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const int maxLev, const disk_data disk, rand_state *rand);
 //-------------------------------------------------------------------------
 
 
