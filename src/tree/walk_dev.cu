@@ -4204,9 +4204,9 @@ void setGlobalConstants_walk_dev_cu
 #   if  SMPREF == 1
   checkCudaErrors(cudaFuncSetCacheConfig(calcAcc_kernel, cudaFuncCachePreferShared));
 #endif//SMPREF == 1
-#   if  WIDEBANK == 1
+#   if  WIDEBANK == 0
   checkCudaErrors(cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeFourByte));
-#endif//WIDEBANK == 1
+#endif//WIDEBANK == 0
   //-----------------------------------------------------------------------
 
   //-----------------------------------------------------------------------

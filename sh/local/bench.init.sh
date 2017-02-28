@@ -10,8 +10,8 @@ do
     do
 	/usr/bin/rm -rf dat doc
 	make dir
-	sh/local/init_bench.sh 28 $NTOT
-	if [ $NITER -eq 1 ]; then
+	sh/local/init.bench.sh 28 $NTOT
+	if [ $ii -eq 0 ]; then
 	    ls -lSr dat/*.h5 > log/size.N${NTOT}.txt
 	fi
     done

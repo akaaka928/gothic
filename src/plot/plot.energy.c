@@ -165,18 +165,14 @@ int main(int argc, char **argv)
     double tmp;
     ulong steps;
     int unit_read;
-#   if  defined(USE_HDF5_FORMAT) || defined(USE_HDF5_FORMAT)
-    readSnapshot(&unit_read, &tmp, &steps, Ntot, &body, file, (uint)filenum
+    readSnapshot(&unit_read, &tmp, &steps, Ntot, file, (uint)filenum
 #ifdef  USE_HDF5_FORMAT
-		 , hdf5type
+		 , &body, hdf5type
+#else///USE_HDF5_FORMAT
+		 , body
 #endif//USE_HDF5_FORMAT
 		 );
-#else///defined(USE_HDF5_FORMAT) || defined(USE_HDF5_FORMAT)
-    readSnapshot(&unit_read, &tmp, &steps, Ntot,  body, file, (uint)filenum);
-#endif//defined(USE_HDF5_FORMAT) || defined(USE_HDF5_FORMAT)
-    if( unit_read != unit ){
-      __KILL__(stderr, "ERROR: conflict about unit system detected (unit = %d, unit_read = %d)\n", unit, unit_read);
-    }/* if( unit_read != unit ){ */
+    if( unit_read != unit ){      __KILL__(stderr, "ERROR: conflict about unit system detected (unit = %d, unit_read = %d)\n", unit, unit_read);    }
     //---------------------------------------------------------------------
     time[ifile] = (PLFLT)(tmp * time2astro);
     step[ifile] = (PLFLT)steps;

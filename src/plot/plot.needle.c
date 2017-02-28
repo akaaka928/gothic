@@ -279,7 +279,7 @@ int main(int argc, char **argv)
   //-----------------------------------------------------------------------
   /* disk galaxy w/z needle like structure */
 #ifdef  USE_HDF5_FORMAT
-  readSnapshot(&unit_read, &time, &steps, Ntot, &hdf5, file1, 0, hdf5type);
+  readSnapshot(&unit_read, &time, &steps, Ntot, file1, 0, &hdf5, hdf5type);
   for(int ii = 0; ii < (int)Ntot; ii++){
     //-------------------------------------------------------------------
     body1[ii]. x  = hdf5.pos[ii * 3];      body1[ii]. y = hdf5.pos[ii * 3 + 1];      body1[ii].z   = hdf5.pos[ii * 3 + 2];
@@ -289,7 +289,7 @@ int main(int argc, char **argv)
     //-------------------------------------------------------------------
   }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 #else///USE_HDF5_FORMAT
-  readSnapshot(&unit_read, &time, &steps, Ntot, ibody, file1, (uint)filenum);
+  readSnapshot(&unit_read, &time, &steps, Ntot, file1, (uint)filenum, ibody);
   for(int ii = 0; ii < (int)Ntot; ii++){
     //-------------------------------------------------------------------
     body1[ii]. x  = ibody.pos[ii].x;      body1[ii]. y = ibody.pos[ii].y;      body1[ii]. z  = ibody.pos[ii].z;
@@ -305,7 +305,7 @@ int main(int argc, char **argv)
   qsort(body1, Ntot, sizeof(nbody_particle), idxAscendingOrder);
   /* disk galaxy w/o needle like structure */
 #ifdef  USE_HDF5_FORMAT
-  readSnapshot(&unit_read, &time, &steps, Ntot, &hdf5, file0, 0, hdf5type);
+  readSnapshot(&unit_read, &time, &steps, Ntot, file0, 0, &hdf5, hdf5type);
   for(int ii = 0; ii < (int)Ntot; ii++){
     //-------------------------------------------------------------------
     body0[ii]. x  = hdf5.pos[ii * 3];      body0[ii]. y = hdf5.pos[ii * 3 + 1];      body0[ii].z   = hdf5.pos[ii * 3 + 2];
@@ -315,7 +315,7 @@ int main(int argc, char **argv)
     //-------------------------------------------------------------------
   }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 #else///USE_HDF5_FORMAT
-  readSnapshot(&unit_read, &time, &steps, Ntot, ibody, file0, (uint)filenum);
+  readSnapshot(&unit_read, &time, &steps, Ntot, file0, (uint)filenum, ibody);
   for(int ii = 0; ii < (int)Ntot; ii++){
     //-------------------------------------------------------------------
     body0[ii]. x  = ibody.pos[ii].x;      body0[ii]. y = ibody.pos[ii].y;      body0[ii]. z  = ibody.pos[ii].z;

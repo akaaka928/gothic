@@ -1,115 +1,153 @@
-/*************************************************************************\
- *                                                                       *
-                  last updated on 2016/12/10(Sat) 15:24:22
- *                                                                       *
- *    Header File for Definition to generate initial condition of disk   *
- *                                                                       *
- *                                                                       *
- *                                             written by Yohei MIKI     *
- *                                                                       *
-\*************************************************************************/
-//-------------------------------------------------------------------------
+/**
+ * @file potdens.h
+ *
+ * @brief Header file for calculating potential-density pair of disk component(s)
+ *
+ * @author Yohei Miki (University of Tsukuba)
+ * @author Masayuki Umemura (University of Tsukuba)
+ *
+ * @date 2017/02/24 (Fri)
+ *
+ * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
+ * All rights reserved.
+ *
+ * The MIT License is applied to this software, see LICENSE.txt
+ *
+ */
 #ifndef POTDENS_H
 #define POTDENS_H
-//-------------------------------------------------------------------------
+
+
 #include "macro.h"
-//-------------------------------------------------------------------------
+
 #include "../init/profile.h"
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
+/**
+ * @def CHECK_OSTRIKER_PEEBLES_CRITERION
+ * activate analysis of Ostriker--Peebles criterion
+ */
 #define CHECK_OSTRIKER_PEEBLES_CRITERION
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
+/**
+ * @def NDISKBIN_VER
+ * number of grid points of the density and potential fields in z-direction
+ */
 /* #define NDISKBIN_VER (32) */
 #define NDISKBIN_VER (64)
-/* NHOR_OVER_NVER is defined as an exponent of two */
+
+/**
+ * @def NHOR_OVER_NVER
+ * NR / Nz, defined as an exponent of two
+ */
 #define NHOR_OVER_NVER (2)
+
+/**
+ * @def NDISKBIN_HOR
+ * number of grid points of the density and potential fields in R-direction
+ */
 #define NDISKBIN_HOR (NDISKBIN_VER << NHOR_OVER_NVER)
-//-------------------------------------------------------------------------
-/* #define NDISKBIN_RAD (16384) */
-#define NDISKBIN_RAD (131072)
-/* #define NDISKBIN_RAD (1048576) */
-//-------------------------------------------------------------------------
+
+
+/** number of arrays for BiCGSTAB method */
 #define  NNZ_CG (5 * NDISKBIN_HOR * NDISKBIN_VER - 2 * (NDISKBIN_HOR + NDISKBIN_VER))
 #define NROW_CG (NDISKBIN_HOR * NDISKBIN_VER)
 #define NCOL_CG (NDISKBIN_HOR * NDISKBIN_VER)
-//-------------------------------------------------------------------------
+
+
+/** macros for setting physical scale of the density and potential fields of the disk component(s) */
 #define DISK_MAX_SAFETY (2.0)
 #define DISK_MAX_LENGTH (10.0)
 #define DISK_MIN_LENGTH (3.90625e-3)
-//-------------------------------------------------------------------------
+
+
 /* #define NDIVIDE_GAUSSQD4DISK (4) */
 #define NDIVIDE_GAUSSQD4DISK (8)
 /* #define NDIVIDE_GAUSSQD4DISK (16) */
-//-------------------------------------------------------------------------
-/* #define PROHIBIT_EXTRAPOLATION *//* <-- currently, not implemented */
+
+
+/**
+ * @def ENABLE_VARIABLE_SCALE_HEIGHT
+ * enable to remove the needle-like structure
+ * Equation (8) in Miki & Umemura (in preparation)
+ */
 #define ENABLE_VARIABLE_SCALE_HEIGHT
-//-------------------------------------------------------------------------
-#define USE_GD_FORM_POTENTIAL
-#ifdef  USE_GD_FORM_POTENTIAL
-#define NGDPOT (1048576)
-#endif//USE_GD_FORM_POTENTIAL
-//-------------------------------------------------------------------------
-#define USE_ELLIPTIC_INTEGRAL
-//-------------------------------------------------------------------------
+
+
+/**
+ * @def CONVERGENCE_BICGSTAB
+ * tolerance value for BiCGSTAB method
+ */
 #define CONVERGENCE_BICGSTAB    (1.0e-10)
+
+/**
+ * @def CONVERGENCE_POTDENSPAIR
+ * tolerance value for iterating potential-density pair of the disk component(s)
+ */
 #define CONVERGENCE_POTDENSPAIR (1.0e-4)
+
+/**
+ * @def NEGLECT_DENSITY_MINIMUM
+ * tolerance value for low density regions
+ */
 #define NEGLECT_DENSITY_MINIMUM (1.0e-10)
-//-------------------------------------------------------------------------
+
+
 #define INDEX4D(n0, n1, n2, n3, ii, jj, kk, ll) ((ll) + (n3) * ((kk) + (n2) * ((jj) + (n1) * (ii))))
-//-------------------------------------------------------------------------
+
+/* #define NDISKBIN_RAD (16384) */
+#define NDISKBIN_RAD (131072)
+/* #define NDISKBIN_RAD (1048576) */
 
 
-//-------------------------------------------------------------------------
+/**
+ * @struct disk_util
+ *
+ * @brief structure for disk component(s)
+ */
 typedef struct
 {
-  double *xx, *ff, *f2, *bp;/* arrays for spline fit (column density profile in table form) */
+  double *xx, *ff, *f2, *bp;/**< arrays for spline fit (column density profile in table form) */
   double sersic_ninv, sersic_b;
   double Rcutoff, invRsmooth;
-  int num;/* # of arrays for spline fit */
+  int num;/**< # of arrays for spline fit */
 } disk_util;
-//-------------------------------------------------------------------------
+
+/**
+ * @struct disk_data
+ *
+ * @brief structure for disk component(s)
+ */
 typedef struct
 {
-  /* physical properties of disk component */
-  profile_cfg *cfg;
-  /* physical properties of spherical component(s) */
-  profile *prf;
-  /* arrays */
-  double *hor;/* [nest level][NR] array */
-  double *ver;/* [nest level][Nz] array */
-  double *node_hor;/* [nest level][NR + 1] array */
-  double *node_ver;/* [nest level][Nz + 1] array */
-  double *pot, *rhoTot;/* [nest level][NR][Nz] arrays */
-  double **rho, **rhoSum, *rho0, *rho1;/* [Ndisk][nest level][NR][Nz + 1] arrays: Nz + 1 is for rhoSum, to exploit in bisection to determine vertical position */
-  double *dPhidR, *d2PhidR2;/* [nest level][NR][Nz] arrays */
-  double *Sigma, *sigmaz, *enc;/* [Ndisk][nest level][NR] array */
+  profile_cfg *cfg;  /**< physical properties of disk component */
+  profile *prf;  /**< physical properties of spherical component(s) */
+  double *hor;/**< [nest level][NR] array */
+  double *ver;/**< [nest level][Nz] array */
+  double *node_hor;/**< [nest level][NR + 1] array */
+  double *node_ver;/**< [nest level][Nz + 1] array */
+  double *pot, *rhoTot;/**< [nest level][NR][Nz] arrays */
+  double **rho, **rhoSum, *rho0, *rho1;/**< [Ndisk][nest level][NR][Nz + 1] arrays: Nz + 1 is for rhoSum, to exploit in bisection to determine vertical position */
+  double *dPhidR, *d2PhidR2;/**< [nest level][NR][Nz] arrays */
+  double *Sigma, *sigmaz, *enc;/**< [Ndisk][nest level][NR] array */
   disk_util util;
   double (*getColumnDensity)(double, double, disk_util);
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
   double *zd;
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
-  /* arrays for spherical averaged profile */
-  double *radSph, *rhoSph, *encSph;/* [NDISKBIN_RAD] array */
-  /* arrays for spline fit */
-  double *spline_xx, *spline_ff, *spline_f2, *spline_bp;
-  double Rmax, zmax, hh;/* configuration of domain */
-  double invRd;/* configuration of disk component */
-  double logrbin, invlogrbin;/* configuration of spherical component(s) */
+  double *radSph, *rhoSph, *encSph;/**< arrays for spherical averaged profile, [NDISKBIN_RAD] array */
+  double *spline_xx, *spline_ff, *spline_f2, *spline_bp;  /**< arrays for spline fit */
+  double Rmax, zmax, hh;/**< configuration of domain */
+  double invRd;/**< configuration of disk component */
+  double logrbin, invlogrbin;/**< configuration of spherical component(s) */
 #ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
   double Krand_sph;
 #endif//CHECK_OSTRIKER_PEEBLES_CRITERION
 } disk_data;
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-//-- List of functions appeared in "potdens.c"
-//-------------------------------------------------------------------------
+/* list of functions appeared in ``potdens.c'' */
 void   freeDiskProfile
 (const int ndisk, disk_data  *disk,
  double  *hor, double  *ver, double  *node_hor, double  *node_ver,
@@ -120,7 +158,7 @@ void   freeDiskProfile
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
  double  *radSph, double  *rhoSph, double  *encSph,
  double  *spline_xx, double  *spline_ff, double  *spline_f2, double  *spline_bp);
-//-------------------------------------------------------------------------
+
 void allocDiskProfile
 (const int ndisk, disk_data **disk, profile_cfg *disk_cfg, int *maxLev, profile **disk_prf, const int skind, const double logrbin, const double invlogrbin,
  double **hor, double **ver, double **node_hor, double **node_ver,
@@ -132,11 +170,8 @@ void allocDiskProfile
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
  double **radSph, double **rhoSph, double **encSph,
  double **spline_xx, double **spline_ff, double **spline_f2, double **spline_bp);
-//-------------------------------------------------------------------------
+
 void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restrict disk);
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #endif//POTDENS_H
-//-------------------------------------------------------------------------

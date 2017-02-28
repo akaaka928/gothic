@@ -1,24 +1,31 @@
-/*************************************************************************\
- *                                                                       *
-                  last updated on 2016/12/06(Tue) 16:14:07
- *                                                                       *
- *    Header File for Benchmark of N-body Simulation                     *
- *                                                                       *
- *                                                                       *
- *                                             written by Yohei MIKI     *
- *                                                                       *
-\*************************************************************************/
-//-------------------------------------------------------------------------
+/**
+ * @file benchmark.h
+ *
+ * @brief Header file for benchmark of GOTHIC
+ *
+ * @author Yohei Miki (University of Tsukuba)
+ * @author Masayuki Umemura (University of Tsukuba)
+ *
+ * @date 2017/02/21 (Tue)
+ *
+ * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
+ * All rights reserved.
+ *
+ * The MIT License is applied to this software, see LICENSE.txt
+ *
+ */
 #ifndef BENCHMARK_H
 #define BENCHMARK_H
-//-------------------------------------------------------------------------
 #ifdef EXEC_BENCHMARK
-//-------------------------------------------------------------------------
+
+
 #include "macro.h"
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
+/**
+ * @def BENCHMARK_STEPS
+ * Number of time steps in benchmark
+ */
 /* #define BENCHMARK_STEPS (8) */
 /* #define BENCHMARK_STEPS (16) */
 /* #define BENCHMARK_STEPS (32) */
@@ -26,16 +33,21 @@
 /* #define BENCHMARK_STEPS (128) */
 /* #define BENCHMARK_STEPS (256) */
 /* #define BENCHMARK_STEPS (512) */
-#define BENCHMARK_STEPS (1024)
-/* #define BENCHMARK_STEPS (2048) */
+/* #define BENCHMARK_STEPS (1024) */
+#define BENCHMARK_STEPS (2048)
 /* #define BENCHMARK_STEPS (4096) */
 /* #define BENCHMARK_STEPS (8192) */
-//-------------------------------------------------------------------------
+
+
+/* macro to specify the file name */
 #define WALLCLOCK "time"
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
+/**
+ * @struct wall_clock_time
+ *
+ * @brief structure to store results of the measurements
+ */
 typedef struct
 {
   double calcGravity_dev;
@@ -80,18 +92,34 @@ typedef struct
   double commitNeighbors;
 #endif//HUNT_FIND_PARAMETER
 } wall_clock_time;
-//-------------------------------------------------------------------------
+
+
+/**
+ * @struct tree_stats
+ *
+ * @brief structure to store statistics of the tree cells and nodes
+ */
 typedef struct
 {
   real mjMean, mjSdev;
   real r2Mean, r2Sdev;
   int cellNum, nodeNum;
 } tree_stats;
+/**
+ * @struct walk_stats
+ *
+ * @brief structure to store statistics of the tree traversal
+ */
 typedef struct
 {
   int Ngroup, min, max;
   float mean, sdev;
 } walk_stats;
+/**
+ * @struct tree_stats
+ *
+ * @brief structure to store statistics of the tree structure
+ */
 typedef struct
 {
   tree_stats level[21];/* 21 is the possible maximum of MAXIMUM_PHKEY_LEVEL */
@@ -101,15 +129,17 @@ typedef struct
   ulong Ninteractions;/* ULONG_MAX is ~10^20, would be enough size */
   size_t bufSize;
 } tree_metrics;
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #include <sys/time.h>
 #include "timer.h"
-//-------------------------------------------------------------------------
 static struct timeval _benchIni, _benchFin;
-//-------------------------------------------------------------------------
+
+/**
+ * @fn initStopwatch
+ *
+ * @brief Initialize benchmarking.
+ */
 static inline void initStopwatch(void)
 {
 #ifdef  __CUDACC__
@@ -117,7 +147,13 @@ static inline void initStopwatch(void)
 #endif//__CUDACC__
   gettimeofday(&_benchIni, NULL);
 }
-//-------------------------------------------------------------------------
+/**
+ * @fn stopStopwatch
+ *
+ * @brief Finalize benchmarking.
+ *
+ * @return (result) measured execution time in units of second
+ */
 static inline void stopStopwatch(double *result)
 {
 #ifdef  __CUDACC__
@@ -126,11 +162,7 @@ static inline void stopStopwatch(double *result)
   gettimeofday(&_benchFin, NULL);
   *result += calcElapsedTimeInSec(_benchIni, _benchFin);
 }
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #endif//EXEC_BENCHMARK
-//-------------------------------------------------------------------------
 #endif//BENCHMARK_H
-//-------------------------------------------------------------------------

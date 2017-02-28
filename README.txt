@@ -1,7 +1,7 @@
 #################################################################################################
 #################################################################################################
 README file for tree code with block time step on GPU(s) written by Yohei MIKI
-                                                         last updated on 2017/01/20(Fri) 17:08:11
+                                                         last updated on 2017/02/28 (Tue) 11:08:56
 #################################################################################################
 #################################################################################################
 
@@ -203,3 +203,19 @@ MAGI:
 	rotation of spherical components (in arbitrary rotation axis)
 	parallelization of random number generator for rejection method
 	parallelization of BiCGSTAB (update of preconditioner)
+
+
+
+
+
+
+下記のオプションについては，常時 ON になっているべきものなので，ソースコードからはこのフラグを消してしまう．
+消し終わったら，Makefile からも該当する分岐を削除する．
+WALK_TREE_COMBINED_MODEL
+MAKE_TREE_ON_DEVICE
+GENERATE_PHKEY_ON_DEVICE
+CALC_MULTIPOLE_ON_DEVICE
+LOCALIZE_I_PARTICLES
+BRUTE_FORCE_LOCALIZATION
+FACILE_NEIGHBOR_SEARCH
+USE_BRENT_METHOD

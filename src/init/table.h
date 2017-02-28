@@ -1,35 +1,33 @@
-/*************************************************************************\
- *                                                                       *
-                  last updated on 2016/10/28(Fri) 16:24:10
- *                                                                       *
- *    Header File to generate table f' and f'' from f by cubic spline    *
- *                                                                       *
- *                                                                       *
- *                                             written by Yohei MIKI     *
- *                                                                       *
-\*************************************************************************/
-//-------------------------------------------------------------------------
+/**
+ * @file table.h
+ *
+ * @brief Header file for density profiles in the machine-readable table format
+ *
+ * @author Yohei Miki (University of Tsukuba)
+ * @author Masayuki Umemura (University of Tsukuba)
+ *
+ * @date 2017/02/21 (Tue)
+ *
+ * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
+ * All rights reserved.
+ *
+ * The MIT License is applied to this software, see LICENSE.txt
+ *
+ */
 #ifndef TABLE_H
 #define TABLE_H
-//-------------------------------------------------------------------------
+
+
 #include "../init/profile.h"
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #define NFIT (4)
 #define NPUT (256)
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-//-- List of functions appeared in "table.c"
-//-------------------------------------------------------------------------
+/* list of functions appeared in ``table.c'' */
 void getInterpolatedDensityProfile(const int num, profile * restrict prf, double * restrict xx, double * restrict ff);
 void setDensityProfileTable(profile *prf, const double rs, char *file);
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #endif//TABLE_H
-//-------------------------------------------------------------------------

@@ -1,28 +1,30 @@
-/*************************************************************************\
- *                                                                       *
-                  last updated on 2016/12/06(Tue) 12:32:48
- *                                                                       *
- *    Header File for memory allocation code of N-body calculation       *
- *                                                                       *
- *                                                                       *
- *                                                                       *
- *                                             written by Yohei MIKI     *
- *                                                                       *
-\*************************************************************************/
-//-------------------------------------------------------------------------
+/**
+ * @file allocate_dev.h
+ *
+ * @brief Header file for memory allocation on GPU
+ *
+ * @author Yohei Miki (University of Tsukuba)
+ * @author Masayuki Umemura (University of Tsukuba)
+ *
+ * @date 2017/02/28 (Tue)
+ *
+ * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
+ * All rights reserved.
+ *
+ * The MIT License is applied to this software, see LICENSE.txt
+ *
+ */
 #ifndef ALLOCATE_DEV_H
 #define ALLOCATE_DEV_H
-//-------------------------------------------------------------------------
+
+
 #include "macro.h"
-//-------------------------------------------------------------------------
+
 #include "../misc/structure.h"
 #include "../tree/walk_dev.h"
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-//-- List of functions appeared in "allocate_dev.cu"
-//-------------------------------------------------------------------------
+/* list of functions appeared in ``allocate_dev.cu'' */
 #ifdef  __CUDACC__
 extern "C"
 {

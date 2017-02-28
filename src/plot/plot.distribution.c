@@ -1431,7 +1431,7 @@ int main(int argc, char **argv)
     ulong steps;
     int unit_read;
 #ifdef  USE_HDF5_FORMAT
-    readSnapshot(&unit_read, &time, &steps, Ntot, &hdf5, file, (uint)filenum, hdf5type);
+    readSnapshot(&unit_read, &time, &steps, Ntot, file, (uint)filenum, &hdf5, hdf5type);
     for(int ii = 0; ii < (int)Ntot; ii++){
       //-------------------------------------------------------------------
       body[ii]. x  = hdf5.pos[ii * 3];      body[ii]. y = hdf5.pos[ii * 3 + 1];      body[ii].z   = hdf5.pos[ii * 3 + 2];
@@ -1441,7 +1441,7 @@ int main(int argc, char **argv)
       //-------------------------------------------------------------------
     }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 #else///USE_HDF5_FORMAT
-    readSnapshot(&unit_read, &time, &steps, Ntot, ibody, file, (uint)filenum);
+    readSnapshot(&unit_read, &time, &steps, Ntot, file, ibody, (uint)filenum);
     for(int ii = 0; ii < (int)Ntot; ii++){
       //-----------------------------------------------------------------
       body[ii]. x  = ibody.pos[ii].x;      body[ii]. y = ibody.pos[ii].y;      body[ii]. z  = ibody.pos[ii].z;
@@ -1685,11 +1685,7 @@ int main(int argc, char **argv)
       if( ii >= skind ){
 	//-----------------------------------------------------------------
 	free(group[ii].disk_radius );
-#ifdef  USE_POLAR_COORDINATE_FOR_DISK
-	free(group[ii].disk_azimuth);
-#else///USE_POLAR_COORDINATE_FOR_DISK
 	free(group[ii].disk_height );
-#endif//USE_POLAR_COORDINATE_FOR_DISK
 	free(group[ii].disk_rho    );
 #ifndef USE_HDF5_FORMAT
 	free(group[ii].disk_pot    );

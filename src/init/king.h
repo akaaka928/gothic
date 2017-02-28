@@ -1,41 +1,36 @@
-/*************************************************************************\
- *                                                                       *
-                  last updated on 2016/10/28(Fri) 16:22:24
- *                                                                       *
- *    Header File for Definition to generate initial condition (King)    *
- *                                                                       *
- *                                                                       *
- *                                             written by Yohei MIKI     *
- *                                                                       *
-\*************************************************************************/
-//-------------------------------------------------------------------------
+/**
+ * @file king.h
+ *
+ * @brief Header file for King model (lowered isothermal model)
+ *
+ * @author Yohei Miki (University of Tsukuba)
+ * @author Masayuki Umemura (University of Tsukuba)
+ *
+ * @date 2017/02/21 (Tue)
+ *
+ * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
+ * All rights reserved.
+ *
+ * The MIT License is applied to this software, see LICENSE.txt
+ *
+ */
 #ifndef KING_H
 #define KING_H
-//-------------------------------------------------------------------------
+
+
 #include "../init/profile.h"
 #include "../init/magi.h"
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #ifdef  PROGRESS_REPORT_ON
 #define KING_PROGRESS_REPORT_ON (100000)
 #endif//PROGRESS_REPORT_ON
-//-------------------------------------------------------------------------
-/* #define NADD_KING (16384) */
-/* #define NADD_KING (131072) */
+
 #define NADD_KING (1048576)
-/* #define NADD_KING (4 * 1048576) */
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-//-- List of functions appeared in "king.c"
-//-------------------------------------------------------------------------
+/* list of functions appeared in ``king.c'' */
 void setDensityProfileKing(profile *prf, profile_cfg *cfg);
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #endif//KING_H
-//-------------------------------------------------------------------------

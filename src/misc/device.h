@@ -1,20 +1,27 @@
-/*************************************************************************\
- *                                                                       *
-                  last updated on 2016/12/12(Mon) 10:08:05
- *                                                                       *
- *    Header File for configuration of accelerator devices (GPUs)        *
- *                                                                       *
- *                                                                       *
- *                                             written by Yohei MIKI     *
- *                                                                       *
-\*************************************************************************/
-//-------------------------------------------------------------------------
+/**
+ * @file device.h
+ *
+ * @brief Header file for configuration of GPUs in GOTHIC
+ *
+ * @author Yohei Miki (University of Tsukuba)
+ * @author Masayuki Umemura (University of Tsukuba)
+ *
+ * @date 2017/02/28 (Tue)
+ *
+ * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
+ * All rights reserved.
+ *
+ * The MIT License is applied to this software, see LICENSE.txt
+ *
+ */
 #ifndef DEVICE_H
 #define DEVICE_H
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
+/**
+ * @def GPUS_PER_PROCESS
+ * Number of GPUs per MPI process
+ */
 #   if  !defined(GPUS_PER_PROCESS) && !defined(_OPENMP)
 #        define  GPUS_PER_PROCESS (1)
 #endif//!defined(GPUS_PER_PROCESS) && !defined(_OPENMP)
@@ -22,42 +29,49 @@
 #undef  GPUS_PER_PROCESS
 #define GPUS_PER_PROCESS (1)
 #endif//!defined(_OPENMP)
-//-------------------------------------------------------------------------
 
-//-------------------------------------------------------------------------
-/* #ifdef  __CUDACC__ */
-//-------------------------------------------------------------------------
-/* #ifdef  _OPENMP */
-/* const int smemSize = 0; */
-/* #endif//_OPENMP */
+
+/**
+ * @def SMEM_SIZE
+ * Size of allocated shared memory on GPU (must be 0)
+ */
 #ifndef SMEM_SIZE
 #define SMEM_SIZE (0)
 #endif//SMEM_SIZE
-//-------------------------------------------------------------------------
+
+/**
+ * @def SMPREF
+ * Shared memory preferred (1) or L1 cache preferred (0); default in CUDA is 1, global default in GOTHIC is 0
+ */
 #ifndef SMPREF
 #define SMPREF (1)
 #endif//SMPREF
-//-------------------------------------------------------------------------
+
+/**
+ * @def SMPREF_LET
+ * Shared memory preferred (1) or L1 cache preferred (0)
+ */
 #ifndef SMPREF_LET
 #define SMPREF_LET SMPREF
 #endif//SMPREF_LET
-//-------------------------------------------------------------------------
+
+/**
+ * @def WIDEBANK
+ * 1 set shared memory bank width to be 8 bytes while 0 is 4 bytes; default in CUDA is 0, global defalut in GOTHIC is 1
+ */
 #ifndef WIDEBANK
-#define WIDEBANK (1)
+#define WIDEBANK (0)
 #endif//WIDEBANK
-//-------------------------------------------------------------------------
-/* #endif//__CUDACC__ */
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
+/**
+ * @def GLOBAL_MEMORY_SYSBUF
+ * Size of remained global memory for buffers
+ */
 /* #define GLOBAL_MEMORY_SYSBUF (128 * 1048576) */
 #define GLOBAL_MEMORY_SYSBUF (256 * 1048576)
 /* /\* for nvprof *\/ */
 /* #define GLOBAL_MEMORY_SYSBUF (512 * 1048576) */
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #endif//DEVICE_H
-//-------------------------------------------------------------------------

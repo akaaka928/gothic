@@ -1,39 +1,45 @@
-/************************************************************************* \
- *                                                                       *
-                  last updated on 2017/01/23(Mon) 14:36:28
- *                                                                       *
- *    N-body code based on Barnes--Hut tree                              *
- *                                                                       *
- *                                                                       *
- *                                                                       *
- *                                             written by Yohei MIKI     *
- *                                                                       *
-\*************************************************************************/
-//-------------------------------------------------------------------------
+/**
+ * @file gothic.c
+ *
+ * @brief Source code for GOTHIC (Gravitational Oct-Tree code accelerated by HIerarchical time step Controlling)
+ * @detail See Miki & Umemura (2017), New Astronomy, 52, 65--81 for implementation details
+ *
+ * @author Yohei Miki (University of Tsukuba)
+ * @author Masayuki Umemura (University of Tsukuba)
+ *
+ * @date 2017/02/28 (Tue)
+ *
+ * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
+ * All rights reserved.
+ *
+ * The MIT License is applied to this software, see LICENSE.txt
+ *
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <sys/time.h>/* for on-the-fly monitoring of execution time of multiple functions */
-#include <unistd.h>/* to check the existence of files */
+#include <sys/time.h>/**< for on-the-fly monitoring of execution time of multiple functions */
+#include <unistd.h>/**< to check the existence of files */
 #include <mpi.h>
-//-------------------------------------------------------------------------
+
 #ifdef  USE_HDF5_FORMAT
 #include <hdf5.h>
 #include "hdf5lib.h"
 #endif//USE_HDF5_FORMAT
-//-------------------------------------------------------------------------
+
 #include "macro.h"
 #include "myutil.h"
 #include "name.h"
 #include "constants.h"
 #include "timer.h"
 #include "cudalib.h"
-//-------------------------------------------------------------------------
+
 #ifndef SERIALIZED_EXECUTION
 #include "mpilib.h"
 #include "../para/mpicfg.h"
 #endif//SERIALIZED_EXECUTION
-//-------------------------------------------------------------------------
+
 #include "../misc/device.h"
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
@@ -44,21 +50,21 @@
 #   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #include "../misc/brent.h"
 #endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
-//-------------------------------------------------------------------------
+
 #include "../file/io.h"
-//-------------------------------------------------------------------------
+
 #include "../sort/peano.h"
 #ifdef  GENERATE_PHKEY_ON_DEVICE
 #include "../sort/peano_dev.h"
 #endif//GENERATE_PHKEY_ON_DEVICE
-//-------------------------------------------------------------------------
+
 #ifndef SERIALIZED_EXECUTION
 #include "../para/exchange.h"
 #ifdef  EXCHANGE_USING_GPUS
 #include "../para/exchange_dev.h"
 #endif//EXCHANGE_USING_GPUS
 #endif//SERIALIZED_EXECUTION
-//-------------------------------------------------------------------------
+
 #include "../tree/macutil.h"
 #include "../tree/make.h"
 #include "../tree/let.h"
@@ -77,27 +83,28 @@
 #include "../tree/geo_dev.h"
 #include "../tree/let_dev.h"
 #endif//SERIALIZED_EXECUTION
-//-------------------------------------------------------------------------
+
 #include "../time/adv_dev.h"
-//-------------------------------------------------------------------------
+
+
 /* #define LEAP_FROG_INTEGRATOR */
-//-------------------------------------------------------------------------
 #   if  defined(LEAP_FROG_INTEGRATOR) && defined(BLOCK_TIME_STEP)
 #undef          LEAP_FROG_INTEGRATOR
 #endif//defined(LEAP_FROG_INTEGRATOR) && defined(BLOCK_TIME_STEP)
-//-------------------------------------------------------------------------
+
 #ifndef WS93_MAC
 real theta2;
 #endif//WS93_MAC
-//-------------------------------------------------------------------------
+
+
 #   if  defined(WALK_TREE_COMBINED_MODEL) || defined(WALK_TREE_TOTAL_SUM_MODEL) || defined(WALK_TREE_GEOMETRIC_PROGRESSION_MODEL) || defined(COUNT_INTERACTIONS)
 #include <math.h>
 #endif//defined(WALK_TREE_COMBINED_MODEL) || defined(WALK_TREE_TOTAL_SUM_MODEL) || defined(WALK_TREE_GEOMETRIC_PROGRESSION_MODEL) || defined(COUNT_INTERACTIONS)
-//-------------------------------------------------------------------------
+
 #   if  defined(HUNT_MAKE_PARAMETER) || (defined(HUNT_FIND_PARAMETER) && defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES))
 int treeBuildCalls = 0;
 #endif//defined(HUNT_MAKE_PARAMETER) || (defined(HUNT_FIND_PARAMETER) && defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES))
-//-------------------------------------------------------------------------
+
 
 
 //-------------------------------------------------------------------------
@@ -602,33 +609,25 @@ static inline void dumpSnapshot
   //-----------------------------------------------------------------------
   /* output the snapshot file */
 #ifdef  SERIALIZED_EXECUTION
-  writeSnapshot        (unit, time, steps, num,
+  writeSnapshot        (unit, time, steps, num, file, present
 #ifdef  USE_HDF5_FORMAT
-			body,
-#else///USE_HDF5_FORMAT
-			ibody_hst,
-#endif//USE_HDF5_FORMAT
-			file, present
-#ifdef  USE_HDF5_FORMAT
-			, hdf5type
+			, body, hdf5type
 #ifdef  MONITOR_ENERGY_ERROR
 			, relEneErr
 #endif//MONITOR_ENERGY_ERROR
+#else///USE_HDF5_FORMAT
+			, ibody_hst
 #endif//USE_HDF5_FORMAT
 			);
 #else///SERIALIZED_EXECUTION
-  writeSnapshotParallel(unit, time, steps, num,
+  writeSnapshotParallel(unit, time, steps, num, file, present, iocfg, Ntot
 #ifdef  USE_HDF5_FORMAT
-			body,
-#else///USE_HDF5_FORMAT
-			ibody_hst,
-#endif//USE_HDF5_FORMAT
-			file, present, iocfg, Ntot
-#ifdef  USE_HDF5_FORMAT
-			, hdf5type
+			, body, hdf5type
 #ifdef  MONITOR_ENERGY_ERROR
 			, relEneErr
 #endif//MONITOR_ENERGY_ERROR
+#else///USE_HDF5_FORMAT
+			, ibody_hst
 #endif//USE_HDF5_FORMAT
 			);
 #endif//SERIALIZED_EXECUTION

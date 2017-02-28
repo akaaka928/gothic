@@ -1,22 +1,27 @@
-/*************************************************************************\
- *                                                                       *
-                  last updated on 2017/01/17(Tue) 19:46:53
- *                                                                       *
- *    Header File for applying auto-tuning                               *
- *                                                                       *
- *                                                                       *
- *                                             written by Yohei MIKI     *
- *                                                                       *
-\*************************************************************************/
-//-------------------------------------------------------------------------
+/**
+ * @file tune.h
+ *
+ * @brief Header file for auto-tuning of GOTHIC
+ *
+ * @author Yohei Miki (University of Tsukuba)
+ * @author Masayuki Umemura (University of Tsukuba)
+ *
+ * @date 2017/02/21 (Tue)
+ *
+ * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
+ * All rights reserved.
+ *
+ * The MIT License is applied to this software, see LICENSE.txt
+ *
+ */
 #ifndef TUNE_H
 #define TUNE_H
-//-------------------------------------------------------------------------
+
+
 #include <stdbool.h>
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
+/* macros to specify the auto-tuning mode */
 #ifdef  WALK_TREE_COMBINED_MODEL
 #define USE_PARABOLIC_GROWTH_MODEL
 #else///WALK_TREE_COMBINED_MODEL
@@ -25,21 +30,22 @@
 /* #define WALK_TREE_ARITHMETIC_PROGRESSION_MODEL */
 /* #define WALK_TREE_GEOMETRIC_PROGRESSION_MODEL */
 #endif//WALK_TREE_COMBINED_MODEL
-//-------------------------------------------------------------------------
+
 #ifdef  USE_PARABOLIC_GROWTH_MODEL
 /* this macro must be switched ON */
 #define WALK_TREE_USE_REDUCED_CHISQ
 /* this macro is optional */
 #define USE_ADDITIONAL_SWITCH
 #endif//USE_PARABOLIC_GROWTH_MODEL
-//-------------------------------------------------------------------------
+
 #define FORCE_ADJUSTING_PARTICLE_TIME_STEPS
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-/* auto-tuning related structures and functions */
-//-------------------------------------------------------------------------
+/**
+ * @struct rebuildTree
+ *
+ * @brief structure for auto-tuning about tree rebuild intervals
+ */
 typedef struct
 {
   double interval;
@@ -51,7 +57,12 @@ typedef struct
   bool adjust;
 #endif//BLOCK_TIME_STEP
 } rebuildTree;
-//-------------------------------------------------------------------------
+
+/**
+ * @struct measuredTime
+ *
+ * @brief structure to record the measured execution time of various functions
+ */
 typedef struct
 {
   /* counters for automatic tree rebuild */
@@ -71,8 +82,14 @@ typedef struct
   double sum_rebuild, excg;
 #endif//SERIALIZED_EXECUTION
 } measuredTime;
-//-------------------------------------------------------------------------
+
+
 #ifdef  WALK_TREE_COMBINED_MODEL
+/**
+ * @struct statVal
+ *
+ * @brief structure for fitting with the least squares method
+ */
 typedef struct
 {
   double S, Sx, Sy, Sxx, Sxy, Syy;
@@ -80,7 +97,12 @@ typedef struct
   double Sxxxx, Sxxx, Sxxy;
 #endif//USE_PARABOLIC_GROWTH_MODEL
 } statVal;
-//-------------------------------------------------------------------------
+
+/**
+ * @struct guessTime
+ *
+ * @brief structure for guessing the execution time based on the fitting
+ */
 typedef struct
 {
   double slope, icept, rchisq;
@@ -90,7 +112,12 @@ typedef struct
 #endif//USE_PARABOLIC_GROWTH_MODEL
 } guessTime;
 #endif//WALK_TREE_COMBINED_MODEL
-//-------------------------------------------------------------------------
+
+/**
+ * @struct autoTuningParam
+ *
+ * @brief structure for summarizing various estimations of the execution time
+ */
 typedef struct
 {
   statVal   linearStats, powerStats;
@@ -102,44 +129,32 @@ typedef struct
   guessTime parabolicGuess;
 #endif//USE_PARABOLIC_GROWTH_MODEL
 } autoTuningParam;
-//-------------------------------------------------------------------------
+
+
 #ifdef  WALK_TREE_COMBINED_MODEL
 /* static const double tolerance4chisq = 0.125; */
 static const double tolerance4chisq = 1.5625e-2;
 #endif//WALK_TREE_COMBINED_MODEL
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-//-- List of functions appeared in "tune.c"
-//-------------------------------------------------------------------------
+/* list of functions appeared in ``tune.c'' */
 #ifdef  WALK_TREE_COMBINED_MODEL
-//-------------------------------------------------------------------------
 #ifdef  __CUDACC__
 extern "C"
 {
 #endif//__CUDACC__
-  //-----------------------------------------------------------------------
   void initStatVal(statVal *val);
-  /* void calcStatVal(statVal *val, const double xx, const double yy, const double sigma); */
-  //-----------------------------------------------------------------------
   void initGuessTime(guessTime *model);
-  /* void evalStatVal(guessTime *model, const statVal val); */
-  //-----------------------------------------------------------------------
+
   void linearModel(guessTime *model, statVal *val, const double steps, const double twalk, const double reduce);
   void  powerModel(guessTime *model, statVal *val, const double steps, const double twalk, const double reduce);
 #ifdef  USE_PARABOLIC_GROWTH_MODEL
   void parabolicModel(guessTime *model, statVal *val, const double steps, const double twalk, const double reduce);
 #endif//USE_PARABOLIC_GROWTH_MODEL
-  //-----------------------------------------------------------------------
 #ifdef  __CUDACC__
 }
 #endif//__CUDACC__
-//-------------------------------------------------------------------------
 #endif//WALK_TREE_COMBINED_MODEL
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #endif//TUNE_H
-//-------------------------------------------------------------------------
