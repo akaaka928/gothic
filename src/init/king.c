@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/24 (Fri)
+ * @date 2017/06/02 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -175,7 +175,8 @@ static inline double calcKingDensity(double psi, double rho1)
 
 /**
  * @def kingFunc1(rad, uu, yy)
- * Wrapper for _kingFunc1(rad, yy)
+ *
+ * @brief Wrapper for _kingFunc1(rad, yy)
  */
 #define kingFunc1(rad, uu, yy) _kingFunc1(rad, yy)
 /**
@@ -195,7 +196,8 @@ static inline double _kingFunc1(const double rad, const double yy)
 
 /**
  * @def kingFunc2(rad, psi, dWdr, rho0inv, rho1)
- * Wrapper for _kingFunc2(rad, psi, rho0inv, rho1)
+ *
+ * @brief Wrapper for _kingFunc2(rad, psi, rho0inv, rho1)
  */
 #define kingFunc2(rad, psi, dWdr, rho0inv, rho1) _kingFunc2(rad, psi, rho0inv, rho1)
 /**
@@ -267,7 +269,12 @@ static inline void rungeKutta4thForKing(const double rr, double *uu, double *yy,
  * @sa enlargeArray
  * @sa kingFunc0
  */
-static inline void solvePoissonEqOfKingDF(const double W0, double **Rad, double **Psi, double **Rho, double **Dr1, double **Dr2, int *num, int *rem)
+static inline void solvePoissonEqOfKingDF
+(const double W0,
+#ifdef  KING_CENTRAL_CUSP
+ const double dWdx_0,
+#endif//KING_CENTRAL_CUSP
+ double **Rad, double **Psi, double **Rho, double **Dr1, double **Dr2, int *num, int *rem)
 {
   __NOTE__("%s\n", "start");
 
@@ -288,20 +295,28 @@ static inline void solvePoissonEqOfKingDF(const double W0, double **Rad, double 
   /** W is the dimensionless King parameter Psi / sigma^2 */
   double uu = W0;
   /** boundary condition is dW/dr(r = 0) = 0: assume core profile at the center */
+#ifdef  KING_CENTRAL_CUSP
+  double yy = hh * hh * dWdx_0;
+#else///KING_CENTRAL_CUSP
   double yy = 0.0;
+#endif//KING_CENTRAL_CUSP
+
+  const double rho1 = rho0 / calcKingDensity(W0, 1.0);
 
   int ii = 0;
   rad = *Rad;  rad[ii] = 0.0;
   psi = *Psi;  psi[ii] = uu;
-  rho = *Rho;  rho[ii] = calcKingDensity(psi[ii], 1.0);
+  rho = *Rho;  rho[ii] = calcKingDensity(psi[ii], rho1);
+#ifdef  KING_CENTRAL_CUSP
+  dr1 = *Dr1;  dr1[ii] = rho1 * kingFunc0(sqrt(W0), kingErrFunc(W0, sqrt(W0))) * dWdx_0;
+#else///KING_CENTRAL_CUSP
   dr1 = *Dr1;  dr1[ii] = 0.0;
+#endif//KING_CENTRAL_CUSP
   dr2 = *Dr2;  dr2[ii] = 0.0;
 
-  const double rho1 = rho0 / rho[ii];
-  rho[ii] = calcKingDensity(psi[ii], rho1);
+
 
   double rold = rho[ii];
-
 
   /** solve Poisson Equation using 4th-order Runge-Kutta method */
 #ifdef  KING_PROGRESS_REPORT_ON
@@ -366,6 +381,11 @@ static inline void solvePoissonEqOfKingDF(const double W0, double **Rad, double 
       dr1[ii] = rho1 *  tmp * dW_dr;
       const double d2W_dr2 = -9.0 * dens * rho0inv - 2.0 * dW_dr * rinv;
       dr2[ii] = rho1 * (tmp * d2W_dr2 + kingExpErrFunc * dW_dr * dW_dr);
+
+#if 0
+      if( ii < 32 )
+	fprintf(stderr, "%e\t%e\t%e\t%e\n", rad[ii], uu, yy, dW_dr);
+#endif
     }/* if( (uu > DBL_EPSILON) && (dens > DBL_EPSILON) ){ */
     else{
       psi[ii] = 0.0;
@@ -471,8 +491,8 @@ static void rescaleKingSphere(const double Mtot, const double r0, double *rt, co
  */
 static inline int findIdx(const double rad, profile *prf)
 {
-  int ll = 0;
-  int rr = 3 + NRADBIN;
+  int ll =           0;
+  int rr = NRADBIN - 1;
 
   if( rad < prf[ll].rad + DBL_EPSILON ){    return (ll    );  }
   if( rad > prf[rr].rad - DBL_EPSILON ){    return (rr - 1);  }
@@ -565,12 +585,19 @@ static inline void getDensityProfile(const int num, double *rad, double *rho, do
 
   /** fill the total enclosed mass in the outer region */
 #pragma omp parallel for
-  for(int ii = tail; ii < 4 + NRADBIN; ii++){
+  for(int ii = tail; ii < NRADBIN; ii++){
     prf[ii].rho       = 0.0;
     prf[ii].drho_dr   = 0.0;
     prf[ii].d2rho_dr2 = 0.0;
-  }
+  }/* for(int ii = tail; ii < NRADBIN; ii++){ */
 
+#if 0
+  /* for(int ii = 0; ii < num; ii += 1024) */
+  for(int ii = 0; ii < num; ii++)
+    fprintf(stderr, "%e\t%e\t%e\t%e\n", rad[ii], rho[ii], dr1[ii], dr2[ii]);
+  fflush(NULL);
+  exit(0);
+#endif
 
   __NOTE__("%s\n", "end");
 }
@@ -606,7 +633,11 @@ void setDensityProfileKing(profile *prf, profile_cfg *cfg)
 
 
   /** derive density profile of the King sphere */
-  solvePoissonEqOfKingDF(W0, &rad, &psi, &rho, &dr1, &dr2, &num, &rem);
+  solvePoissonEqOfKingDF(W0,
+#ifdef  KING_CENTRAL_CUSP
+			 cfg->king_dWdx_0,
+#endif//KING_CENTRAL_CUSP
+			 &rad, &psi, &rho, &dr1, &dr2, &num, &rem);
   double *enc;  enc = (double *)malloc(sizeof(double) * num);  if( enc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate enc\n");  }
   rescaleKingSphere(Mtot, r0, &cfg->king_rt, num, rad, rho, dr1, dr2, enc);
 

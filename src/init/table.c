@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/24 (Fri)
+ * @date 2017/06/02 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -74,8 +74,10 @@ static inline void leastSquaresMethod(const int num, double * restrict xx, doubl
 
 #if 1
   /** tentative treatment for the case that y is almost zero and hence least squares method returns inf */
-  if( isfinite(*bb) == 0 )
-    *bb = 0.0;
+  if( isfinite(*bb) == 0 ){
+    *pp = 1.0;
+    *bb = 0.0;/* 0.5 * (yy[(num - 1) >> 1] + yy[num >> 1]);/\* this is the median of yy *\/ */
+  }/* if( isfinite(*bb) == 0 ){ */
 #endif
 }
 
@@ -102,10 +104,9 @@ void getInterpolatedDensityProfile(const int num, profile * restrict prf, double
 
 
   /** extrapolate for the innermost position by least squares method */
-  /** extrapolate for the outermost position by least squares method */
   double pp, bb;
   const double rmin = 0.5 * (prf[          0].rad < xx[          NPUT]) ? (prf[          0].rad) : (xx[          NPUT]);
-  const double rmax = 2.0 * (prf[NRADBIN + 3].rad > xx[num - 1 - NPUT]) ? (prf[NRADBIN + 3].rad) : (xx[num - 1 - NPUT]);
+  const double rmax = 2.0 * (prf[NRADBIN - 1].rad > xx[num - 1 - NPUT]) ? (prf[NRADBIN - 1].rad) : (xx[num - 1 - NPUT]);
   leastSquaresMethod(NFIT, &xx[                 NPUT], &ff[                 NPUT], &pp, &bb);
   const double logrmin = log10(rmin);
   double logrbin = (log10(xx[NPUT]) - logrmin) / (double)NPUT;
@@ -114,12 +115,21 @@ void getInterpolatedDensityProfile(const int num, profile * restrict prf, double
     ff[ii] = bb * pow(xx[ii], pp);
   }/* for(int ii = 0; ii < NPUT; ii++){ */
   const double fpl = bb * pp * pow(rmin, pp - 1.0);
+
+  /** extrapolate for the outermost position by least squares method */
   leastSquaresMethod(NFIT, &xx[num - 1 - NFIT - NPUT], &ff[num - 1 - NFIT - NPUT], &pp, &bb);
+#if 0
+  fprintf(stdout, "pp = %e, bb = %e\n", pp, bb);
+#endif
   const double logrmax = log10(rmax);
   logrbin = (log10(xx[num - 1 - NPUT]) - logrmax) / (double)NPUT;
   for(int ii = 0; ii < NPUT; ii++){
     xx[num - 1 - ii] = pow(10.0, logrmax + logrbin * (double)ii);
     ff[num - 1 - ii] = bb * pow(xx[num - 1 - ii], pp);
+#if 0
+    fprintf(stderr, "xx[%d] = %e, ff[%d] = %e\n", num - 1 - ii, xx[num - 1 - ii], num - 1 - ii, ff[num - 1 - ii]);
+    fflush(NULL);
+#endif
   }/* for(int ii = 0; ii < NPUT; ii++){ */
   const double fpr = bb * pp * pow(rmax, pp - 1.0);
 
@@ -132,11 +142,11 @@ void getInterpolatedDensityProfile(const int num, profile * restrict prf, double
 
   /** asign interpolated density profile */
 #pragma omp parallel for
-  for(int ii = 0; ii < 4 + NRADBIN; ii++){
+  for(int ii = 0; ii < NRADBIN; ii++){
     prf[ii].  rho     = getCubicSpline1D               (prf[ii].rad, num, xx, ff, f2);
     prf[ii]. drho_dr  = getCubicSpline1stDifferential1D(prf[ii].rad, num, xx, ff, f2);
     prf[ii].d2rho_dr2 = getCubicSpline2ndDifferential1D(prf[ii].rad, num, xx,     f2);
-  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
 
   /** memory deallocation */

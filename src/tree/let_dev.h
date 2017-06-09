@@ -1,23 +1,28 @@
-/*************************************************************************\
- *                                                                       *
-                  last updated on 2016/12/06(Tue) 12:49:58
- *                                                                       *
- *    Header File for constructing octree structure                      *
- *                                                                       *
- *                                                                       *
- *                                                                       *
- *                                             written by Yohei MIKI     *
- *                                                                       *
-\*************************************************************************/
-//-------------------------------------------------------------------------
+/**
+ * @file let_dev.h
+ *
+ * @brief Header file for building locally essential tree (LET)
+ *
+ * @author Yohei Miki (University of Tsukuba)
+ * @author Masayuki Umemura (University of Tsukuba)
+ *
+ * @date 2017/03/06 (Mon)
+ *
+ * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
+ * All rights reserved.
+ *
+ * The MIT License is applied to this software, see LICENSE.txt
+ *
+ */
 #ifndef LET_DEV_H
 #define LET_DEV_H
-//-------------------------------------------------------------------------
+
+
 #include <mpi.h>
-//-------------------------------------------------------------------------
+
 #include "macro.h"
 #include "cudalib.h"
-//-------------------------------------------------------------------------
+
 #include "../sort/peano.h"
 #include "../para/mpicfg.h"
 #include "../tree/macutil.h"
@@ -25,42 +30,42 @@
 #include "../tree/buf_inc.h"
 #include "../tree/let.h"
 #include "../tree/walk_dev.h"
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
+/**
+ * @def NTHREADS_MAKE_LET
+ *
+ * @brief number of threads per block for makeLET_kernel
+ */
 #ifndef NTHREADS_MAKE_LET
 /* #define NTHREADS_MAKE_LET (128) */
 /* #define NTHREADS_MAKE_LET (256) */
 /* #define NTHREADS_MAKE_LET (512) */
 #define NTHREADS_MAKE_LET (1024)
 #endif//NTHREADS_MAKE_LET
-//-------------------------------------------------------------------------
-/* maximum value of NTHREADS_MAKE_LET is 1024 to calculate prefix sum in 2 stages (32^2) */
+
+/** maximum value of NTHREADS_MAKE_LET is 1024 to calculate prefix sum in 2 stages (32^2) */
 #   if  NTHREADS_MAKE_LET > 1024
 #undef  NTHREADS_MAKE_LET
 #define NTHREADS_MAKE_LET  (1024)
 #endif//NTHREADS_MAKE_LET > 1024
-//-------------------------------------------------------------------------
-/* maximum value of NTHREADS_MAKE_LET on Fermi generation GPUs is 512 */
+
+/** maximum value of NTHREADS_MAKE_LET on Fermi generation GPUs is 512 */
 #   if  (NTHREADS_MAKE_LET > 512) && (GPUGEN < 30)
 #undef   NTHREADS_MAKE_LET
 #define  NTHREADS_MAKE_LET  (512)
 #endif//(NTHREADS_MAKE_LET > 512) && (GPUGEN < 30)
-//-------------------------------------------------------------------------
+
+
 #define USE_WARP_SHUFFLE_FUNC_MAKE_LET
-//-------------------------------------------------------------------------
 #   if  defined(USE_WARP_SHUFFLE_FUNC_MAKE_LET) && (GPUGEN < 30)
 #undef          USE_WARP_SHUFFLE_FUNC_MAKE_LET
 #endif//defined(USE_WARP_SHUFFLE_FUNC_MAKE_LET) && (GPUGEN < 30)
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #ifdef  DIV_NTHREADS_MAKE_LET
 #undef  DIV_NTHREADS_MAKE_LET
 #endif//DIV_NTHREADS_MAKE_LET
-//-------------------------------------------------------------------------
 #   if  NTHREADS_MAKE_LET == 1024
 #define DIV_NTHREADS_MAKE_LET(a) ((a) >> 10)
 #endif//NTHREADS_MAKE_LET == 1024
@@ -79,74 +84,39 @@
 #   if  NTHREADS_MAKE_LET ==   32
 #define DIV_NTHREADS_MAKE_LET(a) ((a) >>  5)
 #endif//NTHREADS_MAKE_LET ==   32
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-/* # of blocks per SM is unity */
-/* SM size is 48KiB or 16KiB */
-/* uint is 4B */
-/* # of elements in SM is 12K or 4K */
-/* SM usage is NTHREADS_MAKE_LET * (NQUEUE_LET + 1) */
-//-------------------------------------------------------------------------
+/** # of blocks per SM is same with tree walk */
+/** SM size is 48KiB or 16KiB */
+/** uint is 4B */
+/** # of elements in SM is 12K or 4K */
+/** SM usage is NTHREADS_MAKE_LET * (NQUEUE_LET + 1) */
 #ifndef NQUEUE_LET
-#          if  SMPREF_LET == 1
+#   if  SMPREF_LET == 1
 #define NQUEUE_LET (DIV_NTHREADS_MAKE_LET(12288 / NBLOCKS_PER_SM) - 1)
-#       else///SMPREF_LET == 1
+#else///SMPREF_LET == 1
 #define NQUEUE_LET (DIV_NTHREADS_MAKE_LET( 4096 / NBLOCKS_PER_SM) - 1)
-#       endif//SMPREF_LET == 1
+#endif//SMPREF_LET == 1
 #endif//NQUEUE_LET
-//-------------------------------------------------------------------------
-/* #ifndef NQUEUE_LET */
-/* #          if  SMPREF_LET == 1 */
-/* #define NQUEUE_LET (DIV_NTHREADS_MAKE_LET(12288) - 1) */
-/* #       else///SMPREF_LET == 1 */
-/* #define NQUEUE_LET (DIV_NTHREADS_MAKE_LET( 4096) - 1) */
-/* #       endif//SMPREF_LET == 1 */
-/* #endif//NQUEUE_LET */
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-//-- List of functions appeared in "let_dev.cu"
-//-------------------------------------------------------------------------
+/* list of functions appeared in ``let_dev.cu'' */
 #ifdef  __CUDACC__
 extern "C"
 {
 #endif//__CUDACC__
-  //-----------------------------------------------------------------------
   muse  configLETtopology(domainInfo **info, position **ipos,
 #ifdef  GADGET_MAC
 			  real **amin,
 #endif//GADGET_MAC
-#ifdef  BUILD_LET_ON_DEVICE
 			  int **numSend_hst, int **numSend_dev,
-#endif//BUILD_LET_ON_DEVICE
-#ifdef  ALLOCATE_LETBUFFER
-			  uint **buf, soaTreeWalkBuf *treebuf,
-#endif//ALLOCATE_LETBUFFER
-/* #ifdef  USE_CUDA_EVENT */
-/* 			  cudaEvent_t **iniEvent, cudaEvent_t **finEvent, */
-/* #endif//USE_CUDA_EVENT */
 			  cudaStream_t **stream, int *Nstream, const deviceProp gpu, MPIcfg_tree mpi);
   void releaseLETtopology(domainInfo  *info, position  *ipos,
 #ifdef  GADGET_MAC
 			  real  *amin,
 #endif//GADGET_MAC
-#ifdef  BUILD_LET_ON_DEVICE
-			  int  *numSend_hst, int  *numSend_dev,
-#endif//BUILD_LET_ON_DEVICE
-#ifdef  ALLOCATE_LETBUFFER
-			  uint  *buf,
-#endif//ALLOCATE_LETBUFFER
-/* #ifdef  USE_CUDA_EVENT */
-/* 			  cudaEvent_t  *iniEvent, cudaEvent_t  *finEvent, */
-/* #endif//USE_CUDA_EVENT */
-			  cudaStream_t  *stream, int  Nstream);
-  //-----------------------------------------------------------------------
-#ifdef  DBG_LETGEN_ON_GPU
-  void printTreeNode(const int Nj, uint * RESTRICT more, jparticle * RESTRICT jpos, real * RESTRICT mj);
-#endif//DBG_LETGEN_ON_GPU
+			  int  *numSend_hst, int  *numSend_dev, cudaStream_t  *stream, int  Nstream);
+
   void callGenLET
   (const cudaStream_t stream, domainInfo *let, MPIcfg_tree mpi, const soaTreeNode tree, const soaTreeWalkBuf buf
 #ifdef  MONITOR_LETGEN_TIME
@@ -157,7 +127,7 @@ extern "C"
 #endif//USE_CUDA_EVENT
 #endif//MONITOR_LETGEN_TIME
    );
-  //-----------------------------------------------------------------------
+
   void setGlobalConstants_let_dev_cu
   (
 #   if  !defined(GADGET_MAC) && !defined(WS93_MAC)
@@ -166,13 +136,9 @@ extern "C"
    void
 #endif//!defined(GADGET_MAC) && !defined(WS93_MAC)
    );
-  //-----------------------------------------------------------------------
 #ifdef  __CUDACC__
 }
 #endif//__CUDACC__
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #endif//LET_DEV_H
-//-------------------------------------------------------------------------

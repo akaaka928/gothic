@@ -1,62 +1,73 @@
-/*************************************************************************\
- *                                                                       *
-                  last updated on 2017/01/14(Sat) 12:33:37
- *                                                                       *
- *    Header File for constructing octree structure                      *
- *                                                                       *
- *                                                                       *
- *                                                                       *
- *                                             written by Yohei MIKI     *
- *                                                                       *
-\*************************************************************************/
-//-------------------------------------------------------------------------
+/**
+ * @file make_dev.h
+ *
+ * @brief Header file for constructing octree structure on GPU
+ *
+ * @author Yohei Miki (University of Tsukuba)
+ * @author Masayuki Umemura (University of Tsukuba)
+ *
+ * @date 2017/03/23 (Thu)
+ *
+ * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
+ * All rights reserved.
+ *
+ * The MIT License is applied to this software, see LICENSE.txt
+ *
+ */
 #ifndef MAKE_DEV_H
 #define MAKE_DEV_H
-//-------------------------------------------------------------------------
+
+
 #include <stdbool.h>
-//-------------------------------------------------------------------------
+
 #include "macro.h"
-//-------------------------------------------------------------------------
+
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
-//-------------------------------------------------------------------------
+
 #include "../sort/peano.h"
 #include "../tree/macutil.h"
 #include "../tree/make.h"
-//-------------------------------------------------------------------------
+
 #ifndef SERIALIZED_EXECUTION
 #include "../sort/peano_dev.h"
 #endif//SERIALIZED_EXECUTION
-//-------------------------------------------------------------------------
+
+
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES) && !defined(TIME_BASED_MODIFICATION)
 /* #define USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES */
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES) && !defined(TIME_BASED_MODIFICATION)
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #ifndef HUNT_NODE_PARAMETER
 /* the below macro is enabled in the default option; switched off in the parameter survey mode to use -D and -U from Makefile */
 #define USE_WARP_SHUFFLE_FUNC_MAC
 #endif//HUNT_NODE_PARAMETER
-//-------------------------------------------------------------------------
+
 #   if  defined(USE_WARP_SHUFFLE_FUNC_MAC) && (GPUGEN < 30)
 #undef          USE_WARP_SHUFFLE_FUNC_MAC
 #endif//defined(USE_WARP_SHUFFLE_FUNC_MAC) && (GPUGEN < 30)
-//-------------------------------------------------------------------------
+
+
+/**
+ * @def NTHREADS_MAC
+ *
+ * @brief number of threads per block for calcMultipole_kernel
+ */
 #ifndef NTHREADS_MAC
-#          if  (GPUGEN >= 52)
+#   if  (GPUGEN >= 52)
 #define NTHREADS_MAC (256)
-#       else///(GPUGEN >= 52)
+#else///(GPUGEN >= 52)
 #define NTHREADS_MAC (128)
-#       endif//(GPUGEN >= 52)
+#endif//(GPUGEN >= 52)
 #endif//NTHREADS_MAC
-/* NTHREADS_MAC must be equal or smaller than 512 due to the capacity of shared memory */
+
+/** NTHREADS_MAC must be equal or smaller than 512 due to the capacity of shared memory */
 #   if  NTHREADS_MAC > 512
 #undef  NTHREADS_MAC
 #define NTHREADS_MAC  (512)
 #endif//NTHREADS_MAC > 512
-//-------------------------------------------------------------------------
+
 #ifdef  DIV_NTHREADS_MAC
 #undef  DIV_NTHREADS_MAC
 #endif//DIV_NTHREADS_MAC
@@ -69,48 +80,56 @@
 #   if  NTHREADS_MAC == 128
 #define DIV_NTHREADS_MAC(a) ((a) >> 7)
 #endif//NTHREADS_MAC == 128
-//-------------------------------------------------------------------------
+
+
+/**
+ * @def TSUB_MAC
+ *
+ * @brief number of threads that share a common tree node for calcMultipole_kernel
+ */
 #ifndef TSUB_MAC
 #define TSUB_MAC (32)
 #endif//TSUB_MAC
-/* TSUB_MAC must be equal or smaller than NTHREADS_MAC */
+
+/** TSUB_MAC must be equal or smaller than NTHREADS_MAC */
 #   if  TSUB_MAC > NTHREADS_MAC
 #undef  TSUB_MAC
 #define TSUB_MAC   NTHREADS_MAC
 #endif//TSUB_MAC > NTHREADS_MAC
-//-------------------------------------------------------------------------
+
 #   if  NTHREADS_MAC >= 128
-/* TSUB_MAC must be equal or greater than 4 */
-#          if  TSUB_MAC < 4
-#       undef  TSUB_MAC
-#       define TSUB_MAC  (4)
-#       endif//TSUB_MAC < 4
+/** TSUB_MAC must be equal or greater than 4 */
+#   if  TSUB_MAC < 4
+#undef  TSUB_MAC
+#define TSUB_MAC  (4)
+#endif//TSUB_MAC < 4
 #   if  NTHREADS_MAC >= 256
-/* TSUB_MAC must be equal or greater than 8 */
-#          if  TSUB_MAC < 8
-#       undef  TSUB_MAC
-#       define TSUB_MAC  (8)
-#       endif//TSUB_MAC < 8
+/** TSUB_MAC must be equal or greater than 8 */
+#   if  TSUB_MAC < 8
+#undef  TSUB_MAC
+#define TSUB_MAC  (8)
+#endif//TSUB_MAC < 8
 #   if  NTHREADS_MAC == 512
-/* TSUB_MAC must be equal to 32 */
-#          if  TSUB_MAC != 32
-#       undef  TSUB_MAC
-#       define TSUB_MAC   (32)
-#       endif//TSUB_MAC != 32
+/** TSUB_MAC must be equal to 32 */
+#   if  TSUB_MAC != 32
+#undef  TSUB_MAC
+#define TSUB_MAC   (32)
+#endif//TSUB_MAC != 32
 #endif//NTHREADS_MAC == 512
 #endif//NTHREADS_MAC >= 256
 #endif//NTHREADS_MAC >= 128
-//-------------------------------------------------------------------------
+
+
 #define NBUF_MAC (((NJ_BMAX_ESTIMATE) + (TSUB_MAC) - 1) / TSUB_MAC)
-//-------------------------------------------------------------------------
-/* maximum number of NBUF_MAC is 4 to use float4 in union */
+
+/** maximum number of NBUF_MAC is 4 to use float4 in union */
 #   if  NBUF_MAC > 4
 #undef  NBUF_MAC
 #define NBUF_MAC (4)
 #undef  TSUB_MAC
 #define TSUB_MAC ((NJ_BMAX_ESTIMATE + (NBUF_MAC) - 1) >> 2)
 #endif//NBUF_MAC > 4
-//-------------------------------------------------------------------------
+
 #ifdef  DIV_TSUB_MAC
 #undef  DIV_TSUB_MAC
 #endif//DIV_TSUB_MAC
@@ -132,57 +151,68 @@
 #   if  TSUB_MAC ==  1
 #define DIV_TSUB_MAC(a) (a)
 #endif//TSUB_MAC ==  1
-//-------------------------------------------------------------------------
+
+
 #define NGROUPS_MAC (DIV_TSUB_MAC(NTHREADS_MAC))
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #   if  NI_BMAX_ESTIMATE > (TSUB_MAC * NBUF_MAC)
 #undef  NI_BMAX_ESTIMATE
 #define NI_BMAX_ESTIMATE   (TSUB_MAC * NBUF_MAC)
 #endif//NI_BMAX_ESTIMATE > (TSUB_MAC * NBUF_MAC)
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-#ifdef  MAKE_TREE_ON_DEVICE
-//-------------------------------------------------------------------------
 #ifndef HUNT_MAKE_PARAMETER
 /* the below macro is disabled in the default option for better performance; switched off in the parameter survey mode to use -D from Makefile */
-/* #define USE_WARP_SHUFFLE_FUNC_MAKE_TREE */
-/* the below macro is disabled in the default option for better performance; switched off in the parameter survey mode to use -D from Makefile */
-/* #define USE_WARP_SHUFFLE_FUNC_LINK_TREE */
+/* #define USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE */
 #endif//HUNT_MAKE_PARAMETER
-//-------------------------------------------------------------------------
-#   if  defined(USE_WARP_SHUFFLE_FUNC_MAKE_TREE) && (GPUGEN < 30)
-#undef          USE_WARP_SHUFFLE_FUNC_MAKE_TREE
-#endif//defined(USE_WARP_SHUFFLE_FUNC_MAKE_TREE) && (GPUGEN < 30)
-//-------------------------------------------------------------------------
-#   if  defined(USE_WARP_SHUFFLE_FUNC_LINK_TREE) && (GPUGEN < 30)
-#undef          USE_WARP_SHUFFLE_FUNC_LINK_TREE
-#endif//defined(USE_WARP_SHUFFLE_FUNC_LINK_TREE) && (GPUGEN < 30)
-//-------------------------------------------------------------------------
+
+
+#   if  defined(USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE) && (GPUGEN < 30)
+#undef          USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE
+#endif//defined(USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE) && (GPUGEN < 30)
+
+
+/**
+ * @def NTHREADS_MAKE_TREE
+ *
+ * @brief number of threads per block for makeTree_kernel
+ */
 #ifndef NTHREADS_MAKE_TREE
 #define NTHREADS_MAKE_TREE (128)
 #endif//NTHREADS_MAKE_TREE
+
+
+/**
+ * @def NTHREADS_LINK_TREE
+ *
+ * @brief number of threads per block for linkTree_kernel
+ */
 #ifndef NTHREADS_LINK_TREE
-#          if  (GPUGEN >= 30)
+#   if  (GPUGEN >= 30)
 #define NTHREADS_LINK_TREE (256)
-#       else///(GPUGEN >= 30)
+#else///(GPUGEN >= 30)
 #define NTHREADS_LINK_TREE (128)
-#       endif//(GPUGEN >= 30)
+#endif//(GPUGEN >= 30)
 #endif//NTHREADS_LINK_TREE
+
+
+/**
+ * @def NTHREADS_TRIM_TREE
+ *
+ * @brief number of threads per block for trimTree_kernel
+ */
 #ifndef NTHREADS_TRIM_TREE
 #define NTHREADS_TRIM_TREE (128)
 #endif//NTHREADS_TRIM_TREE
-//-------------------------------------------------------------------------
-/* NTHREADS_MAKE_TREE must be equal or smaller than 512 due to the capacity of shared memory */
+
+
+/** NTHREADS_MAKE_TREE must be equal or smaller than 512 due to the capacity of shared memory */
 #   if  NTHREADS_MAKE_TREE > 512
 #undef  NTHREADS_MAKE_TREE
 #define NTHREADS_MAKE_TREE  (512)
 #endif//NTHREADS_MAKE_TREE > 512
-//-------------------------------------------------------------------------
+
 #ifdef  DIV_NTHREADS_MAKE_TREE
 #undef  DIV_NTHREADS_MAKE_TREE
 #endif//DIV_NTHREADS_MAKE_TREE
@@ -195,7 +225,7 @@
 #   if  NTHREADS_MAKE_TREE == 128
 #define DIV_NTHREADS_MAKE_TREE(a) ((a) >> 7)
 #endif//NTHREADS_MAKE_TREE == 128
-//-------------------------------------------------------------------------
+
 #ifdef  DIV_NTHREADS_LINK_TREE
 #undef  DIV_NTHREADS_LINK_TREE
 #endif//DIV_NTHREADS_LINK_TREE
@@ -211,7 +241,13 @@
 #   if  NTHREADS_LINK_TREE ==  128
 #define DIV_NTHREADS_LINK_TREE(a) ((a) >>  7)
 #endif//NTHREADS_LINK_TREE ==  128
-//-------------------------------------------------------------------------
+
+
+/**
+ * @def TSUB_MAKE_TREE
+ *
+ * @brief number of threads that share a common tree cell for makeTree_kernel
+ */
 #ifndef TSUB_MAKE_TREE
 #define TSUB_MAKE_TREE   CELL_UNIT
 #endif//TSUB_MAKE_TREE
@@ -219,7 +255,7 @@
 #undef  TSUB_MAKE_TREE
 #define TSUB_MAKE_TREE   CELL_UNIT
 #endif//TSUB_MAKE_TREE > CELL_UNIT
-//-------------------------------------------------------------------------
+
 #ifdef  DIV_TSUB_MAKE_TREE
 #undef  DIV_TSUB_MAKE_TREE
 #endif//DIV_TSUB_MAKE_TREE
@@ -241,66 +277,93 @@
 #   if  TSUB_MAKE_TREE ==  1
 #define DIV_TSUB_MAKE_TREE(a) (a)
 #endif//TSUB_MAKE_TREE ==  1
-//-------------------------------------------------------------------------
+
+
 #define NGROUPS_MAKE_TREE (DIV_TSUB_MAKE_TREE(NTHREADS_MAKE_TREE))
-//-------------------------------------------------------------------------
 
-//-------------------------------------------------------------------------
+
+/**
+ * @def NTHREADS_INIT_LINK
+ *
+ * @brief number of threads per block for initTreeLink_kernel
+ */
 #ifndef NTHREADS_INIT_LINK
-#          if  (GPUGEN >= 30)
+#   if  (GPUGEN >= 30)
 #define NTHREADS_INIT_LINK (512)
-#       else///(GPUGEN >= 30)
+#else///(GPUGEN >= 30)
 #define NTHREADS_INIT_LINK (256)
-#       endif//(GPUGEN >= 30)
+#endif//(GPUGEN >= 30)
 #endif//NTHREADS_INIT_LINK
-//-------------------------------------------------------------------------
+
+
+/**
+ * @def NTHREADS_INIT_CELL
+ *
+ * @brief number of threads per block for initTreeCell_kernel
+ */
 #ifndef NTHREADS_INIT_CELL
-#          if  (GPUGEN >= 52)
+#   if  (GPUGEN >= 52)
 #define NTHREADS_INIT_CELL (256)
-#       else///(GPUGEN >= 52)
-#          if  (GPUGEN >= 30)
+#else///(GPUGEN >= 52)
+#   if  (GPUGEN >= 30)
 #define NTHREADS_INIT_CELL (128)
-#       else///(GPUGEN >= 30)
+#else///(GPUGEN >= 30)
 #define NTHREADS_INIT_CELL (512)
-#       endif//(GPUGEN >= 30)
-#       endif//(GPUGEN >= 52)
+#endif//(GPUGEN >= 30)
+#endif//(GPUGEN >= 52)
 #endif//NTHREADS_INIT_CELL
-//-------------------------------------------------------------------------
+
+
+/**
+ * @def NTHREADS_INIT_NODE
+ *
+ * @brief number of threads per block for initTreeNode_kernel
+ */
 #ifndef NTHREADS_INIT_NODE
-#          if  (GPUGEN >= 30)
+#   if  (GPUGEN >= 30)
 #define NTHREADS_INIT_NODE (256)
-#       else///(GPUGEN >= 30)
+#else///(GPUGEN >= 30)
 #define NTHREADS_INIT_NODE (128)
-#       endif//(GPUGEN >= 30)
+#endif//(GPUGEN >= 30)
 #endif//NTHREADS_INIT_NODE
-//-------------------------------------------------------------------------
-#endif//MAKE_TREE_ON_DEVICE
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
+/**
+ * @def NTHREADS_INIT_BODY
+ *
+ * @brief number of threads per block for initTreeBody_kernel
+ */
 #ifndef NTHREADS_INIT_BODY
 #define NTHREADS_INIT_BODY (128)
 #endif//NTHREADS_INIT_BODY
-//-------------------------------------------------------------------------
+
+
+/**
+ * @def NTHREADS_COPY_BODY
+ *
+ * @brief number of threads per block for copyRealBody_kernel
+ */
 #ifndef NTHREADS_COPY_BODY
-#          if  (GPUGEN >= 52)
+#   if  (GPUGEN >= 52)
 #define NTHREADS_COPY_BODY (1024)
-#       else///(GPUGEN >= 52)
-#          if  (GPUGEN >= 30)
+#else///(GPUGEN >= 52)
+#   if  (GPUGEN >= 30)
 #define NTHREADS_COPY_BODY (512)
-#       else///(GPUGEN >= 30)
+#else///(GPUGEN >= 30)
 #define NTHREADS_COPY_BODY (128)
-#       endif//(GPUGEN >= 30)
-#       endif//(GPUGEN >= 52)
+#endif//(GPUGEN >= 30)
+#endif//(GPUGEN >= 52)
 #endif//NTHREADS_COPY_BODY
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-//-------------------------------------------------------------------------
+/**
+ * @def NTHREADS_OUTFLOW
+ *
+ * @brief number of threads per block for checkOutflow_kernel
+ */
 #define NTHREADS_OUTFLOW (1024)
+
 #ifdef  DIV_NTHREADS_OUTFLOW
 #undef  DIV_NTHREADS_OUTFLOW
 #endif//DIV_NTHREADS_OUTFLOW
@@ -316,13 +379,20 @@
 #   if  NTHREADS_OUTFLOW ==  128
 #define DIV_NTHREADS_OUTFLOW(a) ((a) >>  7)
 #endif//NTHREADS_OUTFLOW ==  128
-//-------------------------------------------------------------------------
+
+/**
+ * @def TSUB_OUTFLOW
+ *
+ * @brief number of threads that share a common tree cell for checkOutflow_kernel
+ */
 #define TSUB_OUTFLOW (8)
-/* TSUB_OUTFLOW must be equal or greater than NLEAF / 32 to store NLEAF / TSUB_OUTFLOW flags in an integer (32bit) */
+
+/** TSUB_OUTFLOW must be equal or greater than NLEAF / 32 to store NLEAF / TSUB_OUTFLOW flags in an integer (32bit) */
 #   if  TSUB_OUTFLOW < (NLEAF >> 5)
 #undef  TSUB_OUTFLOW
 #define TSUB_OUTFLOW   (NLEAF >> 5)
 #endif//TSUB_OUTFLOW < (NLEAF >> 5)
+
 #ifdef  DIV_TSUB_OUTFLOW
 #undef  DIV_TSUB_OUTFLOW
 #endif//DIV_TSUB_OUTFLOW
@@ -344,24 +414,25 @@
 #   if  TSUB_OUTFLOW ==  1
 #define DIV_TSUB_OUTFLOW(a) (a)
 #endif//TSUB_OUTFLOW ==  1
+
 #define NGROUPS_OUTFLOW (DIV_TSUB_OUTFLOW(NTHREADS_OUTFLOW))
-//-------------------------------------------------------------------------
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
+/**
+ * @struct soaMakeTreeBuf
+ *
+ * @brief structure for building octree structure (SoA)
+ */
 typedef struct
 {
   int *more0, *more1;
   real *rjmax;
   int *fail;
   int *gsync0, *gsync1;
-#ifdef  MAKE_TREE_ON_DEVICE
   int *gmem_make_tree, *gmem_link_tree;
   int *gsync0_make_tree, *gsync1_make_tree, *gsync2_make_tree, *gsync3_make_tree;
   int *gsync0_link_tree, *gsync1_link_tree;
-#endif//MAKE_TREE_ON_DEVICE
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 #   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
   int  *ibuf_external;
@@ -373,18 +444,13 @@ typedef struct
   size_t Nbuf_external;
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 } soaMakeTreeBuf;
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-//-- List of functions appeared in "make_dev.cu"
-//-------------------------------------------------------------------------
+/* list of functions appeared in ``make_dev.cu'' */
 #ifdef  __CUDACC__
 extern "C"
 {
 #endif//__CUDACC__
-  //-----------------------------------------------------------------------
-#ifdef  MAKE_TREE_ON_DEVICE
   void makeTreeStructure_dev
   (const int piNum, PHint * RESTRICT peano,
    int * RESTRICT leafLev, int * RESTRICT leafLev_dev, int * RESTRICT scanNum_dev,
@@ -395,39 +461,20 @@ extern "C"
    , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
    );
-#endif//MAKE_TREE_ON_DEVICE
-  //-----------------------------------------------------------------------
+
   muse allocTreeNode_dev
-  (uint **more_dev, jparticle **pj_dev, jmass **mj_dev,
-#ifdef  CALC_MULTIPOLE_ON_DEVICE
-   real **bmax_dev, int **n2c_dev, int **gsync0, int **gsync1, deviceProp devProp,
+  (uint **more_dev, jparticle **pj_dev, jmass **mj_dev, real **bmax_dev, int **n2c_dev, int **gsync0, int **gsync1, deviceProp devProp,
 #       ifdef  WS93_MAC
    real **mr2_dev,
 #       endif//WS93_MAC
-#else///CALC_MULTIPOLE_ON_DEVICE
-   real **bmax_hst,
-#       ifdef  WS93_MAC
-   real **mr2_hst,
-#       endif//WS93_MAC
-#endif//CALC_MULTIPOLE_ON_DEVICE
-#   if  defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH)
-   int **niSub_dev,
-#endif//defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH)
-#   if  (!defined(SERIALIZED_EXECUTION) && (!defined(BUILD_LET_ON_DEVICE) || defined(LET_COMMUNICATION_VIA_HOST))) || !defined(MAKE_TREE_ON_DEVICE)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
    uint **more_hst,
-#endif//(!defined(SERIALIZED_EXECUTION) && (!defined(BUILD_LET_ON_DEVICE) || defined(LET_COMMUNICATION_VIA_HOST))) || !defined(MAKE_TREE_ON_DEVICE)
-#   if  (!defined(SERIALIZED_EXECUTION) && (!defined(BUILD_LET_ON_DEVICE) || defined(LET_COMMUNICATION_VIA_HOST))) || !defined(CALC_MULTIPOLE_ON_DEVICE)
+#endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
    jparticle **pj_hst, jmass **mj_hst,
-#endif//(!defined(SERIALIZED_EXECUTION) && (!defined(BUILD_LET_ON_DEVICE) || defined(LET_COMMUNICATION_VIA_HOST))) || !defined(CALC_MULTIPOLE_ON_DEVICE)
-#ifdef  MAKE_TREE_ON_DEVICE
+#endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
    int **gmem_make_tree, int **gsync0_make_tree, int **gsync1_make_tree, int **gsync2_make_tree, int **gsync3_make_tree,
    int **gmem_link_tree, int **gsync0_link_tree, int **gsync1_link_tree,
-#else///MAKE_TREE_ON_DEVICE
-   int **n2c_hst,
-#   if  defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH)
-   int **niSub_hst,
-#endif//defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH)
-#endif//MAKE_TREE_ON_DEVICE
 #ifdef  GADGET_MAC
    real **mac_dev,
 #endif//GADGET_MAC
@@ -435,37 +482,20 @@ extern "C"
    int **gmem_external, int **gsync0_external, int **gsync1_external, float **diameter_dev, float **diameter_hst, domainLocation *location, const float eps, const float eta,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
    int **more0Buf, int **more1Buf, real **rjmaxBuf, int **fail_dev, soaTreeNode *dev, soaTreeNode *hst, soaMakeTreeBuf *buf);
+
   void  freeTreeNode_dev
-  (uint  *more_dev, jparticle  *pj_dev, jmass  *mj_dev,
-#ifdef  CALC_MULTIPOLE_ON_DEVICE
-   real  *bmax_dev, int  *n2c_dev, int  *gsync0, int  *gsync1,
+  (uint  *more_dev, jparticle  *pj_dev, jmass  *mj_dev, real  *bmax_dev, int  *n2c_dev, int  *gsync0, int  *gsync1,
 #       ifdef  WS93_MAC
    real  *mr2_dev,
 #       endif//WS93_MAC
-#else///CALC_MULTIPOLE_ON_DEVICE
-   real  *bmax_hst,
-#       ifdef  WS93_MAC
-   real  *mr2_hst,
-#       endif//WS93_MAC
-#endif//CALC_MULTIPOLE_ON_DEVICE
-#   if  defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH)
-   int  *niSub_dev,
-#endif//defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH)
-#   if  (!defined(SERIALIZED_EXECUTION) && (!defined(BUILD_LET_ON_DEVICE) || defined(LET_COMMUNICATION_VIA_HOST))) || !defined(MAKE_TREE_ON_DEVICE)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
    uint  *more_hst,
-#endif//(!defined(SERIALIZED_EXECUTION) && (!defined(BUILD_LET_ON_DEVICE) || defined(LET_COMMUNICATION_VIA_HOST))) || !defined(MAKE_TREE_ON_DEVICE)
-#   if  (!defined(SERIALIZED_EXECUTION) && (!defined(BUILD_LET_ON_DEVICE) || defined(LET_COMMUNICATION_VIA_HOST))) || !defined(CALC_MULTIPOLE_ON_DEVICE)
+#endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
    jparticle  *pj_hst, jmass  *mj_hst,
-#endif//(!defined(SERIALIZED_EXECUTION) && (!defined(BUILD_LET_ON_DEVICE) || defined(LET_COMMUNICATION_VIA_HOST))) || !defined(CALC_MULTIPOLE_ON_DEVICE)
-#ifdef  MAKE_TREE_ON_DEVICE
+#endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
    int  *gmem_make_tree, int  *gsync0_make_tree, int  *gsync1_make_tree, int  *gsync2_make_tree, int  *gsync3_make_tree,
    int  *gmem_link_tree, int  *gsync0_link_tree, int  *gsync1_link_tree,
-#else///MAKE_TREE_ON_DEVICE
-   int  *n2c_hst,
-#   if  defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH)
-   int  *niSub_hst,
-#endif//defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES) && !defined(FACILE_NEIGHBOR_SEARCH)
-#endif//MAKE_TREE_ON_DEVICE
 #ifdef  GADGET_MAC
    real  *mac_dev,
 #endif//GADGET_MAC
@@ -473,60 +503,38 @@ extern "C"
    int  *gmem_external, int  *gsync0_external, int  *gsync1_external, float  *diameter_dev, float  *diameter_hst,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
    int  *more0Buf, int  *more1Buf, real  *rjmaxBuf, int  *fail_dev);
-  //-----------------------------------------------------------------------
+
   void setTreeNode_dev
-  (const size_t Nj, const soaTreeNode dev, const soaTreeNode hst
-#ifdef  CALC_MULTIPOLE_ON_DEVICE
-   , const size_t Ni
-#endif//CALC_MULTIPOLE_ON_DEVICE
+  (const size_t Nj, const soaTreeNode dev, const soaTreeNode hst, const size_t Ni
 #ifdef EXEC_BENCHMARK
    , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
    );
-  //-----------------------------------------------------------------------
-#   if  defined(CALC_MULTIPOLE_ON_DEVICE) || defined(MAKE_TREE_ON_DEVICE)
+
   muse allocTreeCell_dev
   (treecell **cell_dev, bool **leaf_dev, uint **node_dev, PHinfo **info_dev,
-#ifdef  MAKE_TREE_ON_DEVICE
    PHint **hkey_dev, uint **parent_dev, uint **children_dev, int **leafLev_dev, int **numCell_dev, int **numNode_dev, int **scanNum_dev,
-#else///MAKE_TREE_ON_DEVICE
+#ifdef  COUNT_INTERACTIONS
    treecell **cell_hst, bool **leaf_hst, uint **node_hst, PHinfo **info_hst,
-#endif//MAKE_TREE_ON_DEVICE
-#   if  defined(MAKE_TREE_ON_DEVICE) && defined(COUNT_INTERACTIONS)
-   treecell **cell_hst, bool **leaf_hst, uint **node_hst, PHinfo **info_hst,
-#endif//defined(MAKE_TREE_ON_DEVICE) && defined(COUNT_INTERACTIONS)
+#endif//COUNT_INTERACTIONS
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
    deviceProp devProp,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
    soaTreeCell *dev, soaTreeCell *hst);
+
   void  freeTreeCell_dev
   (treecell  *cell_dev, bool  *leaf_dev, uint  *node_dev, PHinfo  *info_dev,
-#ifdef  MAKE_TREE_ON_DEVICE
    PHint  *hkey_dev, uint  *parent_dev, uint  *children_dev, int  *leafLev_dev, int  *numCell_dev, int  *numNode_dev, int  *scanNum_dev
-#else///MAKE_TREE_ON_DEVICE
-   treecell  *cell_hst, bool  *leaf_hst, uint  *node_hst, PHinfo  *info_hst
-#endif//MAKE_TREE_ON_DEVICE
-#   if  defined(MAKE_TREE_ON_DEVICE) && defined(COUNT_INTERACTIONS)
+#ifdef  COUNT_INTERACTIONS
    , treecell  *cell_hst, bool  *leaf_hst, uint  *node_hst, PHinfo  *info_hst
-#endif//defined(MAKE_TREE_ON_DEVICE) && defined(COUNT_INTERACTIONS)
+#endif//COUNT_INTERACTIONS
    );
-#endif//defined(CALC_MULTIPOLE_ON_DEVICE) || defined(MAKE_TREE_ON_DEVICE)
-  //-----------------------------------------------------------------------
-#ifdef  CALC_MULTIPOLE_ON_DEVICE
-  //-----------------------------------------------------------------------
-#ifndef MAKE_TREE_ON_DEVICE
-  void setTreeCell_dev(const size_t num, const soaTreeCell dev, const soaTreeCell hst
-#ifdef  EXEC_BENCHMARK
-		       , wall_clock_time *elapsed
-#endif//EXEC_BENCHMARK
-		       );
-#endif//MAKE_TREE_ON_DEVICE
-  //-----------------------------------------------------------------------
+
 #ifdef  GADGET_MAC
   void enforceBarnesHutMAC_dev(const int Ni, const iparticle pi, const int Nj, const soaTreeNode pj);
   void recoverGADGET_MAC_dev(const int Nj, const soaTreeNode pj);
 #endif//GADGET_MAC
-  //-----------------------------------------------------------------------
+
   void calcMultipole_dev
   (const int bottomLev, const soaTreeCell cell,
    const int piNum, const iparticle pi, const int pjNum, const soaTreeNode node,
@@ -535,9 +543,6 @@ extern "C"
    , const real eps2
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 #ifndef SERIALIZED_EXECUTION
-#ifndef BUILD_LET_ON_DEVICE
-   , const soaTreeNode node_hst, real * RESTRICT bmax_root_hst
-#endif//BUILD_LET_ON_DEVICE
 #ifdef  CARE_EXTERNAL_PARTICLES
    , domainLocation *location
 #endif//CARE_EXTERNAL_PARTICLES
@@ -550,7 +555,7 @@ extern "C"
    , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
    );
-  //-----------------------------------------------------------------------
+
   void setGlobalConstants_make_dev_cu
   (
 #ifdef  GADGET_MAC
@@ -563,15 +568,9 @@ extern "C"
 #endif//WS93_MAC
 #endif//GADGET_MAC
    );
-  //-----------------------------------------------------------------------
-#endif//CALC_MULTIPOLE_ON_DEVICE
-  //-----------------------------------------------------------------------
 #ifdef  __CUDACC__
 }
 #endif//__CUDACC__
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #endif//MAKE_DEV_H
-//-------------------------------------------------------------------------

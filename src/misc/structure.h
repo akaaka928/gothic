@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/21 (Tue)
+ * @date 2017/04/03 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -27,7 +27,8 @@
 
 /**
  * @def NUM_BODY_MAX
- * Maximum number of N-body particles per MPI process.
+ *
+ * @brief Maximum number of N-body particles per MPI process.
  */
 /* /\* 2^26 *\/ */
 /* #define NUM_BODY_MAX (67108864) */
@@ -86,9 +87,9 @@ typedef struct
  */
 typedef struct
 {
-  real *pos;/**< x0, y0, z0, x1, y1, z1, ... */
-  real *vel;/**< x0, y0, z0, x1, y1, z1, ... */
-  real *acc;/**< x0, y0, z0, x1, y1, z1, ... */
+  real *pos;/**< x0, y0, z0, w0, x1, y1, z1, ... */
+  real *vel;/**< x0, y0, z0, w0, x1, y1, z1, ... */
+  real *acc;/**< x0, y0, z0, w0, x1, y1, z1, ... */
   real *m, *pot;
   ulong *idx;
 } nbody_hdf5;
@@ -169,9 +170,7 @@ typedef struct
   real         *vy;
   real         *vz;
 #endif//BLOCK_TIME_STEP
-#   if  defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES)
   real         *neighbor;
-#endif//defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES)
   ulong        *idx;
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
   position *encBall, *encBall_hst;/**< center and squared radius of enclosing ball which contains all i-particles */

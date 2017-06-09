@@ -1,12 +1,12 @@
 /**
  * @file magi.c
  *
- * @brief Source code for MAGI (MAny-component Galactic Initial-conditions generator)
+ * @brief Source code for MAGI (MAny-component Galaxy Initializer)
  *
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/24 (Fri)
+ * @date 2017/06/09 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -19,13 +19,15 @@
 
 /**
  * @def USE_SZIP_COMPRESSION
- * On to enable Szip compression for HDF5 files (default is OFF).
+ *
+ * @brief On to enable Szip compression for HDF5 files (default is OFF).
  */
 /* #define USE_SZIP_COMPRESSION */
 
 /**
  * @def RESET_ROTATION_AXIS
- * On to reset rotation axis to the z-axis (default is OFF).
+ *
+ * @brief On to reset rotation axis to the z-axis (default is OFF).
  */
 /* #define RESET_ROTATION_AXIS */
 
@@ -60,9 +62,7 @@
 
 #ifndef RUN_WITHOUT_GOTHIC
 #include "../misc/tune.h"
-#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #include "../misc/brent.h"
-#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #endif//RUN_WITHOUT_GOTHIC
 
 #include "../file/io.h"
@@ -75,6 +75,10 @@
 #include "abel.h"
 #include "potdens.h"
 #include "diskDF.h"
+
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+#include "spline.h"
+#endif//MAKE_COLUMN_DENSITY_PROFILE
 
 
 /* global constants to set unit system, defined in constants.c */
@@ -98,6 +102,10 @@ typedef struct
   double bodyAlloc, file;
   double spheAlloc, spheProf, spheDist, spheInfo, eddington;
   double diskAlloc, diskProf, diskDist, diskInfo, diskTbl, diskVel;
+  double observe;
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+  double vdisp;
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   double column;
 #endif//MAKE_COLUMN_DENSITY_PROFILE
@@ -439,24 +447,6 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
 
 
 /**
- * @fn getDF
- *
- * @brief Get distribution function of the component based on linear interpolation.
- *
- * @param (ene) a specified energy
- * @param (df) distribution function
- * @param (Emin) minimum of energy bin
- * @param (invEbin) inverse of energy bin width
- * @return DF at the specified energy
- */
-static inline double getDF(const double ene, dist_func *df, const double Emin, const double invEbin)
-{
-  const int ll = (int)((ene - Emin) * invEbin);
-  return (df[ll].val + (df[ll + 1].val - df[ll].val) * (ene - df[ll].ene) / (df[ll + 1].ene - df[ll].ene));
-}
-
-
-/**
  * @fn distributeSpheroidParticles
  *
  * @brief Distribute N-body particles in the spherical symmetric component.
@@ -503,6 +493,11 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
   const double    Emax = df[NENEBIN - 1].ene;
   const double invEbin = (double)(NENEBIN - 1) / (Emax - Emin);
 
+#if 1
+  const int iout = cfg.iout;
+  const double Ecut = prf[iout].psi_tot;
+#else
+  /* no more required or something wrong... */
   double fmax = 0.0;
   int   iout = 0;
   for(int ii = 0; ii < NRADBIN; ii++){
@@ -510,10 +505,18 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
     if(                            floc > fmax ){      fmax = floc;    }
   }/* for(int ii = 0; ii < NRADBIN; ii++){ */
   const double Ecut = (iout != 0) ? prf[iout].psi_tot : Emin;
-
+#endif
 
   const double Mmax = cfg.Mtot;
   const double Mmin = prf[0].enc;
+
+#if 0
+#pragma omp single
+  {
+    fprintf(stdout, "Mmin = %e, Mmax = %e; Emin = %e, Emax = %e; Ecut = %e\n", Mmin, Mmax, Emin, Emax, Ecut);
+    fflush(NULL);
+  }
+#endif
 
 #ifdef  USE_SFMTJUMP
 #pragma omp for
@@ -522,7 +525,8 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
     /** set spatial distribution by table search */
     const double tmp = Mmin + (Mmax - Mmin) * UNIRAND_DBL(rand);
     int ll = 0;
-    int rr = NRADBIN - 1;
+    /* int rr = NRADBIN - 1; */
+    int rr = iout;
     while( true ){
       uint cc = (ll + rr) >> 1;
 
@@ -536,10 +540,23 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
     const double rad = (1.0 - alpha) * prf[ll].rad + alpha * prf[rr].rad;
     isotropicDistribution(CAST_D2R(rad), &(body.pos[ii].x), &(body.pos[ii].y), &(body.pos[ii].z), rand);
 
+#if 0
+    fprintf(stderr, "ii = %zu, rad = %e\n", ii, rad);
+    fflush(NULL);
+#endif
 
     /** determine velocity distribution by rejection method */
     const double psi = (1.0 - alpha) * prf[ll].psi_tot + alpha * prf[rr].psi_tot;
     const double vesc = sqrt(2.0 * (psi - Ecut));
+
+#if 0
+    if( fpclassify(vesc) != FP_NORMAL ){
+      fprintf(stderr, "rad = %e, psi = %e, Ecut = %e, Emin = %e, rout = %e, vesc = %e\n", rad, psi, Ecut, Emin, cfg.rmax, vesc);
+      fflush(NULL);
+      exit(0);
+    }
+#endif
+
     const double v2Fmax = vesc * vesc * getDF(psi, df, Emin, invEbin);
     double vel;
     while( true ){
@@ -548,8 +565,22 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
       const double ene = psi - 0.5 * vel * vel;
       const double val = vel * vel * getDF(ene, df, Emin, invEbin);
       const double try = v2Fmax * UNIRAND_DBL(rand);
+
+#if 0
+      if( ii == 655364 ){
+	fprintf(stderr, "vesc = %e, vel = %e, rad = %e, psi = %e, ene = %e, v2Fmax = %e, val = %e, try = %e\n", vesc, vel, rad, psi, ene, v2Fmax, val, try);
+	fflush(stderr);
+      }
+#endif
+
       if( val > try )	break;
     }/* while( true ){ */
+
+#if 0
+    fprintf(stderr, "ii = %zu, vel = %e\n", ii, vel);
+    fflush(NULL);
+#endif
+
 
 #ifdef  BLOCK_TIME_STEP
     isotropicDistribution(CAST_D2R(vel), &(body.vel[ii].x), &(body.vel[ii].y), &(body.vel[ii].z), rand);
@@ -596,7 +627,18 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 
 
 void outputFundamentalInformation
-(const int unit, const int kind, const int skind, profile_cfg *cfg, profile **prf, dist_func **df, const ulong Ntot, const real eps, const double snapshotInterval, const double ft, char file[]);
+(const int unit, const int kind, const int skind, profile_cfg *cfg, profile **prf, const ulong Ntot, const real eps, const double snapshotInterval, const double ft, char file[]);
+void outputRadialProfiles
+(const int kind, profile_cfg *cfg, profile **prf, const real eps, char file[]);
+
+void outputDistributionFunction(const int skind, dist_func **df, char file[]);
+
+#ifdef  USE_HDF5_FORMAT
+void outputRepresentativeQuantities
+(const int kind, profile_cfg *cfg, const int skind, profile **prf, const int ndisk, const int maxLev, disk_data * disk, char file[]);
+#endif//USE_HDF5_FORMAT
+
+void evaluateObservables(const int kind, const int skind, profile_cfg *cfg, profile **prf);
 void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *disk);
 
 
@@ -703,8 +745,9 @@ int main(int argc, char **argv)
     for(int ii = skind; ii < kind; ii++)
       if( cfg[ii].kind >= 0 ){      	__KILL__(stderr, "ERROR: disk component must be last component(s).\n\tModify \"%s/%s\".\n", CFGFOLDER, fcfg);      }
 
-  bool cutoff = false;
   double rmax = 0.0;
+#if 1
+  bool cutoff = false;
   for(int ii = 0; ii < kind; ii++){
     cutoff |= cfg[ii].cutoff;
     if( cfg[ii].cutoff ){      if( rmax < cfg[ii].rc )	rmax = cfg[ii].rc;    }
@@ -713,9 +756,18 @@ int main(int argc, char **argv)
 
   if( cutoff )    rmax *= (double)(NINTBIN * 10);/**< sufficiently greater than outermost radius times NINTBIN */
   else            rmax *= 1000.0;
+#else
+  for(int ii = 0; ii < kind; ii++){
+    if( cfg[ii].cutoff )
+      rmax = fmax(rmax,  10.0 * cfg[ii].rc);
+    else
+      rmax = fmax(rmax, 100.0 * cfg[ii].rs);
+  }/* for(int ii = 0; ii < kind; ii++){ */
+#endif
+
   const double logrmin = log10(MINRAD);
   const double logrmax = log10(rmax);
-  const double logrbin = (logrmax - logrmin) / (double)(4 + NRADBIN);
+  const double logrbin = (logrmax - logrmin) / (double)NRADBIN;
   const double invlogrbin = 1.0 / logrbin;
 
 
@@ -724,13 +776,13 @@ int main(int argc, char **argv)
   initBenchmark_cpu();
   profile **prf, *_prf;
   /** 2 * 2 bins are added in the both edge */
-  _prf = (profile  *)malloc(sizeof(profile  ) * kind * (4 + NRADBIN));  if( _prf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _prf\n");  }
-  prf  = (profile **)malloc(sizeof(profile *) * kind                );  if(  prf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate  prf\n");  }
+  _prf = (profile  *)malloc(sizeof(profile  ) * kind * NRADBIN);  if( _prf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _prf\n");  }
+  prf  = (profile **)malloc(sizeof(profile *) * kind          );  if(  prf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate  prf\n");  }
   for(int ii = 0; ii < kind; ii++)
-    prf[ii] = _prf + ii * (4 + NRADBIN);
+    prf[ii] = _prf + ii * NRADBIN;
 #pragma omp parallel for
   for(int ii = 0; ii < kind; ii++)
-    for(int jj = 0; jj < 4 + NRADBIN; jj++)
+    for(int jj = 0; jj < NRADBIN; jj++)
       prf[ii][jj].rad = pow(10.0, logrmin + logrbin * (double)jj);
   stopBenchmark_cpu(&execTime.spheAlloc);
   /** memory allocation for disk component(s) */
@@ -758,6 +810,7 @@ int main(int argc, char **argv)
   stopBenchmark_cpu(&execTime.diskAlloc);
 
   /** set density profile and mass profile for spherical component(s) */
+  int nsphere = skind;
   initBenchmark_cpu();
   for(int ii = 0; ii < skind; ii++){
     profile_abel_cfg dummy;    dummy.invRd = 1.0;
@@ -777,17 +830,26 @@ int main(int argc, char **argv)
     case TABLE_SIG:      readColumnDensityProfileTable   (prf[ii],  cfg[ii].rs, cfg[ii].table, cfg[ii]                                               );      break;
     case SPHSERSIC:      execAbelTransform               (prf[ii],  cfg[ii]   , MINRAD, rmax, dummy                                                  );      break;
     case SIGTWOPOW:      execAbelTransform               (prf[ii],  cfg[ii]   , MINRAD, rmax, dummy                                                  );      break;
-    case CENTRALBH:      setContributionByCentralBH      (prf[ii],  cfg[ii]                                                                          );      break;
+    case CENTRALBH:      setContributionByCentralBH      (prf[ii],  cfg[ii]                                                                          );      nsphere--;      break;
     default:      __KILL__(stderr, "ERROR: undefined profile ``%d'' specified\n", cfg[ii].kind);      break;
     }/* switch( cfg[ii].kind ){ */
 
     if( cfg[ii].kind != CENTRALBH )
-      integrateDensityProfile(prf[ii], logrbin, cfg[ii].Mtot, cfg[ii].cutoff, cfg[ii].rc, cfg[ii].rc_width);
+      integrateDensityProfile(prf[ii], &cfg[ii]
+#ifndef ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
+			      , logrbin
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
+			      );
   }/* for(int ii = 0; ii < skind; ii++){ */
+
+  if( nsphere != skind ){
+    for(int kk = nsphere; kk < skind; kk++)
+      if( cfg[kk].kind != CENTRALBH ){	__KILL__(stderr, "ERROR: central BH must be last component(s) in spherical components.\n\tModify \"%s/%s\".\n", CFGFOLDER, fcfg);      }
+  }/* if( nsphere != skind ){ */
 
   /** evaluate sum of density, enclosed mass and potential of all spherical component(s) */
 #pragma omp parallel for
-  for(int ii = 0; ii < 4 + NRADBIN; ii++){
+  for(int ii = 0; ii < NRADBIN; ii++){
     double rho = 0.0;
     double enc = 0.0;
     double psi = 0.0;
@@ -802,7 +864,7 @@ int main(int argc, char **argv)
       prf[kk][ii].enc_tot = enc;
       prf[kk][ii].psi_tot = psi;
     }/* for(int kk = 0; kk < kind; kk++){ */
-  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
   stopBenchmark_cpu(&execTime.spheProf);
 
   /* set density profile for the disk component(s) */
@@ -817,7 +879,7 @@ int main(int argc, char **argv)
     integrateSphericalDensityProfile(ndisk, maxLev, disk_info);
 
 #pragma omp parallel for
-    for(int ii = 0; ii < 4 + NRADBIN; ii++){
+    for(int ii = 0; ii < NRADBIN; ii++){
       double rho = 0.0;
       double enc = 0.0;
       double psi = 0.0;
@@ -832,23 +894,41 @@ int main(int argc, char **argv)
 	prf[kk][ii].enc_tot += enc;
 	prf[kk][ii].psi_tot += psi;
       }/* for(int kk = 0; kk < skind; kk++){ */
-    }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+    }/* for(int ii = 0; ii < NRADBIN; ii++){ */
     stopBenchmark_cpu(&execTime.diskProf);
   }/* if( addDisk ){ */
 
   /** integrate Eddington's formula numerically */
   initBenchmark_cpu();
   dist_func **fene, *_fene;
-  _fene = (dist_func  *)malloc(sizeof(dist_func  ) * skind * NENEBIN);  if( _fene == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _fene\n");  }
-  fene  = (dist_func **)malloc(sizeof(dist_func *) * skind          );  if(  fene == NULL ){    __KILL__(stderr, "ERROR: failure to allocate  fene\n");  }
-  for(int ii = 0; ii < skind; ii++)
+  _fene = (dist_func  *)malloc(sizeof(dist_func  ) * nsphere * NENEBIN);  if( _fene == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _fene\n");  }
+  fene  = (dist_func **)malloc(sizeof(dist_func *) * nsphere          );  if(  fene == NULL ){    __KILL__(stderr, "ERROR: failure to allocate  fene\n");  }
+  for(int ii = 0; ii < nsphere; ii++)
     fene[ii] = _fene + ii * NENEBIN;
-  integrateEddingtonFormula(skind, prf, fene);
+  integrateEddingtonFormula(nsphere, prf,
+#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+			    cfg,
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+			    fene);
   stopBenchmark_cpu(&execTime.eddington);
+
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+  initBenchmark_cpu();
+  calcVelocityDispersionProfile(nsphere, prf,
+#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+				cfg,
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+				fene);
+  stopBenchmark_cpu(&execTime.vdisp);
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
 
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   initBenchmark_cpu();
-  calcColumnDensityProfile(skind, prf, logrmax, cfg);
+  calcColumnDensityProfile(nsphere, prf,
+#ifndef ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
+			   logrmax,
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
+			   cfg);
   stopBenchmark_cpu(&execTime.column);
 #endif//MAKE_COLUMN_DENSITY_PROFILE
 
@@ -999,16 +1079,29 @@ int main(int argc, char **argv)
 
   if( skind == 0 )
 #pragma omp parallel for
-    for(int ii = 0; ii < 4 + NRADBIN; ii++){
+    for(int ii = 0; ii < NRADBIN; ii++){
       prf[0][ii].enc_tot  = prf[ 0][ii].enc;
       for(int jj = 1; jj < ndisk; jj++)
       prf[0][ii].enc_tot += prf[jj][ii].enc;
-    }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+    }/* for(int ii = 0; ii < NRADBIN; ii++){ */
+
+
+  /** evaluate observable quantities */
+  initBenchmark_cpu();
+  evaluateObservables(kind, skind, cfg, prf);
+  if( addDisk )
+    getEffectiveRadius(ndisk, maxLev, disk_info);
+  stopBenchmark_cpu(&execTime.observe);
 
 
   /** write fundamental information */
   initBenchmark_cpu();
-  outputFundamentalInformation(unit, kind, skind, cfg, prf, fene, Ntot, eps, snapshotInterval, ft, file);
+  outputFundamentalInformation(unit, kind, skind, cfg, prf, Ntot, eps, snapshotInterval, ft, file);
+  outputRadialProfiles(kind, cfg, prf, eps, file);
+  outputDistributionFunction(nsphere, fene, file);
+#ifdef  USE_HDF5_FORMAT
+  outputRepresentativeQuantities(kind, cfg, skind, prf, ndisk, maxLev, disk_info, file);
+#endif//USE_HDF5_FORMAT
   stopBenchmark_cpu(&execTime.spheInfo);
 
 
@@ -1031,24 +1124,14 @@ int main(int argc, char **argv)
 #endif//MONITOR_ENERGY_ERROR
   static rebuildTree rebuild;
   static measuredTime measured;
-#ifdef  WALK_TREE_COMBINED_MODEL
   static autoTuningParam rebuildParam;
-#endif//WALK_TREE_COMBINED_MODEL
-#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
   static brentStatus status;
   static brentMemory memory;
-#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #endif//RUN_WITHOUT_GOTHIC
 
   writeTentativeData(time, dt, steps, Ntot, body, file, &last, hdf5type
 #ifndef RUN_WITHOUT_GOTHIC
-		     , rebuild, measured
-#ifdef  WALK_TREE_COMBINED_MODEL
-		     , rebuildParam
-#endif//WALK_TREE_COMBINED_MODEL
-#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
-		     , status, memory
-#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+		     , rebuild, measured, rebuildParam, status, memory
 #ifdef  MONITOR_ENERGY_ERROR
 		     , relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -1074,6 +1157,10 @@ int main(int argc, char **argv)
   ttot += execTime.bodyAlloc + execTime.file;
   ttot += execTime.spheAlloc + execTime.spheProf + execTime.spheDist + execTime.spheInfo + execTime.eddington;
   ttot += execTime.diskAlloc + execTime.diskProf + execTime.diskDist + execTime.diskInfo + execTime.diskTbl + execTime.diskVel;
+  ttot += execTime.observe;
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+  ttot += execTime.vdisp;
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   ttot += execTime.column;
 #endif//MAKE_COLUMN_DENSITY_PROFILE
@@ -1084,19 +1171,24 @@ int main(int argc, char **argv)
   if( 0 != access(filename, F_OK) ){
     fp = fopen(filename, "w");
     if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
-    fprintf(fp, "#%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+    fprintf(fp, "#%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 	    "ttot", "bodyAlloc", "file",
 	    "spheAlloc", "spheProf", "spheDist", "spheInfo", "eddington",
 	    "diskAlloc", "diskProf", "diskDist", "diskInfo", "diskTbl", "diskVel",
-	    "column");
+	    "observe",
+	    "vdisp", "column");
     fclose(fp);
-  }
+  }/* if( 0 != access(filename, F_OK) ){ */
   fp = fopen(filename, "a");
   if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
-  fprintf(fp, "%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e",
+  fprintf(fp, "%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e",
 	  ttot, execTime.bodyAlloc, execTime.file,
 	  execTime.spheAlloc, execTime.spheProf, execTime.spheDist, execTime.spheInfo, execTime.eddington,
-	  execTime.diskAlloc, execTime.diskProf, execTime.diskDist, execTime.diskInfo, execTime.diskTbl, execTime.diskVel);
+	  execTime.diskAlloc, execTime.diskProf, execTime.diskDist, execTime.diskInfo, execTime.diskTbl, execTime.diskVel,
+	  execTime.observe);
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+  fprintf(fp, "\t%e", execTime.vdisp);
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   fprintf(fp, "\t%e", execTime.column);
 #endif//MAKE_COLUMN_DENSITY_PROFILE
@@ -1113,15 +1205,59 @@ int main(int argc, char **argv)
   fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.spheProf , execTime.spheProf  * ttot, "generating radial profile of spherical component(s)");
   if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskProf , execTime.diskProf  * ttot, "calculating spherical averaged profile of disk component(s)");
   if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskVel  , execTime.diskVel   * ttot, "calculating vertical velocity dispersion of disk component(s)");
-  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.file     , execTime.file      * ttot, "writing particle data");
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.file    , execTime.file     * ttot, "writing particle data");
   fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.spheInfo, execTime.spheInfo * ttot, "writing fundamental data of spherical component(s)");
   if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskInfo, execTime.diskInfo * ttot, "writing fundamental data of disk component(s)");
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.vdisp , execTime.vdisp  * ttot, "calculating velocity dispersion profile of spherical component(s)");
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.column, execTime.column * ttot, "calculating column density profile of spherical component(s)");
 #endif//MAKE_COLUMN_DENSITY_PROFILE
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.observe, execTime.observe * ttot, "evaluating observables of spherical component(s)");
   fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.spheAlloc, execTime.spheAlloc * ttot, "memory allocation for spherical component(s)");
   if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskAlloc, execTime.diskAlloc * ttot, "memory allocation for disk component(s)");
   fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.bodyAlloc, execTime.bodyAlloc * ttot, "memory allocation for N-body particles");
+
+
+#ifdef  PRINT_OUT_ASCII_DATA_FOR_QUICK_CHECK
+  /** print out particle distribution in ASCII format for quick check */
+  sprintf(filename, "%s/%s.%s.txt", DATAFOLDER, file, "ascii");
+  fp = fopen(filename, "w");
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
+  fprintf(fp, "#x\ty\tz\tvx\tvy\tvz\n");
+  ulong head = 0;
+  for(int kk = 0; kk < kind; kk++){
+    for(ulong ii = head; ii < head + IMIN(cfg[kk].num, 1024); ii++)
+      fprintf(fp, "%e\t%e\t%e\t%e\t%e\t%e\n",
+	      body.pos[ii].x, body.pos[ii].y, body.pos[ii].z,
+#ifdef  BLOCK_TIME_STEP
+	      body.vel[ii].x, body.vel[ii].y, body.vel[ii].z
+#else///BLOCK_TIME_STEP
+	      body.vx[ii], body.vy[ii], body.vz[ii]
+#endif//BLOCK_TIME_STEP
+	      );
+    fprintf(fp, "\n");
+    head += cfg[kk].num;
+  }/* for(int kk = 0; kk < kind; kk++){ */
+  fclose(fp);
+
+  sprintf(filename, "%s/ascii.gp", DATAFOLDER);
+  fp = fopen(filename, "w");
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
+  fprintf(fp, "se si sq\n");
+  fprintf(fp, "se st da d\n");
+  fprintf(fp, "se xl 'x'\n");
+  fprintf(fp, "se yl 'z'\n");
+  fprintf(fp, "p ");
+  for(int ii = 0; ii < kind; ii++){
+    fprintf(fp, "'%s.ascii.txt' u 1:3 ev :::%d::%d", file, ii, ii);
+    if( ii != (kind - 1) )
+      fprintf(fp, ",\\\n  ");
+  }/* for(int ii = 0; ii < kind; ii++){ */
+  fprintf(fp, "\n");
+  fclose(fp);
+#endif//PRINT_OUT_ASCII_DATA_FOR_QUICK_CHECK
 
 
   freeParticleData(idx, pos, acc,
@@ -1152,6 +1288,38 @@ int main(int argc, char **argv)
 }
 
 
+/* for evaluating relaxation time of 2-body relaxation */
+/**
+ * @fn findIdx_rad
+ *
+ * @brief Find a data element in the given array corresponding to the given radius.
+ *
+ * @param (rad) rad
+ * @param (prf) radial profile of the component
+ * @return (ll) the corresponding lower index
+ * @return (rr) the corresponding upper index
+ */
+static inline void findIdx_rad(const double rad, profile * restrict prf, int * restrict ll, int * restrict rr)
+{
+  bool bisection = true;
+  *ll =           0;
+  *rr = NRADBIN - 1;
+
+  if( bisection == true )    if( fabs(prf[*ll].rad - rad) / rad < DBL_EPSILON ){      bisection = false;      *rr = (*ll) + 1;    }
+  if( bisection == true )    if( fabs(prf[*rr].rad - rad) / rad < DBL_EPSILON ){      bisection = false;      *ll = (*rr) - 1;    }
+
+  while( bisection ){
+    const uint cc = ((uint)(*ll) + (uint)(*rr)) >> 1;
+
+    if( (prf[cc].rad - rad) * (prf[*ll].rad - rad) <= 0.0 )      *rr = (int)cc;
+    else                                                         *ll = (int)cc;
+
+    if( (1 + (*ll)) == (*rr) )
+      break;
+  }/* while( bisection ){ */
+}
+
+
 /**
  * @fn outputFundamentalInformation
  *
@@ -1162,7 +1330,6 @@ int main(int argc, char **argv)
  * @param (skind) number of spherical symmetric components
  * @param (cfg) physical properties of the components
  * @param (prf) radial profile of the components
- * @param (df) distribution function of the component
  * @param (Ntot) total number of N-body particles
  * @return (eps) value of Plummer softening length
  * @return (SnapshotInterval) time interval to write snapshot files
@@ -1170,7 +1337,7 @@ int main(int argc, char **argv)
  * @param (file) name of the simulation
  */
 void outputFundamentalInformation
-(const int unit, const int kind, const int skind, profile_cfg *cfg, profile **prf, dist_func **df, const ulong Ntot, const real eps, const double snapshotInterval, const double ft, char file[])
+(const int unit, const int kind, const int skind, profile_cfg *cfg, profile **prf, const ulong Ntot, const real eps, const double snapshotInterval, const double ft, char file[])
 {
   __NOTE__("%s\n", "start");
 
@@ -1269,6 +1436,9 @@ void outputFundamentalInformation
       fprintf(fp, "Scale radius of the component rs is %e (= %e %s)\n", cfg[ii].rs, cfg[ii].rs * length2astro, length_astro_unit_name);
     if( cfg[ii].kind == KING ){
       fprintf(fp, "Dimensionless King parameter  W0 is %e\n", cfg[ii].king_W0);
+#ifdef  KING_CENTRAL_CUSP
+      fprintf(fp, "Dimensionless slope      dW/dx_0 is %e\n", cfg[ii].king_dWdx_0);
+#endif//KING_CENTRAL_CUSP
       fprintf(fp, "Tidal radius of the component rt is %e (= %e %s)\n", cfg[ii].king_rt, cfg[ii].king_rt * length2astro, length_astro_unit_name);
       fprintf(fp, "Concentration paramter         c is %e\n", cfg[ii].king_c);
     }/* if( cfg[ii].kind == KING ){ */
@@ -1309,6 +1479,8 @@ void outputFundamentalInformation
       fprintf(fp, "Internal power-law index    beta is %e\n", cfg[ii].twopower_beta);
       fprintf(fp, "   Outer power-law index   gamma is %e\n", cfg[ii].twopower_gamma);
     }/* if( cfg[ii].kind == SIGTWOPOW ){ */
+    fprintf(fp, "#############################################################################\n");
+
     if( (cfg[ii].kind == EXP_DISK) || (cfg[ii].kind == SERSIC) || (cfg[ii].kind == TBL_DISK) ){
       if( cfg[ii].kind == SERSIC ){
 	fprintf(fp, "Sersic index                   n is %e\n", cfg[ii].n_sersic);
@@ -1335,7 +1507,122 @@ void outputFundamentalInformation
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
       fprintf(fp, "Minimum of Toomre's Q-value      is %e at R = %e (= %e %s)\n", cfg[ii].Qmin0, cfg[ii].qminR0, cfg[ii].qminR0 * length2astro, length_astro_unit_name);
     }/* if( (cfg[ii].kind == EXP_DISK) || (cfg[ii].kind == SERSIC) || (cfg[ii].kind == TBL_DISK) ){ */
+
     if( cfg[ii].kind != CENTRALBH ){
+      fprintf(fp, "#############################################################################\n");
+      fprintf(fp, "Representative scales:\n");
+      fprintf(fp, "Half-mass radius         r_{1/2} is %e (= %e %s)\n", cfg[ii].rhalf, cfg[ii].rhalf * length2astro, length_astro_unit_name);
+      fprintf(fp, "Effective radius         R_{eff} is %e (= %e %s)\n", cfg[ii].Reff, cfg[ii].Reff * length2astro, length_astro_unit_name);
+
+      if( ii < skind ){/* for spherical component(s) */
+	fprintf(fp, "#########\n");
+	fprintf(fp, "Representative quantities at the center:\n");
+	fprintf(fp, "Volume density               rho is %e (= %e %s)\n", prf[ii][0].rho, prf[ii][0].rho * density2astro, density_astro_unit_name);
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+	fprintf(fp, "Column density             Sigma is %e (= %e %s)\n", prf[ii][0].Sigma, prf[ii][0].Sigma * col_density2astro, col_density_astro_unit_name);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	fprintf(fp, "Velocity dispersion      sigma_r is %e (= %e %s)\n", prf[ii][0].sigr, prf[ii][0].sigr * velocity2astro, velocity_astro_unit_name);
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+	fprintf(fp, "LoS velocity dispersion  sig_los is %e (= %e %s)\n", prf[ii][0].slos, prf[ii][0].slos * velocity2astro, velocity_astro_unit_name);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+
+	int ll, rr;
+	double alpha, val;
+
+	/* physical quantities @ r = rs */
+	findIdx_rad(cfg[ii].rs, prf[ii], &ll, &rr);
+	alpha = (cfg[ii].rs - prf[ii][ll].rad) / (prf[ii][rr].rad - prf[ii][ll].rad);
+
+	fprintf(fp, "#########\n");
+	fprintf(fp, "Representative quantities at the scale radius:\n");
+
+	val = (1.0 - alpha) * prf[ii][ll].rho + alpha * prf[ii][rr].rho;
+	fprintf(fp, "Volume density               rho is %e (= %e %s)\n", val, val * density2astro, density_astro_unit_name);
+
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+	val = (1.0 - alpha) * prf[ii][ll].Sigma + alpha * prf[ii][rr].Sigma;
+	fprintf(fp, "Column density             Sigma is %e (= %e %s)\n", val, val * col_density2astro, col_density_astro_unit_name);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+
+	val = (1.0 - alpha) * prf[ii][ll].enc + alpha * prf[ii][rr].enc;
+	fprintf(fp, "Enclosed mass of this component  is %e (= %e %s)\n", val, val * mass2astro, mass_astro_unit_name);
+
+	val = (1.0 - alpha) * prf[ii][ll].enc_tot + alpha * prf[ii][rr].enc_tot;
+	fprintf(fp, "Enclosed mass of  all components is %e (= %e %s)\n", val, val * mass2astro, mass_astro_unit_name);
+
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	val = (1.0 - alpha) * prf[ii][ll].sigr + alpha * prf[ii][rr].sigr;
+	fprintf(fp, "Velocity dispersion      sigma_r is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+	val = (1.0 - alpha) * prf[ii][ll].slos + alpha * prf[ii][rr].slos;
+	fprintf(fp, "LoS velocity dispersion  sig_los is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+
+      /* physical quantities @ r = r_{1/2} */
+	findIdx_rad(cfg[ii].rhalf, prf[ii], &ll, &rr);
+	alpha = (cfg[ii].rhalf - prf[ii][ll].rad) / (prf[ii][rr].rad - prf[ii][ll].rad);
+
+	fprintf(fp, "#########\n");
+	fprintf(fp, "Representative quantities at the half-mass radius:\n");
+
+	val = (1.0 - alpha) * prf[ii][ll].rho + alpha * prf[ii][rr].rho;
+	fprintf(fp, "Volume density               rho is %e (= %e %s)\n", val, val * density2astro, density_astro_unit_name);
+
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+	val = (1.0 - alpha) * prf[ii][ll].Sigma + alpha * prf[ii][rr].Sigma;
+	fprintf(fp, "Column density             Sigma is %e (= %e %s)\n", val, val * col_density2astro, col_density_astro_unit_name);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+
+	val = (1.0 - alpha) * prf[ii][ll].enc + alpha * prf[ii][rr].enc;
+	fprintf(fp, "Enclosed mass of this component  is %e (= %e %s)\n", val, val * mass2astro, mass_astro_unit_name);
+
+	val = (1.0 - alpha) * prf[ii][ll].enc_tot + alpha * prf[ii][rr].enc_tot;
+	fprintf(fp, "Enclosed mass of  all components is %e (= %e %s)\n", val, val * mass2astro, mass_astro_unit_name);
+
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	val = (1.0 - alpha) * prf[ii][ll].sigr + alpha * prf[ii][rr].sigr;
+	fprintf(fp, "Velocity dispersion      sigma_r is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+	val = (1.0 - alpha) * prf[ii][ll].slos + alpha * prf[ii][rr].slos;
+	fprintf(fp, "LoS velocity dispersion  sig_los is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+
+      /* physical quantities @ r = R_{eff} */
+	findIdx_rad(cfg[ii].Reff, prf[ii], &ll, &rr);
+	alpha = (cfg[ii].Reff - prf[ii][ll].rad) / (prf[ii][rr].rad - prf[ii][ll].rad);
+
+	fprintf(fp, "#########\n");
+	fprintf(fp, "Representative quantities at the effective radius:\n");
+
+	val = (1.0 - alpha) * prf[ii][ll].rho + alpha * prf[ii][rr].rho;
+	fprintf(fp, "Volume density               rho is %e (= %e %s)\n", val, val * density2astro, density_astro_unit_name);
+
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+	val = (1.0 - alpha) * prf[ii][ll].Sigma + alpha * prf[ii][rr].Sigma;
+	fprintf(fp, "Column density             Sigma is %e (= %e %s)\n", val, val * col_density2astro, col_density_astro_unit_name);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+
+	val = (1.0 - alpha) * prf[ii][ll].enc + alpha * prf[ii][rr].enc;
+	fprintf(fp, "Enclosed mass of this component  is %e (= %e %s)\n", val, val * mass2astro, mass_astro_unit_name);
+
+	val = (1.0 - alpha) * prf[ii][ll].enc_tot + alpha * prf[ii][rr].enc_tot;
+	fprintf(fp, "Enclosed mass of  all components is %e (= %e %s)\n", val, val * mass2astro, mass_astro_unit_name);
+
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	val = (1.0 - alpha) * prf[ii][ll].sigr + alpha * prf[ii][rr].sigr;
+	fprintf(fp, "Velocity dispersion      sigma_r is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+	val = (1.0 - alpha) * prf[ii][ll].slos + alpha * prf[ii][rr].slos;
+	fprintf(fp, "LoS velocity dispersion  sig_los is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+      }/* if( ii < skind ){ */
+
+      fprintf(fp, "#############################################################################\n");
       if( cfg[ii].cutoff ){
 	fprintf(fp, "Cutoff radius of the component   is %e (= %e %s)\n", cfg[ii].rc      , cfg[ii].rc       * length2astro, length_astro_unit_name);
 	fprintf(fp, "Cutoff  width of the component   is %e (= %e %s)\n", cfg[ii].rc_width, cfg[ii].rc_width * length2astro, length_astro_unit_name);
@@ -1349,19 +1636,22 @@ void outputFundamentalInformation
     /** estimate typical timescale */
     if( cfg[ii].kind != CENTRALBH ){
       /** estimate enclosed mass within rs */
-      double Ms;
+      double Ms = 0.0;
+      double Ns = 0.0;
       {
-	int jj = 2;
-	while( true ){
-	  if( prf[0][jj].rad > cfg[ii].rs ){	    jj--;	    break;	  }
-	  jj++;
-	  if( jj == (NRADBIN + 1) )	    break;
-	}/* while( true ){ */
-	Ms = prf[0][jj].enc_tot;
+	int ll, rr;
+	findIdx_rad(cfg[ii].rs, prf[ii], &ll, &rr);
+	const double alpha = (cfg[ii].rs - prf[ii][ll].rad) / (prf[ii][rr].rad - prf[ii][ll].rad);
+
+	for(int kk = 0; kk < kind; kk++){
+	  Ms = (1.0 - alpha) * prf[kk][ll].enc + alpha * prf[kk][rr].enc;
+	  Ns += nearbyint((double)cfg[kk].num * (Ms / cfg[kk].Mtot));
+	}/* for(int kk = 0; kk < kind; kk++){ */
+
+	Ms = (1.0 - alpha) * prf[0][ll].enc_tot + alpha * prf[0][rr].enc_tot;
       }
 
       /** estimate dynamical time at scale length for each component */
-      const double Ns = (double)Ntot * (Ms / Mtot);
       const double tff = M_PI_2 * cfg[ii].rs * sqrt(cfg[ii].rs / (2.0 * CAST_R2D(newton) * Ms));
       const double t2r = tff * Ns / (32.0 * log(cfg[ii].rs / CAST_R2D(eps)));
       double trot = 0.0;
@@ -1391,6 +1681,27 @@ void outputFundamentalInformation
   fclose(fp);
 
 
+  __NOTE__("%s\n", "end");
+}
+
+
+/**
+ * @fn outputRadialProfiles
+ *
+ * @brief Print out radial profiles of the generated system.
+ *
+ * @param (kind) number of components
+ * @param (cfg) physical properties of the components
+ * @param (prf) radial profile of the components
+ * @return (eps) value of Plummer softening length
+ * @param (file) name of the simulation
+ */
+void outputRadialProfiles
+(const int kind, profile_cfg *cfg, profile **prf, const real eps, char file[])
+{
+  __NOTE__("%s\n", "start");
+
+
   /** output fundamental profile of the particle distribution */
   real *tmp_rad;  tmp_rad = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_rad == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_rad\n");  }
   real *tmp_rho;  tmp_rho = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_rho == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_rho\n");  }
@@ -1398,10 +1709,18 @@ void outputFundamentalInformation
   real *tmp_psi;  tmp_psi = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_psi == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_psi\n");  }
   real *tmp_tff;  tmp_tff = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_tff == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_tff\n");  }
   real *tmp_t2r;  tmp_t2r = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_t2r == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_t2r\n");  }
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+  real *tmp_sig;  tmp_sig = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_sig\n");  }
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+  real *tmp_los;  tmp_los = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_los == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_los\n");  }
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   real *tmp_Sig;  tmp_Sig = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_Sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_Sig\n");  }
 #endif//MAKE_COLUMN_DENSITY_PROFILE
 
+
+  char filename[128];
 #ifdef  USE_HDF5_FORMAT
   /** create a new file (if the file already exists, the file is opened with read-write access, new data will overwrite any existing data) */
   sprintf(filename, "%s/%s.%s.h5", DATAFOLDER, file, "profile");
@@ -1428,6 +1747,7 @@ void outputFundamentalInformation
     char grp[16];    sprintf(grp, "data%d", kk);
     hid_t group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 #else///USE_HDF5_FORMAT
+    FILE *fp;
     sprintf(filename, "%s/%s.profile.%d.dat", DATAFOLDER, file, kk);
     fp = fopen(filename, "wb");
     if( fp == NULL ){      __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);    }
@@ -1439,6 +1759,12 @@ void outputFundamentalInformation
       tmp_rho[ii] = CAST_D2R(prf[kk][ii].rho * density2astro);
       tmp_enc[ii] = CAST_D2R(prf[kk][ii].enc *    mass2astro);
       tmp_psi[ii] = CAST_D2R(prf[kk][ii].psi * senergy2astro);
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+      tmp_sig[ii] = CAST_D2R(prf[kk][ii].sigr * velocity2astro);
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+      tmp_los[ii] = CAST_D2R(prf[kk][ii].slos * velocity2astro);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
       tmp_Sig[ii] = CAST_D2R(prf[kk][ii].Sigma * col_density2astro);
 #endif//MAKE_COLUMN_DENSITY_PROFILE
@@ -1469,6 +1795,18 @@ void outputFundamentalInformation
     dataset = H5Dcreate(group, "Psi", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_psi));
     chkHDF5err(H5Dclose(dataset));
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+    /** write 1-dimensional velocity dispersion */
+    dataset = H5Dcreate(group, "sigma_r", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_sig));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+    /** write velocity dispersion along the line-of-sight */
+    dataset = H5Dcreate(group, "sigma_los", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_los));
+    chkHDF5err(H5Dclose(dataset));
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
     /** write column density */
     dataset = H5Dcreate(group, "Sigma", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
@@ -1516,6 +1854,12 @@ void outputFundamentalInformation
     success &= (fwrite( tmp_rho, sizeof(real), NRADBIN, fp) == NRADBIN);
     success &= (fwrite( tmp_enc, sizeof(real), NRADBIN, fp) == NRADBIN);
     success &= (fwrite( tmp_psi, sizeof(real), NRADBIN, fp) == NRADBIN);
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+    success &= (fwrite( tmp_sig, sizeof(real), NRADBIN, fp) == NRADBIN);
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+    success &= (fwrite( tmp_los, sizeof(real), NRADBIN, fp) == NRADBIN);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
     success &= (fwrite( tmp_Sig, sizeof(real), NRADBIN, fp) == NRADBIN);
 #endif//MAKE_COLUMN_DENSITY_PROFILE
@@ -1524,18 +1868,21 @@ void outputFundamentalInformation
 #endif//USE_HDF5_FORMAT
   }/* for(int kk = 0; kk < kind; kk++){ */
 
-#ifdef  USE_HDF5_FORMAT
+
   /** evaluate typical timescale */
+#ifdef  USE_HDF5_FORMAT
 #pragma omp parallel for
   for(int ii = 0; ii < NRADBIN; ii++){
     const double rad = prf[0][ii].rad;
-    double enc = 0.0;
-    for(int jj = 0; jj < kind; jj++)
-      enc += prf[jj][ii].enc;
+    const double enc = prf[0][ii].enc_tot;
+
+    double Ns = 0.0;
+    for(int kk = 0; kk < kind; kk++)
+      Ns += nearbyint((double)cfg[kk].num * (prf[kk][ii].enc / cfg[kk].Mtot));
+
     const double tff = M_PI_2 * rad * sqrt(rad / (2.0 * CAST_R2D(newton) * enc));
-    double t2r = tff * ((double)Ntot * (enc / Mtot)) / (32.0 * log(enc / CAST_R2D(eps)));
-    if( t2r < 0.0 )
-      t2r = 0.0;
+    const double t2r = fmax(tff * (double)Ns / (32.0 * log(enc / CAST_R2D(eps))), 0.0);
+
     tmp_rad[ii] = CAST_D2R(rad * length2astro);
     tmp_tff[ii] = CAST_D2R(tff *   time2astro);
     tmp_t2r[ii] = CAST_D2R(t2r *   time2astro);
@@ -1599,18 +1946,21 @@ void outputFundamentalInformation
 
   hid_t str4format = H5Tcopy(H5T_C_S1);
   chkHDF5err(H5Tset_size(str4format, CONSTANTS_H_CHAR_WORDS));
-  attribute = H5Acreate(target,  "length_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attribute, str4format,  length_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
-  attribute = H5Acreate(target, "density_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attribute, str4format, density_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
-  attribute = H5Acreate(target,    "mass_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attribute, str4format,    mass_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
-  attribute = H5Acreate(target, "senergy_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attribute, str4format, senergy_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
-  attribute = H5Acreate(target,    "time_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attribute, str4format,    time_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target,      "length_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format,     length_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target,     "density_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format,     density_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target,        "mass_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format,        mass_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target,     "senergy_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format,     senergy_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target,        "time_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format,        time_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
   attribute = H5Acreate(target, "col_density_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, str4format, col_density_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target,    "velocity_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format,    velocity_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Tclose(str4format));
 
   /** close the dataspace */
   chkHDF5err(H5Sclose(dataspace));
@@ -1624,9 +1974,35 @@ void outputFundamentalInformation
   free(tmp_psi);
   free(tmp_tff);
   free(tmp_t2r);
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+  free(tmp_sig);
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+  free(tmp_los);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   free(tmp_Sig);
 #endif//MAKE_COLUMN_DENSITY_PROFILE
+
+
+  __NOTE__("%s\n", "end");
+}
+
+
+/**
+ * @fn outputDistributionFunction
+ *
+ * @brief Print out distribution function of the generated system.
+ *
+ * @param (skind) number of spherical symmetric components
+ * @param (df) distribution function of the component
+ * @param (file) name of the simulation
+ */
+void outputDistributionFunction(const int skind, dist_func **df, char file[])
+{
+  __NOTE__("%s\n", "start");
+
+  char filename[256];
 
 
   /** output distribution function of the particle distribution */
@@ -1636,7 +2012,11 @@ void outputFundamentalInformation
 #ifdef  USE_HDF5_FORMAT
   /** create a new file (if the file already exists, the file is opened with read-write access, new data will overwrite any existing data) */
   sprintf(filename, "%s/%s.%s.h5", DATAFOLDER, file, "df");
-  target = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  hid_t target = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+  hid_t dataspace;
+  hsize_t attr_dims;
+  hid_t attribute;
 
   for(int kk = 0; kk < skind; kk++){
 #pragma omp parallel for
@@ -1648,15 +2028,25 @@ void outputFundamentalInformation
     char grp[16];    sprintf(grp,  "series%d", kk);
     hid_t group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-    hsize_t dims = NENEBIN;
-    dataspace = H5Screate_simple(1, &dims, NULL);
 #ifdef  USE_SZIP_COMPRESSION
-    property = H5Pcreate(H5P_DATASET_CREATE);
+    hid_t property = H5Pcreate(H5P_DATASET_CREATE);
     chkHDF5err(H5Pset_chunk(property, 1, &cdims));
     chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+#else///USE_SZIP_COMPRESSION
+    hid_t property = H5P_DEFAULT;
 #endif//USE_SZIP_COMPRESSION
 
+    hsize_t dims = NENEBIN;
+    dataspace = H5Screate_simple(1, &dims, NULL);
+
+#ifdef  DOUBLE_PRECISION
+    hid_t hdf5_real = H5T_NATIVE_DOUBLE;
+#else///DOUBLE_PRECISION
+    hid_t hdf5_real = H5T_NATIVE_FLOAT;
+#endif//DOUBLE_PRECISION
+
     /** write energy */
+    hid_t dataset;
     dataset = H5Dcreate(group, "energy", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_ene));
     chkHDF5err(H5Dclose(dataset));
@@ -1667,14 +2057,14 @@ void outputFundamentalInformation
 #ifdef  USE_SZIP_COMPRESSION
     chkHDF5err(H5Pclose(property));
 #endif//USE_SZIP_COMPRESSION
+
     /** close the dataspace */
     chkHDF5err(H5Sclose(dataspace));
 
     /** write attribute data */
     /** create the data space for the attribute */
-    hsize_t attr_dims = 1;
+    attr_dims = 1;
     dataspace = H5Screate_simple(1, &attr_dims, NULL);
-    hid_t attribute;
 
     /** write # of arrays */
     int nenebin = NENEBIN;
@@ -1697,12 +2087,19 @@ void outputFundamentalInformation
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &skind));
   chkHDF5err(H5Aclose(attribute));
 
+  hid_t str4format = H5Tcopy(H5T_C_S1);
+  chkHDF5err(H5Tset_size(str4format, CONSTANTS_H_CHAR_WORDS));
   attribute = H5Acreate(target, "senergy_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, str4format, senergy_astro_unit_name));
   chkHDF5err(H5Aclose(attribute));
   chkHDF5err(H5Tclose(str4format));
 
   /** write flag about DOUBLE_PRECISION */
+#ifdef  DOUBLE_PRECISION
+  const int useDP = 1;
+#else///DOUBLE_PRECISION
+  const int useDP = 0;
+#endif//DOUBLE_PRECISION
   attribute = H5Acreate(target, "useDP", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
   chkHDF5err(H5Aclose(attribute));
@@ -1712,6 +2109,8 @@ void outputFundamentalInformation
   /** close the file */
   chkHDF5err(H5Fclose(target));
 #else///USE_HDF5_FORMAT
+  FILE *fp;
+
   for(int kk = 0; kk < skind; kk++){
     sprintf(filename, "%s/%s.df.%d.dat", DATAFOLDER, file, kk);
     fp = fopen(filename, "wb");
@@ -1719,8 +2118,8 @@ void outputFundamentalInformation
 
 #pragma omp parallel for
     for(int ii = 0; ii < NENEBIN; ii++){
-      tmp_ene[ii] = df[kk][ii].ene;
-      tmp_val[ii] = df[kk][ii].val;
+      tmp_ene[ii] = CAST_D2R(CAST_R2D(df[kk][ii].ene) * senergy2astro);
+      tmp_val[ii] =                   df[kk][ii].val;
     }/* for(int ii = 0; ii < NENEBIN; ii++){ */
 
     int nenebin = NENEBIN;
@@ -1735,6 +2134,407 @@ void outputFundamentalInformation
 
   free(tmp_ene);
   free(tmp_val);
+
+
+  __NOTE__("%s\n", "end");
+}
+
+
+
+#ifdef  USE_HDF5_FORMAT
+/**
+ * @fn writeVals_at_givenRad
+ *
+ * @brief Write physical properties at the given radius.
+ */
+static inline void writeVals_at_givenRad
+(const hid_t group, const double rad, char subgrp[], double * restrict attr,
+ const int kind, const int skind, profile **prf,
+ const int maxLev, disk_data * disk)
+{
+  __NOTE__("%s\n", "start");
+
+  /** extract physical quantities */
+  double alp;
+  int ll, rr;
+  findIdx_rad(rad, prf[0], &ll, &rr);
+  alp = (rad - prf[0][ll].rad) / (prf[0][rr].rad - prf[0][ll].rad);
+
+  double bet = 0.0;
+  int lev = 0;
+  int idx = 0;
+  if( kind != skind )
+    findIdx4nestedGrid(rad, maxLev, disk[0], &lev, &idx, &bet);
+
+
+  /** open a group */
+  hid_t sub = H5Gcreate(group, subgrp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+
+  /** write physical quantities of the representative component */
+  hsize_t attr_dims;
+  hid_t dataspace, attribute;
+  attr_dims = 1;
+  dataspace = H5Screate_simple(1, &attr_dims, NULL);
+  double astro;
+
+  /** write the radius */
+  astro = rad * length2astro;
+  attribute = H5Acreate(sub, "r", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &astro));
+  chkHDF5err(H5Aclose(attribute));
+
+  /** write total mass */
+  astro = ((1.0 - alp) * prf[0][ll].enc_tot + alp * prf[0][rr].enc_tot) * mass2astro;
+  attribute = H5Acreate(sub, "Mtot", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &astro));
+  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Sclose(dataspace));
+
+
+  /** write physical quantities of all components */
+  attr_dims = kind;
+  dataspace = H5Screate_simple(1, &attr_dims, NULL);
+
+  /** write enclosed mass */
+  for(int jj = 0; jj < kind; jj++)
+    attr[jj] = ((1.0 - alp) * prf[jj][ll].enc + alp * prf[jj][rr].enc) * mass2astro;
+  attribute = H5Acreate(sub, "M_enc", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, attr));
+  chkHDF5err(H5Aclose(attribute));
+
+  /** write column density */
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+  for(int jj = 0; jj < skind; jj++)
+    attr[jj] = ((1.0 - alp) * prf[jj][ll].Sigma + alp * prf[jj][rr].Sigma) * col_density2astro;
+  for(int jj = skind; jj < kind; jj++)
+    attr[jj] = ((1.0 - bet) * disk[jj - skind].Sigma[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, idx)] + bet * disk[jj - skind].Sigma[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, idx + 1)]) * col_density2astro;
+
+  attribute = H5Acreate(sub, "Sigma", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, attr));
+  chkHDF5err(H5Aclose(attribute));
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+
+  chkHDF5err(H5Sclose(dataspace));
+
+
+  /** write one-dimensional velocity dispersion */
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+  attr_dims = skind;
+  dataspace = H5Screate_simple(1, &attr_dims, NULL);
+
+  /** write velocity dispersion of the r-component */
+  for(int jj = 0; jj < skind; jj++)
+    attr[jj] = ((1.0 - alp) * prf[jj][ll].sigr + alp * prf[jj][rr].sigr) * velocity2astro;
+  attribute = H5Acreate(sub, "sigma_r", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, attr));
+  chkHDF5err(H5Aclose(attribute));
+
+  /** write velocity dispersion along the line-of-sight */
+  for(int jj = 0; jj < skind; jj++)
+    attr[jj] = ((1.0 - alp) * prf[jj][ll].slos + alp * prf[jj][rr].slos) * velocity2astro;
+  attribute = H5Acreate(sub, "sigma_los", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, attr));
+  chkHDF5err(H5Aclose(attribute));
+
+  chkHDF5err(H5Sclose(dataspace));
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+
+
+  /** close the group */
+  chkHDF5err(H5Gclose(sub));
+
+
+  __NOTE__("%s\n", "end");
+}
+
+
+/**
+ * @fn outputRepresentativeQuantities
+ *
+ * @brief Print out fundamental information on the generated system.
+ *
+ * @param (kind) number of components
+ * @param (cfg) physical properties of the components
+ * @param (skind) number of spherical symmetric components
+ * @param (prf) radial profile of the components
+ * @param (ndisk) number of disk components
+ * @param (maxLev) maximum level of nested grid
+ * @param (disk) physical properties of the disk component
+ * @param (file) name of the simulation
+ */
+void outputRepresentativeQuantities
+(const int kind, profile_cfg *cfg, const int skind, profile **prf, const int ndisk, const int maxLev, disk_data * disk, char file[])
+{
+  __NOTE__("%s\n", "start");
+
+
+  /** output fundamental physical properties of each component */
+  double *tmp_attr;  tmp_attr = (double *)malloc(kind * sizeof(double));
+  if( tmp_attr == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_attr\n");  }
+
+
+  /** create a new file (if the file already exists, the file is opened with read-write access, new data will overwrite any existing data) */
+  char filename[128];
+  sprintf(filename, "%s/%s.%s.h5", DATAFOLDER, file, "property");
+  hid_t target = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  hid_t dataspace, attribute;
+  hsize_t attr_dims;
+
+  /** write physical properties as attribute */
+  for(int kk = 0; kk < kind; kk++){
+    char grp[16];    sprintf(grp, "grp%d", kk);
+    hid_t group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+    /** write physical quantities at characteristic scales */
+    if( cfg[kk].kind != CENTRALBH ){
+      writeVals_at_givenRad(group, cfg[kk].rs   , "rs"   , tmp_attr, kind, skind, prf, maxLev, disk);
+      writeVals_at_givenRad(group, cfg[kk].rhalf, "rhalf", tmp_attr, kind, skind, prf, maxLev, disk);
+      writeVals_at_givenRad(group, cfg[kk].Reff , "Reff" , tmp_attr, kind, skind, prf, maxLev, disk);
+    }/* if( cfg[kk].kind != CENTRALBH ){ */
+
+    if( kk >= skind ){
+      const int diskID = kk - skind;
+
+      attr_dims = 1;
+      dataspace = H5Screate_simple(1, &attr_dims, NULL);
+      double astro;
+
+      /** write scale height */
+      astro = cfg[kk].zd * length2astro;
+      attribute = H5Acreate(group, "zd", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &astro));
+      chkHDF5err(H5Aclose(attribute));
+
+      /** write column density @ R = 0 */
+      astro = cfg[kk].Sigma0 * col_density2astro;
+      attribute = H5Acreate(group, "Sigma0", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &astro));
+      chkHDF5err(H5Aclose(attribute));
+
+      /** write circular velocity @ R = Rd */
+      astro = cfg[kk].vcirc_Rd * velocity2astro;
+      attribute = H5Acreate(group, "vcirc(Rd)", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &astro));
+      chkHDF5err(H5Aclose(attribute));
+
+      /** write maximum circular velocity */
+      astro = cfg[kk].vcirc_max * velocity2astro;
+      attribute = H5Acreate(group, "vcirc_max", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &astro));
+      chkHDF5err(H5Aclose(attribute));
+
+      /** write radius where the circular velocity is maximized */
+      astro = cfg[kk].vcirc_max_R * length2astro;
+      attribute = H5Acreate(group, "vcirc_max_R", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &astro));
+      chkHDF5err(H5Aclose(attribute));
+
+      /** write Toomre's Q-value @ R = Rd */
+      attribute = H5Acreate(group, "Q(R = Rd)", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &cfg[kk].toomre));
+      chkHDF5err(H5Aclose(attribute));
+
+      /** write velocity dispersion in z-direction  @ R = 0 */
+      astro = disk[diskID].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, 0)] * velocity2astro;
+      attribute = H5Acreate(group, "sigma_z(R = 0)", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &astro));
+      chkHDF5err(H5Aclose(attribute));
+
+
+      /** calculate velocity dispersion in R-direction @ R = 0 */
+      const int lev = maxLev - 1;
+      const int ii = 0;
+#ifndef USE_POTENTIAL_SCALING_SCHEME
+      const double Omega = sqrt(disk[diskID]. dPhidR [INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] / disk[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
+      const double kappa = sqrt(disk[diskID].d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] + 3.0 * Omega * Omega);
+#else///USE_POTENTIAL_SCALING_SCHEME
+      const double Omega = sqrt(disk[diskID]. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] / disk[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
+      const double kappa = sqrt(disk[diskID].d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + 3.0 * Omega * Omega);
+#endif//USE_POTENTIAL_SCALING_SCHEME
+#ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
+      const double vcirc = disk[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] * Omega;
+      const double sigmap = DISK_PERP_VDISP(disk[diskID].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], vcirc, disk[diskID].cfg->vdisp_frac);
+      const double sigmaR = sigmap * 2.0 * Omega / (DBL_MIN + kappa);
+#else///ENFORCE_EPICYCLIC_APPROXIMATION
+      const double sigmaR = DISK_RADIAL_VDISP(disk[diskID].cfg->vdispR0, disk[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], invRd);
+#endif//ENFORCE_EPICYCLIC_APPROXIMATION
+
+      /** write velocity dispersion in R-direction  @ R = 0 */
+      astro = sigmaR * velocity2astro;
+      attribute = H5Acreate(group, "sigma_R(R = 0)", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &astro));
+      chkHDF5err(H5Aclose(attribute));
+
+      /** write velocity dispersion in p-direction  @ R = 0 */
+#ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
+      astro = sigmap * velocity2astro;
+      attribute = H5Acreate(group, "sigma_p(R = 0)", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &astro));
+      chkHDF5err(H5Aclose(attribute));
+#endif//ENFORCE_EPICYCLIC_APPROXIMATION
+
+      chkHDF5err(H5Sclose(dataspace));
+    }/* if( kk >= skind ){ */
+
+    /** close the group */
+    chkHDF5err(H5Gclose(group));
+  }/* for(int kk = 0; kk < kind; kk++){ */
+
+  /** write attribute data */
+  /** create the data space for the attribute */
+  attr_dims = 1;
+  dataspace = H5Screate_simple(1, &attr_dims, NULL);
+
+  /** write # of components */
+  attribute = H5Acreate(target, "kinds", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &kind));
+  chkHDF5err(H5Aclose(attribute));
+
+  /** write # of spherical components */
+  attribute = H5Acreate(target, "skinds", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &skind));
+  chkHDF5err(H5Aclose(attribute));
+
+  /** write # of disk components */
+  attribute = H5Acreate(target, "ndisk", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &ndisk));
+  chkHDF5err(H5Aclose(attribute));
+
+  hid_t str4format = H5Tcopy(H5T_C_S1);
+  chkHDF5err(H5Tset_size(str4format, CONSTANTS_H_CHAR_WORDS));
+  attribute = H5Acreate(target,      "length_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format,      length_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target,        "mass_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format,        mass_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target,    "velocity_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format,    velocity_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target, "col_density_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format, col_density_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Tclose(str4format));
+
+  /** close the dataspace */
+  chkHDF5err(H5Sclose(dataspace));
+  /** close the file */
+  chkHDF5err(H5Fclose(target));
+
+  free(tmp_attr);
+
+
+  __NOTE__("%s\n", "end");
+}
+#endif//USE_HDF5_FORMAT
+
+
+/**
+ * @fn findIdx_enc
+ *
+ * @brief Find a data element in the given array corresponding to the given enclosed mass.
+ *
+ * @param (enc) enclosed mass
+ * @param (prf) radial profile of the component
+ * @return (ll) the corresponding lower index
+ * @return (rr) the corresponding upper index
+ */
+static inline void findIdx_enc(const double enc, profile * restrict prf, int * restrict ll, int * restrict rr)
+{
+  bool bisection = true;
+  *ll =           0;
+  *rr = NRADBIN - 1;
+
+  if( bisection == true )    if( fabs(prf[*ll].enc - enc) / enc < DBL_EPSILON ){      bisection = false;      *rr = (*ll) + 1;    }
+  if( bisection == true )    if( fabs(prf[*rr].enc - enc) / enc < DBL_EPSILON ){      bisection = false;      *ll = (*rr) - 1;    }
+
+  while( bisection ){
+    const uint cc = ((uint)(*ll) + (uint)(*rr)) >> 1;
+
+    if( (prf[cc].enc - enc) * (prf[*ll].enc - enc) <= 0.0 )      *rr = (int)cc;
+    else                                                         *ll = (int)cc;
+
+    if( (1 + (*ll)) == (*rr) )
+      break;
+  }/* while( bisection ){ */
+}
+
+
+/**
+ * @fn evaluateObservables
+ *
+ * @brief Evaluate observable quantities of spherical component(s)
+ *
+ * @param (kind) number of components
+ * @param (skind) number of spherical symmetric components
+ * @param (cfg) physical properties of the components
+ * @param (prf) radial profile of the components
+ *
+ * @sa findIdx_enc
+ * @sa genCubicSpline1D
+ * @sa getCubicSplineIntegral1D
+ */
+void evaluateObservables(const int kind, const int skind, profile_cfg *cfg, profile **prf)
+{
+  __NOTE__("%s\n", "start");
+
+
+  /** evaluate half-mass radius r_{1/2}: the radius containing half the total mass */
+  for(int kk = 0; kk < kind; kk++)
+    if( cfg[kk].kind != CENTRALBH ){
+      const double Mhalf = 0.5 * cfg[kk].Mtot;
+      int ll, rr;
+      findIdx_enc(Mhalf, prf[kk], &ll, &rr);
+
+      const double alpha = (Mhalf - prf[kk][ll].enc) / (prf[kk][rr].enc - prf[kk][ll].enc);
+
+      cfg[kk].rhalf = (1.0 - alpha) * prf[kk][ll].rad + alpha * prf[kk][rr].rad;
+    }/* if( cfg[ii].kind != CENTRALBH ){ */
+
+
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+  /** evaluate effective radius R_{eff}: the radius containing half the total mass in the projected plane */
+#pragma omp parallel for
+  for(int kk = 0; kk < skind; kk++)
+    if( cfg[kk].kind != CENTRALBH ){
+      const double Mhalf = 0.5 * 0.5 * cfg[kk].Mtot;
+
+      const int num = NRADBIN / SKIP_INTERVAL_FOR_EFFECTIVE_RADIUS;
+
+      double *xx;      xx = (double *)malloc(num * sizeof(double));
+      double *ff;      ff = (double *)malloc(num * sizeof(double));
+      double *bp;      bp = (double *)malloc(num * sizeof(double));
+      double *f2;      f2 = (double *)malloc(num * sizeof(double));
+
+      if( xx == NULL ){	__KILL__(stderr, "ERROR: failure to allocate xx\n");      }
+      if( ff == NULL ){	__KILL__(stderr, "ERROR: failure to allocate ff\n");      }
+      if( bp == NULL ){	__KILL__(stderr, "ERROR: failure to allocate bp\n");      }
+      if( f2 == NULL ){	__KILL__(stderr, "ERROR: failure to allocate f2\n");      }
+
+      for(int ii = 0; ii < num; ii++){
+	const int jj = ii * SKIP_INTERVAL_FOR_EFFECTIVE_RADIUS;
+	xx[ii] = prf[kk][jj].rad;/**< R */
+	ff[ii] = 2.0 * M_PI * prf[kk][jj].rad * prf[kk][jj].Sigma;/**< 2 \pi R \Sigma(R) */
+      }/* for(int ii = 0; ii < num; ii++){ */
+
+      genCubicSpline1D(num, xx, ff, bp, NATURAL_CUBIC_SPLINE, NATURAL_CUBIC_SPLINE, f2);
+
+      double R0 = 0.0;
+      double M0 = 0.0;
+      for(int ii = 0; ii < num; ii++){
+	const double R1 = xx[ii];
+	const double M1 = M0 + getCubicSplineIntegral1D(ii, xx, ff, f2);
+
+	if( M1 >= Mhalf ){
+	  const double alpha = (Mhalf - M0) / (M1 - M0);
+	  cfg[kk].Reff = (1.0 - alpha) * R0 + alpha * R1;
+	  break;
+	}/* if( M1 >= Mhalf ){ */
+
+	R0 = R1;
+	M0 = M1;
+      }/* for(int ii = 0; ii < num; ii++){ */
+
+      free(xx);      free(ff);      free(bp);      free(f2);
+    }/* if( cfg[kk].kind != CENTRALBH ){ */
+#endif//MAKE_COLUMN_DENSITY_PROFILE
 
 
   __NOTE__("%s\n", "end");
@@ -1764,6 +2564,7 @@ static void evaluateDiskProperties
  real * restrict _vcirc, real * restrict _sigmap, real * restrict _sigmaR, real * restrict _kappa, real * restrict _Omega, real * restrict _toomre, real * restrict _lambda)
 {
   __NOTE__("%s\n", "start");
+
 
 #ifndef ENFORCE_EPICYCLIC_APPROXIMATION
   const double invRd = 1.0 / disk_info[diskID].cfg->rs;

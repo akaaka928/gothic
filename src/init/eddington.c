@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/24 (Fri)
+ * @date 2017/06/09 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -27,10 +27,589 @@
 #include "profile.h"
 #include "eddington.h"
 
+#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+#include "spline.h"
+#else///ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+extern double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[NTBL_GAUSS_QD];
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
 
 extern const real newton;
-extern double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[NTBL_GAUSS_QD];
 
+
+#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+
+/**
+ * @fn get_d2rho_dPsi2
+ *
+ * @brief Calculate second derivative of the mass density w.r.t. the relative potential.
+ *
+ * @param (skind) number of components
+ * @param (prf) radial profile of the component
+ * @return (ret) second derivative of the mass density w.r.t. the relative potential
+ */
+static inline void get_d2rho_dPsi2(const int skind, profile **prf, double *ret)
+{
+#pragma omp parallel for
+  for(int ii = 0; ii < NRADBIN; ii++){
+    const int jj = NRADBIN - 1 - ii;
+
+    const double rad = prf[0][jj].rad;
+    const double enc = prf[0][jj].enc_tot;
+    const double rho = prf[0][jj].rho_tot;
+    const double fac = 2.0 * (enc - 2.0 * M_PI * rho * rad * rad * rad) / (rad * enc);
+
+    double common = rad * rad / enc;
+    common *= common;
+
+    for(int kk = 0; kk < skind; kk++){
+      const double  drho_dr  = prf[kk][jj]. drho_dr;
+      const double d2rho_dr2 = prf[kk][jj].d2rho_dr2;
+
+      ret[ii + kk * NRADBIN] = (d2rho_dr2 + fac * drho_dr) * common;
+    }/* for(int kk = 0; kk < skind; kk++){ */
+
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
+}
+
+
+/**
+ * @fn get_integrand
+ *
+ * @brief Calculate integrand for Eddington formula.
+ *
+ * @param (ene) relative energy
+ * @param (psi) relative potential
+ * @param (skind) number of components
+ * @param (xx) position of data points (psi)
+ * @param (yy) value of data points (d2rho_dpsi2)
+ * @param (y2) coefficients in cubic spline interpolation
+ * @return (ret) integrand for Eddington formula
+ */
+static inline void get_integrand(const double ene, const double psi, const int skind, double * restrict xx, double * restrict yy, double * restrict y2, double * restrict ret)
+{
+  const double coe = 1.0 / sqrt(ene - psi);
+
+  for(int ii = 0; ii < skind; ii++)
+    ret[ii] = coe * getCubicSpline1D(psi, NRADBIN, xx, &yy[ii * NRADBIN], &y2[ii * NRADBIN]);
+}
+
+
+/**
+ * @fn get_DEformula
+ *
+ * @brief Calculate integrand in double exponential formula.
+ *
+ * @param (tt) value of integration variable
+ * @return (ret) integrand for Eddington formula
+ * @param (max_pls_min) psi_max + psi_min
+ * @param (max_mns_min) psi_max - psi_min
+ * @param (xx) position of data points (psi)
+ * @param (yy) value of data points (d2rho_dpsi2)
+ * @param (y2) coefficients in cubic spline interpolation
+ */
+static inline void get_DEformula(const double tt, const int skind, double ret[restrict], const double max_pls_min, const double max_mns_min, double * restrict xx, double * restrict yy, double * restrict y2)
+{
+  const double sinh_t = M_PI_2 * sinh(tt);
+
+  const double cosh_t = cosh(sinh_t);
+  const double common = cosh(tt) * exp(0.5 * sinh_t) * sqrt(cosh_t) / (cosh_t * cosh_t);
+
+  /* since psi_max is around unity and psi_min is around 0.01 to 0.1, round-off error would not be significant when calculating psi */
+#if 0
+  const double psi_max = 0.5 * (max_pls_min + max_mns_min);
+  const double psi_min = 0.5 * (max_pls_min - max_mns_min);
+  const double psi = 0.5 * (psi_min * exp(-sinh_t) + psi_max * exp(sinh_t)) / cosh_t;
+#else
+  const double psi = 0.5 * (max_pls_min + max_mns_min * tanh(sinh_t));
+#endif
+
+  for(int kk = 0; kk < skind; kk++)
+    ret[kk] += common * getCubicSpline1D(psi, NRADBIN, xx, &yy[kk * NRADBIN], &y2[kk * NRADBIN]);
+}
+
+
+static inline void update_trapezoidal(const double hh, const double tmin, const double tmax, const int skind, double sum[restrict], double tmp[restrict], const double max_pls_min, const double max_mns_min, double * restrict xx, double * restrict yy, double * restrict y2)
+{
+  /** initialization */
+  for(int kk = 0; kk < skind; kk++)
+    tmp[kk] = 0.0;
+  double tt = tmin + hh;
+
+  /** employ mid-point rule */
+  while( tt < tmax ){
+    get_DEformula(tt, skind, tmp, max_pls_min, max_mns_min, xx, yy, y2);
+    tt += 2.0 * hh;
+  }/* while( tt < tmax ){ */
+
+  for(int kk = 0; kk < skind; kk++)
+    sum[kk] = 0.5 * sum[kk] + hh * tmp[kk];
+}
+
+
+static inline void set_domain_boundary(const double hh, double * restrict tmin, double * restrict tmax, const int skind, double sum[restrict], double ffp[restrict], double ff0[restrict], double fft[restrict], const double max_pls_min, const double max_mns_min, double * restrict xx, double * restrict yy, double * restrict y2)
+{
+  const double converge = 1.0e-16;
+  const double maximum = 128.0;
+
+  double tt = 0.0;
+  for(int kk = 0; kk < skind; kk++)    ffp[kk] = 0.0;
+  get_DEformula(tt, skind, ffp, max_pls_min, max_mns_min, xx, yy, y2);
+  for(int kk = 0; kk < skind; kk++){
+    const double tmp = ffp[kk];
+    ff0[kk] = tmp;
+    sum[kk] = tmp * hh;
+  }/* for(int kk = 0; kk < skind; kk++){ */
+
+
+  /** determine upper boundary */
+  double boundary = 0.0;
+  double damp = 1.0;
+  while( (damp > converge) && (boundary < maximum) ){
+    for(int kk = 0; kk < skind; kk++){
+      fft[kk] = ffp[kk];
+      ffp[kk] = 0.0;
+    }/* for(int kk = 0; kk < skind; kk++){ */
+
+    tt += hh;    boundary = tt;
+    get_DEformula(tt, skind, ffp, max_pls_min, max_mns_min, xx, yy, y2);
+
+    damp = -1.0;
+    for(int kk = 0; kk < skind; kk++){
+      const double tmp = ffp[kk];
+      sum[kk] += hh * tmp;
+
+      damp = fmax(damp, fabs(fft[kk]) + fabs(tmp));
+    }/* for(int kk = 0; kk < skind; kk++){ */
+  }/* while( (damp > converge) && (boundary < maximum) ){ */
+  *tmax = boundary;
+
+
+  /** determine lower boundary */
+  for(int kk = 0; kk < skind; kk++)    ffp[kk] = ff0[kk];
+  tt = 0.0;
+  boundary = 0.0;
+  damp = 1.0;
+  while( (damp > converge) && (boundary > -maximum) ){
+    for(int kk = 0; kk < skind; kk++){
+      fft[kk] = ffp[kk];
+      ffp[kk] = 0.0;
+    }/* for(int kk = 0; kk < skind; kk++){ */
+
+    tt -= hh;    boundary = tt;
+    get_DEformula(tt, skind, ffp, max_pls_min, max_mns_min, xx, yy, y2);
+
+    damp = -1.0;
+    for(int kk = 0; kk < skind; kk++){
+      const double tmp = ffp[kk];
+      sum[kk] += hh * tmp;
+
+      damp = fmax(damp, fabs(fft[kk]) + fabs(tmp));
+    }/* for(int kk = 0; kk < skind; kk++){ */
+  }/* while( (damp > converge) && (boundary > -maximum) ){ */
+  *tmin = boundary;
+}
+
+
+static inline void integrate_DEformula(const int skind, double sum[restrict], double ffp[restrict], double ff0[restrict], double fft[restrict], const double psi_min, const double psi_max, double * restrict xx, double * restrict yy, double * restrict y2)
+{
+  const double criteria_abs = 1.0e-12;
+  /* const double criteria_rel = 1.0e-6; */
+  /* const double criteria_rel = 1.0e-5; */
+  const double criteria_rel = 1.0e-4;
+  /* const double criteria_rel = 1.0e-3; */
+
+  const double max_pls_min = psi_max + psi_min;
+  const double max_mns_min = psi_max - psi_min;
+
+  double hh = 1.0;
+  double tmin, tmax;
+  set_domain_boundary(hh, &tmin, &tmax, skind, sum, ffp, ff0, fft, max_pls_min, max_mns_min, xx, yy, y2);
+
+
+  while( true ){
+    for(int kk = 0; kk < skind; kk++)
+      ff0[kk] = sum[kk];
+
+    hh *= 0.5;
+    update_trapezoidal(hh, tmin, tmax, skind, sum, fft, max_pls_min, max_mns_min, xx, yy, y2);
+
+    bool converge = true;
+    for(int kk = 0; kk < skind; kk++)
+      if( converge ){
+	if( fabs(sum[kk]) > DBL_EPSILON ){
+	  if( fabs(1.0 - ff0[kk] / sum[kk]) > criteria_rel )
+	    converge = false;
+	}
+	else
+	  if( fabs(sum[kk] - ff0[kk]) > criteria_abs )
+	    converge = false;
+      }/* if( converge ){ */
+
+    if( converge )
+      break;
+  }/* while( true ){ */
+}
+
+
+/**
+ * @fn integrateEddingtonFormula
+ *
+ * @brief Derive distribution function.
+ *
+ * @param (kind) number of spherical symmetric components
+ * @param (prf) radial profile of the component
+ * @return (fene) distribution function
+ *
+ * @sa getEddingtonFormula
+ */
+void integrateEddingtonFormula(const int skind, profile **prf, profile_cfg *cfg, dist_func **fene)
+{
+  __NOTE__("%s\n", "start");
+
+
+  int iout = 0;
+  for(int kk = 0; kk < skind; kk++)
+    iout = (iout < cfg[kk].iout) ? cfg[kk].iout : iout;
+
+  /** set integration range */
+  const double Emax = prf[0][   0].psi_tot;
+  const double Emin = prf[0][iout].psi_tot;
+  const double Ebin = (Emax - Emin) / (double)(NENEBIN - 1);
+
+  /** memory allocation for cubic spline interpolation */
+  double *xx;  xx = (double *)malloc(sizeof(double)         * NRADBIN);  if( xx == NULL ){    __KILL__(stderr, "ERROR: failure to allocate xx\n");  }
+  double *yy;  yy = (double *)malloc(sizeof(double) * skind * NRADBIN);  if( yy == NULL ){    __KILL__(stderr, "ERROR: failure to allocate yy\n");  }
+  double *bp;  bp = (double *)malloc(sizeof(double) * skind * NRADBIN);  if( bp == NULL ){    __KILL__(stderr, "ERROR: failure to allocate bp\n");  }
+  double *y2;  y2 = (double *)malloc(sizeof(double) * skind * NRADBIN);  if( y2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate y2\n");  }
+
+
+  /** preparation of data table */
+#pragma omp parallel for
+  for(int ii = 0; ii < NRADBIN; ii++)
+    xx[ii] = prf[0][NRADBIN - 1 - ii].psi_tot;
+
+  get_d2rho_dPsi2(skind, prf, yy);
+
+  /** execute cubic spline interpolation */
+#pragma omp parallel for
+  for(int kk = 0; kk < skind; kk++)
+    genCubicSpline1D(NRADBIN, xx, &yy[kk * NRADBIN], &bp[kk * NRADBIN], NATURAL_CUBIC_SPLINE, NATURAL_CUBIC_SPLINE, &y2[kk * NRADBIN]);
+
+
+  /** calculate overall coefficient */
+  double common = 1.0 / CAST_R2D(newton);
+  common *= common * 0.125 * M_1_PI;
+
+
+  const double Ecut = prf[0][iout].psi_tot;
+  const int icut = (int)floor((Ecut - Emin) / Ebin);
+
+  for(int kk = 0; kk < skind; kk++)
+#pragma omp parallel for
+    for(int ii = 0; ii < icut + 1; ii++){
+      fene[kk][ii].ene = CAST_D2R(Emin + Ebin * (double)ii);
+      fene[kk][ii].val = ZERO;
+    }/* for(int ii = 0; ii < icut + 1; ii++){ */
+
+#pragma omp parallel
+  {
+    double sum[NKIND_MAX], ffp[NKIND_MAX], ff0[NKIND_MAX], fft[NKIND_MAX];
+
+#pragma omp for schedule(auto)
+    for(int ii = icut + 1; ii < NENEBIN; ii++){
+      const double ene = Emin + Ebin * (double)ii;
+      integrate_DEformula(skind, sum, ffp, ff0, fft, Emin, ene, xx, yy, y2);
+
+      const double factor = sqrt(ene - Emin) * common;
+      for(int kk = 0; kk < skind; kk++){
+	fene[kk][ii].ene = CAST_D2R(ene);
+	fene[kk][ii].val = CAST_D2R(fmax(factor * sum[kk], 0.0));
+      }/* for(int kk = 0; kk < skind; kk++){ */
+    }/* for(int ii = icut + 1; ii < NENEBIN; ii++){ */
+  }
+
+
+  /** memory deallocation for cubic spline interpolation */
+  free(xx);
+  free(yy);
+  free(bp);
+  free(y2);
+
+
+  __NOTE__("%s\n", "end");
+}
+
+
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+/**
+ * @fn get_DEformula
+ *
+ * @brief Calculate integrand in double exponential formula.
+ *
+ * @param (tt) value of integration variable
+ * @param (skind) number of components
+ * @return (ret) integrand for Eddington formula
+ * @param (max_pls_min) psi_max + psi_min
+ * @param (max_mns_min) psi_max - psi_min
+ * @param (xx) position of data points (psi)
+ * @param (yy) value of data points (d2rho_dpsi2)
+ * @param (y2) coefficients in cubic spline interpolation
+ */
+static inline void get_DEformula_vdisp(const double tt, const int skind, double v2f[restrict], double v4f[restrict], const double vesc2, const double psi, dist_func **df, const double Emin, const double invEbin)
+{
+  const double sinh_t = M_PI_2 * sinh(tt);
+  const double cosh_t = cosh(sinh_t);
+  const double inv_cosh2_t = 1.0 / (cosh_t * cosh_t);
+
+  const double v2 = 0.25 * vesc2 * exp(2.0 * sinh_t) * inv_cosh2_t;
+  const double ene = psi - 0.5 * v2;
+
+  const double common = cosh(tt) * inv_cosh2_t * v2;
+
+  for(int kk = 0; kk < skind; kk++){
+    const double val = common * getDF(ene, df[kk], Emin, invEbin);
+    v2f[kk] += val;
+    v4f[kk] += val * v2;
+  }/* for(int kk = 0; kk < skind; kk++){ */
+}
+
+
+static inline void update_trapezoidal_vdisp(const double hh, const double tmin, const double tmax, const int skind, double v2f[restrict], double v4f[restrict], const double vesc2, const double psi, dist_func **df, const double Emin, const double invEbin, double ss2[restrict], double ss4[restrict])
+{
+  /** initialization */
+  double tt = tmin + hh;
+  for(int kk = 0; kk < skind; kk++){
+    ss2[kk] = 0.0;
+    ss4[kk] = 0.0;
+  }/* for(int kk = 0; kk < skind; kk++){ */
+
+  /** employ mid-point rule */
+  while( tt < tmax ){
+    get_DEformula_vdisp(tt, skind, ss2, ss4, vesc2, psi, df, Emin, invEbin);
+
+    tt += 2.0 * hh;
+  }/* while( tt < tmax ){ */
+
+  for(int kk = 0; kk < skind; kk++){
+    v2f[kk] = 0.5 * v2f[kk] + hh * ss2[kk];
+    v4f[kk] = 0.5 * v4f[kk] + hh * ss4[kk];
+  }/* for(int kk = 0; kk < skind; kk++){ */
+}
+
+
+static inline void set_domain_boundary_vdisp(const double hh, double * restrict tmin, double * restrict tmax, const int skind, double v2f[restrict], double v4f[restrict], const double vesc2, const double psi, dist_func **df, const double Emin, const double invEbin, double fp2[restrict], double f02[restrict], double ft2[restrict], double fp4[restrict], double f04[restrict], double ft4[restrict])
+{
+  const double converge = 1.0e-16;
+  const double maximum = 128.0;
+
+  double tt = 0.0;
+  for(int kk = 0; kk < skind; kk++)
+    fp2[kk] = fp4[kk] = 0.0;
+  get_DEformula_vdisp(tt, skind, fp2, fp4, vesc2, psi, df, Emin, invEbin);
+  for(int kk = 0; kk < skind; kk++){
+    const double pp2 = fp2[kk];
+    const double pp4 = fp4[kk];
+    f02[kk] = pp2;    v2f[kk] = hh * pp2;
+    f04[kk] = pp4;    v4f[kk] = hh * pp4;
+  }/* for(int kk = 0; kk < skind; kk++){ */
+
+
+  /** determine upper boundary */
+  double boundary = 0.0;
+  double damp = 1.0;
+  while( (damp > converge) && (boundary < maximum) ){
+    for(int kk = 0; kk < skind; kk++){
+      ft2[kk] = fp2[kk];      fp2[kk] = 0.0;
+      ft4[kk] = fp4[kk];      fp4[kk] = 0.0;
+    }/* for(int kk = 0; kk < skind; kk++){ */
+
+    tt += hh;    boundary = tt;
+    get_DEformula_vdisp(tt, skind, fp2, fp4, vesc2, psi, df, Emin, invEbin);
+
+    damp = -1.0;
+    for(int kk = 0; kk < skind; kk++){
+      const double tmp2 = fp2[kk];
+      const double tmp4 = fp4[kk];
+
+      v2f[kk] += hh * tmp2;      damp = fmax(damp, fabs(ft2[kk]) + fabs(tmp2));
+      v4f[kk] += hh * tmp4;      damp = fmax(damp, fabs(ft4[kk]) + fabs(tmp4));
+    }/* for(int kk = 0; kk < skind; kk++){ */
+  }/* while( (damp > converge) && (boundary < maximum) ){ */
+  *tmax = boundary;
+
+
+  /** determine lower boundary */
+  for(int kk = 0; kk < skind; kk++){
+    fp2[kk] = f02[kk];
+    fp4[kk] = f04[kk];
+  }/* for(int kk = 0; kk < skind; kk++){ */
+  tt = 0.0;
+  boundary = 0.0;
+  damp = 1.0;
+  while( (damp > converge) && (boundary > -maximum) ){
+    for(int kk = 0; kk < skind; kk++){
+      ft2[kk] = fp2[kk];      fp2[kk] = 0.0;
+      ft4[kk] = fp4[kk];      fp4[kk] = 0.0;
+    }/* for(int kk = 0; kk < skind; kk++){ */
+
+    tt -= hh;    boundary = tt;
+    get_DEformula_vdisp(tt, skind, fp2, fp4, vesc2, psi, df, Emin, invEbin);
+
+    damp = -1.0;
+    for(int kk = 0; kk < skind; kk++){
+      const double tmp2 = fp2[kk];
+      const double tmp4 = fp4[kk];
+
+      v2f[kk] += hh * tmp2;      damp = fmax(damp, fabs(ft2[kk]) + fabs(tmp2));
+      v4f[kk] += hh * tmp4;      damp = fmax(damp, fabs(ft4[kk]) + fabs(tmp4));
+    }/* for(int kk = 0; kk < skind; kk++){ */
+  }/* while( (damp > converge) && (boundary > -maximum) ){ */
+  *tmin = boundary;
+}
+
+
+static inline void integrate_DEformula_vdisp(const int skind, double v2f[restrict], double v4f[restrict], const double vesc2, const double psi, dist_func **df, const double Emin, const double invEbin, double fp2[restrict], double f02[restrict], double ft2[restrict], double fp4[restrict], double f04[restrict], double ft4[restrict])
+{
+  const double criteria_abs = 1.0e-12;
+  const double criteria_rel = 1.0e-6;
+  /* const double criteria_rel = 1.0e-5; */
+  /* const double criteria_rel = 1.0e-4; */
+
+  double hh = 1.0;
+  double tmin, tmax;
+  set_domain_boundary_vdisp(hh, &tmin, &tmax, skind, v2f, v4f, vesc2, psi, df, Emin, invEbin, fp2, f02, ft2, fp4, f04, ft4);
+
+  while( true ){
+    for(int kk = 0; kk < skind; kk++){
+      ft2[kk] = v2f[kk];
+      ft4[kk] = v4f[kk];
+    }/* for(int kk = 0; kk < skind; kk++){ */
+
+    hh *= 0.5;
+    update_trapezoidal_vdisp(hh, tmin, tmax, skind, v2f, v4f, vesc2, psi, df, Emin, invEbin, fp2, fp4);
+
+    bool converge = true;
+    for(int kk = 0; kk < skind; kk++)
+      if( converge ){
+	if( fabs(v2f[kk]) > DBL_EPSILON ){
+	  if( fabs(1.0 - ft2[kk] / v2f[kk]) > criteria_rel )
+	    converge = false;
+	}
+	else
+	  if( fabs(v2f[kk] - ft2[kk]) > criteria_abs )
+	    converge = false;
+
+	if( converge ){
+	  if( fabs(v4f[kk]) > DBL_EPSILON ){
+	    if( fabs(1.0 - ft4[kk] / v4f[kk]) > criteria_rel )
+	      converge = false;
+	  }
+	  else
+	    if( fabs(v4f[kk] - ft4[kk]) > criteria_abs )
+	      converge = false;
+	}/* if( converge ){ */
+      }/* if( converge ){ */
+
+    if( converge )
+      break;
+  }/* while( true ){ */
+}
+
+
+/**
+ * @fn calcVelocityDispersionProfile
+ *
+ * @brief Calculate velocity dispersion profile.
+ *
+ * @param (skind) number of spherical symmetric components
+ * @return (prf) radial profile of the components
+ * @param (fene) distribution function of the components
+ *
+ * @sa gaussQuadVelocity
+ */
+void calcVelocityDispersionProfile(const int skind, profile **prf, profile_cfg *cfg, dist_func **df)
+{
+  __NOTE__("%s\n", "start");
+
+
+  const double    Emin = df[0][          0].ene;
+  const double    Emax = df[0][NENEBIN - 1].ene;
+  const double invEbin = (double)(NENEBIN - 1) / (Emax - Emin);
+
+
+  int iout = 0;
+  for(int kk = 0; kk < skind; kk++)
+    iout = (iout < cfg[kk].iout) ? cfg[kk].iout : iout;
+
+
+#pragma omp parallel
+  {
+    double v2f[NKIND_MAX], fp2[NKIND_MAX], f02[NKIND_MAX], ft2[NKIND_MAX];
+    double v4f[NKIND_MAX], fp4[NKIND_MAX], f04[NKIND_MAX], ft4[NKIND_MAX];
+
+#pragma omp for schedule(auto) nowait
+    for(int ii = 0; ii < iout + 1; ii += SKIP_INTERVAL_FOR_VELOCITY_DISPERSION){
+      const double psi = prf[0][ii].psi_tot;
+      const double vesc2 = 2.0 * (psi - Emin);
+
+      /* call double exponential formula */
+      integrate_DEformula_vdisp(skind, v2f, v4f, vesc2, psi, df, Emin, invEbin, fp2, f02, ft2, fp4, f04, ft4);
+
+      for(int kk = 0; kk < skind; kk++){
+	prf[kk][ii].sigr = sqrt(v4f[kk] / (DBL_MIN + 3.0 * v2f[kk]));
+	prf[kk][ii].v2f  = v2f[kk];
+	prf[kk][ii].v4f  = v4f[kk];
+      }/* for(int kk = 0; kk < skind; kk++){ */
+    }/* for(int ii = 0; ii < iout + 1; ii += SKIP_INTERVAL_FOR_VELOCITY_DISPERSION){ */
+
+    for(int kk = 0; kk < skind; kk++)
+#pragma omp for schedule(auto) nowait
+      for(int ii = iout + 1; ii < NRADBIN; ii++){
+	prf[kk][ii].sigr = 0.0;
+	prf[kk][ii].v2f  = 0.0;
+	prf[kk][ii].v4f  = 0.0;
+      }/* for(int ii = iout + 1; ii < NRADBIN; ii++){ */
+  }
+
+
+#   if  SKIP_INTERVAL_FOR_VELOCITY_DISPERSION != 1
+#pragma omp parallel
+  {
+
+    for(int kk = 0; kk < skind; kk++){
+      const int iout = cfg[kk].iout;
+
+#pragma omp for schedule(auto) nowait
+      for(int ii = 0; ii < iout + 1; ii += SKIP_INTERVAL_FOR_VELOCITY_DISPERSION){
+	const double sigr0 = prf[kk][ii                                        ].sigr;
+	const double  v2f0 = prf[kk][ii                                        ]. v2f;
+	const double  v4f0 = prf[kk][ii                                        ]. v4f;
+	const double sigr1 = prf[kk][ii + SKIP_INTERVAL_FOR_VELOCITY_DISPERSION].sigr;
+	const double  v2f1 = prf[kk][ii + SKIP_INTERVAL_FOR_VELOCITY_DISPERSION]. v2f;
+	const double  v4f1 = prf[kk][ii + SKIP_INTERVAL_FOR_VELOCITY_DISPERSION]. v4f;
+
+	double sigr_slope = (sigr1 - sigr0) / (double)SKIP_INTERVAL_FOR_VELOCITY_DISPERSION;
+	double  v2f_slope = ( v2f1 -  v2f0) / (double)SKIP_INTERVAL_FOR_VELOCITY_DISPERSION;
+	double  v4f_slope = ( v4f1 -  v4f0) / (double)SKIP_INTERVAL_FOR_VELOCITY_DISPERSION;
+
+	for(int jj = 1; jj < SKIP_INTERVAL_FOR_VELOCITY_DISPERSION; jj++){
+	  prf[kk][ii + jj].sigr = sigr0 + sigr_slope * (double)jj;
+	  prf[kk][ii + jj]. v2f =  v2f0 +  v2f_slope * (double)jj;
+	  prf[kk][ii + jj]. v4f =  v4f0 +  v4f_slope * (double)jj;
+	}/* for(int jj = 1; jj < SKIP_INTERVAL_FOR_VELOCITY_DISPERSION; jj++){ */
+      }/* for(int ii = 0; ii < iout + 1; ii += SKIP_INTERVAL_FOR_VELOCITY_DISPERSION){ */
+
+    }/* for(int kk = 0; kk < skind; kk++){ */
+
+  }
+#endif//SKIP_INTERVAL_FOR_VELOCITY_DISPERSION != 1
+
+
+  __NOTE__("%s\n", "end");
+}
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+
+#else///ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
 
 /**
  * @fn findIdx
@@ -45,8 +624,8 @@ extern double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[NTBL_GAUSS_QD];
 static inline void findIdx(const double psi, profile *prf, int *ll, int *rr)
 {
   bool bisection = true;
-  *ll = 2;
-  *rr = 1 + NRADBIN;
+  *ll =           0;
+  *rr = NRADBIN - 1;
 
   if( bisection == true )    if( fabs(prf[*ll].psi_tot - psi) / psi < DBL_EPSILON ){      bisection = false;      *rr = (*ll) + 1;    }
   if( bisection == true )    if( fabs(prf[*rr].psi_tot - psi) / psi < DBL_EPSILON ){      bisection = false;      *ll = (*rr) - 1;    }
@@ -83,13 +662,18 @@ static inline void getEddingtonFormula(const double ene, const double psi, const
   /** based on linear interpolation */
   const double r_dr = (psi - prf[0][ll].psi_tot) / (prf[0][rr].psi_tot - prf[0][ll].psi_tot);
   const double rad = (1.0 - r_dr) * prf[0][ll].rad     + r_dr * prf[0][rr].rad;
-  const double rho = (1.0 - r_dr) * prf[0][ll].rho_tot + r_dr * prf[0][rr].rho_tot;
   const double enc = (1.0 - r_dr) * prf[0][ll].enc_tot + r_dr * prf[0][rr].enc_tot;
-  const double fac = 2.0 / rad - 4.0 * M_PI * rho * rad * rad / enc;
+#if 1
+  const double rho = (1.0 - r_dr) * prf[0][ll].rho_tot + r_dr * prf[0][rr].rho_tot;
+  const double fac = 2.0 * (enc - 2.0 * M_PI * rho * rad * rad * rad) / (DBL_MIN + rad * enc);
+#else
+  const double fl = 2.0 * (prf[0][ll].enc_tot - 2.0 * M_PI * prf[0][ll].rho_tot * prf[0][ll].rad * prf[0][ll].rad * prf[0][ll].rad) / (DBL_MIN + prf[0][ll].rad * prf[0][ll].enc_tot);
+  const double fr = 2.0 * (prf[0][rr].enc_tot - 2.0 * M_PI * prf[0][rr].rho_tot * prf[0][rr].rad * prf[0][rr].rad * prf[0][rr].rad) / (DBL_MIN + prf[0][rr].rad * prf[0][rr].enc_tot);
+  const double fac = (1.0 - r_dr) * fl + r_dr * fr;
+#endif
 
-  double common = M_1_PI * rad * rad / (CAST_R2D(newton) * enc);
-  common *= common;
-  common *= (0.5 * M_SQRT1_2 / sqrt(ene - psi));
+  double common = rad * rad / enc;
+  common *= common / sqrt(ene - psi);
 
   for(int kk = 0; kk < kind; kk++){
     /** based on linear interpolation */
@@ -117,30 +701,31 @@ static inline void getEddingtonFormula(const double ene, const double psi, const
  *
  * @sa getEddingtonFormula
  */
-static inline void gaussQuad1dEddington(const int num, const double xmin, const double xmax,
-					const int kind, profile **prf, double *sum, double *fm, double *fp)
+static inline void gaussQuad1dEddington
+(const int num, const double xmin, const double xmax,
+ const int kind, profile **prf, double * restrict sum, double * restrict fm, double * restrict fp)
 {
   const double mns = 0.5 * (xmax - xmin);
   const double pls = 0.5 * (xmax + xmin);
 
   for(int kk = 0; kk < kind; kk++)    sum[kk] = 0.0;
   if( num & 1 ){
-    const double weight =             gsl_gaussQD_weight[(num >> 1)];
-    const double  value = pls + mns * gsl_gaussQD_pos   [(num >> 1)];
-    getEddingtonFormula(xmax, value, kind, prf, fm);
+    const double ww = gsl_gaussQD_weight[(num >> 1)];
+    const double xx = pls + mns * gsl_gaussQD_pos[(num >> 1)];
+    getEddingtonFormula(xmax, xx, kind, prf, fm);
     for(int kk = 0; kk < kind; kk++)
-      sum[kk] = weight * fm[kk];
+      sum[kk] = ww * fm[kk];
   }/* if( num & 1 ){ */
 
   for(int ii = (num >> 1) - 1; ii >= 0; ii--){
-    const double weight = gsl_gaussQD_weight[ii];
+    const double ww = gsl_gaussQD_weight[ii];
     const double xp = pls + mns * gsl_gaussQD_pos[ii];
     const double xm = pls - mns * gsl_gaussQD_pos[ii];
     getEddingtonFormula(xmax, xp, kind, prf, fp);
     getEddingtonFormula(xmax, xm, kind, prf, fm);
 
     for(int kk = 0; kk < kind; kk++)
-      sum[kk] += weight * (fm[kk] + fp[kk]);
+      sum[kk] += ww * (fm[kk] + fp[kk]);
   }/* for(int ii = (num >> 1) - 1; ii >= 0; ii--){ */
 
   for(int kk = 0; kk < kind; kk++)
@@ -165,71 +750,185 @@ void integrateEddingtonFormula(const int skind, profile **prf, dist_func **fene)
 
 
   /** set integration range */
-  /** find maximum of r^2 rho and truncated radius for the particle distribution */
-  double fmax = 0.0;
-  int   iout = 1 + NRADBIN;
-  for(int ii = 2; ii < 2 + NRADBIN; ii++){
-    double floc = prf[0][ii].rad * prf[0][ii].rad * prf[0][ii].rho_tot;
-    if(                                        floc > fmax ){      fmax = floc;    }
-  }/* for(int ii = 2; ii < 2 + NRADBIN; ii++){ */
-
-  const double Emax = prf[0][2   ].psi_tot;
-  const double Emin = prf[0][iout].psi_tot;
+  const double Emax = prf[0][          0].psi_tot;
+  const double Emin = prf[0][NRADBIN - 1].psi_tot;
   const double Ebin = (Emax - Emin) / (double)(NENEBIN - 1);
 
+  double common = M_1_PI / CAST_R2D(newton);
+  common *= common * 0.5 * M_SQRT1_2;
 
-#ifdef  NDIVIDE_GAUSSQD
-  const int nsub = NENEBIN / NDIVIDE_GAUSSQD;
-  int head = 0;
-  double Ein = 0.0;
-  static double sub[NKIND_MAX];
-  for(int ii = 0; ii < skind; ii++)    sub[ii] = 0.0;
 
-  for(int iter = 0; iter < NDIVIDE_GAUSSQD; iter++){
-    const int tail = head + nsub;
-#pragma omp parallel for schedule(dynamic, 16)
-    for(int ii = head; ii < tail; ii++){
-      double sum[NKIND_MAX], fm[NKIND_MAX], fp[NKIND_MAX];
+/* #ifdef  NDIVIDE_GAUSSQD */
+/*   const int nsub = NENEBIN / NDIVIDE_GAUSSQD; */
+/*   int head = 0; */
+/*   double Ein = 0.0; */
+/*   static double sub[NKIND_MAX]; */
+/*   for(int ii = 0; ii < skind; ii++)    sub[ii] = 0.0; */
+
+/*   for(int iter = 0; iter < NDIVIDE_GAUSSQD; iter++){ */
+/*     const int tail = head + nsub; */
+/* #pragma omp parallel for schedule(dynamic, 16) */
+/*     for(int ii = head; ii < tail; ii++){ */
+/*       double sum[NKIND_MAX], fm[NKIND_MAX], fp[NKIND_MAX]; */
+/*       const double ene = Emin + Ebin * (double)ii; */
+
+/*       gaussQuad1dEddington(NINTBIN, Ein, ene, skind, prf, sum, fm, fp); */
+
+/*       for(int kk = 0; kk < skind; kk++){ */
+/* 	sum[kk] += sub[kk]; */
+/* 	fene[kk][ii].ene = CAST_D2R(ene); */
+/* 	fene[kk][ii].val = CAST_D2R(common * fmax(sum[kk], 0.0)); */
+/*       }/\* for(int kk = 0; kk < skind; kk++){ *\/ */
+/*     }/\* for(int ii = head; ii < tail; ii++){ *\/ */
+
+/*     head = tail; */
+/*     for(int ii = 0; ii < skind; ii++) */
+/*       sub[ii] = fene[ii][head - 1].val; */
+/*     Ein = fene[0][head - 1].ene; */
+/*   }/\* for(int iter = 0; iter < NDIVIDE_GAUSSQD; iter++){ *\/ */
+/* #else///NDIVIDE_GAUSSQD */
+#pragma omp parallel
+  {
+    double sum[NKIND_MAX], fm[NKIND_MAX], fp[NKIND_MAX];
+
+#pragma omp for schedule(auto)
+    for(int ii = 0; ii < NENEBIN; ii++){
       const double ene = Emin + Ebin * (double)ii;
-      gaussQuad1dEddington(NINTBIN, Ein, ene, skind, prf, sum, fm, fp);
+      gaussQuad1dEddington(NINTBIN, 0.0, ene, skind, prf, sum, fm, fp);
 
       for(int kk = 0; kk < skind; kk++){
-	sum[kk] += sub[kk];
 	fene[kk][ii].ene = CAST_D2R(ene);
-	fene[kk][ii].val = (sum[kk] >= 0.0) ? CAST_D2R(sum[kk]) : ZERO;
+	fene[kk][ii].val = CAST_D2R(fmax(common * sum[kk], 0.0));
       }/* for(int kk = 0; kk < skind; kk++){ */
-    }/* for(int ii = head; ii < tail; ii++){ */
-
-    head = tail;
-    for(int ii = 0; ii < skind; ii++)
-      sub[ii] = fene[ii][head - 1].val;
-    Ein = fene[0][head - 1].ene;
-  }/* for(int iter = 0; iter < NDIVIDE_GAUSSQD; iter++){ */
-#pragma omp parallel for schedule(dynamic, 16)
-  for(int ii = 0; ii < NENEBIN; ii++){
-    double sum[NKIND_MAX], fm[NKIND_MAX], fp[NKIND_MAX];
-    const double ene = Emin + Ebin * (double)ii;
-    gaussQuad1dEddington(NINTBIN, 0.0, ene, skind, prf, sum, fm, fp);
-
-    for(int kk = 0; kk < skind; kk++){
-      fene[kk][ii].ene = CAST_D2R(ene);
-      fene[kk][ii].val = (sum[kk] >= 0.0) ? CAST_D2R(sum[kk]) : ZERO;
-    }/* for(int kk = 0; kk < skind; kk++){ */
-  }/* for(int ii = 0; ii < NENEBIN; ii++){ */
-#else///NDIVIDE_GAUSSQD
-#pragma omp parallel for schedule(dynamic, 16)
-  for(int ii = 0; ii < NENEBIN; ii++){
-    double sum[NKIND_MAX], fm[NKIND_MAX], fp[NKIND_MAX];
-    const double ene = Emin + Ebin * (double)ii;
-    gaussQuad1dEddington(NINTBIN, 0.0, ene, skind, prf, sum, fm, fp);
-
-    for(int kk = 0; kk < skind; kk++){
-      fene[kk][ii].ene = CAST_D2R(ene);
-      fene[kk][ii].val = (sum[kk] >= 0.0) ? CAST_D2R(sum[kk]) : ZERO;
-    }/* for(int kk = 0; kk < skind; kk++){ */
-  }/* for(int ii = 0; ii < NENEBIN; ii++){ */
-#endif//NDIVIDE_GAUSSQD
+    }/* for(int ii = 0; ii < NENEBIN; ii++){ */
+  }
+/* #endif//NDIVIDE_GAUSSQD */
 
 
   __NOTE__("%s\n", "end");
 }
+
+
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+/**
+ * @fn gaussQuadVelocity
+ *
+ * @brief Gaussian quadrature for calculating velocity dispersion
+ *
+ * @param (num) number of data points
+ * @param (psi) relative potential
+ * @param (vmin) minimum of velocity
+ * @param (vmax) maximum of velocity
+ * @param (df) distribution function of the components
+ * @param (Emin) minimum value of the relative energy per unit mass
+ * @param (invEbin) inverse of energy bin in distribution function
+ * @return (v2f) integrated value of v^2 * df(v)
+ * @return (v4f) integrated value of v^4 * df(v)
+ *
+ * @sa getDF
+ */
+void gaussQuadVelocity(const int num, const double psi, const double vmin, const double vmax, dist_func *df, const double Emin, const double invEbin, double * restrict v2f, double * restrict v4f);
+void gaussQuadVelocity(const int num, const double psi, const double vmin, const double vmax, dist_func *df, const double Emin, const double invEbin, double * restrict v2f, double * restrict v4f)
+{
+  const double mns = 0.5 * (vmax - vmin);
+  const double pls = 0.5 * (vmax + vmin);
+
+  (*v2f) = (*v4f) = 0.0;
+
+  if( num & 1 ){
+    const double weight =             gsl_gaussQD_weight[(num >> 1)];
+    const double  value = pls + mns * gsl_gaussQD_pos   [(num >> 1)];
+
+    const double v2 = value * value;    const double v2df = v2 * getDF(psi - 0.5 * v2, df, Emin, invEbin);
+
+    (*v2f) = weight * v2df;
+    (*v4f) = weight * v2df * v2;
+  }/* if( num & 1 ){ */
+
+  for(int ii = (num >> 1) - 1; ii >= 0; ii--){
+    const double weight = gsl_gaussQD_weight[ii];
+    const double vp = pls + mns * gsl_gaussQD_pos[ii];
+    const double vm = pls - mns * gsl_gaussQD_pos[ii];
+
+    const double vp2 = vp * vp;    const double vp2df = vp2 * getDF(psi - 0.5 * vp2, df, Emin, invEbin);
+    const double vm2 = vm * vm;    const double vm2df = vm2 * getDF(psi - 0.5 * vm2, df, Emin, invEbin);
+
+    (*v2f) += weight * (      vp2df +       vm2df);
+    (*v4f) += weight * (vp2 * vp2df + vm2 * vm2df);
+  }/* for(int ii = (num >> 1) - 1; ii >= 0; ii--){ */
+
+  (*v2f) *= mns;
+  (*v4f) *= mns;
+}
+
+
+/**
+ * @fn calcVelocityDispersionProfile
+ *
+ * @brief Calculate velocity dispersion profile.
+ *
+ * @param (skind) number of spherical symmetric components
+ * @return (prf) radial profile of the components
+ * @param (fene) distribution function of the components
+ *
+ * @sa gaussQuadVelocity
+ */
+void calcVelocityDispersionProfile(const int skind, profile **prf, dist_func **df)
+{
+  __NOTE__("%s\n", "start");
+
+
+  static double Emin[NKIND_MAX], Emax[NKIND_MAX], invEbin[NKIND_MAX];
+  for(int kk = 0; kk < skind; kk++){
+    Emin[kk] = df[kk][          0].ene;
+    Emax[kk] = df[kk][NENEBIN - 1].ene;
+    invEbin[kk] = (double)(NENEBIN - 1) / (Emax[kk] - Emin[kk]);
+  }/* for(int kk = 0; kk < skind; kk++){ */
+
+#pragma omp parallel for schedule(auto)
+  for(int ii = 0; ii < NRADBIN; ii += SKIP_INTERVAL_FOR_VELOCITY_DISPERSION){
+    /** initialization */
+    for(int kk = 0; kk < skind; kk++)
+      prf[kk][ii].v2f = prf[kk][ii].v4f = 0.0;
+
+    const double psi = prf[0][ii].psi_tot;
+    for(int kk = 0; kk < skind; kk++){
+      const double vesc = sqrt(2.0 * (psi - Emin[kk]));
+
+      /** numerical quadrature of v2f and v4f in vel [0, vesc] */
+      double v2f, v4f;
+      gaussQuadVelocity(NINTBIN, psi, 0.0, vesc, df[kk], Emin[kk], invEbin[kk], &v2f, &v4f);
+
+      prf[kk][ii].sigr = sqrt(v4f / (3.0 * v2f));
+      prf[kk][ii].v2f  = v2f;
+      prf[kk][ii].v4f  = v4f;
+    }/* for(int kk = 0; kk < skind; kk++){ */
+  }/* for(int ii = 0; ii < NRADBIN; ii += SKIP_INTERVAL_FOR_VELOCITY_DISPERSION){ */
+
+
+#   if  SKIP_INTERVAL_FOR_VELOCITY_DISPERSION != 1
+#pragma omp parallel for
+  for(int ii = 0; ii < NRADBIN - SKIP_INTERVAL_FOR_VELOCITY_DISPERSION; ii += SKIP_INTERVAL_FOR_VELOCITY_DISPERSION)
+    for(int kk = 0; kk < skind; kk++){
+      const double sigr0 = prf[kk][ii                                        ].sigr;
+      const double  v2f0 = prf[kk][ii                                        ]. v2f;
+      const double  v4f0 = prf[kk][ii                                        ]. v4f;
+      const double sigr1 = prf[kk][ii + SKIP_INTERVAL_FOR_VELOCITY_DISPERSION].sigr;
+      const double  v2f1 = prf[kk][ii + SKIP_INTERVAL_FOR_VELOCITY_DISPERSION]. v2f;
+      const double  v4f1 = prf[kk][ii + SKIP_INTERVAL_FOR_VELOCITY_DISPERSION]. v4f;
+
+      double sigr_slope = (sigr1 - sigr0) / (double)SKIP_INTERVAL_FOR_VELOCITY_DISPERSION;
+      double  v2f_slope = ( v2f1 -  v2f0) / (double)SKIP_INTERVAL_FOR_VELOCITY_DISPERSION;
+      double  v4f_slope = ( v4f1 -  v4f0) / (double)SKIP_INTERVAL_FOR_VELOCITY_DISPERSION;
+
+      for(int jj = 1; jj < SKIP_INTERVAL_FOR_VELOCITY_DISPERSION; jj++){
+	prf[kk][ii + jj].sigr = sigr0 + sigr_slope * (double)jj;
+	prf[kk][ii + jj]. v2f =  v2f0 +  v2f_slope * (double)jj;
+	prf[kk][ii + jj]. v4f =  v4f0 +  v4f_slope * (double)jj;
+      }/* for(int jj = 1; jj < SKIP_INTERVAL_FOR_VELOCITY_DISPERSION; jj++){ */
+    }/* for(int kk = 0; kk < skind; kk++){ */
+#endif//SKIP_INTERVAL_FOR_VELOCITY_DISPERSION != 1
+  __NOTE__("%s\n", "end");
+}
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF

@@ -1,12 +1,12 @@
 /**
  * @file magi.h
  *
- * @brief Header file for MAGI (MAny-component Galactic Initial-conditions generator)
+ * @brief Header file for MAGI (MAny-component Galaxy Initializer)
  *
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/23 (Thu)
+ * @date 2017/03/16 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -25,7 +25,8 @@
 
 /**
  * @def PROGRESS_REPORT_ON
- * activate progress report
+ *
+ * @brief activate progress report
  */
 #ifndef PROGRESS_REPORT_ON
 #define PROGRESS_REPORT_ON

@@ -3,8 +3,8 @@
 #SBATCH -J plplot             # name of job
 #SBATCH -t 00:30:00           # upper limit of elapsed time
 #SBATCH -p normal             # partition name
-#SBATCH -N 1                  # number of nodes, set to SLURM_JOB_NUM_NODES
-#SBATCH -n 16                 # number of total MPI processes, set to SLURM_NTASKS
+#SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
+#SBATCH --ntasks=16           # number of total MPI processes, set to SLURM_NTASKS
 #SBATCH --ntasks-per-socket=8 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET
 #SBATCH --get-user-env        # retrieve the login environment variables
 ###############################################################
@@ -366,37 +366,41 @@ OPTMAP="-file=$FILE -problem=$PROBLEM -ncrit=$NCRIT -start=$START -end=$END -int
 ###############################################################
 # job execution via SLURM
 ###############################################################
-# set socket ID for numactl
+# set number of MPI processes per node
 PROCS_PER_NODE=`expr $SLURM_NTASKS / $SLURM_JOB_NUM_NODES`
-TEMPID=`expr $SLURM_PROCID % $PROCS_PER_NODE` # MPI rank of the current process is $SLURM_PROCID ($*_COMM_WORLD_LOCAL_RANK: MV2 for MVAPICH2, OMPI for OpenMPI)
-SOCKET=`expr $TEMPID / $SLURM_NTASKS_PER_SOCKET`
-###############################################################
-# start logging
-cd $SLURM_SUBMIT_DIR
-TIME=`date`
-echo "start: $TIME"
 ###############################################################
 # set stdout and stderr
 STDOUT=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.out
 STDERR=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.err
 ###############################################################
+# start logging
+cd $SLURM_SUBMIT_DIR
+echo "use $SLURM_JOB_NUM_NODES nodes"
+echo "use $SLURM_JOB_CPUS_PER_NODE CPUs per node"
+TIME=`date`
+echo "start: $TIME"
+###############################################################
 # execute the job
 if [ `which numactl` ]; then
     # mpirun with numactl
-    echo "mpirun -np $SLURM_NTASKS numactl --cpunodebind=$SOCKET --localalloc $PLTENE $OPTENE 1>>$STDOUT 2>>$STDERR"
-    mpirun -np $SLURM_NTASKS numactl --cpunodebind=$SOCKET --localalloc $PLTENE $OPTENE 1>>$STDOUT 2>>$STDERR
-    echo "mpirun -np $SLURM_NTASKS numactl --cpunodebind=$SOCKET --localalloc $PLTMAP $OPTMAP 1>>$STDOUT 2>>$STDERR"
-    mpirun -np $SLURM_NTASKS numactl --cpunodebind=$SOCKET --localalloc $PLTMAP $OPTMAP 1>>$STDOUT 2>>$STDERR
+    echo "mpirun -np $SLURM_NTASKS sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTENE $OPTENE 1>>$STDOUT 2>>$STDERR"
+    mpirun -np $SLURM_NTASKS sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTENE $OPTENE 1>>$STDOUT 2>>$STDERR
+
+    echo "mpirun -np $SLURM_NTASKS sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTMAP $OPTMAP 1>>$STDOUT 2>>$STDERR"
+    mpirun -np $SLURM_NTASKS sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTMAP $OPTMAP 1>>$STDOUT 2>>$STDERR
+
     if [ -e dat/$FILE.direct000.dat ]; then
-	echo "mpirun -np $SLURM_NTASKS numactl --cpunodebind=$SOCKET --localalloc $PLTCDF $OPTCDF 1>>$STDOUT 2>>$STDERR"
-	mpirun -np $SLURM_NTASKS numactl --cpunodebind=$SOCKET --localalloc $PLTCDF $OPTCDF 1>>$STDOUT 2>>$STDERR
+	echo "mpirun -np $SLURM_NTASKS sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTCDF $OPTCDF 1>>$STDOUT 2>>$STDERR"
+	mpirun -np $SLURM_NTASKS sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTCDF $OPTCDF 1>>$STDOUT 2>>$STDERR
     fi
 else
     # mpirun without numactl
     echo "mpirun -np $SLURM_NTASKS $PLTENE $OPTENE 1>>$STDOUT 2>>$STDERR"
     mpirun -np $SLURM_NTASKS $PLTENE $OPTENE 1>>$STDOUT 2>>$STDERR
+
     echo "mpirun -np $SLURM_NTASKS $PLTMAP $OPTMAP 1>>$STDOUT 2>>$STDERR"
     mpirun -np $SLURM_NTASKS $PLTMAP $OPTMAP 1>>$STDOUT 2>>$STDERR
+
     if [ -e dat/$FILE.direct000.dat ]; then
 	echo "mpirun -np $SLURM_NTASKS $PLTCDF $OPTCDF 1>>$STDOUT 2>>$STDERR"
 	mpirun -np $SLURM_NTASKS $PLTCDF $OPTCDF 1>>$STDOUT 2>>$STDERR

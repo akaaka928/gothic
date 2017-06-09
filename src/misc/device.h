@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/28 (Tue)
+ * @date 2017/03/01 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -20,7 +20,8 @@
 
 /**
  * @def GPUS_PER_PROCESS
- * Number of GPUs per MPI process
+ *
+ * @brief Number of GPUs per MPI process
  */
 #   if  !defined(GPUS_PER_PROCESS) && !defined(_OPENMP)
 #        define  GPUS_PER_PROCESS (1)
@@ -33,7 +34,8 @@
 
 /**
  * @def SMEM_SIZE
- * Size of allocated shared memory on GPU (must be 0)
+ *
+ * @brief Size of allocated shared memory on GPU (must be 0)
  */
 #ifndef SMEM_SIZE
 #define SMEM_SIZE (0)
@@ -41,7 +43,8 @@
 
 /**
  * @def SMPREF
- * Shared memory preferred (1) or L1 cache preferred (0); default in CUDA is 1, global default in GOTHIC is 0
+ *
+ * @brief Shared memory preferred (1) or L1 cache preferred (0); default in CUDA is 1, global default in GOTHIC is 0
  */
 #ifndef SMPREF
 #define SMPREF (1)
@@ -49,7 +52,8 @@
 
 /**
  * @def SMPREF_LET
- * Shared memory preferred (1) or L1 cache preferred (0)
+ *
+ * @brief Shared memory preferred (1) or L1 cache preferred (0)
  */
 #ifndef SMPREF_LET
 #define SMPREF_LET SMPREF
@@ -57,7 +61,8 @@
 
 /**
  * @def WIDEBANK
- * 1 set shared memory bank width to be 8 bytes while 0 is 4 bytes; default in CUDA is 0, global defalut in GOTHIC is 1
+ *
+ * @brief 1 set shared memory bank width to be 8 bytes while 0 is 4 bytes; default in CUDA is 0, global defalut in GOTHIC is 1
  */
 #ifndef WIDEBANK
 #define WIDEBANK (0)
@@ -66,7 +71,8 @@
 
 /**
  * @def GLOBAL_MEMORY_SYSBUF
- * Size of remained global memory for buffers
+ *
+ * @brief Size of remained global memory for buffers
  */
 /* #define GLOBAL_MEMORY_SYSBUF (128 * 1048576) */
 #define GLOBAL_MEMORY_SYSBUF (256 * 1048576)

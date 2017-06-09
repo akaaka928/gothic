@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/21 (Tue)
+ * @date 2017/03/01 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -24,7 +24,8 @@
 
 /**
  * @def BENCHMARK_STEPS
- * Number of time steps in benchmark
+ *
+ * @brief Number of time steps in benchmark
  */
 /* #define BENCHMARK_STEPS (8) */
 /* #define BENCHMARK_STEPS (16) */
@@ -68,10 +69,8 @@ typedef struct
   double copyParticle_hst2dev;
   double setTreeNode_dev;
   double setTreeCell_dev;
-#   if  defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES)
   double examineNeighbor_dev;
   double  searchNeighbor_dev;
-#endif//defined(BRUTE_FORCE_LOCALIZATION) && defined(LOCALIZE_I_PARTICLES)
 #ifdef  HUNT_MAKE_PARAMETER
   double genPHkey_kernel;
   double rsortKey_library;

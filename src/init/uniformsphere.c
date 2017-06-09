@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tsukuba)
  *
- * @date 2017/02/23 (Thu)
+ * @date 2017/02/28 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -38,9 +38,7 @@
 
 #ifndef RUN_WITHOUT_GOTHIC
 #include "../misc/tune.h"
-#           if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #include "../misc/brent.h"
-#        endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #endif//RUN_WITHOUT_GOTHIC
 
 #include "../file/io.h"
@@ -363,21 +361,11 @@ int main(int argc, char **argv)
 #endif//MONITOR_ENERGY_ERROR
   static rebuildTree rebuild;
   static measuredTime measured;
-#ifdef  WALK_TREE_COMBINED_MODEL
   static autoTuningParam rebuildParam;
-#endif//WALK_TREE_COMBINED_MODEL
-#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
   static brentStatus status;
   static brentMemory memory;
-#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
   writeTentativeData(time, dt, steps, Ntot, body, file, &last, hdf5type
-		     , rebuild, measured
-#ifdef  WALK_TREE_COMBINED_MODEL
-		     , rebuildParam
-#endif//WALK_TREE_COMBINED_MODEL
-#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
-		     , status, memory
-#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+		     , rebuild, measured, rebuildParam, status, memory
 #ifdef  MONITOR_ENERGY_ERROR
 		     , relEneErr
 #endif//MONITOR_ENERGY_ERROR

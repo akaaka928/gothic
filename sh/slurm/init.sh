@@ -2,8 +2,7 @@
 #SBATCH -J magi               # name of job
 #SBATCH -t 00:30:00           # upper limit of elapsed time
 #SBATCH -p normal             # partition name
-#SBATCH -N 1                  # number of nodes, set to SLURM_JOB_NUM_NODES
-#SBATCH -n 1                  # number of total MPI processes, set to SLURM_NTASKS
+#SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
 #SBATCH --get-user-env        # retrieve the login environment variables
 ###############################################################
 
@@ -15,7 +14,11 @@ EXEC=bin/magi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=28
+    # PROBLEM=26
+    # PROBLEM=28
+    # PROBLEM=70
+    # PROBLEM=71
+    PROBLEM=1
 fi
 ###############################################################
 # number of N-body particles
@@ -34,9 +37,9 @@ if [ -z "$NTOT" ]; then
     # NTOT=262144
     # NTOT=524288
     # NTOT=1048576
-    # NTOT=2097152
+    NTOT=2097152
     # NTOT=4194304
-    NTOT=8388608
+    # NTOT=8388608
     # NTOT=16777216
     # NTOT=33554432
     # NTOT=67108864
@@ -532,6 +535,28 @@ if [ $PROBLEM -eq 60 ]; then
     # INTERVAL=25.0
 fi
 ###############################################################
+# dynamical stability of Eridanus II (Crnojevic et al. 2016; Li et al. 2017)
+if [ $PROBLEM -eq 70 ]; then
+    FILE=eri2
+    CONFIG=dwarf/EriII.cfg
+    EPS=2.0
+    ETA=0.5
+    FINISH=1175.0
+    INTERVAL=25.0
+    # FINISH=3175.0
+    # INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of a King sphere with a central cusp
+if [ $PROBLEM -eq 71 ]; then
+    FILE=king
+    CONFIG=single/king_slope.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=23.5
+    INTERVAL=0.5
+fi
+###############################################################
 # set input arguments
 if [ $PROBLEM -ge 1 ]; then
     OPTION="-file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE"
@@ -544,14 +569,15 @@ fi
 ###############################################################
 # job execution via SLURM
 ###############################################################
-# start logging
-cd $SLURM_SUBMIT_DIR
-TIME=`date`
-echo "start: $TIME"
-###############################################################
 # set stdout and stderr
 STDOUT=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.out
 STDERR=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.err
+###############################################################
+# start logging
+cd $SLURM_SUBMIT_DIR
+echo "use $SLURM_JOB_CPUS_PER_NODE CPUs"
+TIME=`date`
+echo "start: $TIME"
 ###############################################################
 # execute the job
 if [ `which numactl` ]; then

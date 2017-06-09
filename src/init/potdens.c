@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/24 (Fri)
+ * @date 2017/06/02 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -599,8 +599,8 @@ static inline int bisection(const double val, const int num, double * restrict t
  */
 static inline int findIdxSpherical(const double rad, profile *prf, const double invlogbin, double *ratio)
 {
-  int ll = 0;
-  int rr = 3 + NRADBIN;
+  int ll =           0;
+  int rr = NRADBIN - 1;
 
   if( rad < prf[ll].rad + DBL_EPSILON ){    *ratio = 0.0;    return (ll    );  }
   if( rad > prf[rr].rad - DBL_EPSILON ){    *ratio = 1.0;    return (rr - 1);  }
@@ -654,8 +654,8 @@ static inline double Phi_spherical(const double rad, profile *sph, const double 
  */
 static inline int findIdxSphericalPsi(const double psi, profile *prf, double *ratio)
 {
-  int ll = 0;
-  int rr = 3 + NRADBIN;
+  int ll =           0;
+  int rr = NRADBIN - 1;
 
   if( psi > prf[ll].psi_tot - DBL_EPSILON ){    *ratio = 0.0;    return (ll    );  }
   if( psi < prf[rr].psi_tot + DBL_EPSILON ){    *ratio = 1.0;    return (rr - 1);  }
@@ -673,18 +673,6 @@ static inline int findIdxSphericalPsi(const double psi, profile *prf, double *ra
   }/* while( true ){ */
 }
 
-/**
- * @var diskDimmingHeight
- * parameter to remove the needle-like structure
- * see Equation (8) in Miki & Umemura (in preparation)
- */
-static const double diskDimmingHeight    = 16.0;
-
-/**
- * @var diskDimmingHeightInv
- * inverse of diskDimmingHeight
- */
-static const double diskDimmingHeightInv = 0.0625;
 
 /**
  * @fn getVariableDiskScaleHeight
@@ -706,12 +694,18 @@ static inline void getVariableDiskScaleHeight(const int ndisk, const int maxLev,
 
 
   for(int kk = 0; kk < ndisk; kk++){
+    const double zd0 = disk[kk].cfg->zd;
+#ifdef  ADDITIONAL_CONDITION_FOR_SCALE_HEIGHT
+    double zdim = fmin(DISK_DIMMING_HEIGHT * zd0, DISK_DIMMING_SCALE * disk[kk].cfg->rs);
+#else///ADDITIONAL_CONDITION_FOR_SCALE_HEIGHT
+    double zdim = DISK_DIMMING_HEIGHT * zd0;
+#endif//ADDITIONAL_CONDITION_FOR_SCALE_HEIGHT
+    zdim = fmin(zdim, disk[kk].cfg->rc);
+    const double zd2 = zdim * zdim;
+
     for(int lev = 0; lev < maxLev; lev++){
       double *RR;      RR = &(disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)]);
       double *zd;      zd = &(disk[kk]. zd[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)]);
-
-      const double zd0 = disk[kk].cfg->zd;
-      const double zd2 = diskDimmingHeight * zd0 * diskDimmingHeight * zd0;
 
 #pragma omp parallel for
       for(int ii = 0; ii < NDISKBIN_HOR; ii++){
@@ -721,14 +715,14 @@ static inline void getVariableDiskScaleHeight(const int ndisk, const int maxLev,
 	const double PsiMid = Phi_spherical(RR[ii], sph, invlogrbin_sph);
 	const double PsiDim = Phi_spherical(sqrt(R2 + zd2), sph, invlogrbin_sph);
 
-	const double Psi = PsiMid + diskDimmingHeightInv * (PsiDim - PsiMid);
+	const double Psi = PsiMid + DISK_DIMMING_HEIGHT_INV * (PsiDim - PsiMid);
 
 	double ratio;
 	const int irr = findIdxSphericalPsi(Psi, sph, &ratio);
 	const double rr = (1.0 - ratio) * sph[irr].rad + ratio * sph[1 + irr].rad;
 
 	const double zd1 = sqrt(rr * rr - R2);
-	zd[ii] = (zd0 < zd1) ? zd0 : zd1;
+	zd[ii] = fmin(zd0, zd1);
       }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
     }/* for(int lev = 0; lev < maxLev; lev++){ */
   }/* for(int kk = 0; kk < ndisk; kk++){ */
@@ -868,7 +862,7 @@ static inline void setColumnDensityProfile(const int ndisk, const int maxLev, di
 	(*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, 0, ii, jj)] = rho0 * gaussQuad1d4Rho(getVerticalDensity, disk[kk].ver[INDEX2D(maxLev, NDISKBIN_VER, 0, jj)] - 0.5 * disk[kk].hh, disk[kk].ver[INDEX2D(maxLev, NDISKBIN_VER, 0, jj)] + 0.5 * disk[kk].hh, invzd, disk[kk].util);
 
 
-      /** calculate column density using Simpson's rule */
+      /** calculate column density */
       double Sigma = 0.0;
       for(int jj = 0; jj < NDISKBIN_VER; jj++)
 	Sigma += (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, 0, ii, jj)];
@@ -1110,7 +1104,7 @@ static inline void   fineDensity(const int lev_hrs, const disk_data disk, double
  */
 static inline int findIdxSpherical4GDpot(const double rad, profile *prf, double *ratio)
 {
-  int ll = 0;
+  int ll =           0;
   int rr = NRADBIN - 1;
 
   if( rad < prf[ll].rho + DBL_EPSILON ){    *ratio = 0.0;    return (ll    );  }
@@ -2063,7 +2057,7 @@ void getPotDensPair
 #pragma omp parallel for
       for(int ii = 0; ii < (NDISKBIN_HOR >> ldiff); ii++)
 	for(int kk = 0; kk < ndisk; kk++){
-	  /** evaluate mass to be subtracted using Simpson's rule */
+	  /** evaluate mass to be subtracted */
 	  double mass = 0.0;
 	  for(int jj = (NDISKBIN_VER >> 1); jj < NDISKBIN_VER; jj++)
 	    mass += (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)];
@@ -2422,6 +2416,12 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
     }/* for(int lev = maxLev - 1; lev >= 0; lev--){ */
   }/* for(int kk = 0; kk < ndisk; kk++){ */
 #endif//NDIVIDE_GAUSSQD4DISK
+  for(int kk = 0; kk < ndisk; kk++){
+    for(int lev = maxLev - 2; lev >= 0; lev--){
+      for(int ii = 0; ii < (NDISKBIN_HOR >> 1); ii++)
+	disk[kk].enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, ii)] = disk[kk].enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev + 1, ii << 1)];
+    }/* for(int lev = maxLev - 2; lev >= 0; lev--){ */
+  }/* for(int kk = 0; kk < ndisk; kk++){ */
 
 
   /** calculate int_0^z dz' \rho(R, z') */

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/24 (Fri)
+ * @date 2017/03/12 (Sun)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -27,10 +27,19 @@
 
 /**
  * @def ENFORCE_EPICYCLIC_APPROXIMATION
- * Reduce velocity dispersion to ensure the consistency with epicyclic approximation
+ *
+ * @brief Reduce velocity dispersion to ensure the consistency with epicyclic approximation
  * if switched off, then velocity dispersion is determined as GalactICS (Kuijken & Dubinski 1995; Widrow et al. 2003)
  */
 #define ENFORCE_EPICYCLIC_APPROXIMATION
+
+
+/**
+ * @def SWEEP_HIGH_ALTITUDE_COMPONENT
+ *
+ * @brief Remove structures above DISK_DIMMING_HEIGHT * zd
+ */
+#define SWEEP_HIGH_ALTITUDE_COMPONENT
 
 
 #define SPEEDUP_CONVERGENCE
@@ -53,6 +62,9 @@ void integrateSphericalDensityProfile(const int ndisk, const int maxLev, disk_da
 void diffAxisymmetricPotential(const int maxLev, const disk_data disk);
 void calcVerticalVdisp(const int ndisk, const int maxLev, disk_data *disk_info);
 void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const int maxLev, const disk_data disk, rand_state *rand);
+
+void getEffectiveRadius(const int ndisk, const int maxLev, disk_data *disk);
+void findIdx4nestedGrid(const double RR, const int maxLev, const disk_data disk, int * restrict lev, int * restrict idx, double * restrict alp);
 
 
 #endif//DISKDF_H

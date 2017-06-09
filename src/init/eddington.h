@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/21 (Tue)
+ * @date 2017/06/09 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -23,8 +23,25 @@
 #include "../init/profile.h"
 
 
-#define NDIVIDE_GAUSSQD (16)
+#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA
+#define ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA
+
+
+/* #ifndef ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF */
+/* #define NDIVIDE_GAUSSQD (1) */
+/* /\* #define NDIVIDE_GAUSSQD (16) *\/ */
+/* /\* #define NDIVIDE_GAUSSQD (128) *\/ */
+/* /\* #define NDIVIDE_GAUSSQD (1024) *\/ */
+/* /\* #define NDIVIDE_GAUSSQD (131072) *\/ */
+/* #endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF */
+
+
+#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+#define NENEBIN (262144)
+#else///ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
 #define NENEBIN (1048576)
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
 
 
 /**
@@ -38,11 +55,38 @@ typedef struct
 } dist_func;
 
 
-#define NKIND_MAX (8)
+/**
+ * @fn getDF
+ *
+ * @brief Get distribution function of the component based on linear interpolation.
+ *
+ * @param (ene) a specified energy
+ * @param (df) distribution function
+ * @param (Emin) minimum of energy bin
+ * @param (invEbin) inverse of energy bin width
+ * @return DF at the specified energy
+ */
+static inline double getDF(const double ene, dist_func *df, const double Emin, const double invEbin)
+{
+  const int ll = (int)((ene - Emin) * invEbin);
+  return (df[ll].val + (df[ll + 1].val - df[ll].val) * (ene - df[ll].ene) / (df[ll + 1].ene - df[ll].ene));
+}
 
 
 /* list of functions appeared in ``eddington.c'' */
-void integrateEddingtonFormula(const int skind, profile **prf, dist_func **fene);
+void integrateEddingtonFormula(const int skind, profile **prf,
+#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+			       profile_cfg *cfg,
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+			       dist_func **fene);
+
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+void calcVelocityDispersionProfile(const int skind, profile **prf,
+#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+				   profile_cfg *cfg,
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+				   dist_func **df);
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
 
 
 #endif//EDDINGTON_H

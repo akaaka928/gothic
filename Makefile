@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2017-02-21 19:45:11 ymiki
+# last updated on 2017/06/06 (Tue) 17:32:36
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -14,8 +14,6 @@ MKOPREP	:= 0
 VERBOSE	:=
 # VERBOSE	:= @
 #################################################################################################
-USETCA	:= 1
-#################################################################################################
 # Macros for Pre-Processor
 DEBUG	:= -DNDEBUG
 # PROFILE	:= -pg
@@ -25,41 +23,24 @@ FORCE_SINGLE_GPU_RUN	:= 1
 CARE_EXTERNAL_PARTICLES	:= 0
 ACC_ACCUMULATION_IN_DP	:= 0
 KAHAN_SUM_CORRECTION	:= 0
-EXCHANGE_USING_GPUS	:= 1
 MONITOR_ENERGY_ERROR	:= 1
 MONITOR_LETGEN_TIME	:= 1
 MEASURE_BY_CUDA_EVENT	:= 0
 COMMUNICATION_VIA_HOST	:= 1
-CONSTRUCT_LET_ON_GPU	:= 1
 DIVERT_GEOMETRIC_CENTER	:= 1
-CONSTRUCT_TREE_ON_GPU	:= 1
 ADOPT_BLOCK_TIME_STEP	:= 1
 ADOPT_VECTOR_ACC_MAC	:= 0
 ADOPT_GADGET_TYPE_MAC	:= 1
 ADOPT_WS93_TYPE_MAC	:= 1
 IJ_PARALLELIZED_WALK	:= 1
-COMPARE_REBUILD_TIMING	:= 1
-GENERATE_PHKEY_ON_GPU	:= 1
-CALC_MULTIPOLE_ON_GPU	:= 1
-LOCALIZE_I_PARTICLES	:= 1
-USE_BRENT_METHOD	:= 1
-BRUTE_FORCE_LOCALIZER	:= 1
-FACILE_NEIGHBOR_SEARCH	:= 1
-ADAPTIVE_PHYEY_JUMP	:= 0
 DATAFILE_FORMAT_HDF5	:= 1
 HDF5_FOR_ZINDAIJI	:= 0
-APPEND_ASCII_ICDATA	:= 0
 DUMPFILE_IN_TIPSY	:= 0
 USE_OFFICIAL_SFMT	:= 1
 USE_OFFICIAL_SFMT_JUMP	:= 1
 #################################################################################################
 # Debugging options
 EVALUATE_FORCE_ERROR	:= 0
-DEBUG_PARALLEL_HDF5	:= 0
-DEBUG_LETGEN_ON_GPU	:= 0
-DEBUG_TREE_TRAVERSAL	:= 0
-DEBUG_MULTIPOLE_GPU	:= 0
-ALLOCATE_LETBUFFER	:= 0
 #################################################################################################
 # Benchmark options
 REPORT_ELAPSED_TIME	:= 1
@@ -90,13 +71,8 @@ MYLIB	:= $(MYDIR)/lib
 #################################################################################################
 ifeq ($(findstring hapacs, $(HOSTNAME)), hapacs)
 MYDIR	:= /work/GALAXY/$(USER)
-ifeq ($(USETCA), 1)
 MYINC	:= $(MYDIR)/inc.tca
 MYLIB	:= $(MYDIR)/lib.tca
-else
-MYINC	:= $(MYDIR)/inc.comq
-MYLIB	:= $(MYDIR)/lib.comq
-endif
 endif
 #################################################################################################
 include	$(MYINC)/common.mk
@@ -121,10 +97,6 @@ PROFILE	:=
 USEDBG	:= 0
 USEPAPI	:= 0
 EVALUATE_FORCE_ERROR	:= 0
-DEBUG_PARALLEL_HDF5	:= 0
-DEBUG_LETGEN_ON_GPU	:= 0
-DEBUG_TREE_TRAVERSAL	:= 0
-DEBUG_MULTIPOLE_GPU	:= 0
 REPORT_ELAPSED_TIME	:= 0
 endif
 #################################################################################################
@@ -147,44 +119,7 @@ PROFILE	:=
 USEDBG	:= 0
 USEPAPI	:= 0
 EVALUATE_FORCE_ERROR	:= 0
-DEBUG_PARALLEL_HDF5	:= 0
-DEBUG_LETGEN_ON_GPU	:= 0
-DEBUG_TREE_TRAVERSAL	:= 0
-DEBUG_MULTIPOLE_GPU	:= 0
 REPORT_ELAPSED_TIME	:= 0
-endif
-#################################################################################################
-ifeq ($(DEBUG_PARALLEL_HDF5), 1)
-CCARG	+= -DDBG_PARALLEL_HDF5
-CUARG	+= -DDBG_PARALLEL_HDF5
-# DEBUG	:=
-REPORT_ELAPSED_TIME	:= 0
-endif
-#################################################################################################
-ifeq ($(DEBUG_LETGEN_ON_GPU), 1)
-CCARG	+= -DDBG_LETGEN_ON_GPU
-CUARG	+= -DDBG_LETGEN_ON_GPU
-DEBUG	:=
-REPORT_ELAPSED_TIME	:= 0
-endif
-#################################################################################################
-ifeq ($(DEBUG_TREE_TRAVERSAL), 1)
-CCARG	+= -DDBG_TREE_WALK
-CUARG	+= -DDBG_TREE_WALK
-DEBUG	:=
-REPORT_ELAPSED_TIME	:= 0
-endif
-#################################################################################################
-ifeq ($(DEBUG_MULTIPOLE_GPU), 1)
-CCARG	+= -DDBG_CALC_MULTIPOLE
-CUARG	+= -DDBG_CALC_MULTIPOLE
-DEBUG	:=
-REPORT_ELAPSED_TIME	:= 0
-endif
-#################################################################################################
-ifeq ($(ALLOCATE_LETBUFFER), 1)
-CCARG	+= -DALLOCATE_LETBUFFER
-CUARG	+= -DALLOCATE_LETBUFFER
 endif
 #################################################################################################
 ifeq ($(MEASURE_EXEC_METRICS), 1)
@@ -218,17 +153,9 @@ ifeq ($(FORCE_SINGLE_GPU_RUN), 1)
 CCARG	+= -DSERIALIZED_EXECUTION
 CUARG	+= -DSERIALIZED_EXECUTION
 COMMUNICATION_VIA_HOST	:= 0
-CONSTRUCT_LET_ON_GPU	:= 0
 else
 # direct solver is not parallelized
 EVALUATE_FORCE_ERROR	:= 0
-ifeq ($(EXCHANGE_USING_GPUS), 1)
-CCARG	+= -DEXCHANGE_USING_GPUS
-CUARG	+= -DEXCHANGE_USING_GPUS
-endif
-ifeq ($(CONSTRUCT_LET_ON_GPU), 1)
-CCARG	+= -DBUILD_LET_ON_DEVICE
-CUARG	+= -DBUILD_LET_ON_DEVICE
 ifeq ($(MONITOR_LETGEN_TIME), 1)
 CCARG	+= -DMONITOR_LETGEN_TIME
 CUARG	+= -DMONITOR_LETGEN_TIME
@@ -242,23 +169,10 @@ CCARG	+= -DRETURN_CENTER_BY_PHKEY_GENERATOR
 CUARG	+= -DRETURN_CENTER_BY_PHKEY_GENERATOR
 endif
 endif
-endif
-#################################################################################################
-ifeq ($(COMPARE_REBUILD_TIMING), 1)
-CCARG	+= -DWALK_TREE_COMBINED_MODEL
-CUARG	+= -DWALK_TREE_COMBINED_MODEL
-endif
-#################################################################################################
-ifeq ($(CONSTRUCT_TREE_ON_GPU), 1)
-CCARG	+= -DMAKE_TREE_ON_DEVICE
-CUARG	+= -DMAKE_TREE_ON_DEVICE
-endif
 #################################################################################################
 ifeq ($(ADOPT_BLOCK_TIME_STEP), 1)
 CCARG	+= -DBLOCK_TIME_STEP
 CUARG	+= -DBLOCK_TIME_STEP
-else
-ADAPTIVE_PHYEY_JUMP	:= 0
 endif
 #################################################################################################
 ifeq ($(ADOPT_VECTOR_ACC_MAC), 1)
@@ -283,47 +197,6 @@ endif
 ifeq ($(EVALUATE_FORCE_ERROR), 1)
 CCARG	+= -DCOMPARE_WITH_DIRECT_SOLVER
 CUARG	+= -DCOMPARE_WITH_DIRECT_SOLVER
-endif
-#################################################################################################
-ifeq ($(GENERATE_PHKEY_ON_GPU), 1)
-CCARG	+= -DGENERATE_PHKEY_ON_DEVICE
-CUARG	+= -DGENERATE_PHKEY_ON_DEVICE
-endif
-#################################################################################################
-ifeq ($(CALC_MULTIPOLE_ON_GPU), 1)
-CCARG	+= -DCALC_MULTIPOLE_ON_DEVICE
-CUARG	+= -DCALC_MULTIPOLE_ON_DEVICE
-endif
-#################################################################################################
-ifeq ($(LOCALIZE_I_PARTICLES), 1)
-CCARG	+= -DLOCALIZE_I_PARTICLES
-CUARG	+= -DLOCALIZE_I_PARTICLES
-else
-USE_BRENT_METHOD	:= 0
-BRUTE_FORCE_LOCALIZER	:= 0
-FACILE_NEIGHBOR_SEARCH	:= 0
-ADAPTIVE_PHYEY_JUMP	:= 0
-endif
-#################################################################################################
-ifeq ($(BRUTE_FORCE_LOCALIZER), 1)
-CCARG	+= -DBRUTE_FORCE_LOCALIZATION
-CUARG	+= -DBRUTE_FORCE_LOCALIZATION
-ifeq ($(FACILE_NEIGHBOR_SEARCH), 1)
-CCARG	+= -DFACILE_NEIGHBOR_SEARCH
-CUARG	+= -DFACILE_NEIGHBOR_SEARCH
-ifeq ($(USE_BRENT_METHOD), 1)
-CCARG	+= -DUSE_BRENT_METHOD
-CUARG	+= -DUSE_BRENT_METHOD
-endif
-endif
-else
-ADAPTIVE_PHYEY_JUMP	:= 0
-FACILE_NEIGHBOR_SEARCH	:= 0
-endif
-#################################################################################################
-ifeq ($(ADAPTIVE_PHYEY_JUMP), 1)
-CCARG	+= -DUSE_VARIABLE_NEIGHBOR_LEVEL
-CUARG	+= -DUSE_VARIABLE_NEIGHBOR_LEVEL
 endif
 #################################################################################################
 ifeq ($(IJ_PARALLELIZED_WALK), 1)
@@ -363,9 +236,6 @@ LENGTH_FACTOR	:= 0.1
 ifeq ($(MEASURE_ELAPSED_TIME), 1)
 #################################################################################################
 ifeq ($(HUNT_OPTIMAL_SEPARATION), 1)
-LOCALIZE_I_PARTICLES	:= 1
-BRUTE_FORCE_LOCALIZER	:= 1
-FACILE_NEIGHBOR_SEARCH	:= 1
 HUNT_OPTIMAL_WALK_TREE	:= 1
 HUNT_OPTIMAL_INTEGRATE	:= 1
 HUNT_OPTIMAL_MAKE_TREE	:= 0
@@ -378,10 +248,6 @@ CCARG	+= -DHUNT_WALK_PARAMETER
 CUARG	+= -DHUNT_WALK_PARAMETER
 CCARG	+= -DNTHREADS="($(NUM_NTHREADS))" -DTSUB="($(NUM_TSUB))" -DNLOOP="($(NUM_NLOOP))"
 CUARG	+= -DNTHREADS="($(NUM_NTHREADS))" -DTSUB="($(NUM_TSUB))" -DNLOOP="($(NUM_NLOOP))"
-ifeq ($(LOCALIZE_I_PARTICLES), 1)
-CCARG	+= -DNEIGHBOR_PHKEY_LEVEL="($(LEV_NEIGHBOR))"
-CUARG	+= -DNEIGHBOR_PHKEY_LEVEL="($(LEV_NEIGHBOR))"
-endif
 ifeq ($(IJ_PARALLELIZED_WALK), 1)
 CCARG	+= -DNWARP="($(NUM_NWARP))"
 CUARG	+= -DNWARP="($(NUM_NWARP))"
@@ -404,8 +270,8 @@ CUARG	+= -DNTHREADS_INIT_BODY="($(NUM_NTHREADS))" -DNTHREADS_COPY_BODY="($(NUM_N
 CCARG	+= -DNTHREADS_PH="($(NUM_NTHREADS))" -DNTHREADS_PHSORT="($(NUM_NTHREADS))"
 CUARG	+= -DNTHREADS_PH="($(NUM_NTHREADS))" -DNTHREADS_PHSORT="($(NUM_NTHREADS))"
 ifeq ($(USE_WARPSHUFFLE), 1)
-CCARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAKE_TREE -DUSE_WARP_SHUFFLE_FUNC_LINK_TREE
-CUARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAKE_TREE -DUSE_WARP_SHUFFLE_FUNC_LINK_TREE
+CCARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE
+CUARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE
 endif
 endif
 #################################################################################################
@@ -498,10 +364,6 @@ else
 HDF5_FOR_ZINDAIJI	:= 0
 endif
 #################################################################################################
-ifeq ($(APPEND_ASCII_ICDATA), 1)
-CCARG	+= -DAPPEND_ASCII_ICDATA
-endif
-#################################################################################################
 ifeq ($(DUMPFILE_IN_TIPSY), 1)
 CCARG	+= -DWRITE_IN_TIPSY_FORMAT
 endif
@@ -517,6 +379,7 @@ endif
 SRCDIR	:= src
 MAINDIR	:= $(SRCDIR)/main
 MISCDIR	:= $(SRCDIR)/misc
+UTILDIR	:= $(SRCDIR)/util
 FILEDIR	:= $(SRCDIR)/file
 TIMEDIR	:= $(SRCDIR)/time
 SORTDIR	:= $(SRCDIR)/sort
@@ -525,7 +388,7 @@ INITDIR	:= $(SRCDIR)/init
 PLOTDIR	:= $(SRCDIR)/plot
 PARADIR	:= $(SRCDIR)/para
 ANALDIR	:= $(SRCDIR)/anal
-VPATH	:= $(MAINDIR) $(MISCDIR) $(FILEDIR) $(TIMEDIR) $(SORTDIR) $(TREEDIR) $(INITDIR) $(PLOTDIR) $(PARADIR) $(ANALDIR)
+VPATH	:= $(MAINDIR) $(MISCDIR) $(UTILDIR) $(FILEDIR) $(TIMEDIR) $(SORTDIR) $(TREEDIR) $(INITDIR) $(PLOTDIR) $(PARADIR) $(ANALDIR)
 #################################################################################################
 ## Executables for collisionless N-body code
 GOTHIC	:= $(BINDIR)/gothic
@@ -600,18 +463,13 @@ UTILGPU	:= allocate_dev.cu
 #################################################################################################
 FILELIB	:= io.c
 #################################################################################################
-TREESRC	:= peano.c
-ifeq ($(GENERATE_PHKEY_ON_GPU), 1)
+# TREESRC	:= peano.c
 UTILGPU	+= peano_dev.cu
-endif
 #################################################################################################
-TREESRC	+= make.c macutil.c
+# TREESRC	+= make.c macutil.c
+# TREESRC	:= make.c
 TREEGPU	:= neighbor_dev.cu
-ifeq ($(BRUTE_FORCE_LOCALIZER), 1)
 UTILGPU	+= shrink_dev.cu
-else
-UTILGPU	+= stat_dev.cu
-endif
 ifeq ($(FORCE_SINGLE_GPU_RUN), 0)
 LETHOST	:= let.c
 LET_GPU	:= let_dev.cu
@@ -643,9 +501,7 @@ PJETSRC	:= plot.needle.c
 PDSKSRC	:= plot.disk.c
 #################################################################################################
 LETHOST	+= exchange.c mpicfg.c
-ifeq ($(EXCHANGE_USING_GPUS), 1)
 EXCGGPU	:= exchange_dev.cu
-endif
 #################################################################################################
 AERRSRC	:= anal.error.c
 #################################################################################################
@@ -666,13 +522,9 @@ ifeq ($(FORCE_SINGLE_GPU_RUN), 0)
 OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.mpi.o,      $(notdir $(LET_GPU)))
 OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.o,          $(notdir $(GEO_GPU)))
 OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.mpi.o,      $(notdir $(LETHOST)))
-ifeq ($(EXCHANGE_USING_GPUS), 1)
 OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.mpi.o,      $(notdir $(EXCGGPU)))
 endif
-endif
-ifeq ($(USE_BRENT_METHOD), 1)
 OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.o,          $(notdir $(BRNTLIB)))
-endif
 #################################################################################################
 OBJFIND	:= $(patsubst %.c, $(OBJDIR)/%.o, $(notdir $(FINDSRC)))
 OBJSMPL	:= $(patsubst %.c, $(OBJDIR)/%.o, $(notdir $(SMPLSRC)))
@@ -1096,20 +948,10 @@ ifeq ($(FORCE_SINGLE_GPU_RUN), 0)
 GOTHIC_DEP	+=	$(MYINC)/mpilib.h	$(PARADIR)/mpicfg.h	$(PARADIR)/exchange.h
 GOTHIC_DEP	+=	$(TREEDIR)/geo_dev.h	$(TREEDIR)/let_dev.h	$(PARADIR)/exchange_dev.h
 endif
-ifeq ($(USE_BRENT_METHOD), 1)
 GOTHIC_DEP	+=	$(MISCDIR)/brent.h
-endif
-ifeq ($(GENERATE_PHKEY_ON_GPU), 1)
 GOTHIC_DEP	+=	$(SORTDIR)/peano_dev.h
-endif
-ifeq ($(BRUTE_FORCE_LOCALIZER), 1)
-ifeq ($(LOCALIZE_I_PARTICLES), 1)
 GOTHIC_DEP	+=	$(TREEDIR)/neighbor_dev.h
-endif
 GOTHIC_DEP	+=	$(TREEDIR)/shrink_dev.h
-else
-GOTHIC_DEP	+=	$(TREEDIR)/stat_dev.h
-endif
 $(OBJDIR)/gothic.mpi.hdf5.o:	$(GOTHIC_DEP)	$(MYINC)/hdf5lib.h
 $(OBJDIR)/gothic.mpi.o:		$(GOTHIC_DEP)
 $(OBJDIR)/showOptConfig.o:	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/name.h
@@ -1128,14 +970,8 @@ IO_DEP	:=	$(COMMON_DEP)	$(MYINC)/constants.h	$(MYINC)/name.h	$(MYINC)/mpilib.h
 IO_DEP	+=	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(MISCDIR)/tune.h	$(MISCDIR)/brent.h	$(FILEDIR)/io.h
 ifeq ($(HUNT_OPTIMAL_WALK_TREE), 1)
 IO_DEP	+=	$(TREEDIR)/walk_dev.h
-ifeq ($(BRUTE_FORCE_LOCALIZER), 1)
-ifeq ($(LOCALIZE_I_PARTICLES), 1)
 IO_DEP	+=	$(TREEDIR)/neighbor_dev.h
-endif
 IO_DEP	+=	$(TREEDIR)/shrink_dev.h
-else
-IO_DEP	+=	$(TREEDIR)/stat_dev.h
-endif
 endif
 ifeq ($(HUNT_OPTIMAL_MAKE_TREE), 1)
 IO_DEP	+=	$(SORTDIR)/peano_dev.h	$(TREEDIR)/make_dev.h
@@ -1147,11 +983,7 @@ ifeq ($(HUNT_OPTIMAL_INTEGRATE), 1)
 IO_DEP	+=	$(TIMEDIR)/adv_dev.h
 endif
 ifeq ($(HUNT_OPTIMAL_NEIGHBOUR), 1)
-ifeq ($(BRUTE_FORCE_LOCALIZER), 1)
-ifeq ($(LOCALIZE_I_PARTICLES), 1)
 IO_DEP	+=	$(TREEDIR)/neighbor_dev.h
-endif
-endif
 endif
 $(OBJDIR)/io.mpi.hdf5.o:	$(IO_DEP)	$(MYINC)/hdf5lib.h
 $(OBJDIR)/io.mpi.o:		$(IO_DEP)
@@ -1159,7 +991,7 @@ $(OBJDIR)/io.mpi.o:		$(IO_DEP)
 ## $(SORTDIR)/*
 PEANO_DEP	:=	$(COMMON_DEP)	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(SORTDIR)/peano.h	$(TREEDIR)/make.h
 $(OBJDIR)/peano.o:	$(PEANO_DEP)
-$(OBJDIR)/peano_dev.o:	$(PEANO_DEP)	$(TREEDIR)/macutil.h	$(MYINC)/cudalib.h	$(MISCDIR)/gsync_dev.cu	$(SORTDIR)/peano_dev.h	$(PARADIR)/exchange_dev.h
+$(OBJDIR)/peano_dev.o:	$(PEANO_DEP)	$(TREEDIR)/macutil.h	$(MYINC)/cudalib.h	$(UTILDIR)/gsync_dev.cu	$(SORTDIR)/peano_dev.h	$(PARADIR)/exchange_dev.h	$(UTILDIR)/compare_vec4_inc.cu	$(UTILDIR)/compare_vec4_inc.cuh	$(UTILDIR)/compare_vec4_del.cuh
 #################################################################################################
 ## $(TIMEDIR)/*
 ADV_DEV_DEP	:=	$(COMMON_DEP)	$(MYINC)/timer.h	$(MYINC)/cudalib.h
@@ -1176,28 +1008,23 @@ TREE_DEV_DEP	:=	$(TREE_DEP)	$(MYINC)/cudalib.h	$(MISCDIR)/device.h	$(TREEDIR)/ma
 TREE_BUF_DEP	:=	$(TREEDIR)/buf_inc.h	$(TREEDIR)/buf_inc.cu
 TREE_LET_DEP	:=	$(MYINC)/mpilib.h	$(TREEDIR)/let.h	$(TREEDIR)/let_dev.h	$(PARADIR)/mpicfg.h
 $(OBJDIR)/let_dev.mpi.o:	$(TREE_DEV_DEP)	$(TREE_BUF_DEP)	$(TREE_LET_DEP)	$(MYINC)/timer.h	$(TREEDIR)/walk_dev.h
-MAKE_DEV_DEP	:=	$(MISCDIR)/gsync_dev.cu	$(TREEDIR)/make_dev.h	$(TREEDIR)/let.h	$(TREEDIR)/make_inc.cu	$(TREEDIR)/make_inc.h	$(TREEDIR)/make_del.h
+MAKE_DEV_DEP	:=	$(UTILDIR)/gsync_dev.cu	$(TREEDIR)/make_dev.h	$(TREEDIR)/let.h
+MAKE_DEV_DEP	+=	$(UTILDIR)/scan_inc.cu	$(UTILDIR)/scan_inc.cuh	$(UTILDIR)/scan_del.cuh
+MAKE_DEV_DEP	+=	$(UTILDIR)/scan_tsub_inc.cu	$(UTILDIR)/scan_tsub_inc.cuh	$(UTILDIR)/scan_tsub_del.cuh
+MAKE_DEV_DEP	+=	$(UTILDIR)/compare_tsub_inc.cu	$(UTILDIR)/compare_tsub_inc.cuh	$(UTILDIR)/compare_tsub_del.cuh
+# MAKE_DEV_DEP	+=	$(TREEDIR)/make_inc.cu	$(TREEDIR)/make_inc.h	$(TREEDIR)/make_del.h
 $(OBJDIR)/make_dev.mpi.o:	$(TREE_DEV_DEP)	$(SORTDIR)/peano.h	$(SORTDIR)/peano_dev.h	$(MAKE_DEV_DEP)	$(MYINC)/timer.h	$(MISCDIR)/device.h
 $(OBJDIR)/make_dev.o:		$(TREE_DEV_DEP)	$(SORTDIR)/peano.h	$(SORTDIR)/peano_dev.h	$(MAKE_DEV_DEP)
 $(OBJDIR)/make.o:		$(TREE_DEP)	$(SORTDIR)/peano.h	$(TREEDIR)/macutil.h
-TREE_RSORT_DEP	:=	$(MISCDIR)/gsync_dev.cu	$(SORTDIR)/radix_dev.h	$(SORTDIR)/radix_inc.cu	$(SORTDIR)/radix_inc.h	$(SORTDIR)/radix_del.h
+TREE_RSORT_DEP	:=	$(UTILDIR)/gsync_dev.cu
 NEIGHBOR_DEV_DEP	:=	$(TREE_RSORT_DEP)	$(MYINC)/cudalib.h	$(TREEDIR)/make_dev.h	$(TREEDIR)/neighbor_dev.h
 $(OBJDIR)/neighbor_dev.mpi.o:	$(TREE_DEP)	$(NEIGHBOR_DEV_DEP)
 $(OBJDIR)/neighbor_dev.o:	$(TREE_DEP)	$(NEIGHBOR_DEV_DEP)
 SHRINK_DEV_DEP	:=	$(MYINC)/cudalib.h	$(MISCDIR)/device.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/make_dev.h	$(TREEDIR)/shrink_dev.h
-ifeq ($(LOCALIZE_I_PARTICLES), 1)
-ifeq ($(USE_BRENT_METHOD), 1)
 SHRINK_DEV_DEP	+=	$(MISCDIR)/brent.h
-endif
 SHRINK_DEV_DEP	+=	$(TREEDIR)/neighbor_dev.h
-endif
 $(OBJDIR)/shrink_dev.mpi.o:	$(TREE_DEP)	$(SHRINK_DEV_DEP)
 $(OBJDIR)/shrink_dev.o:		$(TREE_DEP)	$(SHRINK_DEV_DEP)
-ifeq ($(LOCALIZE_I_PARTICLES), 1)
-$(OBJDIR)/stat_dev.o:	$(TREE_DEP)	$(MYINC)/cudalib.h	$(MISCDIR)/device.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/stat_dev.h	$(SORTDIR)/peano.h
-else
-$(OBJDIR)/stat_dev.o:	$(TREE_DEP)	$(MYINC)/cudalib.h	$(MISCDIR)/device.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/stat_dev.h
-endif
 WALK_DEV_DEP	:=	$(TREE_DEV_DEP)	$(TREE_BUF_DEP)	$(MYINC)/timer.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/seb_dev.cu
 $(OBJDIR)/walk_dev.mpi.o:	$(WALK_DEV_DEP)	$(TREE_LET_DEP)	$(MISCDIR)/tune.h
 $(OBJDIR)/walk_dev.o:		$(WALK_DEV_DEP)
@@ -1260,12 +1087,8 @@ $(OBJDIR)/cdflib.o:	$(COMMON_DEP)	$(PLOTDIR)/cdflib.h
 PARA_DEP	:=	$(COMMON_DEP)	$(MYINC)/name.h	$(MYINC)/mpilib.h
 PARA_DEP	+=	$(MISCDIR)/structure.h	$(PARADIR)/mpicfg.h
 EXCG_DEP	:=	$(PARA_DEP)	$(TIMEDIR)/adv_dev.h	$(PARADIR)/exchange.h	$(MISCDIR)/tune.h	$(MISCDIR)/brent.h
-ifeq ($(EXCHANGE_USING_GPUS), 1)
 $(OBJDIR)/exchange.mpi.o:	$(PARA_DEP)	$(PARADIR)/exchange.h
-$(OBJDIR)/exchange_dev.mpi.o:	$(EXCG_DEP)	$(MYINC)/cudalib.h	$(MYINC)/timer.h	$(MISCDIR)/benchmark.h	$(MISCDIR)/gsync_dev.cu	$(SORTDIR)/peano_dev.h	$(PARADIR)/exchange_dev.h
-else
-$(OBJDIR)/exchange.mpi.o:	$(EXCG_DEP)
-endif
+$(OBJDIR)/exchange_dev.mpi.o:	$(EXCG_DEP)	$(MYINC)/cudalib.h	$(MYINC)/timer.h	$(MISCDIR)/benchmark.h	$(UTILDIR)/gsync_dev.cu	$(SORTDIR)/peano_dev.h	$(PARADIR)/exchange_dev.h
 $(OBJDIR)/mpicfg.mpi.o:		$(PARA_DEP)	$(TREEDIR)/make.h
 #################################################################################################
 # ## $(ANALDIR)/*

@@ -18,11 +18,6 @@
 #define BRENT_H
 
 
-#ifndef USE_BRENT_METHOD
-#define TEST_BRENT_METHOD
-#endif//USE_BRENT_METHOD
-
-
 #include <stdbool.h>
 
 
@@ -61,7 +56,6 @@ typedef struct
 } brentStatus;
 
 
-#ifdef  USE_BRENT_METHOD
 /**
  * @struct brentMemory
  *
@@ -74,7 +68,6 @@ typedef struct
   int degraded;/**< # of sequences increasing the elapsed time continuously */
   int interval;/**< # of sequences from the previous initialization of the brentStatus */
 } brentMemory;
-#endif//USE_BRENT_METHOD
 
 
 /* list of functions appeared in ``brent.c'' */
@@ -86,12 +79,7 @@ extern "C"
   void brentInit2nd(brentStatus *brent);
   void brentPerturb(brentStatus *brent, double xl, double xr);
 
-#ifdef  TEST_BRENT_METHOD
-  int  brentCalc1st(brentStatus *brent, const double tol);
-#else///TEST_BRENT_METHOD
   void brentCalc1st(brentStatus *brent, const double tol);
-#endif//TEST_BRENT_METHOD
-
   void brentCalc2nd(brentStatus *brent);
 #ifdef  __CUDACC__
 }

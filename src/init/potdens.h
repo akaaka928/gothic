@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/24 (Fri)
+ * @date 2017/03/12 (Sun)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -25,27 +25,31 @@
 
 /**
  * @def CHECK_OSTRIKER_PEEBLES_CRITERION
- * activate analysis of Ostriker--Peebles criterion
+ *
+ * @brief activate analysis of Ostriker--Peebles criterion
  */
 #define CHECK_OSTRIKER_PEEBLES_CRITERION
 
 
 /**
  * @def NDISKBIN_VER
- * number of grid points of the density and potential fields in z-direction
+ *
+ * @brief number of grid points of the density and potential fields in z-direction
  */
 /* #define NDISKBIN_VER (32) */
 #define NDISKBIN_VER (64)
 
 /**
  * @def NHOR_OVER_NVER
- * NR / Nz, defined as an exponent of two
+ *
+ * @brief NR / Nz, defined as an exponent of two
  */
 #define NHOR_OVER_NVER (2)
 
 /**
  * @def NDISKBIN_HOR
- * number of grid points of the density and potential fields in R-direction
+ *
+ * @brief number of grid points of the density and potential fields in R-direction
  */
 #define NDISKBIN_HOR (NDISKBIN_VER << NHOR_OVER_NVER)
 
@@ -69,27 +73,60 @@
 
 /**
  * @def ENABLE_VARIABLE_SCALE_HEIGHT
- * enable to remove the needle-like structure
- * Equation (8) in Miki & Umemura (in preparation)
+ *
+ * @brief enable to remove the needle-like structure
+ * @detail Equation (8) in Miki & Umemura (in preparation)
  */
 #define ENABLE_VARIABLE_SCALE_HEIGHT
+
+/**
+ * @def DISK_DIMMING_HEIGHT
+ *
+ * @brief parameter to remove the needle-like structure
+ * @detail see Equation (8) in Miki & Umemura (in preparation)
+ */
+#define DISK_DIMMING_HEIGHT (16.0)
+
+/**
+ * @def DISK_DIMMING_HEIGHT_INV
+ *
+ * @brief inverse of diskDimmingHeight
+ */
+#define DISK_DIMMING_HEIGHT_INV (6.25e-2)
+
+/**
+ * @def ADDITIONAL_CONDITION_FOR_SCALE_HEIGHT
+ *
+ * @brief enable to remove the needle-like structure
+ */
+/* #define ADDITIONAL_CONDITION_FOR_SCALE_HEIGHT */
+
+/**
+ * @def DISK_DIMMING_SCALE
+ *
+ * @brief parameter to remove the needle-like structure for very thick disk
+ */
+#define DISK_DIMMING_SCALE (5.0)
 
 
 /**
  * @def CONVERGENCE_BICGSTAB
- * tolerance value for BiCGSTAB method
+ *
+ * @brief tolerance value for BiCGSTAB method
  */
 #define CONVERGENCE_BICGSTAB    (1.0e-10)
 
 /**
  * @def CONVERGENCE_POTDENSPAIR
- * tolerance value for iterating potential-density pair of the disk component(s)
+ *
+ * @brief tolerance value for iterating potential-density pair of the disk component(s)
  */
 #define CONVERGENCE_POTDENSPAIR (1.0e-4)
 
 /**
  * @def NEGLECT_DENSITY_MINIMUM
- * tolerance value for low density regions
+ *
+ * @brief tolerance value for low density regions
  */
 #define NEGLECT_DENSITY_MINIMUM (1.0e-10)
 

@@ -1,3 +1,0 @@
-rm -f TAGS gmon.out
-rm -rf bin
-rm -rf dat doc fig log

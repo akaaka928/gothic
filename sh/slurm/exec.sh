@@ -3,13 +3,12 @@
 #SBATCH -J gothic             # name of job
 #SBATCH -t 24:00:00           # upper limit of elapsed time
 #SBATCH -p normal             # partition name
-#SBATCH -N 1                  # number of nodes, set to SLURM_JOB_NUM_NODES
-##SBATCH -n 2                  # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
-##SBATCH --ntasks-per-socket=2 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
-#SBATCH --get-user-env        # retrieve the login environment variables
-###############################################################
-#SBATCH -n 1                  # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
+#SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
+#SBATCH --ntasks=1            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
 #SBATCH --ntasks-per-socket=1 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
+# #SBATCH --ntasks=2            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
+# #SBATCH --ntasks-per-socket=2 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
+#SBATCH --get-user-env        # retrieve the login environment variables
 ###############################################################
 
 
@@ -20,7 +19,8 @@ EXEC=bin/gothic
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=28
+    PROBLEM=26
+    # PROBLEM=28
 fi
 ###############################################################
 # topology of MPI processes
@@ -50,8 +50,8 @@ if [ -z "$ABSERR" ]; then
     # ABSERR=6.250000000e-2
     # ABSERR=3.125000000e-2
     # ABSERR=1.562500000e-2
-    # ABSERR=7.812500000e-3
-    ABSERR=3.906250000e-3
+    ABSERR=7.812500000e-3
+    # ABSERR=3.906250000e-3
     # ABSERR=1.953125000e-3
     # ABSERR=9.765625000e-4
     # ABSERR=4.882812500e-4
@@ -280,25 +280,25 @@ OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$N
 ###############################################################
 # job execution via SLURM
 ###############################################################
-# set socket ID for numactl
+# set number of MPI processes per node
 PROCS_PER_NODE=`expr $SLURM_NTASKS / $SLURM_JOB_NUM_NODES`
-TEMPID=`expr $SLURM_PROCID % $PROCS_PER_NODE` # MPI rank of the current process is $SLURM_PROCID ($*_COMM_WORLD_LOCAL_RANK: MV2 for MVAPICH2, OMPI for OpenMPI)
-SOCKET=`expr $TEMPID / $SLURM_NTASKS_PER_SOCKET`
-###############################################################
-# start logging
-cd $SLURM_SUBMIT_DIR
-TIME=`date`
-echo "start: $TIME"
 ###############################################################
 # set stdout and stderr
 STDOUT=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.out
 STDERR=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.err
 ###############################################################
+# start logging
+cd $SLURM_SUBMIT_DIR
+echo "use $SLURM_JOB_NUM_NODES nodes"
+echo "use $SLURM_JOB_CPUS_PER_NODE CPUs per node"
+TIME=`date`
+echo "start: $TIME"
+###############################################################
 # execute the job
 if [ `which numactl` ]; then
     # mpirun with numactl
-    echo "mpirun -np $SLURM_NTASKS numactl --cpunodebind=$SOCKET --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-    mpirun -np $SLURM_NTASKS numactl --cpunodebind=$SOCKET --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    echo "mpirun -np $SLURM_NTASKS sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+    mpirun -np $SLURM_NTASKS sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 else
     # mpirun without numactl
     echo "mpirun -np $SLURM_NTASKS $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"

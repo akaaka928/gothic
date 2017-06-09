@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/23 (Thu)
+ * @date 2017/02/28 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -23,9 +23,6 @@
 #include "macro.h"
 
 #include "tune.h"
-
-
-#ifdef  WALK_TREE_COMBINED_MODEL
 
 
 /**
@@ -224,6 +221,3 @@ void parabolicModel(guessTime *model, statVal *val, const double steps, const do
   }/* if( steps > 3.5 ){ */
 }
 #endif//USE_PARABOLIC_GROWTH_MODEL
-
-
-#endif//WALK_TREE_COMBINED_MODEL

@@ -1,75 +1,105 @@
-/*************************************************************************\
- *                                                                       *
-                  last updated on 2017/01/17(Tue) 12:08:00
- *                                                                       *
- *    Header File for N-body calculation with MPI parallelization        *
- *                                                                       *
- *                                             written by Yohei MIKI     *
- *                                                                       *
-\*************************************************************************/
-//-------------------------------------------------------------------------
+/**
+ * @file exchange.h
+ *
+ * @brief Header file for domain decomposition using MPI
+ *
+ * @author Yohei Miki (University of Tsukuba)
+ * @author Masayuki Umemura (University of Tsukuba)
+ *
+ * @date 2017/03/03 (Fri)
+ *
+ * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
+ * All rights reserved.
+ *
+ * The MIT License is applied to this software, see LICENSE.txt
+ *
+ */
 #ifndef EXCHANGE_H
 #define EXCHANGE_H
-//-------------------------------------------------------------------------
+
+
 #include <mpi.h>
-//-------------------------------------------------------------------------
+
 #include "macro.h"
 #include "mpilib.h"
-//-------------------------------------------------------------------------
+
 #include "../misc/structure.h"
-#ifdef  EXCHANGE_USING_GPUS
 #include "../misc/tune.h"
-#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
 #include "../misc/brent.h"
-#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
-#endif//EXCHANGE_USING_GPUS
-//-------------------------------------------------------------------------
+
 #include "../para/mpicfg.h"
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-/* constants to set particle sampling rate */
+/**
+ * @def DEFAULT_SAMPLING_RATE
+ *
+ * @brief Constant to set particle sampling rate.
+ */
 #define DEFAULT_SAMPLING_RATE   (1.0e-4f)
+
+/**
+ * @def DEFAULT_SAMPLING_NUMBER
+ *
+ * @brief Constant to set particle sampling rate.
+ */
 /* #define DEFAULT_SAMPLING_NUMBER (64.0f) */
 #define DEFAULT_SAMPLING_NUMBER (128.0f)
 /* #define DEFAULT_SAMPLING_NUMBER (256.0f) */
 /* #define DEFAULT_SAMPLING_NUMBER (512.0f) */
-//-------------------------------------------------------------------------
+
+
+/**
+ * @struct sampling
+ *
+ * @brief structure for particle sampling
+ */
 typedef struct
 {
-  int *rnum, *disp;/* former recvNum and recvDsp */
+  int *rnum, *disp;/**< former recvNum and recvDsp */
   float *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;
-  float rate;/* former samplingRate */
-  int Nmax;/* former sampleNumMax */
+  float rate;/**< former samplingRate */
+  int Nmax;/**< former sampleNumMax */
 } sampling;
-//-------------------------------------------------------------------------
+
+/**
+ * @struct samplePos
+ *
+ * @brief structure for particle sampling
+ */
 typedef struct
 {
   float *x_hst, *y_hst, *z_hst;
   float *x_dev, *y_dev, *z_dev;
   int *i_hst, *i_dev;
 } samplePos;
-//-------------------------------------------------------------------------
+
+/**
+ * @struct particlePos
+ *
+ * @brief structure for particle position
+ */
 typedef struct
 {
   float *x, *y, *z;
 } particlePos;
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
+/**
+ * @struct domainCfg
+ *
+ * @brief structure for domain decomposition
+ */
 typedef struct
 {
-#ifdef  EXCHANGE_USING_GPUS
   float *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;
   MPI_Request *req;
-#else///EXCHANGE_USING_GPUS
-  real min[3], max[3];
-  MPI_Request req;
-#endif//EXCHANGE_USING_GPUS
 } domainCfg;
-//-------------------------------------------------------------------------
+
+/**
+ * @struct sendCfg
+ *
+ * @brief structure for domain decomposition (send)
+ */
 typedef struct
 {
   real xmin, xmax, ymin, ymax, zmin, zmax;
@@ -84,7 +114,12 @@ typedef struct
   MPI_Request vx, vy, vz;
 #endif//BLOCK_TIME_STEP
 } sendCfg;
-//-------------------------------------------------------------------------
+
+/**
+ * @struct recvCfg
+ *
+ * @brief structure for domain decomposition (receive)
+ */
 typedef struct
 {
   int num, head;
@@ -98,42 +133,39 @@ typedef struct
   MPI_Request vx, vy, vz;
 #endif//BLOCK_TIME_STEP
 } recvCfg;
-//-------------------------------------------------------------------------
+
+/**
+ * @struct domainDecomposeKey
+ *
+ * @brief structure for domain decomposition (sorting)
+ */
 typedef struct
 {
-#ifdef  EXCHANGE_USING_GPUS
   int *dstRank_hst, *dstRank_dev, *bodyIdx_dev;
-#else///EXCHANGE_USING_GPUS
-  int dstRank, bodyIdx;
-#endif//EXCHANGE_USING_GPUS
 } domainDecomposeKey;
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-/* constant to detect load imbalance */
-/* static const double loadImbalanceCrit = 0.9; */
-static const double loadImbalanceCrit = 0.95;
+/* static const double loadImbalanceCrit = 0.9;/\**< constant to detect load imbalance *\/ */
+static const double loadImbalanceCrit = 0.95;/**< constant to detect load imbalance */
 #define SLOW_DOWN_PROCS_CRIT(tot) ((tot) >> 4)
-//-------------------------------------------------------------------------
+
+/**
+ * @struct loadImbalanceDetector
+ *
+ * @brief structure for detecting load imbalance
+ */
 typedef struct
 {
   double tmin, tmax;
   bool enable, execute;
 } loadImbalanceDetector;
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-//-- List of functions appeared in "exchange.c"
-//-------------------------------------------------------------------------
+/* list of functions appeared in ``exchange.c'' */
 #ifdef  __CUDACC__
 extern "C"
 {
 #endif//__CUDACC__
-  //-----------------------------------------------------------------------
-#ifdef  EXCHANGE_USING_GPUS
-  //-----------------------------------------------------------------------
   muse allocateORMtopology(float **dxmin, float **dxmax, float **dymin, float **dymax, float **dzmin, float **dzmax, MPI_Request **dmreq,
 			   float **sxmin, float **sxmax, float **symin, float **symax, float **szmin, float **szmax,
 			   sendCfg **sendBuf, recvCfg **recvBuf, int **rnum, int **disp,
@@ -144,40 +176,9 @@ extern "C"
 			   float  *sxmin, float  *sxmax, float  *symin, float  *symax, float  *szmin, float  *szmax,
 			   sendCfg  *sendBuf, recvCfg  *recvBuf, int  *rnum, int  *disp,
 			   MPIinfo orm[], MPIinfo rep[], const int rank);
-  //-----------------------------------------------------------------------
-#else///EXCHANGE_USING_GPUS
-  //-----------------------------------------------------------------------
-  void configORBtopology
-  (domainCfg **box, sendCfg **sendBuf, recvCfg **recvBuf, MPIcfg_tree *mpi, int *ndim, MPIinfo **orb,
-   const ulong Ntot, real *samplingRate, int *sampleNumMax, real **sampleLoc, real **sampleFul,
-   int **recvNum, int **recvDsp, real **boxMin, real **boxMax);
-  void removeORBtopology
-  (domainCfg  *box, sendCfg  *sendBuf, recvCfg  *recvBuf, const int ndim, MPIinfo  *orb,
-   real  *sampleLoc, real  *sampleFul, int  *recvNum, int  *recvDsp, real  *boxMin, real  *boxMax);
-  //-----------------------------------------------------------------------
-  void exchangeParticles
-  (const int numOld, const int numMax, int *numNew, iparticle ibody_dev, iparticle src, iparticle dst,
-   domainDecomposeKey *key,
-   sendCfg *sendBuf, recvCfg *recvBuf,
-   const float samplingRate, const int sampleNumMax, const double tloc, real *sampleLoc, real *sampleFul, int *recvNum, int *recvDsp, real *boxMin, real *boxMax,
-   const int ndim, MPIinfo *orb,
-   domainCfg *domain, MPIcfg_tree mpi, measuredTime *measured
-#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
-   , brentStatus *status, brentMemory *memory
-#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
-#ifdef  EXEC_BENCHMARK
-   , wall_clock_time *execTime
-#endif//EXEC_BENCHMARK
-   );
-  //-----------------------------------------------------------------------
-#endif//EXCHANGE_USING_GPUS
-  //-----------------------------------------------------------------------
 #ifdef  __CUDACC__
 }
 #endif//__CUDACC__
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #endif//EXCHANGE_H
-//-------------------------------------------------------------------------

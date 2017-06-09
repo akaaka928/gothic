@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/24 (Fri)
+ * @date 2017/06/02 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -57,8 +57,14 @@ static inline int bisection(const double val, const int num, double * restrict t
   int rr = num - 1;
 
   /** prohibit extraporation */
-  if( val < tab[ll] + DBL_EPSILON ){    *ratio = 0.0;    return (ll    );  }
-  if( val > tab[rr] - DBL_EPSILON ){    *ratio = 1.0;    return (rr - 1);  }
+  /* if( tab[ll] < tab[rr] ){ */
+    if( val < tab[ll] + DBL_EPSILON ){    *ratio = 0.0;    return (ll    );  }
+    if( val > tab[rr] - DBL_EPSILON ){    *ratio = 1.0;    return (rr - 1);  }
+  /* }/\* if( tab[ll] < tab[rr] ){ *\/ */
+  /* else{ */
+  /*   if( val > tab[ll] - DBL_EPSILON ){    *ratio = 0.0;    return (ll    );  } */
+  /*   if( val < tab[rr] + DBL_EPSILON ){    *ratio = 1.0;    return (rr - 1);  } */
+  /* }/\* else{ *\/ */
 
   while( true ){
     const uint cc = ((uint)(ll + rr)) >> 1;
@@ -87,8 +93,8 @@ static inline int bisection(const double val, const int num, double * restrict t
  */
 static inline int findIdxSpherical(const double rad, profile *prf, const double invlogbin, double *ratio)
 {
-  int ll = 0;
-  int rr = 3 + NRADBIN;
+  int ll =           0;
+  int rr = NRADBIN - 1;
 
   if( rad < prf[ll].rad + DBL_EPSILON ){    *ratio = 0.0;    return (ll    );  }
   if( rad > prf[rr].rad - DBL_EPSILON ){    *ratio = 1.0;    return (rr - 1);  }
@@ -267,26 +273,26 @@ void integrateSphericalDensityProfile(const int ndisk, const int maxLev, disk_da
 
     /** fill the total enclosed mass in the outer region */
 #pragma omp parallel for
-    for(int ii = tail; ii < 4 + NRADBIN; ii++){
+    for(int ii = tail; ii < NRADBIN; ii++){
       prf[ii].rho = 0.0;
       prf[ii].enc = Mdisk;
-    }/* for(int ii = tail; ii < 4 + NRADBIN; ii++){ */
+    }/* for(int ii = tail; ii < NRADBIN; ii++){ */
 
 #pragma omp parallel for
-    for(int ii = 0; ii < 4 + NRADBIN; ii++)
+    for(int ii = 0; ii < NRADBIN; ii++)
       prf[ii].psi = prf[ii].enc / prf[ii].rad;
 
 
     /** calculate spherical averaged profile of potential (external part) */
     double Pext[2];
-    Pext[0] = prf[NRADBIN + 3].rad * prf[NRADBIN + 3].rad * prf[NRADBIN + 3].rho;
-    Pext[1] = prf[NRADBIN + 2].rad * prf[NRADBIN + 2].rad * prf[NRADBIN + 2].rho;
+    Pext[0] = prf[NRADBIN - 1].rad * prf[NRADBIN - 1].rad * prf[NRADBIN - 1].rho;
+    Pext[1] = prf[NRADBIN - 2].rad * prf[NRADBIN - 2].rad * prf[NRADBIN - 2].rho;
     double Pini[2];
     Pini[0] =           0.0;
-    Pini[1] = Pini[0] + (prf[NRADBIN + 3].rad - prf[NRADBIN + 2].rad) * sqrt(prf[NRADBIN + 2].rad * prf[NRADBIN + 3].rad) * 0.5 * (prf[NRADBIN + 2].rho + prf[NRADBIN + 3].rho);
+    Pini[1] = Pini[0] + (prf[NRADBIN - 1].rad - prf[NRADBIN - 2].rad) * sqrt(prf[NRADBIN - 2].rad * prf[NRADBIN - 1].rad) * 0.5 * (prf[NRADBIN - 2].rho + prf[NRADBIN - 1].rho);
     Pext[0] += Pext[1] * 4.0;
 
-    for(int ii = NRADBIN + 1; ii >= 0; ii--){
+    for(int ii = NRADBIN - 3; ii >= 0; ii--){
       const double psi = prf[ii].rad * prf[ii].rad * prf[ii].rho;
       const int idx = (int)((ii + 1) & 1);
 
@@ -294,12 +300,12 @@ void integrateSphericalDensityProfile(const int ndisk, const int maxLev, disk_da
 
       Pext[0] += psi * (double)(1 << (1 + (idx    )));
       Pext[1] += psi * (double)(1 << (1 + (idx ^ 1)));
-    }/* for(int ii = NRADBIN + 1; ii >= 0; ii--){ */
+    }/* for(int ii = NRADBIN - 3; ii >= 0; ii--){ */
 
 
     /** multiply overall factor */
 #pragma omp parallel for
-    for(int ii = 0; ii < 4 + NRADBIN; ii++)
+    for(int ii = 0; ii < NRADBIN; ii++)
       prf[ii].psi *= CAST_R2D(newton);
   }/* for(int kk = 0; kk < ndisk; kk++){ */
 
@@ -525,6 +531,7 @@ static inline int bisection4nestedGrid
  * @sa convertCylindrical2Spherical
  * @sa findIdxSpherical
  * @sa bisection
+ * @sa bisection4nestedGrid
  */
 void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const int maxLev, const disk_data disk, rand_state *rand)
 {
@@ -546,6 +553,14 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
 
   double * dPhidR ;  dPhidR   =  disk. dPhidR;
   double *d2PhidR2;  d2PhidR2 =  disk.d2PhidR2;
+
+#ifdef  SWEEP_HIGH_ALTITUDE_COMPONENT
+#ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
+  double *zd;  zd = disk.zd;
+#else///ENABLE_VARIABLE_SCALE_HEIGHT
+  const double zd = disk.cfg->zd;
+#endif//ENABLE_VARIABLE_SCALE_HEIGHT
+#endif//SWEEP_HIGH_ALTITUDE_COMPONENT
 
   const ulong num = disk.cfg->num;
 #ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
@@ -581,6 +596,14 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
   for(int lev = 0; lev < maxLev; lev++)
     tab_lev[lev] = enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, NDISKBIN_HOR)];
 
+#ifdef  SWEEP_HIGH_ALTITUDE_COMPONENT
+  double *z_tab_lev;
+  z_tab_lev = (double *)malloc(sizeof(double) * maxLev);
+  if( z_tab_lev == NULL ){    __KILL__(stderr, "ERROR: failure to allocate z_tab_lev\n");  }
+  for(int lev = 0; lev < maxLev; lev++)
+    z_tab_lev[lev] = node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev, NDISKBIN_VER)];
+#endif//SWEEP_HIGH_ALTITUDE_COMPONENT
+
   /** distribute N-body particles */
 #ifdef  USE_SFMTJUMP
 #pragma omp for
@@ -615,58 +638,128 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     /** calculate vertical velocity dispersion at R = Rg */
     const double sigmaz = (1.0 - aRg) * sig[INDEX2D(maxLev, NDISKBIN_HOR, lev, iRg)] + aRg * sig[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + iRg)];
 
-    /** set z using table search */
-    const double zenc = UNIRAND_DBL(rand);
+
+    double zenc_max = 1.0;
     int jzz = 0;
     double azz = 0.0;
+
+#ifdef  SWEEP_HIGH_ALTITUDE_COMPONENT
+    /** zz should be less than DISK_DIMMING_HEIGHT * zd */
+#ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
+    double zmax = DISK_DIMMING_HEIGHT * ((1.0 - aRg) * zd[INDEX2D(maxLev, NDISKBIN_HOR, lev, iRg)] + aRg * zd[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + iRg)]);
+#ifdef  ADDITIONAL_CONDITION_FOR_SCALE_HEIGHT
+    zmax = fmin(zmax, DISK_DIMMING_SCALE * disk.cfg->rs);
+#endif//ADDITIONAL_CONDITION_FOR_SCALE_HEIGHT
+#else///ENABLE_VARIABLE_SCALE_HEIGHT
+    double zmax = DISK_DIMMING_HEIGHT * zd;
+#endif//ENABLE_VARIABLE_SCALE_HEIGHT
+    zmax = fmin(zmax, disk.cfg->rc);
+
+    if( zmax < node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, 0, NDISKBIN_VER)] ){
+      int lev_z = 0;
+      int ii_R = iRg;
+      double aa_R = aRg;
+      jzz = bisection4nestedGrid(zmax, NDISKBIN_VER + 1, node_ver, false, 1.0, &azz, maxLev, &lev_z, z_tab_lev);
+      azz /= (node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev_z, 1 + jzz)] - node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev_z, jzz)]);
+
+      if( lev > lev_z ){
+    	/** reset ii_R and aa_R in coarser grid */
+    	ii_R = bisection(Renc, NDISKBIN_HOR + 1, &(enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev_z, 0)]), false, 1.0, &aa_R);
+    	/* aa_R /= (enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev_z, 1 + ii_R)] - enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev_z, ii_R)]); */
+      }/* if( lev > lev_z ){ */
+      if( lev < lev_z ){
+	/* reset jzz and azz in coarser grid */
+    	lev_z = lev;
+    	jzz = bisection(zmax, NDISKBIN_VER + 1, &(node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev_z, 0)]), false, 1.0, &azz);
+    	/* azz /= (node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev_z, 1 + jzz)] - node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev_z, jzz)]); */
+      }/* if( lev < lev_z ){ */
+
+      /* zenc_max = */
+      /* 	(rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev_z,     ii_R,     jzz)] * (1.0 - azz) + */
+      /* 	 rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev_z,     ii_R, 1 + jzz)] *        azz    ) * (1.0 - aa_R) + */
+      /* 	(rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev_z, 1 + ii_R,     jzz)] * (1.0 - azz) + */
+      /* 	 rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev_z, 1 + ii_R, 1 + jzz)] *        azz    ) *        aa_R; */
+      /* zenc_max = */
+      /* 	rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev_z, ii_R,     jzz)] * (1.0 - azz) + */
+      /* 	rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev_z, ii_R, 1 + jzz)] *        azz; */
+      /* zenc_max = rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev_z, ii_R, jzz)]; */
+      zenc_max = fmin(rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev_z, ii_R, jzz)], rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev_z, 1 + ii_R, jzz)]);
+    }/* if( zmax < node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, 0, NDISKBIN_VER)] ){ */
+
+    zenc_max = fmin(zenc_max, 1.0);
+#endif//SWEEP_HIGH_ALTITUDE_COMPONENT
+
+
+    /** set z using table search */
     double zz = 0.0;
+    jzz = 0;
+    azz = 0.0;
 
-    while( true ){
-      if( zenc > (rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev, iRg, NDISKBIN_VER)] + DBL_EPSILON) ){
-	lev--;
-	if( lev < 0 ){	  lev = 0;	  break;	}
-	/** reset iRg and aRg in coarser grid */
-	iRg = bisection(Renc, NDISKBIN_HOR + 1, &(enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, 0)]), false, 1.0, &aRg);
-	aRg /= (enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, 1 + iRg)] - enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, iRg)]);
-	/** correction about ``iRg'' and ``aRg'' for zone centeric coordinate from edge coordinate */
-	if( Rg >= zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)] ){
-	  if( Rg <= zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, NDISKBIN_HOR - 1)] ){
-	    iRg = bisection(Rg, NDISKBIN_HOR, &(zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)]), false, 1.0, &aRg);
-	    aRg /= (zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + iRg)] - zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, iRg)]);
-	  }/* if( Rg <= zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, NDISKBIN_HOR - 1)] ){ */
+#ifdef  SWEEP_HIGH_ALTITUDE_COMPONENT
+    const int lev_stock = lev;
+    const int iRg_stock = iRg;
+    const double aRg_stock = aRg;
+    zz = zmax * 2.0;
+    while( zz > zmax ){
+      /** recover the original version */
+      lev = lev_stock;
+      iRg = iRg_stock;
+      aRg = aRg_stock;
+#endif//SWEEP_HIGH_ALTITUDE_COMPONENT
+      const double zenc = UNIRAND_DBL(rand) * zenc_max;
+
+      while( true ){
+	if( zenc > (rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev, iRg, NDISKBIN_VER)] + DBL_EPSILON) ){
+	  lev--;
+	  if( lev < 0 ){	    lev = 0;	    break;	  }
+	  /** reset iRg and aRg in coarser grid */
+	  iRg = bisection(Renc, NDISKBIN_HOR + 1, &(enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, 0)]), false, 1.0, &aRg);
+	  aRg /= (enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, 1 + iRg)] - enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, iRg)]);
+	  /** correction about ``iRg'' and ``aRg'' for zone centeric coordinate from edge coordinate */
+	  if( Rg >= zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)] ){
+	    if( Rg <= zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, NDISKBIN_HOR - 1)] ){
+	      iRg = bisection(Rg, NDISKBIN_HOR, &(zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)]), false, 1.0, &aRg);
+	      aRg /= (zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + iRg)] - zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, iRg)]);
+	    }/* if( Rg <= zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, NDISKBIN_HOR - 1)] ){ */
+	    else{
+	      iRg = NDISKBIN_HOR - 2;
+	      aRg = 1.0;
+	    }/* else{ */
+	  }/* if( Rg >= zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)] ){ */
 	  else{
-	    iRg = NDISKBIN_HOR - 2;
-	    aRg = 1.0;
+	    iRg = 0;
+	    aRg = 0.0;
 	  }/* else{ */
-	}/* if( Rg >= zone_hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)] ){ */
-	else{
-	  iRg = 0;
-	  aRg = 0.0;
-	}/* else{ */
-      }
-      else
-	break;
-    }/* while( true ){ */
+	}/* if( zenc > (rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev, iRg, NDISKBIN_VER)] + DBL_EPSILON) ){ */
+	else
+	  break;
+      }/* while( true ){ */
 
-    /** use table search */
-    jzz = bisection(zenc, NDISKBIN_VER + 1, &rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev, iRg, 0)], false, 1.0, &azz);
-    azz /= (rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev, iRg, 1 + jzz)] - rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev, iRg, jzz)]);
-    zz = (1.0 - azz) * node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev, jzz)] + azz * node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev, 1 + jzz)];
-    /** correction about ``jzz'' and ``azz'' for zone centeric coordinate from edge coordinate */
-    if( zz >= zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, 0)] ){
-      if( zz <= zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, NDISKBIN_VER - 1)] ){
-	jzz = bisection(zz, NDISKBIN_VER, &(zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, 0)]), false, 1.0, &azz);
-	azz /= (zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, 1 + jzz)] - zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, jzz)]);
-      }/* if( zz <= zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, NDISKBIN_VER - 1)] ){ */
+      /** use table search */
+      jzz = bisection(zenc, NDISKBIN_VER + 1, &rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev, iRg, 0)], false, 1.0, &azz);
+      azz /= (rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev, iRg, 1 + jzz)] - rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, lev, iRg, jzz)]);
+      zz = (1.0 - azz) * node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev, jzz)] + azz * node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev, 1 + jzz)];
+
+      /** correction about ``jzz'' and ``azz'' for zone centeric coordinate from edge coordinate */
+      if( zz >= zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, 0)] ){
+	if( zz <= zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, NDISKBIN_VER - 1)] ){
+	  jzz = bisection(zz, NDISKBIN_VER, &(zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, 0)]), false, 1.0, &azz);
+	  azz /= (zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, 1 + jzz)] - zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, jzz)]);
+	}/* if( zz <= zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, NDISKBIN_VER - 1)] ){ */
+	else{
+	  jzz = NDISKBIN_VER - 2;
+	  azz = 1.0;
+	}/* else{ */
+      }/* if( zz >= zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, 0)] ){ */
       else{
-	jzz = NDISKBIN_VER - 2;
-	azz = 1.0;
+	jzz = 0;
+	azz = 0.0;
       }/* else{ */
-    }/* if( zz >= zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, 0)] ){ */
-    else{
-      jzz = 0;
-      azz = 0.0;
-    }/* else{ */
+
+#ifdef  SWEEP_HIGH_ALTITUDE_COMPONENT
+    }/* while( zz > zmax ){ */
+#endif//SWEEP_HIGH_ALTITUDE_COMPONENT
+
 
     if( UNIRAND_DBL(rand) < 0.5 )
       zz *= -1.0;
@@ -843,6 +936,88 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     fprintf(stdout, "# \tw/z Ekin of spherical component: Krot / (Krot + Krand) = %e; i.e., %s to a bar-like mode\n", Krot / (Krot + Krnd), ((Krot / (Krot + Krnd)) > 0.28) ? "unstable" : "  stable");
   }
 #endif//CHECK_OSTRIKER_PEEBLES_CRITERION
+
+  free(tab_lev);
+#ifdef  SWEEP_HIGH_ALTITUDE_COMPONENT
+  free(z_tab_lev);
+#endif//SWEEP_HIGH_ALTITUDE_COMPONENT
+
+  __NOTE__("%s\n", "end");
+}
+
+
+/**
+ * @fn getEffectiveRadius
+ *
+ * @brief Evaluate effective radius of the disk component(s).
+ *
+ * @param (ndisk) number of disk components
+ * @param (maxLev) maximum level of nested grid
+ * @param (disk) physical properties of the disk component
+ *
+ * @sa bisection4nestedGrid
+ */
+void getEffectiveRadius(const int ndisk, const int maxLev, disk_data *disk)
+{
+  __NOTE__("%s\n", "start");
+
+
+  double *tab_lev;
+  tab_lev = (double *)malloc(sizeof(double) * maxLev);
+  if( tab_lev == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tab_lev\n");  }
+
+  for(int ii = 0; ii < ndisk; ii++){
+    double *     enc;    enc      = disk[ii].enc;
+    double *node_hor;    node_hor = disk[ii].node_hor;
+    for(int ll = 0; ll < maxLev; ll++)
+      tab_lev[ll] = enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, ll, NDISKBIN_HOR)];
+
+    const double Mhalf = 0.5 * disk[ii].cfg->Mtot;
+
+    double alp;
+    int lev;
+    int idx = bisection4nestedGrid(Mhalf, NDISKBIN_HOR + 1, enc, false, 1.0, &alp, maxLev, &lev, tab_lev);
+    alp /= (enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, 1 + idx)] - enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, idx)]);
+
+    disk[ii].cfg->Reff = (1.0 - alp) * node_hor[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, idx)] + alp * node_hor[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, 1 + idx)];
+  }/* for(int ii = 0; ii < ndisk; ii++){ */
+
+  free(tab_lev);
+
+
+  __NOTE__("%s\n", "end");
+}
+
+
+/**
+ * @fn findIdx4nestedGrid
+ *
+ * @brief Find a data element in the given nested array corresponding to the given radius.
+ *
+ * @param (RR) radius
+ * @param (maxLev) maximum level of nested grid
+ * @param (disk) physical properties of the disk component
+ * @return (lev) the corresponding level of nested grid
+ * @return (idx) the corresponding lower index
+ * @return (alp) the corresponding coefficient for linear interpolation
+ *
+ * @sa bisection4nestedGrid
+ */
+void findIdx4nestedGrid(const double RR, const int maxLev, const disk_data disk, int * restrict lev, int * restrict idx, double * restrict alp)
+{
+  __NOTE__("%s\n", "start");
+
+
+  double *tab_lev;
+  tab_lev = (double *)malloc(sizeof(double) * maxLev);
+  if( tab_lev == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tab_lev\n");  }
+
+  double *node_hor;  node_hor = disk.node_hor;
+  for(int ll = 0; ll < maxLev; ll++)
+    tab_lev[ll] = node_hor[INDEX2D(maxLev, NDISKBIN_HOR + 1, ll, NDISKBIN_HOR)];
+
+  *idx = bisection4nestedGrid(RR, NDISKBIN_HOR + 1, node_hor, false, 1.0, alp, maxLev, lev, tab_lev);
+  *alp /= (node_hor[INDEX2D(maxLev, NDISKBIN_HOR + 1, *lev, 1 + (*idx))] - node_hor[INDEX2D(maxLev, NDISKBIN_HOR + 1, *lev, *idx)]);
 
   free(tab_lev);
 

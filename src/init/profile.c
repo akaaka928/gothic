@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/24 (Fri)
+ * @date 2017/06/09 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -30,6 +30,16 @@
 #endif//MAKE_COLUMN_DENSITY_PROFILE
 
 
+#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
+#include "spline.h"
+#define NFIT_PROFILE (4)
+#define NCAP_PROFILE (16)
+#define NSPLINE_PROFILE (NRADBIN + NCAP_PROFILE)
+#else///ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
+extern double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[NTBL_GAUSS_QD];
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
+
+
 extern const real newton;
 extern const double     mass_astro2com;
 extern const double   length_astro2com;
@@ -51,7 +61,7 @@ void setDensityProfilePlummer(profile *prf, const double rs)
   /** set density profile */
   const double rsinv = 1.0 / rs;
 #pragma omp parallel for
-  for(int ii = 0; ii < 4 + NRADBIN; ii++){
+  for(int ii = 0; ii < NRADBIN; ii++){
     const double rad_rs = prf[ii].rad * rsinv;
     const double x2_pls_1 = 1.0 + rad_rs * rad_rs;
     const double     inv = 1.0 / x2_pls_1;
@@ -61,7 +71,7 @@ void setDensityProfilePlummer(profile *prf, const double rs)
     prf[ii].  rho     = pow_m5_2;
     prf[ii]. drho_dr  = - 5.0 * rad_rs * pow_m5_2 * inv * rsinv;
     prf[ii].d2rho_dr2 = 5.0 * pow_m5_2 * inv * (7.0 * rad_rs * rad_rs * inv - 1.0) * rsinv * rsinv;
-  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
   __NOTE__("%s\n", "end");
 }
@@ -82,7 +92,7 @@ void setDensityProfileBurkert(profile *prf, const double rs)
   /** set density profile */
   const double rsinv = 1.0 / rs;
 #pragma omp parallel for
-  for(int ii = 0; ii < 4 + NRADBIN; ii++){
+  for(int ii = 0; ii < NRADBIN; ii++){
     const double rad_rs      = prf[ii].rad * rsinv;
     const double rad_rs_p1   = rad_rs + 1.0;
     const double rad2_rs2    = rad_rs * rad_rs;
@@ -92,7 +102,7 @@ void setDensityProfileBurkert(profile *prf, const double rs)
     prf[ii].  rho     = inv;
     prf[ii]. drho_dr  = - (1.0 + rad_rs * (2.0 + 3.0 * rad_rs)) * inv * inv * rsinv;
     prf[ii].d2rho_dr2 = 4.0 * rad2_rs2 * (4.0 * rad_rs + 3.0 * rad2_rs2_p1) * inv * inv * inv * rsinv * rsinv;
-  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
   __NOTE__("%s\n", "end");
 }
@@ -113,7 +123,7 @@ void setDensityProfileHernquist(profile *prf, const double rs)
   /** set density profile */
   const double rsinv = 1.0 / rs;
 #pragma omp parallel for
-  for(int ii = 0; ii < 4 + NRADBIN; ii++){
+  for(int ii = 0; ii < NRADBIN; ii++){
     const double rad_rs = prf[ii].rad * rsinv;
     const double rad_rs_p1 = rad_rs + 1.0;
     const double tmp = rad_rs * rad_rs_p1;
@@ -122,7 +132,7 @@ void setDensityProfileHernquist(profile *prf, const double rs)
     prf[ii].  rho     = 1.0 * inv * inv * tmp;
     prf[ii]. drho_dr  = - (1.0 + 4.0 * rad_rs) * inv * inv * rsinv;
     prf[ii].d2rho_dr2 = 2.0 * (1.0 + 5.0 * rad_rs * (1.0 + 2.0 * rad_rs)) * inv * inv * inv * rad_rs_p1 * rsinv * rsinv;
-  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
   __NOTE__("%s\n", "end");
 }
@@ -143,7 +153,7 @@ void setDensityProfileNFW(profile *prf, const double rs)
   /** set density profile */
   const double rsinv = 1.0 / rs;
 #pragma omp parallel for
-  for(int ii = 0; ii < 4 + NRADBIN; ii++){
+  for(int ii = 0; ii < NRADBIN; ii++){
     const double rad_rs = prf[ii].rad * rsinv;
     const double rad_rs_p1 = rad_rs + 1.0;
     const double tmp = rad_rs * rad_rs_p1;
@@ -152,7 +162,7 @@ void setDensityProfileNFW(profile *prf, const double rs)
     prf[ii].  rho     = inv;
     prf[ii]. drho_dr  = - (1.0 + 3.0 * rad_rs) * inv * inv * rad_rs_p1 * rsinv;
     prf[ii].d2rho_dr2 = 2.0 * (2.0 * rad_rs * (3.0 * rad_rs + 2.0) + 1.0) * inv * inv * inv * rad_rs_p1 * rad_rs_p1 * rsinv * rsinv;
-  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
   __NOTE__("%s\n", "end");
 }
@@ -173,7 +183,7 @@ void setDensityProfileMoore(profile *prf, const double rs)
   /** set density profile */
   const double rsinv = 1.0 / rs;
 #pragma omp parallel for
-  for(int ii = 0; ii < 4 + NRADBIN; ii++){
+  for(int ii = 0; ii < NRADBIN; ii++){
     const double rad_rs   = prf[ii].rad * rsinv;
     const double     inv  = 1.0 / (rad_rs * (1.0 + rad_rs));
     const double sqrtinv  = sqrt(inv);
@@ -182,7 +192,7 @@ void setDensityProfileMoore(profile *prf, const double rs)
     prf[ii].  rho     =  1.0 * inv * sqrtinv;
     prf[ii]. drho_dr  = -1.5 * (1.0 + 2.0 * rad_rs) * pow_m5_2 * rsinv;
     prf[ii].d2rho_dr2 =  0.75 * (5.0 + 16.0 * rad_rs * (1.0 + rad_rs)) * pow_m5_2 * inv * rsinv * rsinv;
-  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
   __NOTE__("%s\n", "end");
 }
@@ -204,7 +214,7 @@ void setDensityProfileEinasto(profile *prf, const double rs, const double alpha)
   /** set density profile */
   const double rsinv = 1.0 / rs;
 #pragma omp parallel for
-  for(int ii = 0; ii < 4 + NRADBIN; ii++){
+  for(int ii = 0; ii < NRADBIN; ii++){
     const double rad_rs = prf[ii].rad * rsinv;
     const double xalpha = pow(rad_rs, alpha);
     const double xinv = 1.0 / rad_rs;
@@ -213,7 +223,7 @@ void setDensityProfileEinasto(profile *prf, const double rs, const double alpha)
     prf[ii].  rho     = rho;
     prf[ii]. drho_dr  = -2.0 * xalpha * xinv * rho * rsinv;
     prf[ii].d2rho_dr2 =  2.0 * xalpha * xinv * xinv * rho * rsinv * rsinv * (2.0 * xalpha + 1.0 - alpha);
-  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
   __NOTE__("%s\n", "end");
 }
@@ -235,7 +245,7 @@ void setDensityProfileAppKing(profile *prf, const double rs, const double rt)
   /** set density profile */
   const double rsinv = 1.0 / rs;
 #pragma omp parallel for
-  for(int ii = 0; ii < 4 + NRADBIN; ii++){
+  for(int ii = 0; ii < NRADBIN; ii++){
     const double rad_rs = prf[ii].rad * rsinv;
     const double CC = 1.0 / sqrt(1.0 + rt * rsinv * rt * rsinv);
     const double inv = 1.0 / (1.0 + rad_rs * rad_rs);
@@ -244,7 +254,7 @@ void setDensityProfileAppKing(profile *prf, const double rs, const double rt)
     prf[ii].  rho     = (prf[ii].rad < rt) ? ((sqrtinv - CC) * (sqrtinv - CC)) : (0.0);
     prf[ii]. drho_dr  = (prf[ii].rad < rt) ? (-2.0 * (sqrtinv - CC) * rad_rs * inv * sqrtinv * rsinv) : (0.0);
     prf[ii].d2rho_dr2 = (prf[ii].rad < rt) ? ((2.0 * inv * inv * (4.0 * rad_rs * rad_rs * inv - 1.0) + 2.0 * CC * sqrtinv * inv * (1.0 - 3.0 * rad_rs * rad_rs * inv)) * rsinv * rsinv) : (0.0);
-  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
   __NOTE__("%s\n", "end");
 }
@@ -275,7 +285,7 @@ void setDensityProfileTwoPower(profile *prf, const double rs, const double alpha
   const double b1    = 1.0 - beta;
 
 #pragma omp parallel for
-  for(int ii = 0; ii < 4 + NRADBIN; ii++){
+  for(int ii = 0; ii < NRADBIN; ii++){
     const double xx    = prf[ii].rad * rsinv;
     const double xinv  = 1.0 / xx;
     const double xa    = pow(xinv, alpha);
@@ -287,7 +297,7 @@ void setDensityProfileTwoPower(profile *prf, const double rs, const double alpha
     prf[ii].  rho     =                  base;
     prf[ii]. drho_dr  = -rsinv         * base * xinv        * xbp1i         * (alpha                    + gam * xb);
     prf[ii].d2rho_dr2 =  rsinv * rsinv * base * xinv * xinv * xbp1i * xbp1i * (alpha * (a1 + b1g2 * xb) + gam * xb * (b1 + g1 * xb));
-  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
   __NOTE__("%s\n", "end");
 }
@@ -318,7 +328,7 @@ void setDensityProfileTriPower(profile *prf, const double rin, const double rout
   const double gmeod = (gam - eps) / del;
 
 #pragma omp parallel for
-  for(int ii = 0; ii < 4 + NRADBIN; ii++){
+  for(int ii = 0; ii < NRADBIN; ii++){
     const double yy   = prf[ii].rad * rsinv;
     const double yd   = pow(yy, del);
     const double ydp1 = 1.0 + yd;
@@ -331,7 +341,7 @@ void setDensityProfileTriPower(profile *prf, const double rin, const double rout
     prf[ii].d2rho_dr2 = prf[ii].d2rho_dr2 * base0 + 2.0 * prf[ii].drho_dr * base1 + prf[ii].rho * base2;
     prf[ii]. drho_dr  = prf[ii]. drho_dr  * base0                                 + prf[ii].rho * base1;
     prf[ii].  rho     = prf[ii].  rho     * base0;
-  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
   __NOTE__("%s\n", "end");
 }
@@ -362,7 +372,7 @@ void setDensityProfileAppLoweredEvans(profile *prf, const double rs, const doubl
   const double alphax2 = 2.0 * alpha;
 
 #pragma omp parallel for
-  for(int ii = 0; ii < 4 + NRADBIN; ii++){
+  for(int ii = 0; ii < NRADBIN; ii++){
     const double rad = prf[ii].rad;
     const double rad_rs = rad * rsinv;
     const double rad_rc = rad * rcinv;
@@ -396,7 +406,7 @@ void setDensityProfileAppLoweredEvans(profile *prf, const double rs, const doubl
     prf[ii].  rho     = rho * smooth;
     prf[ii]. drho_dr  = rho * dsmooth + drho * smooth;
     prf[ii].d2rho_dr2 = rho * d2smooth + 2.0 * drho * dsmooth + d2rho * smooth;
-  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
 
   __NOTE__("%s\n", "end");
@@ -417,17 +427,325 @@ void setContributionByCentralBH(profile *prf, const profile_cfg cfg)
 
   /** set density profile */
 #pragma omp parallel for
-  for(int ii = 0; ii < 4 + NRADBIN; ii++){
+  for(int ii = 0; ii < NRADBIN; ii++){
     prf[ii].  rho     = 0.0;
     prf[ii]. drho_dr  = 0.0;
     prf[ii].d2rho_dr2 = 0.0;
 
     prf[ii].enc =                    cfg.Mtot;
     prf[ii].psi = CAST_R2D(newton) * cfg.Mtot / prf[ii].rad;
-  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
   __NOTE__("%s\n", "end");
 }
+
+
+#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
+/**
+ * @fn leastSquaresMethod
+ *
+ * @brief Data fitting by the least squares method (assume power-law model).
+ *
+ * @param (num) number of data points
+ * @param (xx) x
+ * @param (yy) y = y(x)
+ * @return (pp) the resultant power-law index
+ * @return (bb) the resultant base
+ */
+static inline void leastSquaresMethod(const int num, double * restrict xx, double * restrict yy, double * restrict pp, double * restrict bb)
+{
+  double SS, Sx, Sy, Sxx, Sxy;
+  SS = Sx = Sy = Sxx = Sxy = 0.0;
+
+  for(int ii = 0; ii < num; ii++){
+    const double logx = log10(xx[ii]);
+    const double logy = log10(yy[ii]);
+    SS  += 1.0;
+    Sx  += logx;
+    Sxx += logx * logx;
+    Sy  +=        logy;
+    Sxy += logx * logy;
+  }/* for(int ii = 0; ii < num; ii++){ */
+
+  *pp = (SS * Sxy - Sx * Sy) / (SS * Sxx - Sx * Sx);
+  *bb = pow(10.0, (Sy - (*pp) * Sx) / SS);
+
+#if 1
+  /** tentative treatment for the case that y is almost zero and hence least squares method returns inf */
+  if( isfinite(*bb) == 0 ){
+    *pp = 1.0;
+    *bb = 0.0;/* 0.5 * (yy[(num - 1) >> 1] + yy[num >> 1]);/\* this is the median of yy *\/ */
+  }/* if( isfinite(*bb) == 0 ){ */
+#endif
+}
+
+
+/**
+ * @fn get_DEformula_internal
+ *
+ * @brief Calculate integrand in double exponential formula.
+ *
+ * @param (tt) value of integration variable
+ * @param (rr) 
+ * @param (xx) position of data points (psi)
+ * @param (yy) value of data points (d2rho_dpsi2)
+ * @param (y2) coefficients in cubic spline interpolation
+ * @return integrand for 
+ */
+static inline double get_DEformula_internal(const double tt, const double rr, double * restrict xx, double * restrict yy, double * restrict y2)
+{
+  const double sinh_t = M_PI_2 * sinh(tt);
+  const double cosh_t = cosh(sinh_t);
+  const double inv_cosh_t = 1.0 / cosh_t;
+
+  const double one_pls_x = exp(sinh_t) * inv_cosh_t;
+
+  return (cosh(tt) * inv_cosh_t * inv_cosh_t * one_pls_x * one_pls_x * getCubicSpline1D(0.5 * rr * one_pls_x, NSPLINE_PROFILE, xx, yy, y2));
+}
+
+
+/**
+ * @fn get_DEformula_external
+ *
+ * @brief Calculate integrand in double exponential formula.
+ *
+ * @param (tt) value of integration variable
+ * @param (rmin) 
+ * @param (rmax) 
+ * @param (xx) position of data points (psi)
+ * @param (yy) value of data points (d2rho_dpsi2)
+ * @param (y2) coefficients in cubic spline interpolation
+ * @return integrand for 
+ */
+static inline double get_DEformula_external(const double tt, const double rmin, const double rmax, double * restrict xx, double * restrict yy, double * restrict y2)
+{
+  const double sinh_t = M_PI_2 * sinh(tt);
+  const double cosh_t = cosh(sinh_t);
+  const double inv_cosh_t = 1.0 / cosh_t;
+
+  const double one_pls_x = exp( sinh_t) * inv_cosh_t;
+  const double one_mns_x = exp(-sinh_t) * inv_cosh_t;
+
+  const double rr = 0.5 * (rmin * one_mns_x + rmax * one_pls_x);
+
+  return (cosh(tt) * inv_cosh_t * inv_cosh_t * rr * getCubicSpline1D(rr, NSPLINE_PROFILE, xx, yy, y2));
+}
+
+
+static inline double update_trapezoidal_internal(const double hh, const double tmin, const double tmax, const double sum, const double rr, double * restrict xx, double * restrict yy, double * restrict y2)
+{
+  /** initialization */
+  double sub = 0.0;
+  double tt = tmin + hh;
+
+  /** employ mid-point rule */
+  while( tt < tmax ){
+    sub += get_DEformula_internal(tt, rr, xx, yy, y2);
+    tt += 2.0 * hh;
+  }/* while( tt < tmax ){ */
+
+  return (0.5 * sum + hh * sub);
+}
+
+
+static inline double update_trapezoidal_external(const double hh, const double tmin, const double tmax, const double sum, const double rmin, const double rmax, double * restrict xx, double * restrict yy, double * restrict y2)
+{
+  /** initialization */
+  double sub = 0.0;
+  double tt = tmin + hh;
+
+  /** employ mid-point rule */
+  while( tt < tmax ){
+    sub += get_DEformula_external(tt, rmin, rmax, xx, yy, y2);
+    tt += 2.0 * hh;
+  }/* while( tt < tmax ){ */
+
+  return (0.5 * sum + hh * sub);
+}
+
+
+static inline double set_domain_boundary_internal(const double rs, const double hh, double * restrict tmin, double * restrict tmax, const double rr, double * restrict xx, double * restrict yy, double * restrict y2)
+{
+  const double converge = 1.0e-16;
+  const double maximum = 128.0;
+
+  double tt = 0.0;
+  double fp = get_DEformula_internal(tt, rr, xx, yy, y2);
+  double f0 = fp;
+  double sum = hh * fp;
+
+
+  /** determine upper boundary */
+  double boundary = 0.0;
+  double damp = 1.0;
+  while( (damp > converge) && (boundary < maximum) ){
+    double ft = fp;
+
+    tt += hh;    boundary = tt;
+    fp = get_DEformula_internal(tt, rr, xx, yy, y2);
+
+    sum += hh * fp;
+    damp = fabs(ft) + fabs(fp);
+  }/* while( (damp > converge) && (boundary < maximum) ){ */
+  *tmax = boundary;
+
+
+  /** determine lower boundary */
+  fp = f0;
+  tt = 0.0;
+  boundary = 0.0;
+  damp = 1.0;
+  while( (damp > converge) && (boundary > -maximum) ){
+    double ft = fp;
+
+    tt -= hh;    boundary = tt;
+    fp = get_DEformula_internal(tt, rr, xx, yy, y2);
+
+    sum += hh * fp;
+    damp = fabs(ft) + fabs(fp);
+
+    const double yy = M_PI_2 * sinh(tt);
+    if( 0.5 * rr * exp(yy) / cosh(yy) > rs )
+      damp = 1.0;
+  }/* while( (damp > converge) && (boundary > -maximum) ){ */
+  *tmin = boundary;
+
+  return (sum);
+}
+
+
+static inline double set_domain_boundary_external(const double hh, double * restrict tmin, double * restrict tmax, const double rmin, const double rmax, double * restrict xx, double * restrict yy, double * restrict y2)
+{
+  const double converge = 1.0e-16;
+  const double maximum = 128.0;
+
+  double tt = 0.0;
+  double fp = get_DEformula_external(tt, rmin, rmax, xx, yy, y2);
+  double f0 = fp;
+  double sum = hh * fp;
+
+
+  /** determine upper boundary */
+  double boundary = 0.0;
+  double damp = 1.0;
+  while( (damp > converge) && (boundary < maximum) ){
+    double ft = fp;
+
+    tt += hh;    boundary = tt;
+    fp = get_DEformula_external(tt, rmin, rmax, xx, yy, y2);
+
+    sum += hh * fp;
+    damp = fabs(ft) + fabs(fp);
+
+#if 0
+    const double yy = M_PI_2 * sinh(tt);
+    if( 0.5 * (rmin * exp(-yy) + rmax * exp(yy)) / cosh(yy) < 0.9 * rmax )
+      damp = 1.0;
+#endif
+  }/* while( (damp > converge) && (boundary < maximum) ){ */
+  *tmax = boundary;
+
+
+  /** determine lower boundary */
+  fp = f0;
+  tt = 0.0;
+  boundary = 0.0;
+  damp = 1.0;
+  while( (damp > converge) && (boundary > -maximum) ){
+    double ft = fp;
+
+    tt -= hh;    boundary = tt;
+    fp = get_DEformula_external(tt, rmin, rmax, xx, yy, y2);
+
+    sum += hh * fp;
+    damp = fabs(ft) + fabs(fp);
+
+    const double yy = M_PI_2 * sinh(tt);
+    if( 0.5 * (rmin * exp(-yy) + rmax * exp(yy)) / cosh(yy) > 1.01 * rmin )
+      damp = 1.0;
+  }/* while( (damp > converge) && (boundary > -maximum) ){ */
+  *tmin = boundary;
+
+  return (sum);
+}
+
+
+static inline double integrate_DEformula_internal(const double rr, const double rs, double * restrict xx, double * restrict yy, double * restrict y2)
+{
+  const double criteria_abs = 1.0e-12;
+  /* const double criteria_rel = 1.0e-10; */
+  /* const double criteria_rel = 1.0e-8; */
+  const double criteria_rel = 1.0e-7;
+  /* const double criteria_rel = 1.0e-6; */
+  /* const double criteria_rel = 1.0e-5; */
+  /* const double criteria_rel = 1.0e-4; */
+
+  double hh = 1.0;
+  double tmin, tmax;
+  double sum = set_domain_boundary_internal(rs, hh, &tmin, &tmax, rr, xx, yy, y2);
+
+
+  while( true ){
+    const double f0 = sum;
+
+    hh *= 0.5;
+    sum = update_trapezoidal_internal(hh, tmin, tmax, sum, rr, xx, yy, y2);
+
+    bool converge = true;
+    if( fabs(sum) > DBL_EPSILON ){
+      if( fabs(1.0 - f0 / sum) > criteria_rel )
+	converge = false;
+    }
+    else
+      if( fabs(sum - f0) > criteria_abs )
+	converge = false;
+
+
+    if( converge )
+      break;
+  }/* while( true ){ */
+
+  return (rr * rr * rr * sum);
+}
+
+
+static inline double integrate_DEformula_external(const double rmin, const double rmax, double * restrict xx, double * restrict yy, double * restrict y2)
+{
+  const double criteria_abs = 1.0e-12;
+  /* const double criteria_rel = 1.0e-10; */
+  /* const double criteria_rel = 1.0e-8; */
+  const double criteria_rel = 1.0e-7;
+  /* const double criteria_rel = 1.0e-6; */
+  /* const double criteria_rel = 1.0e-5; */
+  /* const double criteria_rel = 1.0e-4; */
+
+  double hh = 1.0;
+  double tmin, tmax;
+  double sum = set_domain_boundary_external(hh, &tmin, &tmax, rmin, rmax, xx, yy, y2);
+
+  while( true ){
+    const double f0 = sum;
+
+    hh *= 0.5;
+    sum = update_trapezoidal_external(hh, tmin, tmax, sum, rmin, rmax, xx, yy, y2);
+
+    bool converge = true;
+    if( fabs(sum) > DBL_EPSILON ){
+      if( fabs(1.0 - f0 / sum) > criteria_rel )
+	converge = false;
+    }
+    else
+      if( fabs((sum) - f0) > criteria_abs )
+	converge = false;
+
+
+    if( converge )
+      break;
+  }/* while( true ){ */
+
+  return ((rmax - rmin) * sum);
+}
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
 
 
 /**
@@ -437,21 +755,26 @@ void setContributionByCentralBH(profile *prf, const profile_cfg cfg)
  *
  * @return (prf) radial profile of the component
  * @param (logrbin) bin width in the logarithmic space
- * @param (Mtot) total mass of the component
- * @param (cutoff) boolean to set cutoff radius or not
- * @param (redge) cutoff radius
- * @param (width) width of cutoff regions
  */
-void integrateDensityProfile(profile *prf, const double logrbin, const double Mtot, const bool cutoff, const double redge, const double width)
+void integrateDensityProfile(profile *prf, profile_cfg *cfg
+#ifndef ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
+			     , const double logrbin
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
+			     )
 {
   __NOTE__("%s\n", "start");
 
+
+  const double Mtot = cfg->Mtot;
+  const bool cutoff = cfg->cutoff;
+  const double redge = cfg->rc;
+  const double width = cfg->rc_width;
 
   /** set cutoff radius if necessary */
   if( cutoff == true ){
     const double invThick = 1.0 / width;
 #pragma omp parallel for
-    for(int ii = 0; ii < 4 + NRADBIN; ii++){
+    for(int ii = 0; ii < NRADBIN; ii++){
 #ifdef  ERFC_SMOOTHING
       const double smooth_x = 0.5 * (prf[ii].rad - redge) * invThick;
       const double smooth = 0.5 * erfc(smooth_x);
@@ -467,9 +790,83 @@ void integrateDensityProfile(profile *prf, const double logrbin, const double Mt
       prf[ii].d2rho_dr2  = d2hdx2 * prf[ii].rho + 2.0 * dhdx * prf[ii].drho_dr + smooth * prf[ii].d2rho_dr2;
       prf[ii]. drho_dr   =  dhdx  * prf[ii].rho +     smooth * prf[ii].drho_dr;
       prf[ii].  rho     *= smooth;
-    }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+    }/* for(int ii = 0; ii < NRADBIN; ii++){ */
   }/* if( cutoff == true ){ */
 
+
+#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
+  const double rs = cfg->rs;
+
+/** memory allocation for cubic spline interpolation */
+  double *xx;  xx = (double *)malloc(sizeof(double) * NSPLINE_PROFILE);  if( xx == NULL ){    __KILL__(stderr, "ERROR: failure to allocate xx\n");  }
+  double *bp;  bp = (double *)malloc(sizeof(double) * NSPLINE_PROFILE);  if( bp == NULL ){    __KILL__(stderr, "ERROR: failure to allocate bp\n");  }
+  double *yy;  yy = (double *)malloc(sizeof(double) * NSPLINE_PROFILE);  if( yy == NULL ){    __KILL__(stderr, "ERROR: failure to allocate yy\n");  }
+  double *y2;  y2 = (double *)malloc(sizeof(double) * NSPLINE_PROFILE);  if( y2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate y2\n");  }
+
+#pragma omp parallel for
+  for(int ii = 0; ii < NRADBIN; ii++){
+    xx[NCAP_PROFILE + ii] = prf[ii].rad;
+    yy[NCAP_PROFILE + ii] = prf[ii].rho;
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
+
+  double pp, bb;
+  leastSquaresMethod(NFIT_PROFILE, &xx[NCAP_PROFILE], &yy[NCAP_PROFILE], &pp, &bb);
+  double rbin = prf[0].rad / (double)NCAP_PROFILE;
+
+  for(int ii = 1; ii < NCAP_PROFILE; ii++){
+    xx[ii] = rbin * (double)ii;
+    yy[ii] = bb * pow(xx[ii], pp);
+  }/* for(int ii = 1; ii < NCAP_PROFILE; ii++){ */
+  xx[0] = 0.0;
+  yy[0] = yy[1];
+
+#if 0
+  for(int ii = 0; ii < NSPLINE_PROFILE; ii++)
+    fprintf(stderr, "%e\t%e\n", xx[ii], yy[ii]);
+  exit(0);
+#endif
+
+
+  /** execute cubic spline interpolation */
+  genCubicSpline1D(NSPLINE_PROFILE, xx, yy, bp, NATURAL_CUBIC_SPLINE, NATURAL_CUBIC_SPLINE, y2);
+
+#if 1
+  int iout = NRADBIN - 1;
+  for(int ii = NRADBIN - 3; ii >= 0; ii--)
+    if( prf[ii].rho > DBL_MIN ){
+      iout = ii + 2;
+      break;
+    }
+  const double rmax = prf[iout].rad;
+#else
+  const int iout = NRADBIN - 1;
+  const double rmax = prf[NRADBIN - 1].rad;
+#endif
+  cfg->iout = iout;
+  cfg->rmax = rmax;
+
+  const double M_PI_16 = 0.125 * M_PI_2;
+
+#pragma omp parallel for schedule(auto)
+  for(int ii = 0; ii < iout + 1; ii++){
+    const double rad = prf[ii].rad;
+    const double enc = M_PI_16 * integrate_DEformula_internal(rad, rs, xx, yy, y2);
+    const double ext = M_PI_4  * integrate_DEformula_external(rad, rmax, xx, yy, y2);
+
+    prf[ii].enc = enc;
+    prf[ii].psi = ext + enc / rad;
+  }/* for(int ii = 0; ii < iout + 1; ii++){ */
+
+#pragma omp parallel for schedule(auto)
+  for(int ii = iout + 1; ii < NRADBIN; ii++){
+    prf[ii].enc = prf[iout].enc;
+    prf[ii].psi = prf[ii].enc / prf[ii].rad;
+  }/* for(int ii = iout + 1; ii < NRADBIN; ii++){ */
+
+  free(xx);  free(bp);
+  free(yy);  free(y2);
+
+#else///ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
 
   /** calculate enclosed mass and potential (internal part) */
   double Menc[2];
@@ -479,7 +876,7 @@ void integrateDensityProfile(profile *prf, const double logrbin, const double Mt
   prf[1].enc = prf[0].enc + (prf[1].rad - prf[0].rad) * prf[1].rad * prf[0].rad * 0.5 * (prf[0].rho + prf[1].rho);
   Menc[0] += Menc[1] * 4.0;
 
-  for(int ii = 2; ii < 4 + NRADBIN; ii++){
+  for(int ii = 2; ii < NRADBIN; ii++){
     const double mass = prf[ii].rad * prf[ii].rad * prf[ii].rad * prf[ii].rho;
     const int idx = ii & 1;
 
@@ -488,19 +885,19 @@ void integrateDensityProfile(profile *prf, const double logrbin, const double Mt
 
     Menc[0] += mass * (double)(1 << (1 + (idx    )));
     Menc[1] += mass * (double)(1 << (1 + (idx ^ 1)));
-  }/* for(int ii = 2; ii < 4 + NRADBIN; ii++){ */
+  }/* for(int ii = 2; ii < NRADBIN; ii++){ */
 
 
   /** calculate potential (external part) */
   double Pext[2];
-  Pext[0] = prf[NRADBIN + 3].rad * prf[NRADBIN + 3].rad * prf[NRADBIN + 3].rho;
-  Pext[1] = prf[NRADBIN + 2].rad * prf[NRADBIN + 2].rad * prf[NRADBIN + 2].rho;
+  Pext[0] = prf[NRADBIN - 1].rad * prf[NRADBIN - 1].rad * prf[NRADBIN - 1].rho;
+  Pext[1] = prf[NRADBIN - 2].rad * prf[NRADBIN - 2].rad * prf[NRADBIN - 2].rho;
   double Pini[2];
   Pini[0] =           0.0;
-  Pini[1] = Pini[0] + (prf[NRADBIN + 3].rad - prf[NRADBIN + 2].rad) * sqrt(prf[NRADBIN + 2].rad * prf[NRADBIN + 3].rad) * 0.5 * (prf[NRADBIN + 2].rho + prf[NRADBIN + 3].rho);
+  Pini[1] = Pini[0] + (prf[NRADBIN - 1].rad - prf[NRADBIN - 2].rad) * sqrt(prf[NRADBIN - 2].rad * prf[NRADBIN - 1].rad) * 0.5 * (prf[NRADBIN - 2].rho + prf[NRADBIN - 1].rho);
   Pext[0] += Pext[1] * 4.0;
 
-  for(int ii = NRADBIN + 1; ii >= 0; ii--){
+  for(int ii = NRADBIN - 3; ii >= 0; ii--){
     const double psi = prf[ii].rad * prf[ii].rad * prf[ii].rho;
     const int idx = (int)((ii + 1) & 1);
 
@@ -508,28 +905,45 @@ void integrateDensityProfile(profile *prf, const double logrbin, const double Mt
 
     Pext[0] += psi * (double)(1 << (1 + (idx    )));
     Pext[1] += psi * (double)(1 << (1 + (idx ^ 1)));
-  }/* for(int ii = NRADBIN + 1; ii >= 0; ii--){ */
+  }/* for(int ii = NRADBIN - 3; ii >= 0; ii--){ */
+
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
 
 
   /** multiply overall factors */
 #pragma omp parallel for
-  for(int ii = 0; ii < 4 + NRADBIN; ii++){
+  for(int ii = 0; ii < NRADBIN; ii++){
     prf[ii].enc *= 4.0 * M_PI;
     prf[ii].psi *= 4.0 * M_PI * (double)newton;
-  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
 
   /** set appropriate unit system */
-  const double Mscale = Mtot / prf[NRADBIN + 3].enc;
+  const double Mscale = Mtot / prf[NRADBIN - 1].enc;
+#if 0
+  if( isnan(Mscale) )
+    for(int ii = 0; ii < NRADBIN; ii += 32)
+      fprintf(stderr, "%e\t%e\t%e\t%e\n", prf[ii].rad, prf[ii].rho, prf[ii].enc, prf[ii].psi);
+  fflush(NULL);
+#endif
 #pragma omp parallel for
-  for(int ii = 0; ii < 4 + NRADBIN; ii++){
+  for(int ii = 0; ii < NRADBIN; ii++){
     prf[ii].  rho     *= Mscale;
     prf[ii].  enc     *= Mscale;
     prf[ii].  psi     *= Mscale;
     prf[ii]. drho_dr  *= Mscale;
     prf[ii].d2rho_dr2 *= Mscale;
-  }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
+#if 0
+  for(int ii = 0; ii < NRADBIN; ii++)
+    fprintf(stderr, "%e\t%e\t%e\t%e\t%e\t%e\n", prf[ii].rad, prf[ii].rho, prf[ii].enc, prf[ii].psi, prf[ii].drho_dr, prf[ii].d2rho_dr2);
+
+  fprintf(stdout, "Mscale = %e\n", Mscale);
+  fflush(NULL);
+
+  exit(0);
+#endif
 
   __NOTE__("%s\n", "end");
 }
@@ -568,7 +982,11 @@ static inline void writeProfileCfgFormat(char *filename, const profile_cfg cfg)
 
   /** some models require more information */
   if( cfg.kind == KING )
+#ifdef  KING_CENTRAL_CUSP
+    fprintf(stderr, "\tW0<real> dWdx_0<real>: dimensionless King parameter at the center\n");
+#else///KING_CENTRAL_CUSP
     fprintf(stderr, "\tW0<real>: dimensionless King parameter at the center\n");
+#endif//KING_CENTRAL_CUSP
   if( cfg.kind == APP_KING )
     fprintf(stderr, "\trt<real>: tidal radius of King model in empirical form in astrophysical units\n");
   if( cfg.kind == EINASTO )
@@ -610,7 +1028,7 @@ static inline void writeProfileCfgFormat(char *filename, const profile_cfg cfg)
       fprintf(stderr, "\tn_sersic<real>: Sersic index\n");
     fprintf(stderr, "\tRt<real> Rt_width<real>: cutoff radius and width of the disk mid-plane density in horizontal direction in astrophysical units, respectively\n");
     fprintf(stderr, "\tzd<real>: scale height of isothermal disk in the vertical direction in astrophysical units\n");
-    fprintf(stderr, "\tsigmaR0<real> frac<real>: velocity dispersion in radial direction at the center in the vertical direction in astrophysical units, perpendicular velocity dispersion over circular velocity\n");
+    fprintf(stderr, "\tsigmaR0<real> frac<real>: velocity dispersion in radial direction at the center in astrophysical units (negative value indicates sigmaR0 = sigmaz0), perpendicular velocity dispersion over circular velocity\n");
     fprintf(stderr, "\t\tif the inputted sigmaR0 is negative, then the default value (= sigma_z(R = 0)) is substituted\n");
     fprintf(stderr, "\t\tif ENFORCE_EPICYCLIC_APPROXIMATION defined in src/init/disk_polar.h is ON, then frac is used; if that is OFF, then sigmaR0 is used.\n");
     fprintf(stderr, "\t\tif the inputted retrogradeFrac<real> is not zero ([0., 1.]), then rotation axis of particles with the given fraction is anti-parallel with normal component.\n");
@@ -687,7 +1105,11 @@ void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg)
 
     /** parameter for King profile */
     if( (*cfg)[ii].kind ==     KING )
+#ifdef  KING_CENTRAL_CUSP
+      checker &= (2 == fscanf(fp, "%le %le", &(*cfg)[ii].king_W0, &(*cfg)[ii].king_dWdx_0));
+#else///KING_CENTRAL_CUSP
       checker &= (1 == fscanf(fp, "%le", &(*cfg)[ii].king_W0));
+#endif//KING_CENTRAL_CUSP
     if( (*cfg)[ii].kind == APP_KING ){
       checker &= (1 == fscanf(fp, "%le", &(*cfg)[ii].king_rt));      (*cfg)[ii].king_rt *= length_astro2com;
     }/* if( (*cfg)[ii].kind == APP_KING ){ */
@@ -782,9 +1204,446 @@ void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg)
 
 
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
+#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
+/**
+ * @fn get_DEformula
+ *
+ * @brief Calculate integrand in double exponential formula.
+ *
+ * @param (tt) value of integration variable
+ * @param (rr) 
+ * @return (ret) integrand for 
+ * @param (xx) position of data points (psi)
+ * @param (yy) value of data points (d2rho_dpsi2)
+ * @param (y2) coefficients in cubic spline interpolation
+ */
+static inline void get_DEformula
+(const double tt, const double R2, const double zmax, const int skind, double ret[restrict], double * restrict xx, double * restrict yy, double * restrict y2
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+ , double v2f[restrict], double * restrict f2, double * restrict d2
+ , double v4f[restrict], double * restrict f4, double * restrict d4
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+)
+{
+  const double sinh_t = M_PI_2 * sinh(tt);
+  const double cosh_t = cosh(sinh_t);
+  const double inv_cosh_t = 1.0 / cosh_t;
 
-extern double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[NTBL_GAUSS_QD];
+  const double common = cosh(tt) * inv_cosh_t * inv_cosh_t;
 
+  const double zz = 0.5 * zmax * exp(sinh_t) * inv_cosh_t;
+  const double rr = sqrt(R2 + zz * zz);
+
+  for(int kk = 0; kk < skind; kk++){
+    ret[kk] += common * getCubicSpline1D(rr, NRADBIN, xx, &yy[kk * NRADBIN], &y2[kk * NRADBIN]);
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+    v2f[kk] += common * getCubicSpline1D(rr, NRADBIN, xx, &f2[kk * NRADBIN], &d2[kk * NRADBIN]);
+    v4f[kk] += common * getCubicSpline1D(rr, NRADBIN, xx, &f4[kk * NRADBIN], &d4[kk * NRADBIN]);
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+  }/* for(int ii = 0; ii < skind; ii++){ */
+
+}
+
+
+static inline void update_trapezoidal
+(const double hh, const double tmin, const double tmax, const int skind, double sum[restrict], const double R2, const double zmax, double * restrict xx, double * restrict yy, double * restrict y2, double sub[restrict]
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+ , double v2f[restrict], double * restrict f2, double * restrict d2, double sub2[restrict]
+ , double v4f[restrict], double * restrict f4, double * restrict d4, double sub4[restrict]
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+)
+{
+  /** initialization */
+  for(int kk = 0; kk < skind; kk++){
+    sub[kk] = 0.0;
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+    sub2[kk] = sub4[kk] = 0.0;
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+  }/* for(int kk = 0; kk < skind; kk++){ */
+  double tt = tmin + hh;
+
+  /** employ mid-point rule */
+  while( tt < tmax ){
+    get_DEformula(tt, R2, zmax, skind, sub, xx, yy, y2
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+		  , sub2, f2, d2, sub4, f4, d4
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+		  );
+    tt += 2.0 * hh;
+  }/* while( tt < tmax ){ */
+
+  for(int kk = 0; kk < skind; kk++){
+    sum[kk] = 0.5 * sum[kk] + hh * sub[kk];
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+    v2f[kk] = 0.5 * v2f[kk] + hh * sub2[kk];
+    v4f[kk] = 0.5 * v4f[kk] + hh * sub4[kk];
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+  }/* for(int kk = 0; kk < skind; kk++){ */
+}
+
+
+static inline void set_domain_boundary
+(const double hh, double * restrict tmin, double * restrict tmax, const double R2, const double zmax, const int skind, double sum[restrict], double * restrict xx, double * restrict yy, double * restrict y2, double fp[restrict], double ft[restrict], double f0[restrict]
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+ , double v2f[restrict], double * restrict f2, double * restrict d2, double v2fp[restrict], double v2ft[restrict], double v2f0[restrict]
+ , double v4f[restrict], double * restrict f4, double * restrict d4, double v4fp[restrict], double v4ft[restrict], double v4f0[restrict]
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+ )
+{
+  const double converge = 1.0e-16;
+  const double maximum = 128.0;
+
+  double tt = 0.0;
+  for(int kk = 0; kk < skind; kk++){
+    fp[kk] = 0.0;
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+    v2fp[kk] = v4fp[kk] = 0.0;
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+  }/* for(int kk = 0; kk < skind; kk++){ */
+  get_DEformula(tt, R2, zmax, skind, fp, xx, yy, y2
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+		, v2fp, f2, d2, v4fp, f4, d4
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+		);
+  for(int kk = 0; kk < skind; kk++){
+    const double tmp = fp[kk];
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+    const double tmp2 = v2fp[kk];
+    const double tmp4 = v4fp[kk];
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+    f0[kk] = tmp;    sum[kk] = hh * tmp;
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+    v2f0[kk] = tmp2;    v2f[kk] = hh * tmp2;
+    v4f0[kk] = tmp4;    v4f[kk] = hh * tmp4;
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+  }/* for(int ii = 0; ii < skind; ii++){ */
+
+
+  /** determine upper boundary */
+  double boundary = 0.0;
+  double damp = 1.0;
+  while( (damp > converge) && (boundary < maximum) ){
+    for(int kk = 0; kk < skind; kk++){
+      ft[kk] = fp[kk];      fp[kk] = 0.0;
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+      v2ft[kk] = v2fp[kk];      v2fp[kk] = 0.0;
+      v4ft[kk] = v4fp[kk];      v4fp[kk] = 0.0;
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+    }/* for(int kk = 0; kk < skind; kk++){ */
+
+    tt += hh;    boundary = tt;
+    get_DEformula(tt, R2, zmax, skind, fp, xx, yy, y2
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+		  , v2fp, f2, d2, v4fp, f4, d4
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+		  );
+
+    damp = -1.0;
+    for(int kk = 0; kk < skind; kk++){
+      sum[kk] += hh * fp[kk];      damp = fmax(damp, fabs(ft[kk]) + fabs(fp[kk]));
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+      v2f[kk] += hh * v2fp[kk];      damp = fmax(damp, fabs(v2ft[kk]) + fabs(v2fp[kk]));
+      v4f[kk] += hh * v4fp[kk];      damp = fmax(damp, fabs(v4ft[kk]) + fabs(v4fp[kk]));
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+    }/* for(int ii = 0; ii < skind; ii++){ */
+
+  }/* while( (damp > converge) && (boundary < maximum) ){ */
+  *tmax = boundary;
+
+
+  /** determine lower boundary */
+  const double RR = sqrt(R2);
+  for(int kk = 0; kk < skind; kk++){
+    fp[kk] = f0[kk];
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+    v2fp[kk] = v2f0[kk];
+    v4fp[kk] = v4f0[kk];
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+  }/* for(int kk = 0; kk < skind; kk++){ */
+  tt = 0.0;
+  boundary = 0.0;
+  damp = 1.0;
+  while( (damp > converge) && (boundary > -maximum) ){
+    for(int kk = 0; kk < skind; kk++){
+      ft[kk] = fp[kk];      fp[kk] = 0.0;
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+      v2ft[kk] = v2fp[kk];      v2fp[kk] = 0.0;
+      v4ft[kk] = v4fp[kk];      v4fp[kk] = 0.0;
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+    }/* for(int kk = 0; kk < skind; kk++){ */
+
+    tt -= hh;    boundary = tt;
+    get_DEformula(tt, R2, zmax, skind, fp, xx, yy, y2
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+		  , v2fp, f2, d2, v4fp, f4, d4
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+		  );
+
+    damp = -1.0;
+    for(int kk = 0; kk < skind; kk++){
+      sum[kk] += hh * fp[kk];      damp = fmax(damp, fabs(ft[kk]) + fabs(fp[kk]));
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+      v2f[kk] += hh * v2fp[kk];      damp = fmax(damp, fabs(v2ft[kk]) + fabs(v2fp[kk]));
+      v4f[kk] += hh * v4fp[kk];      damp = fmax(damp, fabs(v4ft[kk]) + fabs(v4fp[kk]));
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+    }/* for(int ii = 0; ii < skind; ii++){ */
+
+    const double yy = M_PI_2 * sinh(tt);
+    if( 0.5 * zmax * exp(yy) / cosh(yy) > 1.01 * RR )
+      damp = 1.0;
+  }/* while( (damp > converge) && (boundary > -maximum) ){ */
+  *tmin = boundary;
+}
+
+
+static inline void integrate_DEformula
+(const double R2, const double zmax, const int skind, double sum[restrict], double * restrict xx, double * restrict yy, double * restrict y2, double sub[restrict], double ft[restrict], double f0[restrict]
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+ , double v2f[restrict], double * restrict f2, double * restrict d2, double v2fs[restrict], double v2ft[restrict], double v2f0[restrict]
+ , double v4f[restrict], double * restrict f4, double * restrict d4, double v4fs[restrict], double v4ft[restrict], double v4f0[restrict]
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+)
+{
+  const double criteria_abs = 1.0e-12;
+  /* const double criteria_rel = 1.0e-10; */
+  /* const double criteria_rel = 1.0e-8; */
+  /* const double criteria_rel = 1.0e-7; */
+  const double criteria_rel = 1.0e-6;
+  /* const double criteria_rel = 1.0e-5; */
+  /* const double criteria_rel = 1.0e-4; */
+
+  double hh = 1.0;
+  double tmin, tmax;
+  set_domain_boundary(hh, &tmin, &tmax, R2, zmax, skind, sum, xx, yy, y2, sub, ft, f0
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+		      , v2f, f2, d2, v2fs, v2ft, v2f0, v4f, f4, d4, v4fs, v4ft, v4f0
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+		      );
+
+
+  while( true ){
+    for(int kk = 0; kk < skind; kk++){
+      f0[kk] = sum[kk];
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+      v2f0[kk] = v2f[kk];
+      v4f0[kk] = v4f[kk];
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+    }/* for(int kk = 0; kk < skind; kk++){ */
+
+    hh *= 0.5;
+    update_trapezoidal(hh, tmin, tmax, skind, sum, R2, zmax, xx, yy, y2, sub
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+		       , v2f, f2, d2, v2fs, v4f, f4, d4, v4fs
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+		       );
+
+    bool converge = true;
+    for(int kk = 0; kk < skind; kk++){
+      if( converge ){
+	if( fabs(sum[kk]) > DBL_EPSILON ){
+	  if( fabs(1.0 - f0[kk] / sum[kk]) > criteria_rel )
+	    converge = false;
+	}
+	else
+	  if( fabs(sum[kk] - f0[kk]) > criteria_abs )
+	    converge = false;
+      }
+
+      if( converge ){
+	if( fabs(v2f[kk]) > DBL_EPSILON ){
+	  if( fabs(1.0 - v2f0[kk] / v2f[kk]) > criteria_rel )
+	    converge = false;
+	}
+	else
+	  if( fabs(v2f[kk] - v2f0[kk]) > criteria_abs )
+	    converge = false;
+      }
+
+      if( converge ){
+	if( fabs(v4f[kk]) > DBL_EPSILON ){
+	  if( fabs(1.0 - v4f0[kk] / v4f[kk]) > criteria_rel )
+	    converge = false;
+	}
+	else
+	  if( fabs(v4f[kk] - v4f0[kk]) > criteria_abs )
+	    converge = false;
+      }
+    }/* for(int kk = 0; kk < skind; kk++){ */
+
+    if( converge )
+      break;
+  }/* while( true ){ */
+
+#if 0
+  if( fpclassify(sum[0]) != FP_NORMAL ){
+    fprintf(stderr, "tmin = %e, tmax = %e, hh = %e, R2 = %e\n", tmin, tmax, hh, R2);
+    fflush(NULL);
+    exit(0);
+  }
+#endif
+
+}
+
+
+/**
+ * @fn calcColumnDensityProfile
+ *
+ * @brief Calculate column density profile.
+ *
+ * @param (skind) number of spherical symmetric components
+ * @return (prf) radial profile of the components
+ * @param (logrmax) rmax in logarithmic space
+ * @param (cfg) physical properties of the component(s)
+ */
+void calcColumnDensityProfile(const int skind, profile **prf,
+#ifndef ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
+			      const double logrmax,
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
+			      profile_cfg *cfg)
+{
+  __NOTE__("%s\n", "start");
+
+
+  /** memory allocation for cubic spline interpolation */
+  double *xx;  xx = (double *)malloc(sizeof(double)         * NRADBIN);  if( xx == NULL ){    __KILL__(stderr, "ERROR: failure to allocate xx\n");  }
+  double *bp;  bp = (double *)malloc(sizeof(double) * skind * NRADBIN);  if( bp == NULL ){    __KILL__(stderr, "ERROR: failure to allocate bp\n");  }
+  double *yy;  yy = (double *)malloc(sizeof(double) * skind * NRADBIN);  if( yy == NULL ){    __KILL__(stderr, "ERROR: failure to allocate yy\n");  }
+  double *y2;  y2 = (double *)malloc(sizeof(double) * skind * NRADBIN);  if( y2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate y2\n");  }
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+  double *f2;  f2 = (double *)malloc(sizeof(double) * skind * NRADBIN);  if( f2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate f2\n");  }
+  double *d2;  d2 = (double *)malloc(sizeof(double) * skind * NRADBIN);  if( d2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate d2\n");  }
+  double *f4;  f4 = (double *)malloc(sizeof(double) * skind * NRADBIN);  if( f4 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate f4\n");  }
+  double *d4;  d4 = (double *)malloc(sizeof(double) * skind * NRADBIN);  if( d4 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate d4\n");  }
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+
+#pragma omp parallel for
+  for(int ii = 0; ii < NRADBIN; ii++)
+    xx[ii] = prf[0][ii].rad;
+
+  for(int kk = 0; kk < skind; kk++)
+#pragma omp parallel for
+    for(int ii = 0; ii < NRADBIN; ii++){
+      yy[ii + kk * NRADBIN] = prf[kk][ii].rho;
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+      f2[ii + kk * NRADBIN] = prf[kk][ii].v2f;
+      f4[ii + kk * NRADBIN] = prf[kk][ii].v4f;
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+    }/* for(int ii = 0; ii < NRADBIN; ii++){ */
+
+  /** execute cubic spline interpolation */
+#pragma omp parallel for
+  for(int kk = 0; kk < skind; kk++){
+    genCubicSpline1D(NRADBIN, xx, &yy[kk * NRADBIN], bp, NATURAL_CUBIC_SPLINE, NATURAL_CUBIC_SPLINE, &y2[kk * NRADBIN]);
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+    genCubicSpline1D(NRADBIN, xx, &f2[kk * NRADBIN], bp, NATURAL_CUBIC_SPLINE, NATURAL_CUBIC_SPLINE, &d2[kk * NRADBIN]);
+    genCubicSpline1D(NRADBIN, xx, &f4[kk * NRADBIN], bp, NATURAL_CUBIC_SPLINE, NATURAL_CUBIC_SPLINE, &d4[kk * NRADBIN]);
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+  }/* for(int kk = 0; kk < skind; kk++){ */
+
+
+  int iout = 0;
+  for(int ii = 0; ii < skind; ii++)
+    if( cfg[ii].kind != CENTRALBH )
+      iout = (iout < cfg[ii].iout) ? cfg[ii].iout : iout;
+  const double rmax2 = prf[0][iout].rad * prf[0][iout].rad;
+
+#pragma omp parallel
+  {
+    double Sig[NKIND_MAX], Sig0[NKIND_MAX], Sig1[NKIND_MAX], Sig2[NKIND_MAX];
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+    double v2f[NKIND_MAX], v2f0[NKIND_MAX], v2f1[NKIND_MAX], v2f2[NKIND_MAX];
+    double v4f[NKIND_MAX], v4f0[NKIND_MAX], v4f1[NKIND_MAX], v4f2[NKIND_MAX];
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+
+#pragma omp for schedule(auto) nowait
+    for(int ii = 0; ii < iout + 1; ii += SKIP_INTERVAL_FOR_COLUMN_DENSITY){
+      const double R2 = prf[0][ii].rad * prf[0][ii].rad;
+      const double zmax = sqrt(rmax2 - R2);
+
+      /* call DE formula */
+      integrate_DEformula(R2, zmax, skind, Sig, xx, yy, y2, Sig0, Sig1, Sig2
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+			  , v2f, f2, d2, v2f0, v2f1, v2f2
+			  , v4f, f4, d4, v4f0, v4f1, v4f2
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+			  );
+
+      for(int kk = 0; kk < skind; kk++){
+	prf[kk][ii].Sigma = M_PI_2 * zmax * Sig[kk];
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	prf[kk][ii].slos  = sqrt(v4f[kk] / (DBL_MIN + 3.0 * v2f[kk]));
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+      }/* for(int kk = 0; kk < skind; kk++){ */
+
+    }/* for(int ii = 0; ii < iout + 1; ii += SKIP_INTERVAL_FOR_COLUMN_DENSITY){ */
+
+    for(int kk = 0; kk < skind; kk++)
+#pragma omp for schedule(auto) nowait
+      for(int ii = iout + 1; ii < NRADBIN; ii++)
+	prf[kk][ii].Sigma = 0.0;
+
+  }
+
+
+
+#if 0
+  for(int ii = 0; ii < NRADBIN; ii++)
+    fprintf(stderr, "%e\t%e\t%e\t%e\t%e\n", prf[0][ii].rad, prf[0][ii].rho, prf[0][ii].enc, prf[0][ii].psi, prf[0][ii].Sigma);
+
+  fflush(NULL);
+
+  exit(0);
+#endif
+
+
+#   if  SKIP_INTERVAL_FOR_COLUMN_DENSITY != 1
+#pragma omp parallel
+  {
+    for(int kk = 0; kk < skind; kk++){
+      const int iout = cfg[kk].iout;
+
+#pragma omp for schedule(auto) nowait
+      for(int ii = 0; ii < iout + 1; ii += SKIP_INTERVAL_FOR_COLUMN_DENSITY){
+	const double S0 = prf[kk][ii                                   ].Sigma;
+	const double S1 = prf[kk][ii + SKIP_INTERVAL_FOR_COLUMN_DENSITY].Sigma;
+	const double Slope = (S1 - S0) / (double)SKIP_INTERVAL_FOR_COLUMN_DENSITY;
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	const double s0 = prf[kk][ii                                   ].slos;
+	const double s1 = prf[kk][ii + SKIP_INTERVAL_FOR_COLUMN_DENSITY].slos;
+	const double slope = (s1 - s0) / (double)SKIP_INTERVAL_FOR_COLUMN_DENSITY;
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+
+	for(int jj = 1; jj < SKIP_INTERVAL_FOR_COLUMN_DENSITY; jj++){
+	  prf[kk][ii + jj].Sigma = S0 + Slope * (double)jj;
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	  prf[kk][ii + jj].slos  = s0 + slope * (double)jj;
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+	}/* for(int jj = 1; jj < SKIP_INTERVAL_FOR_COLUMN_DENSITY; jj++){ */
+      }/* for(int ii = 0; ii < iout + 1; ii += SKIP_INTERVAL_FOR_COLUMN_DENSITY){ */
+
+    }/* for(int kk = 0; kk < skind; kk++){ */
+  }
+#endif//SKIP_INTERVAL_FOR_COLUMN_DENSITY != 1
+
+
+  free(xx);  free(bp);
+  free(yy);  free(y2);
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+  free(f2);  free(d2);
+  free(f4);  free(d4);
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+
+
+  __NOTE__("%s\n", "end");
+}
+
+
+
+
+
+
+
+#else///ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
 
 /**
  * @fn findIdx
@@ -799,8 +1658,8 @@ extern double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[NTBL_GAUSS_QD];
 static inline void findIdx(const double rad, profile * restrict prf, int * restrict ll, int * restrict rr)
 {
   bool bisection = true;
-  *ll =               0;
-  *rr = 4 + NRADBIN - 1;
+  *ll =           0;
+  *rr = NRADBIN - 1;
 
   if( bisection == true )    if( fabs(prf[*ll].rad - rad) / rad < DBL_EPSILON ){      bisection = false;      *rr = (*ll) + 1;    }
   if( bisection == true )    if( fabs(prf[*rr].rad - rad) / rad < DBL_EPSILON ){      bisection = false;      *ll = (*rr) - 1;    }
@@ -826,11 +1685,18 @@ static inline void findIdx(const double rad, profile * restrict prf, int * restr
  * @param (zz) position in z-direction
  * @param (skind) number of spherical symmetric components
  * @param (prf) radial profile of the components
- * @return (val) the corresponding density of each component
+ * @return (Sig) the corresponding density of each component
+ * @return (v2f) the corresponding integral of each component
+ * @return (v4f) the corresponding integral of each component
  */
-static inline void getInterpolatedDensity(const double RR, const double zz, const int skind, profile * restrict * prf, double *val)
+static inline void getInterpolatedDensity
+(const double RR, const double zz, const int skind, profile * restrict * prf, double * restrict val
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+ , double * restrict v2f, double * restrict v4f
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+ )
 {
-  const double rad = SQRT(RR * RR + zz * zz);
+  const double rad = sqrt(RR * RR + zz * zz);
 
   int ll, rr;
   findIdx(rad, prf[0], &ll, &rr);
@@ -838,8 +1704,13 @@ static inline void getInterpolatedDensity(const double RR, const double zz, cons
   /** based on linear interpolation */
   const double alpha = (rad - prf[0][ll].rad) / (prf[0][rr].rad - prf[0][ll].rad);
 
-  for(int kk = 0; kk < skind; kk++)
-    val[kk] = (UNITY - alpha) * prf[kk][ll].rho + alpha * prf[kk][rr].rho;
+  for(int kk = 0; kk < skind; kk++){
+    val[kk] = (1.0 - alpha) * prf[kk][ll].rho + alpha * prf[kk][rr].rho;
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+    v2f[kk] = (1.0 - alpha) * prf[kk][ll].v2f + alpha * prf[kk][rr].v2f;
+    v4f[kk] = (1.0 - alpha) * prf[kk][ll].v4f + alpha * prf[kk][rr].v4f;
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+  }/* for(int kk = 0; kk < skind; kk++){ */
 }
 
 /**
@@ -856,38 +1727,88 @@ static inline void getInterpolatedDensity(const double RR, const double zz, cons
  * @return (sum) column density of each component
  * @param (fm) temporary array
  * @param (fp) temporary array
+ * @return (v2f) integral of v2f(r) of each component
+ * @param (v2fm) temporary array
+ * @param (v2fp) temporary array
+ * @return (v4f) integral of v4f(r) of each component
+ * @param (v4fm) temporary array
+ * @param (v4fp) temporary array
  *
  * @sa getInterpolatedDensity
  */
-void gaussQuadVertical(const double RR, const int num, const double zmin, const double zmax, const int skind, profile * restrict * prf, double *sum, double *fm, double *fp);
-void gaussQuadVertical(const double RR, const int num, const double zmin, const double zmax, const int skind, profile * restrict * prf, double *sum, double *fm, double *fp)
+void gaussQuadVertical
+(const double RR, const int num, const double zmin, const double zmax, const int skind, profile * restrict * prf, double * restrict sum, double * restrict fm, double * restrict fp
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+ , double * restrict v2f, double * restrict v2fm, double * restrict v2fp
+ , double * restrict v4f, double * restrict v4fm, double * restrict v4fp
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+ );
+void gaussQuadVertical
+(const double RR, const int num, const double zmin, const double zmax, const int skind, profile * restrict * prf, double * restrict sum, double * restrict fm, double * restrict fp
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+ , double * restrict v2f, double * restrict v2fm, double * restrict v2fp
+ , double * restrict v4f, double * restrict v4fm, double * restrict v4fp
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+ )
 {
   const double mns = 0.5 * (zmax - zmin);
   const double pls = 0.5 * (zmax + zmin);
 
-  for(int kk = 0; kk < skind; kk++)    sum[kk] = 0.0;
+  for(int kk = 0; kk < skind; kk++){
+    sum[kk] = 0.0;
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+    v2f[kk] = v4f[kk] = 0.0;
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+  }/* for(int kk = 0; kk < skind; kk++){ */
 
   if( num & 1 ){
     const double weight =             gsl_gaussQD_weight[(num >> 1)];
     const double  value = pls + mns * gsl_gaussQD_pos   [(num >> 1)];
-    getInterpolatedDensity(RR, value, skind, prf, fm);
-    for(int kk = 0; kk < skind; kk++)
+    getInterpolatedDensity(RR, value, skind, prf, fm
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+			   , v2fm, v4fm
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+			   );
+    for(int kk = 0; kk < skind; kk++){
       sum[kk] = weight * fm[kk];
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+      v2f[kk] = weight * v2fm[kk];
+      v4f[kk] = weight * v4fm[kk];
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+    }/* for(int kk = 0; kk < skind; kk++){ */
   }/* if( num & 1 ){ */
 
   for(int ii = (num >> 1) - 1; ii >= 0; ii--){
     const double weight = gsl_gaussQD_weight[ii];
     const double zp = pls + mns * gsl_gaussQD_pos[ii];
     const double zm = pls - mns * gsl_gaussQD_pos[ii];
-    getInterpolatedDensity(RR, zp, skind, prf, fp);
-    getInterpolatedDensity(RR, zm, skind, prf, fm);
+    getInterpolatedDensity(RR, zp, skind, prf, fp
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+			   , v2fp, v4fp
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+			   );
+    getInterpolatedDensity(RR, zm, skind, prf, fm
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+			   , v2fm, v4fm
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+			   );
 
-    for(int kk = 0; kk < skind; kk++)
+    for(int kk = 0; kk < skind; kk++){
       sum[kk] += weight * (fm[kk] + fp[kk]);
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+      v2f[kk] += weight * (v2fm[kk] + v2fp[kk]);
+      v4f[kk] += weight * (v4fm[kk] + v4fp[kk]);
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+    }/* for(int kk = 0; kk < skind; kk++){ */
   }/* for(int ii = (num >> 1) - 1; ii >= 0; ii--){ */
 
-  for(int kk = 0; kk < skind; kk++)
+  for(int kk = 0; kk < skind; kk++){
     sum[kk] *= mns;
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+    v2f[kk] *= mns;
+    v4f[kk] *= mns;
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+  }/* for(int kk = 0; kk < skind; kk++){ */
 }
 
 /**
@@ -919,56 +1840,153 @@ void calcColumnDensityProfile(const int skind, profile **prf, const double logrm
     double *tfp;    tfp = (double *)malloc(skind * sizeof(double));    if( tfp == NULL ){      __KILL__(stderr, "ERROR: failure to allocate tfp\n");    }
     double *tfm;    tfm = (double *)malloc(skind * sizeof(double));    if( tfm == NULL ){      __KILL__(stderr, "ERROR: failure to allocate tfm\n");    }
 
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+    double *v2f;    v2f = (double *)malloc(skind * sizeof(double));    if( v2f == NULL ){      __KILL__(stderr, "ERROR: failure to allocate v2f\n");    }
+    double *v2p;    v2p = (double *)malloc(skind * sizeof(double));    if( v2p == NULL ){      __KILL__(stderr, "ERROR: failure to allocate v2p\n");    }
+    double *v2m;    v2m = (double *)malloc(skind * sizeof(double));    if( v2m == NULL ){      __KILL__(stderr, "ERROR: failure to allocate v2m\n");    }
+
+    double *v4f;    v4f = (double *)malloc(skind * sizeof(double));    if( v4f == NULL ){      __KILL__(stderr, "ERROR: failure to allocate v4f\n");    }
+    double *v4p;    v4p = (double *)malloc(skind * sizeof(double));    if( v4p == NULL ){      __KILL__(stderr, "ERROR: failure to allocate v4p\n");    }
+    double *v4m;    v4m = (double *)malloc(skind * sizeof(double));    if( v4m == NULL ){      __KILL__(stderr, "ERROR: failure to allocate v4m\n");    }
+
+    double *numer;    numer = (double *)malloc(skind * sizeof(double));    if( numer == NULL ){      __KILL__(stderr, "ERROR: failure to allocate numer\n");    }
+    double *denom;    denom = (double *)malloc(skind * sizeof(double));    if( denom == NULL ){      __KILL__(stderr, "ERROR: failure to allocate denom\n");    }
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+
 #pragma omp for schedule(auto) nowait
-    for(int ii = 0; ii < 4 + NRADBIN; ii += SKIP_INTERVAL_FOR_COLUMN_DENSITY){
+    for(int ii = 0; ii < NRADBIN; ii += SKIP_INTERVAL_FOR_COLUMN_DENSITY){
       /** initialization */
-      for(int kk = 0; kk < skind; kk++)
+      for(int kk = 0; kk < skind; kk++){
 	prf[kk][ii].Sigma = 0.0;
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	numer[kk] = denom[kk] = 0.0;
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+      }/* for(int kk = 0; kk < skind; kk++){ */
 
       const double RR = prf[0][ii].rad;
       const double R0 = fmin(RR, rs);
       const double R2 = fmax(RR, rs);
       const double R1 = 0.5 * (R0 + R2);
 
-      gaussQuadVertical(RR, NINTBIN,  0.0     ,          R0, skind, prf, sum, tfm, tfp);      for(int kk = 0; kk < skind; kk++)	prf[kk][ii].Sigma += sum[kk];
-      gaussQuadVertical(RR, NINTBIN,	    R0,		 R1, skind, prf, sum, tfm, tfp);      for(int kk = 0; kk < skind; kk++)	prf[kk][ii].Sigma += sum[kk];
-      gaussQuadVertical(RR, NINTBIN,	    R1,		 R2, skind, prf, sum, tfm, tfp);      for(int kk = 0; kk < skind; kk++)	prf[kk][ii].Sigma += sum[kk];
-      gaussQuadVertical(RR, NINTBIN,	    R2,	 2.0 *	 R2, skind, prf, sum, tfm, tfp);      for(int kk = 0; kk < skind; kk++)	prf[kk][ii].Sigma += sum[kk];
-      gaussQuadVertical(RR, NINTBIN,  2.0 * R2, 10.0 *	 R2, skind, prf, sum, tfm, tfp);      for(int kk = 0; kk < skind; kk++)	prf[kk][ii].Sigma += sum[kk];
-      gaussQuadVertical(RR, NINTBIN, 10.0 * R2,	 2.0 * Rmax, skind, prf, sum, tfm, tfp);      for(int kk = 0; kk < skind; kk++)	prf[kk][ii].Sigma += sum[kk];
+      gaussQuadVertical(RR, NINTBIN,  0.0     ,          R0, skind, prf, sum, tfm, tfp
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+			, v2f, v2m, v2p, v4f, v4m, v4p
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+			);
+      for(int kk = 0; kk < skind; kk++){
+	prf[kk][ii].Sigma += sum[kk];
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	numer[kk] += v4f[kk];
+	denom[kk] += v2f[kk];
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+      }/* for(int kk = 0; kk < skind; kk++){ */
 
-      for(int kk = 0; kk < skind; kk++)
+      gaussQuadVertical(RR, NINTBIN,	    R0,		 R1, skind, prf, sum, tfm, tfp
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+			, v2f, v2m, v2p, v4f, v4m, v4p
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+			);
+      for(int kk = 0; kk < skind; kk++){
+	prf[kk][ii].Sigma += sum[kk];
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	numer[kk] += v4f[kk];
+	denom[kk] += v2f[kk];
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+      }/* for(int kk = 0; kk < skind; kk++){ */
+
+      gaussQuadVertical(RR, NINTBIN,	    R1,		 R2, skind, prf, sum, tfm, tfp
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+			, v2f, v2m, v2p, v4f, v4m, v4p
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+			);
+      for(int kk = 0; kk < skind; kk++){
+	prf[kk][ii].Sigma += sum[kk];
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	numer[kk] += v4f[kk];
+	denom[kk] += v2f[kk];
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+      }/* for(int kk = 0; kk < skind; kk++){ */
+
+      gaussQuadVertical(RR, NINTBIN,	    R2,	 2.0 *	 R2, skind, prf, sum, tfm, tfp
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+			, v2f, v2m, v2p, v4f, v4m, v4p
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+			);
+      for(int kk = 0; kk < skind; kk++){
+	prf[kk][ii].Sigma += sum[kk];
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	numer[kk] += v4f[kk];
+	denom[kk] += v2f[kk];
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+      }/* for(int kk = 0; kk < skind; kk++){ */
+
+      gaussQuadVertical(RR, NINTBIN,  2.0 * R2, 10.0 *	 R2, skind, prf, sum, tfm, tfp
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+			, v2f, v2m, v2p, v4f, v4m, v4p
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+			);
+      for(int kk = 0; kk < skind; kk++){
+	prf[kk][ii].Sigma += sum[kk];
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	numer[kk] += v4f[kk];
+	denom[kk] += v2f[kk];
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+      }/* for(int kk = 0; kk < skind; kk++){ */
+
+      gaussQuadVertical(RR, NINTBIN, 10.0 * R2,	 2.0 * Rmax, skind, prf, sum, tfm, tfp
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+			, v2f, v2m, v2p, v4f, v4m, v4p
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+			);
+      for(int kk = 0; kk < skind; kk++){
+	prf[kk][ii].Sigma += sum[kk];
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	numer[kk] += v4f[kk];
+	denom[kk] += v2f[kk];
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+      }/* for(int kk = 0; kk < skind; kk++){ */
+
+
+      for(int kk = 0; kk < skind; kk++){
 	prf[kk][ii].Sigma *= 2.0;
-    }/* for(int ii = 0; ii < 4 + NRADBIN; ii++){ */
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	prf[kk][ii].slos = sqrt(numer[kk] / (3.0 * denom[kk]));
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+      }/* for(int kk = 0; kk < skind; kk++){ */
+    }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
     free(sum);    free(tfp);    free(tfm);
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+    free(v2f);    free(v2p);    free(v2m);
+    free(v4f);    free(v4p);    free(v4m);
+    free(numer);    free(denom);
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
   }
 
-#   if  SKIP_INTERVAL_FOR_COLUMN_DENSITY != 4
+#   if  SKIP_INTERVAL_FOR_COLUMN_DENSITY != 1
 #pragma omp parallel for
-  for(int ii = 0; ii < 4 + NRADBIN - SKIP_INTERVAL_FOR_COLUMN_DENSITY; ii += SKIP_INTERVAL_FOR_COLUMN_DENSITY)
+  for(int ii = 0; ii < NRADBIN - SKIP_INTERVAL_FOR_COLUMN_DENSITY; ii += SKIP_INTERVAL_FOR_COLUMN_DENSITY)
     for(int kk = 0; kk < skind; kk++){
       const double S0 = prf[kk][ii                                   ].Sigma;
       const double S1 = prf[kk][ii + SKIP_INTERVAL_FOR_COLUMN_DENSITY].Sigma;
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+      const double s0 = prf[kk][ii                                   ].slos;
+      const double s1 = prf[kk][ii + SKIP_INTERVAL_FOR_COLUMN_DENSITY].slos;
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
 
-      double slope = (S1 - S0) / (double)SKIP_INTERVAL_FOR_COLUMN_DENSITY;
-      for(int jj = 1; jj < SKIP_INTERVAL_FOR_COLUMN_DENSITY; jj++)
-	prf[kk][ii + jj].Sigma = S0 + slope * (double)jj;
+      double Slope = (S1 - S0) / (double)SKIP_INTERVAL_FOR_COLUMN_DENSITY;
+      double slope = (s1 - s0) / (double)SKIP_INTERVAL_FOR_COLUMN_DENSITY;
+      for(int jj = 1; jj < SKIP_INTERVAL_FOR_COLUMN_DENSITY; jj++){
+	prf[kk][ii + jj].Sigma = S0 + Slope * (double)jj;
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	prf[kk][ii + jj].slos  = s0 + slope * (double)jj;
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+      }/* for(int jj = 1; jj < SKIP_INTERVAL_FOR_COLUMN_DENSITY; jj++){ */
     }/* for(int kk = 0; kk < skind; kk++){ */
-#else///SKIP_INTERVAL_FOR_COLUMN_DENSITY != 4
-#pragma omp parallel for
-  for(int ii = 0; ii < NRADBIN; ii += 4)
-    for(int kk = 0; kk < skind; kk++){
-      const double S0 = prf[kk][ii    ].Sigma;
-      const double S1 = prf[kk][ii + 4].Sigma;
-
-      prf[kk][ii + 1].Sigma = 0.75 *  S0 + 0.25 * S1;
-      prf[kk][ii + 2].Sigma = 0.5  * (S0 +        S1);
-      prf[kk][ii + 3].Sigma = 0.25 *  S0 + 0.75 * S1;
-    }/* for(int kk = 0; kk < skind; kk++){ */
-#endif//SKIP_INTERVAL_FOR_COLUMN_DENSITY != 4
+#endif//SKIP_INTERVAL_FOR_COLUMN_DENSITY != 1
 
 
   __NOTE__("%s\n", "end");
 }
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
 #endif//MAKE_COLUMN_DENSITY_PROFILE

@@ -27,9 +27,7 @@
 #ifndef RUN_WITHOUT_GOTHIC
 #include "../misc/benchmark.h"
 #include "../misc/tune.h"
-#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD) && !defined(BRENT_H)
 #include "../misc/brent.h"
-#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD) && !defined(BRENT_H)
 #endif//RUN_WITHOUT_GOTHIC
 
 #ifdef  USE_HDF5_FORMAT
@@ -118,13 +116,7 @@ extern "C"
 #ifdef  USE_HDF5_FORMAT
 			  , hdf5struct type
 #ifndef RUN_WITHOUT_GOTHIC
-			  , int *dropPrevTune, rebuildTree *rebuild, measuredTime *measured
-#ifdef  WALK_TREE_COMBINED_MODEL
-			  , autoTuningParam *rebuildParam
-#endif//WALK_TREE_COMBINED_MODEL
-#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
-			  , brentStatus *status, brentMemory *memory
-#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+			  , int *dropPrevTune, rebuildTree *rebuild, measuredTime *measured, autoTuningParam *rebuildParam, brentStatus *status, brentMemory *memory
 #ifdef  MONITOR_ENERGY_ERROR
 			  , energyError *relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -135,13 +127,7 @@ extern "C"
 #ifdef  USE_HDF5_FORMAT
 			  , hdf5struct type
 #ifndef RUN_WITHOUT_GOTHIC
-			  , rebuildTree rebuild, measuredTime measured
-#ifdef  WALK_TREE_COMBINED_MODEL
-			  , autoTuningParam rebuildParam
-#endif//WALK_TREE_COMBINED_MODEL
-#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
-			  , brentStatus status, brentMemory memory
-#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+			  , rebuildTree rebuild, measuredTime measured, autoTuningParam rebuildParam, brentStatus status, brentMemory memory
 #ifdef  MONITOR_ENERGY_ERROR
 			  , energyError relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -155,13 +141,7 @@ extern "C"
 #ifdef  USE_HDF5_FORMAT
 				  , hdf5struct type
 #ifndef RUN_WITHOUT_GOTHIC
-				  , int *dropPrevTune, rebuildTree *rebuild, measuredTime *measured
-#ifdef  WALK_TREE_COMBINED_MODEL
-				  , autoTuningParam *rebuildParam
-#endif//WALK_TREE_COMBINED_MODEL
-#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
-				  , brentStatus *status, brentMemory *memory
-#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+				  , int *dropPrevTune, rebuildTree *rebuild, measuredTime *measured, autoTuningParam *rebuildParam, brentStatus *status, brentMemory *memory
 #ifdef  MONITOR_ENERGY_ERROR
 				  , energyError *relEneErr
 #endif//MONITOR_ENERGY_ERROR
@@ -172,13 +152,7 @@ extern "C"
 #ifdef  USE_HDF5_FORMAT
 				  , hdf5struct type
 #ifndef RUN_WITHOUT_GOTHIC
-				  , rebuildTree rebuild, measuredTime measured
-#ifdef  WALK_TREE_COMBINED_MODEL
-				  , autoTuningParam rebuildParam
-#endif//WALK_TREE_COMBINED_MODEL
-#   if  defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
-				  , brentStatus status, brentMemory memory
-#endif//defined(LOCALIZE_I_PARTICLES) && defined(USE_BRENT_METHOD)
+				  , rebuildTree rebuild, measuredTime measured, autoTuningParam rebuildParam, brentStatus status, brentMemory memory
 #ifdef  MONITOR_ENERGY_ERROR
 				  , energyError  relEneErr
 #endif//MONITOR_ENERGY_ERROR

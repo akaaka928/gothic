@@ -117,27 +117,13 @@ void brentPerturb(brentStatus *brent, double xl, double xr)
  * @return (brent) structure required for the Brent's meghod
  * @param (tol) tolerance parameter
  */
-#ifdef  TEST_BRENT_METHOD
-int  brentCalc1st(brentStatus *brent, const double tol)
-#else///TEST_BRENT_METHOD
 void brentCalc1st(brentStatus *brent, const double tol)
-#endif//TEST_BRENT_METHOD
 {
   __NOTE__("%s\n", "start");
 
   const double xm = 0.5 * (brent->a + brent->b);
   const double tol0 = tol * fabs(brent->x.pos) + DBL_EPSILON;
   const double tol1 = 2.0 * tol0;
-
-
-  /* convergence check */
-  /* this part is not required for the tree code */
-#ifdef  TEST_BRENT_METHOD
-  if( fabs(brent->x.pos - xm) <= (tol1 + xm - brent->b) ){
-    brent->u = brent->x;
-    return (1);
-  }/* if( fabs(brent->x.pos - xm) <= (tol1 + xm - brent->b) ){ */
-#endif//TEST_BRENT_METHOD
 
 
   /* execute interpolation */
@@ -177,10 +163,9 @@ void brentCalc1st(brentStatus *brent, const double tol)
 
 
   __NOTE__("%s\n", "end");
-#ifdef  TEST_BRENT_METHOD
-  return (0);
-#endif//TEST_BRENT_METHOD
 }
+
+
 /**
  * @fn brentCalc2nd
  *
@@ -215,75 +200,3 @@ void brentCalc2nd(brentStatus *brent)
 
   __NOTE__("%s\n", "end");
 }
-
-
-#ifdef  TEST_BRENT_METHOD
-
-#ifdef __ICC
-/* Disable ICC's remark #1418: external function definition with no prior declaration. */
-#     pragma warning (disable:1418)
-/* Disable ICC's remark #1419: external declaration in primary source file */
-#     pragma warning (disable:1419)
-#endif//__ICC
-
-#ifndef M_PI
-#define M_PI       3.14159265358979323846264338328      /* pi */
-#endif//M_PI
-
-/**
- * @fn minimizeBrent
- *
- * @brief Execute the Brent's method.
- *
- * @param (xl) position of lower limit of x
- * @param (xr) position of upper limit of x
- * @param (func) function pointer
- * @param (tol) tolerance parameter
- * @return (brent) structure required for the Brent's meghod
- */
-double minimizeBrent(double xl, double xr, double (*func)(double), const double tol, brentStatus *brent)
-{
-  /* initialization */
-  brentInit1st(brent, xl, xr);
-  brent->x.val = func(brent->x.pos);
-  brentInit2nd(brent);
-
-
-  /* the main loop */
-  while( 1 ){
-    if( brentCalc1st(brent, tol) == 1 )
-      return (brent->x.pos);
-
-    /* update the guess about the position provides the local minimum */
-    brent->u.val = func(brent->u.pos);
-#if 1
-    printf("u.pos = %.16e;\tu.val = %.16e\n", brent->u.pos, brent->u.val);
-#endif
-
-    brentCalc2nd(brent);
-  }/* while( 1 ){ */
-}
-
-
-double parabolic(const double xx){  return ((xx - 1.0) * (xx - 1.0) + 2.0);}
-double  sineWave(const double xx){  return (sin(xx));}
-
-
-int main(void)
-{
-  double xmin;
-  static brentStatus brent;
-
-  /* xmin = minimizeBrent(-3.0, 3.0, parabolic, sqrt(DBL_EPSILON), &brent); */
-  xmin = minimizeBrent(-3.0, 3.0, parabolic, DBL_EPSILON, &brent);
-  /* xmin = minimizeBrent(-3.0, 3.0, parabolic, 0.0, &brent); */
-  printf("x = %e, f(x) = %e\n", xmin, parabolic(xmin));  fflush(stdout);
-
-  /* xmin = minimizeBrent(0.0, 2.0 * M_PI, sineWave, sqrt(DBL_EPSILON), &brent); */
-  xmin = minimizeBrent(0.0, 2.0 * M_PI, sineWave, DBL_EPSILON, &brent);
-  /* xmin = minimizeBrent(0.0, 2.0 * M_PI, sineWave, 0.0, &brent); */
-  printf("x = %e, f(x) = %e\n", xmin, sineWave(xmin));  fflush(stdout);
-
-  return (0);
-}
-#endif//TEST_BRENT_METHOD

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/24 (Fri)
+ * @date 2017/06/02 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -202,6 +202,11 @@ void execAbelTransform(profile *prf, const profile_cfg cfg, const double rmin, c
 #endif//NDIVIDE_GAUSSQD4ABEL
   }/* for(int ii = 0; ii < NABEL; ii++){ */
 
+#if 0
+  for(int ii = 0; ii < NABEL; ii++)
+    fprintf(stderr, "%e\t%e\n", rad[ii], rho[ii]);
+  fflush(NULL);
+#endif
 
   /* return deprojected density profile */
   getInterpolatedDensityProfile(NABEL, prf, rad, rho);
@@ -310,7 +315,7 @@ void readColumnDensityProfileTable(profile *prf, const double rs, char *file, co
   /** extrapolate for the outermost position by least squares method */
   double pp, bb;
   const double rmin = 0.5 * (prf[          0].rad < xx[          NPUT]) ? (prf[          0].rad) : (xx[          NPUT]);
-  const double rmax = 2.0 * (prf[NRADBIN + 3].rad > xx[num - 1 - NPUT]) ? (prf[NRADBIN + 3].rad) : (xx[num - 1 - NPUT]);
+  const double rmax = 2.0 * (prf[NRADBIN - 1].rad > xx[num - 1 - NPUT]) ? (prf[NRADBIN - 1].rad) : (xx[num - 1 - NPUT]);
   leastSquaresMethod(NFIT, &xx[NPUT], &ff[NPUT], &pp, &bb);
   const double logrmin = log10(rmin);
   double logrbin = (log10(xx[NPUT]) - logrmin) / (double)NPUT;
@@ -408,7 +413,7 @@ void readColumnDensityTable4Disk(profile *prf, const double rs, char *file, int 
   /** extrapolate for the outermost position by least squares method */
   double pp, bb;
   const double rmin = 0.5 * (prf[          0].rad < (*xx)[          NPUT]) ? (prf[          0].rad) : ((*xx)[          NPUT]);
-  const double rmax = 2.0 * (prf[NRADBIN + 3].rad > (*xx)[(*num) - 1 - NPUT]) ? (prf[NRADBIN + 3].rad) : ((*xx)[(*num) - 1 - NPUT]);
+  const double rmax = 2.0 * (prf[NRADBIN - 1].rad > (*xx)[(*num) - 1 - NPUT]) ? (prf[NRADBIN - 1].rad) : ((*xx)[(*num) - 1 - NPUT]);
   leastSquaresMethod(NFIT, &((*xx)[NPUT]), &((*ff)[NPUT]), &pp, &bb);
   const double logrmin = log10(rmin);
   double logrbin = (log10((*xx)[NPUT]) - logrmin) / (double)NPUT;

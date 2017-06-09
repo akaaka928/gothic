@@ -1,174 +1,98 @@
-/*************************************************************************\
- *                                                                       *
-                  last updated on 2016/12/06(Tue) 12:57:45
- *                                                                       *
- *    Header File to examine tree statistics                             *
- *                                                                       *
- *                                                                       *
- *                                                                       *
- *                                             written by Yohei MIKI     *
- *                                                                       *
-\*************************************************************************/
-//-------------------------------------------------------------------------
+/**
+ * @file shrink_dev.h
+ *
+ * @brief Header file to split i-particle groups on GPU
+ *
+ * @author Yohei Miki (University of Tsukuba)
+ * @author Masayuki Umemura (University of Tsukuba)
+ *
+ * @date 2017/03/02 (Thu)
+ *
+ * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
+ * All rights reserved.
+ *
+ * The MIT License is applied to this software, see LICENSE.txt
+ *
+ */
 #ifndef SHRINK_DEV_H
 #define SHRINK_DEV_H
-//-------------------------------------------------------------------------
+
+
 #include "macro.h"
 #include "cudalib.h"
-//-------------------------------------------------------------------------
+
 #include "../tree/make.h"
 #include "../tree/make_dev.h"
-//-------------------------------------------------------------------------
-#ifdef  LOCALIZE_I_PARTICLES
 #include "../tree/neighbor_dev.h"
-#endif//LOCALIZE_I_PARTICLES
-//-------------------------------------------------------------------------
-#ifdef  USE_BRENT_METHOD
 #include "../misc/brent.h"
-#endif//USE_BRENT_METHOD
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
+/**
+ * @def NUM_IGROUP_SAFETY_FACTOR
+ *
+ * @brief a parameter to guess maximum number of particle groups
+ */
 /* #define NUM_IGROUP_SAFETY_FACTOR (8) */
 #define NUM_IGROUP_SAFETY_FACTOR (16)
-//-------------------------------------------------------------------------
+
+
+/**
+ * @def NTHREADS_SHRINK
+ *
+ * @brief number of threads per block for countContinuousNeighbor_kernel
+ */
 #ifndef NTHREADS_SHRINK
-#          if  (GPUGEN >= 52)
+#   if  (GPUGEN >= 52)
 #define NTHREADS_SHRINK (128)
-#       else///(GPUGEN >= 52)
-#          if  (GPUGEN >= 30)
+#else///(GPUGEN >= 52)
+#   if  (GPUGEN >= 30)
 #define NTHREADS_SHRINK (1024)
-#       else///(GPUGEN >= 30)
+#else///(GPUGEN >= 30)
 #define NTHREADS_SHRINK (128)
-#       endif//(GPUGEN >= 30)
-#       endif//(GPUGEN >= 52)
+#endif//(GPUGEN >= 30)
+#endif//(GPUGEN >= 52)
 #endif//NTHREADS_SHRINK
-//-------------------------------------------------------------------------
-/* #ifndef SHRINK_FRACTION */
-/* /\* 1/2^2, 1/4^2, 1/8^2, 1/16^2, 1/32^2 *\/ */
-/* /\* #define SHRINK_FRACTION (2.5e-1f) *\/ */
-/* /\* #define SHRINK_FRACTION (6.25e-2f) *\/ */
-/* #define SHRINK_FRACTION (1.5625e-2f) */
-/* /\* #define SHRINK_FRACTION (3.90625e-3f) *\/ */
-/* /\* #define SHRINK_FRACTION (9.765625e-4f) *\/ */
-/* #endif//SHRINK_FRACTION */
-//-------------------------------------------------------------------------
-#ifdef  USE_BRENT_METHOD
-//-------------------------------------------------------------------------
+
+
+/**
+ * @def NEIGHBOR_LENGTH_SHRINK_FACTOR
+ *
+ * @brief a key parameter to set minimum length in Brent's method
+ */
 #ifndef NEIGHBOR_LENGTH_SHRINK_FACTOR
 #define NEIGHBOR_LENGTH_SHRINK_FACTOR (0.8f)
 #endif//NEIGHBOR_LENGTH_SHRINK_FACTOR
-//-------------------------------------------------------------------------
-#else///USE_BRENT_METHOD
-//-------------------------------------------------------------------------
-#ifndef NEIGHBOR_LENGTH_UPPER_FRACTION
-/* #define NEIGHBOR_LENGTH_UPPER_FRACTION (1.0e-4f) */
-/* #define NEIGHBOR_LENGTH_UPPER_FRACTION (5.0e-4f) */
-#define NEIGHBOR_LENGTH_UPPER_FRACTION (1.0e-3f)
-/* #define NEIGHBOR_LENGTH_UPPER_FRACTION (5.0e-3f) */
-/* #define NEIGHBOR_LENGTH_UPPER_FRACTION (1.0e-2f) */
-#endif//NEIGHBOR_LENGTH_UPPER_FRACTION
-//-------------------------------------------------------------------------
-#ifndef NEIGHBOR_LENGTH_EXTEND_FRACTION
-#define NEIGHBOR_LENGTH_EXTEND_FRACTION (0.1f)
-/* #define NEIGHBOR_LENGTH_EXTEND_FRACTION (0.2f) */
-/* #define NEIGHBOR_LENGTH_EXTEND_FRACTION (0.25f) */
-/* #define NEIGHBOR_LENGTH_EXTEND_FRACTION (0.0625f) */
-/* #define NEIGHBOR_LENGTH_EXTEND_FRACTION (0.0f) */
-#endif//NEIGHBOR_LENGTH_EXTEND_FRACTION
-//-------------------------------------------------------------------------
-#endif//USE_BRENT_METHOD
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-#ifdef  CUB_AVAILABLE
-typedef struct
-{
-  void *temp_storage;
-  real *out;
-  size_t temp_storage_size;
-} soaCUBreal;
-#endif//CUB_AVAILABLE
-//-------------------------------------------------------------------------
-
-
-//-------------------------------------------------------------------------
-//-- List of functions appeared in "shrink_dev.cu"
-//-------------------------------------------------------------------------
+/* list of functions appeared in ``shrink_dev.cu'' */
 #ifdef  __CUDACC__
 extern "C"
 {
 #endif//__CUDACC__
-  //-----------------------------------------------------------------------
   void freeParticleGroups
-  (laneinfo  *laneInfo_hst, laneinfo  *laneInfo_dev, double  *laneTime_dev
-#ifdef  LOCALIZE_I_PARTICLES
-   , int  *inum_hst, int  *inum_dev
-#   if  defined(CUB_AVAILABLE) && !defined(USE_BRENT_METHOD)
-   , void  *temp_storage, real  *outCub
-#endif//defined(CUB_AVAILABLE) && !defined(USE_BRENT_METHOD)
-#endif//LOCALIZE_I_PARTICLES
-   );
+  (laneinfo  *laneInfo_hst, laneinfo  *laneInfo_dev, double  *laneTime_dev, int  *inum_hst, int  *inum_dev);
   muse allocParticleGroups
-  (laneinfo **laneInfo_hst, laneinfo **laneInfo_dev, double **laneTime_dev
-#ifdef  LOCALIZE_I_PARTICLES
-   , int **inum_hst, int **inum_dev
-#   if  defined(CUB_AVAILABLE) && !defined(USE_BRENT_METHOD)
-   , soaCUBreal *util, void **temp_storage, real **outCub, iparticle body_dev
-#endif//defined(CUB_AVAILABLE) && !defined(USE_BRENT_METHOD)
-#endif//LOCALIZE_I_PARTICLES
-   , int *inumPerLane, int *maxNgrp, const int num_max, deviceProp devProp);
-  //-----------------------------------------------------------------------
-#ifdef  LOCALIZE_I_PARTICLES
-  void examineParticleSeparation
-  (const int Ni, iparticle body_dev
-#ifdef  USE_BRENT_METHOD
-   , brentStatus *brent
-#else///USE_BRENT_METHOD
-#ifdef  CUB_AVAILABLE
-   , soaCUBreal util
-#endif//CUB_AVAILABLE
-   , real *rmax
-#endif//USE_BRENT_METHOD
-#ifndef FACILE_NEIGHBOR_SEARCH
-   , const soaTreeCell cell, const soaTreeNode node, const soaMakeTreeBuf makeBuf, const soaNeighborSearchBuf searchBuf, deviceProp devProp
-#endif//FACILE_NEIGHBOR_SEARCH
+  (laneinfo **laneInfo_hst, laneinfo **laneInfo_dev, double **laneTime_dev, int **inum_hst, int **inum_dev,
+   int *inumPerLane, int *maxNgrp, const int num_max, deviceProp devProp);
+
+  void examineParticleSeparation(const int Ni, iparticle body_dev, brentStatus *brent
 #ifdef  EXEC_BENCHMARK
-   , wall_clock_time *elapsed
+				 , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
-   );
-#endif///LOCALIZE_I_PARTICLES
-  //-----------------------------------------------------------------------
+				 );
+
   void updateParticleGroups
-  (const int Ni, laneinfo *laneInfo, const int inumPerLane, const int maxNgrp, int *Ngrp
-#ifdef  LOCALIZE_I_PARTICLES
-   , const iparticle body_dev, int *inum_dev, int *inum_hst
-#ifdef  USE_BRENT_METHOD
-   , const real rmax
-#else///USE_BRENT_METHOD
-#ifdef  CUB_AVAILABLE
-   , soaCUBreal util
-#endif//CUB_AVAILABLE
-#endif//USE_BRENT_METHOD
-#   if  !defined(FACILE_NEIGHBOR_SEARCH) && !defined(USE_BRENT_METHOD)
-   , const soaTreeCell cell, const soaTreeNode node, const soaMakeTreeBuf makeBuf, const soaNeighborSearchBuf searchBuf, deviceProp devProp
-#endif//!defined(FACILE_NEIGHBOR_SEARCH) && !defined(USE_BRENT_METHOD)
-#endif//LOCALIZE_I_PARTICLES
+  (const int Ni, laneinfo *laneInfo, const int inumPerLane, const int maxNgrp, int *Ngrp,
+   const iparticle body_dev, int *inum_dev, int *inum_hst, const real rmax
 #ifdef  EXEC_BENCHMARK
    , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
    );
-  //-----------------------------------------------------------------------
+
   void commitParticleGroups(const int Ngrp, laneinfo *laneInfo_hst, laneinfo *laneInfo_dev);
-  //-----------------------------------------------------------------------
 #ifdef  __CUDACC__
 }
 #endif//__CUDACC__
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #endif//SHRINK_DEV_H
-//-------------------------------------------------------------------------
