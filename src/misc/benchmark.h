@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/03/01 (Wed)
+ * @date 2017/06/27 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -130,9 +130,9 @@ typedef struct
 } tree_metrics;
 
 
-#include <sys/time.h>
+#include <time.h>
 #include "timer.h"
-static struct timeval _benchIni, _benchFin;
+static struct timespec _benchIni, _benchFin;
 
 /**
  * @fn initStopwatch
@@ -144,7 +144,7 @@ static inline void initStopwatch(void)
 #ifdef  __CUDACC__
   cudaDeviceSynchronize();
 #endif//__CUDACC__
-  gettimeofday(&_benchIni, NULL);
+  clock_gettime(CLOCK_MONOTONIC_RAW, &_benchIni);
 }
 /**
  * @fn stopStopwatch
@@ -158,7 +158,7 @@ static inline void stopStopwatch(double *result)
 #ifdef  __CUDACC__
   cudaDeviceSynchronize();
 #endif//__CUDACC__
-  gettimeofday(&_benchFin, NULL);
+  clock_gettime(CLOCK_MONOTONIC_RAW, &_benchFin);
   *result += calcElapsedTimeInSec(_benchIni, _benchFin);
 }
 

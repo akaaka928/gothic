@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/04/07 (Fri)
+ * @date 2017/06/27 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -27,7 +27,7 @@
 #include <stdbool.h>
 #include <math.h>
 #include <helper_cuda.h>
-#include <sys/time.h>
+#include <time.h>
 #ifndef SERIALIZED_EXECUTION
 #include <mpi.h>
 #endif//SERIALIZED_EXECUTION
@@ -2210,9 +2210,9 @@ void calcGravity_dev
 #endif//USE_MEASURED_CLOCK_FREQ
 
 #   if  defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
-  static struct timeval start;
+  static struct timespec start;
   checkCudaErrors(cudaDeviceSynchronize());
-  gettimeofday(&start, NULL);
+  clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 #endif//defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
 
 
@@ -2799,9 +2799,9 @@ void calcGravity_dev
 
   /** evaluate GPU time */
 #   if  defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
-  static struct timeval finish;
+  static struct timespec finish;
   checkCudaErrors(cudaDeviceSynchronize());
-  gettimeofday(&finish, NULL);
+  clock_gettime(CLOCK_MONOTONIC_RAW, &finish);
   *time = calcElapsedTimeInSec(start, finish);
 #ifdef  EXEC_BENCHMARK
   elapsed->calcGravity_dev += *time;

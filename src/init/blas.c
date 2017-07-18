@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/24 (Fri)
+ * @date 2017/07/16 (Sun)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -172,7 +172,7 @@ void getILU0(const int num, crs mat, crs ilu)
 void mulLUinv(const int num, crs ilu, double * restrict ini, double * restrict tmp, double * restrict ret);
 void mulLUinv(const int num, crs ilu, double * restrict ini, double * restrict tmp, double * restrict ret)
 {
-  __NOTE__("%s\n", "start");
+  /* __NOTE__("%s\n", "start"); */
 
 
   /** forward elimination */
@@ -204,7 +204,7 @@ void mulLUinv(const int num, crs ilu, double * restrict ini, double * restrict t
   }/* for(int ii = num - 2; ii >= 0; ii--){ */
 
 
-  __NOTE__("%s\n", "end");
+  /* __NOTE__("%s\n", "end"); */
 }
 
 

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/06/02 (Fri)
+ * @date 2017/07/16 (Sun)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <assert.h>
 #include <math.h>
 #include <omp.h>
 
@@ -57,14 +58,8 @@ static inline int bisection(const double val, const int num, double * restrict t
   int rr = num - 1;
 
   /** prohibit extraporation */
-  /* if( tab[ll] < tab[rr] ){ */
     if( val < tab[ll] + DBL_EPSILON ){    *ratio = 0.0;    return (ll    );  }
     if( val > tab[rr] - DBL_EPSILON ){    *ratio = 1.0;    return (rr - 1);  }
-  /* }/\* if( tab[ll] < tab[rr] ){ *\/ */
-  /* else{ */
-  /*   if( val > tab[ll] - DBL_EPSILON ){    *ratio = 0.0;    return (ll    );  } */
-  /*   if( val < tab[rr] + DBL_EPSILON ){    *ratio = 1.0;    return (rr - 1);  } */
-  /* }/\* else{ *\/ */
 
   while( true ){
     const uint cc = ((uint)(ll + rr)) >> 1;
@@ -364,6 +359,13 @@ void diffAxisymmetricPotential(const int maxLev, const disk_data disk)
 	    _dPhidR__disk = 0.5     * invRbin * (Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 1, jj)] - Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, jj)]);
 	    d2PhidR2_disk = invRbin * invRbin * (Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 1, jj)] - Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, jj)]);
 	  }/* else{ */
+#if 0
+#pragma omp critical
+	  if( jj == 0 ){
+	    fprintf(stderr, "%e\t%d\t%d\t%e\t%e\n", RR[ii], lev, ii, _dPhidR__disk, d2PhidR2_disk);
+	    fflush(stderr);
+	  }
+#endif
 
 	  /** r-derivatives of potential given by the spherical component(s) */
 	  const double rad = sqrt(RR[ii] * RR[ii] + zz[jj] * zz[jj]);
@@ -811,7 +813,9 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     double vcirc  = sqrt(vcirc2);
 
     const double gam2inv = 0.25 * (3.0 + d2Phi / (DBL_MIN + Omega2));
+    assert(gam2inv >= 0.0);
     const double gam2    = 1.0 / (DBL_MIN + gam2inv);
+    assert(gam2 <= 1.0);
     const double sz2inv  = 1.0 / (DBL_MIN + sigmaz * sigmaz);
 #ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
     const double sigmap = DISK_PERP_VDISP(sigmaz, vcirc, frac);
@@ -826,12 +830,15 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     const double sigmap = 1.0 / sqrt(DBL_MIN + sp2inv);
 #endif//SPEEDUP_CONVERGENCE
 #endif//ENFORCE_EPICYCLIC_APPROXIMATION
+    assert(sigmaR >= 0.0);
+    assert(sigmap >= 0.0);
 
 
     /** determine particle position and velocity */
     double vx, vy, vz;
     double xx, yy;
 
+    assert(vesc2 >= vcirc2);
     const double vmax2 = vesc2 - vcirc2;
 #ifndef  SPEEDUP_CONVERGENCE
     const double vmax  = sqrt(vmax2);

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/06/09 (Fri)
+ * @date 2017/07/18 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -513,8 +513,9 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 #if 0
 #pragma omp single
   {
-    fprintf(stdout, "Mmin = %e, Mmax = %e; Emin = %e, Emax = %e; Ecut = %e\n", Mmin, Mmax, Emin, Emax, Ecut);
+    fprintf(stdout, "Mmin = %e, Mmax = %e; Emin = %e, Emax = %e; Ecut = %e, iout = %d\n", Mmin, Mmax, Emin, Emax, Ecut, iout);
     fflush(NULL);
+    exit(0);
   }
 #endif
 
@@ -2345,6 +2346,7 @@ void outputRepresentativeQuantities
       /** calculate velocity dispersion in R-direction @ R = 0 */
       const int lev = maxLev - 1;
       const int ii = 0;
+#ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
 #ifndef USE_POTENTIAL_SCALING_SCHEME
       const double Omega = sqrt(disk[diskID]. dPhidR [INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] / disk[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
       const double kappa = sqrt(disk[diskID].d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] + 3.0 * Omega * Omega);
@@ -2352,12 +2354,15 @@ void outputRepresentativeQuantities
       const double Omega = sqrt(disk[diskID]. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] / disk[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
       const double kappa = sqrt(disk[diskID].d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + 3.0 * Omega * Omega);
 #endif//USE_POTENTIAL_SCALING_SCHEME
-#ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
       const double vcirc = disk[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] * Omega;
       const double sigmap = DISK_PERP_VDISP(disk[diskID].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], vcirc, disk[diskID].cfg->vdisp_frac);
       const double sigmaR = sigmap * 2.0 * Omega / (DBL_MIN + kappa);
 #else///ENFORCE_EPICYCLIC_APPROXIMATION
+#ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
+      const double sigmaR = DISK_RADIAL_VDISP(disk[diskID].cfg->vdispR0, disk[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], 1.0 / disk[diskID].zd[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
+#else///ENABLE_VARIABLE_SCALE_HEIGHT
       const double sigmaR = DISK_RADIAL_VDISP(disk[diskID].cfg->vdispR0, disk[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], invRd);
+#endif//ENABLE_VARIABLE_SCALE_HEIGHT
 #endif//ENFORCE_EPICYCLIC_APPROXIMATION
 
       /** write velocity dispersion in R-direction  @ R = 0 */
@@ -2588,6 +2593,7 @@ static void evaluateDiskProperties
     const double sigmaR = sigmap * 2.0 * Omega / (DBL_MIN + kappa);
 #else///ENFORCE_EPICYCLIC_APPROXIMATION
     const double sigmaR = DISK_RADIAL_VDISP(disk_info[diskID].cfg->vdispR0, disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], invRd);
+    const double sigmap = sigmaR * kappa * 0.5 / (DBL_MIN + Omega);
 #endif//ENFORCE_EPICYCLIC_APPROXIMATION
     const double Sigma = disk_info[diskID].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
     const double toomre = sigmaR * kappa / (DBL_MIN + 3.36 * newton * Sigma);

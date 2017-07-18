@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/04/07 (Fri)
+ * @date 2017/06/27 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -18,7 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <sys/time.h>
+#include <time.h>
 #include <helper_cuda.h>
 
 #ifdef  CUB_AVAILABLE
@@ -515,7 +515,7 @@ void sortParticlesPHcurve_dev(const int num, iparticle * RESTRICT src, iparticle
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 			      , domainLocation *location
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-			      , struct timeval *start
+			      , struct timespec *start
 #ifdef EXEC_BENCHMARK
 			      , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
@@ -526,7 +526,7 @@ void sortParticlesPHcurve_dev(const int num, iparticle * RESTRICT src, iparticle
 
 #ifndef EXEC_BENCHMARK
   checkCudaErrors(cudaDeviceSynchronize());
-  gettimeofday(start, NULL);
+  clock_gettime(CLOCK_MONOTONIC_RAW, start);
 #else///EXEC_BENCHMARK
   initStopwatch();
   *start = _benchIni;

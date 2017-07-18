@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/03/12 (Sun)
+ * @date 2017/07/16 (Sun)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -36,7 +36,6 @@
  *
  * @brief number of grid points of the density and potential fields in z-direction
  */
-/* #define NDISKBIN_VER (32) */
 #define NDISKBIN_VER (64)
 
 /**
@@ -80,6 +79,13 @@
 #define ENABLE_VARIABLE_SCALE_HEIGHT
 
 /**
+ * @def ITERATE_VARIABLE_SCALE_HEIGHT
+ *
+ * @brief determine the scale height of disk component(s) by iterations
+ */
+#define ITERATE_VARIABLE_SCALE_HEIGHT
+
+/**
  * @def DISK_DIMMING_HEIGHT
  *
  * @brief parameter to remove the needle-like structure
@@ -99,7 +105,7 @@
  *
  * @brief enable to remove the needle-like structure
  */
-/* #define ADDITIONAL_CONDITION_FOR_SCALE_HEIGHT */
+#define ADDITIONAL_CONDITION_FOR_SCALE_HEIGHT
 
 /**
  * @def DISK_DIMMING_SCALE
@@ -122,6 +128,7 @@
  * @brief tolerance value for iterating potential-density pair of the disk component(s)
  */
 #define CONVERGENCE_POTDENSPAIR (1.0e-4)
+/* #define CONVERGENCE_POTDENSPAIR (3.1e-4) */
 
 /**
  * @def NEGLECT_DENSITY_MINIMUM

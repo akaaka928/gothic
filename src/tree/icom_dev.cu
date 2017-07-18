@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/04/18 (Tue)
+ * @date 2017/06/26 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -516,7 +516,7 @@ __device__ __forceinline__ float getMaximumFloatGrid
 /**# つまり，findFurthestParticle の置き換えとして使う． */
 /**# また，TSUB_MAC を排除した方が高速な可能性があるので，そういうことにも気をつけながらコードを読み直してみる． */
 
-/**# ある特定の particle を検出すれば良いだけなので，single block で探索するコードにすれば良いと思う． */
+/**# ある特定の particle を検出すれば良いだけなので，single block で探索するコードにすれば良いと思う．<-- この方針で実装する．つまり，全体同期関数は不要 */
 
 /**
  * @fn calcMultipole_kernel
@@ -538,20 +538,16 @@ __device__ __forceinline__ float getMaximumFloatGrid
  */
 #define NTHREADS_MAKE_INC NTHREADS_EB
 #include "../tree/make_inc.cu"
-__global__ void __launch_bounds__(NTHREADS_EB, NBLOCKS_PER_SM_EB) calcMultipole_kernel
+__global__ void findFurthestParticle_kernel
      (const int bottomLev, READ_ONLY PHinfo * RESTRICT level,
       READ_ONLY treecell * RESTRICT cell, READ_ONLY bool * RESTRICT leaf, READ_ONLY position * RESTRICT pi,
       READ_ONLY uint * RESTRICT node, READ_ONLY uint * RESTRICT more, READ_ONLY int * RESTRICT node2cell,
       jparticle * RESTRICT pj, jmass * RESTRICT mj, real * RESTRICT bmax,
-      int * RESTRICT more0Buf, int * RESTRICT more1Buf, real * RESTRICT rjmaxBuf, int * RESTRICT overflow,
-      int * RESTRICT gsync0, int * RESTRICT gsync1
+      int * RESTRICT more0Buf, int * RESTRICT more1Buf, real * RESTRICT rjmaxBuf, int * RESTRICT overflow
       )
 {
   /** identify thread properties */
   const int tidx = THREADIDX_X1D;
-  const int gidx = GLOBALIDX_X1D;
-  const int bidx =  BLOCKIDX_X1D;
-  const int bnum =   GRIDDIM_X1D;
 
   const int lane = tidx & (warpSize - 1);
 /*   const int head = tidx - lane; */
@@ -595,13 +591,12 @@ __global__ void __launch_bounds__(NTHREADS_EB, NBLOCKS_PER_SM_EB) calcMultipole_
   int inum = root.num;
   int Ntry = 1;
 
-  /* list0, list1 は shared memory に置いておくとして，global memory 上に共有するための配列も作っておいて，適宜やり取りしてあげるべきだと思う． */
-  /* これを使うかどうかは，bsub の値が 1 より大きいかどうかで切り分けてやる． */
-  if( gidx == 0 )
-    list0_gm[0] = cidx;
+  /* list0, list1 は shared memory に置いておくとして，global memory 上に退避するための配列も作っておいて，適宜やり取りしてあげるべきだと思う． */
+  if( tidx == 0 )
+    list0_sm[0] = cidx;
 
 
-  globalSync(tidx, bidx, bnum, gsync0, gsync1);
+  __syncthreads();
 
 
   /** pick up NTHREADS_EB i-particles in maximum to estimate bmax */

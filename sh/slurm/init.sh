@@ -15,10 +15,12 @@ EXEC=bin/magi
 # problem ID
 if [ -z "$PROBLEM" ]; then
     # PROBLEM=26
-    # PROBLEM=28
+    PROBLEM=28
     # PROBLEM=70
     # PROBLEM=71
-    PROBLEM=1
+    # PROBLEM=1
+    # PROBLEM=80
+    # PROBLEM=81
 fi
 ###############################################################
 # number of N-body particles
@@ -37,9 +39,9 @@ if [ -z "$NTOT" ]; then
     # NTOT=262144
     # NTOT=524288
     # NTOT=1048576
-    NTOT=2097152
+    # NTOT=2097152
     # NTOT=4194304
-    # NTOT=8388608
+    NTOT=8388608
     # NTOT=16777216
     # NTOT=33554432
     # NTOT=67108864
@@ -555,6 +557,36 @@ if [ $PROBLEM -eq 71 ]; then
     ETA=0.5
     FINISH=23.5
     INTERVAL=0.5
+fi
+###############################################################
+# dynamical stability of multi components galaxy model (based on Cole & Binney 2017)
+if [ $PROBLEM -eq 80 ]; then
+    FILE=cb17
+    CONFIG=galaxy/cb17.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    # ETA=0.25
+    # FINISH=75.0
+    # INTERVAL=25.0
+    FINISH=1175.0
+    INTERVAL=25.0
+    # FINISH=3175.0
+    # INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of multi components galaxy model (based on Cole & Binney 2017)
+if [ $PROBLEM -eq 81 ]; then
+    FILE=cb17_core
+    CONFIG=galaxy/cb17_core.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    # ETA=0.25
+    # FINISH=75.0
+    # INTERVAL=25.0
+    FINISH=1175.0
+    INTERVAL=25.0
+    # FINISH=3175.0
+    # INTERVAL=25.0
 fi
 ###############################################################
 # set input arguments

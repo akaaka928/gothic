@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/03/01 (Wed)
+ * @date 2017/06/27 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -18,7 +18,7 @@
 #define PEANO_DEV_H
 
 
-#include <sys/time.h>
+#include <time.h>
 
 #include "macro.h"
 #include "cudalib.h"
@@ -147,7 +147,7 @@ extern "C"
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 				, domainLocation *location
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-				, struct timeval *start
+				, struct timespec *start
 #ifdef  EXEC_BENCHMARK
 				, wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK

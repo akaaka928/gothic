@@ -697,6 +697,7 @@ avtMAGI_diskFileFormat::GetVar(int domain, const char *varname)
       for(int ii = 0; ii < dims[0]; ii++)
 	for(int jj = 0; jj < dims[1]; jj++)
 	  rv->SetTuple1(INDEX2D(dims[1], dims[0], jj, ii), ver[INDEX2D(dims[0], dims[1], ii, jj)]);
+	  // rv->SetTuple1(INDEX2D(dims[0], dims[1], ii, jj), ver[INDEX2D(dims[0], dims[1], ii, jj)]);
 
       // delete temporary arrays
       delete [] ver;
@@ -720,6 +721,7 @@ avtMAGI_diskFileFormat::GetVar(int domain, const char *varname)
       for(int ii = 0; ii < dims[0]; ii++)
 	for(int jj = 0; jj < dims[1]; jj++)
 	  rv->SetTuple1(INDEX2D(dims[1], dims[0], jj, ii), ver[INDEX2D(dims[0], dims[1], ii, jj)]);
+	  // rv->SetTuple1(INDEX2D(dims[0], dims[1], ii, jj), ver[INDEX2D(dims[0], dims[1], ii, jj)]);
 
       // delete temporary arrays
       delete [] ver;

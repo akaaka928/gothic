@@ -19,7 +19,9 @@ PLTCDF=bin/plot.cdf
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=28
+    # PROBLEM=28
+    # PROBLEM=80
+    PROBLEM=81
 fi
 ###############################################################
 # file extension of figures
@@ -343,6 +345,21 @@ if [ $PROBLEM -eq 51 ]; then
     FILE=prjTwoPow
     FINISH=1575.0
     INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of multi components galaxy model (based on Cole & Binney 2017)
+if [ $PROBLEM -eq 80 ]; then
+    FILE=cb17
+    FINISH=1175.0
+    INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of multi components galaxy model (based on Cole & Binney 2017)
+if [ $PROBLEM -eq 81 ]; then
+    FILE=cb17_core
+    FINISH=1175.0
+    INTERVAL=25.0
+    PROBLEM=80
 fi
 ###############################################################
 # count up number of snapshot files

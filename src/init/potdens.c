@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/06/02 (Fri)
+ * @date 2017/07/11 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -136,7 +136,7 @@ double getVerticalDensity(const double  zz, const double invzd, const disk_util 
   return (tmp * tmp);
 }
 
-#ifdef __ICC
+#ifdef  __ICC
 /* Disable ICC's remark #869: parameter "hoge" was never referenced */
 #     pragma warning ( enable:869)
 #endif//__ICC
@@ -675,6 +675,224 @@ static inline int findIdxSphericalPsi(const double psi, profile *prf, double *ra
 
 
 /**
+ * @fn bisection4nestedGrid
+ *
+ * @brief Execute bisection for nested grid.
+ *
+ * @param (val) the target value
+ * @param (num) number of data points
+ * @param (tab) array contains data points
+ * @param (logrbl) true when data points are sampled in logarithmic space
+ * @param (invbin) inverse of interval between grid points
+ * @return (ratio) parameter for linear interpolation
+ * @param (maxLev) maximum level of nested grid
+ * @return (lev) the corresponding level of nested grid
+ * @param (tab_lev) array to determin lev
+ * @return lower index of the corresponding data point
+ *
+ * @sa bisection
+ */
+static inline int bisection4nestedGrid
+(const double val, const int num, double * restrict tab, const bool logtbl, const double invbin, double * restrict ratio, const int maxLev, int * restrict lev, double * restrict tab_lev)
+{
+  /** 1. find the nested level */
+  *lev = 0;
+  for(int ii = maxLev - 1; ii >= 0; ii--)
+    if( val <= tab_lev[ii] ){
+      *lev = ii;
+      break;
+    }/* if( val <= tab_lev[ii] ){ */
+
+  /** 2. find the index */
+  int idx = bisection(val, num, &(tab[INDEX2D(maxLev, num, *lev, 0)]), logtbl, invbin, ratio);
+
+  return (idx);
+}
+
+
+static inline double getPsi
+(const double zz, const int maxLev, double * restrict node_ver, double * restrict tab_lev,
+ const double RR, const double R2, const int lev, const int ii, double * restrict hor, double * restrict ver,
+ double * restrict Phi, profile * restrict sph, const double invlogrbin_sph)
+{
+  int lev_z = 0;
+  double azz;
+  int jzz = bisection4nestedGrid(zz, NDISKBIN_VER + 1, node_ver, false, 1.0, &azz, maxLev, &lev_z, tab_lev);
+  azz /= (node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev_z, 1 + jzz)] - node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev_z, jzz)]);
+
+  int iiR = ii;
+  double aaR = 0;
+  if( lev > lev_z ){
+    /** reset iiR and aaR in coarser grid */
+    iiR = bisection(RR, NDISKBIN_HOR, &hor[INDEX2D(maxLev, NDISKBIN_HOR, lev_z, 0)], false, 1.0, &aaR);
+    aaR /= (hor[INDEX2D(maxLev, NDISKBIN_HOR, lev_z, 1 + iiR)] - hor[INDEX2D(maxLev, NDISKBIN_HOR, lev_z, iiR)]);
+    /* aaR /= (enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev_z, 1 + iiR)] - enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev_z, iiR)]); */
+  }/* if( lev > lev_z ){ */
+  if( lev < lev_z ){
+    /* reset jzz and azz in coarser grid */
+    lev_z = lev;
+    jzz = bisection(zz, NDISKBIN_VER + 1, &(node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev_z, 0)]), false, 1.0, &azz);
+    /* azz /= (node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev_z, 1 + jzz)] - node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev_z, jzz)]); */
+  }/* if( lev < lev_z ){ */
+
+
+  /** correction about ``jzz'' and ``azz'' for zone centeric coordinate from edge coordinate */
+  if( zz >= ver[INDEX2D(maxLev, NDISKBIN_VER, lev_z, 0)] ){
+    if( zz <= ver[INDEX2D(maxLev, NDISKBIN_VER, lev_z, NDISKBIN_VER - 1)] ){
+      jzz = bisection(zz, NDISKBIN_VER, &ver[INDEX2D(maxLev, NDISKBIN_VER, lev_z, 0)], false, 1.0, &azz);
+      azz /= (ver[INDEX2D(maxLev, NDISKBIN_VER, lev_z, 1 + jzz)] - ver[INDEX2D(maxLev, NDISKBIN_VER, lev_z, jzz)]);
+    }/* if( zz <= zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, NDISKBIN_VER - 1)] ){ */
+    else{
+      jzz = NDISKBIN_VER - 2;
+      azz = 1.0;
+    }/* else{ */
+  }/* if( zz >= zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, 0)] ){ */
+  else{
+    jzz = 0;
+    azz = 0.0;
+  }/* else{ */
+
+
+  const double Phi_disk =
+    ((1.0 - azz) * Phi[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_z,	    iiR, jzz)] + azz * Phi[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_z,     iiR, 1 + jzz)]) * (1.0 - aaR) +
+    ((1.0 - azz) * Phi[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_z, 1 + iiR, jzz)] + azz * Phi[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_z, 1 + iiR, 1 + jzz)]) *        aaR;
+
+
+  return (-Phi_disk + Phi_spherical(sqrt(R2 + zz * zz), sph, invlogrbin_sph));
+}
+
+
+/**
+ * @fn sign
+ *
+ * @brief Returns sign(b) * abs(a).
+ *
+ * @param (aa) variable a
+ * @param (bb) variable b
+ * @return sign(bb) * fabs(aa)
+ */
+static inline double sign(const double aa, const double bb){  return ((bb >= 0.0) ? (fabs(aa)) : (-fabs(aa)));}
+
+
+/**
+ * @fn brent4potential
+ *
+ * @brief Find the scale height of the disk component.
+ *
+ * @param (Psi) relative potential at the target z
+ * @param (zd0) scale height as an input value
+ * @param (PsiMid) relative potential at the mid-plane
+ * @param (ver) z-axis of the disk table
+ * @param (Phi) potential table of the disk component(s)
+ * @param (sph) profile of the spherical symmetric component(s)
+ * @param (invlogrbin_sph) inverse of interval of data points in logarithmic space for spherical symmetric component(s)
+ * @param (maxLev) maximum level of nested grid
+ * @param (RR) R-position of the specified location
+ * @param (R2) R squared
+ * @param (lev) the corresponding level of nested grid
+ * @param (ii) index corresponding RR in the current level of nested grid
+ * @param (hor) z-axis of the disk table
+ * @param (node_ver) z-axis of the disk table, as position of boundaries of cells
+ * @param (tab_lev) array to determin lev
+ * @return corresponding z
+ */
+static inline double brent4potential
+(const double Psi, const double zd0, const double PsiMid, double * restrict ver, double * restrict Phi, profile * restrict sph, const double invlogrbin_sph,
+ const int maxLev, const double RR, const double R2, const int lev, const int ii, double * restrict hor, double * restrict node_ver, double * restrict tab_lev)
+{
+  /** evaluate potential @ z = zd0 */
+  const double Psi_zd = getPsi(zd0, maxLev, node_ver, tab_lev, RR, R2, lev, ii, hor, ver, Phi, sph, invlogrbin_sph);
+
+  /** if zd0 <= zdim, then return zd0 */
+  if( Psi_zd >= Psi )
+    return zd0;
+
+  const int Niter_max = 100;
+  const double tol = 1.0e-3;
+
+  /** find zdim in (0, zd0) using Brent's method */
+  double dd = 0.0;/**< displacement in the previous step */
+  double ee = 0.0;/**< displacement in the step prior to the previous one*/
+  double aa = 0.0;  double fa = PsiMid - Psi;
+  double bb = zd0;  double fb = Psi_zd - Psi;
+  double cc =  bb;  double fc = fb;
+
+  int iter = 0;
+  while( true ){
+
+    if( (fb * fc) > 0.0 ){
+      cc = aa;      fc = fa;
+      ee = dd = bb - aa;
+    }/* if( (fb * fc) > 0.0 ){ */
+
+    if( fabs(fc) < fabs(fb) ){
+      aa = bb;      bb = cc;      cc = aa;
+      fa = fb;      fb = fc;      fc = fa;
+    }/* if( fabs(fc) < fabs(fb) ){ */
+
+    const double tol1 = 2.0 * DBL_EPSILON * fabs(bb) + 0.5 * tol;
+    const double mm = 0.5 * (cc - bb);
+
+    if( (fabs(mm) <= tol1) || (fb == 0.0) )
+      return (bb);
+
+    if( (fabs(ee) >= tol1) && (fabs(fa) > fabs(fb)) ){
+      /** try inverse quadratic interpolation */
+      const double ss = fb / fa;
+      double pp, qq;
+      if( aa == cc ){
+	pp = 2.0 * mm * ss;
+	qq = 1.0 - ss;
+      }/* if( za == zc ){ */
+      else{
+	const double inv = 1.0 / fc;
+	const double rr = fb * inv;
+	qq = fa * inv;
+	pp = ss * (2.0 * mm * qq * (qq - rr) - (bb - aa) * (rr - 1.0));
+	qq = (qq - 1.0) * (rr - 1.0) * (ss - 1.0);
+      }/* else{ */
+
+      if( pp > 0.0 )
+	qq = -qq;
+      pp = fabs(pp);
+
+      /** validate the result of the inverse quadratic interpolation */
+      if( (2.0 * pp) < fmin(3.0 * mm * qq - fabs(tol1 * qq), fabs(ee * qq)) ){
+	/** accept the inverse quadratic interpolation */
+	ee = dd;
+	dd = pp / qq;
+      }
+      else{
+	/** reject the inverse quadratic interpolation and adopt the bisection method */
+	dd = mm;
+	ee = dd;
+      }/* else{ */
+    }/* if( (fabs(ee) >= tol1) && (fabs(fa) > fabs(fb)) ){ */
+    else{
+      /** adopt the bisection method */
+      dd = mm;
+      ee = dd;
+    }/* else{ */
+
+    aa = bb;
+    fa = fb;
+
+    if( fabs(dd) > tol1 )
+      bb += dd;
+    else
+      bb += sign(tol1, mm);
+
+    fb = getPsi(bb, maxLev, node_ver, tab_lev, RR, R2, lev, ii, hor, ver, Phi, sph, invlogrbin_sph) - Psi;
+
+    iter++;
+    if( iter > Niter_max ){
+      __KILL__(stderr, "ERROR: Brent's method was not converged in %d steps.\n", iter);
+    }/* if( iter > Niter_max ){ */
+  }/* while( true ){ */
+}
+
+
+/**
  * @fn getVariableDiskScaleHeight
  *
  * @brief Reset scale height of disk component(s) to remove the needle-like structure.
@@ -688,9 +906,28 @@ static inline int findIdxSphericalPsi(const double psi, profile *prf, double *ra
  * @sa Phi_spherical
  * @sa findIdxSphericalPsi
  */
-static inline void getVariableDiskScaleHeight(const int ndisk, const int maxLev, disk_data * restrict disk, profile * restrict sph, const double invlogrbin_sph)
+static inline void getVariableDiskScaleHeight(const int ndisk, const int maxLev, const int lev, disk_data * restrict disk, profile * restrict sph, const double invlogrbin_sph)
 {
   __NOTE__("%s\n", "start");
+
+
+  double *Phi;
+  Phi = disk[0].pot;
+
+  double *ver;
+  ver = disk[0].ver;
+
+  double *hor;
+  hor = disk[0].hor;
+
+  double *node_ver;
+  node_ver = disk[0].node_ver;
+
+  double *tab_lev;
+  tab_lev = (double *)malloc(sizeof(double) * maxLev);
+  if( tab_lev == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tab_lev\n");  }
+  for(int ll = 0; ll < maxLev; ll++)
+    tab_lev[ll] = node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, ll, NDISKBIN_VER)];
 
 
   for(int kk = 0; kk < ndisk; kk++){
@@ -701,31 +938,39 @@ static inline void getVariableDiskScaleHeight(const int ndisk, const int maxLev,
     double zdim = DISK_DIMMING_HEIGHT * zd0;
 #endif//ADDITIONAL_CONDITION_FOR_SCALE_HEIGHT
     zdim = fmin(zdim, disk[kk].cfg->rc);
-    const double zd2 = zdim * zdim;
 
-    for(int lev = 0; lev < maxLev; lev++){
-      double *RR;      RR = &(disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)]);
-      double *zd;      zd = &(disk[kk]. zd[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)]);
+
+    double * zd;      zd  = &(disk[kk]. zd[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)]);
 
 #pragma omp parallel for
-      for(int ii = 0; ii < NDISKBIN_HOR; ii++){
-	const double R2 = RR[ii] * RR[ii];
+    for(int ii = 0; ii < NDISKBIN_HOR; ii++){
+      const double RR = disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
+      const double R2 = RR * RR;
 
-	/** get potential @ the reference points (mid plane and dimming scale) */
-	const double PsiMid = Phi_spherical(RR[ii], sph, invlogrbin_sph);
-	const double PsiDim = Phi_spherical(sqrt(R2 + zd2), sph, invlogrbin_sph);
 
-	const double Psi = PsiMid + DISK_DIMMING_HEIGHT_INV * (PsiDim - PsiMid);
+      /** get potential of disk component(s) @ the reference points (mid plane and dimming scale) */
 
-	double ratio;
-	const int irr = findIdxSphericalPsi(Psi, sph, &ratio);
-	const double rr = (1.0 - ratio) * sph[irr].rad + ratio * sph[1 + irr].rad;
 
-	const double zd1 = sqrt(rr * rr - R2);
-	zd[ii] = fmin(zd0, zd1);
-      }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
-    }/* for(int lev = 0; lev < maxLev; lev++){ */
+
+      /** get potential @ the reference points (mid plane and dimming scale) */
+      const double PsiMid = Phi_spherical(RR, sph, invlogrbin_sph) - Phi[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)];
+      const double PsiDim = getPsi(zdim, maxLev, node_ver, tab_lev, RR, R2, lev, ii, hor, ver, Phi, sph, invlogrbin_sph);
+
+      const double Psi = PsiMid + DISK_DIMMING_HEIGHT_INV * (PsiDim - PsiMid);
+
+#if 1
+      zd[ii] = brent4potential(Psi, zd0, PsiMid, ver, Phi, sph, invlogrbin_sph, maxLev, RR, R2, lev, ii, hor, node_ver, tab_lev);
+#else
+      double ratio;
+      const int irr = findIdxSphericalPsi(Psi, sph, &ratio);
+      const double rr = (1.0 - ratio) * sph[irr].rad + ratio * sph[1 + irr].rad;
+      const double zd1 = sqrt(rr * rr - R2);
+      zd[ii] = fmin(zd0, zd1);
+#endif
+    }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
   }/* for(int kk = 0; kk < ndisk; kk++){ */
+
+  free(tab_lev);
 
 
   __NOTE__("%s\n", "end");
@@ -775,33 +1020,39 @@ static inline double gaussQuad1d4Rho(double (*func)(double, double, disk_util), 
  * @param (zz) height z
  * @return (Phi) the potential field
  * @param (ndisk) number of disk components
+ * @param (maxLev) maximum level of nested grid
  * @param (disk) physical properties of the disk component
  */
-static inline void initPotentialField(double * restrict RR, double * restrict zz, double * restrict Phi, const int ndisk, disk_data * restrict disk)
+static inline void initPotentialField(const int ndisk, const int maxLev, disk_data *disk)
 {
   __NOTE__("%s\n", "start");
 
 
   /** assume potential generated by a Miyamoto & Nagai disk for initial guess to the solution of the Poisson's equation */
+  for(int lev = 0; lev < maxLev; lev++){
+    double * RR;    RR  = &(disk[0].hor[INDEX2D(maxLev, NDISKBIN_HOR               , lev, 0)]);
+    double * zz;    zz  = &(disk[0].ver[INDEX2D(maxLev,                NDISKBIN_VER, lev, 0)]);
+    double *Phi;    Phi = &(disk[0].pot[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, 0)]);
+
 #pragma omp parallel for
-  for(int ii = 0; ii < NDISKBIN_HOR; ii++){
-    for(int jj = 0; jj < NDISKBIN_VER; jj++)
-      Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)] = 0.0;
+    for(int ii = 0; ii < NDISKBIN_HOR; ii++){
+      for(int jj = 0; jj < NDISKBIN_VER; jj++)
+	Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)] = 0.0;
 
-    const double R2 = RR[ii] * RR[ii];
+      const double R2 = RR[ii] * RR[ii];
 
-    for(int jj = 0; jj < NDISKBIN_VER; jj++){
-      const double z2 = zz[jj] * zz[jj];
+      for(int jj = 0; jj < NDISKBIN_VER; jj++){
+	const double z2 = zz[jj] * zz[jj];
 
-      double sum = 0.0;
-      for(int kk = 0; kk < ndisk; kk++){
-	const double Rs = disk[kk].cfg->rs + sqrt(z2 + disk[kk].cfg->zd * disk[kk].cfg->zd);
-	sum += disk[kk].cfg->Mtot / sqrt(R2 + Rs * Rs);
-      }/* for(int kk = 0; kk < ndisk; kk++){ */
-      Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)] -= (double)newton * sum;
-    }/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
-  }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
-
+	double sum = 0.0;
+	for(int kk = 0; kk < ndisk; kk++){
+	  const double Rs = disk[kk].cfg->rs + sqrt(z2 + disk[kk].cfg->zd * disk[kk].cfg->zd);
+	  sum += disk[kk].cfg->Mtot / sqrt(R2 + Rs * Rs);
+	}/* for(int kk = 0; kk < ndisk; kk++){ */
+	Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)] -= (double)newton * sum;
+      }/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
+    }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
+  }/* for(int lev = 0; lev < maxLev; lev++){ */
 
   __NOTE__("%s\n", "end");
 }
@@ -828,8 +1079,11 @@ static inline void setColumnDensityProfile(const int ndisk, const int maxLev, di
   __NOTE__("%s\n", "start");
 
 
+
+  initPotentialField(ndisk, maxLev, disk);
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-  getVariableDiskScaleHeight(ndisk, maxLev, disk, sph, invlogrbin_sph);
+  for(int ll = 0; ll < maxLev; ll++)
+    getVariableDiskScaleHeight(ndisk, maxLev, ll, disk, sph, invlogrbin_sph);
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
 
   /** set column density profile on the midplane */
@@ -872,8 +1126,6 @@ static inline void setColumnDensityProfile(const int ndisk, const int maxLev, di
       const double Mscale = disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, 0, ii)] / (DBL_MIN + Sigma);
       for(int jj = 0; jj < NDISKBIN_VER; jj++)
 	(*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, 0, ii, jj)] *= Mscale;
-
-      initPotentialField(disk[0].hor, disk[0].ver, disk[0].pot, ndisk, disk);
     }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
   }/* for(int kk = 0; kk < ndisk; kk++){ */
 
@@ -1985,6 +2237,7 @@ static inline void swapDblArrays(double **p0, double **p1)
  * @brief Obtain potential-density pair of the disk component(s).
  *
  * @param (ndisk) number of disk components
+ * @param (maxLev) maximum level of nested grid
  * @param (lev) level of nested grid
  * @param (levOld) level of nested grid in the previous iteration
  * @return (disk) physical properties of the disk component
@@ -2005,13 +2258,21 @@ static inline void swapDblArrays(double **p0, double **p1)
  * @sa gaussQuad2d4calcRho
  */
 void getPotDensPair
-(const int ndisk, const int lev, const int levOld, disk_data * restrict disk,
+(const int ndisk,
+#   if  defined(ITERATE_VARIABLE_SCALE_HEIGHT) && defined(ENABLE_VARIABLE_SCALE_HEIGHT)
+ const int maxLev,
+#endif//defined(ITERATE_VARIABLE_SCALE_HEIGHT) && defined(ENABLE_VARIABLE_SCALE_HEIGHT)
+ const int lev, const int levOld, disk_data * restrict disk,
  double * restrict Phi_NR, double * restrict Phi_Nz,
  soaBiCGSTAB mat, soaPreConditioning pre
  , double * restrict stock_inv, double * restrict stock_sub, double * restrict stock_tmp, double * restrict stock_sum
  );
 void getPotDensPair
-(const int ndisk, const int lev, const int levOld, disk_data * restrict disk,
+(const int ndisk,
+#   if  defined(ITERATE_VARIABLE_SCALE_HEIGHT) && defined(ENABLE_VARIABLE_SCALE_HEIGHT)
+ const int maxLev,
+#endif//defined(ITERATE_VARIABLE_SCALE_HEIGHT) && defined(ENABLE_VARIABLE_SCALE_HEIGHT)
+ const int lev, const int levOld, disk_data * restrict disk,
  double * restrict Phi_NR, double * restrict Phi_Nz,
  soaBiCGSTAB mat, soaPreConditioning pre
  , double * restrict stock_inv, double * restrict stock_sub, double * restrict stock_tmp, double * restrict stock_sum
@@ -2096,6 +2357,11 @@ void getPotDensPair
     getPotentialField(ndisk, disk, lev, hh, invhh, RR, zz, rhoTot, Phi, Phi_NR, Phi_Nz, mat, pre
 		      , stock_inv, stock_sub, stock_tmp, stock_sum
 		      );
+
+
+#   if  defined(ITERATE_VARIABLE_SCALE_HEIGHT) && defined(ENABLE_VARIABLE_SCALE_HEIGHT)
+    getVariableDiskScaleHeight(ndisk, maxLev, lev, disk, sph, invlogrbin_sph);
+#endif//defined(ITERATE_VARIABLE_SCALE_HEIGHT) && defined(ENABLE_VARIABLE_SCALE_HEIGHT)
 
 
     /** update density field from the derived potential field */
@@ -2338,7 +2604,11 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
     fflush(stdout);
 #endif//PROGRESS_REPORT_ON
 
-    getPotDensPair(ndisk, lev, old, disk, Phi_NR, Phi_Nz, smat, pre, stock_inv, stock_sub, stock_tmp, stock_sum);
+    getPotDensPair(ndisk,
+#   if  defined(ITERATE_VARIABLE_SCALE_HEIGHT) && defined(ENABLE_VARIABLE_SCALE_HEIGHT)
+		   maxLev,
+#endif//defined(ITERATE_VARIABLE_SCALE_HEIGHT) && defined(ENABLE_VARIABLE_SCALE_HEIGHT)
+		   lev, old, disk, Phi_NR, Phi_Nz, smat, pre, stock_inv, stock_sub, stock_tmp, stock_sum);
 
     /** procedure proposed by Press & Teukolsky (1991), Computers in Physics 5, 514, Multigrid Methods for Boundary Value Problems. I */
     if( lev == top ){   num++;  inc = -1;

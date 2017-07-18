@@ -19,8 +19,10 @@ EXEC=bin/gothic
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=26
+    # PROBLEM=26
     # PROBLEM=28
+    # PROBLEM=80
+    PROBLEM=81
 fi
 ###############################################################
 # topology of MPI processes
@@ -50,8 +52,8 @@ if [ -z "$ABSERR" ]; then
     # ABSERR=6.250000000e-2
     # ABSERR=3.125000000e-2
     # ABSERR=1.562500000e-2
-    ABSERR=7.812500000e-3
-    # ABSERR=3.906250000e-3
+    # ABSERR=7.812500000e-3
+    ABSERR=3.906250000e-3
     # ABSERR=1.953125000e-3
     # ABSERR=9.765625000e-4
     # ABSERR=4.882812500e-4
@@ -270,6 +272,16 @@ fi
 # dynamical stability of a projected Two-power model
 if [ $PROBLEM -eq 51 ]; then
     FILE=prjTwoPow
+fi
+###############################################################
+# dynamical stability of multi components galaxy model (based on Cole & Binney 2017)
+if [ $PROBLEM -eq 80 ]; then
+    FILE=cb17
+fi
+###############################################################
+# dynamical stability of multi components galaxy model (based on Cole & Binney 2017)
+if [ $PROBLEM -eq 81 ]; then
+    FILE=cb17_core
 fi
 ###############################################################
 # set input arguments

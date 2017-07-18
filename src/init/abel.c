@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/06/02 (Fri)
+ * @date 2017/06/22 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -26,9 +26,6 @@
 #include "profile.h"
 #include "table.h"
 #include "abel.h"
-
-
-extern double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[NTBL_GAUSS_QD];
 
 
 /**
@@ -80,6 +77,168 @@ double getColumnDensityDerivativeTable(double RR, profile_abel_cfg cfg)
 }
 
 
+#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_ABEL
+
+/**
+ * @fn get_DEformula
+ *
+ * @brief Calculate integrand in double exponential formula.
+ *
+ * @param (tt) value of integration variable
+ * @return (ret) integrand for Eddington formula
+ * @param (max_pls_min) psi_max + psi_min
+ * @param (max_mns_min) psi_max - psi_min
+ * @param (xx) position of data points (psi)
+ * @param (yy) value of data points (d2rho_dpsi2)
+ * @param (y2) coefficients in cubic spline interpolation
+ */
+static inline double get_DEformula(const double tt, const double Rmin, const double Rmax, const double Rmin_Rmax, const double Rmin2_Rmax2, const abel_util abel)
+{
+  const double sinh_t = M_PI_2 * sinh(tt);
+  const double cosh_t = cosh(sinh_t);
+  const double inv_cosh_t = 1.0 / cosh_t;
+
+  const double one_pls_x = exp( sinh_t) * inv_cosh_t;
+  const double one_mns_x = exp(-sinh_t) * inv_cosh_t;
+
+  const double xx = tanh(sinh_t);
+  /* const double ff = one_pls_x * (one_pls_x + Rmin2_Rmax2 * (xx - 3.0)) + 2.0 * one_mns_x * Rmin_Rmax; */
+  const double ff = one_pls_x * one_pls_x + 2.0 * Rmin_Rmax * inv_cosh_t * inv_cosh_t - Rmin2_Rmax2 * xx * (2.0 - xx);
+
+  const double RR = 0.5 * (Rmin * one_mns_x + Rmax * one_pls_x);
+
+#if 0
+  if( fpclassify(cosh(tt) * inv_cosh_t * inv_cosh_t * abel.getColumnDensityDerivative(RR, abel.cfg) / sqrt(ff)) != FP_NORMAL ){
+    fprintf(stderr, "ret = %e, RR = %e, dSdR = %e, ff = %e, xx = %e, Rmin_Rmax = %e\n", cosh(tt) * inv_cosh_t * inv_cosh_t * abel.getColumnDensityDerivative(RR, abel.cfg) / sqrt(ff), RR, abel.getColumnDensityDerivative(RR, abel.cfg), ff, xx, Rmin_Rmax);
+    exit(0);
+  }
+#endif
+
+  return (cosh(tt) * inv_cosh_t * inv_cosh_t * abel.getColumnDensityDerivative(RR, abel.cfg) / sqrt(ff));
+}
+
+
+static inline double update_trapezoidal(const double hh, const double tmin, const double tmax, const double sum, const double Rmin, const double Rmax, const double Rmin_Rmax, const double Rmin2_Rmax2, const abel_util abel)
+{
+  /** initialization */
+  double sub = 0.0;
+  double tt = tmin + hh;
+
+  /** employ mid-point rule */
+  while( tt < tmax ){
+    sub += get_DEformula(tt, Rmin, Rmax, Rmin_Rmax, Rmin2_Rmax2, abel);
+    tt += 2.0 * hh;
+  }/* while( tt < tmax ){ */
+
+  return (0.5 * sum + hh * sub);
+}
+
+
+static inline double set_domain_boundary(const double hh, double * restrict tmin, double * restrict tmax, const double Rmin, const double Rmax, const double Rmin_Rmax, const double Rmin2_Rmax2, const abel_util abel)
+{
+  const double converge = 1.0e-16;
+  const double maximum = 128.0;
+
+  double tt = 0.0;
+  double fp = get_DEformula(tt, Rmin, Rmax, Rmin_Rmax, Rmin2_Rmax2, abel);
+  const double f0 = fp;
+  double sum = hh * fp;
+
+
+  /** determine upper boundary */
+  double boundary = 0.0;
+  double damp = 1.0;
+  while( (damp > converge) && (boundary < maximum) ){
+    const double ft = fp;
+
+    tt += hh;    boundary = tt;
+    fp = get_DEformula(tt, Rmin, Rmax, Rmin_Rmax, Rmin2_Rmax2, abel);
+
+    sum += hh * fp;
+    damp = fabs(ft) + fabs(fp);
+  }/* while( (damp > converge) && (boundary < maximum) ){ */
+  *tmax = boundary;
+
+
+  /** determine lower boundary */
+  fp = f0;
+  tt = 0.0;
+  boundary = 0.0;
+  damp = 1.0;
+  while( (damp > converge) && (boundary > -maximum) ){
+    const double ft = fp;
+
+    tt -= hh;    boundary = tt;
+    fp = get_DEformula(tt, Rmin, Rmax, Rmin_Rmax, Rmin2_Rmax2, abel);
+
+    sum += hh * fp;
+    damp = fabs(ft) + fabs(fp);
+
+    const double yy = M_PI_2 * sinh(tt);
+    if( 0.5 * (Rmin * exp(-yy) + Rmax * exp(yy)) / cosh(yy) > 1.01 * Rmin )
+      damp = 1.0;
+  }/* while( (damp > converge) && (boundary > -maximum) ){ */
+  *tmin = boundary;
+
+  return (sum);
+}
+
+
+static inline double integrate_DEformula(const double Rmin, const double Rmax, const abel_util abel)
+{
+  const double criteria_abs = 1.0e-12;
+  /* const double criteria_rel = 1.0e-10; */
+  const double criteria_rel = 1.0e-8;
+  /* const double criteria_rel = 1.0e-6; */
+  /* const double criteria_rel = 1.0e-5; */
+  /* const double criteria_rel = 1.0e-4; */
+  /* const double criteria_rel = 1.0e-3; */
+
+  const double Rmin_Rmax = Rmin / Rmax;
+  const double Rmin2_Rmax2 = Rmin_Rmax * Rmin_Rmax;
+
+  double hh = 1.0;
+  double tmin, tmax;
+  double sum = set_domain_boundary(hh, &tmin, &tmax, Rmin, Rmax, Rmin_Rmax, Rmin2_Rmax2, abel);
+
+
+  while( true ){
+    const double f0 = sum;
+
+    hh *= 0.5;
+    sum = update_trapezoidal(hh, tmin, tmax, sum, Rmin, Rmax, Rmin_Rmax, Rmin2_Rmax2, abel);
+
+    bool converge = true;
+    if( fabs(sum) > DBL_EPSILON ){
+      if( fabs(1.0 - f0 / sum) > criteria_rel )
+	converge = false;
+    }
+    else
+      if( fabs(sum - f0) > criteria_abs )
+	converge = false;
+
+
+    if( converge )
+      break;
+  }/* while( true ){ */
+
+  sum *= -0.5 * (1.0 - Rmin_Rmax);
+
+#if 0
+  if( fpclassify(sum) != FP_NORMAL ){
+    fprintf(stderr, "sum = %e, Rmin = %e, Rmax = %e, Rmin_Rmax = %e, tmin = %e, tmax = %e, hh = %e\n", sum, Rmin, Rmax, Rmin_Rmax, tmin, tmax, hh);
+    exit(0);
+  }/* if( fpclassify(sum) != FP_NORMAL ){ */
+#endif
+
+  return (sum);
+}
+
+
+#else///ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_ABEL
+
+extern double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[NTBL_GAUSS_QD];
+
 /**
  * @fn func4Abel
  *
@@ -125,6 +284,7 @@ double gaussQD4Abel(const double min, const double max, const double r2, const a
   /* finalization */
   return (-M_1_PI * mns * sum);
 }
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_ABEL
 
 
 /**
@@ -185,6 +345,11 @@ void execAbelTransform(profile *prf, const profile_cfg cfg, const double rmin, c
 
 
   /* execute Abel transform */
+#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_ABEL
+#pragma omp parallel for schedule(dynamic, 4)
+  for(int ii = 0; ii < NABEL - 1; ii++)
+    rho[ii] = integrate_DEformula(rad[ii], 1.125 * rmax, abel);
+#else///ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_ABEL
 #pragma omp parallel for
   for(int ii = 0; ii < NABEL; ii++){
 #ifdef  NDIVIDE_GAUSSQD4ABEL
@@ -201,11 +366,14 @@ void execAbelTransform(profile *prf, const profile_cfg cfg, const double rmin, c
     rho[ii] = gaussQD4Abel(rad[ii], 1.125 * rmax, abel);
 #endif//NDIVIDE_GAUSSQD4ABEL
   }/* for(int ii = 0; ii < NABEL; ii++){ */
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_ABEL
 
 #if 0
   for(int ii = 0; ii < NABEL; ii++)
     fprintf(stderr, "%e\t%e\n", rad[ii], rho[ii]);
   fflush(NULL);
+
+  exit(0);
 #endif
 
   /* return deprojected density profile */

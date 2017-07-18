@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/03/23 (Thu)
+ * @date 2017/06/27 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -23,6 +23,7 @@
 #include "macro.h"
 #include "cudalib.h"
 #ifndef SERIALIZED_EXECUTION
+#include <time.h>
 #include "timer.h"
 #endif//SERIALIZED_EXECUTION
 
@@ -2563,9 +2564,9 @@ void calcMultipole_dev
   initStopwatch();
 #else///EXEC_BENCHMARK
 #ifndef SERIALIZED_EXECUTION
-  static struct timeval start;
+  static struct timespec start;
   checkCudaErrors(cudaDeviceSynchronize());
-  gettimeofday(&start, NULL);
+  clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 #endif//SERIALIZED_EXECUTION
 #endif//EXEC_BENCHMARK
 
@@ -2757,9 +2758,9 @@ void calcMultipole_dev
   elapsed->calcMultipole += time;
 #else///EXEC_BENCHMARK
 #ifndef SERIALIZED_EXECUTION
-  static struct timeval finish;
+  static struct timespec finish;
   checkCudaErrors(cudaDeviceSynchronize());
-  gettimeofday(&finish, NULL);
+  clock_gettime(CLOCK_MONOTONIC_RAW, &finish, NULL);
   *tmac +=calcElapsedTimeInSec(start, finish);
 #endif//SERIALIZED_EXECUTION
 #endif//EXEC_BENCHMARK

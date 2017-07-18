@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/03/06 (Mon)
+ * @date 2017/06/27 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <sys/time.h>/**< for on-the-fly monitoring of execution time of multiple functions */
+#include <time.h>/**< for on-the-fly monitoring of execution time of multiple functions */
 #include <unistd.h>/**< to check the existence of files */
 #include <math.h>/**< for auto-tuning */
 #include <mpi.h>
@@ -236,7 +236,7 @@ static inline void buildTreeStructure
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
    , domainLocation *location
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
- , struct timeval *start
+ , struct timespec *start
 #ifdef  EXEC_BENCHMARK
  , wall_clock_time *execTime
 #endif//EXEC_BENCHMARK
@@ -290,7 +290,7 @@ static inline void configDistribution
 #ifdef  BLOCK_TIME_STEP
  , double *laneTime_dev
 #endif//BLOCK_TIME_STEP
- , const struct timeval start, measuredTime *time
+ , const struct timespec start, measuredTime *time
 #ifdef  EXEC_BENCHMARK
  , wall_clock_time *execTime
 #endif//EXEC_BENCHMARK
@@ -320,8 +320,8 @@ static inline void configDistribution
 		  );
 #endif//BLOCK_TIME_STEP
 
-  static struct timeval finish;
-  gettimeofday(&finish, NULL);
+  static struct timespec finish;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &finish);
   time->makeTree = calcElapsedTimeInSec(start, finish);
 #ifndef SERIALIZED_EXECUTION
   time->sum_excg    += time->makeTree;
@@ -572,8 +572,8 @@ int main(int argc, char **argv)
 #endif//SERIALIZED_EXECUTION
 
 #ifdef  REPORT_TOTAL_ELAPSED_TIME
-  static struct timeval timeInit;
-  gettimeofday(&timeInit, NULL);
+  static struct timespec timeInit;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &timeInit);
 #endif//REPORT_TOTAL_ELAPSED_TIME
 
 
@@ -997,7 +997,7 @@ int main(int argc, char **argv)
 
   /** initialize the simulation run */
   /** variables for automatic optimization */
-  static struct timeval start;
+  static struct timespec start;
   static measuredTime elapsed;
   static autoTuningParam rebuildParam;
   initStatVal(&rebuildParam.linearStats);  initGuessTime(&rebuildParam.linearGuess);
@@ -2391,8 +2391,8 @@ int main(int argc, char **argv)
 #ifndef SERIALIZED_EXECUTION
   MPI_Barrier(mpi.comm);
 #endif//SERIALIZED_EXECUTION
-  static struct timeval timeExit;
-  gettimeofday(&timeExit, NULL);
+  static struct timespec timeExit;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &timeExit);
   double totalElapsed = calcElapsedTimeInSec(timeInit, timeExit);
 #ifndef SERIALIZED_EXECUTION
   chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &totalElapsed, 1, MPI_DOUBLE, MPI_MAX, mpi.comm));

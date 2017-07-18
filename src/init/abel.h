@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/21 (Tue)
+ * @date 2017/06/22 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -21,8 +21,15 @@
 #include "../init/profile.h"
 
 
+#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA
+#define ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_ABEL
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA
+
+
 #define NABEL (4096)
+#ifndef ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_ABEL
 #define NDIVIDE_GAUSSQD4ABEL (32)
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_ABEL
 
 
 /**

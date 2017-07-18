@@ -175,7 +175,7 @@ for ii in range(nxpanel):
         pz = position[:, 2]
 
         # plot the data
-        ax[idx].plot(px, pz, ",", color = "black")
+        ax[idx].plot(px, pz, ",", color = "black", rasterized = True)
 
         # set plot range
         ax[idx].set_xlim([xmin, xmax])
@@ -205,5 +205,5 @@ set_shared_ylabel(ax, r"$z$ ({:<})".format(length_unit[0].decode('UTF-8')))
 
 # plt.show()
 plt.savefig("dot.png", format = "png", dpi = 300, bbox_inches = "tight")
-# plt.savefig("dot.pdf", format = "pdf", dpi = 300, bbox_inches = "tight") # too slow
+plt.savefig("dot.pdf", format = "pdf", dpi = 300, bbox_inches = "tight") # too slow
 # plt.savefig("dot.svg", format = "svg", dpi = 300, bbox_inches = "tight") # too slow

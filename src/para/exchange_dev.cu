@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/04/12 (Wed)
+ * @date 2017/06/27 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <mpi.h>
-#include <sys/time.h>
+#include <time.h>
 #include <helper_cuda.h>
 
 #include <thrust/sort.h>
@@ -722,9 +722,9 @@ void exchangeParticles_dev
   __NOTE__("%s\n", "start");
 
 
-  static struct timeval start;
+  static struct timespec start;
   checkCudaErrors(cudaDeviceSynchronize());
-  gettimeofday(&start, NULL);
+  clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
   /** set current (local) distribution */
   /** copy particle position from device to host */
@@ -1200,9 +1200,9 @@ void exchangeParticles_dev
   measured->sum_excg = 0.0;
 
 
-  static struct timeval finish;
+  static struct timespec finish;
   checkCudaErrors(cudaDeviceSynchronize());
-  gettimeofday(&finish, NULL);
+  clock_gettime(CLOCK_MONOTONIC_RAW, &finish);
   measured->excg = calcElapsedTimeInSec(start, finish);
 #ifdef  EXEC_BENCHMARK
   elapsed->excgBody = measured->excg;

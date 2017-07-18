@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/06/09 (Fri)
+ * @date 2017/06/19 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -28,17 +28,10 @@
 #endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA
 
 
-/* #ifndef ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF */
-/* #define NDIVIDE_GAUSSQD (1) */
-/* /\* #define NDIVIDE_GAUSSQD (16) *\/ */
-/* /\* #define NDIVIDE_GAUSSQD (128) *\/ */
-/* /\* #define NDIVIDE_GAUSSQD (1024) *\/ */
-/* /\* #define NDIVIDE_GAUSSQD (131072) *\/ */
-/* #endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF */
-
-
 #ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
-#define NENEBIN (262144)
+/* #define NENEBIN (262144) */
+/* #define NENEBIN (16384) */
+#define NENEBIN (8192)
 #else///ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
 #define NENEBIN (1048576)
 #endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF

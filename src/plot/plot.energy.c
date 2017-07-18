@@ -460,6 +460,11 @@ int main(int argc, char **argv)
       virial.ymin =  0.4901;      virial.ymax = 0.5099;      virial.ylog = LINEAR_PLOT;
       momerr.ymin = -5.0e-4;      momerr.ymax = 5.0e-4;      momerr.ylog = LINEAR_PLOT;
       break;
+    case 80:      /* A trial multi components galaxy model (NFW halo, King bulge, thick Sersic disk, and thin exponential disk) */
+      evolve.ymin = -5.0e+6;      evolve.ymax = 3.0e+6;      evolve.ylog = LINEAR_PLOT;
+      virial.ymin =  0.4951;      virial.ymax = 0.5049;      virial.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-4;      momerr.ymax = 1.0e-4;      momerr.ylog = LINEAR_PLOT;
+      break;
     default:
       evolve.ymin = -2.50  ;      evolve.ymax = 2.00  ;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.01  ;      virial.ymax = 0.99  ;      virial.ylog = LINEAR_PLOT;

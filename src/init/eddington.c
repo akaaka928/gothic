@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/06/09 (Fri)
+ * @date 2017/06/22 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <math.h>
+#include <assert.h>
 
 #include "macro.h"
 #include "constants.h"
@@ -207,16 +208,19 @@ static inline void set_domain_boundary(const double hh, double * restrict tmin, 
     }/* for(int kk = 0; kk < skind; kk++){ */
   }/* while( (damp > converge) && (boundary > -maximum) ){ */
   *tmin = boundary;
+
+  /* __NOTE__("*tmin = %e, *tmax = %e\n", *tmin, *tmax); */
 }
 
 
 static inline void integrate_DEformula(const int skind, double sum[restrict], double ffp[restrict], double ff0[restrict], double fft[restrict], const double psi_min, const double psi_max, double * restrict xx, double * restrict yy, double * restrict y2)
 {
   const double criteria_abs = 1.0e-12;
+  /* const double criteria_rel = 1.0e-10; */
+  const double criteria_rel = 1.0e-8;
   /* const double criteria_rel = 1.0e-6; */
   /* const double criteria_rel = 1.0e-5; */
-  const double criteria_rel = 1.0e-4;
-  /* const double criteria_rel = 1.0e-3; */
+  /* const double criteria_rel = 1.0e-4; */
 
   const double max_pls_min = psi_max + psi_min;
   const double max_mns_min = psi_max - psi_min;
@@ -248,6 +252,9 @@ static inline void integrate_DEformula(const int skind, double sum[restrict], do
     if( converge )
       break;
   }/* while( true ){ */
+
+
+  __NOTE__("tmin = %e, tmax = %e, hh = %e\n", tmin, tmax, hh);
 }
 
 
@@ -304,6 +311,8 @@ void integrateEddingtonFormula(const int skind, profile **prf, profile_cfg *cfg,
   const double Ecut = prf[0][iout].psi_tot;
   const int icut = (int)floor((Ecut - Emin) / Ebin);
 
+  __NOTE__("iout = %d, Ecut = %e, icut = %d, Nbin = %d\n", iout, Ecut, icut, NENEBIN);
+
   for(int kk = 0; kk < skind; kk++)
 #pragma omp parallel for
     for(int ii = 0; ii < icut + 1; ii++){
@@ -315,12 +324,13 @@ void integrateEddingtonFormula(const int skind, profile **prf, profile_cfg *cfg,
   {
     double sum[NKIND_MAX], ffp[NKIND_MAX], ff0[NKIND_MAX], fft[NKIND_MAX];
 
-#pragma omp for schedule(auto)
+#pragma omp for schedule(dynamic, 4)
     for(int ii = icut + 1; ii < NENEBIN; ii++){
       const double ene = Emin + Ebin * (double)ii;
       integrate_DEformula(skind, sum, ffp, ff0, fft, Emin, ene, xx, yy, y2);
 
       const double factor = sqrt(ene - Emin) * common;
+      assert( fpclassify(factor) == FP_NORMAL );
       for(int kk = 0; kk < skind; kk++){
 	fene[kk][ii].ene = CAST_D2R(ene);
 	fene[kk][ii].val = CAST_D2R(fmax(factor * sum[kk], 0.0));
@@ -471,6 +481,7 @@ static inline void set_domain_boundary_vdisp(const double hh, double * restrict 
 static inline void integrate_DEformula_vdisp(const int skind, double v2f[restrict], double v4f[restrict], const double vesc2, const double psi, dist_func **df, const double Emin, const double invEbin, double fp2[restrict], double f02[restrict], double ft2[restrict], double fp4[restrict], double f04[restrict], double ft4[restrict])
 {
   const double criteria_abs = 1.0e-12;
+  /* const double criteria_rel = 1.0e-8; */
   const double criteria_rel = 1.0e-6;
   /* const double criteria_rel = 1.0e-5; */
   /* const double criteria_rel = 1.0e-4; */
@@ -547,7 +558,7 @@ void calcVelocityDispersionProfile(const int skind, profile **prf, profile_cfg *
     double v2f[NKIND_MAX], fp2[NKIND_MAX], f02[NKIND_MAX], ft2[NKIND_MAX];
     double v4f[NKIND_MAX], fp4[NKIND_MAX], f04[NKIND_MAX], ft4[NKIND_MAX];
 
-#pragma omp for schedule(auto) nowait
+#pragma omp for schedule(dynamic, 4) nowait
     for(int ii = 0; ii < iout + 1; ii += SKIP_INTERVAL_FOR_VELOCITY_DISPERSION){
       const double psi = prf[0][ii].psi_tot;
       const double vesc2 = 2.0 * (psi - Emin);
@@ -563,7 +574,7 @@ void calcVelocityDispersionProfile(const int skind, profile **prf, profile_cfg *
     }/* for(int ii = 0; ii < iout + 1; ii += SKIP_INTERVAL_FOR_VELOCITY_DISPERSION){ */
 
     for(int kk = 0; kk < skind; kk++)
-#pragma omp for schedule(auto) nowait
+#pragma omp for schedule(dynamic, 4) nowait
       for(int ii = iout + 1; ii < NRADBIN; ii++){
 	prf[kk][ii].sigr = 0.0;
 	prf[kk][ii].v2f  = 0.0;
@@ -579,7 +590,7 @@ void calcVelocityDispersionProfile(const int skind, profile **prf, profile_cfg *
     for(int kk = 0; kk < skind; kk++){
       const int iout = cfg[kk].iout;
 
-#pragma omp for schedule(auto) nowait
+#pragma omp for schedule(dynamic, 4) nowait
       for(int ii = 0; ii < iout + 1; ii += SKIP_INTERVAL_FOR_VELOCITY_DISPERSION){
 	const double sigr0 = prf[kk][ii                                        ].sigr;
 	const double  v2f0 = prf[kk][ii                                        ]. v2f;
@@ -791,7 +802,7 @@ void integrateEddingtonFormula(const int skind, profile **prf, dist_func **fene)
   {
     double sum[NKIND_MAX], fm[NKIND_MAX], fp[NKIND_MAX];
 
-#pragma omp for schedule(auto)
+#pragma omp for schedule(dynamic, 4)
     for(int ii = 0; ii < NENEBIN; ii++){
       const double ene = Emin + Ebin * (double)ii;
       gaussQuad1dEddington(NINTBIN, 0.0, ene, skind, prf, sum, fm, fp);
@@ -885,7 +896,7 @@ void calcVelocityDispersionProfile(const int skind, profile **prf, dist_func **d
     invEbin[kk] = (double)(NENEBIN - 1) / (Emax[kk] - Emin[kk]);
   }/* for(int kk = 0; kk < skind; kk++){ */
 
-#pragma omp parallel for schedule(auto)
+#pragma omp parallel for schedule(dynamic, 4)
   for(int ii = 0; ii < NRADBIN; ii += SKIP_INTERVAL_FOR_VELOCITY_DISPERSION){
     /** initialization */
     for(int kk = 0; kk < skind; kk++)

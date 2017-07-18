@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/06/09 (Fri)
+ * @date 2017/06/22 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -571,7 +571,7 @@ static inline double set_domain_boundary_internal(const double rs, const double 
 
   double tt = 0.0;
   double fp = get_DEformula_internal(tt, rr, xx, yy, y2);
-  double f0 = fp;
+  const double f0 = fp;
   double sum = hh * fp;
 
 
@@ -579,7 +579,7 @@ static inline double set_domain_boundary_internal(const double rs, const double 
   double boundary = 0.0;
   double damp = 1.0;
   while( (damp > converge) && (boundary < maximum) ){
-    double ft = fp;
+    const double ft = fp;
 
     tt += hh;    boundary = tt;
     fp = get_DEformula_internal(tt, rr, xx, yy, y2);
@@ -596,7 +596,7 @@ static inline double set_domain_boundary_internal(const double rs, const double 
   boundary = 0.0;
   damp = 1.0;
   while( (damp > converge) && (boundary > -maximum) ){
-    double ft = fp;
+    const double ft = fp;
 
     tt -= hh;    boundary = tt;
     fp = get_DEformula_internal(tt, rr, xx, yy, y2);
@@ -621,7 +621,7 @@ static inline double set_domain_boundary_external(const double hh, double * rest
 
   double tt = 0.0;
   double fp = get_DEformula_external(tt, rmin, rmax, xx, yy, y2);
-  double f0 = fp;
+  const double f0 = fp;
   double sum = hh * fp;
 
 
@@ -629,7 +629,7 @@ static inline double set_domain_boundary_external(const double hh, double * rest
   double boundary = 0.0;
   double damp = 1.0;
   while( (damp > converge) && (boundary < maximum) ){
-    double ft = fp;
+    const double ft = fp;
 
     tt += hh;    boundary = tt;
     fp = get_DEformula_external(tt, rmin, rmax, xx, yy, y2);
@@ -652,7 +652,7 @@ static inline double set_domain_boundary_external(const double hh, double * rest
   boundary = 0.0;
   damp = 1.0;
   while( (damp > converge) && (boundary > -maximum) ){
-    double ft = fp;
+    const double ft = fp;
 
     tt -= hh;    boundary = tt;
     fp = get_DEformula_external(tt, rmin, rmax, xx, yy, y2);
@@ -674,8 +674,8 @@ static inline double integrate_DEformula_internal(const double rr, const double 
 {
   const double criteria_abs = 1.0e-12;
   /* const double criteria_rel = 1.0e-10; */
-  /* const double criteria_rel = 1.0e-8; */
-  const double criteria_rel = 1.0e-7;
+  const double criteria_rel = 1.0e-8;
+  /* const double criteria_rel = 1.0e-7; */
   /* const double criteria_rel = 1.0e-6; */
   /* const double criteria_rel = 1.0e-5; */
   /* const double criteria_rel = 1.0e-4; */
@@ -713,8 +713,8 @@ static inline double integrate_DEformula_external(const double rmin, const doubl
 {
   const double criteria_abs = 1.0e-12;
   /* const double criteria_rel = 1.0e-10; */
-  /* const double criteria_rel = 1.0e-8; */
-  const double criteria_rel = 1.0e-7;
+  const double criteria_rel = 1.0e-8;
+  /* const double criteria_rel = 1.0e-7; */
   /* const double criteria_rel = 1.0e-6; */
   /* const double criteria_rel = 1.0e-5; */
   /* const double criteria_rel = 1.0e-4; */
@@ -794,6 +794,22 @@ void integrateDensityProfile(profile *prf, profile_cfg *cfg
   }/* if( cutoff == true ){ */
 
 
+#if 1
+  int iout = NRADBIN - 1;
+  for(int ii = NRADBIN - 3; ii >= 0; ii--)
+    if( prf[ii].rho > DBL_MIN ){
+      iout = ii + 2;
+      break;
+    }
+  const double rmax = prf[iout].rad;
+#else
+  const int iout = NRADBIN - 1;
+  const double rmax = prf[NRADBIN - 1].rad;
+#endif
+  cfg->iout = iout;
+  cfg->rmax = rmax;
+
+
 #ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
   const double rs = cfg->rs;
 
@@ -830,24 +846,9 @@ void integrateDensityProfile(profile *prf, profile_cfg *cfg
   /** execute cubic spline interpolation */
   genCubicSpline1D(NSPLINE_PROFILE, xx, yy, bp, NATURAL_CUBIC_SPLINE, NATURAL_CUBIC_SPLINE, y2);
 
-#if 1
-  int iout = NRADBIN - 1;
-  for(int ii = NRADBIN - 3; ii >= 0; ii--)
-    if( prf[ii].rho > DBL_MIN ){
-      iout = ii + 2;
-      break;
-    }
-  const double rmax = prf[iout].rad;
-#else
-  const int iout = NRADBIN - 1;
-  const double rmax = prf[NRADBIN - 1].rad;
-#endif
-  cfg->iout = iout;
-  cfg->rmax = rmax;
-
   const double M_PI_16 = 0.125 * M_PI_2;
 
-#pragma omp parallel for schedule(auto)
+#pragma omp parallel for schedule(dynamic, 8)
   for(int ii = 0; ii < iout + 1; ii++){
     const double rad = prf[ii].rad;
     const double enc = M_PI_16 * integrate_DEformula_internal(rad, rs, xx, yy, y2);
@@ -857,7 +858,7 @@ void integrateDensityProfile(profile *prf, profile_cfg *cfg
     prf[ii].psi = ext + enc / rad;
   }/* for(int ii = 0; ii < iout + 1; ii++){ */
 
-#pragma omp parallel for schedule(auto)
+#pragma omp parallel for
   for(int ii = iout + 1; ii < NRADBIN; ii++){
     prf[ii].enc = prf[iout].enc;
     prf[ii].psi = prf[ii].enc / prf[ii].rad;
@@ -1405,11 +1406,8 @@ static inline void integrate_DEformula
 )
 {
   const double criteria_abs = 1.0e-12;
-  /* const double criteria_rel = 1.0e-10; */
   /* const double criteria_rel = 1.0e-8; */
-  /* const double criteria_rel = 1.0e-7; */
-  const double criteria_rel = 1.0e-6;
-  /* const double criteria_rel = 1.0e-5; */
+  const double criteria_rel = 1.0e-5;
   /* const double criteria_rel = 1.0e-4; */
 
   double hh = 1.0;
@@ -1555,7 +1553,7 @@ void calcColumnDensityProfile(const int skind, profile **prf,
     double v4f[NKIND_MAX], v4f0[NKIND_MAX], v4f1[NKIND_MAX], v4f2[NKIND_MAX];
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
 
-#pragma omp for schedule(auto) nowait
+#pragma omp for schedule(dynamic, 8) nowait
     for(int ii = 0; ii < iout + 1; ii += SKIP_INTERVAL_FOR_COLUMN_DENSITY){
       const double R2 = prf[0][ii].rad * prf[0][ii].rad;
       const double zmax = sqrt(rmax2 - R2);
@@ -1578,7 +1576,7 @@ void calcColumnDensityProfile(const int skind, profile **prf,
     }/* for(int ii = 0; ii < iout + 1; ii += SKIP_INTERVAL_FOR_COLUMN_DENSITY){ */
 
     for(int kk = 0; kk < skind; kk++)
-#pragma omp for schedule(auto) nowait
+#pragma omp for nowait
       for(int ii = iout + 1; ii < NRADBIN; ii++)
 	prf[kk][ii].Sigma = 0.0;
 
@@ -1602,7 +1600,7 @@ void calcColumnDensityProfile(const int skind, profile **prf,
     for(int kk = 0; kk < skind; kk++){
       const int iout = cfg[kk].iout;
 
-#pragma omp for schedule(auto) nowait
+#pragma omp for schedule(dynamic, 8) nowait
       for(int ii = 0; ii < iout + 1; ii += SKIP_INTERVAL_FOR_COLUMN_DENSITY){
 	const double S0 = prf[kk][ii                                   ].Sigma;
 	const double S1 = prf[kk][ii + SKIP_INTERVAL_FOR_COLUMN_DENSITY].Sigma;
@@ -1853,7 +1851,7 @@ void calcColumnDensityProfile(const int skind, profile **prf, const double logrm
     double *denom;    denom = (double *)malloc(skind * sizeof(double));    if( denom == NULL ){      __KILL__(stderr, "ERROR: failure to allocate denom\n");    }
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
 
-#pragma omp for schedule(auto) nowait
+#pragma omp for schedule(dynamic, 8) nowait
     for(int ii = 0; ii < NRADBIN; ii += SKIP_INTERVAL_FOR_COLUMN_DENSITY){
       /** initialization */
       for(int kk = 0; kk < skind; kk++){

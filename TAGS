@@ -1,79 +1,79 @@
 
-src/file/io.c,1392
-#define MAXIMUM_CHUNK_SIZE 42,927
-#define MAXIMUM_CHUNK_SIZE_4BIT 43,978
-#define MAXIMUM_CHUNK_SIZE_8BIT 44,1029
-void createMPIcfg_dataio(117,3926
-static inline void updateMPIcfg_dataio(138,4426
-static inline void writeConfigFileFormat(152,4779
-void updateConfigFile(169,5327
-void readConfigFile(191,5881
-void readConfigFileParallel(222,6701
-void readSettings(252,7660
-void readSettingsParallel(298,9697
-void writeSettings(336,11371
-void createHDF5DataType(370,12737
-void removeHDF5DataType(484,19155
-void  readTentativeData(530,21024
-void writeTentativeData(826,34326
-void  readTentativeDataParallel(1205,52210
-void writeTentativeDataParallel(1709,75305
-void writeTipsyFile(2231,99573
-  struct dump 2243,99921
-    double time;2244,99937
-    int nbodies;2245,99954
-    int ndim;2246,99971
-    int nsph;2247,99985
-    int ndark;2248,99999
-    int nstar;2249,100014
-  typedef struct dump header;2251,100034
-  struct dark_particle 2262,100367
-    float mass;2263,100392
-    float pos[pos2264,100408
-    float vel[vel2265,100426
-    float eps;2266,100444
-    int idx;2267,100459
-void  readSnapshot(2308,101793
-void writeSnapshot(2452,107267
-void writeSnapshotParallel(2787,123102
-void writeSnapshotMultiGroups(3194,142534
-void  readApproxAccel(3453,154613
-void writeApproxAccel(3487,155787
-void dumpBenchmark(3522,156904
-void dumpStatistics(3891,175434
+src/file/io.c,1382
+#define MAXIMUM_CHUNK_SIZE 43,937
+#define MAXIMUM_CHUNK_SIZE_4BIT 44,988
+#define MAXIMUM_CHUNK_SIZE_8BIT 45,1039
+void createMPIcfg_dataio(110,3434
+static inline void updateMPIcfg_dataio(131,3934
+static inline void writeConfigFileFormat(145,4287
+void updateConfigFile(162,4835
+void readConfigFile(184,5389
+void readConfigFileParallel(217,6234
+void readSettings(247,7193
+void readSettingsParallel(295,9232
+void writeSettings(334,10907
+void createHDF5DataType(368,12273
+void removeHDF5DataType(475,18392
+void  readTentativeData(517,20145
+void writeTentativeData(769,31687
+void  readTentativeDataParallel(1094,47299
+void writeTentativeDataParallel(1555,68236
+void writeTipsyFile(2022,90229
+  struct dump 2034,90577
+    double time;2035,90593
+    int nbodies;2036,90610
+    int ndim;2037,90627
+    int nsph;2038,90641
+    int ndark;2039,90655
+    int nstar;2040,90670
+  typedef struct dump header;2042,90690
+  struct dark_particle 2053,91023
+    float mass;2054,91048
+    float pos[pos2055,91064
+    float vel[vel2056,91082
+    float eps;2057,91100
+    int idx;2058,91115
+void  readSnapshot(2099,92449
+void writeSnapshot(2243,97923
+void writeSnapshotParallel(2578,113758
+void writeSnapshotMultiGroups(2985,133190
+void  readApproxAccel(3244,145269
+void writeApproxAccel(3278,146443
+void dumpBenchmark(3313,147560
+void dumpStatistics(3642,163841
 
-src/file/io.h,905
+src/file/io.h,898
 #define IO_H18,387
-#define CONFIG 41,1001
-#define SETTINGS 42,1029
-#define TENTATIVE 43,1057
-#define SNAPSHOT 44,1081
-#define BRUTE 45,1105
-#define APPBH 46,1128
-#define APPWS 47,1152
-#define APPG2 48,1176
-#define ERRFILE_NUM 49,1200
-#define ERRFILE_LST 50,1230
-#define ERRFILE_CDF 51,1260
-#define ACCERR 52,1290
-#define TREE_STAT 53,1314
-#define WALK_STAT 54,1344
-  MPI_Offset head;65,1513
-  MPI_Comm comm;66,1532
-  MPI_Info info;67,1549
-  int rank,68,1566
-  int rank, size;68,1566
-} MPIcfg_dataio;69,1584
-  hid_t real;80,1758
-  hid_t str4unit;81,1772
-  hid_t rebuildTree,83,1817
-  hid_t rebuildTree, measuredTime,83,1817
-  hid_t rebuildTree, measuredTime, statVal,83,1817
-  hid_t rebuildTree, measuredTime, statVal, guessTime;83,1817
-  hid_t brentFunc,84,1954
-  hid_t brentFunc, brentStatus,84,1954
-  hid_t brentFunc, brentStatus, brentMemory;84,1954
-} hdf5struct;86,2108
+#define CONFIG 39,825
+#define SETTINGS 40,853
+#define TENTATIVE 41,881
+#define SNAPSHOT 42,905
+#define BRUTE 43,929
+#define APPBH 44,952
+#define APPWS 45,976
+#define APPG2 46,1000
+#define ERRFILE_NUM 47,1024
+#define ERRFILE_LST 48,1054
+#define ERRFILE_CDF 49,1084
+#define ACCERR 50,1114
+#define TREE_STAT 51,1138
+#define WALK_STAT 52,1168
+  MPI_Offset head;63,1337
+  MPI_Comm comm;64,1356
+  MPI_Info info;65,1373
+  int rank,66,1390
+  int rank, size;66,1390
+} MPIcfg_dataio;67,1408
+  hid_t real;78,1582
+  hid_t str4unit;79,1596
+  hid_t rebuildTree,81,1641
+  hid_t rebuildTree, measuredTime,81,1641
+  hid_t rebuildTree, measuredTime, statVal,81,1641
+  hid_t rebuildTree, measuredTime, statVal, guessTime;81,1641
+  hid_t brentFunc,82,1778
+  hid_t brentFunc, brentStatus,82,1778
+  hid_t brentFunc, brentStatus, brentMemory;82,1778
+} hdf5struct;84,1932
 
 src/init/sample.c,163
 #define CFGFOLDER 26,529
@@ -83,17 +83,21 @@ src/init/sample.c,163
 static inline double getAsymptoticSersicScale(43,854
 int main(46,1006
 
-src/init/abel.c,451
-double getColumnDensityDerivativeSersic(44,983
-double getColumnDensityDerivativeTwoPow(60,1510
-double getColumnDensityDerivativeTable(77,2116
-static inline double func4Abel(93,2537
-double gaussQD4Abel(112,3091
-void execAbelTransform(144,4094
-static inline void writeColumnDensityProfileTableFormat(220,6811
-static inline void leastSquaresMethod(240,7632
-void readColumnDensityProfileTable(275,8641
-void readColumnDensityTable4Disk(374,12341
+src/init/abel.c,651
+double getColumnDensityDerivativeSersic(41,900
+double getColumnDensityDerivativeTwoPow(57,1427
+double getColumnDensityDerivativeTable(74,2033
+static inline double get_DEformula(95,2670
+static inline double update_trapezoidal(121,3918
+static inline double set_domain_boundary(137,4425
+static inline double integrate_DEformula(187,5819
+static inline double func4Abel(252,7578
+double gaussQD4Abel(271,8132
+void execAbelTransform(304,9185
+static inline void writeColumnDensityProfileTableFormat(393,12330
+static inline void leastSquaresMethod(413,13151
+void readColumnDensityProfileTable(448,14160
+void readColumnDensityTable4Disk(547,17860
 
 src/init/blas.c,203
 static inline double dnrm2(43,841
@@ -106,43 +110,51 @@ void pbicgstab332,9683
 int main(501,14777
 
 src/init/magi.h,176
-#define MAGI_H18,409
-#define PROGRESS_REPORT_ON31,559
-#define NMAX_GAUSS_QD 34,614
-#define NTBL_GAUSS_QD 35,641
-#define NINTBIN 36,708
-#define N_PRINT_LINES_ASCII 38,739
+#define MAGI_H18,390
+#define PROGRESS_REPORT_ON32,550
+#define NMAX_GAUSS_QD 35,605
+#define NTBL_GAUSS_QD 36,632
+#define NINTBIN 37,699
+#define N_PRINT_LINES_ASCII 39,730
 
-src/init/magi.c,1269
-double gsl_gaussQD_pos[gsl_gaussQD_pos92,2695
-double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[gsl_gaussQD_weight92,2695
-  double bodyAlloc,98,2879
-  double bodyAlloc, file;98,2879
-  double spheAlloc,99,2905
-  double spheAlloc, spheProf,99,2905
-  double spheAlloc, spheProf, spheDist,99,2905
-  double spheAlloc, spheProf, spheDist, spheInfo,99,2905
-  double spheAlloc, spheProf, spheDist, spheInfo, eddington;99,2905
-  double diskAlloc,100,2966
-  double diskAlloc, diskProf,100,2966
-  double diskAlloc, diskProf, diskDist,100,2966
-  double diskAlloc, diskProf, diskDist, diskInfo,100,2966
-  double diskAlloc, diskProf, diskDist, diskInfo, diskTbl,100,2966
-  double diskAlloc, diskProf, diskDist, diskInfo, diskTbl, diskVel;100,2966
-  double column;102,3070
-} breakdown;104,3123
-static inline void isotropicDistribution(120,3500
-bool isInnerParticle4spherical(154,4574
-bool isInnerParticle4disk 169,5153
-static inline void pickRetrogradingParticles(191,5948
-void retrograder(209,6599
-void shiftCenter(252,7890
-static inline double getDF(452,14313
-double distributeSpheroidParticles(478,15316
-int main(603,19437
-void outputFundamentalInformation1172,44716
-static void evaluateDiskProperties1762,78274
-void writeDiskData(1860,83545
+src/init/magi.c,1597
+double gsl_gaussQD_pos[gsl_gaussQD_pos96,2655
+double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[gsl_gaussQD_weight96,2655
+  double bodyAlloc,102,2839
+  double bodyAlloc, file;102,2839
+  double spheAlloc,103,2865
+  double spheAlloc, spheProf,103,2865
+  double spheAlloc, spheProf, spheDist,103,2865
+  double spheAlloc, spheProf, spheDist, spheInfo,103,2865
+  double spheAlloc, spheProf, spheDist, spheInfo, eddington;103,2865
+  double diskAlloc,104,2926
+  double diskAlloc, diskProf,104,2926
+  double diskAlloc, diskProf, diskDist,104,2926
+  double diskAlloc, diskProf, diskDist, diskInfo,104,2926
+  double diskAlloc, diskProf, diskDist, diskInfo, diskTbl,104,2926
+  double diskAlloc, diskProf, diskDist, diskInfo, diskTbl, diskVel;104,2926
+  double observe;105,2994
+  double vdisp;107,3053
+  double column;110,3146
+} breakdown;112,3199
+static inline void isotropicDistribution(128,3576
+bool isInnerParticle4spherical(162,4650
+bool isInnerParticle4disk 177,5229
+static inline void pickRetrogradingParticles(199,6024
+void retrograder(217,6675
+void shiftCenter(260,7966
+double distributeSpheroidParticles(468,14821
+int main(646,20397
+static inline void findIdx_rad(1303,48683
+void outputFundamentalInformation1340,50047
+void outputRadialProfiles1700,73870
+void outputDistributionFunction(2002,88264
+static inline void writeVals_at_givenRad2151,93668
+void outputRepresentativeQuantities2267,97875
+static inline void findIdx_enc(2440,106273
+void evaluateObservables(2475,107420
+static void evaluateDiskProperties2563,110728
+void writeDiskData(2662,116000
 
 src/init/spline.c,475
 static inline int bisec(39,763
@@ -186,39 +198,40 @@ src/init/blas.h,646
   double *Kri, *Kpi, *Kti;Kti57,974
 } soaPreConditioning;58,1001
 
-src/init/abel.h,580
+src/init/abel.h,639
 #define ABEL_H18,398
-#define NABEL 24,446
-#define NDIVIDE_GAUSSQD4ABEL 25,467
-  double *xx,xx35,603
-  double *xx, *yy,yy35,603
-  double *xx, *yy, *y2;y235,603
-  double invRd;36,684
-  double ninv,37,700
-  double ninv, bb;37,700
-  double alpha,38,756
-  double alpha, beta,38,756
-  double alpha, beta, gam,38,756
-  double alpha, beta, gam, del,38,756
-  double alpha, beta, gam, del, eps;38,756
-  int num;39,889
-} profile_abel_cfg;40,958
-  double (*getColumnDensityDerivative)getColumnDensityDerivative48,1071
-  profile_abel_cfg cfg;49,1137
-} abel_util;50,1161
+#define ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_ABEL25,487
+#define NABEL 29,580
+#define NDIVIDE_GAUSSQD4ABEL 31,651
+  double *xx,xx42,837
+  double *xx, *yy,yy42,837
+  double *xx, *yy, *y2;y242,837
+  double invRd;43,918
+  double ninv,44,934
+  double ninv, bb;44,934
+  double alpha,45,990
+  double alpha, beta,45,990
+  double alpha, beta, gam,45,990
+  double alpha, beta, gam, del,45,990
+  double alpha, beta, gam, del, eps;45,990
+  int num;46,1123
+} profile_abel_cfg;47,1192
+  double (*getColumnDensityDerivative)getColumnDensityDerivative55,1305
+  profile_abel_cfg cfg;56,1371
+} abel_util;57,1395
 
-src/init/table.c,187
+src/init/table.c,188
 static inline void writeDensityProfileTableFormat(37,698
 static inline void leastSquaresMethod(57,1506
-void getInterpolatedDensityProfile(99,2692
-void setDensityProfileTable(161,5343
+void getInterpolatedDensityProfile(101,2823
+void setDensityProfileTable(171,5675
 
 src/init/table.h,65
 #define TABLE_H18,405
 #define NFIT 24,454
 #define NPUT 25,471
 
-src/init/king.c,890
+src/init/king.c,889
 static const double inv3 33,581
 static const double inv6 34,619
 static const double convergence 36,658
@@ -230,152 +243,135 @@ static inline double kingErrFunc(125,3931
 static inline double kingFunc0(139,4303
 static inline double getKingDensity(155,4768
 static inline double calcKingDensity(169,5194
-#define kingFunc1(180,5449
-static inline double _kingFunc1(190,5682
-#define kingFunc2(200,5924
-static inline double _kingFunc2(212,6354
-static inline void rungeKutta4thForKing(233,6835
-static inline void solvePoissonEqOfKingDF(270,8486
-static void rescaleKingSphere(416,12969
-static inline int findIdx(472,14814
-static inline int bisection(502,15619
-static inline void getDensityProfile(540,16623
-void setDensityProfileKing(592,18185
+#define kingFunc1(181,5459
+static inline double _kingFunc1(191,5692
+#define kingFunc2(202,5944
+static inline double _kingFunc2(214,6374
+static inline void rungeKutta4thForKing(235,6855
+static inline void solvePoissonEqOfKingDF272,8506
+static void rescaleKingSphere(436,13413
+static inline int findIdx(492,15258
+static inline int bisection(522,16073
+static inline void getDensityProfile(560,17077
+void setDensityProfileKing(619,18877
 
 src/init/spline.h,61
 #define SPLINE_H18,380
 #define NATURAL_CUBIC_SPLINE 24,420
 
 src/init/uniformsphere.c,221
-static inline void isotropicDistribution(65,1440
-static inline real gaussian(89,2250
-void makeUniformSphere(119,3032
-void shiftCenter(159,4180
-void outputFundamentalInformationOfColdSphere235,6625
-int main(286,9687
+static inline void isotropicDistribution(63,1290
+static inline real gaussian(87,2100
+void makeUniformSphere(117,2882
+void shiftCenter(157,4030
+void outputFundamentalInformationOfColdSphere233,6475
+int main(284,9537
 
-src/init/profile.c,793
-void setDensityProfilePlummer(47,965
-void setDensityProfileBurkert(78,1889
-void setDensityProfileHernquist(109,2863
-void setDensityProfileNFW(139,3771
-void setDensityProfileMoore(169,4683
-void setDensityProfileEinasto(200,5696
-void setDensityProfileAppKing(231,6665
-void setDensityProfileTwoPower(264,8012
-void setDensityProfileTriPower(310,9789
-void setDensityProfileAppLoweredEvans(353,11383
-void setContributionByCentralBH(414,13505
-void integrateDensityProfile(445,14345
-static inline double getAsymptoticSersicScale(547,18138
-static inline void writeProfileCfgFormat(558,18464
-void readProfileCfg(644,23734
-static inline void findIdx(799,30455
-static inline void getInterpolatedDensity(831,31554
-void gaussQuadVertical(863,32686
-void calcColumnDensityProfile(905,34147
-
-src/init/profile.h,3107
+src/init/profile.h,3808
 #define PROFILE_H18,407
-#define ERFC_SMOOTHING32,615
-#define CFGFOLDER 36,702
-#define CENTRALBH 40,838
-#define   PLUMMER 41,863
-#define      KING 42,886
-#define   BURKERT 43,909
-#define HERNQUIST 44,932
-#define       NFW 45,955
-#define     MOORE 46,978
-#define   EINASTO 47,1001
-#define TWO_POWER 48,1024
-#define TRI_POWER 49,1047
-#define  APP_KING 50,1070
-#define APP_EVANS 51,1093
-#define TABLE_RHO 52,1116
-#define TABLE_SIG 53,1139
-#define SPHSERSIC 54,1162
-#define SIGTWOPOW 55,1185
-#define  EXP_DISK 57,1258
-#define    SERSIC 58,1282
-#define  TBL_DISK 59,1306
-#define NRADBIN 63,1377
-#define MINRAD 64,1411
-#define MAKE_COLUMN_DENSITY_PROFILE71,1567
-#define SKIP_INTERVAL_FOR_COLUMN_DENSITY 73,1639
-  double rad;84,1813
-  double rho 85,1827
-  double rho    , enc 85,1827
-  double rho    , enc    , psi;85,1827
-  double rho_tot,86,1859
-  double rho_tot, enc_tot,86,1859
-  double rho_tot, enc_tot, psi_tot;86,1859
-  double drho_dr,87,1895
-  double drho_dr, d2rho_dr2;87,1895
-  double Sigma;89,1960
-} profile;91,2012
-  char file[file101,2118
-  char table[table102,2136
-  double Mtot,103,2214
-  double Mtot, rs;103,2214
-  double einasto_alpha;104,2268
-  double king_W0,105,2329
-  double king_W0, king_rt,105,2329
-  double king_W0, king_rt, king_c;105,2329
-  double twopower_alpha,106,2397
-  double twopower_alpha, twopower_beta,106,2397
-  double twopower_alpha, twopower_beta, twopower_gamma;106,2397
-  double tripower_delta,107,2491
-  double tripower_delta, tripower_epsilon,107,2491
-  double tripower_delta, tripower_epsilon, tripower_rout;107,2491
-  double alevans_alpha,108,2600
-  double alevans_alpha, alevans_beta,108,2600
-  double alevans_alpha, alevans_beta, alevans_rc,108,2600
-  double alevans_alpha, alevans_beta, alevans_rc, alevans_rt,108,2600
-  double alevans_alpha, alevans_beta, alevans_rc, alevans_rt, alevans_wt;108,2600
-  double zd,109,2729
-  double zd, Sigma0,109,2729
-  double zd, Sigma0, vdispR0,109,2729
-  double zd, Sigma0, vdispR0, vdispz0,109,2729
-  double zd, Sigma0, vdispR0, vdispz0, vdisp_frac;109,2729
-  double n_sersic,110,2820
-  double n_sersic, b_sersic;110,2820
-  double vcirc_Rd,111,2886
-  double vcirc_Rd, vcirc_max,111,2886
-  double vcirc_Rd, vcirc_max, vcirc_max_R,111,2886
-  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre,111,2886
-  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin0,111,2886
-  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin0, Qmin1,111,2886
-  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin0, Qmin1, Qmin2,111,2886
-  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin0, Qmin1, Qmin2, qminR0,111,2886
-  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin0, Qmin1, Qmin2, qminR0, qminR1,111,2886
-  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin0, Qmin1, Qmin2, qminR0, qminR1, qminR2;111,2886
-  double retrogradeFrac;112,3021
-  double rc,113,3093
-  double rc, rc_width;113,3093
-  double Ecut;114,3116
-  ulong num;115,3131
-  int forceNum;116,3144
-  int kind;117,3233
-  bool passed;118,3245
-  bool cutoff;119,3305
-} profile_cfg;120,3320
+#define ERFC_SMOOTHING38,707
+#define CFGFOLDER 42,794
+#define CENTRALBH 46,930
+#define   PLUMMER 47,955
+#define      KING 48,978
+#define   BURKERT 49,1001
+#define HERNQUIST 50,1024
+#define       NFW 51,1047
+#define     MOORE 52,1070
+#define   EINASTO 53,1093
+#define TWO_POWER 54,1116
+#define TRI_POWER 55,1139
+#define  APP_KING 56,1162
+#define APP_EVANS 57,1185
+#define TABLE_RHO 58,1208
+#define TABLE_SIG 59,1231
+#define SPHSERSIC 60,1254
+#define SIGTWOPOW 61,1277
+#define  EXP_DISK 63,1350
+#define    SERSIC 64,1374
+#define  TBL_DISK 65,1398
+#define ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE69,1465
+#define NRADBIN 76,1675
+#define MINRAD 77,1698
+#define NRADBIN 79,1783
+#define MINRAD 80,1809
+#define NKIND_MAX 84,1898
+#define MAKE_VELOCITY_DISPERSION_PROFILE92,2062
+#define SKIP_INTERVAL_FOR_VELOCITY_DISPERSION 95,2185
+#define SKIP_INTERVAL_FOR_VELOCITY_DISPERSION 97,2276
+#define MAKE_COLUMN_DENSITY_PROFILE107,2542
+#define SKIP_INTERVAL_FOR_COLUMN_DENSITY 110,2655
+#define SKIP_INTERVAL_FOR_EFFECTIVE_RADIUS 111,2700
+#define SKIP_INTERVAL_FOR_COLUMN_DENSITY 113,2788
+#define SKIP_INTERVAL_FOR_EFFECTIVE_RADIUS 114,2835
+  double rad;126,3052
+  double rho 127,3066
+  double rho    , enc 127,3066
+  double rho    , enc    , psi;127,3066
+  double rho_tot,128,3098
+  double rho_tot, enc_tot,128,3098
+  double rho_tot, enc_tot, psi_tot;128,3098
+  double drho_dr,129,3134
+  double drho_dr, d2rho_dr2;129,3134
+  double v2f,131,3204
+  double v2f, v4f;131,3204
+  double sigr;132,3258
+  double Sigma;135,3401
+  double slos;137,3458
+} profile;140,3601
+  char file[file150,3707
+  char table[table151,3725
+  double Mtot,152,3803
+  double Mtot, rs;152,3803
+  double einasto_alpha;153,3857
+  double king_W0,154,3918
+  double king_W0, king_rt,154,3918
+  double king_W0, king_rt, king_c;154,3918
+  double king_dWdx_0;156,4012
+  double twopower_alpha,158,4086
+  double twopower_alpha, twopower_beta,158,4086
+  double twopower_alpha, twopower_beta, twopower_gamma;158,4086
+  double tripower_delta,159,4180
+  double tripower_delta, tripower_epsilon,159,4180
+  double tripower_delta, tripower_epsilon, tripower_rout;159,4180
+  double alevans_alpha,160,4289
+  double alevans_alpha, alevans_beta,160,4289
+  double alevans_alpha, alevans_beta, alevans_rc,160,4289
+  double alevans_alpha, alevans_beta, alevans_rc, alevans_rt,160,4289
+  double alevans_alpha, alevans_beta, alevans_rc, alevans_rt, alevans_wt;160,4289
+  double zd,161,4418
+  double zd, Sigma0,161,4418
+  double zd, Sigma0, vdispR0,161,4418
+  double zd, Sigma0, vdispR0, vdispz0,161,4418
+  double zd, Sigma0, vdispR0, vdispz0, vdisp_frac;161,4418
+  double n_sersic,162,4509
+  double n_sersic, b_sersic;162,4509
+  double rhalf,163,4575
+  double rhalf, Reff;163,4575
+  double vcirc_Rd,164,4642
+  double vcirc_Rd, vcirc_max,164,4642
+  double vcirc_Rd, vcirc_max, vcirc_max_R,164,4642
+  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre,164,4642
+  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin0,164,4642
+  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin0, Qmin1,164,4642
+  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin0, Qmin1, Qmin2,164,4642
+  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin0, Qmin1, Qmin2, qminR0,164,4642
+  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin0, Qmin1, Qmin2, qminR0, qminR1,164,4642
+  double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin0, Qmin1, Qmin2, qminR0, qminR1, qminR2;164,4642
+  double retrogradeFrac;165,4777
+  double rc,166,4849
+  double rc, rc_width;166,4849
+  double Ecut;167,4872
+  ulong num;168,4887
+  double rmax;169,4900
+  int iout;170,4956
+  int forceNum;171,5007
+  int kind;172,5096
+  bool passed;173,5108
+  bool cutoff;174,5168
+} profile_cfg;175,5183
 
-src/init/eddington.c,174
-static inline void findIdx(45,942
-static inline void getEddingtonFormula(78,2024
-static inline void gaussQuad1dEddington(120,3639
-void integrateEddingtonFormula(162,5018
-
-src/init/eddington.h,172
-#define EDDINGTON_H18,379
-#define NDIVIDE_GAUSSQD 26,452
-#define NENEBIN 27,481
-  real ene,37,604
-  real ene, val;37,604
-} dist_func;38,621
-#define NKIND_MAX 41,636
-
-src/init/potdens.c,2301
+src/init/potdens.c,2200
 #define NMAX_GAUSS_QD_LOW 40,793
 #define NTBL_GAUSS_QD_LOW 41,824
 #define NINTBIN_LOW 42,903
@@ -388,143 +384,225 @@ double getColumnDensitySpline(108,3285
 static double invzd2invz0;115,3594
 static inline void setz0inv4SechProfile(121,3687
 double getVerticalDensity(134,4138
-static inline double func4encSigma(157,4830
-static inline double gaussQD4encSigma(169,5234
-void   freeDiskProfile217,7081
-void allocDiskProfile281,9608
-static inline int bisection(566,24009
-static inline int findIdxSpherical(600,25147
-static inline double Phi_spherical(634,26141
-static inline int findIdxSphericalPsi(655,26763
-static const double diskDimmingHeight 681,27620
-static const double diskDimmingHeightInv 687,27739
-static inline void getVariableDiskScaleHeight(703,28316
-static inline double gaussQuad1d4Rho(755,30080
-static inline void initPotentialField(786,31109
-static inline void setColumnDensityProfile(832,32746
-static inline void coarsePotential4boundary(899,35718
-static inline void coarsePotential(951,37445
-static inline void   finePotential(986,38515
-static inline void coarseDensity(1023,40109
-static inline void   fineDensity(1063,41471
-static inline int findIdxSpherical4GDpot(1111,43789
-static inline double func4GDpot(1143,44737
-double gaussQD4GDpot(1162,45302
-static inline void calcGDpot1204,46615
-static inline void _gaussQuad2d4GDpot1252,48619
-static inline void _setRdep4GDpot1310,50906
-static inline void gaussQuad2d4GDpot1351,52475
-static inline double integrateGDpot1420,55521
-static inline void calcOuterPotential1476,58528
-static inline void setResultantVector(1532,60892
-static inline void setSparseMatrix(1565,62012
-static inline void getPotentialField1686,69394
-static inline double _setzdep4calcRho1798,74938
-static inline void _setRdep4calcRho1841,76587
-static inline double _gaussQuad2d4calcRho1891,78791
-static inline double gaussQuad2d4calcRho1937,80756
-static inline void swapDblArrays(1979,82715
-void getPotDensPair2019,83909
-void makeDiskPotentialTable(2230,92774
+static inline double func4encSigma(157,4831
+static inline double gaussQD4encSigma(169,5235
+void   freeDiskProfile217,7082
+void allocDiskProfile281,9609
+static inline int bisection(566,24010
+static inline int findIdxSpherical(600,25148
+static inline double Phi_spherical(634,26152
+static inline int findIdxSphericalPsi(655,26774
+static inline void getVariableDiskScaleHeight(691,28029
+static inline double gaussQuad1d4Rho(749,30059
+static inline void initPotentialField(780,31088
+static inline void setColumnDensityProfile(826,32725
+static inline void coarsePotential4boundary(893,35676
+static inline void coarsePotential(945,37403
+static inline void   finePotential(980,38473
+static inline void coarseDensity(1017,40067
+static inline void   fineDensity(1057,41429
+static inline int findIdxSpherical4GDpot(1105,43747
+static inline double func4GDpot(1137,44705
+double gaussQD4GDpot(1156,45270
+static inline void calcGDpot1198,46583
+static inline void _gaussQuad2d4GDpot1246,48587
+static inline void _setRdep4GDpot1304,50874
+static inline void gaussQuad2d4GDpot1345,52443
+static inline double integrateGDpot1414,55489
+static inline void calcOuterPotential1470,58496
+static inline void setResultantVector(1526,60860
+static inline void setSparseMatrix(1559,61980
+static inline void getPotentialField1680,69362
+static inline double _setzdep4calcRho1792,74906
+static inline void _setRdep4calcRho1835,76555
+static inline double _gaussQuad2d4calcRho1885,78759
+static inline double gaussQuad2d4calcRho1931,80724
+static inline void swapDblArrays(1973,82683
+void getPotDensPair2013,83877
+void makeDiskPotentialTable(2224,92721
 
-src/init/potdens.h,2242
+src/init/potdens.h,2362
 #define POTDENS_H18,411
-#define CHECK_OSTRIKER_PEEBLES_CRITERION30,583
-#define NDISKBIN_VER 38,763
-#define NHOR_OVER_NVER 44,863
-#define NDISKBIN_HOR 50,996
-#define  NNZ_CG 54,1096
-#define NROW_CG 55,1182
-#define NCOL_CG 56,1228
-#define DISK_MAX_SAFETY 60,1378
-#define DISK_MAX_LENGTH 61,1408
-#define DISK_MIN_LENGTH 62,1439
-#define NDIVIDE_GAUSSQD4DISK 66,1517
-#define ENABLE_VARIABLE_SCALE_HEIGHT75,1734
-#define CONVERGENCE_BICGSTAB 82,1849
-#define CONVERGENCE_POTDENSPAIR 88,2013
-#define NEGLECT_DENSITY_MINIMUM 94,2138
-#define INDEX4D(97,2182
-#define NDISKBIN_RAD 100,2319
-  double *xx,xx111,2479
-  double *xx, *ff,ff111,2479
-  double *xx, *ff, *f2,f2111,2479
-  double *xx, *ff, *f2, *bp;bp111,2479
-  double sersic_ninv,112,2576
-  double sersic_ninv, sersic_b;112,2576
-  double Rcutoff,113,2608
-  double Rcutoff, invRsmooth;113,2608
-  int num;114,2638
-} disk_util;115,2683
-  profile_cfg *cfg;cfg124,2788
-  profile *prf;prf125,2855
-  double *hor;hor126,2926
-  double *ver;ver127,2971
-  double *node_hor;node_hor128,3016
-  double *node_ver;node_ver129,3070
-  double *pot,pot130,3124
-  double *pot, *rhoTot;rhoTot130,3124
-  double **rho,rho131,3183
-  double **rho, **rhoSum,rhoSum131,3183
-  double **rho, **rhoSum, *rho0,rho0131,3183
-  double **rho, **rhoSum, *rho0, *rho1;rho1131,3183
-  double *dPhidR,dPhidR132,3347
-  double *dPhidR, *d2PhidR2;d2PhidR2132,3347
-  double *Sigma,Sigma133,3411
-  double *Sigma, *sigmaz,sigmaz133,3411
-  double *Sigma, *sigmaz, *enc;enc133,3411
-  disk_util util;134,3480
-  double (*getColumnDensity)getColumnDensity135,3498
-  double *zd;zd137,3592
-  double *radSph,radSph139,3643
-  double *radSph, *rhoSph,rhoSph139,3643
-  double *radSph, *rhoSph, *encSph;encSph139,3643
-  double *spline_xx,spline_xx140,3746
-  double *spline_xx, *spline_ff,spline_ff140,3746
-  double *spline_xx, *spline_ff, *spline_f2,spline_f2140,3746
-  double *spline_xx, *spline_ff, *spline_f2, *spline_bp;spline_bp140,3746
-  double Rmax,141,3834
-  double Rmax, zmax,141,3834
-  double Rmax, zmax, hh;141,3834
-  double invRd;142,3890
-  double logrbin,143,3945
-  double logrbin, invlogrbin;143,3945
-  double Krand_sph;145,4063
-} disk_data;147,4124
+#define CHECK_OSTRIKER_PEEBLES_CRITERION31,593
+#define NDISKBIN_VER 39,751
+#define NHOR_OVER_NVER 46,861
+#define NDISKBIN_HOR 53,1004
+#define  NNZ_CG 57,1104
+#define NROW_CG 58,1190
+#define NCOL_CG 59,1236
+#define DISK_MAX_SAFETY 63,1386
+#define DISK_MAX_LENGTH 64,1416
+#define DISK_MIN_LENGTH 65,1447
+#define NDIVIDE_GAUSSQD4DISK 69,1525
+#define ENABLE_VARIABLE_SCALE_HEIGHT79,1760
+#define DISK_DIMMING_HEIGHT 87,1956
+#define DISK_DIMMING_HEIGHT_INV 94,2074
+#define DISK_DIMMING_SCALE 108,2394
+#define CONVERGENCE_BICGSTAB 116,2515
+#define CONVERGENCE_POTDENSPAIR 123,2689
+#define NEGLECT_DENSITY_MINIMUM 130,2824
+#define INDEX4D(133,2868
+#define NDISKBIN_RAD 136,3005
+  double *xx,xx147,3165
+  double *xx, *ff,ff147,3165
+  double *xx, *ff, *f2,f2147,3165
+  double *xx, *ff, *f2, *bp;bp147,3165
+  double sersic_ninv,148,3262
+  double sersic_ninv, sersic_b;148,3262
+  double Rcutoff,149,3294
+  double Rcutoff, invRsmooth;149,3294
+  int num;150,3324
+} disk_util;151,3369
+  profile_cfg *cfg;cfg160,3474
+  profile *prf;prf161,3541
+  double *hor;hor162,3612
+  double *ver;ver163,3657
+  double *node_hor;node_hor164,3702
+  double *node_ver;node_ver165,3756
+  double *pot,pot166,3810
+  double *pot, *rhoTot;rhoTot166,3810
+  double **rho,rho167,3869
+  double **rho, **rhoSum,rhoSum167,3869
+  double **rho, **rhoSum, *rho0,rho0167,3869
+  double **rho, **rhoSum, *rho0, *rho1;rho1167,3869
+  double *dPhidR,dPhidR168,4033
+  double *dPhidR, *d2PhidR2;d2PhidR2168,4033
+  double *Sigma,Sigma169,4097
+  double *Sigma, *sigmaz,sigmaz169,4097
+  double *Sigma, *sigmaz, *enc;enc169,4097
+  disk_util util;170,4166
+  double (*getColumnDensity)getColumnDensity171,4184
+  double *zd;zd173,4278
+  double *radSph,radSph175,4329
+  double *radSph, *rhoSph,rhoSph175,4329
+  double *radSph, *rhoSph, *encSph;encSph175,4329
+  double *spline_xx,spline_xx176,4432
+  double *spline_xx, *spline_ff,spline_ff176,4432
+  double *spline_xx, *spline_ff, *spline_f2,spline_f2176,4432
+  double *spline_xx, *spline_ff, *spline_f2, *spline_bp;spline_bp176,4432
+  double Rmax,177,4520
+  double Rmax, zmax,177,4520
+  double Rmax, zmax, hh;177,4520
+  double invRd;178,4576
+  double logrbin,179,4631
+  double logrbin, invlogrbin;179,4631
+  double Krand_sph;181,4749
+} disk_data;183,4810
 
-src/init/diskDF.c,351
+src/init/diskDF.c,422
 static inline int bisection(54,1140
-static inline int findIdxSpherical(88,2272
-static inline void convertCylindrical2Spherical124,3481
-void integrateSphericalDensityProfile(173,5096
-void diffAxisymmetricPotential(321,10945
-void calcVerticalVdisp(416,15583
-static inline int bisection4nestedGrid495,18632
-void distributeDiskParticles(529,19670
+static inline int findIdxSpherical(94,2558
+static inline void convertCylindrical2Spherical130,3777
+void integrateSphericalDensityProfile(179,5392
+void diffAxisymmetricPotential(327,11225
+void calcVerticalVdisp(429,16034
+static inline int bisection4nestedGrid508,19083
+void distributeDiskParticles(543,20149
+void getEffectiveRadius(967,38160
+void findIdx4nestedGrid(1013,39721
 
-src/init/diskDF.h,239
+src/init/diskDF.h,286
 #define DISKDF_H18,403
-#define ENFORCE_EPICYCLIC_APPROXIMATION33,773
-#define SPEEDUP_CONVERGENCE36,815
-#define SUBDIVIDE_NUM 39,887
-#define DISK_PERP_VDISP(43,955
-#define DISK_RADIAL_VDISP2(46,1107
-#define DISK_RADIAL_VDISP(47,1190
+#define ENFORCE_EPICYCLIC_APPROXIMATION34,783
+#define SWEEP_HIGH_ALTITUDE_COMPONENT42,933
+#define SPEEDUP_CONVERGENCE45,973
+#define SUBDIVIDE_NUM 48,1045
+#define DISK_PERP_VDISP(52,1113
+#define DISK_RADIAL_VDISP2(55,1265
+#define DISK_RADIAL_VDISP(56,1348
 
-src/main/gothic.c,515
-#undef          LEAP_FROG_INTEGRATOR92,2434
-real theta2;96,2555
-int treeBuildCalls 105,3069
-static inline void setMultipoleMoment111,3313
-static inline void updateDomain246,7957
-static inline void buildTreeStructure333,11988
-static inline void configDistribution459,17317
-static inline void dumpSnapshot560,21296
-static inline void dumpRestarter697,26284
-int main(805,30287
-void analyzeWalkStatistics(3636,152599
-static inline void analyzeTreeStatistics(3680,154476
-void analyzeTreeMetrics(3690,155161
+src/init/merge.c,17
+int main(24,457
+
+src/init/eddington.h,229
+#define EDDINGTON_H18,379
+#define ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF27,493
+#define NENEBIN 34,693
+#define NENEBIN 36,764
+  real ene,47,935
+  real ene, val;47,935
+} dist_func;48,952
+static inline double getDF(62,1275
+
+src/init/profile.c,1646
+#define NFIT_PROFILE 35,699
+#define NCAP_PROFILE 36,724
+#define NSPLINE_PROFILE 37,750
+void setDensityProfilePlummer(57,1327
+void setDensityProfileBurkert(88,2243
+void setDensityProfileHernquist(119,3209
+void setDensityProfileNFW(149,4109
+void setDensityProfileMoore(179,5013
+void setDensityProfileEinasto(210,6018
+void setDensityProfileAppKing(241,6979
+void setDensityProfileTwoPower(274,8318
+void setDensityProfileTriPower(320,10087
+void setDensityProfileAppLoweredEvans(363,11673
+void setContributionByCentralBH(424,13787
+static inline void leastSquaresMethod(455,14585
+static inline double get_DEformula_internal(495,15794
+static inline double get_DEformula_external(520,16628
+static inline double update_trapezoidal_internal(535,17202
+static inline double update_trapezoidal_external(551,17674
+static inline double set_domain_boundary_internal(567,18175
+static inline double set_domain_boundary_external(617,19486
+static inline double integrate_DEformula_internal(673,21004
+static inline double integrate_DEformula_external(712,22015
+void integrateDensityProfile(759,23287
+static inline double getAsymptoticSersicScale(962,30361
+static inline void writeProfileCfgFormat(973,30687
+void readProfileCfg(1063,36148
+static inline void get_DEformula1221,43076
+static inline void update_trapezoidal1249,44233
+static inline void set_domain_boundary1286,45601
+static inline void integrate_DEformula1400,49951
+void calcColumnDensityProfile(1496,52831
+static inline void findIdx(1656,59096
+static inline void getInterpolatedDensity1690,60311
+void gaussQuadVertical1744,62358
+void calcColumnDensityProfile(1824,65154
+
+src/init/eddington.c,839
+static inline void get_d2rho_dPsi2(51,1186
+static inline void get_integrand(89,2352
+static inline void get_DEformula(111,3135
+static inline void update_trapezoidal(132,4086
+static inline void set_domain_boundary(150,4725
+static inline void integrate_DEformula(216,6887
+void integrateEddingtonFormula(272,8532
+static inline void get_DEformula_vdisp(368,11901
+static inline void update_trapezoidal_vdisp(387,12608
+static inline void set_domain_boundary_vdisp(410,13432
+static inline void integrate_DEformula_vdisp(481,16091
+void calcVelocityDispersionProfile(541,17987
+static inline void findIdx(635,21460
+static inline void getEddingtonFormula(668,22552
+static inline void gaussQuad1dEddington715,24569
+void integrateEddingtonFormula(758,25937
+void gaussQuadVelocity(842,28881
+void calcVelocityDispersionProfile(887,30452
+
+src/init/read.c,108
+void read_disk_table(24,719
+void allocDiskArray(146,5610
+void  freeDiskArray(196,8033
+int main(217,8348
+
+src/main/gothic.c,545
+#define LEAP_FROG_INTEGRATOR79,1927
+#undef          LEAP_FROG_INTEGRATOR81,2022
+real theta2;86,2144
+int treeBuildCalls 91,2245
+static inline void setMultipoleMoment102,2467
+static inline void updateDomain170,4199
+static inline void buildTreeStructure230,6161
+static inline void configDistribution288,7982
+static inline void dumpSnapshot352,9622
+static inline void dumpRestarter492,13511
+int main(564,15732
+void analyzeWalkStatistics(2477,87340
+static inline void analyzeTreeStatistics(2520,88289
+void analyzeTreeMetrics(2538,88831
 
 src/main/showOptConfig.c,805
 #define NADD 22,1138
@@ -553,29 +631,24 @@ void readBenchmarkResults(349,16045
 src/misc/convert.h,25
 #define CONVERT_H18,396
 
-src/misc/brent.c,297
+src/misc/brent.c,170
 static inline double sign(37,635
 void brentInit1st(49,962
 void brentInit2nd(74,1433
 void brentPerturb(96,1809
-int  brentCalc1st(121,2362
-void brentCalc2nd(191,4912
-#define M_PI 230,6120
-double minimizeBrent(244,6491
-double parabolic(268,7071
-double  sineWave(269,7148
-int main(272,7205
+void brentCalc1st(120,2336
+void brentCalc2nd(176,4416
 
 src/misc/device.h,273
 #define DEVICE_H18,385
-#        define  GPUS_PER_PROCESS 26,527
-#undef  GPUS_PER_PROCESS29,647
-#define GPUS_PER_PROCESS 30,672
-#define SMEM_SIZE 39,827
-#define SMPREF 47,1016
-#define SMPREF_LET 55,1154
-#define WIDEBANK 63,1362
-#define GLOBAL_MEMORY_SYSBUF 72,1536
+#        define  GPUS_PER_PROCESS 27,537
+#undef  GPUS_PER_PROCESS30,657
+#define GPUS_PER_PROCESS 31,682
+#define SMEM_SIZE 41,847
+#define SMPREF 50,1046
+#define SMPREF_LET 59,1194
+#define WIDEBANK 68,1412
+#define GLOBAL_MEMORY_SYSBUF 78,1596
 
 src/misc/allocate.c,131
 muse allocParticleData44,1277
@@ -589,139 +662,138 @@ src/misc/allocate.h,26
 src/misc/allocate_dev.h,30
 #define ALLOCATE_DEV_H18,390
 
-src/misc/benchmark.h,1974
+src/misc/benchmark.h,1976
 #define BENCHMARK_H18,379
-#define BENCHMARK_STEPS 37,797
-#define WALLCLOCK 43,941
-  double calcGravity_dev;53,1080
-  double calcMultipole;54,1106
-  double makeTree;55,1130
-  double prediction_dev;57,1173
-  double correction_dev;58,1198
-  double setLaneTime_dev;59,1223
-  double adjustParticleTime_dev;60,1249
-  double advPos_dev;62,1306
-  double advVel_dev;63,1327
-  double setTimeStep_dev;65,1372
-  double sortParticlesPHcurve;66,1398
-  double copyParticle_dev2hst;67,1429
-  double copyParticle_hst2dev;68,1460
-  double setTreeNode_dev;69,1491
-  double setTreeCell_dev;70,1517
-  double examineNeighbor_dev;72,1618
-  double  searchNeighbor_dev;73,1648
-  double genPHkey_kernel;76,1781
-  double rsortKey_library;77,1807
-  double sortBody_kernel;78,1834
-  double makeTree_kernel;79,1860
-  double linkTree_kernel;80,1886
-  double trimTree_kernel;81,1912
-  double initTreeLink_kernel;82,1938
-  double initTreeCell_kernel;83,1968
-  double initTreeNode_kernel;84,1998
-  double initTreeBody_kernel;85,2028
-  double copyRealBody_kernel;86,2058
-  double searchNeighbor_kernel;89,2144
-  double sortNeighbors;90,2176
-  double countNeighbors_kernel;91,2200
-  double commitNeighbors;92,2232
-} wall_clock_time;94,2286
-  real mjMean,104,2425
-  real mjMean, mjSdev;104,2425
-  real r2Mean,105,2448
-  real r2Mean, r2Sdev;105,2448
-  int cellNum,106,2471
-  int cellNum, nodeNum;106,2471
-} tree_stats;107,2495
-  int Ngroup,115,2621
-  int Ngroup, min,115,2621
-  int Ngroup, min, max;115,2621
-  float mean,116,2645
-  float mean, sdev;116,2645
-} walk_stats;117,2665
-  tree_stats level[level125,2791
-  tree_stats total;126,2870
-  walk_stats Nbuf;127,2890
-  walk_stats Nj;128,2909
-  ulong Ninteractions;129,2926
-  size_t bufSize;130,2996
-} tree_metrics;131,3014
-static struct timeval _benchIni,136,3073
-static struct timeval _benchIni, _benchFin;136,3073
-static inline void initStopwatch(143,3185
-static inline void stopStopwatch(157,3458
+#define BENCHMARK_STEPS 38,807
+#define WALLCLOCK 44,951
+  double calcGravity_dev;54,1090
+  double calcMultipole;55,1116
+  double makeTree;56,1140
+  double prediction_dev;58,1183
+  double correction_dev;59,1208
+  double setLaneTime_dev;60,1233
+  double adjustParticleTime_dev;61,1259
+  double advPos_dev;63,1316
+  double advVel_dev;64,1337
+  double setTimeStep_dev;66,1382
+  double sortParticlesPHcurve;67,1408
+  double copyParticle_dev2hst;68,1439
+  double copyParticle_hst2dev;69,1470
+  double setTreeNode_dev;70,1501
+  double setTreeCell_dev;71,1527
+  double examineNeighbor_dev;72,1553
+  double  searchNeighbor_dev;73,1583
+  double genPHkey_kernel;75,1641
+  double rsortKey_library;76,1667
+  double sortBody_kernel;77,1694
+  double makeTree_kernel;78,1720
+  double linkTree_kernel;79,1746
+  double trimTree_kernel;80,1772
+  double initTreeLink_kernel;81,1798
+  double initTreeCell_kernel;82,1828
+  double initTreeNode_kernel;83,1858
+  double initTreeBody_kernel;84,1888
+  double copyRealBody_kernel;85,1918
+  double searchNeighbor_kernel;88,2004
+  double sortNeighbors;89,2036
+  double countNeighbors_kernel;90,2060
+  double commitNeighbors;91,2092
+} wall_clock_time;93,2146
+  real mjMean,103,2285
+  real mjMean, mjSdev;103,2285
+  real r2Mean,104,2308
+  real r2Mean, r2Sdev;104,2308
+  int cellNum,105,2331
+  int cellNum, nodeNum;105,2331
+} tree_stats;106,2355
+  int Ngroup,114,2481
+  int Ngroup, min,114,2481
+  int Ngroup, min, max;114,2481
+  float mean,115,2505
+  float mean, sdev;115,2505
+} walk_stats;116,2525
+  tree_stats level[level124,2651
+  tree_stats total;125,2730
+  walk_stats Nbuf;126,2750
+  walk_stats Nj;127,2769
+  ulong Ninteractions;128,2786
+  size_t bufSize;129,2856
+} tree_metrics;130,2874
+static struct timespec _benchIni,135,2929
+static struct timespec _benchIni, _benchFin;135,2929
+static inline void initStopwatch(142,3042
+static inline void stopStopwatch(156,3331
 
-src/misc/brent.h,615
+src/misc/brent.h,582
 #define BRENT_H18,379
-#define TEST_BRENT_METHOD22,422
-#define BRENT_METHOD_ALLOW 30,589
-#define BRENT_METHOD_LAUNCH 31,622
-#define BRENT_METHOD_MODIFY 32,654
-  double pos;42,776
-  double val;43,790
-} brentFunc;44,804
-  brentFunc x,56,1111
-  brentFunc x, w,56,1111
-  brentFunc x, w, v,56,1111
-  brentFunc x, w, v, u;56,1111
-  double a,57,1135
-  double a, b;57,1135
-  double d,58,1193
-  double d, e;58,1193
-  double gold;59,1302
-  bool initialized;60,1341
-} brentStatus;61,1361
-  double previous;72,1493
-  int totNum;73,1629
-  int degraded;74,1696
-  int interval;75,1775
-} brentMemory;76,1865
+#define BRENT_METHOD_ALLOW 25,511
+#define BRENT_METHOD_LAUNCH 26,544
+#define BRENT_METHOD_MODIFY 27,576
+  double pos;37,698
+  double val;38,712
+} brentFunc;39,726
+  brentFunc x,51,1033
+  brentFunc x, w,51,1033
+  brentFunc x, w, v,51,1033
+  brentFunc x, w, v, u;51,1033
+  double a,52,1057
+  double a, b;52,1057
+  double d,53,1115
+  double d, e;53,1115
+  double gold;54,1224
+  bool initialized;55,1263
+} brentStatus;56,1283
+  double previous;66,1390
+  int totNum;67,1526
+  int degraded;68,1593
+  int interval;69,1672
+} brentMemory;70,1762
 
 src/misc/structure.h,1344
 #define STRUCTURE_H18,406
-#define NUM_BODY_MAX 37,781
-#undef  NUM_BODY_MAX51,1168
-#define NUM_BODY_MAX 52,1189
-  size_t host,64,1356
-  size_t host, device;64,1356
-} muse;65,1379
-  double E0inv,76,1517
-  double E0inv, errMax;76,1517
-} energyError;77,1541
-  real *pos;pos89,1705
-  real *vel;vel90,1753
-  real *acc;acc91,1801
-  real *m,m92,1849
-  real *m, *pot;pot92,1849
-  ulong *idx;idx93,1866
-} nbody_hdf5;94,1880
-typedef struct __align__(103,2011
-typedef struct __align__(112,2172
-typedef struct __align__(122,2354
-typedef struct __align__(134,2555
-typedef struct __align__(143,2707
-  position     *pos;pos157,2886
-  acceleration *acc;acc158,2907
-  acceleration *acc_old;acc_old160,2947
-  velocity     *vel;vel163,3015
-  position     *jpos;jpos164,3036
-  velocity     *jvel;jvel165,3058
-  ibody_time   *time;time166,3080
-  real         *vx;vx168,3126
-  real         *vy;vy169,3146
-  real         *vz;vz170,3166
-  real         *neighbor;neighbor173,3285
-  ulong        *idx;idx175,3386
-  position *encBall,encBall177,3448
-  position *encBall, *encBall_hst;encBall_hst177,3448
-  DPacc *tmp;tmp180,3628
-  acceleration *res;res183,3693
-  real amin;186,3798
-} iparticle;188,3830
-  int *jtag;jtag198,3963
-  int *  Nj;200,4003
-  int *Nbuf;Nbuf201,4016
-} iparticle_treeinfo;203,4056
+#define NUM_BODY_MAX 38,791
+#undef  NUM_BODY_MAX52,1178
+#define NUM_BODY_MAX 53,1199
+  size_t host,65,1366
+  size_t host, device;65,1366
+} muse;66,1389
+  double E0inv,77,1527
+  double E0inv, errMax;77,1527
+} energyError;78,1551
+  real *pos;pos90,1715
+  real *vel;vel91,1767
+  real *acc;acc92,1819
+  real *m,m93,1871
+  real *m, *pot;pot93,1871
+  ulong *idx;idx94,1888
+} nbody_hdf5;95,1902
+typedef struct __align__(104,2033
+typedef struct __align__(113,2194
+typedef struct __align__(123,2376
+typedef struct __align__(135,2577
+typedef struct __align__(144,2729
+  position     *pos;pos158,2908
+  acceleration *acc;acc159,2929
+  acceleration *acc_old;acc_old161,2969
+  velocity     *vel;vel164,3037
+  position     *jpos;jpos165,3058
+  velocity     *jvel;jvel166,3080
+  ibody_time   *time;time167,3102
+  real         *vx;vx169,3148
+  real         *vy;vy170,3168
+  real         *vz;vz171,3188
+  real         *neighbor;neighbor173,3232
+  ulong        *idx;idx174,3258
+  position *encBall,encBall176,3320
+  position *encBall, *encBall_hst;encBall_hst176,3320
+  DPacc *tmp;tmp179,3500
+  acceleration *res;res182,3565
+  real amin;185,3670
+} iparticle;187,3702
+  int *jtag;jtag197,3835
+  int *  Nj;199,3875
+  int *Nbuf;Nbuf200,3888
+} iparticle_treeinfo;202,3928
 
 src/misc/convert.c,84
 void backVel(37,768
@@ -729,272 +801,192 @@ void copyAry4Snapshot(65,1593
 void backVel4Snapshot(112,2971
 
 src/misc/tune.c,218
-void initStatVal(38,659
-static inline void calcStatVal(65,1205
-void initGuessTime(91,1860
-static inline void evalStatVal(111,2330
-void linearModel(135,3223
-void  powerModel(163,4165
-void parabolicModel(199,5395
+void initStatVal(35,624
+static inline void calcStatVal(62,1170
+void initGuessTime(88,1825
+static inline void evalStatVal(108,2295
+void linearModel(132,3188
+void  powerModel(160,4130
+void parabolicModel(196,5360
 
-src/misc/tune.h,1354
+src/misc/tune.h,1279
 #define TUNE_H18,371
-#define USE_PARABOLIC_GROWTH_MODEL26,489
-#define WALK_TREE_TOTAL_SUM_MODEL29,591
-#define WALK_TREE_USE_REDUCED_CHISQ36,836
-#define USE_ADDITIONAL_SWITCH38,901
-#define FORCE_ADJUSTING_PARTICLE_TIME_STEPS41,967
-  double interval;51,1129
-  double avg,53,1229
-  double avg, var;53,1229
-  int reuse;55,1329
-  bool adjust;57,1366
-} rebuildTree;59,1405
-  double walkTree[walkTree69,1596
-  double makeTree;70,1618
-  double incSum;72,1671
-  double sum_excg;76,1828
-  double sum_rebuild,82,2073
-  double sum_rebuild, excg;82,2073
-} measuredTime;84,2130
-  double S,95,2290
-  double S, Sx,95,2290
-  double S, Sx, Sy,95,2290
-  double S, Sx, Sy, Sxx,95,2290
-  double S, Sx, Sy, Sxx, Sxy,95,2290
-  double S, Sx, Sy, Sxx, Sxy, Syy;95,2290
-  double Sxxxx,97,2360
-  double Sxxxx, Sxxx,97,2360
-  double Sxxxx, Sxxx, Sxxy;97,2360
-} statVal;99,2423
-  double slope,108,2557
-  double slope, icept,108,2557
-  double slope, icept, rchisq;108,2557
-  double time;109,2588
-  double second;111,2652
-} guessTime;113,2704
-  statVal   linearStats,123,2884
-  statVal   linearStats, powerStats;123,2884
-  statVal parabolicStats;125,2956
-  guessTime linearGuess,127,3017
-  guessTime linearGuess, powerGuess;127,3017
-  guessTime parabolicGuess;129,3089
-} autoTuningParam;131,3152
-static const double tolerance4chisq 136,3257
+#define USE_PARABOLIC_GROWTH_MODEL25,456
+#define WALK_TREE_USE_REDUCED_CHISQ28,563
+#define USE_ADDITIONAL_SWITCH30,628
+#define FORCE_ADJUSTING_PARTICLE_TIME_STEPS34,695
+  double interval;44,857
+  double avg,46,957
+  double avg, var;46,957
+  int reuse;48,1057
+  bool adjust;50,1094
+} rebuildTree;52,1133
+  double walkTree[walkTree62,1324
+  double makeTree;63,1346
+  double sum_excg;66,1471
+  double sum_rebuild,68,1582
+  double sum_rebuild, excg;68,1582
+} measuredTime;70,1639
+  double S,80,1766
+  double S, Sx,80,1766
+  double S, Sx, Sy,80,1766
+  double S, Sx, Sy, Sxx,80,1766
+  double S, Sx, Sy, Sxx, Sxy,80,1766
+  double S, Sx, Sy, Sxx, Sxy, Syy;80,1766
+  double Sxxxx,82,1836
+  double Sxxxx, Sxxx,82,1836
+  double Sxxxx, Sxxx, Sxxy;82,1836
+} statVal;84,1899
+  double slope,93,2033
+  double slope, icept,93,2033
+  double slope, icept, rchisq;93,2033
+  double time;94,2064
+  double second;96,2128
+} guessTime;98,2180
+  statVal   linearStats,108,2328
+  statVal   linearStats, powerStats;108,2328
+  statVal parabolicStats;110,2400
+  guessTime linearGuess,112,2461
+  guessTime linearGuess, powerGuess;112,2461
+  guessTime parabolicGuess;114,2533
+} autoTuningParam;116,2596
+static const double tolerance4chisq 120,2668
 
-src/para/mpicfg.c,75
-static inline void createMPIcfg_tree(30,1477
-void setNodeConfig(115,4310
+src/para/mpicfg.c,74
+static inline void createMPIcfg_tree(38,643
+void setNodeConfig(134,2704
 
-src/para/mpicfg.h,800
-#define MPICFG_H12,754
-#define GPUS_PER_PROCESS 23,1158
-#define MAX_FACTOR_INCREASE 26,1288
-#define MAX_FACTOR_SAFETY 29,1440
-#define MAX_FACTOR_FROM_EQUIPARTITION 31,1513
-  MPI_Datatype cell,38,1764
-  MPI_Datatype cell, link;38,1764
-  MPI_Comm comm;39,1791
-  int rank,40,1808
-  int rank, size;40,1808
-} MPIcfg_octree;41,1826
-  MPI_Datatype ipos,45,1936
-  MPI_Datatype ipos, jpos,45,1936
-  MPI_Datatype ipos, jpos, more,45,1936
-  MPI_Datatype ipos, jpos, more, mass;45,1936
-  MPI_Datatype iacc;47,1994
-  MPI_Datatype ivel,50,2058
-  MPI_Datatype ivel, time;50,2058
-  MPI_Comm comm,52,2109
-  MPI_Comm comm, cart;52,2109
-  int rank,53,2132
-  int rank, size;53,2132
-  int dim[dim54,2150
-  int dim[3], prd[prd54,2150
-  int dim[3], prd[3], pos[pos54,2150
-} MPIcfg_tree;55,2180
+src/para/mpicfg.h,637
+#define MPICFG_H18,373
+#define GPUS_PER_PROCESS 33,553
+#define MAX_FACTOR_INCREASE 42,721
+#define MAX_FACTOR_SAFETY 50,915
+#define MAX_FACTOR_FROM_EQUIPARTITION 58,1103
+  MPI_Datatype ipos,68,1287
+  MPI_Datatype ipos, jpos,68,1287
+  MPI_Datatype ipos, jpos, more,68,1287
+  MPI_Datatype ipos, jpos, more, mass;68,1287
+  MPI_Datatype iacc;70,1345
+  MPI_Datatype ivel,73,1409
+  MPI_Datatype ivel, time;73,1409
+  MPI_Comm comm,75,1460
+  MPI_Comm comm, cart;75,1460
+  int rank,76,1483
+  int rank, size;76,1483
+  int dim[dim77,1501
+  int dim[3], prd[prd77,1501
+  int dim[3], prd[3], pos[pos77,1501
+} MPIcfg_tree;78,1531
 
-src/para/exchange.h,2692
-#define EXCHANGE_H12,756
-#define DEFAULT_SAMPLING_RATE 33,1637
-#define DEFAULT_SAMPLING_NUMBER 35,1725
-  int *rnum,rnum41,1953
-  int *rnum, *disp;disp41,1953
-  float *xmin,xmin42,2005
-  float *xmin, *xmax,xmax42,2005
-  float *xmin, *xmax, *ymin,ymin42,2005
-  float *xmin, *xmax, *ymin, *ymax,ymax42,2005
-  float *xmin, *xmax, *ymin, *ymax, *zmin,zmin42,2005
-  float *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;zmax42,2005
-  float rate;43,2055
-  int Nmax;44,2094
-} sampling;45,2131
-  float *x_hst,x_hst49,2236
-  float *x_hst, *y_hst,y_hst49,2236
-  float *x_hst, *y_hst, *z_hst;z_hst49,2236
-  float *x_dev,x_dev50,2268
-  float *x_dev, *y_dev,y_dev50,2268
-  float *x_dev, *y_dev, *z_dev;z_dev50,2268
-  int *i_hst,i_hst51,2300
-  int *i_hst, *i_dev;i_dev51,2300
-} samplePos;52,2322
-  float *x,x56,2428
-  float *x, *y,y56,2428
-  float *x, *y, *z;z56,2428
-} particlePos;57,2448
-  float *xmin,xmin65,2662
-  float *xmin, *xmax,xmax65,2662
-  float *xmin, *xmax, *ymin,ymin65,2662
-  float *xmin, *xmax, *ymin, *ymax,ymax65,2662
-  float *xmin, *xmax, *ymin, *ymax, *zmin,zmin65,2662
-  float *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;zmax65,2662
-  MPI_Request *req;req66,2712
-  real min[min68,2760
-  real min[3], max[max68,2760
-  MPI_Request req;69,2783
-} domainCfg;71,2830
-  real xmin,75,2936
-  real xmin, xmax,75,2936
-  real xmin, xmax, ymin,75,2936
-  real xmin, xmax, ymin, ymax,75,2936
-  real xmin, xmax, ymin, ymax, zmin,75,2936
-  real xmin, xmax, ymin, ymax, zmin, zmax;75,2936
-  int rank,76,2979
-  int rank, num,76,2979
-  int rank, num, head;76,2979
-  MPI_Request pos,77,3002
-  MPI_Request pos, idx;77,3002
-  MPI_Request acc;79,3045
-  MPI_Request vel,82,3107
-  MPI_Request vel, time;82,3107
-  MPI_Request vx,84,3156
-  MPI_Request vx, vy,84,3156
-  MPI_Request vx, vy, vz;84,3156
-} sendCfg;86,3206
-  int num,90,3310
-  int num, head;90,3310
-  MPI_Request req,91,3327
-  MPI_Request req, pos,91,3327
-  MPI_Request req, pos, idx;91,3327
-  MPI_Request acc;93,3375
-  MPI_Request vel,96,3437
-  MPI_Request vel, time;96,3437
-  MPI_Request vx,98,3486
-  MPI_Request vx, vy,98,3486
-  MPI_Request vx, vy, vz;98,3486
-} recvCfg;100,3536
-  int *dstRank_hst,dstRank_hst105,3668
-  int *dstRank_hst, *dstRank_dev,dstRank_dev105,3668
-  int *dstRank_hst, *dstRank_dev, *bodyIdx_dev;bodyIdx_dev105,3668
-  int dstRank,107,3744
-  int dstRank, bodyIdx;107,3744
-} domainDecomposeKey;109,3796
-static const double loadImbalanceCrit 116,4063
-#define SLOW_DOWN_PROCS_CRIT(117,4109
-  double tmin,121,4249
-  double tmin, tmax;121,4249
-  bool enable,122,4270
-  bool enable, execute;122,4270
-} loadImbalanceDetector;123,4294
+src/para/exchange.h,2579
+#define EXCHANGE_H18,388
+#define DEFAULT_SAMPLING_RATE 38,673
+#define DEFAULT_SAMPLING_NUMBER 46,855
+  int *rnum,rnum58,1082
+  int *rnum, *disp;disp58,1082
+  float *xmin,xmin59,1136
+  float *xmin, *xmax,xmax59,1136
+  float *xmin, *xmax, *ymin,ymin59,1136
+  float *xmin, *xmax, *ymin, *ymax,ymax59,1136
+  float *xmin, *xmax, *ymin, *ymax, *zmin,zmin59,1136
+  float *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;zmax59,1136
+  float rate;60,1186
+  int Nmax;61,1227
+} sampling;62,1266
+  float *x_hst,x_hst71,1370
+  float *x_hst, *y_hst,y_hst71,1370
+  float *x_hst, *y_hst, *z_hst;z_hst71,1370
+  float *x_dev,x_dev72,1402
+  float *x_dev, *y_dev,y_dev72,1402
+  float *x_dev, *y_dev, *z_dev;z_dev72,1402
+  int *i_hst,i_hst73,1434
+  int *i_hst, *i_dev;i_dev73,1434
+} samplePos;74,1456
+  float *x,x83,1563
+  float *x, *y,y83,1563
+  float *x, *y, *z;z83,1563
+} particlePos;84,1583
+  float *xmin,xmin94,1694
+  float *xmin, *xmax,xmax94,1694
+  float *xmin, *xmax, *ymin,ymin94,1694
+  float *xmin, *xmax, *ymin, *ymax,ymax94,1694
+  float *xmin, *xmax, *ymin, *ymax, *zmin,zmin94,1694
+  float *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;zmax94,1694
+  MPI_Request *req;req95,1744
+} domainCfg;96,1764
+  real xmin,105,1877
+  real xmin, xmax,105,1877
+  real xmin, xmax, ymin,105,1877
+  real xmin, xmax, ymin, ymax,105,1877
+  real xmin, xmax, ymin, ymax, zmin,105,1877
+  real xmin, xmax, ymin, ymax, zmin, zmax;105,1877
+  int rank,106,1920
+  int rank, num,106,1920
+  int rank, num, head;106,1920
+  MPI_Request pos,107,1943
+  MPI_Request pos, idx;107,1943
+  MPI_Request acc;109,1986
+  MPI_Request vel,112,2048
+  MPI_Request vel, time;112,2048
+  MPI_Request vx,114,2097
+  MPI_Request vx, vy,114,2097
+  MPI_Request vx, vy, vz;114,2097
+} sendCfg;116,2147
+  int num,125,2261
+  int num, head;125,2261
+  MPI_Request req,126,2278
+  MPI_Request req, pos,126,2278
+  MPI_Request req, pos, idx;126,2278
+  MPI_Request acc;128,2326
+  MPI_Request vel,131,2388
+  MPI_Request vel, time;131,2388
+  MPI_Request vx,133,2437
+  MPI_Request vx, vy,133,2437
+  MPI_Request vx, vy, vz;133,2437
+} recvCfg;135,2487
+  int *dstRank_hst,dstRank_hst144,2612
+  int *dstRank_hst, *dstRank_dev,dstRank_dev144,2612
+  int *dstRank_hst, *dstRank_dev, *bodyIdx_dev;bodyIdx_dev144,2612
+} domainDecomposeKey;145,2660
+static const double loadImbalanceCrit 149,2778
+#define SLOW_DOWN_PROCS_CRIT(150,2865
+  double tmin,159,3023
+  double tmin, tmax;159,3023
+  bool enable,160,3044
+  bool enable, execute;160,3044
+} loadImbalanceDetector;161,3068
 
-src/para/exchange.c,284
-muse allocateORMtopology(41,2002
-void  releaseORMtopology(167,10663
-void configORBtopology209,12623
-void removeORBtopology323,19020
-static inline void calcLocalBoxSize(360,20499
-int posAscendingOrder(397,22182
-int ddkeyAscendingOrder(414,23012
-void exchangeParticles438,24161
+src/para/exchange.c,68
+muse allocateORMtopology(38,714
+void  releaseORMtopology(138,6257
 
-src/para/161105exchange.c,244
-void configORBtopology41,2050
-void removeORBtopology179,9175
-static inline void calcLocalBoxSize(221,10759
-int posAscendingOrder(258,12442
-int ddkeyAscendingOrder(275,13272
-void exchangeParticles301,14523
-void exchangeParticles746,39719
-
-src/para/161105exchange.h,1479
-#define EXCHANGE_H12,756
-#define DEFAULT_SAMPLING_RATE 31,1581
-#define DEFAULT_SAMPLING_NUMBER 32,1623
-#define NDIM 38,1864
-  real min[min42,1974
-  real min[NDIM], max[max42,1974
-  MPI_Request req;43,2003
-} domainCfg;44,2022
-  real xmin,48,2128
-  real xmin, xmax,48,2128
-  real xmin, xmax, ymin,48,2128
-  real xmin, xmax, ymin, ymax,48,2128
-  real xmin, xmax, ymin, ymax, zmin,48,2128
-  real xmin, xmax, ymin, ymax, zmin, zmax;48,2128
-  int rank,49,2171
-  int rank, num,49,2171
-  int rank, num, head;49,2171
-  MPI_Request pos,50,2194
-  MPI_Request pos, idx;50,2194
-  MPI_Request acc;52,2237
-  MPI_Request vel,55,2299
-  MPI_Request vel, time;55,2299
-  MPI_Request vx,57,2348
-  MPI_Request vx, vy,57,2348
-  MPI_Request vx, vy, vz;57,2348
-} sendCfg;59,2398
-  int num,63,2502
-  int num, head;63,2502
-  MPI_Request req,64,2519
-  MPI_Request req, pos,64,2519
-  MPI_Request req, pos, idx;64,2519
-  MPI_Request acc;66,2567
-  MPI_Request vel,69,2629
-  MPI_Request vel, time;69,2629
-  MPI_Request vx,71,2678
-  MPI_Request vx, vy,71,2678
-  MPI_Request vx, vy, vz;71,2678
-} recvCfg;73,2728
-  int dstRank,77,2832
-  int dstRank, bodyIdx;77,2832
-} domainDecomposeKey;78,2856
-static const double loadImbalanceCrit 86,3174
-#define SLOW_DOWN_PROCS_CRIT(87,3219
-  MPI_Comm comm;91,3359
-  double invsize;92,3376
-  double tmax,93,3394
-  double tmax, tmin;93,3394
-  bool enable,94,3415
-  bool enable, execute;94,3415
-} loadImbalanceDetector;95,3439
-
-src/para/exchange_dev.h,893
-#define EXCHANGE_DEV_H14,910
-#define SHARE_PH_BOX_BOUNDARY21,1184
-#define SHARE_PH_BOX_BOUNDARY26,1496
-#define NTHREADS_BOX 34,1815
-#define NTHREADS_BOX 36,1873
-#undef  NTHREADS_BOX43,2187
-#define NTHREADS_BOX 44,2208
-#define NBLOCKS_PER_SM_BOX 50,2512
-#define REGISTERS_PER_THREAD_BOX 52,2637
-#undef  NBLOCKS_PER_SM_BOX56,2889
-#define NBLOCKS_PER_SM_BOX 57,2916
-#undef  NBLOCKS_PER_SM_BOX62,3285
-#define NBLOCKS_PER_SM_BOX 63,3312
-#undef  NBLOCKS_PER_SM_BOX68,3607
-#define NBLOCKS_PER_SM_BOX 69,3634
-#undef  NBLOCKS_PER_SM_BOX74,3915
-#define NBLOCKS_PER_SM_BOX 75,3942
-#undef  NBLOCKS_PER_SM_BOX80,4231
-#define NBLOCKS_PER_SM_BOX 81,4258
-#define NTHREADS_SETIDX 88,4499
-#define NTHREADS_SORTYZ 92,4654
-#define NTHREADS_SETPOS 96,4809
-#define NTHREADS_DDSORT 100,4964
-#define NCRIT_XPOS_SORT 109,5312
-#define NCRIT_YPOS_SORT 113,5468
-#define NCRIT_ZPOS_SORT 117,5624
+src/para/exchange_dev.h,891
+#define EXCHANGE_DEV_H18,406
+#define SHARE_PH_BOX_BOUNDARY24,454
+#define SHARE_PH_BOX_BOUNDARY29,616
+#define NTHREADS_BOX 40,868
+#define NTHREADS_BOX 42,919
+#undef  NTHREADS_BOX50,1153
+#define NTHREADS_BOX 51,1174
+#define NBLOCKS_PER_SM_BOX 57,1405
+#define REGISTERS_PER_THREAD_BOX 59,1455
+#undef  NBLOCKS_PER_SM_BOX63,1633
+#define NBLOCKS_PER_SM_BOX 64,1660
+#undef  NBLOCKS_PER_SM_BOX69,1955
+#define NBLOCKS_PER_SM_BOX 70,1982
+#undef  NBLOCKS_PER_SM_BOX75,2203
+#define NBLOCKS_PER_SM_BOX 76,2230
+#undef  NBLOCKS_PER_SM_BOX81,2437
+#define NBLOCKS_PER_SM_BOX 82,2464
+#undef  NBLOCKS_PER_SM_BOX87,2679
+#define NBLOCKS_PER_SM_BOX 88,2706
+#define NTHREADS_SETIDX 98,2888
+#define NTHREADS_SORTYZ 107,3069
+#define NTHREADS_SETPOS 116,3253
+#define NTHREADS_DDSORT 125,3436
+#define NCRIT_XPOS_SORT 135,3644
+#define NCRIT_YPOS_SORT 144,3852
+#define NCRIT_ZPOS_SORT 153,4060
 
 src/plot/plot.ball.c,306
 #define NORMALIZE_COL32,1532
@@ -1048,97 +1040,6 @@ src/plot/plot.energy.c,126
 int main(60,3036
 void plotTimeEvolution533,29428
 void plotMomentumError873,44492
-
-src/plot/plot.distribution.c,3444
-#define DUMP_SPLITTED_SNAPSHOT13,887
-#define USE_RMS_THICKNESS15,954
-#define USE_MEDIAN_FOR_POSITION16,980
-#define USE_ITERATED_THICKNESS17,1012
-#define OUTPUT_BULK_MOTION19,1119
-#define OVERPLOT_INITIAL_DISKHEIGHT21,1222
-#define NMAX_GAUSS_QD 51,2295
-#define NTBL_GAUSS_QD 52,2322
-#define NINTBIN 53,2389
-real gsl_gaussQD_pos[gsl_gaussQD_pos54,2419
-real gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[gsl_gaussQD_weight54,2419
-#define REDUCE_PARTICLE_DISTRIBUTION_MAP 59,2728
-static int ncrit_base;67,3498
-static const int Nminimum 68,3521
-static const int NAllocUnit 70,3629
-#define NUM_ANALYTIC 76,3883
-#define NUM_HORIZONTAL_BIN 77,3910
-  ulong head,81,4035
-  ulong head, num;81,4035
-  real *rad,rad83,4162
-  real *rad, *rho,rho83,4162
-  real *rad, *rho, *enc,enc83,4162
-  real *rad, *rho, *enc, *Sig;Sig83,4162
-  real *psi;psi86,4324
-  double disk_Rd,89,4580
-  double disk_Rd, disk_zd;89,4580
-  real *disk_radius,disk_radius90,4607
-  real *disk_radius, *disk_height,disk_height90,4607
-  real *disk_radius, *disk_height, *disk_azimuth,disk_azimuth90,4607
-  real *disk_radius, *disk_height, *disk_azimuth, *disk_rho,disk_rho90,4607
-  real *disk_radius, *disk_height, *disk_azimuth, *disk_rho, *disk_vol,disk_vol90,4607
-  real *disk_radius, *disk_height, *disk_azimuth, *disk_rho, *disk_vol, *disk_rad1d,disk_rad1d90,4607
-  real *disk_radius, *disk_height, *disk_azimuth, *disk_rho, *disk_vol, *disk_rad1d, *disk_Sigma;disk_Sigma90,4607
-  real *disk_pot,disk_pot93,4941
-  real *disk_pot, *disk_sig;disk_sig93,4941
-  real *hor,hor97,5222
-  real *hor, *ver,ver97,5222
-  real *hor, *ver, *Sigma,Sigma97,5222
-  real *hor, *ver, *Sigma, *Menc;Menc97,5222
-  real *ver_pos[ver_pos98,5301
-  real *ver_pos[NUM_HORIZONTAL_BIN], *ver_rho[ver_rho98,5301
-  int nrad;99,5368
-  int disk_nrad,100,5414
-  int disk_nrad, disk_nazi,100,5414
-  int disk_nrad, disk_nazi, disk_nsph;100,5414
-  int prf_head,101,5510
-  int prf_head, prf_num;101,5510
-  int prf_hor_head,102,5584
-  int prf_hor_head, prf_hor_num;102,5584
-  int prf_ver_head[prf_ver_head103,5670
-  int prf_ver_head[NUM_HORIZONTAL_BIN], prf_ver_num[prf_ver_num103,5670
-} model;104,5794
-  ulong idx;108,5896
-  real  x,109,5909
-  real  x,  y,109,5909
-  real  x,  y,  z;109,5909
-  real vx,110,5928
-  real vx, vy,110,5928
-  real vx, vy, vz;110,5928
-  real ax,111,5947
-  real ax, ay,111,5947
-  real ax, ay, az;111,5947
-  real m,112,5966
-  real m, pot;112,5966
-} nbody_particle;113,5981
-static inline void allocProfileArray(118,6153
-static inline void enlargeProfileArray(134,6940
-static inline void allocDecomposedProfileArray(153,7804
-static inline void enlargeDecomposedProfileArray(175,8817
-int idxAscendingOrder(206,10152
-int radAscendingOrder(223,11067
-int horAscendingOrder(240,11976
-int verAscendingOrder(257,12885
-static inline int bisec4nested(317,16121
-static inline int bisec(349,17859
-static inline void findIdx(372,19032
-static inline void getInterpolatedDensity(395,20391
-void gaussQuadVertical(415,21606
-real R_rhor(455,23607
-static inline real _gaussQuad2d(467,24195
-real gaussQuad2d(487,25427
-int main(509,26632
-void plotDistributionMaps1714,97790
-void plotRadialProfile2050,113738
-void plotHorizontalProfile2358,129231
-void plotVerticalProfile2794,151095
-void analyzeRadialProfile3051,164262
-void analyzeDecomposedProfile(3164,169278
-void integrateColumnDensity(3378,178594
 
 src/plot/plot.ndep.c,518
 #define LINE_ONLY_PLOT23,1162
@@ -1323,814 +1224,515 @@ src/plot/plot.breakdown.c,222
 int main(55,2650
 void plotBreakdown220,12156
 
-src/sort/peano.h,247
-#define PEANO_H14,903
-#define MAXIMUM_PHKEY_LEVEL 32,1633
-#define NUM_PHKEY_LEVEL 34,1742
-typedef uint  PHint;38,1944
-typedef ulong PHint;40,1971
-  PHint key;46,2152
-    int tag;47,2165
-} identity;48,2178
-typedef struct __align__(51,2299
+src/plot/plot.distribution.c,3786
+#define DUMP_SPLITTED_SNAPSHOT20,388
+#define USE_RMS_THICKNESS22,455
+#define USE_MEDIAN_FOR_POSITION23,481
+#define USE_ITERATED_THICKNESS24,513
+#define OUTPUT_BULK_MOTION26,545
+#define OVERPLOT_INITIAL_DISKHEIGHT28,573
+#define NMAX_GAUSS_QD 60,1123
+#define NTBL_GAUSS_QD 61,1150
+#define NINTBIN 62,1217
+real gsl_gaussQD_pos[gsl_gaussQD_pos63,1247
+real gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[gsl_gaussQD_weight63,1247
+#define REDUCE_PARTICLE_DISTRIBUTION_MAP 68,1406
+static int ncrit_base;79,2206
+static const int Nminimum 80,2229
+static const int NAllocUnit 82,2262
+#define NUM_ANALYTIC 87,2366
+#define NUM_HORIZONTAL_BIN 88,2393
+  ulong head,92,2443
+  ulong head, num;92,2443
+  real *rad,rad93,2495
+  real *rad, *rho,rho93,2495
+  real *rad, *rho, *enc,enc93,2495
+  real *rad, *rho, *enc, *Sig;Sig93,2495
+  real *sigr,sigr95,2603
+  real *sigr, *siglos;siglos95,2603
+  real *psi;psi98,2683
+  double disk_Rd,100,2764
+  double disk_Rd, disk_zd;100,2764
+  real *disk_radius,disk_radius101,2791
+  real *disk_radius, *disk_height,disk_height101,2791
+  real *disk_radius, *disk_height, *disk_azimuth,disk_azimuth101,2791
+  real *disk_radius, *disk_height, *disk_azimuth, *disk_rho,disk_rho101,2791
+  real *disk_radius, *disk_height, *disk_azimuth, *disk_rho, *disk_vol,disk_vol101,2791
+  real *disk_radius, *disk_height, *disk_azimuth, *disk_rho, *disk_vol, *disk_rad1d,disk_rad1d101,2791
+  real *disk_radius, *disk_height, *disk_azimuth, *disk_rho, *disk_vol, *disk_rad1d, *disk_Sigma;disk_Sigma101,2791
+  real *disk_sigR,disk_sigR103,2988
+  real *disk_sigR, *disk_sigp,disk_sigp103,2988
+  real *disk_sigR, *disk_sigp, *disk_sigz,disk_sigz103,2988
+  real *disk_sigR, *disk_sigp, *disk_sigz, *disk_vcirc;disk_vcirc103,2988
+  real *disk_toomre;disk_toomre105,3066
+  real *disk_pot,disk_pot109,3166
+  real *disk_pot, *disk_sig;disk_sig109,3166
+  real *hor,hor111,3285
+  real *hor, *ver,ver111,3285
+  real *hor, *ver, *Sigma,Sigma111,3285
+  real *hor, *ver, *Sigma, *Menc;Menc111,3285
+  real *ver_pos[ver_pos112,3366
+  real *ver_pos[NUM_HORIZONTAL_BIN], *ver_rho[ver_rho112,3366
+  int nrad;113,3433
+  int disk_nrad,114,3486
+  int disk_nrad, disk_nazi,114,3486
+  int disk_nrad, disk_nazi, disk_nsph;114,3486
+  int prf_head,115,3589
+  int prf_head, prf_num;115,3589
+  int prf_hor_head,116,3665
+  int prf_hor_head, prf_hor_num;116,3665
+  int prf_ver_head[prf_ver_head117,3753
+  int prf_ver_head[NUM_HORIZONTAL_BIN], prf_ver_num[prf_ver_num117,3753
+} model;118,3879
+  ulong idx;122,3906
+  real  x,123,3919
+  real  x,  y,123,3919
+  real  x,  y,  z;123,3919
+  real vx,124,3938
+  real vx, vy,124,3938
+  real vx, vy, vz;124,3938
+  real ax,125,3957
+  real ax, ay,125,3957
+  real ax, ay, az;125,3957
+  real m,126,3976
+  real m, pot;126,3976
+} nbody_particle;127,3991
+static inline void allocProfileArray(130,4011
+static inline void enlargeProfileArray(154,4722
+static inline void allocDecomposedProfileArray179,5434
+static inline void enlargeDecomposedProfileArray224,6759
+int idxAscendingOrder(276,8268
+int radAscendingOrder(291,8956
+int horAscendingOrder(306,9638
+int verAscendingOrder(321,10320
+static inline int bisec4nested(395,13327
+static inline int bisec(423,14311
+static inline void findIdx(441,14804
+static inline void getInterpolatedDensity(460,15484
+void gaussQuadVertical(474,16089
+real R_rhor(506,17182
+static inline real _gaussQuad2d(516,17468
+real gaussQuad2d(534,18323
+int main(552,19074
+void plotDistributionMaps1716,77324
+void plotRadialProfile2005,87975
+void plotHorizontalProfile2335,100770
+void plotVerticalProfile2875,125832
+void analyzeRadialProfile3131,138923
+void analyzeDecomposedProfile(3288,143831
+void integrateColumnDensity(3553,151996
 
-src/sort/peano_dev.h,1076
-#define PEANO_DEV_H14,907
-#define NTHREADS_PH 31,1586
-#define NTHREADS_PH 33,1643
-#undef  NTHREADS_PH40,1953
-#define NTHREADS_PH 41,1973
-#define NTHREADS_PHSORT 50,2255
-#define NTHREADS_PHSORT 53,2346
-#define NTHREADS_PHSORT 55,2406
-  PHint *key;key65,2692
-  int *idx;idx66,2706
-  float4 *min,min67,2718
-  float4 *min, *max;max67,2718
-  float4 *box_min,box_min69,2768
-  float4 *box_min, *box_max;box_max69,2768
-  float4 *min_hst,min_hst70,2797
-  float4 *min_hst, *max_hst;max_hst70,2797
-  int *gsync0,gsync072,2855
-  int *gsync0, *gsync1;gsync172,2855
-  void *temp_storage;temp_storage74,2901
-  size_t temp_storage_size;75,2923
-} soaPHsort;77,2973
-  float3 boxmin,88,3422
-  float3 boxmin, boxmax;88,3422
-  float *diameter_dev,diameter_dev89,3447
-  float *diameter_dev, *diameter_hst;diameter_hst89,3447
-  float elapsed,91,3517
-  float elapsed, dtmin,91,3517
-  float elapsed, dtmin, dtinv;91,3517
-  float linv;92,3548
-  float step;94,3594
-  float dL_L;95,3608
-  float eps,97,3654
-  float eps, eta;97,3654
-} domainLocation;98,3672
+src/sort/peano.h,181
+#define PEANO_H18,398
+#define MAXIMUM_PHKEY_LEVEL 35,646
+#define NUM_PHKEY_LEVEL 37,680
+typedef uint  PHint;47,868
+typedef ulong PHint;49,895
+typedef struct __align__(58,1022
 
-src/sort/radix_inc.h,4551
-#define RADIX_INC_H18,1061
-#define RADIX_DATA_TYPE_KEY 24,1258
-#define RADIX_DATA_TYPE_KEY 27,1337
-#define RADIX_SORT_ELEMENTS_PER_THREAD 31,1503
-#define RADIX_SORT_ELEMENTS_PER_THREAD 35,1698
-#undef  RADIX_SORT_ELEMENTS_PER_THREAD39,1966
-#define RADIX_SORT_ELEMENTS_PER_THREAD 40,2005
-#define STOCK_ARRAY_SUM_HEAD 43,2240
-#define STOCK_ARRAY_NUM_HEAD 44,2297
-#define STOCK_ARRAY_DST_HEAD 45,2354
-#define STOCK_ARRAY_IDX_HEAD 46,2411
-#define STOCK_ARRAY_PTR_NUM 47,2468
-#define STOCK_ARRAY_PTR_HEAD 48,2525
-#define RADIX_PREFIX_SUM_TSUB 54,2813
-#define RADIX_PREFIX_SUM_WARP 55,2859
-#define RADIX_PREFIX_SUM_BLCK 56,2905
-#define RADIX_SORT_TSUB 58,3003
-#define RADIX_SORT_BLCK 59,3045
-#define RADIX_SORT_CHIP 60,3087
-#define RADIX_SORT_GRID 61,3129
-#define RADIX_SORT_GRID_MSD 62,3171
-#define RADIX_SORT_GRID_LSD 63,3221
-#define RADIX_SORT_GRID_MOD 64,3271
-#define RADIX_SORT_GRID_GET_PARTITION 65,3321
-#define RADIX_SORT_GRID_MOD_SCATTER 66,3391
-#define RADIX_SORT_GRID_MOD_COLLECT 67,3459
-#define RADIX_SORT_GRID_MOD_GATHER 68,3527
-#define RADIX_SORT_GRID_LSD_FULL 69,3594
-#define RADIX_SORT_GRID_LSD_1ST 70,3648
-#define RADIX_SORT_GRID_LSD_2ND 71,3706
-#define RADIX_SORT_GRID_LSD_3RD 72,3764
-#define RADIX_PREFIX_SUM_TSUB 77,3982
-#define RADIX_PREFIX_SUM_WARP 78,4028
-#define RADIX_PREFIX_SUM_BLCK 79,4074
-#define RADIX_SORT_TSUB 81,4172
-#define RADIX_SORT_BLCK 82,4214
-#define RADIX_SORT_CHIP 83,4256
-#define RADIX_SORT_GRID 84,4298
-#define RADIX_SORT_GRID_MSD 85,4340
-#define RADIX_SORT_GRID_LSD 86,4390
-#define RADIX_SORT_GRID_MOD 87,4440
-#define RADIX_SORT_GRID_GET_PARTITION 88,4490
-#define RADIX_SORT_GRID_MOD_SCATTER 89,4560
-#define RADIX_SORT_GRID_MOD_COLLECT 90,4628
-#define RADIX_SORT_GRID_MOD_GATHER 91,4696
-#define RADIX_SORT_GRID_LSD_FULL 92,4763
-#define RADIX_SORT_GRID_LSD_1ST 93,4817
-#define RADIX_SORT_GRID_LSD_2ND 94,4875
-#define RADIX_SORT_GRID_LSD_3RD 95,4933
-#define RADIX_PREFIX_SUM_TSUB 101,5175
-#define RADIX_PREFIX_SUM_WARP 102,5224
-#define RADIX_PREFIX_SUM_BLCK 103,5273
-#define RADIX_SORT_TSUB 105,5377
-#define RADIX_SORT_BLCK 106,5422
-#define RADIX_SORT_CHIP 107,5467
-#define RADIX_SORT_GRID 108,5512
-#define RADIX_SORT_GRID_MSD 109,5557
-#define RADIX_SORT_GRID_LSD 110,5610
-#define RADIX_SORT_GRID_MOD 111,5663
-#define RADIX_SORT_GRID_GET_PARTITION 112,5716
-#define RADIX_SORT_GRID_MOD_SCATTER 113,5789
-#define RADIX_SORT_GRID_MOD_COLLECT 114,5860
-#define RADIX_SORT_GRID_MOD_GATHER 115,5931
-#define RADIX_SORT_GRID_LSD_FULL 116,6001
-#define RADIX_SORT_GRID_LSD_1ST 117,6058
-#define RADIX_SORT_GRID_LSD_2ND 118,6119
-#define RADIX_SORT_GRID_LSD_3RD 119,6180
-#define RADIX_PREFIX_SUM_TSUB 124,6407
-#define RADIX_PREFIX_SUM_WARP 125,6456
-#define RADIX_PREFIX_SUM_BLCK 126,6505
-#define RADIX_SORT_TSUB 128,6609
-#define RADIX_SORT_BLCK 129,6654
-#define RADIX_SORT_CHIP 130,6699
-#define RADIX_SORT_GRID 131,6744
-#define RADIX_SORT_GRID_MSD 132,6789
-#define RADIX_SORT_GRID_LSD 133,6842
-#define RADIX_SORT_GRID_MOD 134,6895
-#define RADIX_SORT_GRID_GET_PARTITION 135,6948
-#define RADIX_SORT_GRID_MOD_SCATTER 136,7021
-#define RADIX_SORT_GRID_MOD_COLLECT 137,7092
-#define RADIX_SORT_GRID_MOD_GATHER 138,7163
-#define RADIX_SORT_GRID_LSD_FULL 139,7233
-#define RADIX_SORT_GRID_LSD_1ST 140,7290
-#define RADIX_SORT_GRID_LSD_2ND 141,7351
-#define RADIX_SORT_GRID_LSD_3RD 142,7412
-#define RADIX_WARP_SHIFT_BITS 154,8254
-#define RADIX_WARP_SHIFT_MASK 155,8288
-#define RADIX_WARP_CHECK_BITS 156,8325
-#define RADIX_WARP_CHECK_MASK 157,8359
-#define RADIX_WARP_NUM_KEYS 159,8461
-#define RADIX_WARP_NUM_ITER 163,8682
-#define RADIX_WARP_NUM_ITER 166,8761
-#define RADIX_BLOCK_SHIFT_BITS 179,9779
-#define RADIX_BLOCK_SHIFT_MASK 180,9815
-#define RADIX_CONVERT_8x4to16x2UPPER(182,9924
-#define RADIX_CONVERT_8x4to16x2LOWER(183,10019
-#define RADIX_BLOCK_NUM_KEYS 184,10114
-#define RADIX_CONVERT_16x2to32x1UPPER(188,10411
-#define RADIX_CONVERT_16x2to32x1LOWER(189,10464
-#undef  RADIX_SORT_INT195,10697
-#undef  RADIX_SORT_UINT199,10843
-#undef  RADIX_SORT_UINT_INT203,10995
-#define RADIX_SORT_INT 207,11171
-#define RADIX_SORT_UINT 208,11206
-#define RADIX_SORT_UINT_INT 209,11241
-#define RADIX_SORT_UINT_ARRAY 210,11280
-#define RADIX_SORT_INT 214,11479
-#define RADIX_SORT_UINT 215,11515
-#define RADIX_SORT_UINT_INT 216,11551
-#define RADIX_SORT_UINT_ARRAY 217,11592
-#define RADIX_SORT_INT 221,11798
-#define RADIX_SORT_UINT 222,11834
-#define RADIX_SORT_UINT_INT 223,11870
-#define RADIX_SORT_UINT_ARRAY 224,11911
-#undef  RADIX_DEL_H231,12171
+src/sort/peano_dev.h,1086
+#define PEANO_DEV_H18,406
+#define NTHREADS_PH 39,713
+#define NTHREADS_PH 41,763
+#undef  NTHREADS_PH49,993
+#define NTHREADS_PH 50,1013
+#define NTHREADS_PHSORT 62,1241
+#define NTHREADS_PHSORT 65,1318
+#define NTHREADS_PHSORT 67,1371
+  PHint *key;key80,1554
+  int *idx;idx81,1568
+  float4 *min,min82,1580
+  float4 *min, *max;max82,1580
+  float4 *box_min,box_min84,1630
+  float4 *box_min, *box_max;box_max84,1630
+  float4 *min_hst,min_hst85,1659
+  float4 *min_hst, *max_hst;max_hst85,1659
+  int *gsync0,gsync087,1717
+  int *gsync0, *gsync1;gsync187,1717
+  void *temp_storage;temp_storage89,1763
+  size_t temp_storage_size;90,1785
+} soaPHsort;92,1835
+  float3 boxmin,104,2074
+  float3 boxmin, boxmax;104,2074
+  float *diameter_dev,diameter_dev105,2099
+  float *diameter_dev, *diameter_hst;diameter_hst105,2099
+  float elapsed,107,2169
+  float elapsed, dtmin,107,2169
+  float elapsed, dtmin, dtinv;107,2169
+  float linv;108,2200
+  float step;110,2246
+  float dL_L;111,2260
+  float eps,113,2306
+  float eps, eta;113,2306
+} domainLocation;114,2324
 
-src/sort/peano.c,323
-muse allocPeanoHilbertKey34,1787
-void  freePeanoHilbertKey83,4426
-static inline void calcBoxSize(106,5195
-static inline PHint dilate3D(159,7283
-static inline PHint morton3D(176,8339
-static inline void calcPHkey(188,8880
-int keyAscendingOrder(252,11418
-void sortParticlesPHcurve(261,11945
-void initPHinfo(332,14999
+src/time/adv_dev.h,271
+#define ADV_DEV_H18,393
+#define USE_WARP_SHUFFLE_FUNC_TIME38,831
+#undef          USE_WARP_SHUFFLE_FUNC_TIME42,956
+#define NTHREADS_TIME 53,1252
+#define NTHREADS_TIME 56,1322
+#define NTHREADS_TIME 58,1371
+#undef  NTHREADS_TIME65,1584
+#define NTHREADS_TIME 66,1606
 
-src/sort/radix_dev.h,1630
-#define RADIX_DEV_H14,907
-#define USE_WARP_SHUFFLE_FUNC_SORT24,1287
-#define INCREASE_INSTRUCTION_LEVEL_PARALLELISM29,1552
-#define ATOMIC_BASED_JOB_ASSIGNMENT31,1675
-#define SMEM_PREF_FOR_GLOBAL_SORT38,2039
-#undef          USE_WARP_SHUFFLE_FUNC_SORT46,2394
-#define RADIX_SORT_CHECK_BITS 51,2670
-#define RADIX_SORT_CHECK_MASK 52,2704
-#define RADIX_SORT_NUM_BUCKET 53,2738
-#define RADIX_SORT_NUM_OF_I32 54,2772
-#define RADIX_SORT_CHECK_BITS 62,3304
-#define RADIX_SORT_CHECK_MASK 63,3338
-#define RADIX_SORT_NUM_BUCKET 64,3373
-#define RADIX_SORT_NUM_OF_I32 65,3408
-#define RADIX_SORT_BOX_NUM_ALLOCATED 73,3940
-#define RADIX_SORT_REM_LOC_MAX_GUESS 77,4156
-#define NTHREADS_SORT 83,4398
-#undef  NTHREADS_SORT88,4602
-#define NTHREADS_SORT 89,4624
-#define NTHREADS_SORT_ACCUMULATION 93,4794
-#define TSUB_SORT 97,4965
-#undef  TSUB_SORT101,5100
-#define TSUB_SORT 102,5118
-#       undef  TSUB_SORT108,5368
-#       define TSUB_SORT 109,5393
-#       undef  TSUB_SORT114,5558
-#       define TSUB_SORT 115,5583
-#       undef  TSUB_SORT120,5738
-#       define TSUB_SORT 121,5763
-#define NGROUPS_SORT 127,5989
-  uint u;134,6208
-   int i;135,6218
-} uint_int;136,6228
-   uint u;139,6256
-  float f;140,6267
-} uint_float;141,6278
-  ulong u;144,6308
-  long i;145,6319
-} ulong_long;146,6329
-  ulong u;149,6359
-  double f;150,6370
-} ulong_double;151,6382
-  uint4 m;155,6490
-  uint  a[a156,6501
-} uint4_array;157,6515
-  uint2 m;160,6546
-  uint  a[a161,6557
-} uint2_array;162,6571
-  uint2 u;165,6602
-   int2 i;166,6613
-} uint2_int2;167,6624
-  uint4 u;170,6654
-   int4 i;171,6665
-} uint4_int4;172,6676
+src/tree/make.h,1686
+#define MAKE_H18,379
+#define SPLIT_CHILD_CELL37,638
+#define TREE_SAFETY_VAL 55,988
+#define NUM_CELL_MAX 58,1021
+#define NUM_NODE_MAX 59,1103
+#define NLEAF 69,1304
+#undef  NLEAF84,1967
+#define NLEAF 85,1981
+#define IDXBITS 86,2002
+#define IDXMASK 87,2023
+#define IDXBITS 90,2092
+#define IDXMASK 91,2113
+#define IDXBITS 94,2181
+#define IDXMASK 95,2202
+#define IDXBITS 98,2270
+#define IDXMASK 99,2291
+#define IDXBITS 102,2360
+#define IDXMASK 103,2381
+#undef  NLEAF105,2430
+#define NLEAF 106,2444
+#define IDXBITS 107,2466
+#define IDXMASK 108,2487
+#define NULL_CELL 115,2616
+#define NULL_NODE 116,2648
+#define  NCRIT 125,2790
+#undef  NCRIT129,2847
+#define NCRIT 130,2861
+#define CELL_UNIT 134,2907
+#define NUM_ALLOC_TREE_CELL 137,2931
+#define NUM_ALLOC_TREE_NODE 138,3031
+#define NI_BMAX_ESTIMATE 141,3133
+#define NJ_BMAX_ESTIMATE 142,3163
+#undef  NJ_BMAX_ESTIMATE145,3230
+#define NJ_BMAX_ESTIMATE 146,3255
+#define NUM_ALLOC_MACBUF 150,3323
+typedef struct __align__(158,3423
+static const treecell null_cell 163,3556
+typedef struct __align__(171,3676
+typedef struct __align__(183,3880
+typedef real jmass;193,4025
+typedef struct __align__(202,4165
+  PHinfo *level;level215,4317
+  treecell *cell;cell216,4334
+  bool *leaf;leaf217,4352
+  uint *ptag;ptag218,4366
+  PHint *hkey;hkey219,4380
+  uint *parent,parent220,4395
+  uint *parent, *children;children220,4395
+} soaTreeCell;221,4422
+  uint *more;more230,4529
+  int *jtag;jtag231,4543
+  int *node2cell;node2cell232,4556
+  jparticle *jpos;jpos233,4574
+  jmass *mj;mj234,4593
+  real *bmax;bmax235,4606
+  real *mr2;mr2237,4637
+  real *mac;mac240,4686
+} soaTreeNode;242,4718
 
-src/sort/radix_del.h,1705
-#define RADIX_DEL_H14,907
-#undef  RADIX_DATA_TYPE_KEY21,1177
-#undef  RADIX_SORT_ELEMENTS_PER_THREAD22,1205
-#undef  STOCK_ARRAY_PTR_NUM23,1244
-#undef  STOCK_ARRAY_PTR_HEAD24,1272
-#undef  STOCK_ARRAY_SUM_HEAD25,1301
-#undef  STOCK_ARRAY_NUM_HEAD26,1330
-#undef  STOCK_ARRAY_DST_HEAD27,1359
-#undef  STOCK_ARRAY_IDX_HEAD28,1388
-#undef  RADIX_PREFIX_SUM_TSUB32,1575
-#undef  RADIX_PREFIX_SUM_WARP33,1605
-#undef  RADIX_PREFIX_SUM_BLCK34,1635
-#undef  RADIX_SORT_TSUB36,1701
-#undef  RADIX_SORT_BLCK37,1725
-#undef  RADIX_SORT_CHIP38,1749
-#undef  RADIX_SORT_GRID39,1773
-#undef  RADIX_SORT_GRID_MSD40,1797
-#undef  RADIX_SORT_GRID_LSD41,1825
-#undef  RADIX_SORT_GRID_MOD42,1853
-#undef  RADIX_SORT_GRID_GET_PARTITION43,1881
-#undef  RADIX_SORT_GRID_MOD_SCATTER44,1919
-#undef  RADIX_SORT_GRID_MOD_COLLECT45,1955
-#undef  RADIX_SORT_GRID_MOD_GATHER46,1991
-#undef  RADIX_SORT_GRID_LSD_FULL47,2026
-#undef  RADIX_SORT_GRID_LSD_1ST48,2059
-#undef  RADIX_SORT_GRID_LSD_2ND49,2091
-#undef  RADIX_SORT_GRID_LSD_3RD50,2123
-#undef  RADIX_WARP_SHIFT_BITS52,2231
-#undef  RADIX_WARP_SHIFT_MASK53,2261
-#undef  RADIX_WARP_CHECK_BITS54,2291
-#undef  RADIX_WARP_CHECK_MASK55,2321
-#undef  RADIX_WARP_NUM_KEYS57,2427
-#undef  RADIX_BLOCK_NUM_KEYS58,2455
-#undef  RADIX_WARP_NUM_ITER60,2560
-#undef  RADIX_BLOCK_SHIFT_BITS63,2699
-#undef  RADIX_BLOCK_SHIFT_MASK64,2730
-#undef  RADIX_CONVERT_8x4to16x2UPPER75,3185
-#undef  RADIX_CONVERT_8x4to16x2LOWER76,3222
-#undef  RADIX_CONVERT_16x2to32x1UPPER78,3335
-#undef  RADIX_CONVERT_16x2to32x1LOWER79,3373
-#undef  RADIX_SORT_INT81,3487
-#undef  RADIX_SORT_UINT82,3510
-#undef  RADIX_SORT_UINT_INT83,3534
-#undef  RADIX_SORT_UINT_ARRAY84,3562
-#undef  RADIX_INC_H86,3668
+src/tree/let.h,1447
+#define LET_H18,385
+#define EXTEND_NUM_TREE_NODE 42,777
+#undef  EXTEND_NUM_TREE_NODE46,844
+#define EXTEND_NUM_TREE_NODE 47,873
+#define LETSIZE_OVERESTIMATION_STEPS 56,1039
+#define LETSIZE_REDUCE_CRITERION 63,1176
+#define LETSIZE_REDUCE_FACTOR 70,1310
+#define LETSIZE_OVERESTIMATION_FACTOR 80,1553
+#define LET_INCNUM_UNIT 84,1654
+#define ALIGN_BUF_FOR_LET(85,1683
+  position icom;95,1897
+  int *numSend_hst,numSend_hst96,1914
+  int *numSend_hst, *numSend_dev;numSend_dev96,1914
+  MPI_Request reqSendInfo,97,1948
+  MPI_Request reqSendInfo, reqSendMore,97,1948
+  MPI_Request reqSendInfo, reqSendMore, reqSendJpos,97,1948
+  MPI_Request reqSendInfo, reqSendMore, reqSendJpos, reqSendMass;97,1948
+  MPI_Request reqRecvInfo,98,2014
+  MPI_Request reqRecvInfo, reqRecvMore,98,2014
+  MPI_Request reqRecvInfo, reqRecvMore, reqRecvJpos,98,2014
+  MPI_Request reqRecvInfo, reqRecvMore, reqRecvJpos, reqRecvMass;98,2014
+  int headSend,99,2080
+  int headSend, headRecv,99,2080
+  int headSend, headRecv, numSend,99,2080
+  int headSend, headRecv, numSend, numRecv,99,2080
+  int headSend, headRecv, numSend, numRecv, numRecvGuess;99,2080
+  int maxSend,100,2138
+  int maxSend, maxRecv,100,2138
+  int maxSend, maxRecv, numFull,100,2138
+  int maxSend, maxRecv, numFull, numNode;100,2138
+  int overEstimateSend,101,2272
+  int overEstimateSend, overEstimateRecv;101,2272
+  int rank;102,2314
+  real amin;104,2345
+} domainInfo;106,2377
 
-src/time/adv_dev.h,273
-#define ADV_DEV_H14,905
-#define USE_WARP_SHUFFLE_FUNC_TIME38,1872
-#undef          USE_WARP_SHUFFLE_FUNC_TIME42,2072
-#define NTHREADS_TIME 50,2380
-#define NTHREADS_TIME 53,2464
-#define NTHREADS_TIME 55,2520
-#undef  NTHREADS_TIME62,2821
-#define NTHREADS_TIME 63,2843
+src/tree/macutil.h,48
+#define MACUTIL_H18,392
+#undef WS93_MAC25,482
 
-src/tree/stat_dev.h,401
-#define STAT_DEV_H14,906
-#define NUM_IGROUP_SAFETY_FACTOR 29,1501
-#define NEIGHBOR_PHKEY_LEVEL 35,1788
-#undef  NEIGHBOR_PHKEY_LEVEL42,2101
-#define NEIGHBOR_PHKEY_LEVEL 43,2130
-#undef  USE_VARIABLE_NEIGHBOR_LEVEL53,2609
-#define MINIMUM_NEIGHBOR_PHKEY_LEVEL 58,2861
-#define MAXIMUM_NEIGHBOR_PHKEY_LEVEL 59,2902
-  PHint jump;62,2960
-  real dt;63,2974
-  int num;64,2985
-} histogram_dt;65,2996
+src/tree/walk_dev.h,2398
+#define WALK_DEV_H18,405
+#define PARTIAL_SUM_ACCELERATION50,1123
+#define ACCURATE_ACCUMULATION63,1556
+#undef          ACCURATE_PARTIAL_SUM68,1727
+#define ADOPT_APPROXIMATED_ENCLOSING_BALL108,2703
+#define ADOPT_ENCLOSING_BALL113,2806
+#       undef   ADOPT_APPROXIMATED_ENCLOSING_BALL117,2930
+#       undef   COMPARE_ENCLOSING_BALLS121,3205
+#        define  ADOPT_ENCLOSING_BALL125,3542
+#define USE_WARP_SHUFFLE_FUNC131,3904
+#undef          USE_WARP_SHUFFLE_FUNC135,4019
+#define NWARP 148,4341
+#define NWARP 150,4380
+#define NWARP 156,4501
+#undef  NWARP162,4584
+#define NWARP 163,4598
+#define NTHREADS 174,4763
+#define NTHREADS 176,4807
+#undef  NTHREADS183,5125
+#define NTHREADS 184,5142
+#undef  DIV_NTHREADS188,5211
+#define DIV_NTHREADS(191,5278
+#define DIV_NTHREADS(194,5364
+#define DIV_NTHREADS(197,5450
+#define DIV_NTHREADS(200,5536
+#define TSUB 211,5772
+#undef  TSUB216,5895
+#define TSUB 217,5908
+#undef  TSUB221,6014
+#define TSUB 222,6027
+#undef  TSUB226,6144
+#define TSUB 227,6157
+#undef  DIV_TSUB231,6223
+#define DIV_TSUB(234,6276
+#define DIV_TSUB(237,6345
+#define DIV_TSUB(240,6414
+#define DIV_TSUB(243,6483
+#define DIV_TSUB(246,6552
+#define DIV_TSUB(249,6621
+#undef  DIV_NWARP253,6685
+#define DIV_NWARP(256,6741
+#define DIV_NWARP(259,6813
+#define DIV_NWARP(262,6885
+#define DIV_NWARP(265,6957
+#define DIV_NWARP(268,7029
+#define DIV_NWARP(271,7101
+#define NGROUPS 274,7149
+#define NLOOP 282,7281
+#define NBLOCKS_PER_SM 298,7614
+#undef  NLOOP307,7866
+#define NLOOP 308,7880
+#define NQUEUE 311,8002
+#define NQUEUE 313,8087
+#undef  NLOOP318,8299
+#define NLOOP 319,8313
+#define NQUEUE 322,8435
+#define NQUEUE 324,8520
+#undef  NLOOP333,8838
+#define NLOOP 334,8852
+#define NQUEUE 337,8974
+#define NQUEUE 339,9059
+#undef  NLOOP344,9289
+#define NLOOP 345,9303
+#define NQUEUE 348,9461
+#define NQUEUE 350,9564
+#define NSTOCK 363,9860
+#define IDX_SHIFT_BITS 374,10097
+#define IDX_SHIFT_MASK 382,10274
+typedef struct __align__(386,10324
+  cudaStream_t *stream;stream397,10488
+  int idx,398,10512
+  int idx, num;398,10512
+} kernelStream;399,10528
+#define  NDIM_SEB 404,10585
+#define NDIM2_SEB 405,10607
+#undef   NDIM_SEB407,10672
+#undef  NDIM2_SEB408,10690
+typedef struct __align__(416,10834
+typedef union __align__(427,10991
+typedef union __align__(442,11244
+  uint i;462,11568
+  real r;463,11578
+} uint_real;464,11588
 
-src/tree/make.h,1942
-#define MAKE_H14,902
-#define SPLIT_CHILD_CELL29,1533
-#define TREE_SAFETY_VAL 38,1911
-#define NUM_CELL_MAX 42,2150
-#define NUM_NODE_MAX 43,2232
-#define NLEAF 50,2507
-# undef NLEAF65,3286
-#define NLEAF 66,3300
-#                   define IDXBITS 67,3321
-#                   define IDXMASK 68,3361
-#                   define IDXBITS 71,3449
-#                   define IDXMASK 72,3489
-#                   define IDXBITS 75,3576
-#                   define IDXMASK 76,3616
-#                   define IDXBITS 79,3703
-#                   define IDXMASK 80,3743
-#                   define IDXBITS 83,3831
-#                   define IDXMASK 84,3871
-# undef NLEAF86,3939
-#define NLEAF 87,3953
-#                   define IDXBITS 88,3975
-#                   define IDXMASK 89,4015
-#define NULL_CELL 96,4238
-#define NULL_NODE 97,4270
-#      define NCRIT 103,4472
-#undef  NCRIT107,4614
-#define NCRIT 108,4628
-#define CELL_UNIT 111,4748
-#define NUM_ALLOC_TREE_CELL 116,4924
-#define NUM_ALLOC_TREE_NODE 117,5024
-#define NI_BMAX_ESTIMATE 122,5278
-#define NJ_BMAX_ESTIMATE 123,5308
-#undef  NJ_BMAX_ESTIMATE126,5450
-#define NJ_BMAX_ESTIMATE 127,5475
-#define NUM_ALLOC_MACBUF 130,5617
-typedef struct __align__(137,5934
-static const treecell null_cell 142,6140
-typedef struct __align__(144,6266
-typedef struct __align__(150,6448
-typedef real jmass;155,6549
-typedef struct __align__(158,6688
-  PHinfo *level;level170,7042
-  treecell *cell;cell171,7059
-  bool *leaf;leaf172,7077
-  uint *ptag;ptag173,7091
-  PHint *hkey;hkey174,7105
-  uint *parent,parent175,7120
-  uint *parent, *children;children175,7120
-} soaTreeCell;176,7147
-  uint *more;more180,7255
-  int *jtag;jtag181,7269
-  int *node2cell;node2cell182,7282
-  int *niSub;niSub184,7411
-  jparticle *jpos;jpos186,7536
-  jmass *mj;mj187,7555
-  real *bmax;bmax188,7568
-  real *mr2;mr2190,7599
-  real *mac;mac193,7648
-} soaTreeNode;198,7779
+src/tree/neighbor_dev.h,173
+#define NEIGHBOR_DEV_H18,415
+#define SMEM_PREF_FOR_NEIGHBOR_SEARCH34,760
+#define NEIGHBOR_NUM 38,828
+#define NEIGHBOR_NUM_INC 39,864
+#define NTHREADS_FACILE_NS 48,1048
 
-src/tree/seb.c,984
-#define NDIM_SEB 12,812
-gsl_rng *GSLRand;GSLRand24,1279
-#define UNIRAND 25,1297
-#define RANDVAL 26,1346
-static const double sebEps 32,1567
-static const double sebEps2 33,1606
-static const double sebTiny 34,1645
-static const  float sebEps 36,1709
-static const  float sebEps2 37,1748
-static const  float sebTiny 38,1788
-#define SEB_AFFINE_ORIGIN(41,1928
-static inline real rdot(46,2171
-static inline real rnrm2(58,2733
-void initQR86,4310
-void initSEB140,7002
-static inline real getShortestVector202,10237
-static inline void findAffineCoefficients245,12730
-static inline void givensRotation(299,15432
-static inline void clearHessenberg(353,18127
-void updateQR(409,21187
-static inline void removePoint500,25953
-static inline bool dropSupport574,29991
-static inline void findStopper626,32829
-static inline void appendColumn688,36066
-static inline void addSupport752,39573
-static inline void finalizeSEBfinder(800,42098
-void findSEB858,45459
-int main(951,50121
+src/tree/let.c,93
+void shareNodePosition(44,808
+void setLETpartition(75,1616
+void guessLETpartition(95,2167
 
-src/tree/let.h,1529
-#define LET_H14,901
-#define EXTEND_NUM_TREE_NODE 34,1656
-#       undef  EXTEND_NUM_TREE_NODE37,1797
-#       define EXTEND_NUM_TREE_NODE 38,1833
-#define LETSIZE_OVERESTIMATION_STEPS 44,2059
-#define LETSIZE_OVERESTIMATION_FACTOR 48,2278
-#define LETSIZE_REDUCE_CRITERION 51,2453
-#define LETSIZE_REDUCE_FACTOR 52,2494
-#define TGRP 57,2686
-#define NBUF_LET 68,3301
-#define NBUF_MSK 69,3322
-#define LET_INCNUM_UNIT 71,3430
-#define ALIGN_BUF_FOR_LET(73,3599
-  position icom;80,3904
-  int *numSend_hst,numSend_hst82,3949
-  int *numSend_hst, *numSend_dev;numSend_dev82,3949
-  MPI_Request reqSendInfo,84,4011
-  MPI_Request reqSendInfo, reqSendMore,84,4011
-  MPI_Request reqSendInfo, reqSendMore, reqSendJpos,84,4011
-  MPI_Request reqSendInfo, reqSendMore, reqSendJpos, reqSendMass;84,4011
-  MPI_Request reqRecvInfo,85,4077
-  MPI_Request reqRecvInfo, reqRecvMore,85,4077
-  MPI_Request reqRecvInfo, reqRecvMore, reqRecvJpos,85,4077
-  MPI_Request reqRecvInfo, reqRecvMore, reqRecvJpos, reqRecvMass;85,4077
-  int headSend,86,4143
-  int headSend, headRecv,86,4143
-  int headSend, headRecv, numSend,86,4143
-  int headSend, headRecv, numSend, numRecv,86,4143
-  int headSend, headRecv, numSend, numRecv, numRecvGuess;86,4143
-  int maxSend,87,4201
-  int maxSend, maxRecv,87,4201
-  int maxSend, maxRecv, numFull,87,4201
-  int maxSend, maxRecv, numFull, numNode;87,4201
-  int overEstimateSend,88,4333
-  int overEstimateSend, overEstimateRecv;88,4333
-  int rank;89,4375
-  real amin;91,4406
-} domainInfo;93,4438
+src/tree/make_dev.h,4276
+#define MAKE_DEV_H18,394
+#define USE_WARP_SHUFFLE_FUNC_MAC44,1129
+#undef          USE_WARP_SHUFFLE_FUNC_MAC48,1252
+#define NTHREADS_MAC 59,1495
+#define NTHREADS_MAC 61,1545
+#undef  NTHREADS_MAC67,1735
+#define NTHREADS_MAC 68,1756
+#undef  DIV_NTHREADS_MAC72,1837
+#define DIV_NTHREADS_MAC(75,1915
+#define DIV_NTHREADS_MAC(78,2010
+#define DIV_NTHREADS_MAC(81,2105
+#define TSUB_MAC 91,2302
+#undef  TSUB_MAC96,2433
+#define TSUB_MAC 97,2450
+#undef  TSUB_MAC103,2612
+#define TSUB_MAC 104,2629
+#undef  TSUB_MAC109,2769
+#define TSUB_MAC 110,2786
+#undef  TSUB_MAC115,2916
+#define TSUB_MAC 116,2933
+#define NBUF_MAC 123,3066
+#undef  NBUF_MAC127,3218
+#define NBUF_MAC 128,3235
+#undef  TSUB_MAC129,3256
+#define TSUB_MAC 130,3273
+#undef  DIV_TSUB_MAC134,3376
+#define DIV_TSUB_MAC(137,3441
+#define DIV_TSUB_MAC(140,3522
+#define DIV_TSUB_MAC(143,3603
+#define DIV_TSUB_MAC(146,3684
+#define DIV_TSUB_MAC(149,3765
+#define DIV_TSUB_MAC(152,3846
+#define NGROUPS_MAC 156,3899
+#undef  NI_BMAX_ESTIMATE160,3999
+#define NI_BMAX_ESTIMATE 161,4024
+#undef          USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE172,4460
+#define NTHREADS_MAKE_TREE 182,4719
+#define NTHREADS_LINK_TREE 193,4927
+#define NTHREADS_LINK_TREE 195,4983
+#define NTHREADS_TRIM_TREE 206,5191
+#undef  NTHREADS_MAKE_TREE212,5383
+#define NTHREADS_MAKE_TREE 213,5410
+#undef  DIV_NTHREADS_MAKE_TREE217,5509
+#define DIV_NTHREADS_MAKE_TREE(220,5605
+#define DIV_NTHREADS_MAKE_TREE(223,5718
+#define DIV_NTHREADS_MAKE_TREE(226,5831
+#undef  DIV_NTHREADS_LINK_TREE230,5942
+#define DIV_NTHREADS_LINK_TREE(233,6039
+#define DIV_NTHREADS_LINK_TREE(236,6155
+#define DIV_NTHREADS_LINK_TREE(239,6271
+#define DIV_NTHREADS_LINK_TREE(242,6387
+#define TSUB_MAKE_TREE 252,6605
+#undef  TSUB_MAKE_TREE255,6698
+#define TSUB_MAKE_TREE 256,6721
+#undef  DIV_TSUB_MAKE_TREE260,6819
+#define DIV_TSUB_MAKE_TREE(263,6902
+#define DIV_TSUB_MAKE_TREE(266,7001
+#define DIV_TSUB_MAKE_TREE(269,7100
+#define DIV_TSUB_MAKE_TREE(272,7199
+#define DIV_TSUB_MAKE_TREE(275,7298
+#define DIV_TSUB_MAKE_TREE(278,7397
+#define NGROUPS_MAKE_TREE 282,7462
+#define NTHREADS_INIT_LINK 292,7681
+#define NTHREADS_INIT_LINK 294,7737
+#define NTHREADS_INIT_CELL 306,7972
+#define NTHREADS_INIT_CELL 309,8051
+#define NTHREADS_INIT_CELL 311,8107
+#define NTHREADS_INIT_NODE 324,8365
+#define NTHREADS_INIT_NODE 326,8421
+#define NTHREADS_INIT_BODY 337,8633
+#define NTHREADS_COPY_BODY 348,8845
+#define NTHREADS_COPY_BODY 351,8925
+#define NTHREADS_COPY_BODY 353,8981
+#define NTHREADS_OUTFLOW 365,9262
+#undef  DIV_NTHREADS_OUTFLOW368,9324
+#define DIV_NTHREADS_OUTFLOW(371,9415
+#define DIV_NTHREADS_OUTFLOW(374,9525
+#define DIV_NTHREADS_OUTFLOW(377,9635
+#define DIV_NTHREADS_OUTFLOW(380,9745
+#define TSUB_OUTFLOW 388,9937
+#undef  TSUB_OUTFLOW392,10118
+#define TSUB_OUTFLOW 393,10139
+#undef  DIV_TSUB_OUTFLOW397,10237
+#define DIV_TSUB_OUTFLOW(400,10314
+#define DIV_TSUB_OUTFLOW(403,10407
+#define DIV_TSUB_OUTFLOW(406,10500
+#define DIV_TSUB_OUTFLOW(409,10593
+#define DIV_TSUB_OUTFLOW(412,10686
+#define DIV_TSUB_OUTFLOW(415,10779
+#define NGROUPS_OUTFLOW 418,10839
+  int *more0,more0429,11087
+  int *more0, *more1;more1429,11087
+  real *rjmax;rjmax430,11109
+  int *fail;fail431,11124
+  int *gsync0,gsync0432,11137
+  int *gsync0, *gsync1;gsync1432,11137
+  int *gmem_make_tree,gmem_make_tree433,11161
+  int *gmem_make_tree, *gmem_link_tree;gmem_link_tree433,11161
+  int *gsync0_make_tree,gsync0_make_tree434,11201
+  int *gsync0_make_tree, *gsync1_make_tree,gsync1_make_tree434,11201
+  int *gsync0_make_tree, *gsync1_make_tree, *gsync2_make_tree,gsync2_make_tree434,11201
+  int *gsync0_make_tree, *gsync1_make_tree, *gsync2_make_tree, *gsync3_make_tree;gsync3_make_tree434,11201
+  int *gsync0_link_tree,gsync0_link_tree435,11283
+  int *gsync0_link_tree, *gsync1_link_tree;gsync1_link_tree435,11283
+  int  *ibuf_external;ibuf_external438,11493
+  real *rbuf_external;rbuf_external439,11516
+  uint *ubuf_external;ubuf_external441,11630
+  int *gmem_external,gmem_external443,11744
+  int *gmem_external, *gsync0_external,gsync0_external443,11744
+  int *gmem_external, *gsync0_external, *gsync1_external;gsync1_external443,11744
+  size_t Nbuf_external;444,11802
+} soaMakeTreeBuf;446,11901
 
-src/tree/stat.h,22
-#define STAT_H14,902
+src/tree/shrink_dev.h,213
+#define SHRINK_DEV_H18,391
+#define NUM_IGROUP_SAFETY_FACTOR 36,726
+#define NTHREADS_SHRINK 46,921
+#define NTHREADS_SHRINK 49,997
+#define NTHREADS_SHRINK 51,1051
+#define NEIGHBOR_LENGTH_SHRINK_FACTOR 63,1306
 
-src/tree/make.c,462
-static real invDelta;28,1480
-void setGlobalConstants_make_c(38,1982
-muse allocTreeCell(63,3166
-void  freeTreeCell(116,6043
-#define USE_BISECTION_AS_STARTER152,7484
-static inline real loadPHkey4BrentSearch(155,7625
-static inline int rootFindBrentIdx(164,8123
-static inline void linkNode330,16557
-void makeTree413,22043
-void setRealParticles882,45537
-void calcMultipole980,50017
-#define SEPARATED_IMPLEMENTATION1404,68852
-void calcMultipole1405,68885
+src/tree/let_dev.h,629
+#define LET_DEV_H18,393
+#define NTHREADS_MAKE_LET 44,902
+#undef  NTHREADS_MAKE_LET49,1088
+#define NTHREADS_MAKE_LET 50,1114
+#undef   NTHREADS_MAKE_LET55,1307
+#define  NTHREADS_MAKE_LET 56,1334
+#define USE_WARP_SHUFFLE_FUNC_MAKE_LET60,1421
+#undef          USE_WARP_SHUFFLE_FUNC_MAKE_LET62,1525
+#undef  DIV_NTHREADS_MAKE_LET67,1669
+#define DIV_NTHREADS_MAKE_LET(70,1763
+#define DIV_NTHREADS_MAKE_LET(73,1876
+#define DIV_NTHREADS_MAKE_LET(76,1989
+#define DIV_NTHREADS_MAKE_LET(79,2102
+#define DIV_NTHREADS_MAKE_LET(82,2215
+#define DIV_NTHREADS_MAKE_LET(85,2328
+#define NQUEUE_LET 96,2648
+#define NQUEUE_LET 98,2743
 
-src/tree/stat.c,65
-void setSubRootNode(24,1287
-void chkHierarchyStatistics70,3435
+src/tree/buf_inc.h,326
+#define BUF_INC_H18,387
+#define USE_SMID_TO_GET_BUFID21,407
+#define TRY_MODE_ABOUT_BUFFER22,437
+  uint *freeLst,freeLst32,567
+  uint *freeLst, *buffer;buffer32,567
+  int *fail;fail33,593
+  uint *freeNum;freeNum36,666
+  int *active;active37,683
+  int freeNum;39,728
+  int bufSize;42,803
+} soaTreeWalkBuf;43,818
 
-src/tree/macutil.h,49
-#define MACUTIL_H14,905
-#undef WS93_MAC22,1221
-
-src/tree/make_del.h,182
-#define MAKE_DEL_H14,906
-#undef  USE_WARP_SHUFFLE_FUNC_MAKE_INC22,1213
-#undef  PREFIX_SUM_MAKE_INC_BLCK25,1367
-#undef  PREFIX_SUM_MAKE_INC_GRID26,1400
-#undef  MAKE_INC_H28,1509
-
-src/tree/walk_dev.h,2397
-#define WALK_DEV_H14,906
-#define PARTIAL_SUM_ACCELERATION42,2007
-#define ACCURATE_ACCUMULATION45,2149
-#undef          ACCURATE_PARTIAL_SUM50,2395
-#define ADOPT_APPROXIMATED_ENCLOSING_BALL62,2954
-#define ADOPT_ENCLOSING_BALL66,3131
-#       undef   ADOPT_APPROXIMATED_ENCLOSING_BALL69,3329
-#       undef   COMPARE_ENCLOSING_BALLS73,3679
-#        define  ADOPT_ENCLOSING_BALL77,4091
-#define USE_WARP_SHUFFLE_FUNC82,4527
-#undef          USE_WARP_SHUFFLE_FUNC86,4717
-#define NWARP 95,5046
-#define NWARP 100,5185
-#define NWARP 107,5346
-#undef  NWARP111,5427
-#define NWARP 112,5441
-#define NTHREADS 117,5602
-#define NTHREADS 119,5653
-#undef  NTHREADS126,6051
-#define NTHREADS 127,6068
-#undef  DIV_NTHREADS131,6212
-#define DIV_NTHREADS(134,6279
-#define DIV_NTHREADS(137,6365
-#define DIV_NTHREADS(140,6451
-#define DIV_NTHREADS(143,6537
-#define TSUB 148,6725
-#undef  TSUB153,6870
-#define TSUB 154,6883
-#undef  TSUB158,6988
-#define TSUB 159,7001
-#undef  TSUB163,7117
-#define TSUB 164,7130
-#undef  DIV_TSUB168,7271
-#define DIV_TSUB(171,7324
-#define DIV_TSUB(174,7393
-#define DIV_TSUB(177,7462
-#define DIV_TSUB(180,7531
-#define DIV_TSUB(183,7600
-#define DIV_TSUB(186,7669
-#undef  DIV_NWARP190,7808
-#define DIV_NWARP(193,7864
-#define DIV_NWARP(196,7936
-#define DIV_NWARP(199,8008
-#define DIV_NWARP(202,8080
-#define DIV_NWARP(205,8152
-#define DIV_NWARP(208,8224
-#define NGROUPS 211,8347
-#define NLOOP 219,8594
-#define NBLOCKS_PER_SM 224,8808
-#undef  NLOOP232,9208
-#define NLOOP 233,9222
-#define NQUEUE 236,9351
-#define NQUEUE 238,9443
-#undef  NLOOP243,9661
-#define NLOOP 244,9675
-#define NQUEUE 247,9804
-#define NQUEUE 249,9896
-#undef  NLOOP258,10370
-#define NLOOP 259,10384
-#define NQUEUE 262,10513
-#define NQUEUE 264,10605
-#undef  NLOOP269,10841
-#define NLOOP 270,10855
-#define NQUEUE 273,11020
-#define NQUEUE 275,11130
-#define NSTOCK 284,11553
-#define IDX_SHIFT_BITS 286,11648
-#define IDX_SHIFT_MASK 287,11675
-typedef struct __align__(293,11877
-  cudaStream_t *stream;stream298,12044
-  int idx,299,12068
-  int idx, num;299,12068
-} kernelStream;300,12084
-#define  NDIM_SEB 303,12214
-#define NDIM2_SEB 304,12236
-#undef  NDIM_SEB306,12301
-#undef NDIM2_SEB307,12318
-typedef struct __align__(309,12378
-typedef union __align__(314,12452
-typedef union __align__(322,12618
-  uint i;336,12927
-  real r;337,12937
-} uint_real;338,12947
-
-src/tree/make_inc.h,492
-#define MAKE_INC_H18,1050
-#define USE_WARP_SHUFFLE_FUNC_MAKE_INC23,1223
-#undef          USE_WARP_SHUFFLE_FUNC_MAKE_INC26,1403
-#define PREFIX_SUM_MAKE_INC_BLCK 33,1703
-#define PREFIX_SUM_MAKE_INC_GRID 34,1758
-#define PREFIX_SUM_MAKE_INC_BLCK 38,1957
-#define PREFIX_SUM_MAKE_INC_GRID 39,2012
-#define PREFIX_SUM_MAKE_INC_BLCK 43,2211
-#define PREFIX_SUM_MAKE_INC_GRID 44,2266
-#define PREFIX_SUM_MAKE_INC_BLCK 48,2465
-#define PREFIX_SUM_MAKE_INC_GRID 49,2520
-#undef  MAKE_DEL_H56,2782
-
-src/tree/neighbor_dev.h,2155
-#define NEIGHBOR_DEV_H14,910
-#define SMEM_PREF_FOR_NEIGHBOR_SEARCH31,1706
-#define NEIGHBOR_NUM 34,1848
-#define NEIGHBOR_NUM_INC 35,1884
-#define NTHREADS_FACILE_NS 43,2216
-#define USE_SMID_TO_GET_BUFID_NEIGHBOR53,2644
-#define TRY_MODE_ABOUT_BUFFER_NEIGHBOR54,2683
-#define USE_WARP_SHUFFLE_FUNC_NEIGHBOR58,2955
-#undef          USE_WARP_SHUFFLE_FUNC_NEIGHBOR62,3163
-#define NTHREADS_NEIGHBOR 67,3415
-#undef  NTHREADS_NEIGHBOR72,3638
-#define NTHREADS_NEIGHBOR 73,3664
-#define TSUB_NEIGHBOR 77,3827
-#undef  TSUB_NEIGHBOR81,3986
-#define TSUB_NEIGHBOR 82,4008
-#       undef  TSUB_NEIGHBOR88,4286
-#       define TSUB_NEIGHBOR 89,4315
-#       undef  TSUB_NEIGHBOR94,4500
-#       define TSUB_NEIGHBOR 95,4529
-#       undef  TSUB_NEIGHBOR100,4704
-#       define TSUB_NEIGHBOR 101,4733
-#define NGROUPS_NEIGHBOR 107,4979
-#define NI_NEIGHBOR_ESTIMATE 113,5249
-#undef  NI_NEIGHBOR_ESTIMATE118,5585
-#define NI_NEIGHBOR_ESTIMATE 119,5614
-#define NBUF_NEIGHBOR 122,5781
-#undef  NBUF_NEIGHBOR127,6048
-#define NBUF_NEIGHBOR 128,6070
-#undef  NI_NEIGHBOR_ESTIMATE129,6097
-#define NI_NEIGHBOR_ESTIMATE 130,6126
-#undef  NBUF_NEIGHBOR135,6381
-#define NBUF_NEIGHBOR 136,6403
-#undef  NI_NEIGHBOR_ESTIMATE137,6430
-#define NI_NEIGHBOR_ESTIMATE 138,6459
-#define NUM_ALLOC_NEIGHBORBUF 151,7239
-#define CHECK_2BITS158,7641
-#define NTHREADS_SORT 159,7661
-#define TSUB_SORT 160,7701
-#define SORT_ELEMENTS_PER_THREAD 162,7809
-#define KEY_BITS 164,7932
-#       define NS_SHARED_MEM_CAPACITY 179,8469
-#       define NS_SHARED_MEM_CAPACITY 181,8553
-#define REDUCE_SM_USAGE_IN_NEIGHBOR_DEV_CU184,8713
-#define USAGE_NS_COMMON 188,8911
-#define USAGE_NS_COMMON 190,9026
-#define USAGE_NS_SORT 193,9256
-#define USAGE_NS_SHARE 195,9415
-#define USAGE_NS_SHARE 197,9488
-#define USAGE_NS_TEMP 200,9623
-#define USAGE_NS_TEMP 202,9691
-#define USAGE_NS_BUFFER 205,9847
-#define USAGE_NS_BUFFER 207,9933
-#define NBLOCKS_PER_SM_NEIGHBOR 210,10078
-  int *gsync0,gsync0227,10875
-  int *gsync0, *gsync1;gsync1227,10875
-  uint *freeLst;freeLst228,10899
-  uint *freeNum;freeNum230,11009
-  int *active;active231,11026
-} soaNeighborSearchBuf;233,11134
-
-src/tree/let.c,99
-void shareNodePosition(177,9293
-void setLETpartition(221,11456
-void guessLETpartition(240,12498
-
-src/tree/make_dev.h,4379
-#define MAKE_DEV_H14,906
-#define USE_WARP_SHUFFLE_FUNC_MAC40,2241
-#undef          USE_WARP_SHUFFLE_FUNC_MAC44,2439
-#define NTHREADS_MAC 49,2668
-#define NTHREADS_MAC 51,2725
-#undef  NTHREADS_MAC56,2920
-#define NTHREADS_MAC 57,2941
-#undef  DIV_NTHREADS_MAC61,3097
-#define DIV_NTHREADS_MAC(64,3175
-#define DIV_NTHREADS_MAC(67,3270
-#define DIV_NTHREADS_MAC(70,3365
-#define TSUB_MAC 74,3525
-#undef  TSUB_MAC78,3654
-#define TSUB_MAC 79,3671
-#       undef  TSUB_MAC85,3914
-#       define TSUB_MAC 86,3938
-#       undef  TSUB_MAC91,4098
-#       define TSUB_MAC 92,4122
-#       undef  TSUB_MAC97,4272
-#       define TSUB_MAC 98,4296
-#define NBUF_MAC 104,4517
-#undef  NBUF_MAC108,4743
-#define NBUF_MAC 109,4760
-#undef  TSUB_MAC110,4781
-#define TSUB_MAC 111,4798
-#undef  DIV_TSUB_MAC115,4976
-#define DIV_TSUB_MAC(118,5041
-#define DIV_TSUB_MAC(121,5122
-#define DIV_TSUB_MAC(124,5203
-#define DIV_TSUB_MAC(127,5284
-#define DIV_TSUB_MAC(130,5365
-#define DIV_TSUB_MAC(133,5446
-#define NGROUPS_MAC 136,5573
-#undef  NI_BMAX_ESTIMATE142,5825
-#define NI_BMAX_ESTIMATE 143,5850
-#undef          USE_WARP_SHUFFLE_FUNC_MAKE_TREE159,6788
-#undef          USE_WARP_SHUFFLE_FUNC_LINK_TREE163,7044
-#define NTHREADS_MAKE_TREE 167,7261
-#define NTHREADS_LINK_TREE 171,7378
-#define NTHREADS_LINK_TREE 173,7441
-#define NTHREADS_TRIM_TREE 177,7558
-#undef  NTHREADS_MAKE_TREE182,7823
-#define NTHREADS_MAKE_TREE 183,7850
-#undef  DIV_NTHREADS_MAKE_TREE187,8024
-#define DIV_NTHREADS_MAKE_TREE(190,8120
-#define DIV_NTHREADS_MAKE_TREE(193,8233
-#define DIV_NTHREADS_MAKE_TREE(196,8346
-#undef  DIV_NTHREADS_LINK_TREE200,8532
-#define DIV_NTHREADS_LINK_TREE(203,8629
-#define DIV_NTHREADS_LINK_TREE(206,8745
-#define DIV_NTHREADS_LINK_TREE(209,8861
-#define DIV_NTHREADS_LINK_TREE(212,8977
-#define TSUB_MAKE_TREE 216,9157
-#undef  TSUB_MAKE_TREE219,9250
-#define TSUB_MAKE_TREE 220,9273
-#undef  DIV_TSUB_MAKE_TREE224,9446
-#define DIV_TSUB_MAKE_TREE(227,9529
-#define DIV_TSUB_MAKE_TREE(230,9628
-#define DIV_TSUB_MAKE_TREE(233,9727
-#define DIV_TSUB_MAKE_TREE(236,9826
-#define DIV_TSUB_MAKE_TREE(239,9925
-#define DIV_TSUB_MAKE_TREE(242,10024
-#define NGROUPS_MAKE_TREE 245,10163
-#define NTHREADS_INIT_LINK 251,10440
-#define NTHREADS_INIT_LINK 253,10503
-#define NTHREADS_INIT_CELL 259,10726
-#define NTHREADS_INIT_CELL 262,10819
-#define NTHREADS_INIT_CELL 264,10882
-#define NTHREADS_INIT_NODE 271,11135
-#define NTHREADS_INIT_NODE 273,11198
-#define NTHREADS_INIT_BODY 283,11573
-#define NTHREADS_COPY_BODY 288,11766
-#define NTHREADS_COPY_BODY 291,11860
-#define NTHREADS_COPY_BODY 293,11923
-#define NTHREADS_OUTFLOW 303,12348
-#undef  DIV_NTHREADS_OUTFLOW305,12409
-#define DIV_NTHREADS_OUTFLOW(308,12500
-#define DIV_NTHREADS_OUTFLOW(311,12610
-#define DIV_NTHREADS_OUTFLOW(314,12720
-#define DIV_NTHREADS_OUTFLOW(317,12830
-#define TSUB_OUTFLOW 320,12983
-#undef  TSUB_OUTFLOW323,13162
-#define TSUB_OUTFLOW 324,13183
-#undef  DIV_TSUB_OUTFLOW327,13280
-#define DIV_TSUB_OUTFLOW(330,13357
-#define DIV_TSUB_OUTFLOW(333,13450
-#define DIV_TSUB_OUTFLOW(336,13543
-#define DIV_TSUB_OUTFLOW(339,13636
-#define DIV_TSUB_OUTFLOW(342,13729
-#define DIV_TSUB_OUTFLOW(345,13822
-#define NGROUPS_OUTFLOW 347,13881
-  int *more0,more0356,14264
-  int *more0, *more1;more1356,14264
-  real *rjmax;rjmax357,14286
-  int *fail;fail358,14301
-  int *gsync0,gsync0359,14314
-  int *gsync0, *gsync1;gsync1359,14314
-  int *gmem_make_tree,gmem_make_tree361,14366
-  int *gmem_make_tree, *gmem_link_tree;gmem_link_tree361,14366
-  int *gsync0_make_tree,gsync0_make_tree362,14406
-  int *gsync0_make_tree, *gsync1_make_tree,gsync1_make_tree362,14406
-  int *gsync0_make_tree, *gsync1_make_tree, *gsync2_make_tree,gsync2_make_tree362,14406
-  int *gsync0_make_tree, *gsync1_make_tree, *gsync2_make_tree, *gsync3_make_tree;gsync3_make_tree362,14406
-  int *gsync0_link_tree,gsync0_link_tree363,14488
-  int *gsync0_link_tree, *gsync1_link_tree;gsync1_link_tree363,14488
-  int  *ibuf_external;ibuf_external367,14726
-  real *rbuf_external;rbuf_external368,14749
-  uint *ubuf_external;ubuf_external370,14863
-  int *gmem_external,gmem_external372,14977
-  int *gmem_external, *gsync0_external,gsync0_external372,14977
-  int *gmem_external, *gsync0_external, *gsync1_external;gsync1_external372,14977
-  size_t Nbuf_external;373,15035
-} soaMakeTreeBuf;375,15134
-
-src/tree/macutil.c,261
-static real theta_bhtree;29,1492
-void setGlobalConstants_macutil_c(30,1518
-static inline real eqnAppTheta(40,2012
-static inline real getAppTheta(52,2585
-static inline real getAppForce(81,4089
-static inline int getNumLeaf(108,5221
-void getBufSize135,6206
-
-src/tree/shrink_dev.h,439
-#define SHRINK_DEV_H14,908
-#define NUM_IGROUP_SAFETY_FACTOR 34,1695
-#define NTHREADS_SHRINK 38,1863
-#define NTHREADS_SHRINK 41,1953
-#define NTHREADS_SHRINK 43,2014
-#define NEIGHBOR_LENGTH_SHRINK_FACTOR 60,2774
-#define NEIGHBOR_LENGTH_UPPER_FRACTION 68,3183
-#define NEIGHBOR_LENGTH_EXTEND_FRACTION 74,3497
-  void *temp_storage;temp_storage89,4094
-  real *out;out90,4116
-  size_t temp_storage_size;91,4129
-} soaCUBreal;92,4157
-
-src/tree/let_dev.h,630
-#define LET_DEV_H14,905
-#define NTHREADS_MAKE_LET 36,1696
-#undef  NTHREADS_MAKE_LET41,1956
-#define NTHREADS_MAKE_LET 42,1982
-#undef   NTHREADS_MAKE_LET47,2249
-#define  NTHREADS_MAKE_LET 48,2276
-#define USE_WARP_SHUFFLE_FUNC_MAKE_LET51,2437
-#undef          USE_WARP_SHUFFLE_FUNC_MAKE_LET54,2617
-#undef  DIV_NTHREADS_MAKE_LET61,2913
-#define DIV_NTHREADS_MAKE_LET(65,3083
-#define DIV_NTHREADS_MAKE_LET(68,3196
-#define DIV_NTHREADS_MAKE_LET(71,3309
-#define DIV_NTHREADS_MAKE_LET(74,3422
-#define DIV_NTHREADS_MAKE_LET(77,3535
-#define DIV_NTHREADS_MAKE_LET(80,3648
-#define NQUEUE_LET 94,4184
-#define NQUEUE_LET 96,4286
-
-src/tree/buf_inc.h,393
-#define BUF_INC_H14,905
-#define USE_SMID_TO_GET_BUFID19,1077
-#define TRY_MODE_ABOUT_BUFFER20,1107
-  uint *freeLst,freeLst24,1230
-  uint *freeLst, *buffer;buffer24,1230
-  int *fail;fail25,1256
-  uint *freeNum;freeNum28,1336
-  int *active;active29,1353
-  int freeNum;31,1405
-  int bufSize;35,1511
-  uint *bufLET;bufLET37,1553
-  int bufLETsize;39,1596
-} soaTreeWalkBuf;41,1641
-
-src/tree/geo_dev.h,88
-#define GEO_DEV_H14,905
-  real *r2;r231,1548
-  int Nblock;32,1560
-} soaGEO;37,1692
+src/tree/geo_dev.h,85
+#define GEO_DEV_H19,453
+  real *r2;r240,723
+  int Nblock;41,735
+} soaGEO;42,749
 
 src/anal/anal.error.c,54
 #define USE_SZIP_COMPRESSION12,812
