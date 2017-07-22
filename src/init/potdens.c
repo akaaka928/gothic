@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/07/11 (Tue)
+ * @date 2017/07/22 (Sat)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -620,9 +620,9 @@ static inline int findIdxSpherical(const double rad, profile *prf, const double 
 
 
 /**
- * @fn Phi_spherical
+ * @fn Psi_spherical
  *
- * @brief Get potential of spherical symmetric components.
+ * @brief Get relative potential of spherical symmetric components.
  *
  * @param (rad) radius
  * @param (sph) radial profile of the component
@@ -631,7 +631,7 @@ static inline int findIdxSpherical(const double rad, profile *prf, const double 
  *
  * @sa findIdxSpherical
  */
-static inline double Phi_spherical(const double rad, profile *sph, const double invlogrbin_sph)
+static inline double Psi_spherical(const double rad, profile *sph, const double invlogrbin_sph)
 {
   double ratio;
   const int idx = findIdxSpherical(rad, sph, invlogrbin_sph, &ratio);
@@ -758,7 +758,7 @@ static inline double getPsi
     ((1.0 - azz) * Phi[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_z, 1 + iiR, jzz)] + azz * Phi[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_z, 1 + iiR, 1 + jzz)]) *        aaR;
 
 
-  return (-Phi_disk + Phi_spherical(sqrt(R2 + zz * zz), sph, invlogrbin_sph));
+  return (-Phi_disk + Psi_spherical(sqrt(R2 + zz * zz), sph, invlogrbin_sph));
 }
 
 
@@ -953,7 +953,7 @@ static inline void getVariableDiskScaleHeight(const int ndisk, const int maxLev,
 
 
       /** get potential @ the reference points (mid plane and dimming scale) */
-      const double PsiMid = Phi_spherical(RR, sph, invlogrbin_sph) - Phi[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)];
+      const double PsiMid = Psi_spherical(RR, sph, invlogrbin_sph) - Phi[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)];
       const double PsiDim = getPsi(zdim, maxLev, node_ver, tab_lev, RR, R2, lev, ii, hor, ver, Phi, sph, invlogrbin_sph);
 
       const double Psi = PsiMid + DISK_DIMMING_HEIGHT_INV * (PsiDim - PsiMid);
@@ -1941,14 +1941,65 @@ static inline void getPotentialField
 
   /** prepare Poisson equation in matrix form (vector part) */
   if( lev > 0 ){
-    coarsePotential4boundary(lev - 1, disk[0].pot);
+    const int lev_lrs = lev - 1;
+    coarsePotential4boundary(lev_lrs, disk[0].pot);
 
+#if 1
+    /** set z-edge[NR] */
+#pragma omp parallel for
+    for(int ii = 0; ii < NDISKBIN_HOR; ii += 2){
+      const int il = ii >> 1;
+      const int jl = (NDISKBIN_VER - 1) >> 1;
+
+      const double mm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_lrs, (il > 0) ? (il - 1) : (0), jl)];
+      const double mp = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_lrs, (il > 0) ? (il - 1) : (0), jl + 1)];
+
+      const double cm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_lrs, il, jl)];
+      const double cp = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_lrs, il, jl + 1)];
+
+      const double pm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_lrs, il + 1, jl)];
+      const double pp = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_lrs, il + 1, jl + 1)];
+
+      const double mz = 0.75 * mp + 0.25 * mm;
+      const double cz = 0.75 * cp + 0.25 * cm;
+      const double pz = 0.75 * pp + 0.25 * pm;
+
+      Phi_Nz[ii    ] = 0.75 * cz + 0.25 * mz;
+      Phi_Nz[ii + 1] = 0.75 * cz + 0.25 * pz;
+    }/* for(int ii = 0; ii < NDISKBIN_HOR; ii += 2){ */
+
+
+    /** set R-edge[Nz] */
+#pragma omp parallel for
+    for(int jj = 0; jj < NDISKBIN_VER; jj += 2){
+      const int il = (NDISKBIN_HOR - 1) >> 1;
+      const int jl = jj >> 1;
+
+      const double mm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_lrs, il, (jl > 0) ? (jl - 1) : (0))];
+      const double mc = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_lrs, il, jl)];
+      const double mp = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_lrs, il, jl + 1)];
+
+      const double pm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_lrs, il + 1, (jl > 0) ? (jl - 1) : (0))];
+      const double pc = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_lrs, il + 1, jl)];
+      const double pp = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_lrs, il + 1, jl + 1)];
+
+      const double Rm = 0.75 * pm + 0.25 * mm;
+      const double Rc = 0.75 * pc + 0.25 * mc;
+      const double Rp = 0.75 * pp + 0.25 * mp;
+
+      Phi_NR[jj    ] = 0.75 * Rc + 0.25 * Rm;
+      Phi_NR[jj + 1] = 0.75 * Rc + 0.25 * Rp;
+    }/* for(int jj = 0; jj < NDISKBIN_VER; jj += 2){ */
+#else
     /** set z-edge[NR] */
 #pragma omp parallel for
     for(int ii = 0; ii < NDISKBIN_HOR; ii++){
-      const double mm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii > 1) ? ((ii >> 1) - 1) : (0), (NDISKBIN_VER >> 1) - 1)];
-      const double mc = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii > 1) ? ((ii >> 1) - 1) : (0),  NDISKBIN_VER >> 1)	 ];
-      const double mp = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii > 1) ? ((ii >> 1) - 1) : (0), (NDISKBIN_VER >> 1) + 1)];
+      /* const double mm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii > 1) ? ((ii >> 1) - 1) : (0), (NDISKBIN_VER >> 1) - 1)]; */
+      /* const double mc = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii > 1) ? ((ii >> 1) - 1) : (0),  NDISKBIN_VER >> 1)	 ]; */
+      /* const double mp = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii > 1) ? ((ii >> 1) - 1) : (0), (NDISKBIN_VER >> 1) + 1)]; */
+      const double mm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii > 2) ? ((ii >> 1) - 1) : (0), (NDISKBIN_VER >> 1) - 1)];
+      const double mc = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii > 2) ? ((ii >> 1) - 1) : (0),  NDISKBIN_VER >> 1)	 ];
+      const double mp = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (ii > 2) ? ((ii >> 1) - 1) : (0), (NDISKBIN_VER >> 1) + 1)];
 
       const double cm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1,		    ii >> 1	       , (NDISKBIN_VER >> 1) - 1)];
       const double cc = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1,		    ii >> 1	       ,  NDISKBIN_VER >> 1)	 ];
@@ -1968,9 +2019,12 @@ static inline void getPotentialField
     /** set R-edge[Nz] */
 #pragma omp parallel for
     for(int jj = 0; jj < NDISKBIN_VER; jj++){
-      const double mm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (NDISKBIN_HOR >> 1) - 1, (jj > 1 ) ? ((jj >> 1) - 1) : (0))];
-      const double cm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1,	NDISKBIN_HOR >> 1     , (jj > 1 ) ? ((jj >> 1) - 1) : (0))];
-      const double pm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (NDISKBIN_HOR >> 1) + 1, (jj > 1 ) ? ((jj >> 1) - 1) : (0))];
+      /* const double mm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (NDISKBIN_HOR >> 1) - 1, (jj > 1 ) ? ((jj >> 1) - 1) : (0))]; */
+      /* const double cm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1,	NDISKBIN_HOR >> 1     , (jj > 1 ) ? ((jj >> 1) - 1) : (0))]; */
+      /* const double pm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (NDISKBIN_HOR >> 1) + 1, (jj > 1 ) ? ((jj >> 1) - 1) : (0))]; */
+      const double mm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (NDISKBIN_HOR >> 1) - 1, (jj > 2 ) ? ((jj >> 1) - 1) : (0))];
+      const double cm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1,	NDISKBIN_HOR >> 1     , (jj > 2 ) ? ((jj >> 1) - 1) : (0))];
+      const double pm = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (NDISKBIN_HOR >> 1) + 1, (jj > 2 ) ? ((jj >> 1) - 1) : (0))];
 
       const double mc = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, (NDISKBIN_HOR >> 1) - 1,		      jj >> 1		 )];
       const double cc = disk[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1,	NDISKBIN_HOR >> 1     ,		      jj >> 1		 )];
@@ -1986,6 +2040,7 @@ static inline void getPotentialField
 
       Phi_NR[jj] = Rmc + (double)(((jj & 1) << 1) - 1) * 0.125 * (Rmp - Rmm);
     }/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
+#endif
   }/* if( lev > 0 ){ */
   else{
     double Mtot = 0.0;
@@ -2052,7 +2107,7 @@ static inline double _setzdep4calcRho
   const double PsiRz =
     ((1.0 - fz) * (-Phi[INDEX2D(NR, Nz,     iR, jz)]) + fz * (-Phi[INDEX2D(NR, Nz,     iR, 1 + jz)])) * (1.0 - fR) +
     ((1.0 - fz) * (-Phi[INDEX2D(NR, Nz, 1 + iR, jz)]) + fz * (-Phi[INDEX2D(NR, Nz, 1 + iR, 1 + jz)])) *        fR  +
-    Phi_spherical(sqrt(R2 + zz * zz), sph, invlogrbin_sph);
+    Psi_spherical(sqrt(R2 + zz * zz), sph, invlogrbin_sph);
 
   return (exp(-(PsiRz - PsiR0) * invPsi));
 }
@@ -2092,7 +2147,7 @@ static inline void _setRdep4calcRho
   *R2 = RR * RR;
 
   *iR = bisection(RR, NR, horRad, false, invdR, fR);
-  *PsiR0 = (1.0 - (*fR)) * (-Phi[INDEX2D(NR, Nz, *iR, 0)]) + (*fR) * (-Phi[INDEX2D(NR, Nz, 1 + (*iR), 0)]) + Phi_spherical(RR, sph, invlogrbin_sph);
+  *PsiR0 = (1.0 - (*fR)) * (-Phi[INDEX2D(NR, Nz, *iR, 0)]) + (*fR) * (-Phi[INDEX2D(NR, Nz, 1 + (*iR), 0)]) + Psi_spherical(RR, sph, invlogrbin_sph);
 
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
   const double    zd = (1.0 - (*fR)) * disk.zd[INDEX2D(maxLev, NDISKBIN_HOR, lev, *iR)] + (*fR) * disk.zd[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + (*iR))];
@@ -2108,7 +2163,7 @@ static inline void _setRdep4calcRho
   const double Psi_Rzd =
     ((1.0 - fz) * (-Phi[INDEX2D(NR, Nz,      *iR , jz)]) + fz * (-Phi[INDEX2D(NR, Nz,      *iR , 1 + jz)])) * (1.0 - (*fR)) +
     ((1.0 - fz) * (-Phi[INDEX2D(NR, Nz, 1 + (*iR), jz)]) + fz * (-Phi[INDEX2D(NR, Nz, 1 + (*iR), 1 + jz)])) *        (*fR)  +
-    Phi_spherical(sqrt((*R2) + zd * zd), sph, invlogrbin_sph);
+    Psi_spherical(sqrt((*R2) + zd * zd), sph, invlogrbin_sph);
   *invPsi = 1.0 / (Psi_Rzd - (*PsiR0));
 }
 
@@ -2297,8 +2352,8 @@ void getPotDensPair
 
   /** set density field and guess potential field */
   if( lev != levOld ){
-    if( lev > levOld )      for(int ii = 0; ii < ndisk; ii++){	  fineDensity(lev, disk[ii], *(disk[ii].rho));	  finePotential(lev, disk[ii].pot);      }
-    if( lev < levOld )      for(int ii = 0; ii < ndisk; ii++){	coarseDensity(lev, disk[ii], *(disk[ii].rho));	coarsePotential(lev, disk[ii].pot);      }
+    if( lev > levOld ){        finePotential(lev, disk[0].pot);      for(int ii = 0; ii < ndisk; ii++)	  fineDensity(lev, disk[ii], *(disk[ii].rho));    }
+    if( lev < levOld ){      coarsePotential(lev, disk[0].pot);      for(int ii = 0; ii < ndisk; ii++)	coarseDensity(lev, disk[ii], *(disk[ii].rho));    }
   }/* if( levOld != KICKOFF_POISSON_SOLVER ){ */
 
 
@@ -2624,11 +2679,14 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
     lev += inc;
   }/* while( true ){ */
 
+#if 0
+  for(int ll = maxLev - 2; ll >= 0; ll--)
+    coarsePotential(ll, disk[0].pot );
+#endif
+
   for(int kk = 0; kk < ndisk; kk++)
-    for(int ll = maxLev - 2; ll >= 0; ll--){
-      coarsePotential(ll,             disk[kk].pot );
+    for(int ll = maxLev - 2; ll >= 0; ll--)
       coarseDensity  (ll, disk[kk], *(disk[kk].rho));
-    }/* for(int ll = maxLev - 2; ll >= 0; ll--){ */
 
   free(stock_inv);
   free(stock_sub);

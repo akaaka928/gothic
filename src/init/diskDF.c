@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/07/16 (Sun)
+ * @date 2017/07/22 (Sat)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -337,12 +337,19 @@ void diffAxisymmetricPotential(const int maxLev, const disk_data disk)
     double *d2Phi_dR2;	  d2Phi_dR2 = &(disk.d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR               , lev, 0)]);
 #endif//USE_POTENTIAL_SCALING_SCHEME
 
+#if 1
+    double *Phi_coarse;
+    if( lev > 0 )
+      Phi_coarse = &(disk.pot[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev - 1, 0)]);
+#endif
+
     const double invRbin = 1.0 / ldexp(disk.hh, -lev);
     profile *prf;    prf = disk.prf;
     const double invlogrbin = disk.invlogrbin;
 
 #pragma omp parallel for
-    for(int ii = 0; ii < NDISKBIN_HOR - 1; ii++){
+    for(int ii = 0; ii < NDISKBIN_HOR; ii++){
+    /* for(int ii = 0; ii < NDISKBIN_HOR - 1; ii++){ */
 #ifdef  USE_POTENTIAL_SCALING_SCHEME
       const int jj = 0;
 #else///USE_POTENTIAL_SCALING_SCHEME
@@ -351,6 +358,37 @@ void diffAxisymmetricPotential(const int maxLev, const disk_data disk)
 	{
 	  /** R-derivatives of potential given by the disk component */
 	  double _dPhidR__disk, d2PhidR2_disk;
+#if 1
+	  const double Phi_m = Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, (ii > 0) ? (ii - 1) : (0), jj)];/**< symmetry @ R = 0 (ii == 0) */
+	  const double Phi_0 = Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)];
+	  double Phi_p = 0.0;
+
+	  if( ii < (NDISKBIN_HOR - 1) )
+	    Phi_p = Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii + 1, jj)];
+
+	  if( ii == (NDISKBIN_HOR - 1) ){
+	    if( lev > 0 ){
+	      const int j0 = jj >> 1;
+	      const int im = ii >> 1;
+	      const int ip = im + 1;
+
+	      const int jm = (j0 > 0) ? (j0 - 1) : (0);/**< symmetry @ z = 0 */
+	      const int jp = j0 + 1;
+
+	      const double Phi_pm = 0.75 * Phi_coarse[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ip, jm)] + 0.25 * Phi_coarse[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, im, jm)];
+	      const double Phi_p0 = 0.75 * Phi_coarse[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ip, j0)] + 0.25 * Phi_coarse[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, im, j0)];
+	      const double Phi_pp = 0.75 * Phi_coarse[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ip, jp)] + 0.25 * Phi_coarse[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, im, jp)];
+
+	      Phi_p = 0.75 * Phi_p0 + 0.25 * ((jj & 1) ? (Phi_pp) : (Phi_pm));
+	    }/* if( lev > 0 ){ */
+	    else
+	      Phi_p = Phi_0;/**< sufficiently far from the focusing domain */
+	  }/* if( ii == (NDISKBIN_HOR - 1) ){ */
+
+
+	  _dPhidR__disk = 0.5     * invRbin * (Phi_p - Phi_m);
+	  d2PhidR2_disk = invRbin * invRbin * (Phi_p + Phi_m - 2.0 * Phi_0);
+#else
 	  if( ii != 0 ){
 	    _dPhidR__disk = 0.5     * invRbin * (Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii + 1, jj)] - Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii - 1, jj)]);
 	    d2PhidR2_disk = invRbin * invRbin * (Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii + 1, jj)] + Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii - 1, jj)] - 2.0 * Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)]);
@@ -359,6 +397,8 @@ void diffAxisymmetricPotential(const int maxLev, const disk_data disk)
 	    _dPhidR__disk = 0.5     * invRbin * (Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 1, jj)] - Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, jj)]);
 	    d2PhidR2_disk = invRbin * invRbin * (Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 1, jj)] - Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, jj)]);
 	  }/* else{ */
+#endif
+
 #if 0
 #pragma omp critical
 	  if( jj == 0 ){
@@ -393,19 +433,183 @@ void diffAxisymmetricPotential(const int maxLev, const disk_data disk)
 	}
     }/* for(int ii = 0; ii < NDISKBIN_HOR - 1; ii++){ */
 
+#if 1
+    if( lev == 0 )
+#endif
+      {
 #ifndef USE_POTENTIAL_SCALING_SCHEME
+	for(int jj = 0; jj < NDISKBIN_VER; jj++){
+	  dPhi_dR  [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj)] =  dPhi_dR [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, jj)];
+	  d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj)] = d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, jj)];
+	}/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
+#else///USE_POTENTIAL_SCALING_SCHEME
+	dPhi_dR  [NDISKBIN_HOR - 1] =  dPhi_dR [NDISKBIN_HOR - 2];
+	d2Phi_dR2[NDISKBIN_HOR - 1] = d2Phi_dR2[NDISKBIN_HOR - 2];
+#endif//USE_POTENTIAL_SCALING_SCHEME
+      }
+
+#if 1
+    /** special treatment to remove bumps of d2PhidR2 and dPhidR at resolution boundaries */
+    if( lev != (maxLev - 1) ){
+      const int i0 = (NDISKBIN_HOR >> 1) - 1;
+
+      const double Rl = RR[i0 - 2];
+      const double Rr = RR[i0 + 2];
+      const double Rinv = 1.0 / (Rr - Rl);
+
+      const double xm = (RR[i0 - 1] - Rl) * Rinv;
+      const double x0 = (RR[i0    ] - Rl) * Rinv;
+      const double xp = (RR[i0 + 1] - Rl) * Rinv;
+
+#ifndef USE_POTENTIAL_SCALING_SCHEME
+#pragma omp parallel for
       for(int jj = 0; jj < NDISKBIN_VER; jj++){
-	dPhi_dR  [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj)] =  dPhi_dR [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, jj)];
-	d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj)] = d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, jj)];
+	const double d1l = dPhi_dR[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0 - 2, jj)];	const double d2l = d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0 - 2, jj)];
+	const double d1r = dPhi_dR[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0 + 2, jj)];	const double d2r = d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0 + 2, jj)];
+
+	const double s1 = d1r - d1l;
+	const double s2 = d2r - d2l;
+
+	dPhi_dR[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0 - 1, jj)] = d1l + s1 * xm;	d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0 - 1, jj)] = d2l + s2 * xm;
+	dPhi_dR[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0    , jj)] = d1l + s1 * x0;	d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0    , jj)] = d2l + s2 * x0;
+	dPhi_dR[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0 + 1, jj)] = d1l + s1 * xp;	d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0 + 1, jj)] = d2l + s2 * xp;
       }/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
 #else///USE_POTENTIAL_SCALING_SCHEME
-    dPhi_dR  [NDISKBIN_HOR - 1] =  dPhi_dR [NDISKBIN_HOR - 2];
-    d2Phi_dR2[NDISKBIN_HOR - 1] = d2Phi_dR2[NDISKBIN_HOR - 2];
+      const double d1l = dPhi_dR[i0 - 2];      const double d2l = d2Phi_dR2[i0 - 2];
+      const double d1r = dPhi_dR[i0 + 2];      const double d2r = d2Phi_dR2[i0 + 2];
+
+      const double s1 = d1r - d1l;
+      const double s2 = d2r - d2l;
+
+      dPhi_dR[i0 - 1] = d1l + s1 * xm;      d2Phi_dR2[i0 - 1] = d2l + s2 * xm;
+      dPhi_dR[i0    ] = d1l + s1 * x0;      d2Phi_dR2[i0    ] = d2l + s2 * x0;
+      dPhi_dR[i0 + 1] = d1l + s1 * xp;      d2Phi_dR2[i0 + 1] = d2l + s2 * xp;
 #endif//USE_POTENTIAL_SCALING_SCHEME
+    }/* if( lev != (maxLev - 1) ){ */
+#endif
   }/* for(int lev = 0; lev < maxLev; lev++){ */
 
 
+#if 0
+  for(int lev = 0; lev < maxLev; lev++){
+    for(int ii = 0; ii < NDISKBIN_HOR; ii++)
+      fprintf(stderr, "%d\t%e\t%e\t%e\n", lev, disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)], disk.dPhidR[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)]);
+    fprintf(stderr, "\n");
+  }
+  exit(0);
+#endif
+
+
   __NOTE__("%s\n", "end");
+}
+
+
+/**
+ * @fn bisection4nestedGrid
+ *
+ * @brief Execute bisection for nested grid.
+ *
+ * @param (val) the target value
+ * @param (num) number of data points
+ * @param (tab) array contains data points
+ * @param (logrbl) true when data points are sampled in logarithmic space
+ * @param (invbin) inverse of interval between grid points
+ * @return (ratio) parameter for linear interpolation
+ * @param (maxLev) maximum level of nested grid
+ * @return (lev) the corresponding level of nested grid
+ * @param (tab_lev) array to determin lev
+ * @return lower index of the corresponding data point
+ *
+ * @sa bisection
+ */
+static inline int bisection4nestedGrid
+(const double val, const int num, double * restrict tab, const bool logtbl, const double invbin, double * restrict ratio, const int maxLev, int * restrict lev, double * restrict tab_lev)
+{
+  /** 1. find the nested level */
+  *lev = 0;
+  for(int ii = maxLev - 1; ii >= 0; ii--)
+    if( val <= tab_lev[ii] ){
+      *lev = ii;
+      break;
+    }/* if( val <= tab_lev[ii] ){ */
+
+  /** 2. find the index */
+  int idx = bisection(val, num, &(tab[INDEX2D(maxLev, num, *lev, 0)]), logtbl, invbin, ratio);
+
+  return (idx);
+}
+
+
+/**
+ * @fn Psi_spherical
+ *
+ * @brief Get relative potential of spherical symmetric components.
+ *
+ * @param (rad) radius
+ * @param (sph) radial profile of the component
+ * @param (invlogbin_sph) inverse of logarithmic interval between grid points
+ * @return potential at r = rad
+ *
+ * @sa findIdxSpherical
+ */
+static inline double Psi_spherical(const double rad, profile *sph, const double invlogrbin_sph)
+{
+  double ratio;
+  const int idx = findIdxSpherical(rad, sph, invlogrbin_sph, &ratio);
+
+  return ((1.0 - ratio) * sph[idx].psi_tot + ratio * sph[1 + idx].psi_tot);
+}
+
+
+static inline double getPsi
+(const double zz, const int maxLev, double * restrict node_ver, double * restrict tab_lev,
+ const double RR, const double R2, const int lev, const int ii, double * restrict hor, double * restrict ver,
+ double * restrict Phi, profile * restrict sph, const double invlogrbin_sph)
+{
+  int lev_z = 0;
+  double azz;
+  int jzz = bisection4nestedGrid(zz, NDISKBIN_VER + 1, node_ver, false, 1.0, &azz, maxLev, &lev_z, tab_lev);
+  azz /= (node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev_z, 1 + jzz)] - node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev_z, jzz)]);
+
+  int iiR = ii;
+  double aaR = 0;
+  if( lev > lev_z ){
+    /** reset iiR and aaR in coarser grid */
+    iiR = bisection(RR, NDISKBIN_HOR, &hor[INDEX2D(maxLev, NDISKBIN_HOR, lev_z, 0)], false, 1.0, &aaR);
+    aaR /= (hor[INDEX2D(maxLev, NDISKBIN_HOR, lev_z, 1 + iiR)] - hor[INDEX2D(maxLev, NDISKBIN_HOR, lev_z, iiR)]);
+    /* aaR /= (enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev_z, 1 + iiR)] - enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev_z, iiR)]); */
+  }/* if( lev > lev_z ){ */
+  if( lev < lev_z ){
+    /* reset jzz and azz in coarser grid */
+    lev_z = lev;
+    jzz = bisection(zz, NDISKBIN_VER + 1, &(node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev_z, 0)]), false, 1.0, &azz);
+    /* azz /= (node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev_z, 1 + jzz)] - node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev_z, jzz)]); */
+  }/* if( lev < lev_z ){ */
+
+
+  /** correction about ``jzz'' and ``azz'' for zone centeric coordinate from edge coordinate */
+  if( zz >= ver[INDEX2D(maxLev, NDISKBIN_VER, lev_z, 0)] ){
+    if( zz <= ver[INDEX2D(maxLev, NDISKBIN_VER, lev_z, NDISKBIN_VER - 1)] ){
+      jzz = bisection(zz, NDISKBIN_VER, &ver[INDEX2D(maxLev, NDISKBIN_VER, lev_z, 0)], false, 1.0, &azz);
+      azz /= (ver[INDEX2D(maxLev, NDISKBIN_VER, lev_z, 1 + jzz)] - ver[INDEX2D(maxLev, NDISKBIN_VER, lev_z, jzz)]);
+    }/* if( zz <= zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, NDISKBIN_VER - 1)] ){ */
+    else{
+      jzz = NDISKBIN_VER - 2;
+      azz = 1.0;
+    }/* else{ */
+  }/* if( zz >= zone_ver[INDEX2D(maxLev, NDISKBIN_VER, lev, 0)] ){ */
+  else{
+    jzz = 0;
+    azz = 0.0;
+  }/* else{ */
+
+
+  const double Phi_disk =
+    ((1.0 - azz) * Phi[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_z,	    iiR, jzz)] + azz * Phi[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_z,     iiR, 1 + jzz)]) * (1.0 - aaR) +
+    ((1.0 - azz) * Phi[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_z, 1 + iiR, jzz)] + azz * Phi[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev_z, 1 + iiR, 1 + jzz)]) *        aaR;
+
+
+  return (-Phi_disk + Psi_spherical(sqrt(R2 + zz * zz), sph, invlogrbin_sph));
 }
 
 
@@ -421,6 +625,73 @@ void diffAxisymmetricPotential(const int maxLev, const disk_data disk)
  * @sa findIdxSpherical
  * @sa bisection
  */
+#if 1
+void calcVerticalVdisp(const int ndisk, const int maxLev, disk_data *disk_info)
+{
+  __NOTE__("%s\n", "start");
+
+
+  profile *sph;
+  sph = disk_info[0].prf;
+  const double invlogrbin = disk_info[0].invlogrbin;
+
+  double *Phi;
+  Phi = disk_info[0].pot;
+
+  double *ver;
+  ver = disk_info[0].ver;
+
+  double *hor;
+  hor = disk_info[0].hor;
+
+  double *node_ver;
+  node_ver = disk_info[0].node_ver;
+
+  double *tab_lev;
+  tab_lev = (double *)malloc(sizeof(double) * maxLev);
+  if( tab_lev == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tab_lev\n");  }
+  for(int ll = 0; ll < maxLev; ll++)
+    tab_lev[ll] = node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, ll, NDISKBIN_VER)];
+
+
+  for(int kk = 0; kk < ndisk; kk++){
+    /** load disk data */
+    const disk_data disk = disk_info[kk];
+
+
+    for(int lev = 0; lev < maxLev; lev++){
+      double *sig;      sig = &(disk.sigmaz[INDEX2D(maxLev, NDISKBIN_HOR               , lev, 0)]);
+      /* double *Phi;      Phi = &(disk.pot   [INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, 0)]); */
+      /* double *hor;      hor = &(disk.hor   [INDEX2D(maxLev, NDISKBIN_HOR               , lev, 0)]); */
+
+#ifndef ENABLE_VARIABLE_SCALE_HEIGHT
+      const double zd = disk.cfg->zd;
+#endif//ENABLE_VARIABLE_SCALE_HEIGHT
+
+      /** calculate vertical velocity dispersion */
+#pragma omp parallel for
+      for(int ii = 0; ii < NDISKBIN_HOR; ii++){
+	/** get potential @ (R, z = 0) */
+	const double RR = hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
+	const double Psi_R_0 = -Phi[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] + Psi_spherical(RR, sph, invlogrbin);
+
+	/** get potential @ (R, z = zd) */
+#ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
+	const double zd = disk.zd[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
+#endif//ENABLE_VARIABLE_SCALE_HEIGHT
+	const double Psi_R_zd = getPsi(zd, maxLev, node_ver, tab_lev, RR, RR * RR, lev, ii, hor, ver, Phi, sph, invlogrbin);
+
+	sig[ii] = sqrt(Psi_R_0 - Psi_R_zd);
+      }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
+    }/* for(int lev = 0; lev < maxLev; lev++){ */
+  }/* for(int kk = 0; kk < ndisk; kk++){ */
+
+
+  free(tab_lev);
+
+  __NOTE__("%s\n", "end");
+}
+#else
 void calcVerticalVdisp(const int ndisk, const int maxLev, disk_data *disk_info)
 {
   __NOTE__("%s\n", "start");
@@ -480,42 +751,7 @@ void calcVerticalVdisp(const int ndisk, const int maxLev, disk_data *disk_info)
 
   __NOTE__("%s\n", "end");
 }
-
-
-/**
- * @fn bisection4nestedGrid
- *
- * @brief Execute bisection for nested grid.
- *
- * @param (val) the target value
- * @param (num) number of data points
- * @param (tab) array contains data points
- * @param (logrbl) true when data points are sampled in logarithmic space
- * @param (invbin) inverse of interval between grid points
- * @return (ratio) parameter for linear interpolation
- * @param (maxLev) maximum level of nested grid
- * @return (lev) the corresponding level of nested grid
- * @param (tab_lev) array to determin lev
- * @return lower index of the corresponding data point
- *
- * @sa bisection
- */
-static inline int bisection4nestedGrid
-(const double val, const int num, double * restrict tab, const bool logtbl, const double invbin, double * restrict ratio, const int maxLev, int * restrict lev, double * restrict tab_lev)
-{
-  /** 1. find the nested level */
-  *lev = 0;
-  for(int ii = maxLev - 1; ii >= 0; ii--)
-    if( val <= tab_lev[ii] ){
-      *lev = ii;
-      break;
-    }/* if( val <= tab_lev[ii] ){ */
-
-  /** 2. find the index */
-  int idx = bisection(val, num, &(tab[INDEX2D(maxLev, num, *lev, 0)]), logtbl, invbin, ratio);
-
-  return (idx);
-}
+#endif
 
 
 /**

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/06/27 (Tue)
+ * @date 2017/07/18 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2918,7 +2918,7 @@ void setGlobalConstants_walk_dev_cu
   struct cudaFuncAttributes funcAttr;
   checkCudaErrors(cudaFuncGetAttributes(&funcAttr, calcAcc_kernel));
   int regLimit = MAX_REGISTERS_PER_SM / (funcAttr.numRegs * NTHREADS);
-  int memLimit = ((SMPREF == 1) ? (48 * 1024) : (16 * 1024)) / funcAttr.sharedSizeBytes;
+  int memLimit = ((SMPREF == 1) ? (SMEM_SIZE_SM_PREF) : (SMEM_SIZE_L1_PREF)) / funcAttr.sharedSizeBytes;
   int Nblck = (regLimit <= memLimit) ? regLimit : memLimit;
   if( Nblck != NBLOCKS_PER_SM ){
     __KILL__(stderr, "ERROR: # of blocks per SM for calcAcc_kernel is mispredicted (%d).\n\tThe limits come from register and shared memory are %d and %d, respectively.\n\tHowever, the expected value of NBLOCKS_PER_SM defined in src/tree/walk_dev.cu is %d\n", Nblck, regLimit, memLimit, NBLOCKS_PER_SM);

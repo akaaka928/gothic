@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/06/27 (Tue)
+ * @date 2017/07/18 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -122,7 +122,7 @@ void checkBoxSize_dev(const deviceProp devProp)
   int regLimit = MAX_REGISTERS_PER_SM / (funcAttr.numRegs * NTHREADS_BOX);
   if( regLimit > (MAX_REGISTERS_PER_SM / NTHREADS_BOX) )
     regLimit = (MAX_REGISTERS_PER_SM / NTHREADS_BOX);
-  int memLimit = (16 * 1024) / funcAttr.sharedSizeBytes;
+  int memLimit = SMEM_SIZE_L1_PREF / funcAttr.sharedSizeBytes;
   int Nblck = (regLimit <= memLimit) ? regLimit : memLimit;
   if( Nblck > (MAX_THREADS_PER_SM       / NTHREADS_BOX) )    Nblck = MAX_THREADS_PER_SM / NTHREADS_BOX;
   if( Nblck >   MAX_BLOCKS_PER_SM                      )    Nblck = MAX_BLOCKS_PER_SM;

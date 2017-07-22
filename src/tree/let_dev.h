@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/03/06 (Mon)
+ * @date 2017/07/18 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -87,16 +87,22 @@
 
 
 /** # of blocks per SM is same with tree walk */
-/** SM size is 48KiB or 16KiB */
 /** uint is 4B */
-/** # of elements in SM is 12K or 4K */
+/** SM size is 64KiB on Pascal GPUs */
+/** SM size is 48KiB or 16KiB on Fermi or Kepler GPUs */
+/** # of elements in SM is 16K on newer GPUs */
+/** # of elements in SM is 12K or 4K on older GPUs */
 /** SM usage is NTHREADS_MAKE_LET * (NQUEUE_LET + 1) */
 #ifndef NQUEUE_LET
+#   if  GPUGEN >= 60
+#define NQUEUE_LET (DIV_NTHREADS_MAKE_LET(16384 / NBLOCKS_PER_SM) - 1)
+#else///GPUGEN >= 60
 #   if  SMPREF_LET == 1
 #define NQUEUE_LET (DIV_NTHREADS_MAKE_LET(12288 / NBLOCKS_PER_SM) - 1)
 #else///SMPREF_LET == 1
 #define NQUEUE_LET (DIV_NTHREADS_MAKE_LET( 4096 / NBLOCKS_PER_SM) - 1)
 #endif//SMPREF_LET == 1
+#endif//GPUGEN >= 60
 #endif//NQUEUE_LET
 
 

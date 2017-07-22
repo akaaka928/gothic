@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/07/18 (Tue)
+ * @date 2017/07/21 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -31,7 +31,7 @@
  * @brief Reduce velocity dispersion to ensure the consistency with epicyclic approximation
  * if switched off, then velocity dispersion is determined as GalactICS (Kuijken & Dubinski 1995; Widrow et al. 2003)
  */
-/* #define ENFORCE_EPICYCLIC_APPROXIMATION */
+#define ENFORCE_EPICYCLIC_APPROXIMATION
 
 
 /**

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/04/11 (Tue)
+ * @date 2017/07/18 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -52,9 +52,15 @@
 #endif//NTHREADS_BOX < 256
 #endif//GPUGEN == 52
 
-/** in L1 cache preferred configuration, capacity of shared memory is 16KiB per SM */
+#   if  GPUGEN >= 60
+/** capacity of shared memory is 64KiB per SM on newer GPUs */
+/** real4 smem[NTHREADS_BOX] corresponds 16 * NTHREADS_BOX bytes */
+#define NBLOCKS_PER_SM_BOX (4096 / NTHREADS_BOX)
+#else///GPUGEN >= 60
+/** in L1 cache preferred configuration, capacity of shared memory is 16KiB per SM on older GPUs */
 /** real4 smem[NTHREADS_BOX] corresponds 16 * NTHREADS_BOX bytes */
 #define NBLOCKS_PER_SM_BOX (1024 / NTHREADS_BOX)
+#endif//GPUGEN >= 60
 
 #define REGISTERS_PER_THREAD_BOX (32)
 

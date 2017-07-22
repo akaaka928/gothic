@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/03/02 (Thu)
+ * @date 2017/07/21 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -212,10 +212,12 @@
 #endif//TSUB
 
 /** TSUB should be equal or greater than 16 for the performance issue */
+#ifndef HUNT_WALK_PARAMETER
 #   if  TSUB < 16
 #undef  TSUB
 #define TSUB  (16)
 #endif//TSUB < 16
+#endif//HUNT_WALK_PARAMETER
 /** TSUB must be equal or greater than NWARP */
 #   if  TSUB < NWARP
 #undef  TSUB
@@ -292,7 +294,7 @@
  * @def NBLOCKS_PER_SM
  *
  * @brief number of blocks per SM
- * @detail determined by capacity of the shared memory (48KB per SM --> 24KB per block)
+ * @detail determined by capacity of the shared memory
  */
 #ifndef NBLOCKS_PER_SM
 #define NBLOCKS_PER_SM (2)
@@ -302,52 +304,76 @@
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
 
 #   if  NBLOCKS_PER_SM == 2
-/** 6144 = 6 * 1024 = 12 * 1024 / 2 = (48KiB / sizeof(float)) / NBLOCKS_PER_SM */
-#   if  NLOOP > ((6144 / (5 * NTHREADS)) - 2)
+#   if  GPUGEN >= 60
+/** 8192 = 8 * 1024 = 16 * 1024 / 2 = (64KiB / sizeof(float)) / NBLOCKS_PER_SM on newer GPUs */
+#define NSM4TRAVERSAL (8192)
+#else///GPUGEN >= 60
+/** 6144 = 6 * 1024 = 12 * 1024 / 2 = (48KiB / sizeof(float)) / NBLOCKS_PER_SM on older GPUs */
+#define NSM4TRAVERSAL (6144)
+#endif//GPUGEN >= 60
+#   if  NLOOP > ((NSM4TRAVERSAL / (5 * NTHREADS)) - 2)
 #undef  NLOOP
-#define NLOOP   ((6144 / (5 * NTHREADS)) - 2)
-#endif//NLOOP > ((6144 / (5 * NTHREADS)) - 2)
+#define NLOOP   ((NSM4TRAVERSAL / (5 * NTHREADS)) - 2)
+#endif//NLOOP > ((NSM4TRAVERSAL / (5 * NTHREADS)) - 2)
 #ifdef  USE_WARP_SHUFFLE_FUNC
-#define NQUEUE  (DIV_NTHREADS(6144) - 5 * (1 + NLOOP))
+#define NQUEUE  (DIV_NTHREADS(NSM4TRAVERSAL) - 5 * (1 + NLOOP))
 #else///USE_WARP_SHUFFLE_FUNC
-#define NQUEUE  (DIV_NTHREADS(6144) - 5 * (1 + NLOOP) - 1)
+#define NQUEUE  (DIV_NTHREADS(NSM4TRAVERSAL) - 5 * (1 + NLOOP) - 1)
 #endif//USE_WARP_SHUFFLE_FUNC
 #else///NBLOCKS_PER_SM == 2
-/** 12288 = 12 * 1024 = 48KiB / sizeof(float) */
-#   if  NLOOP > ((6144 / (5 * NTHREADS)) - 2)
+#   if  GPUGEN >= 60
+/** 16384 = 16 * 1024 = 64KiB / sizeof(float) on newer GPUs */
+#define NSM4TRAVERSAL (16384)
+#else///GPUGEN >= 60
+/** 12288 = 12 * 1024 = 48KiB / sizeof(float) on older GPUs */
+#define NSM4TRAVERSAL (12288)
+#endif//GPUGEN >= 60
+#   if  NLOOP > ((NSM4TRAVERSAL / (5 * NTHREADS * NBLOCKS_PER_SM)) - 2)
 #undef  NLOOP
-#define NLOOP   ((6144 / (5 * NTHREADS)) - 2)
+#define NLOOP   ((NSM4TRAVERSAL / (5 * NTHREADS * NBLOCKS_PER_SM)) - 2)
 #endif//NLOOP > ((6144 / (5 * NTHREADS)) - 2)
 #ifdef  USE_WARP_SHUFFLE_FUNC
-#define NQUEUE  (DIV_NTHREADS(6144) - 5 * (1 + NLOOP))
+#define NQUEUE  (DIV_NTHREADS(NSM4TRAVERSAL / NBLOCKS_PER_SM) - 5 * (1 + NLOOP))
 #else///USE_WARP_SHUFFLE_FUNC
-#define NQUEUE  (DIV_NTHREADS(6144) - 5 * (1 + NLOOP) - 1)
+#define NQUEUE  (DIV_NTHREADS(NSM4TRAVERSAL / NBLOCKS_PER_SM) - 5 * (1 + NLOOP) - 1)
 #endif//USE_WARP_SHUFFLE_FUNC
 #endif//NBLOCKS_PER_SM == 2
 
 #else///INDIVIDUAL_GRAVITATIONAL_SOFTENING
 
 #   if  NBLOCKS_PER_SM == 2
-/** 6144 = 6 * 1024 = 12 * 1024 / 2 = (48KiB / sizeof(float)) / NBLOCKS_PER_SM */
-#   if  NLOOP > ((6144 / (4 * NTHREADS)) - 2)
+#   if  GPUGEN >= 60
+/** 8192 = 8 * 1024 = 16 * 1024 / 2 = (64KiB / sizeof(float)) / NBLOCKS_PER_SM on newer GPUs */
+#define NSM4TRAVERSAL (8192)
+#else///GPUGEN >= 60
+/** 6144 = 6 * 1024 = 12 * 1024 / 2 = (48KiB / sizeof(float)) / NBLOCKS_PER_SM on older GPUs */
+#define NSM4TRAVERSAL (6144)
+#endif//GPUGEN >= 60
+#   if  NLOOP > ((NSM4TRAVERSAL / (4 * NTHREADS)) - 2)
 #undef  NLOOP
-#define NLOOP   ((6144 / (4 * NTHREADS)) - 2)
-#endif//NLOOP > ((6144 / (4 * NTHREADS)) - 2)
+#define NLOOP   ((NSM4TRAVERSAL / (4 * NTHREADS)) - 2)
+#endif//NLOOP > ((NSM4TRAVERSAL / (4 * NTHREADS)) - 2)
 #ifdef  USE_WARP_SHUFFLE_FUNC
-#define NQUEUE  (DIV_NTHREADS(6144) - 4 * (1 + NLOOP))
+#define NQUEUE  (DIV_NTHREADS(NSM4TRAVERSAL) - 4 * (1 + NLOOP))
 #else///USE_WARP_SHUFFLE_FUNC
-#define NQUEUE  (DIV_NTHREADS(6144) - 4 * (1 + NLOOP) - 1)
+#define NQUEUE  (DIV_NTHREADS(NSM4TRAVERSAL) - 4 * (1 + NLOOP) - 1)
 #endif//USE_WARP_SHUFFLE_FUNC
 #else///NBLOCKS_PER_SM == 2
-/** 12288 = 12 * 1024 = 48KiB / sizeof(float) */
-#   if  NLOOP > ((12288 / (4 * NTHREADS * NBLOCKS_PER_SM)) - 2)
+#   if  GPUGEN >= 60
+/** 16384 = 16 * 1024 = 64KiB / sizeof(float) on newer GPUs */
+#define NSM4TRAVERSAL (16384)
+#else///GPUGEN >= 60
+/** 12288 = 12 * 1024 = 48KiB / sizeof(float) on older GPUs */
+#define NSM4TRAVERSAL (12288)
+#endif//GPUGEN >= 60
+#   if  NLOOP > ((NSM4TRAVERSAL / (4 * NTHREADS * NBLOCKS_PER_SM)) - 2)
 #undef  NLOOP
-#define NLOOP   ((12288 / (4 * NTHREADS * NBLOCKS_PER_SM)) - 2)
-#endif//NLOOP > ((12288 / (4 * NTHREADS * NBLOCKS_PER_SM)) - 2)
+#define NLOOP   ((NSM4TRAVERSAL / (4 * NTHREADS * NBLOCKS_PER_SM)) - 2)
+#endif//NLOOP > ((NSM4TRAVERSAL / (4 * NTHREADS * NBLOCKS_PER_SM)) - 2)
 #ifdef  USE_WARP_SHUFFLE_FUNC
-#define NQUEUE  (DIV_NTHREADS(12288 / NBLOCKS_PER_SM) - 4 * (1 + NLOOP))
+#define NQUEUE  (DIV_NTHREADS(NSM4TRAVERSAL / NBLOCKS_PER_SM) - 4 * (1 + NLOOP))
 #else///USE_WARP_SHUFFLE_FUNC
-#define NQUEUE  (DIV_NTHREADS(12288 / NBLOCKS_PER_SM) - 4 * (1 + NLOOP) - 1)
+#define NQUEUE  (DIV_NTHREADS(NSM4TRAVERSAL / NBLOCKS_PER_SM) - 4 * (1 + NLOOP) - 1)
 #endif//USE_WARP_SHUFFLE_FUNC
 #endif//NBLOCKS_PER_SM == 2
 

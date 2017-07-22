@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -J magi               # name of job
 #SBATCH -t 00:30:00           # upper limit of elapsed time
-#SBATCH -p normal             # partition name
+#SBATCH -p comq               # partition name
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
 #SBATCH --get-user-env        # retrieve the login environment variables
 ###############################################################
@@ -14,13 +14,7 @@ EXEC=bin/magi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    # PROBLEM=26
-    # PROBLEM=28
-    # PROBLEM=70
-    # PROBLEM=71
-    # PROBLEM=1
-    PROBLEM=80
-    # PROBLEM=81
+    PROBLEM=20
 fi
 ###############################################################
 # number of N-body particles
@@ -58,7 +52,7 @@ fi
 if [ -z "$SAVE" ]; then
     # SAVE=2.0
     # SAVE=60.0
-    SAVE=140.0
+    SAVE=25.0
 fi
 ###############################################################
 

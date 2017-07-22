@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/06/27 (Tue)
+ * @date 2017/07/19 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -44,12 +44,21 @@
 
 
 /** tentative treatment for GTX TITAN X: (# of SM = 24) * (# of blocks per SM = 8) = 192 exceeds NTHREADS_PH */
-#   if  GPUGEN == 52
+#   if  GPUGEN >= 52
 #   if  NTHREADS_PH < 256
 #undef  NTHREADS_PH
 #define NTHREADS_PH  (256)
 #endif//NTHREADS_PH < 256
-#endif//GPUGEN == 52
+#endif//GPUGEN >= 52
+
+
+/** tentative treatment for Tesla P100: (# of SM = 56) * (# of blocks per SM = 6) = 336 exceeds NTHREADS_PH */
+#   if  GPUGEN >= 60
+#   if  NTHREADS_PH < 512
+#undef  NTHREADS_PH
+#define NTHREADS_PH  (512)
+#endif//NTHREADS_PH < 512
+#endif//GPUGEN >= 60
 
 
 /**

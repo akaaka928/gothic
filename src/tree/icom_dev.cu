@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/06/26 (Mon)
+ * @date 2017/07/18 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -31,9 +31,15 @@
 
 #include "../util/gsync_dev.cu"
 
-/** in L1 cache preferred configuration, capacity of shared memory is 16KiB per SM */
+#   if  GPUGEN >= 60
+/** capacity of shared memory is 64KiB per SM on newer GPUs */
+/** real4 smem[NTHREADS_EB] corresponds 16 * NTHREADS_EB bytes */
+#define NBLOCKS_PER_SM_EB (4096 / NTHREADS_EB)
+#else///GPUGEN >= 60
+/** in L1 cache preferred configuration, capacity of shared memory is 16KiB per SM on older GPUs */
 /** real4 smem[NTHREADS_EB] corresponds 16 * NTHREADS_EB bytes */
 #define NBLOCKS_PER_SM_EB (1024 / NTHREADS_EB)
+#endif//GPUGEN >= 60
 
 #define REGISTERS_PER_THREAD_EB (40)
 /* calcPHkey_kernel uses 32 registers @ Tesla M2090, Ttot = 1024 (registers are spilled to local memory) */

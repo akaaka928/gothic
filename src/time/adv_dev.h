@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/03/01 (Wed)
+ * @date 2017/07/21 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -49,6 +49,9 @@
  * @brief number of threads per block for setTimeStep_kernel, prediction_kernel, advPos_kernel, and advVel_kernel
  */
 #ifndef NTHREADS_TIME
+#   if  GPUGEN >= 60
+#define NTHREADS_TIME (128)
+#else///GPUGEN >= 60
 #   if  GPUGEN >= 52
 #define NTHREADS_TIME (512)
 #else///GPUGEN >= 52
@@ -58,6 +61,7 @@
 #define NTHREADS_TIME (512)
 #endif//GPUGEN >= 30
 #endif//GPUGEN >= 52
+#endif//GPUGEN >= 60
 #endif//NTHREADS_TIME
 
 /** NTHREADS_TIME must be equal or greater than NTHREADS, to set massless particles */

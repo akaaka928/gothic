@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/06/27 (Tue)
+ * @date 2017/07/20 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -35,8 +35,8 @@
 /* #define BENCHMARK_STEPS (256) */
 /* #define BENCHMARK_STEPS (512) */
 /* #define BENCHMARK_STEPS (1024) */
-#define BENCHMARK_STEPS (2048)
-/* #define BENCHMARK_STEPS (4096) */
+/* #define BENCHMARK_STEPS (2048) */
+#define BENCHMARK_STEPS (4096)
 /* #define BENCHMARK_STEPS (8192) */
 
 

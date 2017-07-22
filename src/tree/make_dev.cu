@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/06/27 (Tue)
+ * @date 2017/07/19 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -49,13 +49,24 @@
 
 
 /** limitation from capacity of shared memory */
-/** in shared memory preferred configuration, capacity of shared memory is 48KiB per SM */
+/** capacity of shared memory is 64KiB on newer GPUs */
+/** in shared memory preferred configuration, capacity of shared memory is 48KiB per SM on older GPUs */
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
+#   if  GPUGEN >= 60
+/* 4096 = 64 * 1024 / 16 */
+#define NBLOCKS_PER_SM_MAC ( 4096 / (NTHREADS_MAC * (1 +     NBUF_MAC)))
+#else///GPUGEN >= 60
 /* 3072 = 48 * 1024 / 16 */
 #define NBLOCKS_PER_SM_MAC ( 3072 / (NTHREADS_MAC * (1 +     NBUF_MAC)))
+#endif//GPUGEN >= 60
 #else///USE_WARP_SHUFFLE_FUNC_MAC
+#   if  GPUGEN >= 60
+/* 16384 = 64 * 1024 / 4 */
+#define NBLOCKS_PER_SM_MAC (16384 / (NTHREADS_MAC * (5 + 4 * NBUF_MAC)))
+#else///GPUGEN >= 60
 /* 12288 = 48 * 1024 / 4 */
 #define NBLOCKS_PER_SM_MAC (12288 / (NTHREADS_MAC * (5 + 4 * NBUF_MAC)))
+#endif//GPUGEN >= 60
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
 
 #define REGISTERS_PER_THREAD_MAC (64)
@@ -106,6 +117,11 @@
 #define REGISTERS_PER_THREAD_MAC (72)
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
 #endif//GPUVER == 52
+/* calcMultipole_kernel uses 80 registers @ Tesla P100 */
+#   if  GPUVER == 60
+#undef  REGISTERS_PER_THREAD_MAC
+#define REGISTERS_PER_THREAD_MAC (80)
+#endif//GPUVER == 60
 
 /** limitation from number of registers */
 #   if  NBLOCKS_PER_SM_MAC > (MAX_REGISTERS_PER_SM / (REGISTERS_PER_THREAD_MAC * NTHREADS_MAC))
@@ -140,9 +156,9 @@
 
 /** limitations from capacity of shared memory (assuming L1 cache preferred) */
 /** SM usage is 20 * NTHREADS_MAKE_TREE + 16 * NUM_PHKEY_LEVEL bytes */
-#define NBLOCKS_PER_SM_MAKE_TREE   (16384 / (20 * NTHREADS_MAKE_TREE + 16 * NUM_PHKEY_LEVEL))
+#define NBLOCKS_PER_SM_MAKE_TREE   (SMEM_SIZE_L1_PREF / (20 * NTHREADS_MAKE_TREE + 16 * NUM_PHKEY_LEVEL))
 /** SM usage is  4 * NTHREADS_LINK_TREE bytes */
-#define NBLOCKS_PER_SM_LINK_TREE   (16384 / (4 * NTHREADS_LINK_TREE))
+#define NBLOCKS_PER_SM_LINK_TREE   (SMEM_SIZE_L1_PREF / (4 * NTHREADS_LINK_TREE))
 
 #define REGISTERS_PER_THREAD_MAKE_TREE (64)
 #define REGISTERS_PER_THREAD_LINK_TREE (32)
@@ -188,6 +204,15 @@
 #define REGISTERS_PER_THREAD_LINK_TREE (23)
 #endif//USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE
 #endif//GPUVER == 52
+
+/* makeTree_kernel use 47 registers @ Tesla P100 w/z Ttot = 256 @ CUDA 8.0 */
+/* linkTree_kernel use 25 registers @ Tesla P100 w/z Ttot = 256 @ CUDA 8.0 */
+#   if  GPUVER == 60
+#undef  REGISTERS_PER_THREAD_MAKE_TREE
+#define REGISTERS_PER_THREAD_MAKE_TREE (47)
+#undef  REGISTERS_PER_THREAD_LINK_TREE
+#define REGISTERS_PER_THREAD_LINK_TREE (25)
+#endif//GPUVER == 60
 
 /** limitations from number of registers */
 #   if  NBLOCKS_PER_SM_MAKE_TREE > (MAX_REGISTERS_PER_SM / (REGISTERS_PER_THREAD_MAKE_TREE * NTHREADS_MAKE_TREE))
@@ -2852,7 +2877,7 @@ void setGlobalConstants_make_dev_cu
   int regLimit = MAX_REGISTERS_PER_SM / (funcAttr.numRegs * NTHREADS_MAC);
   if( regLimit > (MAX_REGISTERS_PER_SM / NTHREADS_MAC) )
     regLimit = (MAX_REGISTERS_PER_SM / NTHREADS_MAC);
-  int memLimit = (48 * 1024) / funcAttr.sharedSizeBytes;
+  int memLimit = SMEM_SIZE_SM_PREF / funcAttr.sharedSizeBytes;
   int Nblck = (regLimit <= memLimit) ? regLimit : memLimit;
   if( Nblck > (MAX_THREADS_PER_SM       / NTHREADS_MAC) )    Nblck = MAX_THREADS_PER_SM / NTHREADS_MAC;
   if( Nblck >   MAX_BLOCKS_PER_SM                       )    Nblck = MAX_BLOCKS_PER_SM;
@@ -2872,7 +2897,7 @@ void setGlobalConstants_make_dev_cu
   regLimit = MAX_REGISTERS_PER_SM / (funcAttr.numRegs * NTHREADS_MAKE_TREE);
   if( regLimit > (MAX_REGISTERS_PER_SM / NTHREADS_MAKE_TREE) )
     regLimit = (MAX_REGISTERS_PER_SM / NTHREADS_MAKE_TREE);
-  memLimit = (16 * 1024) / funcAttr.sharedSizeBytes;
+  memLimit = SMEM_SIZE_L1_PREF / funcAttr.sharedSizeBytes;
   Nblck = (regLimit <= memLimit) ? regLimit : memLimit;
   if( Nblck > (MAX_THREADS_PER_SM       / NTHREADS_MAKE_TREE) )    Nblck = MAX_THREADS_PER_SM / NTHREADS_MAKE_TREE;
   if( Nblck >   MAX_BLOCKS_PER_SM                             )    Nblck = MAX_BLOCKS_PER_SM;
@@ -2892,7 +2917,7 @@ void setGlobalConstants_make_dev_cu
   regLimit = MAX_REGISTERS_PER_SM / (funcAttr.numRegs * NTHREADS_LINK_TREE);
   if( regLimit > (MAX_REGISTERS_PER_SM / NTHREADS_LINK_TREE) )
     regLimit = (MAX_REGISTERS_PER_SM / NTHREADS_LINK_TREE);
-  memLimit = (16 * 1024) / funcAttr.sharedSizeBytes;
+  memLimit = SMEM_SIZE_L1_PREF / funcAttr.sharedSizeBytes;
   Nblck = (regLimit <= memLimit) ? regLimit : memLimit;
   if( Nblck > (MAX_THREADS_PER_SM       / NTHREADS_LINK_TREE) )    Nblck = MAX_THREADS_PER_SM / NTHREADS_LINK_TREE;
   if( Nblck >   MAX_BLOCKS_PER_SM                             )    Nblck = MAX_BLOCKS_PER_SM;
@@ -2913,7 +2938,7 @@ void setGlobalConstants_make_dev_cu
   regLimit = MAX_REGISTERS_PER_SM / (funcAttr.numRegs * NTHREADS_OUTFLOW);
   if( regLimit > (MAX_REGISTERS_PER_SM / NTHREADS_OUTFLOW) )
     regLimit = (MAX_REGISTERS_PER_SM / NTHREADS_OUTFLOW);
-  memLimit = (16 * 1024) / funcAttr.sharedSizeBytes;
+  memLimit = SMEM_SIZE_L1_PREF / funcAttr.sharedSizeBytes;
   Nblck = (regLimit <= memLimit) ? regLimit : memLimit;
   if( Nblck > (MAX_THREADS_PER_SM       / NTHREADS_OUTFLOW) )    Nblck = MAX_THREADS_PER_SM / NTHREADS_OUTFLOW;
   if( Nblck >   MAX_BLOCKS_PER_SM                           )    Nblck = MAX_BLOCKS_PER_SM;

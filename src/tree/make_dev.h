@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/03/23 (Thu)
+ * @date 2017/07/19 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -55,11 +55,11 @@
  * @brief number of threads per block for calcMultipole_kernel
  */
 #ifndef NTHREADS_MAC
-#   if  (GPUGEN >= 52)
+#   if  (GPUGEN == 52)
 #define NTHREADS_MAC (256)
-#else///(GPUGEN >= 52)
+#else///(GPUGEN == 52)
 #define NTHREADS_MAC (128)
-#endif//(GPUGEN >= 52)
+#endif//(GPUGEN == 52)
 #endif//NTHREADS_MAC
 
 /** NTHREADS_MAC must be equal or smaller than 512 due to the capacity of shared memory */
@@ -88,7 +88,11 @@
  * @brief number of threads that share a common tree node for calcMultipole_kernel
  */
 #ifndef TSUB_MAC
+#   if  (GPUGEN >= 60)
+#define TSUB_MAC (16)
+#else///(GPUGEN >= 60)
 #define TSUB_MAC (32)
+#endif//(GPUGEN >= 60)
 #endif//TSUB_MAC
 
 /** TSUB_MAC must be equal or smaller than NTHREADS_MAC */
@@ -179,7 +183,11 @@
  * @brief number of threads per block for makeTree_kernel
  */
 #ifndef NTHREADS_MAKE_TREE
+#   if  (GPUGEN >= 60)
+#define NTHREADS_MAKE_TREE (256)
+#else///(GPUGEN >= 60)
 #define NTHREADS_MAKE_TREE (128)
+#endif//(GPUGEN >= 60)
 #endif//NTHREADS_MAKE_TREE
 
 
@@ -344,6 +352,9 @@
  * @brief number of threads per block for copyRealBody_kernel
  */
 #ifndef NTHREADS_COPY_BODY
+#   if  (GPUGEN >= 60)
+#define NTHREADS_COPY_BODY (512)
+#else///(GPUGEN >= 60)
 #   if  (GPUGEN >= 52)
 #define NTHREADS_COPY_BODY (1024)
 #else///(GPUGEN >= 52)
@@ -353,6 +364,7 @@
 #define NTHREADS_COPY_BODY (128)
 #endif//(GPUGEN >= 30)
 #endif//(GPUGEN >= 52)
+#endif//(GPUGEN >= 60)
 #endif//NTHREADS_COPY_BODY
 
 
