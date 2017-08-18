@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/07/22 (Sat)
+ * @date 2017/08/09 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -824,8 +824,9 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
 #endif//PROGRESS_REPORT_ON
 
 #ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
-  double Krot = 0.0;
-  double Krnd = 0.0;
+  const double mass_2 = 0.5 * CAST_R2D(mass);
+  double Tdisk = 0.0;
+  double Wdisk = 0.0;
 #endif//CHECK_OSTRIKER_PEEBLES_CRITERION
 
   double *tab_lev;
@@ -1017,6 +1018,10 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     const double PhiRz = diskpot + sphepot;
     const double vesc2 = -2.0 * PhiRz;
 
+#ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
+    Wdisk += mass_2 * (diskpot + sphepot);
+#endif//CHECK_OSTRIKER_PEEBLES_CRITERION
+
     /** set a scale factor to include effects of disk thickness */
 #ifdef  USE_POTENTIAL_SCALING_SCHEME
     double aR0;
@@ -1113,8 +1118,7 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     }/* while( true ){ */
 
 #ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
-    Krot += vcirc2;
-    Krnd += vR * vR + vp * vp + vz * vz;
+    Tdisk += mass_2 * vcirc2;
 #endif//CHECK_OSTRIKER_PEEBLES_CRITERION
 
     /** uniform distribution in polar angle */
@@ -1169,15 +1173,27 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
 #endif//PROGRESS_REPORT_ON
 
 #ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
+
 #ifdef  USE_SFMTJUMP
-#pragma omp single nowait
-#endif//USE_SFMTJUMP
+  static double Tdisk_tot, Wdisk_tot;
+#pragma omp single
+  Tdisk_tot = Wdisk_tot = 0.0;
+
+#pragma omp atomic
+  Tdisk_tot += Tdisk;
+#pragma omp atomic
+  Wdisk_tot += Wdisk;
+
+#pragma omp barrier
+#pragma omp single
   {
-    fprintf(stdout, "# simple check based on Ostriker-Peebles criterion: Krot / (Krot + Krand) > ~0.28 is unstable to a bar-like mode\n");
-    fprintf(stdout, "# \tw/o Ekin of spherical component: Krot / (Krot + Krand) = %e; i.e., %s to a bar-like mode\n", Krot / (Krot + Krnd), ((Krot / (Krot + Krnd)) > 0.28) ? "unstable" : "  stable");
-    Krnd += disk.Krand_sph;
-    fprintf(stdout, "# \tw/z Ekin of spherical component: Krot / (Krot + Krand) = %e; i.e., %s to a bar-like mode\n", Krot / (Krot + Krnd), ((Krot / (Krot + Krnd)) > 0.28) ? "unstable" : "  stable");
+    disk.cfg->Tdisk = Tdisk_tot;
+    disk.cfg->Wdisk = Wdisk_tot;
   }
+#else///USE_SFMTJUMP
+    disk.cfg->Tdisk = Tdisk;
+    disk.cfg->Wdisk = Wdisk;
+#endif//USE_SFMTJUMP
 #endif//CHECK_OSTRIKER_PEEBLES_CRITERION
 
   free(tab_lev);

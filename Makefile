@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2017/06/19 (Mon) 14:56:53
+# last updated on 2017/08/14 (Mon) 17:05:45
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -19,7 +19,7 @@ DEBUG	:= -DNDEBUG
 # PROFILE	:= -pg
 #################################################################################################
 # Execution options
-FORCE_SINGLE_GPU_RUN	:= 1
+FORCE_SINGLE_GPU_RUN	:= 0
 CARE_EXTERNAL_PARTICLES	:= 0
 ACC_ACCUMULATION_IN_DP	:= 0
 KAHAN_SUM_CORRECTION	:= 0
@@ -97,7 +97,7 @@ PROFILE	:=
 USEDBG	:= 0
 USEPAPI	:= 0
 EVALUATE_FORCE_ERROR	:= 0
-REPORT_ELAPSED_TIME	:= 0
+# REPORT_ELAPSED_TIME	:= 0
 endif
 #################################################################################################
 ifeq ($(EVALUATE_FORCE_ERROR), 1)
@@ -395,6 +395,7 @@ GOTHIC	:= $(BINDIR)/gothic
 MKCOLD	:= $(BINDIR)/uniformsphere
 MAGI	:= $(BINDIR)/magi
 PLTENE	:= $(BINDIR)/plot.energy
+PLTACT	:= $(BINDIR)/plot.action
 PLTDST	:= $(BINDIR)/plot.distribution
 PLTCDF	:= $(BINDIR)/plot.cdf
 PLTMUL	:= $(BINDIR)/plot.multipole
@@ -486,6 +487,7 @@ DISKLIB	:= potdens.c diskDF.c
 MAGILIB	:= profile.c eddington.c king.c abel.c blas.c spline.c table.c
 #################################################################################################
 PENESRC	:= plot.energy.c
+PACTSRC	:= plot.action.c
 DISTSRC	:= plot.distribution.c
 PCDFSRC	:= plot.cdf.c
 PMULSRC	:= plot.multipole.c
@@ -591,6 +593,16 @@ OBJPENE	+= $(patsubst %.c, $(OBJDIR)/%.mpi.o,         $(notdir $(FILELIB)))
 endif
 #################################################################################################
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
+OBJPACT	:= $(patsubst %.c, $(OBJDIR)/%.mpi.gsl.pl.hdf5.o, $(notdir $(PACTSRC)))
+OBJPACT	+= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o,        $(notdir $(FILELIB) $(ALLCLIB)))
+else
+OBJPACT	:= $(patsubst %.c, $(OBJDIR)/%.mpi.gsl.pl.o,      $(notdir $(PACTSRC)))
+OBJPACT	+= $(patsubst %.c, $(OBJDIR)/%.o,		  $(notdir $(ALLCLIB)))
+OBJPACT	+= $(patsubst %.c, $(OBJDIR)/%.mpi.o,		  $(notdir $(FILELIB)))
+endif
+OBJPACT	+= $(patsubst %.c, $(OBJDIR)/%.omp.o,		  $(notdir spline.c))
+#################################################################################################
+ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 OBJDIST	:= $(patsubst %.c, $(OBJDIR)/%.mpi.gsl.pl.hdf5.o, $(notdir $(DISTSRC)))
 OBJDIST	+= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o,        $(notdir $(FILELIB) $(ALLCLIB)))
 else
@@ -662,7 +674,7 @@ endif
 #################################################################################################
 ## Rules
 #################################################################################################
-all:	TAGS $(GOTHIC) $(MAGI) $(PLTENE) $(PLTDST)# $(MKCOLD) $(PLTCDF)# $(PLTMUL)# $(OBJASM)
+all:	TAGS $(GOTHIC) $(MAGI) $(PLTENE) $(PLTACT) $(PLTDST)# $(MKCOLD) $(PLTCDF)# $(PLTMUL)# $(OBJASM)
 #################################################################################################
 .PHONY:	gothic init magi cold edf plot bench sample disk anal
 gothic:	TAGS $(GOTHIC)
@@ -670,7 +682,7 @@ init:	TAGS $(MAGI) $(MKCOLD)
 magi:	TAGS $(MAGI)
 cold:	TAGS $(MKCOLD)
 edf:	TAGS $(MAGI)
-plot:	TAGS $(PLTENE) $(PLTDST) $(PLTCDF)# $(PLTMUL)
+plot:	TAGS $(PLTENE) $(PLTACT) $(PLTDST) $(PLTCDF)# $(PLTMUL)
 bench:	TAGS $(OPTCFG) $(PLTELP) $(PLTDEP) $(PLTBRK) $(PLTCMP) $(PLTFLP) $(PLTRAD)
 sample:	TAGS $(SAMPLE) $(PLTDF)
 disk:	TAGS $(PLTJET) $(PLTDISK)
@@ -717,6 +729,8 @@ $(MAGI):	$(OBJMAGI)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constan
 endif
 $(PLTENE):	$(OBJPENE)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPENE) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib -l$(LIBPREC)hdf5lib $(HDF5LIB)
+$(PLTACT):	$(OBJPACT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPACT) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib $(GSLLIB) -l$(LIBPREC)hdf5lib $(HDF5LIB)
 $(PLTDST):	$(OBJDIST)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJDIST) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib $(GSLLIB) -l$(LIBPREC)hdf5lib $(HDF5LIB)
 $(PLTCDF):	$(OBJPCDF)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
@@ -746,6 +760,8 @@ $(MAGI):	$(OBJMAGI)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constan
 endif
 $(PLTENE):	$(OBJPENE)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPENE) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib
+$(PLTACT):	$(OBJPACT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPACT) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib $(GSLLIB)
 $(PLTDST):	$(OBJDIST)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJDIST) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib $(GSLLIB)
 $(PLTCDF):	$(OBJPCDF)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a
@@ -824,6 +840,7 @@ clean:
 	$(VERBOSE)rm -f $(MKCOLD) $(OBJCOLD)
 	$(VERBOSE)rm -f $(MAGI)   $(OBJMAGI)
 	$(VERBOSE)rm -f $(PLTENE) $(OBJPENE)
+	$(VERBOSE)rm -f $(PLTACT) $(OBJPACT)
 	$(VERBOSE)rm -f $(PLTDST) $(OBJDIST)
 	$(VERBOSE)rm -f $(PLTCDF) $(OBJPCDF)
 	$(VERBOSE)rm -f $(PLTMUL) $(OBJPMUL)
@@ -1066,6 +1083,8 @@ PLOT_DEP	:=	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/constants.h	\
 			$(MYINC)/plplotlib.h	$(MYINC)/mpilib.h	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h	$(FILEDIR)/io.h
 $(OBJDIR)/plot.cdf.mpi.pl.hdf5.o:		$(PLOT_DEP)	$(MYINC)/name.h	$(PLOTDIR)/cdflib.h	$(MYINC)/hdf5lib.h
 $(OBJDIR)/plot.cdf.mpi.pl.o:			$(PLOT_DEP)	$(MYINC)/name.h	$(PLOTDIR)/cdflib.h
+$(OBJDIR)/plot.action.mpi.gsl.pl.hdf5.o:	$(PLOT_DEP)	$(INITDIR)/spline.h	$(MYINC)/hdf5lib.h
+$(OBJDIR)/plot.action.mpi.gsl.pl.o:		$(PLOT_DEP)	$(INITDIR)/spline.h
 $(OBJDIR)/plot.distribution.mpi.gsl.pl.hdf5.o:	$(PLOT_DEP)	$(MYINC)/hdf5lib.h
 $(OBJDIR)/plot.distribution.mpi.gsl.pl.o:	$(PLOT_DEP)
 $(OBJDIR)/plot.energy.mpi.pl.hdf5.o:		$(PLOT_DEP)	$(MYINC)/hdf5lib.h

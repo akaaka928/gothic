@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/03/22 (Wed)
+ * @date 2017/08/16 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -23,6 +23,7 @@
 #undef  PREFIX_SUM_BLCK
 #undef  PREFIX_SUM_GRID
 #undef  PREFIX_SUM_GRID_WITH_PARTITION
+#undef   TOTAL_SUM_BLCK
 
 #undef  SCAN_INC_CUH
 #endif//SCAN_INC_CUH

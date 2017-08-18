@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/06/22 (Thu)
+ * @date 2017/08/02 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -36,6 +36,14 @@
  * disable: adopt tangent hyperbolic based smoother
  */
 #define ERFC_SMOOTHING
+
+
+/**
+ * @def CHECK_OSTRIKER_PEEBLES_CRITERION
+ *
+ * @brief activate analysis of Ostriker--Peebles criterion
+ */
+#define CHECK_OSTRIKER_PEEBLES_CRITERION
 
 
 /** CFGFOLDER must same with CFGFOLDER defined in sample.c */
@@ -163,6 +171,10 @@ typedef struct
   double rhalf, Reff;/**< half-mass radius and effective radius */
   double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin0, Qmin1, Qmin2, qminR0, qminR1, qminR2;/**< properties of disk component(s) */
   double retrogradeFrac;/**< fraction of retrograding disk particles */
+#ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
+  double Tdisk;/**< rotational kinetic energy of disk component */
+  double Wdisk;/**< potential energy of disk component */
+#endif//CHECK_OSTRIKER_PEEBLES_CRITERION
   double rc, rc_width;
   double Ecut;
   ulong num;

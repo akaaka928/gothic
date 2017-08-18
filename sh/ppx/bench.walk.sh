@@ -25,11 +25,9 @@ do
 	# MAX_NLOOP=14
     fi
     if [ $NTHREADS -eq  256 ]; then
-	# MAX_NLOOP=4
 	MAX_NLOOP=6
     fi
     if [ $NTHREADS -eq  512 ]; then
-	# MAX_NLOOP=1
 	MAX_NLOOP=2
     fi
     if [ $NTHREADS -eq 1024 ]; then

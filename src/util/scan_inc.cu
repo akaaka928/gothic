@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/03/30 (Thu)
+ * @date 2017/08/16 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -59,6 +59,46 @@ __device__ __forceinline__ Type prefixSumWarp
   if( lane >=  4 )    val += smem[tidx -  4];  smem[tidx] = val;
   if( lane >=  8 )    val += smem[tidx -  8];  smem[tidx] = val;
   if( lane >= 16 )    val += smem[tidx - 16];  smem[tidx] = val;
+
+#endif//USE_WARP_SHUFFLE_FUNC_SCAN_INC
+
+  return (val);
+}
+
+
+/**
+ * @fn totalSumWarp
+ *
+ * @brief Get total sum within a warp.
+ * @detail implicit synchronization within 32 threads (a warp) is assumed.
+ */
+template <typename Type>
+__device__ __forceinline__ Type totalSumWarp
+(Type val
+#ifndef USE_WARP_SHUFFLE_FUNC_SCAN_INC
+ , volatile Type * smem, const int tidx, const int head
+#endif//USE_WARP_SHUFFLE_FUNC_SCAN_INC
+ )
+{
+#ifdef  USE_WARP_SHUFFLE_FUNC_SCAN_INC
+
+  Type tmp;
+  tmp = __shfl_xor(val,  1, warpSize);  val += tmp;
+  tmp = __shfl_xor(val,  2, warpSize);  val += tmp;
+  tmp = __shfl_xor(val,  4, warpSize);  val += tmp;
+  tmp = __shfl_xor(val,  8, warpSize);  val += tmp;
+  tmp = __shfl_xor(val, 16, warpSize);  val += tmp;
+  val = __shfl(val, 0, warpSize);
+
+#else///USE_WARP_SHUFFLE_FUNC_SCAN_INC
+
+  smem[tidx] = val;
+  val += smem[tidx ^  1];  smem[tidx] = val;
+  val += smem[tidx ^  2];  smem[tidx] = val;
+  val += smem[tidx ^  4];  smem[tidx] = val;
+  val += smem[tidx ^  8];  smem[tidx] = val;
+  val += smem[tidx ^ 16];  smem[tidx] = val;
+  val = smem[head];
 
 #endif//USE_WARP_SHUFFLE_FUNC_SCAN_INC
 
@@ -293,4 +333,78 @@ __device__ __forceinline__ Type PREFIX_SUM_GRID_WITH_PARTITION
   }/* if( bnum > 1 ){ */
 
   return (scan);
+}
+
+
+/**
+ * @fn TOTAL_SUM_BLCK
+ *
+ * @brief Get total sum within a block.
+ */
+template <typename Type>
+__device__ __forceinline__ Type TOTAL_SUM_BLCK(Type val, volatile Type * __restrict__ smem, const int tidx, const int head)
+{
+  /** 1. total sum within a warp */
+  Type temp = totalSumWarp(val
+#ifndef USE_WARP_SHUFFLE_FUNC_SCAN_INC
+			   , smem, tidx, head
+#endif//USE_WARP_SHUFFLE_FUNC_SCAN_INC
+			 );
+#ifdef  USE_WARP_SHUFFLE_FUNC_SCAN_INC
+  if( tidx == head )
+    smem[tidx] = temp;
+#endif//USE_WARP_SHUFFLE_FUNC_SCAN_INC
+
+
+  /** 2. reduction of partial sum */
+  __syncthreads();
+
+  /** warpSize = 32 = 2^5; NTHREADS_SCAN_INC <= 1024 --> NTHREADS_SCAN_INC >> 5 <= 32 = warpSize */
+  if( tidx < (NTHREADS_SCAN_INC >> 5) ){
+    val = smem[tidx * warpSize];
+
+#ifdef  USE_WARP_SHUFFLE_FUNC_SCAN_INC
+    const int groupSize = NTHREADS_SCAN_INC >> 5;
+    Type tmp;
+#   if  (NTHREADS_SCAN_INC >> 5) >=  2
+    tmp = __shfl_xor(val,  1, groupSize);    val += tmp;
+#   if  (NTHREADS_SCAN_INC >> 5) >=  4
+    tmp = __shfl_xor(val,  2, groupSize);    val += tmp;
+#   if  (NTHREADS_SCAN_INC >> 5) >=  8
+    tmp = __shfl_xor(val,  4, groupSize);    val += tmp;
+#   if  (NTHREADS_SCAN_INC >> 5) >= 16
+    tmp = __shfl_xor(val,  8, groupSize);    val += tmp;
+#   if  (NTHREADS_SCAN_INC >> 5) == 32
+    tmp = __shfl_xor(val, 16, groupSize);    val += tmp;
+#endif//(NTHREADS_SCAN_INC >> 5) == 32
+#endif//(NTHREADS_SCAN_INC >> 5) >= 16
+#endif//(NTHREADS_SCAN_INC >> 5) >=  8
+#endif//(NTHREADS_SCAN_INC >> 5) >=  4
+#endif//(NTHREADS_SCAN_INC >> 5) >=  2
+    if( tidx == 0 )
+      smem[tidx] = val;
+#else///USE_WARP_SHUFFLE_FUNC_SCAN_INC
+    smem[tidx] = val;
+#   if  (NTHREADS_SCAN_INC >> 5) >=  2
+    val += smem[tidx ^  1];    smem[tidx] = val;
+#   if  (NTHREADS_SCAN_INC >> 5) >=  4
+    val += smem[tidx ^  2];    smem[tidx] = val;
+#   if  (NTHREADS_SCAN_INC >> 5) >=  8
+    val += smem[tidx ^  4];    smem[tidx] = val;
+#   if  (NTHREADS_SCAN_INC >> 5) >= 16
+    val += smem[tidx ^  8];    smem[tidx] = val;
+#   if  (NTHREADS_SCAN_INC >> 5) == 32
+    val += smem[tidx ^ 16];    smem[tidx] = val;
+#endif//(NTHREADS_SCAN_INC >> 5) == 32
+#endif//(NTHREADS_SCAN_INC >> 5) >= 16
+#endif//(NTHREADS_SCAN_INC >> 5) >=  8
+#endif//(NTHREADS_SCAN_INC >> 5) >=  4
+#endif//(NTHREADS_SCAN_INC >> 5) >=  2
+#endif//USE_WARP_SHUFFLE_FUNC_SCAN_INC
+  }/* if( tidx < (NTHREADS_SCAN_INC >> 5) ){ */
+  __syncthreads();
+  val = smem[0];
+  __syncthreads();
+
+  return (val);
 }

@@ -6,28 +6,32 @@ matplotlib.use("tkagg")
 import matplotlib.pyplot as plt
 
 import os.path as path
-
 import multiprocessing as mp
 
 import utils as utils
 
 
+plotSpherical = False
+
 # specify plot target
-filename = "ltg"
+filename = "cb17"
 # filename = "spherical"
 init = 0
 last = 47
 # last = 0
-Ncrit = 2048 # number of particles for estimating physical quantities
-# Ncrit = 16384 # number of particles for estimating physical quantities
+Ncrit_disk = 2048 # number of particles for estimating physical quantities
+Ncrit_sphe = 262144 # number of particles for estimating physical quantities
+# Ncrit_sphe = 4096 # number of particles for estimating physical quantities
 Nmin = 16 # minimum data points for visualization
 
+tag = ["thick disc", "thin disc"]
 
 # set plot range
-rrmin, rrmax = 1.0e-1, 2.5e+2
-vrmin, vrmax = 0.0, 250.0
-RRmin, RRmax = 0.0, 50.0
-vRmin, vRmax = 0.0, 70.0
+rrmin, rrmax = 1.0e-1, 3.0e+2
+vrmin, vrmax = 0.0, 200.0
+RRmin, RRmax = 0.0, 25.0
+# vRmin, vRmax = 0.0, 90.0
+vRmin, vRmax = 0.0, 100.0
 
 
 # set number of panels
@@ -58,14 +62,17 @@ def draw_figures(fileid, Nkind, radius, sigmar, sigmal, Nsphe, Ndisk, Radius, si
 
 
     # memory allocation for velocity dispersion profile
-    Nmax      = int(np.ceil((Ntot / Ncrit) + Nkind * Nmin))
-    Nmax_disk = int(np.ceil((Ntot / Ncrit) + Ndisk * Nmin))
-    rr = [0] * Nmax
-    sr = [0] * Nmax
-    RR = [0] * Nmax
-    sz = [0] * Nmax
+    Nmax_sphe = int(np.ceil((Ntot / Ncrit_sphe) + Nkind * Nmin))
+    Nmax_disk = int(np.ceil((Ntot / Ncrit_disk) + Ndisk * Nmin))
+    rr = [0] * Nmax_sphe
+    sr = [0] * Nmax_sphe
+    ll = [0] * Nmax_sphe
+    sl = [0] * Nmax_sphe
+
+    RR = [0] * Nmax_disk
     sR = [0] * Nmax_disk
     sp = [0] * Nmax_disk
+    sz = [0] * Nmax_disk
 
     # set partition for each component
     head = [0] * Nkind
@@ -90,13 +97,16 @@ def draw_figures(fileid, Nkind, radius, sigmar, sigmal, Nsphe, Ndisk, Radius, si
 
         if num > 1:
             # skip analysis for central black hole
-            nunit = Ncrit
-            if num < (Ncrit * Nmin):
+            nunit = Ncrit_sphe
+            if num < (Ncrit_sphe * Nmin):
                 nunit = int(np.floor(num / Nmin))
-
             Ndat[kk] = int(np.floor(num / nunit))
+
+            nunit_disk = Ncrit_disk
             if disk == True:
-                Ndat_disk[diskID] = int(np.floor(num / nunit))
+                if num < (Ncrit_disk * Nmin):
+                    nunit_disk = int(np.floor(num / Nmin))
+                Ndat_disk[diskID] = int(np.floor(num / nunit_disk))
 
             # read particle position and velocity
             pos = h5file[folder + "position"].value
@@ -113,58 +123,80 @@ def draw_figures(fileid, Nkind, radius, sigmar, sigmal, Nsphe, Ndisk, Radius, si
             _R = posx * posx + posy * posy
             idx = np.argsort(_R)
 
-            # analyze velocity dispersion profile
-            xx = np.empty(nunit)
-            yy = np.empty(nunit)
-            zz = np.empty(nunit)
-            vx = np.empty(nunit)
-            vy = np.empty(nunit)
-            vz = np.empty(nunit)
-            for ii in range(Ndat[kk]):
-                for jj in range(nunit):
-                    ll = idx[ii * nunit + jj]
-                    xx[jj] = posx[ll]
-                    yy[jj] = posy[ll]
-                    zz[jj] = posz[ll]
-                    vx[jj] = velx[ll]
-                    vy[jj] = vely[ll]
-                    vz[jj] = velz[ll]
 
-                R2 = xx * xx + yy * yy
-                invR = 1.0 / np.sqrt(R2)
+            # analyze velocity dispersion profile of disk component(s)
+            if disk == True:
+                xx = np.empty(nunit_disk)
+                yy = np.empty(nunit_disk)
+                zz = np.empty(nunit_disk)
+                vx = np.empty(nunit_disk)
+                vy = np.empty(nunit_disk)
+                vz = np.empty(nunit_disk)
+                for ii in range(Ndat_disk[diskID]):
+                    for jj in range(nunit_disk):
+                        mm = idx[ii * nunit_disk + jj]
+                        xx[jj] = posx[mm]
+                        yy[jj] = posy[mm]
+                        zz[jj] = posz[mm]
+                        vx[jj] = velx[mm]
+                        vy[jj] = vely[mm]
+                        vz[jj] = velz[mm]
 
-                RR[head[kk] + ii] = np.median(R2 * invR)
-                sz[head[kk] + ii] = np.std(vz)
+                    R2 = xx * xx + yy * yy
+                    invR = 1.0 / np.sqrt(R2)
 
-                if disk == True:
+                    RR[head_disk[diskID] + ii] = np.median(R2 * invR)
+                    sz[head_disk[diskID] + ii] = np.std(vz)
+
                     vR = ( xx * vx + yy * vy) * invR
                     vp = (-yy * vx + xx * vz) * invR
                     sR[head_disk[diskID] + ii] = np.std(vR)
                     sp[head_disk[diskID] + ii] = np.std(vp)
 
 
-            # sort by r
-            _r = posx * posx + posy * posy + posz * posz
-            idx = np.argsort(_r)
+            if plotSpherical == True:
+                # analyze line-of-sight velocity dispersion profile of all component(s)
+                xx = np.empty(nunit)
+                yy = np.empty(nunit)
+                zz = np.empty(nunit)
+                vx = np.empty(nunit)
+                vy = np.empty(nunit)
+                vz = np.empty(nunit)
+                for ii in range(Ndat[kk]):
+                    for jj in range(nunit):
+                        mm = idx[ii * nunit + jj]
+                        xx[jj] = posx[mm]
+                        yy[jj] = posy[mm]
+                        vz[jj] = velz[mm]
 
-            # analyze velocity dispersion profile
-            for ii in range(Ndat[kk]):
-                for jj in range(nunit):
-                    ll = idx[ii * nunit + jj]
-                    xx[jj] = posx[ll]
-                    yy[jj] = posy[ll]
-                    zz[jj] = posz[ll]
-                    vx[jj] = velx[ll]
-                    vy[jj] = vely[ll]
-                    vz[jj] = velz[ll]
+                    R2 = xx * xx + yy * yy
+                    invR = 1.0 / np.sqrt(R2)
 
-                r2 = xx * xx + yy * yy + zz * zz
-                invr = 1.0 / np.sqrt(r2)
+                    ll[head[kk] + ii] = np.median(R2 * invR)
+                    sl[head[kk] + ii] = np.std(vz)
 
-                vr = (xx * vx + yy * vy + zz * vz) * invr
+                # sort by r
+                _r = posx * posx + posy * posy + posz * posz
+                idx = np.argsort(_r)
 
-                rr[head[kk] + ii] = np.median(r2 * invr)
-                sr[head[kk] + ii] = np.std(vr)
+                # analyze velocity dispersion profile
+                for ii in range(Ndat[kk]):
+                    for jj in range(nunit):
+                        mm = idx[ii * nunit + jj]
+                        xx[jj] = posx[mm]
+                        yy[jj] = posy[mm]
+                        zz[jj] = posz[mm]
+                        vx[jj] = velx[mm]
+                        vy[jj] = vely[mm]
+                        vz[jj] = velz[mm]
+
+                    r2 = xx * xx + yy * yy + zz * zz
+                    invr = 1.0 / np.sqrt(r2)
+
+                    vr = (xx * vx + yy * vy + zz * vz) * invr
+
+                    rr[head[kk] + ii] = np.median(r2 * invr)
+                    sr[head[kk] + ii] = np.std(vr)
 
 
             if kk != (Nkind - 1):
@@ -186,14 +218,14 @@ def draw_figures(fileid, Nkind, radius, sigmar, sigmal, Nsphe, Ndisk, Radius, si
         # plot velocity dispersion profile of disk component(s) (analytic curve)
         for kk in range(Ndisk - 1, -1, -1):
             # ax[0].plot(Radius[kk], sigmap[kk], linestyle = "--", color = col[kk], label = r"$\sigma_p$" + " (disk {:<})".format(kk))
-            ax[0].plot(Radius[kk], sigmaz[kk], linestyle = ":", color = col[kk], label = r"$\sigma_z$" + " (disk {:<})".format(kk))
-            ax[0].plot(Radius[kk], sigmaR[kk], linestyle = "-", color = col[kk], label = r"$\sigma_R$" + " (disk {:<})".format(kk))
+            ax[0].plot(Radius[kk], sigmaz[kk], linestyle = ":", color = col[kk], label = r"$\sigma_z$" + " (" + tag[kk] + ")")
+            ax[0].plot(Radius[kk], sigmaR[kk], linestyle = "-", color = col[kk], label = r"$\sigma_R$" + " (" + tag[kk] + ")")
 
         # plot velocity dispersion profile of disk component(s) (N-body particle)
         for kk in range(Ndisk - 1, -1, -1):
             # ax[0].plot(RR[head_disk[kk] : head_disk[kk] + Ndat_disk[kk]], sp[head_disk[kk] : head_disk[kk] + Ndat_disk[kk]], "D", color = col[kk], label = r"$\sigma_p$" + " (disk {:<})".format(kk))
-            ax[0].plot(RR[head[Nsphe + kk] : head[Nsphe + kk] + Ndat[Nsphe + kk]], sz[head[Nsphe + kk] : head[Nsphe + kk] + Ndat[Nsphe + kk]], "s", color = col[kk], label = r"$\sigma_z$" + " (disk {:<})".format(kk))
-            ax[0].plot(RR[head[Nsphe + kk] : head[Nsphe + kk] + Ndat[Nsphe + kk]], sR[head_disk[kk] : head_disk[kk] + Ndat_disk[kk]], "o", color = col[kk], label = r"$\sigma_R$" + " (disk {:<})".format(kk))
+            ax[0].plot(RR[head_disk[kk] : head_disk[kk] + Ndat_disk[kk]], sz[head_disk[kk] : head_disk[kk] + Ndat_disk[kk]], "s", color = col[kk], label = r"$\sigma_z$" + " (" + tag[kk] + ")")
+            ax[0].plot(RR[head_disk[kk] : head_disk[kk] + Ndat_disk[kk]], sR[head_disk[kk] : head_disk[kk] + Ndat_disk[kk]], "o", color = col[kk], label = r"$\sigma_R$" + " (" + tag[kk] + ")")
 
 
         # set plot range
@@ -207,7 +239,8 @@ def draw_figures(fileid, Nkind, radius, sigmar, sigmal, Nsphe, Ndisk, Radius, si
 
         # set legend
         handles, labels = ax[0].get_legend_handles_labels()
-        ax[0].legend(handles[::-1], labels[::-1], numpoints = 1, handlelength = 2.5, prop = {'size' : 14}, loc = 'best')
+        # ax[0].legend(handles[::-1], labels[::-1], numpoints = 1, handlelength = 2.5, prop = {'size' : 14}, loc = 'best')
+        ax[0].legend(handles[::-1], labels[::-1], numpoints = 1, handlelength = 2.5, loc = 'best')
 
         # output figure
         figname = "fig/" + filename + "_vdisp_disk_" + snapshot
@@ -219,47 +252,46 @@ def draw_figures(fileid, Nkind, radius, sigmar, sigmal, Nsphe, Ndisk, Radius, si
         ax[0].cla()
 
 
-    # plot velocity dispersion profile of all component(s) (analytic curve)
-    for kk in range(Nsphe - 1, -1, -1):
-        if Ndat[kk] > 0:
-            ax[0].plot(radius[kk], sigmal[kk], linestyle = ":", color = col[kk], label = r"$\sigma_\mathrm{los}$" + " (component {:<})".format(kk))
-            ax[0].plot(radius[kk], sigmar[kk], linestyle = "-", color = col[kk], label = r"$\sigma_r$" + " (component {:<})".format(kk))
+    if plotSpherical == True:
+        # plot velocity dispersion profile of all component(s) (analytic curve)
+        for kk in range(Nsphe - 1, -1, -1):
+            if Ndat[kk] > 0:
+                ax[0].plot(radius[kk], sigmal[kk], linestyle = ":", color = col[kk], label = r"$\sigma_\mathrm{los}$" + " (component {:<})".format(kk))
+                ax[0].plot(radius[kk], sigmar[kk], linestyle = "-", color = col[kk], label = r"$\sigma_r$" + " (component {:<})".format(kk))
 
-    # plot velocity dispersion profile of all component(s) (N-body particle)
-    for kk in range(Nsphe - 1, -1, -1):
-        if Ndat[kk] > 0:
-            ax[0].plot(RR[head[kk] : head[kk] + Ndat[kk]], sz[head[kk] : head[kk] + Ndat[kk]], "s", color = col[kk], label = r"$\sigma_\mathrm{los}$" + " (component {:<})".format(kk))
-            ax[0].plot(rr[head[kk] : head[kk] + Ndat[kk]], sr[head[kk] : head[kk] + Ndat[kk]], "o", color = col[kk], label = r"$\sigma_r$" + " (component {:<})".format(kk))
+        # plot velocity dispersion profile of all component(s) (N-body particle)
+        for kk in range(Nsphe - 1, -1, -1):
+            if Ndat[kk] > 0:
+                ax[0].plot(ll[head[kk] : head[kk] + Ndat[kk]], sl[head[kk] : head[kk] + Ndat[kk]], "s", color = col[kk], label = r"$\sigma_\mathrm{los}$" + " (component {:<})".format(kk))
+                ax[0].plot(rr[head[kk] : head[kk] + Ndat[kk]], sr[head[kk] : head[kk] + Ndat[kk]], "o", color = col[kk], label = r"$\sigma_r$" + " (component {:<})".format(kk))
 
 
-    # set plot range
-    ax[0].set_xlim([rrmin, rrmax])
-    ax[0].set_ylim([vrmin, vrmax])
-    ax[0].semilogx()
-    ax[0].grid()
+        # set plot range
+        ax[0].set_xlim([rrmin, rrmax])
+        ax[0].set_ylim([vrmin, vrmax])
+        ax[0].semilogx()
+        ax[0].grid()
 
-    # set label
-    ax[0].set_xlabel(r"$r$ ({:<})".format(length_unit.decode('UTF-8')))
-    ax[0].set_ylabel(r"$\sigma$ ({:<})".format(velocity_unit.decode('UTF-8')))
+        # set label
+        ax[0].set_xlabel(r"$r$ ({:<})".format(length_unit.decode('UTF-8')))
+        ax[0].set_ylabel(r"$\sigma$ ({:<})".format(velocity_unit.decode('UTF-8')))
 
-    # set legend
-    handles, labels = ax[0].get_legend_handles_labels()
-    ax[0].legend(handles[::-1], labels[::-1], numpoints = 1, handlelength = 2.5, prop = {'size' : 14}, loc = 'best')
+        # set legend
+        handles, labels = ax[0].get_legend_handles_labels()
+        # ax[0].legend(handles[::-1], labels[::-1], numpoints = 1, handlelength = 2.5, prop = {'size' : 14}, loc = 'best')
+        ax[0].legend(handles[::-1], labels[::-1], numpoints = 1, handlelength = 2.5, loc = 'best')
 
-    # output figure
-    figname = "fig/" + filename + "_vdisp_" + snapshot
-    plt.savefig(figname + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
-    plt.savefig(figname + ".png", format = "png", dpi = 300, bbox_inches = "tight")
+        # output figure
+        figname = "fig/" + filename + "_vdisp_" + snapshot
+        plt.savefig(figname + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
+        plt.savefig(figname + ".png", format = "png", dpi = 300, bbox_inches = "tight")
 
-    # clear figure
-    ax[0].cla()
+        # clear figure
+        ax[0].cla()
 
 
 def wrapper(argv):
     return draw_figures(*argv)
-
-
-
 
 
 
@@ -269,7 +301,8 @@ plt.rcParams['pdf.use14corefonts'] = True
 plt.rcParams['text.usetex'] = True
 
 # set font size
-plt.rcParams['font.size'] = 16
+# plt.rcParams['font.size'] = 16
+plt.rcParams['font.size'] = 28
 
 
 # read analytic profile of all component(s)

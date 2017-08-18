@@ -4,6 +4,7 @@ import math
 import time # for performance measurement
 
 import multiprocessing as mp
+# import threading
 
 import matplotlib
 matplotlib.use("tkagg")
@@ -13,10 +14,10 @@ from matplotlib.colors import LogNorm # for logarithmic plot in imshow
 import utils as utils
 
 
-nxpanel, nypanel = 4, 4
+nxpanel, nypanel = 4, 2
 filename = "cb17"
-tag = ["6", "5", "4", "3", "2", "1", "0.6", "0.3"]
-zd  = [6.0, 5.0, 4.0, 3.0, 2.0, 1.0, 0.6, 0.3]
+tag = ["0.3", "1", "3", "6"]
+zd  = [0.3, 1.0, 3.0, 6.0]
 
 
 def make_map(idx):
@@ -24,11 +25,11 @@ def make_map(idx):
     jj =              idx % nypanel
 
     # pick up an appropriate snapshot
-    if (ii & 1) == 0:
+    if (jj & 1) == 1:
         snapshot = "000"
     else:
         snapshot = "040"
-    kk = jj * (nxpanel >> 1) + ((nxpanel - 1 - ii) >> 1)
+    kk = ii
     model = tag[kk] + "kpc"
     input_file = model + "/dat/" + filename + ".split" + snapshot + ".h5"
 
@@ -124,6 +125,8 @@ XX, YY = np.meshgrid(xx, yy)
 # fmin, fmax = 1.1e+5, 1.0e+9
 # fmin, fmax = 1.0e+5, 1.0e+8
 # fmin, fmax = 1.0e+5, 3.0e+7
+# fmin, fmax = 3.1e+7, 1.0e+10
+# fmin, fmax = 1.0e+7, 1.0e+10
 fmin, fmax = 1.0e+7, 3.1e+9
 
 # settings for point spread function with gaussian
@@ -154,11 +157,11 @@ for idx in range(nxpanel * nypanel):
     jj =              idx % nypanel
 
     # pick up an appropriate snapshot
-    if (ii & 1) == 0:
+    if (jj & 1) == 1:
         snapshot = "000"
     else:
         snapshot = "040"
-    kk = jj * (nxpanel >> 1) + ((nxpanel - 1 - ii) >> 1)
+    kk = ii
     model = tag[kk] + "kpc"
     input_file = model + "/dat/" + filename + ".split" + snapshot + ".h5"
 
@@ -222,10 +225,11 @@ for idx in range(nxpanel * nypanel):
         ax[idx].set_ylabel(r"$z$ ({:<})".format(length_unit[0].decode('UTF-8')))
 
     # set caption
-    caption  = "(" + "{:^c}".format(97 + ii + nxpanel * (nypanel - 1 - jj)) + ")"
-    caption += " " + r"${:<} = {:.1f}$ {:<}".format("z_\mathrm{d}", zd[kk], length_unit[0].decode('UTF-8'))
+    # caption  = "(" + "{:^c}".format(97 + ii + nxpanel * (nypanel - 1 - jj)) + ")"
+    # # caption += " " + r"${:<} = {:.0f}$ {:<}".format("z_\mathrm{d}", param, length_unit[0].decode('UTF-8'))
+    caption = r"${:<} = {:.1f}$ {:<}".format("z_\mathrm{d}", zd[kk], length_unit[0].decode('UTF-8'))
     caption += ", $t = {:.0f}$ {:<}".format(current_time[0] / 1000, "Gyr")
-    ax[idx].text(xmin + 0.5, zmax - 2.5, caption, fontsize=11, color = "white")
+    ax[idx].text(xmin + 0.5, zmax - 2.5, caption, fontsize=13, color = "white")
 
 
 utils.set_shared_xlabel(ax, r"$x$ ({:<})".format(length_unit[0].decode('UTF-8')))
@@ -254,6 +258,6 @@ print("Nsmooth = {:d}, elapsed time is {:e} sec by {:d} CPU cores".format(Nsmoot
 
 
 # plt.show()
-plt.savefig("map.png", format = "png", dpi = 300, bbox_inches = "tight")
-plt.savefig("map.pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
-plt.savefig("map.svg", format = "svg", dpi = 300, bbox_inches = "tight")
+plt.savefig("slide_map.png", format = "png", dpi = 300, bbox_inches = "tight")
+plt.savefig("slide_map.pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
+plt.savefig("slide_map.svg", format = "svg", dpi = 300, bbox_inches = "tight")

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/07/18 (Tue)
+ * @date 2017/08/02 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -591,7 +591,7 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 
     body.acc[ii].x   = body.acc[ii].y = body.acc[ii].z = ZERO;
     body.pos[ii].m   = mass;
-    body.acc[ii].pot = ZERO;
+    body.acc[ii].pot = -psi;
     body.idx[ii] = ii;
 
 #ifdef  PROGRESS_REPORT_ON
@@ -1037,23 +1037,15 @@ int main(int argc, char **argv)
       initBenchmark_cpu();
 
 #ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
-      static double Krand;
+      static double Wsphe;
 #pragma omp single
-      Krand = 0.0;
-      double Krand_loc = 0.0;
+      Wsphe = 0.0;
+      double Wsphe_loc = 0.0;
 #pragma omp for nowait
-      for(ulong ii = 0; ii < Nuse; ii++){
-#ifdef  BLOCK_TIME_STEP
-	Krand_loc += body.vel[ii].x * body.vel[ii].x + body.vel[ii].y * body.vel[ii].y + body.vel[ii].z * body.vel[ii].z;
-#else///BLOCK_TIME_STEP
-	Krand_loc += body.vx[ii] * body.vx[ii] + body.vy[ii] * body.vy[ii] + body.vz[ii] * body.vz[ii];
-#endif//BLOCK_TIME_STEP
-      }/* for(ulong ii = 0; ii < Nuse; ii++){ */
+      for(ulong ii = 0; ii < Nuse; ii++)
+	Wsphe_loc += HALF * body.pos[ii].m * body.acc[ii].pot;
 #pragma omp atomic
-      Krand += Krand_loc;
-#pragma omp barrier
-      for(int ii = 0; ii < ndisk; ii++)
-	disk_info[ii].Krand_sph = Krand;
+      Wsphe += Wsphe_loc;
 #endif//CHECK_OSTRIKER_PEEBLES_CRITERION
 
       for(int ii = 0; ii < ndisk; ii++){
@@ -1067,6 +1059,32 @@ int main(int argc, char **argv)
 	/** shift center-of-mass, remove bulk motion */
 	shiftCenter(disk_info[ii].cfg->num, Nuse - disk_info[ii].cfg->num, body, *disk_info[ii].cfg);
       }/* for(int ii = 0; ii < ndisk; ii++){ */
+
+#ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
+#pragma omp single
+      {
+	double Tdisk = 0.0;
+
+	fprintf(stdout, "# simple check based on Ostriker--Peebles criterion: T / |W| > ~0.14 is unstable to a bar-like mode\n");
+
+	for(int ii = 0; ii < ndisk; ii++){
+	  const double tt = disk_info[ii].cfg->Tdisk / (-disk_info[ii].cfg->Wdisk);
+	  fprintf(stdout, "#\tT_disk%d / |W| = %e; i.e., %s to a bar-like mode (W = \\int dV \\rho_disk%d \\Phi / 2)\n", ii, tt, (tt > 0.14) ? "unstable" : "  stable", ii);
+
+	  Tdisk += disk_info[ii].cfg->Tdisk;
+	  Wsphe += disk_info[ii].cfg->Wdisk;
+	}/* for(int ii = 0; ii < ndisk; ii++){ */
+
+#if 0
+	extern const double energy2astro;
+	fprintf(stdout, "# T = %e, W = %e\n", Tdisk * energy2astro, -Wsphe * energy2astro);
+#endif
+
+	Tdisk /= (-Wsphe);
+	fprintf(stdout, "#\tT / |W| = %e; i.e., %s to a bar-like mode (W = \\int dV \\rho \\Phi / 2)\n", Tdisk, (Tdisk > 0.14) ? "unstable" : "  stable");
+      }
+#endif//CHECK_OSTRIKER_PEEBLES_CRITERION
+
 #ifdef  USE_SFMTJUMP
 #pragma omp barrier
 #pragma omp master

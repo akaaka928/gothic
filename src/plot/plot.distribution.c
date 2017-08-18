@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tsukuba)
  *
- * @date 2017/07/07 (Fri)
+ * @date 2017/07/26 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -13,6 +13,8 @@
  * The MIT License is applied to this software, see LICENSE.txt
  *
  */
+
+#define DUMP_DISKHEIGHT_PROFILE
 
 /* #define PLOT_VELOCITY_DISPERSION */
 /* /\* #define PLOT_TOOMRE_Q *\/ */
@@ -826,7 +828,7 @@ int main(int argc, char **argv)
   case 80:    /* A trial multi components galaxy model (NFW halo, King bulge, thick Sersic disk, and thin exponential disk) */
     radius = 1.0e+1;
     radmin = 1.0e-2;    rhomin = 1.0e-6;    encmin = 2.0e-1;    Sigmamin = 5.0e-5;    Rmin =  0.0;    zmin = 0.0;
-    radmax = 1.0e+3;    rhomax = 2.0e+3;    encmax = 8.0e+4;    Sigmamax = 5.0e+2;    Rmax = 25.0;    zmax = 1.5;
+    radmax = 1.0e+3;    rhomax = 2.0e+3;    encmax = 8.0e+4;    Sigmamax = 1.0e+2;    Rmax = 25.0;    zmax = 1.5;
     break;
   default:
     radius = 3.0;
@@ -1553,6 +1555,26 @@ int main(int argc, char **argv)
 #endif//PLOT_TOOMRE_Q
 #endif//PLOT_VELOCITY_DISPERSION
 			     );
+
+#ifdef  DUMP_DISKHEIGHT_PROFILE
+    for(int ii = skind; ii < kind; ii++){
+      char datfile[256];
+      sprintf(datfile, "%s/%s.disk%d.snp%.3d.dat", DATAFOLDER, file, ii - skind, filenum);
+      FILE *fp;
+      fp = fopen(datfile, "wb");
+      if( fp == NULL ){	__KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", datfile);      }
+
+      bool success = true;
+      size_t tmp;
+
+      tmp = group[ii].prf_hor_num;      if( tmp != fwrite(&(hor_pos  [group[ii].prf_hor_head]), sizeof(real), tmp, fp) )	success = false;
+      tmp = group[ii].prf_hor_num;      if( tmp != fwrite(&(hor_zdisp[group[ii].prf_hor_head]), sizeof(real), tmp, fp) )	success = false;
+
+      if( success != true ){	__KILL__(stderr, "ERROR: failure to write \"%s\"\n", datfile);      }
+      fclose(fp);
+    }/* for(int ii = skind; ii < kind; ii++){ */
+#endif//DUMP_DISKHEIGHT_PROFILE
+
 #ifdef  OVERPLOT_INITIAL_DISKHEIGHT
     if( filenum == (start + mpi.rank * interval) ){
       num_hor_t0 = num_hor;

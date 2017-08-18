@@ -20,8 +20,8 @@ PLTCDF=bin/plot.cdf
 # problem ID
 if [ -z "$PROBLEM" ]; then
     # PROBLEM=28
-    # PROBLEM=80
-    PROBLEM=81
+    PROBLEM=80
+    # PROBLEM=81
 fi
 ###############################################################
 # file extension of figures

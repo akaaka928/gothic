@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/03/22 (Wed)
+ * @date 2017/08/16 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -34,36 +34,42 @@
 #define PREFIX_SUM_BLCK prefixSumBlck0032
 #define PREFIX_SUM_GRID prefixSumGrid0032
 #define PREFIX_SUM_GRID_WITH_PARTITION prefixSumGridPartition0032
+#define  TOTAL_SUM_BLCK  totalSumBlck0032
 #endif//NTHREADS_SCAN_INC ==   32
 
 #   if  NTHREADS_SCAN_INC ==   64
 #define PREFIX_SUM_BLCK prefixSumBlck0064
 #define PREFIX_SUM_GRID prefixSumGrid0064
 #define PREFIX_SUM_GRID_WITH_PARTITION prefixSumGridPartition0064
+#define  TOTAL_SUM_BLCK  totalSumBlck0064
 #endif//NTHREADS_SCAN_INC ==   64
 
 #   if  NTHREADS_SCAN_INC ==  128
 #define PREFIX_SUM_BLCK prefixSumBlck0128
 #define PREFIX_SUM_GRID prefixSumGrid0128
 #define PREFIX_SUM_GRID_WITH_PARTITION prefixSumGridPartition0128
+#define  TOTAL_SUM_BLCK  totalSumBlck0128
 #endif//NTHREADS_SCAN_INC ==  128
 
 #   if  NTHREADS_SCAN_INC ==  256
 #define PREFIX_SUM_BLCK prefixSumBlck0256
 #define PREFIX_SUM_GRID prefixSumGrid0256
 #define PREFIX_SUM_GRID_WITH_PARTITION prefixSumGridPartition0256
+#define  TOTAL_SUM_BLCK  totalSumBlck0256
 #endif//NTHREADS_SCAN_INC ==  256
 
 #   if  NTHREADS_SCAN_INC ==  512
 #define PREFIX_SUM_BLCK prefixSumBlck0512
 #define PREFIX_SUM_GRID prefixSumGrid0512
 #define PREFIX_SUM_GRID_WITH_PARTITION prefixSumGridPartition0512
+#define  TOTAL_SUM_BLCK  totalSumBlck0512
 #endif//NTHREADS_SCAN_INC ==  512
 
 #   if  NTHREADS_SCAN_INC == 1024
 #define PREFIX_SUM_BLCK prefixSumBlck1024
 #define PREFIX_SUM_GRID prefixSumGrid1024
 #define PREFIX_SUM_GRID_WITH_PARTITION prefixSumGridPartition1024
+#define  TOTAL_SUM_BLCK  totalSumBlck1024
 #endif//NTHREADS_SCAN_INC == 1024
 
 

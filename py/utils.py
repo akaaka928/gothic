@@ -79,7 +79,8 @@ def set_shared_xlabel(ax, xlabel):
 
     # set position of label
     ax[-1].set_xlabel(xlabel)
-    ax[-1].xaxis.set_label_coords((x0 + x1) / 2, (y0 + y1) / 2, transform = fig.transFigure)
+    # ax[-1].xaxis.set_label_coords((x0 + x1) / 2, (y0 + y1) / 2, transform = fig.transFigure)
+    ax[-1].xaxis.set_label_coords((x0 + x1) / 2, y0, transform = fig.transFigure)
 
 
 def set_shared_ylabel(ax, ylabel):
@@ -123,6 +124,7 @@ def scientific(x, pos):
 
 # generate color map
 import sys
+import numpy as np
 from matplotlib.colors import LinearSegmentedColormap
 def generate_cmap(cols):
     vals = range(len(cols))

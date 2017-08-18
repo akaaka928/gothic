@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/07/21 (Fri)
+ * @date 2017/07/23 (Sun)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -170,11 +170,15 @@
  * @brief number of threads per block for calcAcc_kernel
  */
 #ifndef NTHREADS
+#   if  GPUGEN >= 60
+#define NTHREADS (256)
+#else///GPUGEN >= 60
 #   if  GPUGEN >= 30
 #define NTHREADS (512)
 #else///GPUGEN >= 30
 #define NTHREADS (256)
 #endif//GPUGEN >= 30
+#endif//GPUGEN >= 60
 #endif//NTHREADS
 
 /** NTHREADS must be equal or smaller than 1024 (limitation comes from reduction defined in ../tree/geo_dev.cu) */
@@ -281,12 +285,11 @@
  * @brief a parameter to increase arithmetic intensity
  */
 #ifndef NLOOP
+#   if  GPUGEN >= 60
+#define NLOOP (4)
+#else///GPUGEN >= 60
 #define NLOOP (1)
-/* #define NLOOP (2) */
-/* #define NLOOP (3) */
-/* #define NLOOP (4) */
-/* #define NLOOP (5) */
-/* #define NLOOP (6) */
+#endif//GPUGEN >= 60
 #endif//NLOOP
 
 

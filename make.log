@@ -1,7 +1,7 @@
 if [ ! -d pub ]; then \
 mkdir pub; \
 fi
-tar cvJf 1707181626tree.tar.xz \
+tar cvJf 1708181527tree.tar.xz \
 README.txt LICENSE.txt Makefile src sh cfg host plt py plugins/README \
 plugins/GOTHIC_split/GOTHIC_split.xml plugins/GOTHIC_split/GOTHIC_splitCommonPluginInfo.C plugins/GOTHIC_split/GOTHIC_splitEnginePluginInfo.C plugins/GOTHIC_split/GOTHIC_splitMDServerPluginInfo.C plugins/GOTHIC_split/GOTHIC_splitPluginInfo.C plugins/GOTHIC_split/GOTHIC_splitPluginInfo.h plugins/GOTHIC_split/avtGOTHIC_splitFileFormat.C plugins/GOTHIC_split/avtGOTHIC_splitFileFormat.h plugins/GOTHIC_snp/GOTHIC_snp.xml plugins/GOTHIC_snp/GOTHIC_snpCommonPluginInfo.C plugins/GOTHIC_snp/GOTHIC_snpEnginePluginInfo.C plugins/GOTHIC_snp/GOTHIC_snpMDServerPluginInfo.C plugins/GOTHIC_snp/GOTHIC_snpPluginInfo.C plugins/GOTHIC_snp/GOTHIC_snpPluginInfo.h plugins/GOTHIC_snp/avtGOTHIC_snpFileFormat.C plugins/GOTHIC_snp/avtGOTHIC_snpFileFormat.h plugins/GOTHIC_err/GOTHIC_err.xml plugins/GOTHIC_err/GOTHIC_errCommonPluginInfo.C plugins/GOTHIC_err/GOTHIC_errEnginePluginInfo.C plugins/GOTHIC_err/GOTHIC_errMDServerPluginInfo.C plugins/GOTHIC_err/GOTHIC_errPluginInfo.C plugins/GOTHIC_err/GOTHIC_errPluginInfo.h plugins/GOTHIC_err/avtGOTHIC_errFileFormat.C plugins/GOTHIC_err/avtGOTHIC_errFileFormat.h plugins/GOTHIC/GOTHIC.xml plugins/GOTHIC/GOTHICCommonPluginInfo.C plugins/GOTHIC/GOTHICEnginePluginInfo.C plugins/GOTHIC/GOTHICMDServerPluginInfo.C plugins/GOTHIC/GOTHICPluginInfo.C plugins/GOTHIC/GOTHICPluginInfo.h plugins/GOTHIC/avtGOTHICFileFormat.C plugins/GOTHIC/avtGOTHICFileFormat.h plugins/MAGI_disk/MAGI_disk.xml plugins/MAGI_disk/MAGI_diskCommonPluginInfo.C plugins/MAGI_disk/MAGI_diskEnginePluginInfo.C plugins/MAGI_disk/MAGI_diskMDServerPluginInfo.C plugins/MAGI_disk/MAGI_diskPluginInfo.C plugins/MAGI_disk/MAGI_diskPluginInfo.h plugins/MAGI_disk/avtMAGI_diskFileFormat.C plugins/MAGI_disk/avtMAGI_diskFileFormat.h plugins/MAGI_df/MAGI_df.xml plugins/MAGI_df/MAGI_dfCommonPluginInfo.C plugins/MAGI_df/MAGI_dfEnginePluginInfo.C plugins/MAGI_df/MAGI_dfMDServerPluginInfo.C plugins/MAGI_df/MAGI_dfPluginInfo.C plugins/MAGI_df/MAGI_dfPluginInfo.h plugins/MAGI_df/avtMAGI_dfFileFormat.C plugins/MAGI_df/avtMAGI_dfFileFormat.h plugins/MAGI_profile/MAGI_profile.xml plugins/MAGI_profile/MAGI_profileCommonPluginInfo.C plugins/MAGI_profile/MAGI_profileEnginePluginInfo.C plugins/MAGI_profile/MAGI_profileMDServerPluginInfo.C plugins/MAGI_profile/MAGI_profilePluginInfo.C plugins/MAGI_profile/MAGI_profilePluginInfo.h plugins/MAGI_profile/avtMAGI_profileFileFormat.C plugins/MAGI_profile/avtMAGI_profileFileFormat.h
 README.txt
@@ -77,6 +77,7 @@ src/plot/plot.disk.c
 src/plot/plot.performance.c
 src/plot/plot.breakdown.c
 src/plot/plot.distribution.c
+src/plot/plot.action.c
 src/sort/
 src/sort/peano.h
 src/sort/peano_dev.h
@@ -105,6 +106,7 @@ src/tree/let_dev.h
 src/tree/buf_inc.h
 src/tree/geo_dev.cu
 src/tree/geo_dev.h
+src/tree/icom_dev.h
 src/anal/
 src/anal/anal.error.c
 src/util/
@@ -210,6 +212,13 @@ sh/slurm/submit_cont.sh
 sh/slurm/submit_series.sh
 sh/slurm/submit_hold.sh
 sh/slurm/numarun.sh
+sh/slurm/magi_bench.sh
+sh/slurm/magi_exec.sh
+sh/ppx/
+sh/ppx/init.sh
+sh/ppx/exec.sh
+sh/ppx/bench.misc.sh
+sh/ppx/bench.walk.sh
 cfg/
 cfg/abel/
 cfg/abel/deVaucouleurs.cfg
@@ -393,7 +402,6 @@ plt/acc.gp
 plt/near.eps
 py/
 py/median.py
-py/parallel.py
 py/h5dot.py
 py/h5map.py
 py/df.py
@@ -402,6 +410,13 @@ py/__pycache__/
 py/__pycache__/utils.cpython-36.pyc
 py/vdisp.py
 py/vrot.py
+py/toomre.py
+py/slide.py
+py/needle.py
+py/star.py
+py/disk.py
+py/barmode.py
+py/action.py
 plugins/README
 plugins/GOTHIC_split/GOTHIC_split.xml
 plugins/GOTHIC_split/GOTHIC_splitCommonPluginInfo.C
@@ -459,4 +474,4 @@ plugins/MAGI_profile/MAGI_profilePluginInfo.C
 plugins/MAGI_profile/MAGI_profilePluginInfo.h
 plugins/MAGI_profile/avtMAGI_profileFileFormat.C
 plugins/MAGI_profile/avtMAGI_profileFileFormat.h
-mv       1707181626tree.tar.xz pub/
+mv       1708181527tree.tar.xz pub/

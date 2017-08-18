@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/07/16 (Sun)
+ * @date 2017/08/02 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -21,14 +21,6 @@
 #include "macro.h"
 
 #include "../init/profile.h"
-
-
-/**
- * @def CHECK_OSTRIKER_PEEBLES_CRITERION
- *
- * @brief activate analysis of Ostriker--Peebles criterion
- */
-#define CHECK_OSTRIKER_PEEBLES_CRITERION
 
 
 /**
@@ -185,9 +177,6 @@ typedef struct
   double Rmax, zmax, hh;/**< configuration of domain */
   double invRd;/**< configuration of disk component */
   double logrbin, invlogrbin;/**< configuration of spherical component(s) */
-#ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
-  double Krand_sph;
-#endif//CHECK_OSTRIKER_PEEBLES_CRITERION
 } disk_data;
 
 
