@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/07/18 (Tue)
+ * @date 2017/08/18 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -30,6 +30,24 @@
 #include "../tree/buf_inc.h"
 #include "../tree/let.h"
 #include "../tree/walk_dev.h"
+
+
+/**
+ * @def SKIP_LET_GENERATOR_FOR_NEARBY_NODE
+ *
+ * @brief disable LET generator (only) for nearby node
+ */
+/* #define SKIP_LET_GENERATOR_FOR_NEARBY_NODE */
+
+
+#ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
+/**
+ * @def THREASHOLD_TO_SKIP_LET_GENERATOR
+ *
+ * @brief a parameter to discriminate between nearby and distant nodes
+ */
+#define THREASHOLD_TO_SKIP_LET_GENERATOR (0.125f)
+#endif//SKIP_LET_GENERATOR_FOR_NEARBY_NODE
 
 
 /**

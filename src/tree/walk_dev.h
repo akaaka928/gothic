@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/07/23 (Sun)
+ * @date 2017/08/18 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -34,6 +34,14 @@
 #include "../misc/tune.h"
 #include "../para/mpicfg.h"
 #include "../tree/let.h"
+
+/**
+ * @def MPI_ONE_SIDED_FOR_LET_EXCG
+ *
+ * @brief activates one-sided communication for exchanging LETs among multiple processes
+ */
+/* #define MPI_ONE_SIDED_FOR_LET_EXCG */
+
 #endif//SERIALIZED_EXECUTION
 #endif//defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 

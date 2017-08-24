@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/02 (Wed)
+ * @date 2017/08/24 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -591,7 +591,7 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 
     body.acc[ii].x   = body.acc[ii].y = body.acc[ii].z = ZERO;
     body.pos[ii].m   = mass;
-    body.acc[ii].pot = -psi;
+    body.acc[ii].pot = -CAST_D2R(psi);
     body.idx[ii] = ii;
 
 #ifdef  PROGRESS_REPORT_ON
