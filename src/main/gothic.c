@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/06/27 (Tue)
+ * @date 2017/08/25 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -71,6 +71,9 @@
 #ifndef SERIALIZED_EXECUTION
 #include "../tree/geo_dev.h"
 #include "../tree/let_dev.h"
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
+#include "../tree/icom_dev.h"
+#endif//USE_ENCLOSING_BALL_FOR_LET
 #endif//SERIALIZED_EXECUTION
 
 #include "../time/adv_dev.h"
@@ -968,6 +971,13 @@ int main(int argc, char **argv)
 						   &amin,
 #endif//GADGET_MAC
 						   &numSend_hst, &numSend_dev, &stream_let, &Nstream_let, devProp, letcfg);
+
+#   if  defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
+  void *appEncBall_dev;
+  const muse alloc_appEnc = allocApproxEnclosingBall_dev(&appEncBall_dev, devProp);
+  hoge;
+  void  freeApproxEnclosingBall_dev(void  *dev);
+#endif//defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
 #endif//SERIALIZED_EXECUTION
 
 
@@ -1377,6 +1387,21 @@ int main(int argc, char **argv)
 
 
 #ifndef SERIALIZED_EXECUTION
+  /** find center of enclosing ball */
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
+  getApproxEnclosingBall_dev(num, ibody0_dev,
+#ifdef  OCTREE_BASED_SEARCH
+			     soaCell_dev, soaNode_dev, soaMakeBuf,
+#else///OCTREE_BASED_SEARCH
+			     float2 *gmem, soaPH_dev, devProp,
+#endif//OCTREE_BASED_SEARCH
+			     const cudaStream_t stream
+#ifdef  EXEC_BENCHMARK
+			     , &execTime[steps - bench_begin]
+#endif//EXEC_BENCHMARK
+			     );
+#endif//USE_ENCLOSING_BALL_FOR_LET
+
   /** preparation to construct LET */
   calc_r2max_dev(Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev
 #ifdef  EXEC_BENCHMARK
@@ -1447,6 +1472,10 @@ int main(int argc, char **argv)
     execTime[steps - bench_begin].calcGravity_dev = 0.0;
 #endif//EXEC_BENCHMARK
 #ifndef SERIALIZED_EXECUTION
+    /** find center of enclosing ball */
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
+#endif//USE_ENCLOSING_BALL_FOR_LET
+
     calc_r2max_dev(Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev
 #ifdef  EXEC_BENCHMARK
 		   , &execTime[steps - bench_begin]
@@ -1919,6 +1948,10 @@ int main(int argc, char **argv)
 
     /** preparation to construct LET */
 #ifndef SERIALIZED_EXECUTION
+    /** find center of enclosing ball */
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
+#endif//USE_ENCLOSING_BALL_FOR_LET
+
     calc_r2max_dev(Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev
 #ifdef  EXEC_BENCHMARK
 		   , &execTime[steps - bench_begin]

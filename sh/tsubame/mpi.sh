@@ -287,11 +287,11 @@ OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$N
 # job execution via UNIVA Grid Engine
 ###############################################################
 # set stdout and stderr
-STDOUT=$REQUEST.o$JOB_ID
-STDERR=$REQUEST.e$JOB_ID
+STDOUT=log/$REQUEST.o$JOB_ID
+STDERR=log/$REQUEST.e$JOB_ID
 ###############################################################
 # load modules
-. /etc/profile.d/modules/sh
+. /etc/profile.d/modules.sh
 export MODULEPATH=$MODULEPATH:$HOME/opt/Modules
 module load intel intel-mpi phdf5
 module load gsl

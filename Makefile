@@ -20,6 +20,7 @@ DEBUG	:= -DNDEBUG
 #################################################################################################
 # Execution options
 FORCE_SINGLE_GPU_RUN	:= 0
+ENCLOSING_BALL_FOR_LET	:= 1
 CARE_EXTERNAL_PARTICLES	:= 0
 ACC_ACCUMULATION_IN_DP	:= 0
 KAHAN_SUM_CORRECTION	:= 0
@@ -163,6 +164,11 @@ endif
 ifeq ($(COMMUNICATION_VIA_HOST), 1)
 CCARG	+= -DLET_COMMUNICATION_VIA_HOST
 CUARG	+= -DLET_COMMUNICATION_VIA_HOST
+endif
+ifeq ($(ENCLOSING_BALL_FOR_LET), 1)
+CCARG	+= -DUSE_ENCLOSING_BALL_FOR_LET
+CUARG	+= -DUSE_ENCLOSING_BALL_FOR_LET
+DIVERT_GEOMETRIC_CENTER	:= 1
 endif
 ifeq ($(DIVERT_GEOMETRIC_CENTER), 1)
 CCARG	+= -DRETURN_CENTER_BY_PHKEY_GENERATOR
@@ -474,8 +480,11 @@ UTILGPU	+= shrink_dev.cu
 ifeq ($(FORCE_SINGLE_GPU_RUN), 0)
 LETHOST	:= let.c
 LET_GPU	:= let_dev.cu
-GEO_GPU	:= geo_dev.cu
 LET_GPU	+= adv_dev.cu make_dev.cu walk_dev.cu
+GEO_GPU	:= geo_dev.cu
+ifeq ($(ENCLOSING_BALL_FOR_LET), 1)
+GEO_GPU	+= icom_dev.cu
+endif
 else
 TREEGPU	+= adv_dev.cu make_dev.cu walk_dev.cu
 endif
@@ -964,6 +973,9 @@ GOTHIC_DEP	+=	$(TIMEDIR)/adv_dev.h
 ifeq ($(FORCE_SINGLE_GPU_RUN), 0)
 GOTHIC_DEP	+=	$(MYINC)/mpilib.h	$(PARADIR)/mpicfg.h	$(PARADIR)/exchange.h
 GOTHIC_DEP	+=	$(TREEDIR)/geo_dev.h	$(TREEDIR)/let_dev.h	$(PARADIR)/exchange_dev.h
+ifeq ($(ENCLOSING_BALL_FOR_LET), 1)
+GOTHIC_DEP	+=	$(TREEDIR)/icom_dev.h
+endif
 endif
 GOTHIC_DEP	+=	$(MISCDIR)/brent.h
 GOTHIC_DEP	+=	$(SORTDIR)/peano_dev.h
@@ -1045,6 +1057,7 @@ $(OBJDIR)/shrink_dev.o:		$(TREE_DEP)	$(SHRINK_DEV_DEP)
 WALK_DEV_DEP	:=	$(TREE_DEV_DEP)	$(TREE_BUF_DEP)	$(MYINC)/timer.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/seb_dev.cu
 $(OBJDIR)/walk_dev.mpi.o:	$(WALK_DEV_DEP)	$(TREE_LET_DEP)	$(MISCDIR)/tune.h
 $(OBJDIR)/walk_dev.o:		$(WALK_DEV_DEP)
+$(OBJDIR)/icom_dev.o:	$(TREE_DEV_DEP)	$(TREEDIR)/make_dev.h	$(SORTDIR)/peano_dev.h	$(TREEDIR)/icom_dev.h
 #################################################################################################
 ## $(INITDIR)/*
 $(OBJDIR)/sample.o:	$(COMMON_DEP)

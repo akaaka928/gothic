@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/18 (Fri)
+ * @date 2017/08/25 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -436,10 +436,11 @@ __global__ void getApproxEnclosingBall_kernel
 
   __syncthreads();
   position cen = smem;
-
+  cen.m = ZERO;
 
   floc r2max;
-  float rold = CAST_R2F(cen.m) * rsqrtf(CAST_R2F(cen.m));
+  /* float rold = CAST_R2F(cen.m) * rsqrtf(CAST_R2F(cen.m)); */
+  float rold = 0.0f;
   while( findFarthestParticle(cen, &r2max, cell, ipos, node, more, node2cell, pj, bmax, more0Buf, more1Buf, rjmaxBuf, overflow, bufSize) > cen.m ){
     /** update the sphere */
     const float dinv = rsqrtf(r2max.val);
@@ -477,7 +478,13 @@ __global__ void getApproxEnclosingBall_kernel
 
 #else///OCTREE_BASED_SEARCH
 
+/**# future plan: check only activated i-particles using laneInfo */
+/* #include "walk_dev.h"/\**< to read NTHREADS, NWARP and TSUB *\/ */
+
+
 #include "../util/gsync_dev.cu"
+
+
 
 #   if  GPUGEN >= 60
 /** capacity of shared memory is 64KiB per SM on newer GPUs */
@@ -662,10 +669,11 @@ __global__ void __launch_bounds__(NTHREADS_EB, NBLOCKS_PER_SM_EB) getApproxEnclo
 
   __syncthreads();
   position cen = ebs_sm;
-
+  cen.m = ZERO;
 
   floc r2max;
-  float rold = CAST_R2F(cen.m) * rsqrtf(CAST_R2F(cen.m));
+  /* float rold = CAST_R2F(cen.m) * rsqrtf(CAST_R2F(cen.m)); */
+  float rold = 0.0f;
   while( findFarthestParticle(&r2max, ipos, ihead, itail, smem, gmem, tidx, head, bidx, bnum, gsync0, gsync1) > cen.m ){
     /** update the sphere */
     const float dinv = rsqrtf(r2max.val);
@@ -731,6 +739,55 @@ static inline void checkDeadLockCondition(void (*func)(...), char *name, char *f
   }/* if( Nblck != Bguess ){ */
 }
 
+
+/**
+ * @fn allocApproxEnclosingBall_dev
+ *
+ * @brief Memory allocation for enclosing ball generator for LET.
+ */
+extern "C"
+muse allocApproxEnclosingBall_dev(void **dev, const deviceProp devProp)
+{
+  __NOTE__("%s\n", "start");
+
+
+  muse alloc = {0, 0};
+
+  /** memory allocation and simple confirmation */
+  const size_t num = devProp.numSM * NBLOCKS_PER_SM_EB;
+  mycudaMalloc(dev, num * sizeof(floc));
+  alloc.device +=   num * sizeof(floc);
+
+  /** error checking before running the kernel */
+    checkDeadLockCondition(CALL_FUNC_WITH_NAME(getApproxEnclosingBall_kernel), __FILE__, __LINE__, __func__, REGISTERS_PER_THREAD_EB, NTHREADS_EB,
+#ifdef  USE_WARP_SHUFFLE_FUNC_EB
+			   true,
+#else///USE_WARP_SHUFFLE_FUNC_EB
+			   false,
+#endif//USE_WARP_SHUFFLE_FUNC_EB
+			   NBLOCKS_PER_SM_EB);
+
+
+  __NOTE__("%s\n", "end");
+  return (alloc);
+}
+
+
+/**
+ * @fn freeApproxEnclosingBall_dev
+ *
+ * @brief Memory deallocation for enclosing ball generator for LET.
+ */
+extern "C"
+void  freeApproxEnclosingBall_dev(void *dev)
+{
+  __NOTE__("%s\n", "start");
+
+  mycudaFree(dev);
+
+  __NOTE__("%s\n", "end");
+}
+
 #endif//OCTREE_BASED_SEARCH
 
 
@@ -756,11 +813,11 @@ static inline void checkDeadLockCondition(void (*func)(...), char *name, char *f
  */
 extern "C"
 void getApproxEnclosingBall_dev
-(position * RESTRICT ebs, const int num, READ_ONLY position * RESTRICT ipos,
+(const int num, const iparticle body,
 #ifdef  OCTREE_BASED_SEARCH
  const soaTreeCell cell, const soaTreeNode node, const soaMakeTreeBuf buf,
 #else///OCTREE_BASED_SEARCH
- floc * RESTRICT gmem, const soaPHsort soa, const deviceProp devProp,
+ void *gmem, const soaPHsort soa, const deviceProp devProp,
 #endif//OCTREE_BASED_SEARCH
  const cudaStream_t stream
 #ifdef  EXEC_BENCHMARK
@@ -777,7 +834,7 @@ void getApproxEnclosingBall_dev
 #ifdef  OCTREE_BASED_SEARCH
 
   getApproxEnclosingBall_kernel<<<1, NTHREADS_EB, SMEM_SIZE, stream>>>
-    (ebs, num, ipos,
+    (body.encBall, num, body.pos,
      cell.cell, cell.ptag, node.more, node.node2cell, node.jpos, node.bmax,
      buf.more0, buf.more1, buf.rjmax, buf.fail, buf.Nbuf_external);
   getLastCudaError("getApproxEnclosingBall_kernel");
@@ -790,31 +847,22 @@ void getApproxEnclosingBall_dev
 
 #else///OCTREE_BASED_SEARCH
 
-  static bool first = true;
-  if( first ){
-    checkDeadLockCondition(CALL_FUNC_WITH_NAME(getApproxEnclosingBall_kernel), __FILE__, __LINE__, __func__, REGISTERS_PER_THREAD_EB, NTHREADS_EB,
-#ifdef  USE_WARP_SHUFFLE_FUNC_EB
-			   true,
-#else///USE_WARP_SHUFFLE_FUNC_EB
-			   false,
-#endif//USE_WARP_SHUFFLE_FUNC_EB
-			   NBLOCKS_PER_SM_EB);
-    first = false;
-  }/* if( first ){ */
-
   getApproxEnclosingBall_kernel<<<devProp.numSM * NBLOCKS_PER_SM_EB, NTHREADS_EB, SMEM_SIZE, stream>>>
-     (ebs, num, ipos, soa.min, soa.max, gmem, soa.gsync0, soa.gsync1);
+    (body.encBall, num, body.pos, soa.min, soa.max, (floc *)gmem, soa.gsync0, soa.gsync1);
   getLastCudaError("getApproxEnclosingBall_kernel");
 
 #endif//OCTREE_BASED_SEARCH
 
 
-  /* EBS の初期推定値は毎ステップ固定 or 前ステップで採用した値で良いと思う． */
-  /* つまり，getEBS() については初期の推定値を外から渡してあげる形式に書き換える． */
-  /* そうすると，後半部分の振る舞いが geometric の場合と書き変わるだけだから，define を使って関数の中身を ON/OFF するだけで切り換えられることになるので，その方が楽だと思う． */
-  /* EBS を与えるコードができていれば，そいつに center を渡して上げるだけで簡単にできるはず */
-  /* box size は src/para/exchange_dev.cu 中の getBoxSize_kernel() を動かせば結果が得られる． */
-  /* この box size は tree rebuild 毎に評価する程度にサボっても良いと思う． */
+  checkCudaErrors(cudaMemcpy(body.encBall_hst, body.encBall, sizeof(position), cudaMemcpyDeviceToHost));
+
+
+  /**# EBS の初期推定値は毎ステップ固定 or 前ステップで採用した値で良いと思う． */
+  /**# つまり，getEBS() については初期の推定値を外から渡してあげる形式に書き換える． */
+  /**# そうすると，後半部分の振る舞いが geometric の場合と書き変わるだけだから，define を使って関数の中身を ON/OFF するだけで切り換えられることになるので，その方が楽だと思う． */
+  /**# EBS を与えるコードができていれば，そいつに center を渡して上げるだけで簡単にできるはず */
+  /**# box size は src/para/exchange_dev.cu 中の getBoxSize_kernel() を動かせば結果が得られる． */
+  /**# この box size は tree rebuild 毎に評価する程度にサボっても良いと思う． */
 #ifdef  EXEC_BENCHMARK
   stopStopwatch(&(elapsed->getApproxEnclosingBall_kernel));
 #endif//EXEC_BENCHMARK
