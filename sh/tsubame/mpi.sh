@@ -13,8 +13,9 @@ EXEC=bin/gothic
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
+    PROBLEM=20
     # PROBLEM=26
-    PROBLEM=28
+    # PROBLEM=28
     # PROBLEM=80
     # PROBLEM=81
 fi
@@ -296,15 +297,15 @@ export MODULEPATH=$MODULEPATH:$HOME/opt/Modules
 module load intel intel-mpi phdf5
 module load gsl
 module load cuda cub
-module list
+module list 1>>$STDOUT 2>>$STDERR
 ###############################################################
-cat $PE_HOSTFILE
+cat $PE_HOSTFILE 1>>$STDOUT 2>>$STDERR
 TIME=`date`
-echo "start: $TIME"
+echo "start: $TIME" 1>>$STDOUT 2>>$STDERR
 ###############################################################
-echo "NQUEUE: $NQUEUE"
-echo "NSLOTS: $NSLOTS"
-echo "NHOSTS: $NHOSTS"
+echo "NQUEUE: $NQUEUE" 1>>$STDOUT 2>>$STDERR
+echo "NSLOTS: $NSLOTS" 1>>$STDOUT 2>>$STDERR
+echo "NHOSTS: $NHOSTS" 1>>$STDOUT 2>>$STDERR
 ###############################################################
 # execute the job
 # if [ `which numactl` ]; then
@@ -313,12 +314,12 @@ echo "NHOSTS: $NHOSTS"
 #     numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 # else
     # run without numactl
-    echo "mpirun -ppn 1 -n $NQUEUES $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+    echo "mpirun -ppn 1 -n $NQUEUES $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
     mpirun -ppn 1 -n $NQUEUES $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
     # NQUEUE or NSLOTS or NHOSTS
 # fi
 ###############################################################
 # finish logging
 TIME=`date`
-echo "finish: $TIME"
+echo "finish: $TIME" 1>>$STDOUT 2>>$STDERR
 ###############################################################

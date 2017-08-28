@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/25 (Fri)
+ * @date 2017/08/28 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -23,7 +23,7 @@
  *
  * @brief activates octree based traverse while finding the farthest particle from the specified point
  */
-/* #define OCTREE_BASED_SEARCH */
+#define OCTREE_BASED_SEARCH
 
 
 /**
@@ -87,13 +87,13 @@ extern "C"
 #endif//OCTREE_BASED_SEARCH
 
   void getApproxEnclosingBall_dev
-  (const int num, const iparticle body,
+  (const int num, const iparticle body
 #ifdef  OCTREE_BASED_SEARCH
-   const soaTreeCell cell, const soaTreeNode node, const soaMakeTreeBuf buf,
+   , const soaTreeCell cell, const soaTreeNode node, const soaMakeTreeBuf buf
 #else///OCTREE_BASED_SEARCH
-   void *gmem, const soaPHsort soa, const deviceProp devProp,
+   , void *gmem, const soaPHsort soa, const deviceProp devProp
 #endif//OCTREE_BASED_SEARCH
-   const cudaStream_t stream
+   , const cudaStream_t stream
 #ifdef  EXEC_BENCHMARK
    , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK

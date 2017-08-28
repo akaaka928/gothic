@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/07/19 (Wed)
+ * @date 2017/08/28 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1156,6 +1156,7 @@ muse allocTreeNode_dev
   mycudaMallocHost((void **)diameter_hst, sizeof(float));  alloc.host   += sizeof(float);
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 
+  buf->Nbuf   = devProp.numSM * NBLOCKS_PER_SM_MAC * NGROUPS_MAC * NUM_ALLOC_MACBUF;
 
   buf->more0  = *more0Buf;
   buf->more1  = *more1Buf;
@@ -2785,7 +2786,7 @@ void calcMultipole_dev
 #ifndef SERIALIZED_EXECUTION
   static struct timespec finish;
   checkCudaErrors(cudaDeviceSynchronize());
-  clock_gettime(CLOCK_MONOTONIC_RAW, &finish, NULL);
+  clock_gettime(CLOCK_MONOTONIC_RAW, &finish);
   *tmac +=calcElapsedTimeInSec(start, finish);
 #endif//SERIALIZED_EXECUTION
 #endif//EXEC_BENCHMARK

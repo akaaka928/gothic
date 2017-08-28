@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/04/14 (Fri)
+ * @date 2017/08/28 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -29,7 +29,6 @@
 
 #ifndef COMPARE_INC_CU_MULTI_CALL
 #define COMPARE_INC_CU_MULTI_CALL
-
 
 /**
  * @fn getMinWarp
@@ -122,15 +121,15 @@ __device__ __forceinline__ Type getMinlocWarp
 (Type val, volatile Type * smem, const int tidx, const int head)
 {
   Type tmp;
-  smem[tidx] = val;
+  stloc((Type *)smem, tidx, val);
 
-  tmp = smem[tidx ^  1];  if( tmp.val < val.val )    val = tmp;  smem[tidx] = val;
-  tmp = smem[tidx ^  2];  if( tmp.val < val.val )    val = tmp;  smem[tidx] = val;
-  tmp = smem[tidx ^  4];  if( tmp.val < val.val )    val = tmp;  smem[tidx] = val;
-  tmp = smem[tidx ^  8];  if( tmp.val < val.val )    val = tmp;  smem[tidx] = val;
-  tmp = smem[tidx ^ 16];  if( tmp.val < val.val )    val = tmp;  smem[tidx] = val;
+  tmp = ldloc(smem[tidx ^  1]);	if( tmp.val < val.val )	   val = tmp;  stloc((Type *)smem, tidx, val);
+  tmp = ldloc(smem[tidx ^  2]);	if( tmp.val < val.val )	   val = tmp;  stloc((Type *)smem, tidx, val);
+  tmp = ldloc(smem[tidx ^  4]);	if( tmp.val < val.val )	   val = tmp;  stloc((Type *)smem, tidx, val);
+  tmp = ldloc(smem[tidx ^  8]);	if( tmp.val < val.val )	   val = tmp;  stloc((Type *)smem, tidx, val);
+  tmp = ldloc(smem[tidx ^ 16]); if( tmp.val < val.val )	   val = tmp;  stloc((Type *)smem, tidx, val);
 
-  val = smem[head];
+  val = ldloc(smem[head]);
   return (val);
 }
 
@@ -146,15 +145,16 @@ __device__ __forceinline__ Type getMaxlocWarp
 (Type val, volatile Type * smem, const int tidx, const int head)
 {
   Type tmp;
-  smem[tidx] = val;
+  stloc((Type *)smem, tidx, val);
 
-  tmp = smem[tidx ^  1];  if( tmp.val > val.val )    val = tmp;  smem[tidx] = val;
-  tmp = smem[tidx ^  2];  if( tmp.val > val.val )    val = tmp;  smem[tidx] = val;
-  tmp = smem[tidx ^  4];  if( tmp.val > val.val )    val = tmp;  smem[tidx] = val;
-  tmp = smem[tidx ^  8];  if( tmp.val > val.val )    val = tmp;  smem[tidx] = val;
-  tmp = smem[tidx ^ 16];  if( tmp.val > val.val )    val = tmp;  smem[tidx] = val;
+  tmp = ldloc(smem[tidx ^  1]);	 if( tmp.val > val.val )    val = tmp;	stloc((Type *)smem, tidx, val);
+  tmp = ldloc(smem[tidx ^  2]);	 if( tmp.val > val.val )    val = tmp;	stloc((Type *)smem, tidx, val);
+  tmp = ldloc(smem[tidx ^  4]);	 if( tmp.val > val.val )    val = tmp;	stloc((Type *)smem, tidx, val);
+  tmp = ldloc(smem[tidx ^  8]);	 if( tmp.val > val.val )    val = tmp;	stloc((Type *)smem, tidx, val);
+  tmp = ldloc(smem[tidx ^ 16]);	 if( tmp.val > val.val )    val = tmp;	stloc((Type *)smem, tidx, val);
 
-  val = smem[head];
+  val = ldloc(smem[head]);
+
   return (val);
 }
 #endif//COMPARE_INC_CU_MULTI_CALL
@@ -321,20 +321,20 @@ __device__ __forceinline__ Type GET_MINLOC_BLCK(Type val, volatile Type * __rest
   __syncthreads();
   /** warpSize = 32 = 2^5; NTHREADS_COMPARE_INC <= 1024 --> NTHREADS_COMPARE_INC >> 5 <= 32 = warpSize */
   if( tidx < (NTHREADS_COMPARE_INC >> 5) ){
-    val = smem[tidx * warpSize];
-    smem[tidx] = val;
+    val = ldloc(smem[tidx * warpSize]);
+    stloc((Type *)smem, tidx, val);
 
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  2
     Type tmp;
-    tmp = smem[tidx ^  1];    if( tmp.val < val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^  1]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  4
-    tmp = smem[tidx ^  2];    if( tmp.val < val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^  2]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  8
-    tmp = smem[tidx ^  4];    if( tmp.val < val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^  4]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >= 16
-    tmp = smem[tidx ^  8];    if( tmp.val < val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^  8]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) == 32
-    tmp = smem[tidx ^ 16];    if( tmp.val < val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^ 16]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #endif//(NTHREADS_COMPARE_INC >> 5) == 32
 #endif//(NTHREADS_COMPARE_INC >> 5) >= 16
 #endif//(NTHREADS_COMPARE_INC >> 5) >=  8
@@ -344,7 +344,7 @@ __device__ __forceinline__ Type GET_MINLOC_BLCK(Type val, volatile Type * __rest
   }/* if( tidx < (NTHREADS_COMPARE_INC >> 5) ){ */
   __syncthreads();
 
-  ret = smem[0];
+  ret = ldloc(smem[0]);
   __syncthreads();
 
   return (ret);
@@ -366,20 +366,20 @@ __device__ __forceinline__ Type GET_MAXLOC_BLCK(Type val, volatile Type * __rest
   __syncthreads();
   /** warpSize = 32 = 2^5; NTHREADS_COMPARE_INC <= 1024 --> NTHREADS_COMPARE_INC >> 5 <= 32 = warpSize */
   if( tidx < (NTHREADS_COMPARE_INC >> 5) ){
-    val = smem[tidx * warpSize];
-    smem[tidx] = val;
+    val = ldloc(smem[tidx * warpSize]);
+    stloc((Type *)smem, tidx, val);
 
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  2
     Type tmp;
-    tmp = smem[tidx ^  1];    if( tmp.val > val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^  1]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  4
-    tmp = smem[tidx ^  2];    if( tmp.val > val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^  2]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  8
-    tmp = smem[tidx ^  4];    if( tmp.val > val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^  4]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >= 16
-    tmp = smem[tidx ^  8];    if( tmp.val > val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^  8]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) == 32
-    tmp = smem[tidx ^ 16];    if( tmp.val > val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^ 16]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #endif//(NTHREADS_COMPARE_INC >> 5) == 32
 #endif//(NTHREADS_COMPARE_INC >> 5) >= 16
 #endif//(NTHREADS_COMPARE_INC >> 5) >=  8
@@ -389,7 +389,7 @@ __device__ __forceinline__ Type GET_MAXLOC_BLCK(Type val, volatile Type * __rest
   }/* if( tidx < (NTHREADS_COMPARE_INC >> 5) ){ */
   __syncthreads();
 
-  ret = smem[0];
+  ret = ldloc(smem[0]);
   __syncthreads();
 
   return (ret);
@@ -412,26 +412,26 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_BLCK(Type * __restrict__ minlo
   /** warpSize = 32 = 2^5; NTHREADS_COMPARE_INC <= 1024 --> NTHREADS_COMPARE_INC >> 5 <= 32 = warpSize */
   __syncthreads();
   if( tidx == head ){
-    smem[                               head >> 5 ] = *minloc;/**< := smem[                              (tidx / warpSize)] = minloc; */
-    smem[(NTHREADS_COMPARE_INC >> 1) + (head >> 5)] = *maxloc;/**< := smem[(NTHREADS_COMPARE_INC >> 1) + (tidx / warpSize)] = maxloc; */
+    stloc((Type *)smem,                                head >> 5 , *minloc);/**< := smem[                              (tidx / warpSize)] = minloc; */
+    stloc((Type *)smem, (NTHREADS_COMPARE_INC >> 1) + (head >> 5), *maxloc);/**< := smem[(NTHREADS_COMPARE_INC >> 1) + (tidx / warpSize)] = maxloc; */
   }/* if( tidx == head ){ */
   __syncthreads();
 
   /** get minimum */
   if( tidx < (NTHREADS_COMPARE_INC >> 5) ){
-    Type val = smem[tidx];
+    Type val = ldloc(smem[tidx]);
 
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  2
     Type tmp;
-    tmp = smem[tidx ^  1];    if( tmp.val < val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^  1]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  4
-    tmp = smem[tidx ^  2];    if( tmp.val < val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^  2]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  8
-    tmp = smem[tidx ^  4];    if( tmp.val < val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^  4]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >= 16
-    tmp = smem[tidx ^  8];    if( tmp.val < val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^  8]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) == 32
-    tmp = smem[tidx ^ 16];    if( tmp.val < val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^ 16]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #endif//(NTHREADS_COMPARE_INC >> 5) == 32
 #endif//(NTHREADS_COMPARE_INC >> 5) >= 16
 #endif//(NTHREADS_COMPARE_INC >> 5) >=  8
@@ -441,19 +441,19 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_BLCK(Type * __restrict__ minlo
 
   /** get maximum */
   if( (head >= (NTHREADS_COMPARE_INC >> 1)) && ((tidx - head) < (NTHREADS_COMPARE_INC >> 5)) ){
-    Type val = smem[tidx];
+    Type val = ldloc(smem[tidx]);
 
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  2
     Type tmp;
-    tmp = smem[tidx ^  1];    if( tmp.val > val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^  1]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  4
-    tmp = smem[tidx ^  2];    if( tmp.val > val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^  2]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  8
-    tmp = smem[tidx ^  4];    if( tmp.val > val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^  4]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >= 16
-    tmp = smem[tidx ^  8];    if( tmp.val > val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^  8]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) == 32
-    tmp = smem[tidx ^ 16];    if( tmp.val > val.val )      val = tmp;    smem[tidx] = val;
+    tmp = ldloc(smem[tidx ^ 16]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
 #endif//(NTHREADS_COMPARE_INC >> 5) == 32
 #endif//(NTHREADS_COMPARE_INC >> 5) >= 16
 #endif//(NTHREADS_COMPARE_INC >> 5) >=  8
@@ -463,8 +463,8 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_BLCK(Type * __restrict__ minlo
 
   __syncthreads();
 
-  *minloc = smem[                        0];
-  *maxloc = smem[NTHREADS_COMPARE_INC >> 1];
+  *minloc = ldloc(smem[                        0]);
+  *maxloc = ldloc(smem[NTHREADS_COMPARE_INC >> 1]);
 
   __syncthreads();
 }
@@ -616,7 +616,7 @@ __device__ __forceinline__ Type GET_MINLOC_GRID
     /** share local reduction via global memory */
     /** store data on the global memory */
     if( tidx == 0 )
-      gmem[bidx] = ret;
+      stloc((Type *)gmem, bidx, ret);
 
     /** global synchronization within bnum blocks */
     globalSync(tidx, bidx, bnum, gsync0, gsync1);
@@ -629,7 +629,7 @@ __device__ __forceinline__ Type GET_MINLOC_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MINLOC_BLCK(tmp, smem, tidx, head);
@@ -642,7 +642,7 @@ __device__ __forceinline__ Type GET_MINLOC_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem[bidx] = ret;
+	stloc((Type *)gmem, bidx, ret);
     }/* if( bidx == 0 ){ */
 
 
@@ -651,11 +651,11 @@ __device__ __forceinline__ Type GET_MINLOC_GRID
 
     /** load from the global memory */
     if( tidx == 0 )
-      smem[0] = gmem[0];
+      stloc((Type *)smem, 0, ldloc(gmem[0]));
     __syncthreads();
 
     /** upload obtained result */
-    ret = smem[0];
+    ret = ldloc(smem[0]);
     __syncthreads();
   }/* if( bnum > 1 ){ */
 
@@ -681,7 +681,7 @@ __device__ __forceinline__ Type GET_MAXLOC_GRID
     /** share local reduction via global memory */
     /** store data on the global memory */
     if( tidx == 0 )
-      gmem[bidx] = ret;
+      stloc((Type *)gmem, bidx, ret);
 
     /** global synchronization within bnum blocks */
     globalSync(tidx, bidx, bnum, gsync0, gsync1);
@@ -694,7 +694,7 @@ __device__ __forceinline__ Type GET_MAXLOC_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MAXLOC_BLCK(tmp, smem, tidx, head);
@@ -707,7 +707,7 @@ __device__ __forceinline__ Type GET_MAXLOC_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem[bidx] = ret;
+	stloc((Type *)gmem, bidx, ret);
     }/* if( bidx == 0 ){ */
 
 
@@ -716,11 +716,11 @@ __device__ __forceinline__ Type GET_MAXLOC_GRID
 
     /** load from the global memory */
     if( tidx == 0 )
-      smem[0] = gmem[0];
+      stloc((Type *)smem, 0, ldloc(gmem[0]));
     __syncthreads();
 
     /** upload obtained result */
-    ret = smem[0];
+    ret = ldloc(smem[0]);
     __syncthreads();
   }/* if( bnum > 1 ){ */
 
@@ -746,8 +746,8 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_GRID
     /** share local reduction via global memory */
     /** store data on the global memory */
     if( tidx == 0 ){
-      gmem_minloc[bidx] = *minloc;
-      gmem_maxloc[bidx] = *maxloc;
+      stloc((Type *)gmem_minloc, bidx, *minloc);
+      stloc((Type *)gmem_maxloc, bidx, *maxloc);
     }/* if( tidx == 0 ){ */
 
     /** global synchronization within bnum blocks */
@@ -762,7 +762,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_minloc[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_minloc[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MINLOC_BLCK(tmp, smem, tidx, head);
@@ -775,7 +775,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_minloc[bidx] = ret;
+	stloc((Type *)gmem_minloc, bidx, ret);
     }/* if( bidx == 0 ){ */
 
 
@@ -787,7 +787,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_maxloc[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_maxloc[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MAXLOC_BLCK(tmp, smem, tidx, head);
@@ -800,7 +800,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_maxloc[0] = ret;
+	stloc((Type *)gmem_maxloc, 0, ret);
     }/* if( bidx == (bnum - 1) ){ */
 
 
@@ -809,13 +809,13 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_GRID
 
     /** load from the global memory */
     if( tidx < 2 ){
-      smem[tidx] = (tidx == 0) ? gmem_minloc[0] : gmem_maxloc[0];
+      stloc((Type *)smem, tidx, (tidx == 0) ? ldloc(gmem_minloc[0]) : ldloc(gmem_maxloc[0]));
     }/* if( tidx < 2 ){ */
     __syncthreads();
 
     /** upload obtained result */
-    *minloc = smem[0];
-    *maxloc = smem[1];
+    *minloc = ldloc(smem[0]);
+    *maxloc = ldloc(smem[1]);
     __syncthreads();
   }/* if( bnum > 1 ){ */
 }
@@ -841,8 +841,8 @@ __device__ __forceinline__ void GET_MINLOC_2VALS_GRID
     /** share local reduction via global memory */
     /** store data on the global memory */
     if( tidx == 0 ){
-      gmem_xmin[bidx] = *xmin;
-      gmem_ymin[bidx] = *ymin;
+      stloc((Type *)gmem_xmin, bidx, *xmin);
+      stloc((Type *)gmem_ymin, bidx, *ymin);
     }/* if( tidx == 0 ){ */
 
     /** global synchronization within bnum blocks */
@@ -857,7 +857,7 @@ __device__ __forceinline__ void GET_MINLOC_2VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_xmin[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_xmin[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MINLOC_BLCK(tmp, smem, tidx, head);
@@ -870,7 +870,7 @@ __device__ __forceinline__ void GET_MINLOC_2VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_xmin[0] = ret;
+	stloc((Type *)gmem_xmin, 0, ret);
     }/* if( bidx == 0 ){ */
 
     /** get minimum with its location by a representative block */
@@ -881,7 +881,7 @@ __device__ __forceinline__ void GET_MINLOC_2VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_ymin[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_ymin[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MINLOC_BLCK(tmp, smem, tidx, head);
@@ -894,7 +894,7 @@ __device__ __forceinline__ void GET_MINLOC_2VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_ymin[0] = ret;
+	stloc((Type *)gmem_ymin, 0, ret);
     }/* if( bidx == (1 % bnum) ){ */
 
 
@@ -903,13 +903,13 @@ __device__ __forceinline__ void GET_MINLOC_2VALS_GRID
 
     /** load from the global memory */
     if( tidx < 2 ){
-      smem[tidx] = (tidx == 0) ? gmem_xmin[0] : gmem_ymin[0];
+      stloc((Type *)smem, tidx, (tidx == 0) ? ldloc(gmem_xmin[0]) : ldloc(gmem_ymin[0]));
     }/* if( tidx < 2 ){ */
     __syncthreads();
 
     /** upload obtained result */
-    *xmin = smem[0];
-    *ymin = smem[1];
+    *xmin = ldloc(smem[0]);
+    *ymin = ldloc(smem[1]);
     __syncthreads();
   }/* if( bnum > 1 ){ */
 }
@@ -935,8 +935,8 @@ __device__ __forceinline__ void GET_MAXLOC_2VALS_GRID
     /** share local reduction via global memory */
     /** store data on the global memory */
     if( tidx == 0 ){
-      gmem_xmax[bidx] = *xmax;
-      gmem_ymax[bidx] = *ymax;
+      stloc((Type *)gmem_xmax, bidx, *xmax);
+      stloc((Type *)gmem_ymax, bidx, *ymax);
     }/* if( tidx == 0 ){ */
 
     /** global synchronization within bnum blocks */
@@ -951,7 +951,7 @@ __device__ __forceinline__ void GET_MAXLOC_2VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_xmax[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_xmax[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MAXLOC_BLCK(tmp, smem, tidx, head);
@@ -964,7 +964,7 @@ __device__ __forceinline__ void GET_MAXLOC_2VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_xmax[0] = ret;
+	stloc((Type *)gmem_xmax, 0, ret);
     }/* if( bidx == 0 ){ */
 
     /** get maximum with its location by a representative block */
@@ -975,7 +975,7 @@ __device__ __forceinline__ void GET_MAXLOC_2VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_ymax[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_ymax[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MAXLOC_BLCK(tmp, smem, tidx, head);
@@ -988,7 +988,7 @@ __device__ __forceinline__ void GET_MAXLOC_2VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_ymax[0] = ret;
+	stloc((Type *)gmem_ymax, 0, ret);
     }/* if( bidx == (1 % bnum) ){ */
 
 
@@ -997,13 +997,13 @@ __device__ __forceinline__ void GET_MAXLOC_2VALS_GRID
 
     /** load from the global memory */
     if( tidx < 2 ){
-      smem[tidx] = (tidx == 0) ? gmem_xmax[0] : gmem_ymax[0];
+      stloc((Type *)smem, tidx, (tidx == 0) ? ldloc(gmem_xmax[0]) : ldloc(gmem_ymax[0]));
     }/* if( tidx < 2 ){ */
     __syncthreads();
 
     /** upload obtained result */
-    *xmax = smem[0];
-    *ymax = smem[1];
+    *xmax = ldloc(smem[0]);
+    *ymax = ldloc(smem[1]);
     __syncthreads();
   }/* if( bnum > 1 ){ */
 }
@@ -1029,8 +1029,8 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_2VALS_GRID
     /** share local reduction via global memory */
     /** store data on the global memory */
     if( tidx == 0 ){
-      gmem_xmin[bidx] = *xmin;      gmem_xmax[bidx] = *xmax;
-      gmem_ymin[bidx] = *ymin;      gmem_ymax[bidx] = *ymax;
+      stloc((Type *)gmem_xmin, bidx, *xmin);	  stloc((Type *)gmem_xmax, bidx, *xmax);
+      stloc((Type *)gmem_ymin, bidx, *ymin);	  stloc((Type *)gmem_ymax, bidx, *ymax);
     }/* if( tidx == 0 ){ */
 
     /** global synchronization within bnum blocks */
@@ -1045,7 +1045,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_2VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_xmin[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_xmin[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MINLOC_BLCK(tmp, smem, tidx, head);
@@ -1058,7 +1058,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_2VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_xmin[0] = ret;
+	stloc((Type *)gmem_xmin, 0, ret);
     }/* if( bidx == 0 ){ */
 
     /** get maximum with its location by a representative block */
@@ -1069,7 +1069,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_2VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_xmax[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_xmax[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MAXLOC_BLCK(tmp, smem, tidx, head);
@@ -1082,7 +1082,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_2VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_xmax[0] = ret;
+	stloc((Type *)gmem_xmax, 0, ret);
     }/* if( bidx == (1 % bnum) ){ */
 
     /** get minimum with its location by a representative block */
@@ -1093,7 +1093,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_2VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_ymin[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_ymin[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MINLOC_BLCK(tmp, smem, tidx, head);
@@ -1106,7 +1106,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_2VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_ymin[0] = ret;
+	stloc((Type *)gmem_ymin, 0, ret);
     }/* if( bidx == (2 % bnum) ){ */
 
     /** get maximum with its location by a representative block */
@@ -1117,7 +1117,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_2VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_ymax[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_ymax[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MAXLOC_BLCK(tmp, smem, tidx, head);
@@ -1130,7 +1130,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_2VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_ymax[0] = ret;
+	stloc((Type *)gmem_ymax, 0, ret);
     }/* if( bidx == (3 % bnum) ){ */
 
 
@@ -1139,13 +1139,13 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_2VALS_GRID
 
     /** load from the global memory */
     if( tidx < 4 ){
-      smem[tidx] = (tidx < 2) ? ((tidx == 0) ? gmem_xmin[0] : gmem_xmax[0]) : ((tidx == 2) ? gmem_ymin[0] : gmem_ymax[0]);
+      stloc((Type *)smem, tidx, (tidx < 2) ? ((tidx == 0) ? ldloc(gmem_xmin[0]) : ldloc(gmem_xmax[0])) : ((tidx == 2) ? ldloc(gmem_ymin[0]) : ldloc(gmem_ymax[0])));
     }/* if( tidx < 4 ){ */
     __syncthreads();
 
     /** upload obtained result */
-    *xmin = smem[0];    *xmax = smem[1];
-    *ymin = smem[2];    *ymax = smem[3];
+    *xmin = ldloc(smem[0]);    *xmax = ldloc(smem[1]);
+    *ymin = ldloc(smem[2]);    *ymax = ldloc(smem[3]);
     __syncthreads();
   }/* if( bnum > 1 ){ */
 }
@@ -1172,9 +1172,9 @@ __device__ __forceinline__ void GET_MINLOC_3VALS_GRID
     /** share local reduction via global memory */
     /** store data on the global memory */
     if( tidx == 0 ){
-      gmem_xmin[bidx] = *xmin;
-      gmem_ymin[bidx] = *ymin;
-      gmem_zmin[bidx] = *zmin;
+      stloc((Type *)gmem_xmin, bidx, *xmin);
+      stloc((Type *)gmem_ymin, bidx, *ymin);
+      stloc((Type *)gmem_zmin, bidx, *zmin);
     }/* if( tidx == 0 ){ */
 
     /** global synchronization within bnum blocks */
@@ -1189,7 +1189,7 @@ __device__ __forceinline__ void GET_MINLOC_3VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_xmin[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_xmin[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MINLOC_BLCK(tmp, smem, tidx, head);
@@ -1202,7 +1202,7 @@ __device__ __forceinline__ void GET_MINLOC_3VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_xmin[0] = ret;
+	stloc((Type *)gmem_xmin, 0, ret);
     }/* if( bidx == 0 ){ */
 
     /** get minimum with its location by a representative block */
@@ -1213,7 +1213,7 @@ __device__ __forceinline__ void GET_MINLOC_3VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_ymin[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_ymin[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MINLOC_BLCK(tmp, smem, tidx, head);
@@ -1226,7 +1226,7 @@ __device__ __forceinline__ void GET_MINLOC_3VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_ymin[0] = ret;
+	stloc((Type *)gmem_ymin, 0, ret);
     }/* if( bidx == (1 % bnum) ){ */
 
     /** get minimum with its location by a representative block */
@@ -1237,7 +1237,7 @@ __device__ __forceinline__ void GET_MINLOC_3VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_zmin[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_zmin[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MINLOC_BLCK(tmp, smem, tidx, head);
@@ -1250,7 +1250,7 @@ __device__ __forceinline__ void GET_MINLOC_3VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_zmin[0] = ret;
+	stloc((Type *)gmem_zmin, 0, ret);
     }/* if( bidx == (2 % bnum) ){ */
 
 
@@ -1259,14 +1259,14 @@ __device__ __forceinline__ void GET_MINLOC_3VALS_GRID
 
     /** load from the global memory */
     if( tidx < 3 ){
-      smem[tidx] = (tidx < 2) ? ((tidx == 0) ? gmem_xmin[0] : gmem_ymin[0]) : (gmem_zmin[0]);
+      stloc((Type *)smem, tidx, (tidx < 2) ? ((tidx == 0) ? ldloc(gmem_xmin[0]) : ldloc(gmem_ymin[0])) : ldloc(gmem_zmin[0]));
     }/* if( tidx < 3 ){ */
     __syncthreads();
 
     /** upload obtained result */
-    *xmin = smem[0];
-    *ymin = smem[1];
-    *zmin = smem[2];
+    *xmin = ldloc(smem[0]);
+    *ymin = ldloc(smem[1]);
+    *zmin = ldloc(smem[2]);
     __syncthreads();
   }/* if( bnum > 1 ){ */
 }
@@ -1293,9 +1293,9 @@ __device__ __forceinline__ void GET_MAXLOC_3VALS_GRID
     /** share local reduction via global memory */
     /** store data on the global memory */
     if( tidx == 0 ){
-      gmem_xmax[bidx] = *xmax;
-      gmem_ymax[bidx] = *ymax;
-      gmem_zmax[bidx] = *zmax;
+      stloc((Type *)gmem_xmax, bidx, *xmax);
+      stloc((Type *)gmem_ymax, bidx, *ymax);
+      stloc((Type *)gmem_zmax, bidx, *zmax);
     }/* if( tidx == 0 ){ */
 
     /** global synchronization within bnum blocks */
@@ -1310,7 +1310,7 @@ __device__ __forceinline__ void GET_MAXLOC_3VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_xmax[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_xmax[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MAXLOC_BLCK(tmp, smem, tidx, head);
@@ -1323,7 +1323,7 @@ __device__ __forceinline__ void GET_MAXLOC_3VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_xmax[0] = ret;
+	stloc((Type *)gmem_xmax, 0, ret);
     }/* if( bidx == 0 ){ */
 
     /** get maximum with its location by a representative block */
@@ -1334,7 +1334,7 @@ __device__ __forceinline__ void GET_MAXLOC_3VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_ymax[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_ymax[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MAXLOC_BLCK(tmp, smem, tidx, head);
@@ -1347,7 +1347,7 @@ __device__ __forceinline__ void GET_MAXLOC_3VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_ymax[0] = ret;
+	stloc((Type *)gmem_ymax, 0, ret);
     }/* if( bidx == (1 % bnum) ){ */
 
     /** get maximum with its location by a representative block */
@@ -1358,7 +1358,7 @@ __device__ __forceinline__ void GET_MAXLOC_3VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_zmax[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_zmax[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MAXLOC_BLCK(tmp, smem, tidx, head);
@@ -1371,7 +1371,7 @@ __device__ __forceinline__ void GET_MAXLOC_3VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_zmax[0] = ret;
+	stloc((Type *)gmem_zmax, 0, ret);
     }/* if( bidx == (2 % bnum) ){ */
 
 
@@ -1380,14 +1380,14 @@ __device__ __forceinline__ void GET_MAXLOC_3VALS_GRID
 
     /** load from the global memory */
     if( tidx < 3 ){
-      smem[tidx] = (tidx < 2) ? ((tidx == 0) ? gmem_xmax[0] : gmem_ymax[0]) : (gmem_zmax[0]);
+      stloc((Type *)smem, tidx, (tidx < 2) ? ((tidx == 0) ? ldloc(gmem_xmax[0]) : ldloc(gmem_ymax[0])) : ldloc(gmem_zmax[0]));
     }/* if( tidx < 3 ){ */
     __syncthreads();
 
     /** upload obtained result */
-    *xmax = smem[0];
-    *ymax = smem[1];
-    *zmax = smem[2];
+    *xmax = ldloc(smem[0]);
+    *ymax = ldloc(smem[1]);
+    *zmax = ldloc(smem[2]);
     __syncthreads();
   }/* if( bnum > 1 ){ */
 }
@@ -1414,9 +1414,9 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_3VALS_GRID
     /** share local reduction via global memory */
     /** store data on the global memory */
     if( tidx == 0 ){
-      gmem_xmin[bidx] = *xmin;      gmem_xmax[bidx] = *xmax;
-      gmem_ymin[bidx] = *ymin;      gmem_ymax[bidx] = *ymax;
-      gmem_zmin[bidx] = *zmin;      gmem_zmax[bidx] = *zmax;
+      stloc((Type *)gmem_xmin, bidx, *xmin);	   stloc((Type *)gmem_xmax, bidx, *xmax);
+      stloc((Type *)gmem_ymin, bidx, *ymin);	   stloc((Type *)gmem_ymax, bidx, *ymax);
+      stloc((Type *)gmem_zmin, bidx, *zmin);	   stloc((Type *)gmem_zmax, bidx, *zmax);
     }/* if( tidx == 0 ){ */
 
     /** global synchronization within bnum blocks */
@@ -1431,7 +1431,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_3VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_xmin[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_xmin[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MINLOC_BLCK(tmp, smem, tidx, head);
@@ -1444,7 +1444,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_3VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_xmin[0] = ret;
+	stloc((Type *)gmem_xmin, 0, ret);
     }/* if( bidx == 0 ){ */
 
     /** get maximum with its location by a representative block */
@@ -1455,7 +1455,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_3VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_xmax[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_xmax[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MAXLOC_BLCK(tmp, smem, tidx, head);
@@ -1468,7 +1468,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_3VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_xmax[0] = ret;
+	stloc((Type *)gmem_xmax, 0, ret);
     }/* if( bidx == (1 % bnum) ){ */
 
     /** get minimum with its location by a representative block */
@@ -1479,7 +1479,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_3VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_ymin[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_ymin[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MINLOC_BLCK(tmp, smem, tidx, head);
@@ -1492,7 +1492,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_3VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_ymin[0] = ret;
+	stloc((Type *)gmem_ymin, 0, ret);
     }/* if( bidx == (2 % bnum) ){ */
 
     /** get maximum with its location by a representative block */
@@ -1503,7 +1503,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_3VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_ymax[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_ymax[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MAXLOC_BLCK(tmp, smem, tidx, head);
@@ -1516,7 +1516,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_3VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_ymax[0] = ret;
+	stloc((Type *)gmem_ymax, 0, ret);
     }/* if( bidx == (3 % bnum) ){ */
 
     /** get minimum with its location by a representative block */
@@ -1527,7 +1527,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_3VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_zmin[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_zmin[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MINLOC_BLCK(tmp, smem, tidx, head);
@@ -1540,7 +1540,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_3VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_zmin[0] = ret;
+	stloc((Type *)gmem_zmin, 0, ret);
     }/* if( bidx == (4 % bnum) ){ */
 
     /** get maximum with its location by a representative block */
@@ -1551,7 +1551,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_3VALS_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem_zmax[target] : ret);
+	Type tmp = ((target < bnum) ? ldloc(gmem_zmax[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_MAXLOC_BLCK(tmp, smem, tidx, head);
@@ -1564,7 +1564,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_3VALS_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem_zmax[0] = ret;
+	stloc((Type *)gmem_zmax, 0, ret);
     }/* if( bidx == (5 % bnum) ){ */
 
 
@@ -1573,14 +1573,14 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_3VALS_GRID
 
     /** load from the global memory */
     if( tidx < 6 ){
-      smem[tidx] = (tidx < 2) ? ((tidx == 0) ? gmem_xmin[0] : gmem_xmax[0]) : ((tidx < 4) ? ((tidx == 2) ? gmem_ymin[0] : gmem_ymax[0]) : ((tidx == 4) ? gmem_zmin[0] : gmem_zmax[0]));
+      stloc((Type *)smem, tidx, (tidx < 2) ? ((tidx == 0) ? ldloc(gmem_xmin[0]) : ldloc(gmem_xmax[0])) : ((tidx < 4) ? ((tidx == 2) ? ldloc(gmem_ymin[0]) : ldloc(gmem_ymax[0])) : ((tidx == 4) ? ldloc(gmem_zmin[0]) : ldloc(gmem_zmax[0]))));
     }/* if( tidx < 6 ){ */
     __syncthreads();
 
     /** upload obtained result */
-    *xmin = smem[0];    *xmax = smem[1];
-    *ymin = smem[2];    *ymax = smem[3];
-    *zmin = smem[4];    *zmax = smem[5];
+    *xmin = ldloc(smem[0]);    *xmax = ldloc(smem[1]);
+    *ymin = ldloc(smem[2]);    *ymax = ldloc(smem[3]);
+    *zmin = ldloc(smem[4]);    *zmax = ldloc(smem[5]);
     __syncthreads();
   }/* if( bnum > 1 ){ */
 }

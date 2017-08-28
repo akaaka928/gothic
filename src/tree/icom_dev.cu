@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/25 (Fri)
+ * @date 2017/08/28 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -25,6 +25,7 @@
 #include "macro.h"
 #include "cudalib.h"
 
+#include "../misc/device.h"
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
 
@@ -38,18 +39,18 @@
 #endif//OCTREE_BASED_SEARCH
 
 
-#    if  defined(USE_WARP_SHUFFLE_FUNC_EB) && !defined(USE_WARP_SHUFFLE_FUNC_COMPARE_INC)
+#   if  defined(USE_WARP_SHUFFLE_FUNC_EB) && !defined(USE_WARP_SHUFFLE_FUNC_COMPARE_INC)
 #define  USE_WARP_SHUFFLE_FUNC_COMPARE_INC
-#enedif//defined(USE_WARP_SHUFFLE_FUNC_EB) && !defined(USE_WARP_SHUFFLE_FUNC_COMPARE_INC)
+#endif//defined(USE_WARP_SHUFFLE_FUNC_EB) && !defined(USE_WARP_SHUFFLE_FUNC_COMPARE_INC)
 #define NTHREADS_COMPARE_INC NTHREADS_EB
 #include "../util/compare_inc.cu"
 
 
 #ifdef  OCTREE_BASED_SEARCH
 
-#    if  defined(USE_WARP_SHUFFLE_FUNC_EB) && !defined(USE_WARP_SHUFFLE_FUNC_SCAN_INC)
+#   if  defined(USE_WARP_SHUFFLE_FUNC_EB) && !defined(USE_WARP_SHUFFLE_FUNC_SCAN_INC)
 #define  USE_WARP_SHUFFLE_FUNC_SCAN_INC
-#enedif//defined(USE_WARP_SHUFFLE_FUNC_EB) && !defined(USE_WARP_SHUFFLE_FUNC_SCAN_INC)
+#endif//defined(USE_WARP_SHUFFLE_FUNC_EB) && !defined(USE_WARP_SHUFFLE_FUNC_SCAN_INC)
 #define NTHREADS_SCAN_INC NTHREADS_EB
 #include "../util/scan_inc.cu"
 
@@ -57,6 +58,51 @@
 /* #define NTHREADS_COMPARE_VEC3_INC NTHREADS_EB */
 /* #include "../util/compare_vec3_inc.cu" */
 
+/**
+ * @union alignedInt
+ *
+ * @brief union for store multiple integers in registers
+ */
+/**
+ * @union alignedFlt
+ *
+ * @brief union for store multiple floats in registers
+ */
+#   if  NBUF_EB == 4
+typedef union __align__(16)
+{
+  int4 i4;
+  int  ia[4];
+} alignedInt;
+typedef union __align__(16)
+{
+  real4 r4;
+  real  ra[4];
+} alignedFlt;
+#endif//NBUF_EB == 4
+#   if  NBUF_EB == 2
+typedef union __align__(8)
+{
+  int2 i4;
+  int  ia[2];
+} alignedInt;
+typedef union __align__(8)
+{
+  real2 r4;
+  real  ra[2];
+} alignedFlt;
+#endif//NBUF_EB == 2
+
+/**
+ * @union int_real
+ *
+ * @brief union for switching integer and float
+ */
+typedef union
+{
+  int  i;
+  float f;
+} int_float;
 
 
 /**
@@ -105,7 +151,7 @@ __device__ __forceinline__ float findFarthestParticle
   const treecell root = cell[cidx];
 
 
-  uint more_tmp = more[jidx];
+  uint more_tmp = more[node[cidx] & IDXMASK];
   int cnum  = (more_tmp >> IDXBITS) + 1;
   int chead = (more_tmp  & IDXMASK);
 
@@ -121,7 +167,7 @@ __device__ __forceinline__ float findFarthestParticle
 
   /** pick up NI_R2MAX_ESTIMATE i-particles in maximum to estimate bmax by reduction within a block */
   while( inum > NI_R2MAX_ESTIMATE ){
-    float fmin = 0.0f;
+    float rmin = 0.0f;
     int Nloc = 0;
     int Nbuf = 0;
 
@@ -194,22 +240,22 @@ __device__ __forceinline__ float findFarthestParticle
 
 	    const float rjmax = CAST_R2F(bmax[kidx]) + dr;
 	    const float rjmin = -rjmax + (2.0f * (1.0f - FLT_EPSILON)) * dr;
-	    fmin = fmaxf(rjmin, fmin);
+	    rmin = fmaxf(rjmin, rmin);
 
-	    if( rjmax > fmin ){
+	    if( rjmax > rmin ){
 	      pjidx_loc.ia[kk] = kidx;
 	      rjmax_loc.ra[kk] = rjmax;
 	    }/* if( rjmax > rmin ){ */
 	  }/* for(int kk = 0; kk < NBUF_EB; kk++){ */
 
-	  /** share fmin within NTHREADS_EB threads */
-	  fmin = GET_MAX_BLCK(fmin, (float *)smem, tidx, head);
+	  /** share rmin within NTHREADS_EB threads */
+	  rmin = GET_MAX_BLCK(rmin, (float *)smem, tidx, head);
 
 
-	  /** recheck local buffer (is really rjmax greater than fmin ?) */
+	  /** recheck local buffer (is really rjmax greater than rmin ?) */
 #pragma unroll
 	  for(int jj = 0; jj < NBUF_EB; jj++){
-	    const int share = (rjmax_loc.ra[jj] > fmin) ? 1 : 0;
+	    const int share = (rjmax_loc.ra[jj] > rmin) ? 1 : 0;
 	    PREFIX_SUM_BLCK(share, (int *)smem, lane, tidx);
 
 	    if( share ){
@@ -428,7 +474,7 @@ __global__ void getApproxEnclosingBall_kernel
 {
   /** identify thread properties */
   const int tidx = THREADIDX_X1D;
-  const int head = tidx - (tidx & (warpSize - 1));
+  /* const int head = tidx - (tidx & (warpSize - 1)); */
 
   __shared__ position smem;
   if( tidx == 0 )
@@ -459,7 +505,7 @@ __global__ void getApproxEnclosingBall_kernel
     /** shift the center of the sphere */
 
     if( tidx == 0 )
-      smem = ipos[r2max.idx].pi;
+      smem = ipos[r2max.idx];
     __syncthreads();
     const position far = smem;
 
@@ -674,7 +720,7 @@ __global__ void __launch_bounds__(NTHREADS_EB, NBLOCKS_PER_SM_EB) getApproxEnclo
   floc r2max;
   /* float rold = CAST_R2F(cen.m) * rsqrtf(CAST_R2F(cen.m)); */
   float rold = 0.0f;
-  while( findFarthestParticle(&r2max, ipos, ihead, itail, smem, gmem, tidx, head, bidx, bnum, gsync0, gsync1) > cen.m ){
+  while( findFarthestParticle(cen, &r2max, ipos, ihead, itail, smem, gmem, tidx, head, bidx, bnum, gsync0, gsync1) > cen.m ){
     /** update the sphere */
     const float dinv = rsqrtf(r2max.val);
     const float dmax = dinv * r2max.val;
@@ -692,9 +738,9 @@ __global__ void __launch_bounds__(NTHREADS_EB, NBLOCKS_PER_SM_EB) getApproxEnclo
     /** shift the center of the sphere */
 
     if( tidx == 0 )
-      smem[0] = ipos[r2max.idx].pi;
+      ebs_sm = ipos[r2max.idx];
     __syncthreads();
-    const position far = smem[0];
+    const position far = ebs_sm;
 
     cen.x += (far.x - cen.x) * disp;
     cen.y += (far.y - cen.y) * disp;
@@ -710,18 +756,18 @@ __global__ void __launch_bounds__(NTHREADS_EB, NBLOCKS_PER_SM_EB) getApproxEnclo
 }
 
 
-static inline void checkDeadLockCondition(void (*func)(...), char *name, char *file, const int line, char *call, const int Nregs, const int Ttot, const bool warpShuffle, const int Bguess)
+static inline void checkDeadLockCondition(void (*func)(position * RESTRICT ebs, const int num, READ_ONLY position * RESTRICT ipos, float4 * RESTRICT min_all, float4 * RESTRICT max_all, floc * RESTRICT gmem, int * RESTRICT gsync0, int * RESTRICT gsync1), const char *name, const char *file, const int line, const char *call, const int Nregs, const int Ttot, const bool warpShuffle, const int Bguess)
 {
   struct cudaFuncAttributes funcAttr;
   checkCudaErrors(cudaFuncGetAttributes(&funcAttr, func));
 
-  if( funcAttr.numRegs != REGISTERS_PER_THREAD_MAC ){
+  if( funcAttr.numRegs != REGISTERS_PER_THREAD_EB ){
     fprintf(stderr, "%s(%d): %s\n", file, line, call);
     fprintf(stderr, "warning: # of registers used (%d) in %s is not match with the predicted value (%d).\n", funcAttr.numRegs, name, Nregs);
     fprintf(stderr, "note: GPUGEN = %d, GPUVER = %d, Ttot = %d.\n", GPUGEN, GPUVER, Ttot);
     fprintf(stderr, "note: warp shuffle instruction is %s\n", warpShuffle ? " enabled" : "disabled");
     fflush (stderr);
-  }/* if( funcAttr.numRegs != REGISTERS_PER_THREAD_MAC ){ */
+  }/* if( funcAttr.numRegs != REGISTERS_PER_THREAD_EB ){ */
 
   int regLimit = MAX_REGISTERS_PER_SM / (funcAttr.numRegs * Ttot);
   if( regLimit > (MAX_REGISTERS_PER_SM / Ttot) )
@@ -759,7 +805,7 @@ muse allocApproxEnclosingBall_dev(void **dev, const deviceProp devProp)
   alloc.device +=   num * sizeof(floc);
 
   /** error checking before running the kernel */
-    checkDeadLockCondition(CALL_FUNC_WITH_NAME(getApproxEnclosingBall_kernel), __FILE__, __LINE__, __func__, REGISTERS_PER_THREAD_EB, NTHREADS_EB,
+  checkDeadLockCondition(getApproxEnclosingBall_kernel, "getApproxEnclosingBall_kernel", (const char *)__FILE__, __LINE__, (const char *)__func__, REGISTERS_PER_THREAD_EB, NTHREADS_EB,
 #ifdef  USE_WARP_SHUFFLE_FUNC_EB
 			   true,
 #else///USE_WARP_SHUFFLE_FUNC_EB
@@ -813,13 +859,13 @@ void  freeApproxEnclosingBall_dev(void *dev)
  */
 extern "C"
 void getApproxEnclosingBall_dev
-(const int num, const iparticle body,
+(const int num, const iparticle body
 #ifdef  OCTREE_BASED_SEARCH
- const soaTreeCell cell, const soaTreeNode node, const soaMakeTreeBuf buf,
+ , const soaTreeCell cell, const soaTreeNode node, const soaMakeTreeBuf buf
 #else///OCTREE_BASED_SEARCH
- void *gmem, const soaPHsort soa, const deviceProp devProp,
+ , void *gmem, const soaPHsort soa, const deviceProp devProp
 #endif//OCTREE_BASED_SEARCH
- const cudaStream_t stream
+ , const cudaStream_t stream
 #ifdef  EXEC_BENCHMARK
  , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
@@ -836,7 +882,7 @@ void getApproxEnclosingBall_dev
   getApproxEnclosingBall_kernel<<<1, NTHREADS_EB, SMEM_SIZE, stream>>>
     (body.encBall, num, body.pos,
      cell.cell, cell.ptag, node.more, node.node2cell, node.jpos, node.bmax,
-     buf.more0, buf.more1, buf.rjmax, buf.fail, buf.Nbuf_external);
+     buf.more0, buf.more1, buf.rjmax, buf.fail, buf.Nbuf);
   getLastCudaError("getApproxEnclosingBall_kernel");
 
   int fail_hst;

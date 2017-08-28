@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/07/19 (Wed)
+ * @date 2017/08/28 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -440,6 +440,7 @@ typedef struct
 {
   int *more0, *more1;
   real *rjmax;
+  size_t Nbuf;
   int *fail;
   int *gsync0, *gsync1;
   int *gmem_make_tree, *gmem_link_tree;

@@ -1057,7 +1057,10 @@ $(OBJDIR)/shrink_dev.o:		$(TREE_DEP)	$(SHRINK_DEV_DEP)
 WALK_DEV_DEP	:=	$(TREE_DEV_DEP)	$(TREE_BUF_DEP)	$(MYINC)/timer.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/seb_dev.cu
 $(OBJDIR)/walk_dev.mpi.o:	$(WALK_DEV_DEP)	$(TREE_LET_DEP)	$(MISCDIR)/tune.h
 $(OBJDIR)/walk_dev.o:		$(WALK_DEV_DEP)
-$(OBJDIR)/icom_dev.o:	$(TREE_DEV_DEP)	$(TREEDIR)/make_dev.h	$(SORTDIR)/peano_dev.h	$(TREEDIR)/icom_dev.h
+ICOM_DEV_DEP	:=	$(TREE_DEV_DEP)	$(TREEDIR)/make_dev.h	$(SORTDIR)/peano_dev.h	$(TREEDIR)/icom_dev.h
+ICOM_DEV_DEP	+=	$(UTILDIR)/compare_inc.cu	$(UTILDIR)/compare_inc.cuh	$(UTILDIR)/compare_del.cuh
+ICOM_DEV_DEP	+=	$(UTILDIR)/scan_inc.cu	$(UTILDIR)/scan_inc.cuh	$(UTILDIR)/scan_del.cuh
+$(OBJDIR)/icom_dev.o:	$(ICOM_DEV_DEP)
 #################################################################################################
 ## $(INITDIR)/*
 $(OBJDIR)/sample.o:	$(COMMON_DEP)

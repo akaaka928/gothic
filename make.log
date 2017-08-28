@@ -1,9 +1,602 @@
 mpicc -std=c99 -D_POSIX_C_SOURCE=199309L -Wall -Wextra -Wunused -Wcast-qual -Wcast-align -Wmissing-declarations -DGPUGEN="(52)" -DGPUVER="(52)" -DCUB_AVAILABLE -DREPORT_TOTAL_ELAPSED_TIME -DMONITOR_ENERGY_ERROR -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DUSE_SFMT -DUSE_SFMTJUMP -DUSE_HDF5_FORMAT -DNDEBUG  -O3 -ffast-math -funroll-loops -march=native -mtune=native -I/home/ymiki/inc           -I/opt/HDF5/1.8.18/include    -o bin/obj/gothic.mpi.hdf5.o -c src/main/gothic.c
-In file included from /opt/CUDA/8.0/samples/common/inc/helper_cuda.h:24:0,
-                 from src/main/../tree/icom_dev.h:68,
-                 from src/main/gothic.c:75:
-/opt/CUDA/8.0/samples/common/inc/helper_string.h:18:19: 致命的エラー: fstream: そのようなファイルやディレクトリはありません
- #include <fstream>
-                   ^
-コンパイルを停止しました。
-make: *** [bin/obj/gothic.mpi.hdf5.o] エラー 1
+mpicc -std=c99 -D_POSIX_C_SOURCE=199309L -Wall -Wextra -Wunused -Wcast-qual -Wcast-align -Wmissing-declarations -DGPUGEN="(52)" -DGPUVER="(52)" -DCUB_AVAILABLE -DREPORT_TOTAL_ELAPSED_TIME -DMONITOR_ENERGY_ERROR -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DUSE_SFMT -DUSE_SFMTJUMP -DUSE_HDF5_FORMAT -DNDEBUG  -O3 -ffast-math -funroll-loops -march=native -mtune=native -I/home/ymiki/inc           -I/opt/HDF5/1.8.18/include    -o bin/obj/io.mpi.hdf5.o -c src/file/io.c
+mpicc -std=c99 -D_POSIX_C_SOURCE=199309L -Wall -Wextra -Wunused -Wcast-qual -Wcast-align -Wmissing-declarations -DGPUGEN="(52)" -DGPUVER="(52)" -DCUB_AVAILABLE -DREPORT_TOTAL_ELAPSED_TIME -DMONITOR_ENERGY_ERROR -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DUSE_SFMT -DUSE_SFMTJUMP -DUSE_HDF5_FORMAT -DNDEBUG  -O3 -ffast-math -funroll-loops -march=native -mtune=native -I/home/ymiki/inc           -I/opt/HDF5/1.8.18/include    -o bin/obj/allocate.mpi.hdf5.o -c src/misc/allocate.c
+mpicc -std=c99 -D_POSIX_C_SOURCE=199309L -Wall -Wextra -Wunused -Wcast-qual -Wcast-align -Wmissing-declarations -DGPUGEN="(52)" -DGPUVER="(52)" -DCUB_AVAILABLE -DREPORT_TOTAL_ELAPSED_TIME -DMONITOR_ENERGY_ERROR -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DUSE_SFMT -DUSE_SFMTJUMP -DUSE_HDF5_FORMAT -DNDEBUG  -O3 -ffast-math -funroll-loops -march=native -mtune=native -I/home/ymiki/inc           -I/opt/HDF5/1.8.18/include    -o bin/obj/convert.mpi.hdf5.o -c src/misc/convert.c
+gcc -std=c99 -D_POSIX_C_SOURCE=199309L    -Wall -Wextra -Wunused -Wcast-qual -Wcast-align -Wmissing-declarations -DGPUGEN="(52)" -DGPUVER="(52)" -DCUB_AVAILABLE -DREPORT_TOTAL_ELAPSED_TIME -DMONITOR_ENERGY_ERROR -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DUSE_SFMT -DUSE_SFMTJUMP -DUSE_HDF5_FORMAT -DNDEBUG  -O3 -ffast-math -funroll-loops -march=native -mtune=native -I/home/ymiki/inc              -o bin/obj/tune.o -c src/misc/tune.c
+nvcc -Xptxas -v -Xptxas -warn-spills -Xptxas -warn-lmem-usage -gencode=arch=compute_52,code=sm_52 -DGPUGEN="(52)" -DGPUVER="(52)" -lineinfo -DUSE_GPU_FOR_MONITOR -DCUB_AVAILABLE -DSM520 -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DNDEBUG                     -I/home/ymiki/inc -I/opt/CUDA/8.0/include -I/opt/CUDA/8.0/samples/common/inc -DGPUS_PER_NODE="(2)" -DGPUS_PER_PROCESS="(1)" -DP2P_ACCESS_AVAILABLE -DCONTINUOUS_GPU_ID -I/opt/CUB/1.7.2              -o bin/obj/allocate_dev.o -c src/misc/allocate_dev.cu
+ptxas info    : 0 bytes gmem
+nvcc -Xptxas -v -Xptxas -warn-spills -Xptxas -warn-lmem-usage -gencode=arch=compute_52,code=sm_52 -DGPUGEN="(52)" -DGPUVER="(52)" -lineinfo -DUSE_GPU_FOR_MONITOR -DCUB_AVAILABLE -DSM520 -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DNDEBUG                     -I/home/ymiki/inc -I/opt/CUDA/8.0/include -I/opt/CUDA/8.0/samples/common/inc -DGPUS_PER_NODE="(2)" -DGPUS_PER_PROCESS="(1)" -DP2P_ACCESS_AVAILABLE -DCONTINUOUS_GPU_ID -I/opt/CUB/1.7.2              -o bin/obj/peano_dev.o -c src/sort/peano_dev.cu
+ptxas info    : 0 bytes gmem
+ptxas info    : Compiling entry function '_Z17initPHinfo_kernelP6PHinfo' for 'sm_52'
+ptxas info    : Function properties for _Z17initPHinfo_kernelP6PHinfo
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 11 registers, 352 bytes smem, 328 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z16calcPHkey_kerneliPK8positionP6float4S3_iPiPmS4_S4_PS_PKS2_S8_' for 'sm_52'
+ptxas info    : Function properties for _Z16calcPHkey_kerneliPK8positionP6float4S3_iPiPmS4_S4_PS_PKS2_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 37 registers, 16384 bytes smem, 416 bytes cmem[0], 60 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN3cub28DeviceRadixSortUpsweepKernelINS_21DeviceRadixSortPolicyImiiE9Policy700ELb1ELb0EmiEEvPKT2_PT3_S7_iiNS_13GridEvenShareIS7_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN3cub28DeviceRadixSortUpsweepKernelINS_21DeviceRadixSortPolicyImiiE9Policy700ELb1ELb0EmiEEvPKT2_PT3_S7_iiNS_13GridEvenShareIS7_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 40 registers, 16384 bytes smem, 388 bytes cmem[0], 8 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN3cub31DeviceRadixSortSingleTileKernelINS_21DeviceRadixSortPolicyImiiE9Policy700ELb0EmiiEEvPKT1_PS4_PKT2_PS8_T3_ii' for 'sm_52'
+ptxas info    : Function properties for _ZN3cub31DeviceRadixSortSingleTileKernelINS_21DeviceRadixSortPolicyImiiE9Policy700ELb0EmiiEEvPKT1_PS4_PKT2_PS8_T3_ii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 93 registers, 33856 bytes smem, 364 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z34sortParticlesPHcurve_kernel_offsetiPKiPmPKmP8positionPKS4_P12accelerationPKS8_P8velocityPKSC_P10ibody_timePKSG_i' for 'sm_52'
+ptxas info    : Function properties for _Z34sortParticlesPHcurve_kernel_offsetiPKiPmPKmP8positionPKS4_P12accelerationPKS8_P8velocityPKSC_P10ibody_timePKSG_i
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 420 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN3cub30DeviceRadixSortDownsweepKernelINS_21DeviceRadixSortPolicyImiiE9Policy700ELb0ELb0EmiiEEvPKT2_PS4_PKT3_PS8_PT4_SC_iiNS_13GridEvenShareISC_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN3cub30DeviceRadixSortDownsweepKernelINS_21DeviceRadixSortPolicyImiiE9Policy700ELb0ELb0EmiiEEvPKT2_PS4_PKT3_PS8_PT4_SC_iiNS_13GridEvenShareISC_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 226 registers, 41632 bytes smem, 412 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN3cub11EmptyKernelIvEEvv' for 'sm_52'
+ptxas info    : Function properties for _ZN3cub11EmptyKernelIvEEvv
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 2 registers, 320 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z27sortParticlesPHcurve_kerneliPKiPmPKmP8positionPKS4_P12accelerationPKS8_P8velocityPKSC_P10ibody_timePKSG_' for 'sm_52'
+ptxas info    : Function properties for _Z27sortParticlesPHcurve_kerneliPKiPmPKmP8positionPKS4_P12accelerationPKS8_P8velocityPKSC_P10ibody_timePKSG_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 416 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN3cub23RadixSortScanBinsKernelINS_21DeviceRadixSortPolicyImiiE9Policy700EiEEvPT0_i' for 'sm_52'
+ptxas info    : Function properties for _ZN3cub23RadixSortScanBinsKernelINS_21DeviceRadixSortPolicyImiiE9Policy700EiEEvPT0_i
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 56 registers, 47120 bytes smem, 332 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z26copySortedParticles_kerneliPK8positionPS_' for 'sm_52'
+ptxas info    : Function properties for _Z26copySortedParticles_kerneliPK8positionPS_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 10 registers, 344 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN3cub30DeviceRadixSortDownsweepKernelINS_21DeviceRadixSortPolicyImiiE9Policy700ELb1ELb0EmiiEEvPKT2_PS4_PKT3_PS8_PT4_SC_iiNS_13GridEvenShareISC_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN3cub30DeviceRadixSortDownsweepKernelINS_21DeviceRadixSortPolicyImiiE9Policy700ELb1ELb0EmiiEEvPKT2_PS4_PKT3_PS8_PT4_SC_iiNS_13GridEvenShareISC_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 98 registers, 34976 bytes smem, 412 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z16initGsync_kerneliPiS_' for 'sm_52'
+ptxas info    : Function properties for _Z16initGsync_kerneliPiS_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 6 registers, 344 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN3cub28DeviceRadixSortUpsweepKernelINS_21DeviceRadixSortPolicyImiiE9Policy700ELb0ELb0EmiEEvPKT2_PT3_S7_iiNS_13GridEvenShareIS7_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN3cub28DeviceRadixSortUpsweepKernelINS_21DeviceRadixSortPolicyImiiE9Policy700ELb0ELb0EmiEEvPKT2_PT3_S7_iiNS_13GridEvenShareIS7_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 80 registers, 20480 bytes smem, 388 bytes cmem[0]
+nvcc -Xptxas -v -Xptxas -warn-spills -Xptxas -warn-lmem-usage -gencode=arch=compute_52,code=sm_52 -DGPUGEN="(52)" -DGPUVER="(52)" -lineinfo -DUSE_GPU_FOR_MONITOR -DCUB_AVAILABLE -DSM520 -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DNDEBUG                     -I/home/ymiki/inc -I/opt/CUDA/8.0/include -I/opt/CUDA/8.0/samples/common/inc -DGPUS_PER_NODE="(2)" -DGPUS_PER_PROCESS="(1)" -DP2P_ACCESS_AVAILABLE -DCONTINUOUS_GPU_ID -I/opt/CUB/1.7.2              -o bin/obj/shrink_dev.o -c src/tree/shrink_dev.cu
+ptxas info    : 13 bytes gmem
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj128ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm7EEELm128EEELm0EEENS4_7closureINS2_13reduce_detail17reduce_partitionsENS_5tupleINS4_6cursorILj1EEENS_6detail15normal_iteratorINS_7pointerIfNS2_3tagENS_11use_defaultESN_EEEESP_SP_NS_7maximumIfEENS_9null_typeESS_SS_SS_SS_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj128ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm7EEELm128EEELm0EEENS4_7closureINS2_13reduce_detail17reduce_partitionsENS_5tupleINS4_6cursorILj1EEENS_6detail15normal_iteratorINS_7pointerIfNS2_3tagENS_11use_defaultESN_EEEESP_SP_NS_7maximumIfEENS_9null_typeESS_SS_SS_SS_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 31 registers, 32 bytes smem, 392 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIfEEPfNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIfEEEEvEEjSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIfEEPfNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIfEEEEvEEjSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 12 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKfNS_7pointerIfNS2_3tagENS_11use_defaultESO_EENS_9null_typeESQ_SQ_SQ_SQ_SQ_SQ_SQ_EEEENS_6detail16wrapped_functionINST_23unary_transform_functorINS_8identityIfEEEEvEEjSQ_SQ_SQ_SQ_SQ_SQ_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKfNS_7pointerIfNS2_3tagENS_11use_defaultESO_EENS_9null_typeESQ_SQ_SQ_SQ_SQ_SQ_SQ_EEEENS_6detail16wrapped_functionINST_23unary_transform_functorINS_8identityIfEEEEvEEjSQ_SQ_SQ_SQ_SQ_SQ_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 12 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z30countContinuousNeighbor_kerneliP8positionifPi' for 'sm_52'
+ptxas info    : Function properties for _Z30countContinuousNeighbor_kerneliP8positionifPi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 14 registers, 2176 bytes smem, 352 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_7pointerIfNS2_3tagENS_11use_defaultESM_EEPfNS_9null_typeESP_SP_SP_SP_SP_SP_SP_EEEENS_6detail16wrapped_functionINSS_23unary_transform_functorINS_8identityIfEEEEvEElSP_SP_SP_SP_SP_SP_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_7pointerIfNS2_3tagENS_11use_defaultESM_EEPfNS_9null_typeESP_SP_SP_SP_SP_SP_SP_EEEENS_6detail16wrapped_functionINSS_23unary_transform_functorINS_8identityIfEEEEvEElSP_SP_SP_SP_SP_SP_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKfNS_7pointerIfNS2_3tagENS_11use_defaultESO_EENS_9null_typeESQ_SQ_SQ_SQ_SQ_SQ_SQ_EEEENS_6detail16wrapped_functionINST_23unary_transform_functorINS_8identityIfEEEEvEElSQ_SQ_SQ_SQ_SQ_SQ_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKfNS_7pointerIfNS2_3tagENS_11use_defaultESO_EENS_9null_typeESQ_SQ_SQ_SQ_SQ_SQ_SQ_EEEENS_6detail16wrapped_functionINST_23unary_transform_functorINS_8identityIfEEEEvEElSQ_SQ_SQ_SQ_SQ_SQ_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj128ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm7EEELm128EEELm0EEENS4_7closureINS2_13reduce_detail17reduce_partitionsENS_5tupleINS4_6cursorILj1EEENS_10device_ptrIfEENS2_21aligned_decompositionIlEENS_6detail15normal_iteratorINS_7pointerIfNS2_3tagENS_11use_defaultESR_EEEEfNS_7maximumIfEENS_9null_typeESW_SW_SW_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj128ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm7EEELm128EEELm0EEENS4_7closureINS2_13reduce_detail17reduce_partitionsENS_5tupleINS4_6cursorILj1EEENS_10device_ptrIfEENS2_21aligned_decompositionIlEENS_6detail15normal_iteratorINS_7pointerIfNS2_3tagENS_11use_defaultESR_EEEEfNS_7maximumIfEENS_9null_typeESW_SW_SW_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 32 bytes smem, 424 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIfEEPfNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIfEEEEvEElSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIfEEPfNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIfEEEEvEElSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z19initLaneTime_kerneliPd' for 'sm_52'
+ptxas info    : Function properties for _Z19initLaneTime_kerneliPd
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 6 registers, 336 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_7pointerIfNS2_3tagENS_11use_defaultESM_EEPfNS_9null_typeESP_SP_SP_SP_SP_SP_SP_EEEENS_6detail16wrapped_functionINSS_23unary_transform_functorINS_8identityIfEEEEvEEjSP_SP_SP_SP_SP_SP_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_7pointerIfNS2_3tagENS_11use_defaultESM_EEPfNS_9null_typeESP_SP_SP_SP_SP_SP_SP_EEEENS_6detail16wrapped_functionINSS_23unary_transform_functorINS_8identityIfEEEEvEEjSP_SP_SP_SP_SP_SP_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 12 registers, 32 bytes smem, 392 bytes cmem[0]
+nvcc -Xptxas -v -Xptxas -warn-spills -Xptxas -warn-lmem-usage -gencode=arch=compute_52,code=sm_52 -DGPUGEN="(52)" -DGPUVER="(52)" -lineinfo -DUSE_GPU_FOR_MONITOR -DCUB_AVAILABLE -DSM520 -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DNDEBUG                     -I/home/ymiki/inc -I/opt/CUDA/8.0/include -I/opt/CUDA/8.0/samples/common/inc -DGPUS_PER_NODE="(2)" -DGPUS_PER_PROCESS="(1)" -DP2P_ACCESS_AVAILABLE -DCONTINUOUS_GPU_ID -I/opt/CUB/1.7.2              -o bin/obj/neighbor_dev.o -c src/tree/neighbor_dev.cu
+ptxas info    : 0 bytes gmem
+ptxas info    : Compiling entry function '_Z30facileNeighborSearching_kerneliPK8positionPf' for 'sm_52'
+ptxas info    : Function properties for _Z30facileNeighborSearching_kerneliPK8positionPf
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 36 registers, 4224 bytes smem, 344 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z16initGsync_kerneliPiS_' for 'sm_52'
+ptxas info    : Function properties for _Z16initGsync_kerneliPiS_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 6 registers, 344 bytes cmem[0]
+nvcc -Xptxas -v -Xptxas -warn-spills -Xptxas -warn-lmem-usage -gencode=arch=compute_52,code=sm_52 -DGPUGEN="(52)" -DGPUVER="(52)" -lineinfo -DUSE_GPU_FOR_MONITOR -DCUB_AVAILABLE -DSM520 -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DNDEBUG             -I/home/ymiki/inc -I/opt/CUDA/8.0/include -I/opt/CUDA/8.0/samples/common/inc -DGPUS_PER_NODE="(2)" -DGPUS_PER_PROCESS="(1)" -DP2P_ACCESS_AVAILABLE -DCONTINUOUS_GPU_ID -I/opt/CUB/1.7.2 -I/opt/MPI/mvapich2/2.2/include    -o bin/obj/let_dev.mpi.o -c src/tree/let_dev.cu
+ptxas warning : Local memory used for function '_Z14makeLET_kernel8positionfPiPKjPK9jparticlePKfPjPS3_PfS8_S8_iS0_Py'
+ptxas warning : Registers are spilled to local memory in function '_Z14makeLET_kernel8positionfPiPKjPK9jparticlePKfPjPS3_PfS8_S8_iS0_Py'
+ptxas info    : 0 bytes gmem
+ptxas info    : Compiling entry function '_Z14makeLET_kernel8positionfPiPKjPK9jparticlePKfPjPS3_PfS8_S8_iS0_Py' for 'sm_52'
+ptxas info    : Function properties for _Z14makeLET_kernel8positionfPiPKjPK9jparticlePKfPjPS3_PfS8_S8_iS0_Py
+    64 bytes stack frame, 64 bytes spill stores, 60 bytes spill loads
+ptxas info    : Used 32 registers, 24576 bytes smem, 440 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z16initGsync_kerneliPiS_' for 'sm_52'
+ptxas info    : Function properties for _Z16initGsync_kerneliPiS_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 6 registers, 344 bytes cmem[0]
+nvcc -Xptxas -v -Xptxas -warn-spills -Xptxas -warn-lmem-usage -gencode=arch=compute_52,code=sm_52 -DGPUGEN="(52)" -DGPUVER="(52)" -lineinfo -DUSE_GPU_FOR_MONITOR -DCUB_AVAILABLE -DSM520 -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DNDEBUG             -I/home/ymiki/inc -I/opt/CUDA/8.0/include -I/opt/CUDA/8.0/samples/common/inc -DGPUS_PER_NODE="(2)" -DGPUS_PER_PROCESS="(1)" -DP2P_ACCESS_AVAILABLE -DCONTINUOUS_GPU_ID -I/opt/CUB/1.7.2 -I/opt/MPI/mvapich2/2.2/include    -o bin/obj/adv_dev.mpi.o -c src/time/adv_dev.cu
+ptxas info    : 13 bytes gmem
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_13reduce_detail17reduce_partitionsENS_5tupleINS4_6cursorILj1EEENS_12zip_iteratorINSG_INS_18transform_iteratorI12greater_thanNS_10device_ptrIdEEbNS_11use_defaultEEENS_17counting_iteratorIlSO_SO_SO_EENS_9null_typeESS_SS_SS_SS_SS_SS_SS_EEEENS2_21uniform_decompositionIlEENS_6detail15normal_iteratorINS_7pointerINSG_IblSS_SS_SS_SS_SS_SS_SS_SS_EENS2_3tagESO_SO_EEEES10_NS0_6detail7generic15find_if_functorIS10_EESS_SS_SS_SS_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_13reduce_detail17reduce_partitionsENS_5tupleINS4_6cursorILj1EEENS_12zip_iteratorINSG_INS_18transform_iteratorI12greater_thanNS_10device_ptrIdEEbNS_11use_defaultEEENS_17counting_iteratorIlSO_SO_SO_EENS_9null_typeESS_SS_SS_SS_SS_SS_SS_EEEENS2_21uniform_decompositionIlEENS_6detail15normal_iteratorINS_7pointerINSG_IblSS_SS_SS_SS_SS_SS_SS_SS_EENS2_3tagESO_SO_EEEES10_NS0_6detail7generic15find_if_functorIS10_EESS_SS_SS_SS_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 32 bytes smem, 448 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPdSK_NS_9null_typeESL_SL_SL_SL_SL_SL_SL_EEEENS_6detail16wrapped_functionINSO_23unary_transform_functorINS_8identityIdEEEEvEEjSL_SL_SL_SL_SL_SL_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPdSK_NS_9null_typeESL_SL_SL_SL_SL_SL_SL_EEEENS_6detail16wrapped_functionINSO_23unary_transform_functorINS_8identityIdEEEEvEEjSL_SL_SL_SL_SL_SL_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 14 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_7pointerINSG_IblNS_9null_typeESL_SL_SL_SL_SL_SL_SL_EENS2_3tagENS_11use_defaultESO_EEPSM_SL_SL_SL_SL_SL_SL_SL_SL_EEEENS_6detail16wrapped_functionINST_23unary_transform_functorINS_8identityISM_EEEEvEEjSL_SL_SL_SL_SL_SL_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_7pointerINSG_IblNS_9null_typeESL_SL_SL_SL_SL_SL_SL_EENS2_3tagENS_11use_defaultESO_EEPSM_SL_SL_SL_SL_SL_SL_SL_SL_EEEENS_6detail16wrapped_functionINST_23unary_transform_functorINS_8identityISM_EEEEvEEjSL_SL_SL_SL_SL_SL_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIdEEPdNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIdEEEEvEEjSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIdEEPdNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIdEEEEvEEjSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 14 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_6detail15normal_iteratorINS_7pointerINSG_IblNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EENS2_3tagENS_11use_defaultESQ_EEEESR_SN_SN_SN_SN_SN_SN_SN_SN_EEEENSK_16wrapped_functionINSK_23unary_transform_functorINS_8identityISO_EEEEvEElSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_6detail15normal_iteratorINS_7pointerINSG_IblNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EENS2_3tagENS_11use_defaultESQ_EEEESR_SN_SN_SN_SN_SN_SN_SN_SN_EEEENSK_16wrapped_functionINSK_23unary_transform_functorINS_8identityISO_EEEEvEElSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 20 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIdEESL_NS_9null_typeESM_SM_SM_SM_SM_SM_SM_EEEENS_6detail16wrapped_functionINSP_23unary_transform_functorINS_8identityIdEEEEvEEjSM_SM_SM_SM_SM_SM_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIdEESL_NS_9null_typeESM_SM_SM_SM_SM_SM_SM_EEEENS_6detail16wrapped_functionINSP_23unary_transform_functorINS_8identityIdEEEEvEEjSM_SM_SM_SM_SM_SM_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 14 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKdNS_10device_ptrIdEENS_9null_typeESO_SO_SO_SO_SO_SO_SO_EEEENS_6detail16wrapped_functionINSR_23unary_transform_functorINS_8identityIdEEEEvEEjSO_SO_SO_SO_SO_SO_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKdNS_10device_ptrIdEENS_9null_typeESO_SO_SO_SO_SO_SO_SO_EEEENS_6detail16wrapped_functionINSR_23unary_transform_functorINS_8identityIdEEEEvEEjSO_SO_SO_SO_SO_SO_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 14 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z17prediction_kernelidPK8positionPK8velocityPK10ibody_timePK12accelerationPS_PS2_' for 'sm_52'
+ptxas info    : Function properties for _Z17prediction_kernelidPK8positionPK8velocityPK10ibody_timePK12accelerationPS_PS2_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 24 registers, 384 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0Ed8laneinfoiE19PtxAltUpsweepPolicyELb0EdiEEvPT1_PT2_SB_iibNS3_13GridEvenShareISB_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0Ed8laneinfoiE19PtxAltUpsweepPolicyELb0EdiEEvPT1_PT2_SB_iibNS3_13GridEvenShareISB_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 40 registers, 2112 bytes smem, 388 bytes cmem[0], 12 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_7pointerINSG_IblNS_9null_typeESK_SK_SK_SK_SK_SK_SK_EENS2_3tagENS_11use_defaultESN_EENS_6detail16wrapped_functionINSP_23allocator_traits_detail5gozerEvEElSK_SK_SK_SK_SK_SK_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_7pointerINSG_IblNS_9null_typeESK_SK_SK_SK_SK_SK_SK_EENS2_3tagENS_11use_defaultESN_EENS_6detail16wrapped_functionINSP_23allocator_traits_detail5gozerEvEElSK_SK_SK_SK_SK_SK_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 10 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IP8laneinfoSL_NS_9null_typeESM_SM_SM_SM_SM_SM_SM_EEEENS_6detail16wrapped_functionINSP_23unary_transform_functorINS_8identityISK_EEEEvEEjSM_SM_SM_SM_SM_SM_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IP8laneinfoSL_NS_9null_typeESM_SM_SM_SM_SM_SM_SM_EEEENS_6detail16wrapped_functionINSP_23unary_transform_functorINS_8identityISK_EEEEvEEjSM_SM_SM_SM_SM_SM_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 13 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_11EmptyKernelIvEEvv' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_11EmptyKernelIvEEvv
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 2 registers, 320 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrI8laneinfoEEPSL_NS_9null_typeESO_SO_SO_SO_SO_SO_SO_EEEENS_6detail16wrapped_functionINSR_23unary_transform_functorINS_8identityISL_EEEEvEEjSO_SO_SO_SO_SO_SO_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrI8laneinfoEEPSL_NS_9null_typeESO_SO_SO_SO_SO_SO_SO_EEEENS_6detail16wrapped_functionINSR_23unary_transform_functorINS_8identityISL_EEEEvEEjSO_SO_SO_SO_SO_SO_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 13 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKNSG_IblNS_9null_typeESK_SK_SK_SK_SK_SK_SK_EENS_7pointerISL_NS2_3tagENS_11use_defaultESQ_EESK_SK_SK_SK_SK_SK_SK_SK_EEEENS_6detail16wrapped_functionINSU_23unary_transform_functorINS_8identityISL_EEEEvEElSK_SK_SK_SK_SK_SK_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKNSG_IblNS_9null_typeESK_SK_SK_SK_SK_SK_SK_EENS_7pointerISL_NS2_3tagENS_11use_defaultESQ_EESK_SK_SK_SK_SK_SK_SK_SK_EEEENS_6detail16wrapped_functionINSU_23unary_transform_functorINS_8identityISL_EEEEvEElSK_SK_SK_SK_SK_SK_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 20 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrI8laneinfoEESM_NS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityISL_EEEEvEEjSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrI8laneinfoEESM_NS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityISL_EEEEvEEjSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 13 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPK8laneinfoNS_10device_ptrISK_EENS_9null_typeESP_SP_SP_SP_SP_SP_SP_EEEENS_6detail16wrapped_functionINSS_23unary_transform_functorINS_8identityISK_EEEEvEEjSP_SP_SP_SP_SP_SP_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPK8laneinfoNS_10device_ptrISK_EENS_9null_typeESP_SP_SP_SP_SP_SP_SP_EEEENS_6detail16wrapped_functionINSS_23unary_transform_functorINS_8identityISK_EEEEvEEjSP_SP_SP_SP_SP_SP_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 13 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z25adjustParticleTime_kerneliPK8laneinfoPdffP8velocityP10ibody_timePK12acceleration' for 'sm_52'
+ptxas info    : Function properties for _Z25adjustParticleTime_kerneliPK8laneinfoPdffP8velocityP10ibody_timePK12acceleration
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 18 registers, 376 bytes cmem[0], 56 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0Ed8laneinfoiE18PtxDownsweepPolicyELb0EdS6_iEEvPT1_SA_PT2_SC_PT3_SD_iibbNS3_13GridEvenShareISD_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0Ed8laneinfoiE18PtxDownsweepPolicyELb0EdS6_iEEvPT1_SA_PT2_SC_PT3_SD_iibbNS3_13GridEvenShareISD_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 95 registers, 9408 bytes smem, 412 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_7pointerINSG_IblNS_9null_typeESK_SK_SK_SK_SK_SK_SK_EENS2_3tagENS_11use_defaultESN_EENS_6detail16wrapped_functionINSP_23allocator_traits_detail5gozerEvEEjSK_SK_SK_SK_SK_SK_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_7pointerINSG_IblNS_9null_typeESK_SK_SK_SK_SK_SK_SK_EENS2_3tagENS_11use_defaultESN_EENS_6detail16wrapped_functionINSP_23allocator_traits_detail5gozerEvEEjSK_SK_SK_SK_SK_SK_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 7 registers, 32 bytes smem, 384 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPdSK_NS_9null_typeESL_SL_SL_SL_SL_SL_SL_EEEENS_6detail16wrapped_functionINSO_23unary_transform_functorINS_8identityIdEEEEvEElSL_SL_SL_SL_SL_SL_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPdSK_NS_9null_typeESL_SL_SL_SL_SL_SL_SL_EEEENS_6detail16wrapped_functionINSO_23unary_transform_functorINS_8identityIdEEEEvEElSL_SL_SL_SL_SL_SL_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_7pointerINSG_IblNS_9null_typeESL_SL_SL_SL_SL_SL_SL_EENS2_3tagENS_11use_defaultESO_EEPSM_SL_SL_SL_SL_SL_SL_SL_SL_EEEENS_6detail16wrapped_functionINST_23unary_transform_functorINS_8identityISM_EEEEvEElSL_SL_SL_SL_SL_SL_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_7pointerINSG_IblNS_9null_typeESL_SL_SL_SL_SL_SL_SL_EENS2_3tagENS_11use_defaultESO_EEPSM_SL_SL_SL_SL_SL_SL_SL_SL_EEEENS_6detail16wrapped_functionINST_23unary_transform_functorINS_8identityISM_EEEEvEElSL_SL_SL_SL_SL_SL_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 20 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIdEEPdNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIdEEEEvEElSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIdEEPdNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIdEEEEvEElSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKNSG_IblNS_9null_typeESK_SK_SK_SK_SK_SK_SK_EENS_7pointerISL_NS2_3tagENS_11use_defaultESQ_EESK_SK_SK_SK_SK_SK_SK_SK_EEEENS_6detail16wrapped_functionINSU_23unary_transform_functorINS_8identityISL_EEEEvEEjSK_SK_SK_SK_SK_SK_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKNSG_IblNS_9null_typeESK_SK_SK_SK_SK_SK_SK_EENS_7pointerISL_NS2_3tagENS_11use_defaultESQ_EESK_SK_SK_SK_SK_SK_SK_SK_EEEENS_6detail16wrapped_functionINSU_23unary_transform_functorINS_8identityISL_EEEEvEEjSK_SK_SK_SK_SK_SK_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIdEESL_NS_9null_typeESM_SM_SM_SM_SM_SM_SM_EEEENS_6detail16wrapped_functionINSP_23unary_transform_functorINS_8identityIdEEEEvEElSM_SM_SM_SM_SM_SM_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIdEESL_NS_9null_typeESM_SM_SM_SM_SM_SM_SM_EEEENS_6detail16wrapped_functionINSP_23unary_transform_functorINS_8identityIdEEEEvEElSM_SM_SM_SM_SM_SM_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKdNS_10device_ptrIdEENS_9null_typeESO_SO_SO_SO_SO_SO_SO_EEEENS_6detail16wrapped_functionINSR_23unary_transform_functorINS_8identityIdEEEEvEElSO_SO_SO_SO_SO_SO_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKdNS_10device_ptrIdEENS_9null_typeESO_SO_SO_SO_SO_SO_SO_EEEENS_6detail16wrapped_functionINSR_23unary_transform_functorINS_8identityIdEEEEvEElSO_SO_SO_SO_SO_SO_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z17correction_kerneliPK8laneinfoPdffP8positionP8velocityP10ibody_timePK12accelerationPKS3_PKS5_i' for 'sm_52'
+ptxas info    : Function properties for _Z17correction_kerneliPK8laneinfoPdffP8positionP8velocityP10ibody_timePK12accelerationPKS3_PKS5_i
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 21 registers, 404 bytes cmem[0], 56 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_23RadixSortScanBinsKernelINS3_23DeviceRadixSortDispatchILb0Ed8laneinfoiE13PtxScanPolicyEiEEvPT0_i' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_23RadixSortScanBinsKernelINS3_23DeviceRadixSortDispatchILb0Ed8laneinfoiE13PtxScanPolicyEiEEvPT0_i
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 50 registers, 176 bytes smem, 332 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_13reduce_detail17reduce_partitionsENS_5tupleINS4_6cursorILj1EEENS_6detail15normal_iteratorINS_7pointerINSG_IblNS_9null_typeESM_SM_SM_SM_SM_SM_SM_EENS2_3tagENS_11use_defaultESP_EEEESR_SR_NS0_6detail7generic15find_if_functorISN_EESM_SM_SM_SM_SM_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_13reduce_detail17reduce_partitionsENS_5tupleINS4_6cursorILj1EEENS_6detail15normal_iteratorINS_7pointerINSG_IblNS_9null_typeESM_SM_SM_SM_SM_SM_SM_EENS2_3tagENS_11use_defaultESP_EEEESR_SR_NS0_6detail7generic15find_if_functorISN_EESM_SM_SM_SM_SM_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrI8laneinfoEESM_NS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityISL_EEEEvEElSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrI8laneinfoEESM_NS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityISL_EEEEvEElSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 18 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPK8laneinfoNS_10device_ptrISK_EENS_9null_typeESP_SP_SP_SP_SP_SP_SP_EEEENS_6detail16wrapped_functionINSS_23unary_transform_functorINS_8identityISK_EEEEvEElSP_SP_SP_SP_SP_SP_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPK8laneinfoNS_10device_ptrISK_EENS_9null_typeESP_SP_SP_SP_SP_SP_SP_EEEENS_6detail16wrapped_functionINSS_23unary_transform_functorINS_8identityISK_EEEEvEElSP_SP_SP_SP_SP_SP_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 18 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z18setLaneTime_kerneliPK8laneinfoPdPK10ibody_time' for 'sm_52'
+ptxas info    : Function properties for _Z18setLaneTime_kerneliPK8laneinfoPdPK10ibody_time
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 9 registers, 352 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0Ed8laneinfoiE21PtxAltDownsweepPolicyELb0EdS6_iEEvPT1_SA_PT2_SC_PT3_SD_iibbNS3_13GridEvenShareISD_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0Ed8laneinfoiE21PtxAltDownsweepPolicyELb0EdS6_iEEvPT1_SA_PT2_SC_PT3_SD_iibbNS3_13GridEvenShareISD_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 92 registers, 7248 bytes smem, 412 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_6detail15normal_iteratorINS_7pointerINSG_IblNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EENS2_3tagENS_11use_defaultESQ_EEEESR_SN_SN_SN_SN_SN_SN_SN_SN_EEEENSK_16wrapped_functionINSK_23unary_transform_functorINS_8identityISO_EEEEvEEjSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_6detail15normal_iteratorINS_7pointerINSG_IblNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EENS2_3tagENS_11use_defaultESQ_EEEESR_SN_SN_SN_SN_SN_SN_SN_SN_EEEENSK_16wrapped_functionINSK_23unary_transform_functorINS_8identityISO_EEEEvEEjSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IP8laneinfoSL_NS_9null_typeESM_SM_SM_SM_SM_SM_SM_EEEENS_6detail16wrapped_functionINSP_23unary_transform_functorINS_8identityISK_EEEEvEElSM_SM_SM_SM_SM_SM_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IP8laneinfoSL_NS_9null_typeESM_SM_SM_SM_SM_SM_SM_EEEENS_6detail16wrapped_functionINSP_23unary_transform_functorINS_8identityISK_EEEEvEElSM_SM_SM_SM_SM_SM_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 18 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrI8laneinfoEEPSL_NS_9null_typeESO_SO_SO_SO_SO_SO_SO_EEEENS_6detail16wrapped_functionINSR_23unary_transform_functorINS_8identityISL_EEEEvEElSO_SO_SO_SO_SO_SO_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrI8laneinfoEEPSL_NS_9null_typeESO_SO_SO_SO_SO_SO_SO_EEEENS_6detail16wrapped_functionINSR_23unary_transform_functorINS_8identityISL_EEEEvEElSO_SO_SO_SO_SO_SO_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 18 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z21adjustTimeStep_kerneldiPK8laneinfoP8velocityP10ibody_time' for 'sm_52'
+ptxas info    : Function properties for _Z21adjustTimeStep_kerneldiPK8laneinfoP8velocityP10ibody_time
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 14 registers, 360 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0Ed8laneinfoiE16PtxUpsweepPolicyELb0EdiEEvPT1_PT2_SB_iibNS3_13GridEvenShareISB_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0Ed8laneinfoiE16PtxUpsweepPolicyELb0EdiEEvPT1_PT2_SB_iibNS3_13GridEvenShareISB_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 48 registers, 4224 bytes smem, 388 bytes cmem[0], 12 bytes cmem[2]
+nvcc -Xptxas -v -Xptxas -warn-spills -Xptxas -warn-lmem-usage -gencode=arch=compute_52,code=sm_52 -DGPUGEN="(52)" -DGPUVER="(52)" -lineinfo -DUSE_GPU_FOR_MONITOR -DCUB_AVAILABLE -DSM520 -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DNDEBUG             -I/home/ymiki/inc -I/opt/CUDA/8.0/include -I/opt/CUDA/8.0/samples/common/inc -DGPUS_PER_NODE="(2)" -DGPUS_PER_PROCESS="(1)" -DP2P_ACCESS_AVAILABLE -DCONTINUOUS_GPU_ID -I/opt/CUB/1.7.2 -I/opt/MPI/mvapich2/2.2/include    -o bin/obj/make_dev.mpi.o -c src/tree/make_dev.cu
+ptxas info    : 0 bytes gmem, 36 bytes cmem[3]
+ptxas info    : Compiling entry function '_Z15linkTree_kerneliPK8treecellPKbPjPiS4_S5_S5_S5_S5_' for 'sm_52'
+ptxas info    : Function properties for _Z15linkTree_kerneliPK8treecellPKbPjPiS4_S5_S5_S5_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 1024 bytes smem, 400 bytes cmem[0], 12 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z25initTreeCellOffset_kerneliiP8treecellPmPjS2_PbS2_i' for 'sm_52'
+ptxas info    : Function properties for _Z25initTreeCellOffset_kerneliiP8treecellPmPjS2_PbS2_i
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 20 registers, 380 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z19initTreeBody_kernelP9jparticlePfS1_' for 'sm_52'
+ptxas info    : Function properties for _Z19initTreeBody_kernelP9jparticlePfS1_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 14 registers, 344 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z19initTreeLink_kerneliPi' for 'sm_52'
+ptxas info    : Function properties for _Z19initTreeLink_kerneliPi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 4 registers, 336 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z20calcMultipole_kerneliPK6PHinfoPK8treecellPKbPK8positionPKjSB_PKiP9jparticlePfSG_PiSH_SG_SH_SH_SH_' for 'sm_52'
+ptxas info    : Function properties for _Z20calcMultipole_kerneliPK6PHinfoPK8treecellPKbPK8positionPKjSB_PKiP9jparticlePfSG_PiSH_SG_SH_SH_SH_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 64 registers, 12288 bytes smem, 456 bytes cmem[0], 52 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z22initPHhierarchy_kernelP6PHinfo' for 'sm_52'
+ptxas info    : Function properties for _Z22initPHhierarchy_kernelP6PHinfo
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 8 registers, 328 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z19enforceBarnesHutMACiP12accelerationiP9jparticlePfPKf' for 'sm_52'
+ptxas info    : Function properties for _Z19enforceBarnesHutMACiP12accelerationiP9jparticlePfPKf
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 10 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z15makeTree_kernelPiP6PHinfoS_P8treecellPmPbPjS6_PKmS_PViS_S_S_S_' for 'sm_52'
+ptxas info    : Function properties for _Z15makeTree_kernelPiP6PHinfoS_P8treecellPmPbPjS6_PKmS_PViS_S_S_S_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 62 registers, 2912 bytes smem, 440 bytes cmem[0], 8 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z19initTreeCell_kerneliP8treecellPmPjS2_PbS2_i' for 'sm_52'
+ptxas info    : Function properties for _Z19initTreeCell_kerneliP8treecellPmPjS2_PbS2_i
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 20 registers, 380 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z17recoverGADGET_MACiP9jparticlePKf' for 'sm_52'
+ptxas info    : Function properties for _Z17recoverGADGET_MACiP9jparticlePKf
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 10 registers, 344 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z19initTreeNode_kerneliPjPi' for 'sm_52'
+ptxas info    : Function properties for _Z19initTreeNode_kerneliPjPi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 7 registers, 344 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z19copyRealBody_kerneliPKiPK8positionP9jparticlePf' for 'sm_52'
+ptxas info    : Function properties for _Z19copyRealBody_kerneliPKiPK8positionP9jparticlePf
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 14 registers, 360 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z16initGsync_kerneliPiS_' for 'sm_52'
+ptxas info    : Function properties for _Z16initGsync_kerneliPiS_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 6 registers, 344 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z15trimTree_kerneliiPK8treecellPKbPKjS5_PiPj' for 'sm_52'
+ptxas info    : Function properties for _Z15trimTree_kerneliiPK8treecellPKbPKjS5_PiPj
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 22 registers, 376 bytes cmem[0], 16 bytes cmem[2]
+nvcc -Xptxas -v -Xptxas -warn-spills -Xptxas -warn-lmem-usage -gencode=arch=compute_52,code=sm_52 -DGPUGEN="(52)" -DGPUVER="(52)" -lineinfo -DUSE_GPU_FOR_MONITOR -DCUB_AVAILABLE -DSM520 -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DNDEBUG             -I/home/ymiki/inc -I/opt/CUDA/8.0/include -I/opt/CUDA/8.0/samples/common/inc -DGPUS_PER_NODE="(2)" -DGPUS_PER_PROCESS="(1)" -DP2P_ACCESS_AVAILABLE -DCONTINUOUS_GPU_ID -I/opt/CUB/1.7.2 -I/opt/MPI/mvapich2/2.2/include    -o bin/obj/walk_dev.mpi.o -c src/tree/walk_dev.cu
+ptxas info    : 0 bytes gmem, 32 bytes cmem[3]
+ptxas info    : Compiling entry function '_Z14initAcc_kernelP12accelerationiPK8laneinfoS0_' for 'sm_52'
+ptxas info    : Function properties for _Z14initAcc_kernelP12accelerationiPK8laneinfoS0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 14 registers, 352 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z14calcAcc_kernelPK8laneinfoPK8positionP5jnodePK12accelerationiPKjPK9jparticlePKfPjSH_iPiPy' for 'sm_52'
+ptxas info    : Function properties for _Z14calcAcc_kernelPK8laneinfoPK8positionP5jnodePK12accelerationiPKjPK9jparticlePKfPjSH_iPiPy
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 64 registers, 24576 bytes smem, 424 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z11initFreeLstiPjiPKi' for 'sm_52'
+ptxas info    : Function properties for _Z11initFreeLstiPjiPKi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 7 registers, 352 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z14trimAcc_kernelP12accelerationPK8positioniPK8laneinfo' for 'sm_52'
+ptxas info    : Function properties for _Z14trimAcc_kernelP12accelerationPK8positioniPK8laneinfo
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 10 registers, 352 bytes cmem[0]
+nvcc -Xptxas -v -Xptxas -warn-spills -Xptxas -warn-lmem-usage -gencode=arch=compute_52,code=sm_52 -DGPUGEN="(52)" -DGPUVER="(52)" -lineinfo -DUSE_GPU_FOR_MONITOR -DCUB_AVAILABLE -DSM520 -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DNDEBUG                     -I/home/ymiki/inc -I/opt/CUDA/8.0/include -I/opt/CUDA/8.0/samples/common/inc -DGPUS_PER_NODE="(2)" -DGPUS_PER_PROCESS="(1)" -DP2P_ACCESS_AVAILABLE -DCONTINUOUS_GPU_ID -I/opt/CUB/1.7.2              -o bin/obj/geo_dev.o -c src/tree/geo_dev.cu
+ptxas info    : 13 bytes gmem
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIfEEPfNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIfEEEEvEElSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIfEEPfNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIfEEEEvEElSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z17calc_r2max_kerneliPK8laneinfoPK8positionPS2_Pfb' for 'sm_52'
+ptxas info    : Function properties for _Z17calc_r2max_kerneliPK8laneinfoPK8positionPS2_Pfb
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 13 registers, 2048 bytes smem, 361 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_7pointerIfNS2_3tagENS_11use_defaultESM_EEPfNS_9null_typeESP_SP_SP_SP_SP_SP_SP_EEEENS_6detail16wrapped_functionINSS_23unary_transform_functorINS_8identityIfEEEEvEEjSP_SP_SP_SP_SP_SP_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_7pointerIfNS2_3tagENS_11use_defaultESM_EEPfNS_9null_typeESP_SP_SP_SP_SP_SP_SP_EEEENS_6detail16wrapped_functionINSS_23unary_transform_functorINS_8identityIfEEEEvEEjSP_SP_SP_SP_SP_SP_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 12 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj128ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm7EEELm128EEELm0EEENS4_7closureINS2_13reduce_detail17reduce_partitionsENS_5tupleINS4_6cursorILj1EEENS_10device_ptrIfEENS2_21aligned_decompositionIlEENS_6detail15normal_iteratorINS_7pointerIfNS2_3tagENS_11use_defaultESR_EEEEfNS_7maximumIfEENS_9null_typeESW_SW_SW_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj128ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm7EEELm128EEELm0EEENS4_7closureINS2_13reduce_detail17reduce_partitionsENS_5tupleINS4_6cursorILj1EEENS_10device_ptrIfEENS2_21aligned_decompositionIlEENS_6detail15normal_iteratorINS_7pointerIfNS2_3tagENS_11use_defaultESR_EEEEfNS_7maximumIfEENS_9null_typeESW_SW_SW_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 32 bytes smem, 424 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj128ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm7EEELm128EEELm0EEENS4_7closureINS2_13reduce_detail17reduce_partitionsENS_5tupleINS4_6cursorILj1EEENS_10device_ptrIfEENS2_21aligned_decompositionIlEENS_6detail15normal_iteratorINS_7pointerIfNS2_3tagENS_11use_defaultESR_EEEEfNS_7minimumIfEENS_9null_typeESW_SW_SW_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj128ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm7EEELm128EEELm0EEENS4_7closureINS2_13reduce_detail17reduce_partitionsENS_5tupleINS4_6cursorILj1EEENS_10device_ptrIfEENS2_21aligned_decompositionIlEENS_6detail15normal_iteratorINS_7pointerIfNS2_3tagENS_11use_defaultESR_EEEEfNS_7minimumIfEENS_9null_typeESW_SW_SW_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 32 bytes smem, 424 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z16init_amin_kerneliPf' for 'sm_52'
+ptxas info    : Function properties for _Z16init_amin_kerneliPf
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 4 registers, 336 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKfNS_7pointerIfNS2_3tagENS_11use_defaultESO_EENS_9null_typeESQ_SQ_SQ_SQ_SQ_SQ_SQ_EEEENS_6detail16wrapped_functionINST_23unary_transform_functorINS_8identityIfEEEEvEElSQ_SQ_SQ_SQ_SQ_SQ_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKfNS_7pointerIfNS2_3tagENS_11use_defaultESO_EENS_9null_typeESQ_SQ_SQ_SQ_SQ_SQ_SQ_EEEENS_6detail16wrapped_functionINST_23unary_transform_functorINS_8identityIfEEEEvEElSQ_SQ_SQ_SQ_SQ_SQ_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z16calc_amin_kerneliPK8laneinfoP12accelerationPfb' for 'sm_52'
+ptxas info    : Function properties for _Z16calc_amin_kerneliPK8laneinfoP12accelerationPfb
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 10 registers, 2048 bytes smem, 353 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_7pointerIfNS2_3tagENS_11use_defaultESM_EEPfNS_9null_typeESP_SP_SP_SP_SP_SP_SP_EEEENS_6detail16wrapped_functionINSS_23unary_transform_functorINS_8identityIfEEEEvEElSP_SP_SP_SP_SP_SP_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_7pointerIfNS2_3tagENS_11use_defaultESM_EEPfNS_9null_typeESP_SP_SP_SP_SP_SP_SP_EEEENS_6detail16wrapped_functionINSS_23unary_transform_functorINS_8identityIfEEEEvEElSP_SP_SP_SP_SP_SP_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z17init_r2max_kerneliPf' for 'sm_52'
+ptxas info    : Function properties for _Z17init_r2max_kerneliPf
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 4 registers, 336 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKfNS_7pointerIfNS2_3tagENS_11use_defaultESO_EENS_9null_typeESQ_SQ_SQ_SQ_SQ_SQ_SQ_EEEENS_6detail16wrapped_functionINST_23unary_transform_functorINS_8identityIfEEEEvEEjSQ_SQ_SQ_SQ_SQ_SQ_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKfNS_7pointerIfNS2_3tagENS_11use_defaultESO_EENS_9null_typeESQ_SQ_SQ_SQ_SQ_SQ_SQ_EEEENS_6detail16wrapped_functionINST_23unary_transform_functorINS_8identityIfEEEEvEEjSQ_SQ_SQ_SQ_SQ_SQ_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 12 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIfEEPfNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIfEEEEvEEjSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIfEEPfNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIfEEEEvEEjSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 12 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj128ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm7EEELm128EEELm0EEENS4_7closureINS2_13reduce_detail17reduce_partitionsENS_5tupleINS4_6cursorILj1EEENS_6detail15normal_iteratorINS_7pointerIfNS2_3tagENS_11use_defaultESN_EEEESP_SP_NS_7minimumIfEENS_9null_typeESS_SS_SS_SS_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj128ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm7EEELm128EEELm0EEENS4_7closureINS2_13reduce_detail17reduce_partitionsENS_5tupleINS4_6cursorILj1EEENS_6detail15normal_iteratorINS_7pointerIfNS2_3tagENS_11use_defaultESN_EEEESP_SP_NS_7minimumIfEENS_9null_typeESS_SS_SS_SS_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 31 registers, 32 bytes smem, 392 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z16initGsync_kerneliPiS_' for 'sm_52'
+ptxas info    : Function properties for _Z16initGsync_kerneliPiS_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 6 registers, 344 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj128ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm7EEELm128EEELm0EEENS4_7closureINS2_13reduce_detail17reduce_partitionsENS_5tupleINS4_6cursorILj1EEENS_6detail15normal_iteratorINS_7pointerIfNS2_3tagENS_11use_defaultESN_EEEESP_SP_NS_7maximumIfEENS_9null_typeESS_SS_SS_SS_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj128ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm7EEELm128EEELm0EEENS4_7closureINS2_13reduce_detail17reduce_partitionsENS_5tupleINS4_6cursorILj1EEENS_6detail15normal_iteratorINS_7pointerIfNS2_3tagENS_11use_defaultESN_EEEESP_SP_NS_7maximumIfEENS_9null_typeESS_SS_SS_SS_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 31 registers, 32 bytes smem, 392 bytes cmem[0], 4 bytes cmem[2]
+nvcc -Xptxas -v -Xptxas -warn-spills -Xptxas -warn-lmem-usage -gencode=arch=compute_52,code=sm_52 -DGPUGEN="(52)" -DGPUVER="(52)" -lineinfo -DUSE_GPU_FOR_MONITOR -DCUB_AVAILABLE -DSM520 -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DNDEBUG                     -I/home/ymiki/inc -I/opt/CUDA/8.0/include -I/opt/CUDA/8.0/samples/common/inc -DGPUS_PER_NODE="(2)" -DGPUS_PER_PROCESS="(1)" -DP2P_ACCESS_AVAILABLE -DCONTINUOUS_GPU_ID -I/opt/CUB/1.7.2              -o bin/obj/icom_dev.o -c src/tree/icom_dev.cu
+ptxas info    : 0 bytes gmem
+ptxas info    : Compiling entry function '_Z29getApproxEnclosingBall_kernelP8positioniPKS_PK8treecellPKjS7_PKiPK9jparticlePKfPiSF_PfSF_m' for 'sm_52'
+ptxas info    : Function properties for _Z29getApproxEnclosingBall_kernelP8positioniPKS_PK8treecellPKjS7_PKiPK9jparticlePKfPiSF_PfSF_m
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 56 registers, 17424 bytes smem, 432 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_Z16initGsync_kerneliPiS_' for 'sm_52'
+ptxas info    : Function properties for _Z16initGsync_kerneliPiS_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 6 registers, 344 bytes cmem[0]
+mpicc -std=c99 -D_POSIX_C_SOURCE=199309L -Wall -Wextra -Wunused -Wcast-qual -Wcast-align -Wmissing-declarations -DGPUGEN="(52)" -DGPUVER="(52)" -DCUB_AVAILABLE -DREPORT_TOTAL_ELAPSED_TIME -DMONITOR_ENERGY_ERROR -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DUSE_SFMT -DUSE_SFMTJUMP -DUSE_HDF5_FORMAT -DNDEBUG  -O3 -ffast-math -funroll-loops -march=native -mtune=native -I/home/ymiki/inc              -o bin/obj/let.mpi.o -c src/tree/let.c
+mpicc -std=c99 -D_POSIX_C_SOURCE=199309L -Wall -Wextra -Wunused -Wcast-qual -Wcast-align -Wmissing-declarations -DGPUGEN="(52)" -DGPUVER="(52)" -DCUB_AVAILABLE -DREPORT_TOTAL_ELAPSED_TIME -DMONITOR_ENERGY_ERROR -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DUSE_SFMT -DUSE_SFMTJUMP -DUSE_HDF5_FORMAT -DNDEBUG  -O3 -ffast-math -funroll-loops -march=native -mtune=native -I/home/ymiki/inc              -o bin/obj/exchange.mpi.o -c src/para/exchange.c
+mpicc -std=c99 -D_POSIX_C_SOURCE=199309L -Wall -Wextra -Wunused -Wcast-qual -Wcast-align -Wmissing-declarations -DGPUGEN="(52)" -DGPUVER="(52)" -DCUB_AVAILABLE -DREPORT_TOTAL_ELAPSED_TIME -DMONITOR_ENERGY_ERROR -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DUSE_SFMT -DUSE_SFMTJUMP -DUSE_HDF5_FORMAT -DNDEBUG  -O3 -ffast-math -funroll-loops -march=native -mtune=native -I/home/ymiki/inc              -o bin/obj/mpicfg.mpi.o -c src/para/mpicfg.c
+nvcc -Xptxas -v -Xptxas -warn-spills -Xptxas -warn-lmem-usage -gencode=arch=compute_52,code=sm_52 -DGPUGEN="(52)" -DGPUVER="(52)" -lineinfo -DUSE_GPU_FOR_MONITOR -DCUB_AVAILABLE -DSM520 -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DNDEBUG             -I/home/ymiki/inc -I/opt/CUDA/8.0/include -I/opt/CUDA/8.0/samples/common/inc -DGPUS_PER_NODE="(2)" -DGPUS_PER_PROCESS="(1)" -DP2P_ACCESS_AVAILABLE -DCONTINUOUS_GPU_ID -I/opt/CUB/1.7.2 -I/opt/MPI/mvapich2/2.2/include    -o bin/obj/exchange_dev.mpi.o -c src/para/exchange_dev.cu
+ptxas info    : 13 bytes gmem
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0EffiE18PtxDownsweepPolicyELb0EffiEEvPT1_S9_PT2_SB_PT3_SC_iibbNS3_13GridEvenShareISC_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0EffiE18PtxDownsweepPolicyELb0EffiEEvPT1_S9_PT2_SB_PT3_SC_iibbNS3_13GridEvenShareISC_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 160 registers, 9408 bytes smem, 412 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIfEEPfNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIfEEEEvEElSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIfEEPfNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIfEEEEvEElSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0EfiiE16PtxUpsweepPolicyELb0EfiEEvPT1_PT2_SA_iibNS3_13GridEvenShareISA_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0EfiiE16PtxUpsweepPolicyELb0EfiEEvPT1_PT2_SA_iibNS3_13GridEvenShareISA_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 64 registers, 4224 bytes smem, 388 bytes cmem[0], 12 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPfSK_NS_9null_typeESL_SL_SL_SL_SL_SL_SL_EEEENS_6detail16wrapped_functionINSO_23unary_transform_functorINS_8identityIfEEEEvEElSL_SL_SL_SL_SL_SL_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPfSK_NS_9null_typeESL_SL_SL_SL_SL_SL_SL_EEEENS_6detail16wrapped_functionINSO_23unary_transform_functorINS_8identityIfEEEEvEElSL_SL_SL_SL_SL_SL_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0EiiiE19PtxAltUpsweepPolicyELb0EiiEEvPT1_PT2_SA_iibNS3_13GridEvenShareISA_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0EiiiE19PtxAltUpsweepPolicyELb0EiiEEvPT1_PT2_SA_iibNS3_13GridEvenShareISA_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 56 registers, 2112 bytes smem, 388 bytes cmem[0], 8 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0EfiiE21PtxAltDownsweepPolicyELb0EfiiEEvPT1_S9_PT2_SB_PT3_SC_iibbNS3_13GridEvenShareISC_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0EfiiE21PtxAltDownsweepPolicyELb0EfiiEEvPT1_S9_PT2_SB_PT3_SC_iibbNS3_13GridEvenShareISC_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 160 registers, 7760 bytes smem, 412 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIfEESL_NS_9null_typeESM_SM_SM_SM_SM_SM_SM_EEEENS_6detail16wrapped_functionINSP_23unary_transform_functorINS_8identityIfEEEEvEElSM_SM_SM_SM_SM_SM_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIfEESL_NS_9null_typeESM_SM_SM_SM_SM_SM_SM_EEEENS_6detail16wrapped_functionINSP_23unary_transform_functorINS_8identityIfEEEEvEElSM_SM_SM_SM_SM_SM_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKfNS_10device_ptrIfEENS_9null_typeESO_SO_SO_SO_SO_SO_SO_EEEENS_6detail16wrapped_functionINSR_23unary_transform_functorINS_8identityIfEEEEvEElSO_SO_SO_SO_SO_SO_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKfNS_10device_ptrIfEENS_9null_typeESO_SO_SO_SO_SO_SO_SO_EEEENS_6detail16wrapped_functionINSR_23unary_transform_functorINS_8identityIfEEEEvEElSO_SO_SO_SO_SO_SO_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z23sortSamplePos_yz_kerneliPKiPfPKfS1_S3_i' for 'sm_52'
+ptxas info    : Function properties for _Z23sortSamplePos_yz_kerneliPKiPfPKfS1_S3_i
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 11 registers, 372 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_23RadixSortScanBinsKernelINS3_23DeviceRadixSortDispatchILb0EfNS3_8NullTypeEiE13PtxScanPolicyEiEEvPT0_i' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_23RadixSortScanBinsKernelINS3_23DeviceRadixSortDispatchILb0EfNS3_8NullTypeEiE13PtxScanPolicyEiEEvPT0_i
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 50 registers, 176 bytes smem, 332 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0EffiE19PtxAltUpsweepPolicyELb0EfiEEvPT1_PT2_SA_iibNS3_13GridEvenShareISA_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0EffiE19PtxAltUpsweepPolicyELb0EfiEEvPT1_PT2_SA_iibNS3_13GridEvenShareISA_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 56 registers, 2112 bytes smem, 388 bytes cmem[0], 12 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIiEESL_NS_9null_typeESM_SM_SM_SM_SM_SM_SM_EEEENS_6detail16wrapped_functionINSP_23unary_transform_functorINS_8identityIiEEEEvEElSM_SM_SM_SM_SM_SM_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIiEESL_NS_9null_typeESM_SM_SM_SM_SM_SM_SM_EEEENS_6detail16wrapped_functionINSP_23unary_transform_functorINS_8identityIiEEEEvEElSM_SM_SM_SM_SM_SM_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKiNS_10device_ptrIiEENS_9null_typeESO_SO_SO_SO_SO_SO_SO_EEEENS_6detail16wrapped_functionINSR_23unary_transform_functorINS_8identityIiEEEEvEElSO_SO_SO_SO_SO_SO_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKiNS_10device_ptrIiEENS_9null_typeESO_SO_SO_SO_SO_SO_SO_EEEENS_6detail16wrapped_functionINSR_23unary_transform_functorINS_8identityIiEEEEvEElSO_SO_SO_SO_SO_SO_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z25sortParticlesDDkey_kerneliPKiPmPKmP8positionPKS4_P12accelerationPKS8_P8velocityPKSC_P10ibody_timePKSG_i' for 'sm_52'
+ptxas info    : Function properties for _Z25sortParticlesDDkey_kerneliPKiPmPKmP8positionPKS4_P12accelerationPKS8_P8velocityPKSC_P10ibody_timePKSG_i
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 420 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0EfNS3_8NullTypeEiE21PtxAltDownsweepPolicyELb0EfS6_iEEvPT1_SA_PT2_SC_PT3_SD_iibbNS3_13GridEvenShareISD_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0EfNS3_8NullTypeEiE21PtxAltDownsweepPolicyELb0EfS6_iEEvPT1_SA_PT2_SC_PT3_SD_iibbNS3_13GridEvenShareISD_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 90 registers, 5712 bytes smem, 412 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIiEEPiNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIiEEEEvEElSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIiEEPiNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIiEEEEvEElSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z17getBoxSize_kerneliPK8positionP6float4S3_PiS4_' for 'sm_52'
+ptxas info    : Function properties for _Z17getBoxSize_kerneliPK8positionP6float4S3_PiS4_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 16384 bytes smem, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0EfNS3_8NullTypeEiE16PtxUpsweepPolicyELb0EfiEEvPT1_PT2_SB_iibNS3_13GridEvenShareISB_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0EfNS3_8NullTypeEiE16PtxUpsweepPolicyELb0EfiEEvPT1_PT2_SB_iibNS3_13GridEvenShareISB_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 72 registers, 4224 bytes smem, 388 bytes cmem[0], 12 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_23RadixSortScanBinsKernelINS3_23DeviceRadixSortDispatchILb0EfiiE13PtxScanPolicyEiEEvPT0_i' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_23RadixSortScanBinsKernelINS3_23DeviceRadixSortDispatchILb0EfiiE13PtxScanPolicyEiEEvPT0_i
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 50 registers, 176 bytes smem, 332 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPiSK_NS_9null_typeESL_SL_SL_SL_SL_SL_SL_EEEENS_6detail16wrapped_functionINSO_23unary_transform_functorINS_8identityIiEEEEvEElSL_SL_SL_SL_SL_SL_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPiSK_NS_9null_typeESL_SL_SL_SL_SL_SL_SL_EEEENS_6detail16wrapped_functionINSO_23unary_transform_functorINS_8identityIiEEEEvEElSL_SL_SL_SL_SL_SL_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, 32 bytes smem, 400 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0EiiiE18PtxDownsweepPolicyELb0EiiiEEvPT1_S9_PT2_SB_PT3_SC_iibbNS3_13GridEvenShareISC_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0EiiiE18PtxDownsweepPolicyELb0EiiiEEvPT1_S9_PT2_SB_PT3_SC_iibbNS3_13GridEvenShareISC_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 160 registers, 9408 bytes smem, 412 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0EffiE16PtxUpsweepPolicyELb0EfiEEvPT1_PT2_SA_iibNS3_13GridEvenShareISA_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0EffiE16PtxUpsweepPolicyELb0EfiEEvPT1_PT2_SA_iibNS3_13GridEvenShareISA_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 64 registers, 4224 bytes smem, 388 bytes cmem[0], 12 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIiEESL_NS_9null_typeESM_SM_SM_SM_SM_SM_SM_EEEENS_6detail16wrapped_functionINSP_23unary_transform_functorINS_8identityIiEEEEvEEjSM_SM_SM_SM_SM_SM_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIiEESL_NS_9null_typeESM_SM_SM_SM_SM_SM_SM_EEEENS_6detail16wrapped_functionINSP_23unary_transform_functorINS_8identityIiEEEEvEEjSM_SM_SM_SM_SM_SM_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 12 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKiNS_10device_ptrIiEENS_9null_typeESO_SO_SO_SO_SO_SO_SO_EEEENS_6detail16wrapped_functionINSR_23unary_transform_functorINS_8identityIiEEEEvEEjSO_SO_SO_SO_SO_SO_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKiNS_10device_ptrIiEENS_9null_typeESO_SO_SO_SO_SO_SO_SO_EEEENS_6detail16wrapped_functionINSR_23unary_transform_functorINS_8identityIiEEEEvEEjSO_SO_SO_SO_SO_SO_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 12 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z26setParticlePosition_kerneliPK8positionPfS2_S2_i' for 'sm_52'
+ptxas info    : Function properties for _Z26setParticlePosition_kerneliPK8positionPfS2_S2_i
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 15 registers, 364 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0EfNS3_8NullTypeEiE18PtxDownsweepPolicyELb0EfS6_iEEvPT1_SA_PT2_SC_PT3_SD_iibbNS3_13GridEvenShareISD_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0EfNS3_8NullTypeEiE18PtxDownsweepPolicyELb0EfS6_iEEvPT1_SA_PT2_SC_PT3_SD_iibbNS3_13GridEvenShareISD_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 127 registers, 4784 bytes smem, 412 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIiEEPiNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIiEEEEvEEjSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIiEEPiNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIiEEEEvEEjSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 12 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z16initGsync_kerneliPiS_' for 'sm_52'
+ptxas info    : Function properties for _Z16initGsync_kerneliPiS_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 6 registers, 344 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0EffiE21PtxAltDownsweepPolicyELb0EffiEEvPT1_S9_PT2_SB_PT3_SC_iibbNS3_13GridEvenShareISC_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0EffiE21PtxAltDownsweepPolicyELb0EffiEEvPT1_S9_PT2_SB_PT3_SC_iibbNS3_13GridEvenShareISC_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 160 registers, 7760 bytes smem, 412 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0EfiiE19PtxAltUpsweepPolicyELb0EfiEEvPT1_PT2_SA_iibNS3_13GridEvenShareISA_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0EfiiE19PtxAltUpsweepPolicyELb0EfiEEvPT1_PT2_SA_iibNS3_13GridEvenShareISA_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 56 registers, 2112 bytes smem, 388 bytes cmem[0], 12 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPiSK_NS_9null_typeESL_SL_SL_SL_SL_SL_SL_EEEENS_6detail16wrapped_functionINSO_23unary_transform_functorINS_8identityIiEEEEvEEjSL_SL_SL_SL_SL_SL_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPiSK_NS_9null_typeESL_SL_SL_SL_SL_SL_SL_EEEENS_6detail16wrapped_functionINSO_23unary_transform_functorINS_8identityIiEEEEvEEjSL_SL_SL_SL_SL_SL_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 12 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_23RadixSortScanBinsKernelINS3_23DeviceRadixSortDispatchILb0EiiiE13PtxScanPolicyEiEEvPT0_i' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_23RadixSortScanBinsKernelINS3_23DeviceRadixSortDispatchILb0EiiiE13PtxScanPolicyEiEEvPT0_i
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 50 registers, 176 bytes smem, 332 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_23RadixSortScanBinsKernelINS3_23DeviceRadixSortDispatchILb0EffiE13PtxScanPolicyEiEEvPT0_i' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_23RadixSortScanBinsKernelINS3_23DeviceRadixSortDispatchILb0EffiE13PtxScanPolicyEiEEvPT0_i
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 50 registers, 176 bytes smem, 332 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIfEEPfNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIfEEEEvEEjSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIfEEPfNS_9null_typeESN_SN_SN_SN_SN_SN_SN_EEEENS_6detail16wrapped_functionINSQ_23unary_transform_functorINS_8identityIfEEEEvEEjSN_SN_SN_SN_SN_SN_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 12 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_11EmptyKernelIvEEvv' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_11EmptyKernelIvEEvv
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 2 registers, 320 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPfSK_NS_9null_typeESL_SL_SL_SL_SL_SL_SL_EEEENS_6detail16wrapped_functionINSO_23unary_transform_functorINS_8identityIfEEEEvEEjSL_SL_SL_SL_SL_SL_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPfSK_NS_9null_typeESL_SL_SL_SL_SL_SL_SL_EEEENS_6detail16wrapped_functionINSO_23unary_transform_functorINS_8identityIfEEEEvEEjSL_SL_SL_SL_SL_SL_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 12 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0EiiiE16PtxUpsweepPolicyELb0EiiEEvPT1_PT2_SA_iibNS3_13GridEvenShareISA_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0EiiiE16PtxUpsweepPolicyELb0EiiEEvPT1_PT2_SA_iibNS3_13GridEvenShareISA_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 64 registers, 4224 bytes smem, 388 bytes cmem[0], 8 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKfNS_10device_ptrIfEENS_9null_typeESO_SO_SO_SO_SO_SO_SO_EEEENS_6detail16wrapped_functionINSR_23unary_transform_functorINS_8identityIfEEEEvEEjSO_SO_SO_SO_SO_SO_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_IPKfNS_10device_ptrIfEENS_9null_typeESO_SO_SO_SO_SO_SO_SO_EEEENS_6detail16wrapped_functionINSR_23unary_transform_functorINS_8identityIfEEEEvEEjSO_SO_SO_SO_SO_SO_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 12 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_Z15setIndex_kerneliPii' for 'sm_52'
+ptxas info    : Function properties for _Z15setIndex_kerneliPii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 4 registers, 340 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0EfNS3_8NullTypeEiE19PtxAltUpsweepPolicyELb0EfiEEvPT1_PT2_SB_iibNS3_13GridEvenShareISB_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_28DeviceRadixSortUpsweepKernelINS3_23DeviceRadixSortDispatchILb0EfNS3_8NullTypeEiE19PtxAltUpsweepPolicyELb0EfiEEvPT1_PT2_SB_iibNS3_13GridEvenShareISB_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 96 registers, 2112 bytes smem, 388 bytes cmem[0], 12 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0EfiiE18PtxDownsweepPolicyELb0EfiiEEvPT1_S9_PT2_SB_PT3_SC_iibbNS3_13GridEvenShareISC_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0EfiiE18PtxDownsweepPolicyELb0EfiiEEvPT1_S9_PT2_SB_PT3_SC_iibbNS3_13GridEvenShareISC_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 160 registers, 9408 bytes smem, 412 bytes cmem[0], 4 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIfEESL_NS_9null_typeESM_SM_SM_SM_SM_SM_SM_EEEENS_6detail16wrapped_functionINSP_23unary_transform_functorINS_8identityIfEEEEvEEjSM_SM_SM_SM_SM_SM_EEEEEEEEvT0_' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail5bulk_6detail15launch_by_valueILj0ENS4_9cuda_taskINS3_14parallel_groupINS3_16concurrent_groupINS3_5agentILm1EEELm0EEELm0EEENS4_7closureINS2_17for_each_n_detail15for_each_kernelENS_5tupleINS4_6cursorILj0EEENS_12zip_iteratorINSG_INS_10device_ptrIfEESL_NS_9null_typeESM_SM_SM_SM_SM_SM_SM_EEEENS_6detail16wrapped_functionINSP_23unary_transform_functorINS_8identityIfEEEEvEEjSM_SM_SM_SM_SM_SM_EEEEEEEEvT0_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 12 registers, 32 bytes smem, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0EiiiE21PtxAltDownsweepPolicyELb0EiiiEEvPT1_S9_PT2_SB_PT3_SC_iibbNS3_13GridEvenShareISC_EE' for 'sm_52'
+ptxas info    : Function properties for _ZN6thrust6system4cuda6detail4cub_30DeviceRadixSortDownsweepKernelINS3_23DeviceRadixSortDispatchILb0EiiiE21PtxAltDownsweepPolicyELb0EiiiEEvPT1_S9_PT2_SB_PT3_SC_iibbNS3_13GridEvenShareISC_EE
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 160 registers, 7760 bytes smem, 412 bytes cmem[0]
+gcc -std=c99 -D_POSIX_C_SOURCE=199309L    -Wall -Wextra -Wunused -Wcast-qual -Wcast-align -Wmissing-declarations -DGPUGEN="(52)" -DGPUVER="(52)" -DCUB_AVAILABLE -DREPORT_TOTAL_ELAPSED_TIME -DMONITOR_ENERGY_ERROR -DMONITOR_LETGEN_TIME -DLET_COMMUNICATION_VIA_HOST -DUSE_ENCLOSING_BALL_FOR_LET -DRETURN_CENTER_BY_PHKEY_GENERATOR -DBLOCK_TIME_STEP -DGADGET_MAC -DWS93_MAC -DIJ_PARALLELIZATION -DUSE_SFMT -DUSE_SFMTJUMP -DUSE_HDF5_FORMAT -DNDEBUG  -O3 -ffast-math -funroll-loops -march=native -mtune=native -I/home/ymiki/inc              -o bin/obj/brent.o -c src/misc/brent.c
+mpicc -std=c99 -D_POSIX_C_SOURCE=199309L -Wall -Wextra -Wunused -Wcast-qual -Wcast-align -Wmissing-declarations   -o bin/gothic   bin/obj/gothic.mpi.hdf5.o   bin/obj/io.mpi.hdf5.o   bin/obj/allocate.mpi.hdf5.o   bin/obj/convert.mpi.hdf5.o   bin/obj/tune.o  bin/obj/allocate_dev.o  bin/obj/peano_dev.o  bin/obj/shrink_dev.o  bin/obj/neighbor_dev.o  bin/obj/let_dev.mpi.o  bin/obj/adv_dev.mpi.o  bin/obj/make_dev.mpi.o  bin/obj/walk_dev.mpi.o  bin/obj/geo_dev.o  bin/obj/icom_dev.o   bin/obj/let.mpi.o   bin/obj/exchange.mpi.o   bin/obj/mpicfg.mpi.o  bin/obj/exchange_dev.mpi.o   bin/obj/brent.o  -lm -L/opt/CUDA/8.0/lib64 -lcudart -L/opt/CUDA/8.0/lib64/stubs -lnvidia-ml -lstdc++ -L/home/ymiki/lib -lSPmyutil -lSPconstants -lSPtimer -lSPmpilib -lSPcudalib -lSPhdf5lib -L/opt/HDF5/1.8.18/lib -lhdf5 -L/opt/Szip/2.1/lib -lsz -lz -ldl

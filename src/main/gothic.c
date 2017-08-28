@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/25 (Fri)
+ * @date 2017/08/28 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -975,8 +975,6 @@ int main(int argc, char **argv)
 #   if  defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
   void *appEncBall_dev;
   const muse alloc_appEnc = allocApproxEnclosingBall_dev(&appEncBall_dev, devProp);
-  hoge;
-  void  freeApproxEnclosingBall_dev(void  *dev);
 #endif//defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
 #endif//SERIALIZED_EXECUTION
 
@@ -1113,8 +1111,11 @@ int main(int argc, char **argv)
 			alloc_spl.device + alloc_pos.device};
   used_mem.host   += box_mem.host;
   used_mem.device += box_mem.device;
-  const muse ball_mem = {alloc_r2geo.host,
-			 alloc_r2geo.device};
+#   if  defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
+  const muse ball_mem = {alloc_r2geo.host + alloc_appEnc.host, alloc_r2geo.device + alloc_appEnc.device};
+#else///defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
+  const muse ball_mem = {alloc_r2geo.host, alloc_r2geo.device};
+#endif//defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
   used_mem.host   += ball_mem.host;
   used_mem.device += ball_mem.device;
 #endif//SERIALIZED_EXECUTION
@@ -1389,13 +1390,13 @@ int main(int argc, char **argv)
 #ifndef SERIALIZED_EXECUTION
   /** find center of enclosing ball */
 #ifdef  USE_ENCLOSING_BALL_FOR_LET
-  getApproxEnclosingBall_dev(num, ibody0_dev,
+  getApproxEnclosingBall_dev(num, ibody0_dev
 #ifdef  OCTREE_BASED_SEARCH
-			     soaCell_dev, soaNode_dev, soaMakeBuf,
+			     , soaCell_dev, soaNode_dev, soaMakeBuf
 #else///OCTREE_BASED_SEARCH
-			     float2 *gmem, soaPH_dev, devProp,
+			     , appEncBall_dev, soaPH_dev, devProp
 #endif//OCTREE_BASED_SEARCH
-			     const cudaStream_t stream
+			     , stream_let[Nstream_let - 1]
 #ifdef  EXEC_BENCHMARK
 			     , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
@@ -1474,6 +1475,17 @@ int main(int argc, char **argv)
 #ifndef SERIALIZED_EXECUTION
     /** find center of enclosing ball */
 #ifdef  USE_ENCLOSING_BALL_FOR_LET
+    getApproxEnclosingBall_dev(num, ibody0_dev
+#ifdef  OCTREE_BASED_SEARCH
+			       , soaCell_dev, soaNode_dev, soaMakeBuf
+#else///OCTREE_BASED_SEARCH
+			       , appEncBall_dev, soaPH_dev, devProp
+#endif//OCTREE_BASED_SEARCH
+			       , stream_let[Nstream_let - 1]
+#ifdef  EXEC_BENCHMARK
+			       , &execTime[steps - bench_begin]
+#endif//EXEC_BENCHMARK
+			       );
 #endif//USE_ENCLOSING_BALL_FOR_LET
 
     calc_r2max_dev(Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev
@@ -1950,6 +1962,17 @@ int main(int argc, char **argv)
 #ifndef SERIALIZED_EXECUTION
     /** find center of enclosing ball */
 #ifdef  USE_ENCLOSING_BALL_FOR_LET
+    getApproxEnclosingBall_dev(num, ibody0_dev
+#ifdef  OCTREE_BASED_SEARCH
+			       , soaCell_dev, soaNode_dev, soaMakeBuf
+#else///OCTREE_BASED_SEARCH
+			       , appEncBall_dev, soaPH_dev, devProp
+#endif//OCTREE_BASED_SEARCH
+			       , stream_let[Nstream_let - 1]
+#ifdef  EXEC_BENCHMARK
+			       , &execTime[steps - bench_begin]
+#endif//EXEC_BENCHMARK
+			       );
 #endif//USE_ENCLOSING_BALL_FOR_LET
 
     calc_r2max_dev(Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev
@@ -2383,6 +2406,10 @@ int main(int argc, char **argv)
 		     amin,
 #endif//GADGET_MAC
 		     numSend_hst, numSend_dev, stream_let, Nstream_let);
+
+#   if  defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
+  freeApproxEnclosingBall_dev(appEncBall_dev);
+#endif//defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
 
   releaseORMtopology(dxmin, dxmax, dymin, dymax, dzmin, dzmax, dmreq,
 		     sxmin, sxmax, symin, symax, szmin, szmax,
