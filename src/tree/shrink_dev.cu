@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/03/02 (Thu)
+ * @date 2017/08/29 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -91,7 +91,7 @@ void freeParticleGroups
 extern "C"
 muse allocParticleGroups
 (laneinfo **laneInfo_hst, laneinfo **laneInfo_dev, double **laneTime_dev, int **inum_hst, int **inum_dev,
- int *inumPerLane, int *maxNgrp, const int num_max, deviceProp devProp)
+ int *inumPerLane, int *maxNgrp, const int num_max)
 {
   __NOTE__("%s\n", "start");
 

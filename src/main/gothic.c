@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/28 (Mon)
+ * @date 2017/08/29 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -440,14 +440,16 @@ static inline void dumpSnapshot
 #ifdef  BLOCK_TIME_STEP
 		    Ngrp, NULL,
 #endif//BLOCK_TIME_STEP
-		    Ngrp, laneInfo_dev, Ni, ibody_direct_dev, dummy_node, dummy_buf, NULL, devProp
+		    Ngrp, laneInfo_dev, ibody_direct_dev, dummy_node, dummy_buf, NULL, devProp, &null
+#   if  !defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+		    , Ni
+#endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
 		    , NULL, 0, 1, NULL, letcfg, NULL, NULL, 0, NULL, NULL, NULL
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
 		    , NULL
 #endif//COUNT_INTERACTIONS
-		    , &null
 #ifdef  EXEC_BENCHMARK
 		    , NULL
 #endif//EXEC_BENCHMARK
@@ -661,7 +663,7 @@ int main(int argc, char **argv)
   /** set CUDA streams */
   cudaStream_t *stream;
   kernelStream sinfo;
-  setCUDAstreams_dev(&stream, &sinfo, &devInfo, &devProp);
+  setCUDAstreams_dev(&stream, &sinfo, &devInfo);
 
   /** set CUDA events */
   /** maximum # of CUDA events = # of GPUs for tree traversal, # of GPUs - 1 for LET construction */
@@ -824,15 +826,16 @@ int main(int argc, char **argv)
 							);
 #endif//BLOCK_TIME_STEP
 
-  iparticle_treeinfo treeinfo, treeinfo_dev;
+  iparticle_treeinfo treeinfo_dev;
   int *jtag_dev;
 #ifdef  COUNT_INTERACTIONS
+  iparticle_treeinfo treeinfo;
   int *Nj, *Nj_dev, *Nbuf, *Nbuf_dev;
 #endif//COUNT_INTERACTIONS
   const muse alloc_jtag = allocParticleInfoSoA_hst
-    (num_max, &treeinfo
+    (num_max
 #ifdef  COUNT_INTERACTIONS
-     , &Nj, &Nbuf
+     , &treeinfo, &Nj, &Nbuf
 #endif//COUNT_INTERACTIONS
      );
   const muse alloc_jtag_dev = allocParticleInfoSoA_dev
@@ -847,18 +850,18 @@ int main(int argc, char **argv)
   double *laneTime_dev;
   int inumPerLane, maxNgrp;
   int *inum_hst, *inum_dev;
-  const muse alloc_lane_dev = allocParticleGroups(&laneInfo_hst, &laneInfo_dev, &laneTime_dev, &inum_hst, &inum_dev,
-						  &inumPerLane, &maxNgrp, num_max, devProp);
+  const muse alloc_lane_dev = allocParticleGroups(&laneInfo_hst, &laneInfo_dev, &laneTime_dev, &inum_hst, &inum_dev, &inumPerLane, &maxNgrp, num_max);
 
   /** declarations of arrays to contain information of tree-cells */
   PHint    *hkey_dev;
   uint     *parent_dev, *children_dev;
-  soaTreeCell soaCell_dev, soaCell_hst;
+  soaTreeCell soaCell_dev;
   treecell *cell_dev;
   bool     *leaf_dev;
   uint     *node_dev;
   PHinfo   *list_dev;
 #ifdef  COUNT_INTERACTIONS
+  soaTreeCell soaCell_hst;
   treecell *cell;
   bool     *leaf;
   uint     *node;
@@ -866,15 +869,15 @@ int main(int argc, char **argv)
 #endif//COUNT_INTERACTIONS
   int *bottomLev_dev, *numCell_dev, *numNode_dev, *scanNum_dev;
   const muse alloc_cell_dev =
-    allocTreeCell_dev(&cell_dev, &leaf_dev, &node_dev, &list_dev,
-		      &hkey_dev, &parent_dev, &children_dev, &bottomLev_dev, &numCell_dev, &numNode_dev, &scanNum_dev,
+    allocTreeCell_dev(&soaCell_dev, &cell_dev, &leaf_dev, &node_dev, &list_dev,
+		      &hkey_dev, &parent_dev, &children_dev, &bottomLev_dev, &numCell_dev, &numNode_dev, &scanNum_dev
 #ifdef  COUNT_INTERACTIONS
-		      &cell    , &leaf    , &node    , &list    ,
+		      , &soaCell_hst, &cell    , &leaf    , &node    , &list
 #endif//COUNT_INTERACTIONS
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-		      devProp,
+		      , devProp
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-		      &soaCell_dev, &soaCell_hst);
+		      );
 
   /** declarations of arrays to contain information of tree-nodes */
   uint    *more_dev;
@@ -1157,7 +1160,7 @@ int main(int argc, char **argv)
      &cycles_let_hst, &cycles_let_dev,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
 #endif//USE_CUDA_EVENT
-     &soaWalk_dev, num_max, used_mem, devProp);
+     &soaWalk_dev, num_max, devProp);
   used_mem.host   += alloc_buf_dev.host;
   used_mem.device += alloc_buf_dev.device;
 
@@ -1427,7 +1430,10 @@ int main(int argc, char **argv)
 #ifdef  BLOCK_TIME_STEP
 		    Ngrp, &reduce,
 #endif//BLOCK_TIME_STEP
-		    Ngrp, laneInfo_dev, Ni, ibody0_dev, soaNode_dev, soaWalk_dev, &sinfo, devProp, &elapsed.walkTree[0]
+		    Ngrp, laneInfo_dev, ibody0_dev, soaNode_dev, soaWalk_dev, &sinfo, devProp, &elapsed.walkTree[0]
+#   if  !defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+		    , Ni
+#endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
 		    , file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
@@ -1507,7 +1513,10 @@ int main(int argc, char **argv)
 #ifdef  BLOCK_TIME_STEP
 		    Ngrp, &reduce,
 #endif//BLOCK_TIME_STEP
-		    Ngrp, laneInfo_dev, Ni, ibody0_dev, soaNode_dev, soaWalk_dev, &sinfo, devProp, &elapsed.walkTree[0]
+		    Ngrp, laneInfo_dev, ibody0_dev, soaNode_dev, soaWalk_dev, &sinfo, devProp, &elapsed.walkTree[0]
+#   if  !defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+		    , Ni
+#endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
 		    , file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
@@ -2003,7 +2012,10 @@ int main(int argc, char **argv)
 #ifdef  BLOCK_TIME_STEP
 		      grpNum, &reduce,
 #endif//BLOCK_TIME_STEP
-		      Ngrp, laneInfo_dev, Ni, ibody0_dev, soaNode_dev, soaWalk_dev, &sinfo, devProp, &elapsed.walkTree[rebuild.reuse]
+		      Ngrp, laneInfo_dev, ibody0_dev, soaNode_dev, soaWalk_dev, &sinfo, devProp, &elapsed.walkTree[rebuild.reuse]
+#   if  !defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+		      , Ni
+#endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
 		      , file
 #endif//PRINT_PSEUDO_PARTICLE_INFO

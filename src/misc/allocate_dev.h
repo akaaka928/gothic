@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/28 (Tue)
+ * @date 2017/08/29 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -96,9 +96,9 @@ extern "C"
 #endif//COUNT_INTERACTIONS
    );
   muse allocParticleInfoSoA_hst
-  (const int num, iparticle_treeinfo *info_hst
+  (const int num
 #ifdef  COUNT_INTERACTIONS
-   , int **Nj_hst, int **Nbuf_hst
+   , iparticle_treeinfo *info_hst, int **Nj_hst, int **Nbuf_hst
 #endif//COUNT_INTERACTIONS
    );
 

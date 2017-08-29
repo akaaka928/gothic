@@ -1795,18 +1795,19 @@ src/tree/geo_dev.h,85
   int Nblock;41,735
 } soaGEO;42,749
 
-src/tree/icom_dev.h,356
+src/tree/icom_dev.h,391
 #define ICOM_DEV_H18,422
-#define ADOPT_EBS_FOR_LET34,775
-#define NTHREADS_EB 45,1092
-#define USE_WARP_SHUFFLE_FUNC_EB49,1140
-#undef          USE_WARP_SHUFFLE_FUNC_EB51,1232
-#define NI_R2MAX_ESTIMATE 56,1362
-#define NBUF_EB 57,1395
-#undef  NBUF_EB60,1552
-#define NBUF_EB 61,1568
-#undef  NI_R2MAX_ESTIMATE62,1588
-#define NI_R2MAX_ESTIMATE 63,1614
+#define OCTREE_BASED_SEARCH26,585
+#define ADOPT_EBS_FOR_LET34,769
+#define NTHREADS_EB 45,1086
+#define USE_WARP_SHUFFLE_FUNC_EB49,1134
+#undef          USE_WARP_SHUFFLE_FUNC_EB51,1226
+#define NI_R2MAX_ESTIMATE 56,1356
+#define NBUF_EB 57,1389
+#undef  NBUF_EB60,1546
+#define NBUF_EB 61,1562
+#undef  NI_R2MAX_ESTIMATE62,1582
+#define NI_R2MAX_ESTIMATE 63,1608
 
 src/anal/anal.error.c,54
 #define USE_SZIP_COMPRESSION12,812

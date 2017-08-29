@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/18 (Fri)
+ * @date 2017/08/29 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -506,7 +506,7 @@ typedef union
 extern "C"
 {
 #endif//__CUDACC__
-  muse setCUDAstreams_dev(cudaStream_t **stream, kernelStream *sinfo, deviceInfo *info, deviceProp *prop);
+  muse setCUDAstreams_dev(cudaStream_t **stream, kernelStream *sinfo, deviceInfo *info);
 
 #   if  defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
   muse allocateCUDAevents_dev
@@ -550,15 +550,18 @@ extern "C"
    unsigned long long int **cycles_let_hst, unsigned long long int **cycles_let_dev,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
 #endif//USE_CUDA_EVENT
-   soaTreeWalkBuf *buf, const int num_max, const muse used, const deviceProp gpu);
+   soaTreeWalkBuf *buf, const int num_max, const deviceProp gpu);
 
   void calcGravity_dev
   (const int grpNum
 #ifdef  BLOCK_TIME_STEP
    , double *reduce, const int totNum
 #endif//BLOCK_TIME_STEP
-   , laneinfo * RESTRICT laneInfo, const int Ni, const iparticle pi, const soaTreeNode tree, const soaTreeWalkBuf buf
+   , laneinfo * RESTRICT laneInfo, const iparticle pi, const soaTreeNode tree, const soaTreeWalkBuf buf
    , kernelStream *sinfo, deviceProp devProp, double *time
+#   if  !defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+   , const int Ni
+#endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
    , char *file
 #endif//PRINT_PSEUDO_PARTICLE_INFO

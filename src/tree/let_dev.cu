@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/03/27 (Mon)
+ * @date 2017/08/29 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -35,7 +35,6 @@
 #include "macutil.h"
 #include "make.h"
 #include "buf_inc.h"
-#include "../para/mpicfg.h"
 #include "let.h"
 #include "walk_dev.h"
 #include "let_dev.h"
@@ -652,7 +651,7 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
  */
 extern "C"
 void callGenLET
-  (const cudaStream_t stream, domainInfo *let, MPIcfg_tree mpi, const soaTreeNode tree, const soaTreeWalkBuf buf
+  (const cudaStream_t stream, domainInfo *let, const soaTreeNode tree, const soaTreeWalkBuf buf
 #ifdef  MONITOR_LETGEN_TIME
 #ifdef  USE_CUDA_EVENT
    , const cudaEvent_t iniEvent, const cudaEvent_t finEvent

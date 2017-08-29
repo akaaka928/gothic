@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2017/08/24 (Thu) 14:47:18
+# last updated on 2017/08/29 (Tue) 12:51:14
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -19,7 +19,7 @@ DEBUG	:= -DNDEBUG
 # PROFILE	:= -pg
 #################################################################################################
 # Execution options
-FORCE_SINGLE_GPU_RUN	:= 0
+FORCE_SINGLE_GPU_RUN	:= 1
 ENCLOSING_BALL_FOR_LET	:= 1
 CARE_EXTERNAL_PARTICLES	:= 0
 ACC_ACCUMULATION_IN_DP	:= 0
@@ -1035,13 +1035,12 @@ $(OBJDIR)/geo_dev.o:	$(TREE_DEP)	$(MYINC)/cudalib.h	$(TREEDIR)/walk_dev.h	$(TREE
 $(OBJDIR)/let.mpi.o:	$(TREE_DEP)	$(MYINC)/mpilib.h	$(TREEDIR)/let.h	$(PARADIR)/mpicfg.h
 TREE_DEV_DEP	:=	$(TREE_DEP)	$(MYINC)/cudalib.h	$(MISCDIR)/device.h	$(TREEDIR)/macutil.h
 TREE_BUF_DEP	:=	$(TREEDIR)/buf_inc.h	$(TREEDIR)/buf_inc.cu
-TREE_LET_DEP	:=	$(MYINC)/mpilib.h	$(TREEDIR)/let.h	$(TREEDIR)/let_dev.h	$(PARADIR)/mpicfg.h
+TREE_LET_DEP	:=	$(MYINC)/mpilib.h	$(TREEDIR)/let.h	$(TREEDIR)/let_dev.h
 $(OBJDIR)/let_dev.mpi.o:	$(TREE_DEV_DEP)	$(TREE_BUF_DEP)	$(TREE_LET_DEP)	$(MYINC)/timer.h	$(TREEDIR)/walk_dev.h
 MAKE_DEV_DEP	:=	$(UTILDIR)/gsync_dev.cu	$(TREEDIR)/make_dev.h	$(TREEDIR)/let.h
 MAKE_DEV_DEP	+=	$(UTILDIR)/scan_inc.cu	$(UTILDIR)/scan_inc.cuh	$(UTILDIR)/scan_del.cuh
 MAKE_DEV_DEP	+=	$(UTILDIR)/scan_tsub_inc.cu	$(UTILDIR)/scan_tsub_inc.cuh	$(UTILDIR)/scan_tsub_del.cuh
 MAKE_DEV_DEP	+=	$(UTILDIR)/compare_tsub_inc.cu	$(UTILDIR)/compare_tsub_inc.cuh	$(UTILDIR)/compare_tsub_del.cuh
-# MAKE_DEV_DEP	+=	$(TREEDIR)/make_inc.cu	$(TREEDIR)/make_inc.h	$(TREEDIR)/make_del.h
 $(OBJDIR)/make_dev.mpi.o:	$(TREE_DEV_DEP)	$(SORTDIR)/peano.h	$(SORTDIR)/peano_dev.h	$(MAKE_DEV_DEP)	$(MYINC)/timer.h	$(MISCDIR)/device.h
 $(OBJDIR)/make_dev.o:		$(TREE_DEV_DEP)	$(SORTDIR)/peano.h	$(SORTDIR)/peano_dev.h	$(MAKE_DEV_DEP)
 $(OBJDIR)/make.o:		$(TREE_DEP)	$(SORTDIR)/peano.h	$(TREEDIR)/macutil.h
@@ -1055,7 +1054,7 @@ SHRINK_DEV_DEP	+=	$(TREEDIR)/neighbor_dev.h
 $(OBJDIR)/shrink_dev.mpi.o:	$(TREE_DEP)	$(SHRINK_DEV_DEP)
 $(OBJDIR)/shrink_dev.o:		$(TREE_DEP)	$(SHRINK_DEV_DEP)
 WALK_DEV_DEP	:=	$(TREE_DEV_DEP)	$(TREE_BUF_DEP)	$(MYINC)/timer.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/seb_dev.cu
-$(OBJDIR)/walk_dev.mpi.o:	$(WALK_DEV_DEP)	$(TREE_LET_DEP)	$(MISCDIR)/tune.h
+$(OBJDIR)/walk_dev.mpi.o:	$(WALK_DEV_DEP)	$(TREE_LET_DEP)	$(PARADIR)/mpicfg.h	$(MISCDIR)/tune.h
 $(OBJDIR)/walk_dev.o:		$(WALK_DEV_DEP)
 ICOM_DEV_DEP	:=	$(TREE_DEV_DEP)	$(TREEDIR)/make_dev.h	$(SORTDIR)/peano_dev.h	$(TREEDIR)/icom_dev.h
 ICOM_DEV_DEP	+=	$(UTILDIR)/compare_inc.cu	$(UTILDIR)/compare_inc.cuh	$(UTILDIR)/compare_del.cuh

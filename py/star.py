@@ -15,14 +15,18 @@ import utils as utils
 
 nxpanel, nypanel = 1, 2
 
-filename = "cb17"
+# filename = "cb17"
+filename = "m31"
 Ndark = 1
 init = 0
 last = 47
 # last = 0
-xmin, xmax = -10.0, 10.0
-ymin, ymax = -10.0, 10.0
-zmin, zmax = -10.0, 10.0
+# xmin, xmax = -10.0, 10.0
+# ymin, ymax = -10.0, 10.0
+# zmin, zmax = -10.0, 10.0
+xmin, xmax = -15.0, 15.0
+ymin, ymax = -15.0, 15.0
+zmin, zmax = -15.0, 15.0
 # fmin, fmax = 1.0e+7, 3.1e+9
 fmin, fmax = 1.0e+7, 1.0e+10
 
@@ -184,8 +188,10 @@ def draw_figure(fileid, nxpanel, Nkind):
     for idx in range(nxpanel * nypanel):
         ax[idx].set_xlim([xmin, xmax])
 
-        ax[idx].set_xticks([-9, -6, -3, 0, 3, 6, 9])
-        ax[idx].set_yticks([-9, -6, -3, 0, 3, 6, 9])
+        # ax[idx].set_xticks([-9, -6, -3, 0, 3, 6, 9])
+        # ax[idx].set_yticks([-9, -6, -3, 0, 3, 6, 9])
+        ax[idx].set_xticks([-10, -5, 0, 5, 10])
+        ax[idx].set_yticks([-10, -5, 0, 5, 10])
         # ax[idx].grid()
         ax[idx].tick_params(axis = "both", direction = "in", color = "white", bottom = "on", top = "on", left = "on", right = "on")
 

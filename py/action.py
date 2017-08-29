@@ -15,12 +15,14 @@ import utils as utils
 
 
 # specify plot target
-filename = "cb17"
+# filename = "cb17"
+filename = "m31"
 init = 0
 last = 47
 # last = 0
 
-tag = ["dark matter halo", "bulge", "thick disc", "thin disc"]
+# tag = ["dark matter halo", "bulge", "thick disc", "thin disc"]
+tag = ["dark matter halo", "bulge", "disk"]
 pt = ["D", "o", "s", "^"]
 ls = ["--", "-", ":", "-."]
 col = ["magenta", "black", "red", "blue"]

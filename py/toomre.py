@@ -9,11 +9,14 @@ import utils as utils
 
 
 # specify plot target
-filename = "cb17"
+# filename = "cb17"
+filename = "m31"
 
 # set plot range
-Rmin, Rmax = 1.0e-1, 50.0
-Qmin, Qmax = 1.0e-1, 1.0e+2
+# Rmin, Rmax = 1.0e-1, 50.0
+# Qmin, Qmax = 1.0e-1, 1.0e+2
+Rmin, Rmax = 1.0e-1, 100.0
+Qmin, Qmax = 1.0e-0, 1.0e+3
 
 
 # set number of panels
@@ -24,7 +27,8 @@ nxpanel, nypanel = 1, 1
 # ls  = ["-", "-.", ":", "--"]
 col = ["black", "black"]
 ls  = ["-", ":"]
-lab = ["thick disc", "thin disc"]
+# lab = ["thick disc", "thin disc"]
+lab = ["disk"]
 
 
 # embed fonts
@@ -78,7 +82,7 @@ ax[0].set_ylabel(r"$Q$")
 handles, labels = ax[0].get_legend_handles_labels()
 # ax[0].legend(handles[::-1], labels[::-1], numpoints = 1, handlelength = 2.5, prop = {'size' : 14}, loc = 'best')
 # ax[0].legend(handles[::-1], labels[::-1], numpoints = 1, handlelength = 2.5, prop = {'size' : 14}, loc = 'upper left')
-ax[0].legend(handles[::-1], labels[::-1], numpoints = 1, handlelength = 2.5, loc = 'upper left')
+ax[0].legend(handles[::-1], labels[::-1], numpoints = 1, handlelength = 2.5, loc = 'best')
 
 # output figure
 figname = "fig/" + filename + "_Q"

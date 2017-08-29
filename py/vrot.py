@@ -9,7 +9,8 @@ import utils as utils
 
 
 # specify plot target
-filename = "cb17"
+# filename = "cb17"
+filename = "m31"
 
 # conversion factors of unit system (taken from doc/unit.txt)
 newton_com = 4.498466e+00
@@ -19,9 +20,10 @@ velocity2astro = 9.777922e+00
 
 
 # set plot range
-rmin, rmax = 1.0e-1, 2.0e+2
-# rmin, rmax = 0.0, 2.5e+2
-vmin, vmax = 0.0, 200.0
+# rmin, rmax = 1.0e-1, 2.0e+2
+# vmin, vmax = 0.0, 200.0
+rmin, rmax = 1.0e-1, 4.0e+2
+vmin, vmax = 0.0, 300.0
 
 
 # set number of panels
@@ -30,7 +32,8 @@ nxpanel, nypanel = 1, 1
 
 col = ["black", "blue", "magenta", "green"]
 ls  = ["-", "-.", ":", "--"]
-lab = ["dark matter halo", "bulge", "thick disc", "thin disc"]
+# lab = ["dark matter halo", "bulge", "thick disc", "thin disc"]
+lab = ["dark matter halo", "bulge", "disk"]
 
 
 # embed fonts

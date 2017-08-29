@@ -14,8 +14,9 @@ import utils as utils
 plotSpherical = False
 
 # specify plot target
-filename = "cb17"
 # filename = "spherical"
+# filename = "cb17"
+filename = "m31"
 init = 0
 last = 47
 # last = 0
@@ -24,7 +25,8 @@ Ncrit_sphe = 262144 # number of particles for estimating physical quantities
 # Ncrit_sphe = 4096 # number of particles for estimating physical quantities
 Nmin = 16 # minimum data points for visualization
 
-tag = ["thick disc", "thin disc"]
+# tag = ["thick disc", "thin disc"]
+tag = ["disk"]
 
 # set plot range
 rrmin, rrmax = 1.0e-1, 3.0e+2

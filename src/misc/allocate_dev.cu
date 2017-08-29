@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/28 (Tue)
+ * @date 2017/08/29 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -331,9 +331,9 @@ muse allocParticleInfoSoA_dev
  */
 extern "C"
 muse allocParticleInfoSoA_hst
-(const int num, iparticle_treeinfo *info_hst
+(const int num
 #ifdef  COUNT_INTERACTIONS
- , int **Nj_hst, int **Nbuf_hst
+ , iparticle_treeinfo *info_hst, int **Nj_hst, int **Nbuf_hst
 #endif//COUNT_INTERACTIONS
  )
 {
@@ -347,14 +347,12 @@ muse allocParticleInfoSoA_hst
   if( (num % NTHREADS) != 0 )
     size += (size_t)(NTHREADS - (num % NTHREADS));
 
-  /** memory allocation and simple confirmation */
 #ifdef  COUNT_INTERACTIONS
+  /** memory allocation and simple confirmation */
   mycudaMallocHost((void **)  Nj_hst, size * sizeof(int));  alloc.host += size * sizeof(int);
   mycudaMallocHost((void **)Nbuf_hst, size * sizeof(int));  alloc.host += size * sizeof(int);
-#endif//COUNT_INTERACTIONS
 
   /** commit arrays to the utility structure */
-#ifdef  COUNT_INTERACTIONS
   info_hst->  Nj = *  Nj_hst;
   info_hst->Nbuf = *Nbuf_hst;
 #endif//COUNT_INTERACTIONS

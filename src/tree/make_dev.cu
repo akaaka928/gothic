@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/28 (Mon)
+ * @date 2017/08/29 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1319,15 +1319,15 @@ void setTreeNode_dev
  */
 extern "C"
 muse allocTreeCell_dev
-(treecell **cell_dev, bool **leaf_dev, uint **node_dev, PHinfo **info_dev,
- PHint **hkey_dev, uint **parent_dev, uint **children_dev, int **leafLev_dev, int **numCell_dev, int **numNode_dev, int **scanNum_dev,
+(soaTreeCell *dev, treecell **cell_dev, bool **leaf_dev, uint **node_dev, PHinfo **info_dev,
+ PHint **hkey_dev, uint **parent_dev, uint **children_dev, int **leafLev_dev, int **numCell_dev, int **numNode_dev, int **scanNum_dev
 #ifdef  COUNT_INTERACTIONS
- treecell **cell_hst, bool **leaf_hst, uint **node_hst, PHinfo **info_hst,
+ , soaTreeCell *hst, treecell **cell_hst, bool **leaf_hst, uint **node_hst, PHinfo **info_hst
 #endif//COUNT_INTERACTIONS
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
- deviceProp devProp,
+ , deviceProp devProp
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
- soaTreeCell *dev, soaTreeCell *hst)
+ )
 {
   __NOTE__("%s\n", "start");
 

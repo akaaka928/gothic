@@ -16,14 +16,16 @@ import utils as utils
 
 
 # specify plot target
-filename = "cb17"
+# filename = "cb17"
+filename = "m31"
 init = 0
 last = 47
 # last = 0
 Ncrit = 2048 # number of particles for estimating physical quantities
 Nmin = 16 # minimum data points for visualization
 
-tag = ["total", "thick disc", "thin disc"]
+# tag = ["total", "thick disc", "thin disc"]
+tag = ["total", "disk"]
 pt = ["o", "s", "^", "D"]
 ls = ["-", ":", "-.", "--"]
 col = ["black", "red", "blue", "magenta"]

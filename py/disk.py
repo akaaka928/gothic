@@ -8,8 +8,10 @@ import matplotlib.pyplot as plt
 
 import utils as utils
 
-filename = "cb17"
-kind = 2
+# filename = "cb17"
+# kind = 2
+filename = "m31"
+kind = 1
 
 xmax, zmax = 21.0, 1.2
 

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/18 (Fri)
+ * @date 2017/08/29 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -24,7 +24,6 @@
 #include "cudalib.h"
 
 #include "../sort/peano.h"
-#include "../para/mpicfg.h"
 #include "../tree/macutil.h"
 #include "../tree/make.h"
 #include "../tree/buf_inc.h"
@@ -42,11 +41,11 @@
 
 #ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
 /**
- * @def THREASHOLD_TO_SKIP_LET_GENERATOR
+ * @def THRESHOLD_TO_SKIP_LET_GENERATOR
  *
  * @brief a parameter to discriminate between nearby and distant nodes
  */
-#define THREASHOLD_TO_SKIP_LET_GENERATOR (0.125f)
+#define THRESHOLD_TO_SKIP_LET_GENERATOR (0.125f)
 #endif//SKIP_LET_GENERATOR_FOR_NEARBY_NODE
 
 
@@ -142,7 +141,7 @@ extern "C"
 			  int  *numSend_hst, int  *numSend_dev, cudaStream_t  *stream, int  Nstream);
 
   void callGenLET
-  (const cudaStream_t stream, domainInfo *let, MPIcfg_tree mpi, const soaTreeNode tree, const soaTreeWalkBuf buf
+  (const cudaStream_t stream, domainInfo *let, const soaTreeNode tree, const soaTreeWalkBuf buf
 #ifdef  MONITOR_LETGEN_TIME
 #ifdef  USE_CUDA_EVENT
    , const cudaEvent_t iniEvent, const cudaEvent_t finEvent
