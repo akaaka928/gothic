@@ -607,11 +607,11 @@ static inline void updateDomain173,4299
 static inline void buildTreeStructure233,6261
 static inline void configDistribution291,8082
 static inline void dumpSnapshot355,9722
-static inline void dumpRestarter495,13611
-int main(567,15832
-void analyzeWalkStatistics(2537,89667
-static inline void analyzeTreeStatistics(2580,90616
-void analyzeTreeMetrics(2598,91158
+static inline void dumpRestarter497,13897
+int main(569,16118
+void analyzeWalkStatistics(2565,91759
+static inline void analyzeTreeStatistics(2608,92708
+void analyzeTreeMetrics(2626,93250
 
 src/main/showOptConfig.c,805
 #define NADD 22,1138
@@ -863,9 +863,9 @@ static const double tolerance4chisq 120,2668
 
 src/para/mpicfg.c,74
 static inline void createMPIcfg_tree(38,643
-void setNodeConfig(134,2704
+void setNodeConfig(135,2728
 
-src/para/mpicfg.h,637
+src/para/mpicfg.h,776
 #define MPICFG_H18,373
 #define GPUS_PER_PROCESS 33,553
 #define MAX_FACTOR_INCREASE 42,721
@@ -878,14 +878,18 @@ src/para/mpicfg.h,637
   MPI_Datatype iacc;70,1345
   MPI_Datatype ivel,73,1409
   MPI_Datatype ivel, time;73,1409
-  MPI_Comm comm,75,1460
-  MPI_Comm comm, cart;75,1460
-  int rank,76,1483
-  int rank, size;76,1483
-  int dim[dim77,1501
-  int dim[3], prd[prd77,1501
-  int dim[3], prd[3], pos[pos77,1501
-} MPIcfg_tree;78,1531
+  MPI_Win win_more,76,1495
+  MPI_Win win_more, win_jpos,76,1495
+  MPI_Win win_more, win_jpos, win_mass;76,1495
+  MPI_Comm comm,78,1570
+  MPI_Comm comm, cart;78,1570
+  MPI_Info info;79,1593
+  int rank,80,1610
+  int rank, size;80,1610
+  int dim[dim81,1628
+  int dim[3], prd[prd81,1628
+  int dim[3], prd[3], pos[pos81,1628
+} MPIcfg_tree;82,1658
 
 src/para/exchange.h,2579
 #define EXCHANGE_H18,388
@@ -1480,7 +1484,7 @@ typedef struct __align__(202,4165
   real *mac;mac240,4686
 } soaTreeNode;242,4718
 
-src/tree/let.h,1447
+src/tree/let.h,1462
 #define LET_H18,385
 #define EXTEND_NUM_TREE_NODE 42,777
 #undef  EXTEND_NUM_TREE_NODE46,844
@@ -1495,27 +1499,30 @@ src/tree/let.h,1447
   int *numSend_hst,numSend_hst96,1914
   int *numSend_hst, *numSend_dev;numSend_dev96,1914
   MPI_Request reqSendInfo,97,1948
-  MPI_Request reqSendInfo, reqSendMore,97,1948
-  MPI_Request reqSendInfo, reqSendMore, reqSendJpos,97,1948
-  MPI_Request reqSendInfo, reqSendMore, reqSendJpos, reqSendMass;97,1948
-  MPI_Request reqRecvInfo,98,2014
-  MPI_Request reqRecvInfo, reqRecvMore,98,2014
-  MPI_Request reqRecvInfo, reqRecvMore, reqRecvJpos,98,2014
-  MPI_Request reqRecvInfo, reqRecvMore, reqRecvJpos, reqRecvMass;98,2014
-  int headSend,99,2080
-  int headSend, headRecv,99,2080
-  int headSend, headRecv, numSend,99,2080
-  int headSend, headRecv, numSend, numRecv,99,2080
-  int headSend, headRecv, numSend, numRecv, numRecvGuess;99,2080
-  int maxSend,100,2138
-  int maxSend, maxRecv,100,2138
-  int maxSend, maxRecv, numFull,100,2138
-  int maxSend, maxRecv, numFull, numNode;100,2138
-  int overEstimateSend,101,2272
-  int overEstimateSend, overEstimateRecv;101,2272
-  int rank;102,2314
-  real amin;104,2345
-} domainInfo;106,2377
+  MPI_Request reqSendInfo, reqRecvInfo;97,1948
+  MPI_Request reqSendHead,99,2023
+  MPI_Request reqSendHead, reqRecvHead;99,2023
+  int headDisp;100,2063
+  MPI_Request reqSendMore,102,2114
+  MPI_Request reqSendMore, reqRecvMore;102,2114
+  MPI_Request reqSendJpos,103,2154
+  MPI_Request reqSendJpos, reqRecvJpos;103,2154
+  MPI_Request reqSendMass,104,2194
+  MPI_Request reqSendMass, reqRecvMass;104,2194
+  int headSend,106,2269
+  int headSend, headRecv,106,2269
+  int headSend, headRecv, numSend,106,2269
+  int headSend, headRecv, numSend, numRecv,106,2269
+  int headSend, headRecv, numSend, numRecv, numRecvGuess;106,2269
+  int maxSend,107,2327
+  int maxSend, maxRecv,107,2327
+  int maxSend, maxRecv, numFull,107,2327
+  int maxSend, maxRecv, numFull, numNode;107,2327
+  int overEstimateSend,108,2461
+  int overEstimateSend, overEstimateRecv;108,2461
+  int rank;109,2503
+  real amin;111,2534
+} domainInfo;113,2566
 
 src/tree/macutil.h,48
 #define MACUTIL_H18,392
@@ -1523,98 +1530,98 @@ src/tree/macutil.h,48
 
 src/tree/walk_dev.h,2714
 #define WALK_DEV_H18,405
-#define PARTIAL_SUM_ACCELERATION58,1301
-#define ACCURATE_ACCUMULATION71,1734
-#undef          ACCURATE_PARTIAL_SUM76,1905
-#define ADOPT_APPROXIMATED_ENCLOSING_BALL116,2881
-#define ADOPT_ENCLOSING_BALL121,2984
-#       undef   ADOPT_APPROXIMATED_ENCLOSING_BALL125,3108
-#       undef   COMPARE_ENCLOSING_BALLS129,3383
-#        define  ADOPT_ENCLOSING_BALL133,3720
-#define USE_WARP_SHUFFLE_FUNC139,4082
-#undef          USE_WARP_SHUFFLE_FUNC143,4197
-#define NWARP 156,4519
-#define NWARP 158,4558
-#define NWARP 164,4679
-#undef  NWARP170,4762
-#define NWARP 171,4776
-#define NTHREADS 182,4941
-#define NTHREADS 185,5006
-#define NTHREADS 187,5050
-#undef  NTHREADS195,5389
-#define NTHREADS 196,5406
-#undef  DIV_NTHREADS200,5475
-#define DIV_NTHREADS(203,5542
-#define DIV_NTHREADS(206,5628
-#define DIV_NTHREADS(209,5714
-#define DIV_NTHREADS(212,5800
-#define TSUB 223,6036
-#undef  TSUB229,6187
-#define TSUB 230,6200
-#undef  TSUB235,6334
-#define TSUB 236,6347
-#undef  TSUB240,6464
-#define TSUB 241,6477
-#undef  DIV_TSUB245,6543
-#define DIV_TSUB(248,6596
-#define DIV_TSUB(251,6665
-#define DIV_TSUB(254,6734
-#define DIV_TSUB(257,6803
-#define DIV_TSUB(260,6872
-#define DIV_TSUB(263,6941
-#undef  DIV_NWARP267,7005
-#define DIV_NWARP(270,7061
-#define DIV_NWARP(273,7133
-#define DIV_NWARP(276,7205
-#define DIV_NWARP(279,7277
-#define DIV_NWARP(282,7349
-#define DIV_NWARP(285,7421
-#define NGROUPS 288,7469
-#define NLOOP 297,7622
-#define NLOOP 299,7661
-#define NBLOCKS_PER_SM 311,7862
-#define NSM4TRAVERSAL 320,8103
-#define NSM4TRAVERSAL 323,8249
-#undef  NLOOP326,8354
-#define NLOOP 327,8368
-#define NQUEUE 330,8508
-#define NQUEUE 332,8602
-#define NSM4TRAVERSAL 337,8812
-#define NSM4TRAVERSAL 340,8926
-#undef  NLOOP343,9049
-#define NLOOP 344,9063
-#define NQUEUE 347,9211
-#define NQUEUE 349,9322
-#define NSM4TRAVERSAL 358,9655
-#define NSM4TRAVERSAL 361,9801
-#undef  NLOOP364,9906
-#define NLOOP 365,9920
-#define NQUEUE 368,10060
-#define NQUEUE 370,10154
-#define NSM4TRAVERSAL 375,10364
-#define NSM4TRAVERSAL 378,10478
-#undef  NLOOP381,10601
-#define NLOOP 382,10615
-#define NQUEUE 385,10789
-#define NQUEUE 387,10900
-#define NSTOCK 400,11204
-#define IDX_SHIFT_BITS 411,11441
-#define IDX_SHIFT_MASK 419,11618
-typedef struct __align__(423,11668
-  cudaStream_t *stream;stream434,11832
-  int idx,435,11856
-  int idx, num;435,11856
-} kernelStream;436,11872
-#define  NDIM_SEB 441,11929
-#define NDIM2_SEB 442,11951
-#undef   NDIM_SEB444,12016
-#undef  NDIM2_SEB445,12034
-typedef struct __align__(453,12178
-typedef union __align__(464,12335
-typedef union __align__(479,12588
-  uint i;499,12912
-  real r;500,12922
-} uint_real;501,12932
+#define PARTIAL_SUM_ACCELERATION58,1333
+#define ACCURATE_ACCUMULATION71,1766
+#undef          ACCURATE_PARTIAL_SUM76,1937
+#define ADOPT_APPROXIMATED_ENCLOSING_BALL116,2913
+#define ADOPT_ENCLOSING_BALL121,3016
+#       undef   ADOPT_APPROXIMATED_ENCLOSING_BALL125,3140
+#       undef   COMPARE_ENCLOSING_BALLS129,3415
+#        define  ADOPT_ENCLOSING_BALL133,3752
+#define USE_WARP_SHUFFLE_FUNC139,4114
+#undef          USE_WARP_SHUFFLE_FUNC143,4229
+#define NWARP 156,4551
+#define NWARP 158,4590
+#define NWARP 164,4711
+#undef  NWARP170,4794
+#define NWARP 171,4808
+#define NTHREADS 182,4973
+#define NTHREADS 185,5038
+#define NTHREADS 187,5082
+#undef  NTHREADS195,5421
+#define NTHREADS 196,5438
+#undef  DIV_NTHREADS200,5507
+#define DIV_NTHREADS(203,5574
+#define DIV_NTHREADS(206,5660
+#define DIV_NTHREADS(209,5746
+#define DIV_NTHREADS(212,5832
+#define TSUB 223,6068
+#undef  TSUB229,6219
+#define TSUB 230,6232
+#undef  TSUB235,6366
+#define TSUB 236,6379
+#undef  TSUB240,6496
+#define TSUB 241,6509
+#undef  DIV_TSUB245,6575
+#define DIV_TSUB(248,6628
+#define DIV_TSUB(251,6697
+#define DIV_TSUB(254,6766
+#define DIV_TSUB(257,6835
+#define DIV_TSUB(260,6904
+#define DIV_TSUB(263,6973
+#undef  DIV_NWARP267,7037
+#define DIV_NWARP(270,7093
+#define DIV_NWARP(273,7165
+#define DIV_NWARP(276,7237
+#define DIV_NWARP(279,7309
+#define DIV_NWARP(282,7381
+#define DIV_NWARP(285,7453
+#define NGROUPS 288,7501
+#define NLOOP 297,7654
+#define NLOOP 299,7693
+#define NBLOCKS_PER_SM 311,7894
+#define NSM4TRAVERSAL 320,8135
+#define NSM4TRAVERSAL 323,8281
+#undef  NLOOP326,8386
+#define NLOOP 327,8400
+#define NQUEUE 330,8540
+#define NQUEUE 332,8634
+#define NSM4TRAVERSAL 337,8844
+#define NSM4TRAVERSAL 340,8958
+#undef  NLOOP343,9081
+#define NLOOP 344,9095
+#define NQUEUE 347,9243
+#define NQUEUE 349,9354
+#define NSM4TRAVERSAL 358,9687
+#define NSM4TRAVERSAL 361,9833
+#undef  NLOOP364,9938
+#define NLOOP 365,9952
+#define NQUEUE 368,10092
+#define NQUEUE 370,10186
+#define NSM4TRAVERSAL 375,10396
+#define NSM4TRAVERSAL 378,10510
+#undef  NLOOP381,10633
+#define NLOOP 382,10647
+#define NQUEUE 385,10821
+#define NQUEUE 387,10932
+#define NSTOCK 400,11236
+#define IDX_SHIFT_BITS 411,11473
+#define IDX_SHIFT_MASK 419,11650
+typedef struct __align__(423,11700
+  cudaStream_t *stream;stream434,11864
+  int idx,435,11888
+  int idx, num;435,11888
+} kernelStream;436,11904
+#define  NDIM_SEB 441,11961
+#define NDIM2_SEB 442,11983
+#undef   NDIM_SEB444,12048
+#undef  NDIM2_SEB445,12066
+typedef struct __align__(453,12210
+typedef union __align__(464,12367
+typedef union __align__(479,12620
+  uint i;499,12944
+  real r;500,12954
+} uint_real;501,12964
 
 src/tree/neighbor_dev.h,209
 #define NEIGHBOR_DEV_H18,415
@@ -1755,26 +1762,27 @@ src/tree/shrink_dev.h,213
 #define NTHREADS_SHRINK 51,1051
 #define NEIGHBOR_LENGTH_SHRINK_FACTOR 63,1306
 
-src/tree/let_dev.h,712
+src/tree/let_dev.h,760
 #define LET_DEV_H18,393
-#define THREASHOLD_TO_SKIP_LET_GENERATOR 49,994
-#define NTHREADS_MAKE_LET 62,1323
-#undef  NTHREADS_MAKE_LET67,1509
-#define NTHREADS_MAKE_LET 68,1535
-#undef   NTHREADS_MAKE_LET73,1728
-#define  NTHREADS_MAKE_LET 74,1755
-#define USE_WARP_SHUFFLE_FUNC_MAKE_LET78,1842
-#undef          USE_WARP_SHUFFLE_FUNC_MAKE_LET80,1946
-#undef  DIV_NTHREADS_MAKE_LET85,2090
-#define DIV_NTHREADS_MAKE_LET(88,2184
-#define DIV_NTHREADS_MAKE_LET(91,2297
-#define DIV_NTHREADS_MAKE_LET(94,2410
-#define DIV_NTHREADS_MAKE_LET(97,2523
-#define DIV_NTHREADS_MAKE_LET(100,2636
-#define DIV_NTHREADS_MAKE_LET(103,2749
-#define NQUEUE_LET 116,3191
-#define NQUEUE_LET 119,3307
-#define NQUEUE_LET 121,3402
+#define SKIP_LET_GENERATOR_FOR_NEARBY_NODE39,749
+#define THRESHOLD_TO_SKIP_LET_GENERATOR 48,959
+#define NTHREADS_MAKE_LET 61,1287
+#undef  NTHREADS_MAKE_LET66,1473
+#define NTHREADS_MAKE_LET 67,1499
+#undef   NTHREADS_MAKE_LET72,1692
+#define  NTHREADS_MAKE_LET 73,1719
+#define USE_WARP_SHUFFLE_FUNC_MAKE_LET77,1806
+#undef          USE_WARP_SHUFFLE_FUNC_MAKE_LET79,1910
+#undef  DIV_NTHREADS_MAKE_LET84,2054
+#define DIV_NTHREADS_MAKE_LET(87,2148
+#define DIV_NTHREADS_MAKE_LET(90,2261
+#define DIV_NTHREADS_MAKE_LET(93,2374
+#define DIV_NTHREADS_MAKE_LET(96,2487
+#define DIV_NTHREADS_MAKE_LET(99,2600
+#define DIV_NTHREADS_MAKE_LET(102,2713
+#define NQUEUE_LET 115,3155
+#define NQUEUE_LET 118,3271
+#define NQUEUE_LET 120,3366
 
 src/tree/buf_inc.h,326
 #define BUF_INC_H18,387

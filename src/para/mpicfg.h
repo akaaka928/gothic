@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/03/01 (Wed)
+ * @date 2017/08/30 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -72,7 +72,11 @@ typedef struct
 #ifdef  BLOCK_TIME_STEP
   MPI_Datatype ivel, time;
 #endif//BLOCK_TIME_STEP
+#ifdef  MPI_ONE_SIDED_FOR_LET_EXCG
+  MPI_Win win_more, win_jpos, win_mass;
+#endif//MPI_ONE_SIDED_FOR_LET_EXCG
   MPI_Comm comm, cart;
+  MPI_Info info;
   int rank, size;
   int dim[3], prd[3], pos[3];
 } MPIcfg_tree;

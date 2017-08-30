@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/29 (Tue)
+ * @date 2017/08/30 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -652,6 +652,9 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
 extern "C"
 void callGenLET
   (const cudaStream_t stream, domainInfo *let, const soaTreeNode tree, const soaTreeWalkBuf buf
+#ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
+   , const position src
+#endif//SKIP_LET_GENERATOR_FOR_NEARBY_NODE
 #ifdef  MONITOR_LETGEN_TIME
 #ifdef  USE_CUDA_EVENT
    , const cudaEvent_t iniEvent, const cudaEvent_t finEvent
@@ -668,25 +671,54 @@ void callGenLET
   checkCudaErrors(cudaEventRecord(iniEvent, 0));
 #endif//defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
 
-  makeLET_kernel<<<1, NTHREADS_MAKE_LET, SMEM_SIZE, stream>>>
-    ((*let).icom,
+
+#ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
+  /* src = iparticle.encBall_hst; */
+  const position dst = (*let).icom;
+
+  const real dx = dst.x - src.x;
+  const real dy = dst.y - src.y;
+  const real dz = dst.z - src.z;
+  const real r2 = FLT_MIN + dx * dx + dy * dy + dz * dz;
+  const real rinv = RSQRT(r2);
+  const real rr = r2 * rinv;
+
+  const real rs = src.m * RSQRT(src.m);
+  const real rd = dst.m * RSQRT(dst.m);
+  const real rsub = src.m - dst.m;
+
+  const real loc = FOUR * src.m * rs;/**< volume of local enclosing sphere * (3 / M_PI) */
+  const real vol = (EIGHT * (rs * src.m + rd * dst.m) + r2 * rr - SIX * (src.m + dst.m) * rr - THREE * rsub * rsub * rinv) * QUARTER;/**< volume of overlapping region * (3 / M_PI) */
+
+  if( vol < (THRESHOLD_TO_SKIP_LET_GENERATOR * loc) )
+#endif//SKIP_LET_GENERATOR_FOR_NEARBY_NODE
+    makeLET_kernel<<<1, NTHREADS_MAKE_LET, SMEM_SIZE, stream>>>
+      ((*let).icom,
 #ifdef  GADGET_MAC
-     (*let).amin,
+       (*let).amin,
 #endif//GADGET_MAC
-     (*let).numSend_dev,
-     tree.more, tree.jpos, tree.mj,
-     &(tree.more[(*let).headSend]), &(tree.jpos[(*let).headSend]), &(tree.mj[(*let).headSend]),
+       (*let).numSend_dev,
+       tree.more, tree.jpos, tree.mj,
+       &(tree.more[(*let).headSend]), &(tree.jpos[(*let).headSend]), &(tree.mj[(*let).headSend]),
 #ifndef USE_SMID_TO_GET_BUFID
 #ifndef TRY_MODE_ABOUT_BUFFER
-     buf.active,
+       buf.active,
 #endif//TRY_MODE_ABOUT_BUFFER
-     buf.freeNum,
+       buf.freeNum,
 #endif//USE_SMID_TO_GET_BUFID
-     buf.freeLst, buf.buffer, NGROUPS * buf.bufSize, buf.fail
+       buf.freeLst, buf.buffer, NGROUPS * buf.bufSize, buf.fail
 #   if  !defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
-     , cycles
+       , cycles
 #endif//!defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
-     );
+       );
+#ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
+  else{
+    /* send full tree instead of LET */
+    (*let).headSend = 0;
+    checkCudaErrors(cudaMemcpyAsync((*let).numSend_dev, &((*let).numFull), sizeof(int), cudaMemcpyHostToDevice, stream));
+  }/* else{ */
+#endif//SKIP_LET_GENERATOR_FOR_NEARBY_NODE
+
 
 #   if  defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
   checkCudaErrors(cudaEventRecord(finEvent, 0));

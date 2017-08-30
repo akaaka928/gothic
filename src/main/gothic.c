@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/29 (Tue)
+ * @date 2017/08/30 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -880,6 +880,7 @@ int main(int argc, char **argv)
 		      );
 
   /** declarations of arrays to contain information of tree-nodes */
+  soaTreeNode soaNode_dev;
   uint    *more_dev;
   jparticle *pj_dev;
   jmass     *mj_dev;
@@ -890,6 +891,7 @@ int main(int argc, char **argv)
   real *mr2_dev;
 #endif//WS93_MAC
 #   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+  soaTreeNode soaNode_hst;
   uint *more;
   jparticle *pj;
   jmass     *mj;
@@ -906,14 +908,13 @@ int main(int argc, char **argv)
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
   int  *more0Buf, *more1Buf, *makeFail;
   real *rjmaxBuf;
-  soaTreeNode soaNode_dev, soaNode_hst;
   soaMakeTreeBuf soaMakeBuf;
-  const muse alloc_node_dev = allocTreeNode_dev(&more_dev, &pj_dev, &mj_dev, &bmax_dev, &node2cell_dev, &gsync0, &gsync1, devProp,
+  const muse alloc_node_dev = allocTreeNode_dev(&soaNode_dev, &more_dev, &pj_dev, &mj_dev, &bmax_dev, &node2cell_dev, &gsync0, &gsync1, devProp,
 #ifdef  WS93_MAC
 						&mr2_dev,
 #endif//WS93_MAC
 #   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
-						&more, &pj, &mj,
+						&soaNode_hst, &more, &pj, &mj,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
 						&gmem_make_tree_dev, &gsync0_make_tree_dev, &gsync1_make_tree_dev, &gsync2_make_tree_dev, &gsync3_make_tree_dev,
 						&gmem_link_tree_dev, &gsync0_link_tree_dev, &gsync1_link_tree_dev,
@@ -923,7 +924,7 @@ int main(int argc, char **argv)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 						&gmem_external_dev, &gsync0_external_dev, &gsync1_external_dev, &diameter_dev, &diameter_hst, &location, CAST_R2F(eps), CAST_R2F(eta),
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-						&more0Buf, &more1Buf, &rjmaxBuf, &makeFail, &soaNode_dev, &soaNode_hst, &soaMakeBuf);
+						&more0Buf, &more1Buf, &rjmaxBuf, &makeFail, &soaMakeBuf);
   soaNode_dev.jtag = jtag_dev;
 
 
@@ -979,6 +980,15 @@ int main(int argc, char **argv)
   void *appEncBall_dev;
   const muse alloc_appEnc = allocApproxEnclosingBall_dev(&appEncBall_dev, devProp);
 #endif//defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
+
+#ifdef  MPI_ONE_SIDED_FOR_LET_EXCG
+  /** create MPI Window objects for one-sided communication */
+  const size_t win_size = (size_t)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE);
+  chkMPIerr(MPI_Win_create(more_dev, sizeof(uint)      * win_size, sizeof(uint)	    , letcfg.info, letcfg.comm, &(letcfg.win_more)));
+  chkMPIerr(MPI_Win_create(  pj_dev, sizeof(jparticle) * win_size, sizeof(jparticle), letcfg.info, letcfg.comm, &(letcfg.win_jpos)));
+  chkMPIerr(MPI_Win_create(  mj_dev, sizeof(jmass)     * win_size, sizeof(jmass)    , letcfg.info, letcfg.comm, &(letcfg.win_mass)));
+#endif//MPI_ONE_SIDED_FOR_LET_EXCG
+
 #endif//SERIALIZED_EXECUTION
 
 
@@ -2300,6 +2310,13 @@ int main(int argc, char **argv)
 #endif//EXEC_BENCHMARK
      );
 #endif//!defined(EXEC_BENCHMARK) && !defined(COMPARE_WITH_DIRECT_SOLVER)
+
+
+#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_ONE_SIDED_FOR_LET_EXCG)
+  chkMPIerr(MPI_Win_free(&(letcfg.win_more)));
+  chkMPIerr(MPI_Win_free(&(letcfg.win_jpos)));
+  chkMPIerr(MPI_Win_free(&(letcfg.win_mass)));
+#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_ONE_SIDED_FOR_LET_EXCG)
 
 
   /** memory deallocation */

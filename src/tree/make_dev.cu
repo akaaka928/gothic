@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/29 (Tue)
+ * @date 2017/08/30 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1066,15 +1066,12 @@ void makeTreeStructure_dev
  */
 extern "C"
 muse allocTreeNode_dev
-(uint **more_dev, jparticle **pj_dev, jmass **mj_dev, real **bmax_dev, int **n2c_dev, int **gsync0, int **gsync1, deviceProp devProp,
+(soaTreeNode *dev, uint **more_dev, jparticle **pj_dev, jmass **mj_dev, real **bmax_dev, int **n2c_dev, int **gsync0, int **gsync1, deviceProp devProp,
 #ifdef  WS93_MAC
  real **mr2_dev,
 #endif//WS93_MAC
 #   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
- uint **more_hst,
-#endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
-#   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
- jparticle **pj_hst, jmass **mj_hst,
+ soaTreeNode *hst, uint **more_hst, jparticle **pj_hst, jmass **mj_hst,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
  int **gmem_make_tree, int **gsync0_make_tree, int **gsync1_make_tree, int **gsync2_make_tree, int **gsync3_make_tree,
  int **gmem_link_tree, int **gsync0_link_tree, int **gsync1_link_tree,
@@ -1084,7 +1081,7 @@ muse allocTreeNode_dev
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
  int **gmem_external, int **gsync0_external, int **gsync1_external, float **diameter_dev, float **diameter_hst, domainLocation *location, const float eps, const float eta,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
- int **more0Buf, int **more1Buf, real **rjmaxBuf, int **fail_dev, soaTreeNode *dev, soaTreeNode *hst, soaMakeTreeBuf *buf)
+ int **more0Buf, int **more1Buf, real **rjmaxBuf, int **fail_dev, soaMakeTreeBuf *buf)
 {
   __NOTE__("%s\n", "start");
 
@@ -1099,8 +1096,6 @@ muse allocTreeNode_dev
 
 #   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
   mycudaMallocHost((void **) more_hst, num * sizeof(uint     ));  alloc.host += num * sizeof(uint     );  hst->more      = * more_hst;
-#endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
-#   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
   mycudaMallocHost((void **)   pj_hst, num * sizeof(jparticle));  alloc.host += num * sizeof(jparticle);  hst->jpos      = *   pj_hst;
   mycudaMallocHost((void **)   mj_hst, num * sizeof(jmass    ));  alloc.host += num * sizeof(jmass    );  hst->mj        = *   mj_hst;
 #endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
@@ -1214,10 +1209,7 @@ void  freeTreeNode_dev
  real  *mr2_dev,
 #endif//WS93_MAC
 #   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
- uint  *more_hst,
-#endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
-#   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
- jparticle  *pj_hst, jmass  *mj_hst,
+ uint  *more_hst, jparticle  *pj_hst, jmass  *mj_hst,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
  int  *gmem_make_tree, int  *gsync0_make_tree, int  *gsync1_make_tree, int  *gsync2_make_tree, int  *gsync3_make_tree,
  int  *gmem_link_tree, int  *gsync0_link_tree, int  *gsync1_link_tree,
@@ -1239,8 +1231,6 @@ void  freeTreeNode_dev
 
 #   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
   mycudaFreeHost( more_hst);
-#endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
-#   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
   mycudaFreeHost(   pj_hst);
   mycudaFreeHost(   mj_hst);
 #endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)

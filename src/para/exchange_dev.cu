@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/07/18 (Tue)
+ * @date 2017/08/30 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -295,7 +295,7 @@ static inline void sort_xpos(const int num, samplePos * RESTRICT src, samplePos 
  *
  * @brief Sort position array by y on GPU.
  */
-static inline void sort_ypos_dev(const int num, samplePos src, samplePos dst)
+static inline void sort_ypos_dev(const int num, samplePos src)
 {
   __NOTE__("%s\n", "start");
 
@@ -318,7 +318,7 @@ static inline void sort_ypos_dev(const int num, samplePos src, samplePos dst)
  *
  * @brief Sort position array (y) on CPU.
  */
-static inline void sort_ypos_hst(const int num, samplePos src, samplePos dst)
+static inline void sort_ypos_hst(const int num, samplePos src)
 {
   __NOTE__("%s\n", "start");
 
@@ -333,12 +333,12 @@ static inline void sort_ypos_hst(const int num, samplePos src, samplePos dst)
  *
  * @brief Sort position array by y.
  */
-static inline void sort_ypos(const int num, samplePos * RESTRICT src, samplePos * RESTRICT dst)
+static inline void sort_ypos(const int num, samplePos * RESTRICT src)
 {
   __NOTE__("%s\n", "start");
 
-  if( num >= NCRIT_YPOS_SORT )    sort_ypos_dev(num, *src, *dst);
-  else                            sort_ypos_hst(num, *src, *dst);
+  if( num >= NCRIT_YPOS_SORT )    sort_ypos_dev(num, *src);
+  else                            sort_ypos_hst(num, *src);
 
   __NOTE__("%s\n", "end");
 }
@@ -349,7 +349,7 @@ static inline void sort_ypos(const int num, samplePos * RESTRICT src, samplePos 
  *
  * @brief Sort position array by z on GPU.
  */
-static inline void sort_zpos_dev(const int num, samplePos src, samplePos dst)
+static inline void sort_zpos_dev(const int num, samplePos src)
 {
   __NOTE__("%s\n", "start");
 
@@ -368,7 +368,7 @@ static inline void sort_zpos_dev(const int num, samplePos src, samplePos dst)
  *
  * @brief Sort position array (z) on CPU.
  */
-static inline void sort_zpos_hst(const int num, samplePos src, samplePos dst)
+static inline void sort_zpos_hst(const int num, samplePos src)
 {
   __NOTE__("%s\n", "start");
 
@@ -383,12 +383,12 @@ static inline void sort_zpos_hst(const int num, samplePos src, samplePos dst)
  *
  * @brief Sort position array by z.
  */
-static inline void sort_zpos(const int num, samplePos * RESTRICT src, samplePos * RESTRICT dst)
+static inline void sort_zpos(const int num, samplePos * RESTRICT src)
 {
   __NOTE__("%s\n", "start");
 
-  if( num >= NCRIT_ZPOS_SORT )    sort_zpos_dev(num, *src, *dst);
-  else                            sort_zpos_hst(num, *src, *dst);
+  if( num >= NCRIT_ZPOS_SORT )    sort_zpos_dev(num, *src);
+  else                            sort_zpos_hst(num, *src);
 
   __NOTE__("%s\n", "end");
 }
@@ -783,8 +783,8 @@ void exchangeParticles_dev
 
   /** sort sample particles in each direction */
   if(             mpi.dim[0] != 1 )     sort_xpos(sendNum, &loc, &ful);
-  else{	   if(	  mpi.dim[1] != 1 )	sort_ypos(sendNum, &loc, &ful);
-    else      if( mpi.dim[2] != 1 )	sort_zpos(sendNum, &loc, &ful);
+  else{	   if(	  mpi.dim[1] != 1 )	sort_ypos(sendNum, &loc);
+    else      if( mpi.dim[2] != 1 )	sort_zpos(sendNum, &loc);
   }
   __NOTE__("rank %d\n", mpi.rank);
 
@@ -870,7 +870,7 @@ void exchangeParticles_dev
       sendNum = recvNum;
       /** the root process determine the partition */
       if( rep[1].rank == 0 ){
-	sort_ypos(recvNum, &ful, &loc);
+	sort_ypos(recvNum, &ful);
 	sample.ymin[0] = -0.5f * FLT_MAX;
 	for(int ii = 0; ii < rep[1].size; ii++){
 	  int Nini = (sendNum * (    ii)) / rep[1].size;
@@ -919,7 +919,7 @@ void exchangeParticles_dev
       sendNum = recvNum;
       /** the root process determine the partition */
       if( rep[2].rank == 0 ){
-	sort_zpos(recvNum, &ful, &loc);
+	sort_zpos(recvNum, &ful);
 	sample.zmin[0] = -0.5f * FLT_MAX;
 	for(int ii = 0; ii < rep[2].size; ii++){
 	  int Nini = (sendNum * (    ii)) / rep[2].size;

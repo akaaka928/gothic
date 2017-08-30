@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/29 (Tue)
+ * @date 2017/08/30 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -36,7 +36,7 @@
  *
  * @brief disable LET generator (only) for nearby node
  */
-/* #define SKIP_LET_GENERATOR_FOR_NEARBY_NODE */
+#define SKIP_LET_GENERATOR_FOR_NEARBY_NODE
 
 
 #ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
@@ -142,6 +142,9 @@ extern "C"
 
   void callGenLET
   (const cudaStream_t stream, domainInfo *let, const soaTreeNode tree, const soaTreeWalkBuf buf
+#ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
+   , const position src
+#endif//SKIP_LET_GENERATOR_FOR_NEARBY_NODE
 #ifdef  MONITOR_LETGEN_TIME
 #ifdef  USE_CUDA_EVENT
    , const cudaEvent_t iniEvent, const cudaEvent_t finEvent

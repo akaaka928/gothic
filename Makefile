@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2017/08/29 (Tue) 12:51:14
+# last updated on 2017/08/29 (Tue) 17:13:15
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -19,7 +19,7 @@ DEBUG	:= -DNDEBUG
 # PROFILE	:= -pg
 #################################################################################################
 # Execution options
-FORCE_SINGLE_GPU_RUN	:= 1
+FORCE_SINGLE_GPU_RUN	:= 0
 ENCLOSING_BALL_FOR_LET	:= 1
 CARE_EXTERNAL_PARTICLES	:= 0
 ACC_ACCUMULATION_IN_DP	:= 0
@@ -27,6 +27,7 @@ KAHAN_SUM_CORRECTION	:= 0
 MONITOR_ENERGY_ERROR	:= 1
 MONITOR_LETGEN_TIME	:= 1
 MEASURE_BY_CUDA_EVENT	:= 0
+USE_MPI_PUT_FOR_LET	:= 1
 COMMUNICATION_VIA_HOST	:= 1
 DIVERT_GEOMETRIC_CENTER	:= 1
 ADOPT_BLOCK_TIME_STEP	:= 1
@@ -160,6 +161,11 @@ EVALUATE_FORCE_ERROR	:= 0
 ifeq ($(MONITOR_LETGEN_TIME), 1)
 CCARG	+= -DMONITOR_LETGEN_TIME
 CUARG	+= -DMONITOR_LETGEN_TIME
+endif
+ifeq ($(USE_MPI_PUT_FOR_LET), 1)
+CCARG	+= -DMPI_ONE_SIDED_FOR_LET_EXCG
+CUARG	+= -DMPI_ONE_SIDED_FOR_LET_EXCG
+COMMUNICATION_VIA_HOST	:= 0
 endif
 ifeq ($(COMMUNICATION_VIA_HOST), 1)
 CCARG	+= -DLET_COMMUNICATION_VIA_HOST

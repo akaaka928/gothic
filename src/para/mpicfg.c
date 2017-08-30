@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/28 (Tue)
+ * @date 2017/08/30 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -43,6 +43,7 @@ static inline void createMPIcfg_tree(MPIcfg_tree *let, MPIinfo mpi)
   let->comm = mpi.comm;
   let->size = mpi.size;
   let->rank = mpi.rank;
+  let->info = mpi.info;
 
 #if 1
   int num;
