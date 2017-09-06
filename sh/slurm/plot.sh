@@ -19,7 +19,8 @@ PLTCDF=bin/plot.cdf
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=20
+    PROBLEM=2
+    # PROBLEM=20
     # PROBLEM=28
     # PROBLEM=80
     # PROBLEM=81

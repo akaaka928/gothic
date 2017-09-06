@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/28 (Mon)
+ * @date 2017/09/06 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -23,7 +23,7 @@
  *
  * @brief activates octree based traverse while finding the farthest particle from the specified point
  */
-#define OCTREE_BASED_SEARCH
+/* #define OCTREE_BASED_SEARCH */
 
 
 /**
@@ -31,7 +31,7 @@
  *
  * @brief adopt efficient bounding sphere instead of geometric approximation for pseudo i-particle in LET generation
  */
-#define ADOPT_EBS_FOR_LET
+/* #define ADOPT_EBS_FOR_LET */
 
 
 /**
@@ -44,6 +44,20 @@
 #ifndef NTHREADS_EB
 #define NTHREADS_EB (256)
 #endif//NTHREADS_EB
+
+
+#ifndef OCTREE_BASED_SEARCH
+/**
+ * @struct soaEncBall
+ *
+ * @brief structure for enclosing ball
+ */
+typedef struct
+{
+  void *gmem;
+  int *gsync0, *gsync1;
+} soaEncBall;
+#endif//OCTREE_BASED_SEARCH
 
 
 #define USE_WARP_SHUFFLE_FUNC_EB
@@ -82,8 +96,8 @@ extern "C"
 {
 #endif//__CUDACC__
 #ifndef OCTREE_BASED_SEARCH
-  muse allocApproxEnclosingBall_dev(void **dev, const deviceProp devProp);
-  void  freeApproxEnclosingBall_dev(void  *dev);
+  muse allocApproxEnclosingBall_dev(void **dev, int **gsync0, int **gsync1, soaEncBall *soa, const deviceProp devProp);
+  void  freeApproxEnclosingBall_dev(void  *dev, int  *gsync0, int  *gsync1);
 #endif//OCTREE_BASED_SEARCH
 
   void getApproxEnclosingBall_dev
@@ -91,7 +105,7 @@ extern "C"
 #ifdef  OCTREE_BASED_SEARCH
    , const soaTreeCell cell, const soaTreeNode node, const soaMakeTreeBuf buf
 #else///OCTREE_BASED_SEARCH
-   , void *gmem, const soaPHsort soa, const deviceProp devProp
+   , const soaEncBall soaEB, const soaPHsort soaPH, const deviceProp devProp
 #endif//OCTREE_BASED_SEARCH
    , const cudaStream_t stream
 #ifdef  EXEC_BENCHMARK

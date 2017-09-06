@@ -1,5 +1,5 @@
 
-src/file/io.c,1382
+src/file/io.c,1418
 #define MAXIMUM_CHUNK_SIZE 43,937
 #define MAXIMUM_CHUNK_SIZE_4BIT 44,988
 #define MAXIMUM_CHUNK_SIZE_8BIT 45,1039
@@ -33,14 +33,15 @@ void writeTipsyFile(2022,90229
     float vel[vel2056,91082
     float eps;2057,91100
     int idx;2058,91115
-void  readSnapshot(2099,92449
-void writeSnapshot(2243,97923
-void writeSnapshotParallel(2578,113758
-void writeSnapshotMultiGroups(2985,133190
-void  readApproxAccel(3244,145269
-void writeApproxAccel(3278,146443
-void dumpBenchmark(3313,147560
-void dumpStatistics(3642,163841
+void writeGalactICSFile(2097,92317
+void  readSnapshot(2135,93513
+void writeSnapshot(2279,98987
+void writeSnapshotParallel(2614,114822
+void writeSnapshotMultiGroups(3021,134254
+void  readApproxAccel(3280,146333
+void writeApproxAccel(3314,147507
+void dumpBenchmark(3349,148624
+void dumpStatistics(3678,164905
 
 src/file/io.h,898
 #define IO_H18,387
@@ -144,17 +145,17 @@ static inline void pickRetrogradingParticles(199,6024
 void retrograder(217,6675
 void shiftCenter(260,7966
 double distributeSpheroidParticles(468,14821
-int main(646,20407
-static inline void findIdx_rad(1321,49288
-void outputFundamentalInformation1358,50652
-void outputRadialProfiles1718,74475
-void outputDistributionFunction(2020,88869
-static inline void writeVals_at_givenRad2169,94273
-void outputRepresentativeQuantities2285,98480
-static inline void findIdx_enc(2462,107184
-void evaluateObservables(2497,108331
-static void evaluateDiskProperties2585,111639
-void writeDiskData(2685,116979
+int main(650,20457
+static inline void findIdx_rad(1339,49865
+void outputFundamentalInformation1376,51229
+void outputRadialProfiles1736,75052
+void outputDistributionFunction(2042,89496
+static inline void writeVals_at_givenRad2191,94900
+void outputRepresentativeQuantities2309,99155
+static inline void findIdx_enc(2485,107858
+void evaluateObservables(2520,109005
+static void evaluateDiskProperties2608,112313
+void writeDiskData(2708,117653
 
 src/init/spline.c,475
 static inline int bisec(39,763
@@ -609,9 +610,9 @@ static inline void configDistribution291,8082
 static inline void dumpSnapshot355,9722
 static inline void dumpRestarter497,13897
 int main(569,16118
-void analyzeWalkStatistics(2565,91759
-static inline void analyzeTreeStatistics(2608,92708
-void analyzeTreeMetrics(2626,93250
+void analyzeWalkStatistics(2576,92389
+static inline void analyzeTreeStatistics(2619,93338
+void analyzeTreeMetrics(2637,93880
 
 src/main/showOptConfig.c,805
 #define NADD 22,1138

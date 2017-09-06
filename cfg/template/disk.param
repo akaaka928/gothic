@@ -1,0 +1,7 @@
+<mass of the component>
+<scale radius of the component>
+<scale height of the component>
+<radial velocity dispersion at center> <scaling parameter to set azimuthal velocity dispersion>
+<retrograding fraction>
+<whether set cutoff (1) or not (0)>
+<cut off radius> <width of the cut off>

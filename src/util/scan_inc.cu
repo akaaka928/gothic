@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/16 (Wed)
+ * @date 2017/09/05 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -382,7 +382,7 @@ __device__ __forceinline__ Type TOTAL_SUM_BLCK(Type val, volatile Type * __restr
 #endif//(NTHREADS_SCAN_INC >> 5) >=  4
 #endif//(NTHREADS_SCAN_INC >> 5) >=  2
     if( tidx == 0 )
-      smem[tidx] = val;
+      smem[0] = val;
 #else///USE_WARP_SHUFFLE_FUNC_SCAN_INC
     smem[tidx] = val;
 #   if  (NTHREADS_SCAN_INC >> 5) >=  2

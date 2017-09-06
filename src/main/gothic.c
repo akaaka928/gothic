@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/30 (Wed)
+ * @date 2017/09/05 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -977,16 +977,24 @@ int main(int argc, char **argv)
 						   &numSend_hst, &numSend_dev, &stream_let, &Nstream_let, devProp, letcfg);
 
 #   if  defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
+  soaEncBall soaEB;
   void *appEncBall_dev;
-  const muse alloc_appEnc = allocApproxEnclosingBall_dev(&appEncBall_dev, devProp);
+  int *gsync0_EB, *gsync1_EB;
+  const muse alloc_appEnc = allocApproxEnclosingBall_dev(&appEncBall_dev, &gsync0_EB, &gsync1_EB, &soaEB, devProp);
 #endif//defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
 
 #ifdef  MPI_ONE_SIDED_FOR_LET_EXCG
   /** create MPI Window objects for one-sided communication */
   const size_t win_size = (size_t)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE);
-  chkMPIerr(MPI_Win_create(more_dev, sizeof(uint)      * win_size, sizeof(uint)	    , letcfg.info, letcfg.comm, &(letcfg.win_more)));
-  chkMPIerr(MPI_Win_create(  pj_dev, sizeof(jparticle) * win_size, sizeof(jparticle), letcfg.info, letcfg.comm, &(letcfg.win_jpos)));
-  chkMPIerr(MPI_Win_create(  mj_dev, sizeof(jmass)     * win_size, sizeof(jmass)    , letcfg.info, letcfg.comm, &(letcfg.win_mass)));
+#ifndef LET_COMMUNICATION_VIA_HOST
+  chkMPIerr(MPI_Win_create(soaNode_dev.more, sizeof(uint)      * win_size, sizeof(uint)	    , letcfg.info, letcfg.comm, &(letcfg.win_more)));
+  chkMPIerr(MPI_Win_create(soaNode_dev.jpos, sizeof(jparticle) * win_size, sizeof(jparticle), letcfg.info, letcfg.comm, &(letcfg.win_jpos)));
+  chkMPIerr(MPI_Win_create(soaNode_dev.mj  , sizeof(jmass)     * win_size, sizeof(jmass)    , letcfg.info, letcfg.comm, &(letcfg.win_mass)));
+#else///LET_COMMUNICATION_VIA_HOST
+  chkMPIerr(MPI_Win_create(soaNode_hst.more, sizeof(uint)      * win_size, sizeof(uint)	    , letcfg.info, letcfg.comm, &(letcfg.win_more)));
+  chkMPIerr(MPI_Win_create(soaNode_hst.jpos, sizeof(jparticle) * win_size, sizeof(jparticle), letcfg.info, letcfg.comm, &(letcfg.win_jpos)));
+  chkMPIerr(MPI_Win_create(soaNode_hst.mj  , sizeof(jmass)     * win_size, sizeof(jmass)    , letcfg.info, letcfg.comm, &(letcfg.win_mass)));
+#endif//LET_COMMUNICATION_VIA_HOST
 #endif//MPI_ONE_SIDED_FOR_LET_EXCG
 
 #endif//SERIALIZED_EXECUTION
@@ -1309,6 +1317,10 @@ int main(int argc, char **argv)
   initGuessTime(&exchangeParam.parabolicGuess);
 #endif//USE_PARABOLIC_GROWTH_MODEL
 
+#if 1
+  if( steps == 0 )
+    elapsed.sum_excg = 1.0f;
+#endif
   updateDomain(&num, num_max, &Ni,
 	       &ibody0_dev, &ibody1_dev, &ibody0, &ibody1, Ntot,
 	       particlePos_hst, particlePos_dev, domCfg, domDecKey,
@@ -1407,7 +1419,7 @@ int main(int argc, char **argv)
 #ifdef  OCTREE_BASED_SEARCH
 			     , soaCell_dev, soaNode_dev, soaMakeBuf
 #else///OCTREE_BASED_SEARCH
-			     , appEncBall_dev, soaPH_dev, devProp
+			     , soaEB, soaPH_dev, devProp
 #endif//OCTREE_BASED_SEARCH
 			     , stream_let[Nstream_let - 1]
 #ifdef  EXEC_BENCHMARK
@@ -1495,7 +1507,7 @@ int main(int argc, char **argv)
 #ifdef  OCTREE_BASED_SEARCH
 			       , soaCell_dev, soaNode_dev, soaMakeBuf
 #else///OCTREE_BASED_SEARCH
-			       , appEncBall_dev, soaPH_dev, devProp
+			       , soaEB, soaPH_dev, devProp
 #endif//OCTREE_BASED_SEARCH
 			       , stream_let[Nstream_let - 1]
 #ifdef  EXEC_BENCHMARK
@@ -1985,7 +1997,7 @@ int main(int argc, char **argv)
 #ifdef  OCTREE_BASED_SEARCH
 			       , soaCell_dev, soaNode_dev, soaMakeBuf
 #else///OCTREE_BASED_SEARCH
-			       , appEncBall_dev, soaPH_dev, devProp
+			       , soaEB, soaPH_dev, devProp
 #endif//OCTREE_BASED_SEARCH
 			       , stream_let[Nstream_let - 1]
 #ifdef  EXEC_BENCHMARK
@@ -2437,7 +2449,7 @@ int main(int argc, char **argv)
 		     numSend_hst, numSend_dev, stream_let, Nstream_let);
 
 #   if  defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
-  freeApproxEnclosingBall_dev(appEncBall_dev);
+  freeApproxEnclosingBall_dev(appEncBall_dev, gsync0_EB, gsync1_EB);
 #endif//defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
 
   releaseORMtopology(dxmin, dxmax, dymin, dymax, dzmin, dzmax, dmreq,

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/28 (Mon)
+ * @date 2017/09/05 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -513,7 +513,7 @@ __device__ __forceinline__ Type GET_MIN_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem[bidx] = ret;
+	gmem[0] = ret;
     }/* if( bidx == 0 ){ */
 
 
@@ -577,7 +577,7 @@ __device__ __forceinline__ Type GET_MAX_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem[bidx] = ret;
+	gmem[0] = ret;
     }/* if( bidx == 0 ){ */
 
 
@@ -642,7 +642,7 @@ __device__ __forceinline__ Type GET_MINLOC_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	stloc((Type *)gmem, bidx, ret);
+	stloc((Type *)gmem, 0, ret);
     }/* if( bidx == 0 ){ */
 
 
@@ -707,7 +707,7 @@ __device__ __forceinline__ Type GET_MAXLOC_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	stloc((Type *)gmem, bidx, ret);
+	stloc((Type *)gmem, 0, ret);
     }/* if( bidx == 0 ){ */
 
 
@@ -775,7 +775,7 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	stloc((Type *)gmem_minloc, bidx, ret);
+	stloc((Type *)gmem_minloc, 0, ret);
     }/* if( bidx == 0 ){ */
 
 

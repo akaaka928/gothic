@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/03/22 (Wed)
+ * @date 2017/09/03 (Sun)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2077,6 +2077,42 @@ void writeTipsyFile(double time, float eps, int num, iparticle body, char file[]
     count = 1;    if( count != fwrite(&tmp, sizeof(struct dark_particle), count, fp) )      success = false;
   }
   if( success != true ){    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);  }
+
+  fclose(fp);
+}
+
+
+/**
+ * @fn writeGalactICSFile
+ *
+ * @brief Write particle data in GalactICS format.
+ *
+ * @param (time) current time of the simulation
+ * @param (head) head index of N-body particles
+ * @param (num) number of N-body particles
+ * @param (body) the particle data
+ * @param (file) name of the file
+ * @param (series) index of the component
+ */
+void writeGalactICSFile(double time, int head, int num, iparticle body, char file[], int series)
+{
+  char filename[256];
+  sprintf(filename, "%s/%s.%d", DATAFOLDER, file, series);
+  FILE *fp;
+  fp = fopen(filename, "w");
+  if( fp == NULL ){	__KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);      }
+
+  fprintf(fp, "%d  % .7e\n", num, time);
+
+  for(int ii = head; ii < head + num; ii++)
+    fprintf(fp, "% .7e % .7e % .7e % .7e % .7e % .7e % .7e\n",
+	    body.pos[ii].m, body.pos[ii].x, body.pos[ii].y, body.pos[ii].z,
+#ifdef  BLOCK_TIME_STEP
+	    body.vel[ii].x, body.vel[ii].y, body.vel[ii].z
+#else///BLOCK_TIME_STEP
+	    body.vx[ii], body.vy[ii], body.vz[ii]
+#endif//BLOCK_TIME_STEP
+	    );
 
   fclose(fp);
 }

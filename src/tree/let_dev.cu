@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/30 (Wed)
+ * @date 2017/08/31 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -692,27 +692,35 @@ void callGenLET
 
   if( vol < (THRESHOLD_TO_SKIP_LET_GENERATOR * loc) )
 #endif//SKIP_LET_GENERATOR_FOR_NEARBY_NODE
-    makeLET_kernel<<<1, NTHREADS_MAKE_LET, SMEM_SIZE, stream>>>
-      ((*let).icom,
+    {
+#if 0
+      __FPRINTF__(stdout, "generate LET for rank %d\n", (*let).rank);
+#endif
+      makeLET_kernel<<<1, NTHREADS_MAKE_LET, SMEM_SIZE, stream>>>
+	((*let).icom,
 #ifdef  GADGET_MAC
-       (*let).amin,
+	 (*let).amin,
 #endif//GADGET_MAC
-       (*let).numSend_dev,
-       tree.more, tree.jpos, tree.mj,
-       &(tree.more[(*let).headSend]), &(tree.jpos[(*let).headSend]), &(tree.mj[(*let).headSend]),
+	 (*let).numSend_dev,
+	 tree.more, tree.jpos, tree.mj,
+	 &(tree.more[(*let).headSend]), &(tree.jpos[(*let).headSend]), &(tree.mj[(*let).headSend]),
 #ifndef USE_SMID_TO_GET_BUFID
 #ifndef TRY_MODE_ABOUT_BUFFER
-       buf.active,
+	 buf.active,
 #endif//TRY_MODE_ABOUT_BUFFER
-       buf.freeNum,
+	 buf.freeNum,
 #endif//USE_SMID_TO_GET_BUFID
-       buf.freeLst, buf.buffer, NGROUPS * buf.bufSize, buf.fail
+	 buf.freeLst, buf.buffer, NGROUPS * buf.bufSize, buf.fail
 #   if  !defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
-       , cycles
+	 , cycles
 #endif//!defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
-       );
+	 );
+    }
 #ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
   else{
+#if 0
+    __FPRINTF__(stdout, "skip LET generation for rank %d; overlapping fraction is %e\n", (*let).rank, vol / loc);
+#endif
     /* send full tree instead of LET */
     (*let).headSend = 0;
     checkCudaErrors(cudaMemcpyAsync((*let).numSend_dev, &((*let).numFull), sizeof(int), cudaMemcpyHostToDevice, stream));

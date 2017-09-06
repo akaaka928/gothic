@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/28 (Mon)
+ * @date 2017/09/06 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -192,10 +192,8 @@ __device__ __forceinline__ float findFarthestParticle
 	    cnum += (1 + (more[nodehead + jj] >> IDXBITS));
 	}/* if( target < Nsweep ){ */
 
-
 	PREFIX_SUM_BLCK(cnum, (int *)smem, lane, tidx);
 	const int lend = BLOCKSIZE(smem[tail].i, NTHREADS_EB * NBUF_EB);
-
 
 	for(int ll = 0; ll < lend; ll++){
 	  const int unum =
@@ -213,15 +211,16 @@ __device__ __forceinline__ float findFarthestParticle
 
 	  /** pick up candidate tree nodes */
 #   if  NBUF_EB == 4
-	  alignedFlt rjmax_loc = { FLT_MIN ,  FLT_MIN ,  FLT_MIN ,  FLT_MIN };
+	  alignedFlt rjmax_loc = {-FLT_MAX , -FLT_MAX , -FLT_MAX , -FLT_MAX };
 	  alignedInt pjidx_loc = {NULL_NODE, NULL_NODE, NULL_NODE, NULL_NODE};
 #endif//NBUF_EB == 4
 #   if  NBUF_EB == 2
-	  alignedFlt rjmax_loc = { FLT_MIN ,  FLT_MIN };
+	  alignedFlt rjmax_loc = {-FLT_MAX , -FLT_MAX };
 	  alignedInt pjidx_loc = {NULL_NODE, NULL_NODE};
 #endif//NBUF_EB == 2
 	  const int stail = (smem[tail].i < (NTHREADS_EB * NBUF_EB)) ? (smem[tail].i) : (NTHREADS_EB * NBUF_EB);
 
+	  __syncthreads();/**< __syncthreads() before reading pjidx and executing GET_MAX_BLCK() */
 
 #pragma unroll
 	  for(int kk = 0; kk < NBUF_EB; kk++){
@@ -264,7 +263,7 @@ __device__ __forceinline__ float findFarthestParticle
 	      rjbuf[dst] = rjmax_loc.ra[jj];
 	    }/* if( share ){ */
 	    Nloc += smem[tail].i;
-
+	    __syncthreads();/**< __syncthreads() to correctly update Nloc */
 
 	    if( Nloc > ((NBUF_EB - 1) * NTHREADS_EB) ){
 	      for(int kk = tidx; kk < Nloc; kk += NTHREADS_EB){
@@ -289,6 +288,8 @@ __device__ __forceinline__ float findFarthestParticle
       const int Ncopy = (Ntry < (NTHREADS_EB * NBUF_EB)) ? (Ntry) : (NTHREADS_EB * NBUF_EB);
       for(int jj = tidx; jj < Ncopy; jj += NTHREADS_EB)
 	list0[jj] = more0Buf[jj + ((NTHREADS_EB * NBUF_EB) * (iter + 1))];
+
+      __syncthreads();/**< keep consistency of list0 */
     }/* for(int iter = 0; iter < Niter; iter++){ */
 
     if( Nbuf != 0 ){
@@ -301,12 +302,13 @@ __device__ __forceinline__ float findFarthestParticle
 	list1[ll] = more1Buf[ll];
 	rjbuf[ll] = rjmaxBuf[ll];
       }/* for(int ll = lane; ll < TSUB_EB * NBUF_EB; ll += TSUB_EB){ */
+
+      __syncthreads();/**< keep consistency of list1, rjbuf, more1Buf, and rjmaxBuf */
     }/* if( Nbuf != 0 ){ */
 
     Ntry = Nbuf + Nloc;
     if( (tidx == 0) && (Ntry > bufSize) )
       atomicAdd(overflow, 1);
-
 
     /** list up all child nodes that satisfy rjmax > rmin */
     inum = 0;
@@ -359,6 +361,7 @@ __device__ __forceinline__ float findFarthestParticle
 	}/* if( add ){ */
 
 	Nloc += smem[tail].i;
+	__syncthreads();/**< __syncthreads() to correctly update list0 and Nloc */
 
 	/** move data to the remote buffer if necessary */
 	if( Nloc > ((NBUF_EB - 1) * NTHREADS_EB) ){
@@ -369,9 +372,7 @@ __device__ __forceinline__ float findFarthestParticle
 	}/* if( Nloc > ((NBUF_EB - 1) * NTHREADS_EB) ){ */
 
 	/** sum up iadd within NTHREADS_EB threads */
-
 	iadd = TOTAL_SUM_BLCK(iadd, (int *)smem, tidx, head);
-
 	inum += iadd;
       }/* for(int ki = 0; ki < knum; ki++){ */
 
@@ -383,7 +384,9 @@ __device__ __forceinline__ float findFarthestParticle
 	rjbuf[jj] = rjmaxBuf[jj + NBUF_EB * NTHREADS_EB * (iter + 1)];
 	list1[jj] = more1Buf[jj + NBUF_EB * NTHREADS_EB * (iter + 1)];
       }/* for(int jj = tidx; jj < Ncopy; jj += NTHREADS_EB){ */
-    }/* for(int iter = 0; iter < Niter1; iter++){ */
+
+      __syncthreads();/**< __syncthreads() to correctly update more0Buf */
+    }/* for(int iter = 0; iter < Niter; iter++){ */
 
     if( Nbuf != 0 ){
       for(int ll = tidx; ll < Nloc; ll += NTHREADS_EB)
@@ -391,6 +394,8 @@ __device__ __forceinline__ float findFarthestParticle
 
       for(int ll = tidx; ll < NBUF_EB * NTHREADS_EB; ll += NTHREADS_EB)
 	list0[ll] = more0Buf[ll];
+
+      __syncthreads();/**< keep consistency of list0 and more0Buf */
     }/* if( Nbuf != 0 ){ */
 
     Ntry = Nloc + Nbuf;
@@ -418,7 +423,7 @@ __device__ __forceinline__ float findFarthestParticle
 
     Ntry -= NTHREADS_EB;
   }/* for(int iter = 0; iter < Niter; iter++){ */
-
+  __syncthreads();/**< certify whole data are stored on list1 correctly */
 
   r2max->val = -FLT_MAX;
   r2max->idx =  INT_MAX;
@@ -485,7 +490,8 @@ __global__ void getApproxEnclosingBall_kernel
   cen.m = ZERO;
 
   floc r2max;
-  /* float rold = CAST_R2F(cen.m) * rsqrtf(CAST_R2F(cen.m)); */
+
+#ifdef  ADOPT_EBS_FOR_LET
   float rold = 0.0f;
   while( findFarthestParticle(cen, &r2max, cell, ipos, node, more, node2cell, pj, bmax, more0Buf, more1Buf, rjmaxBuf, overflow, bufSize) > cen.m ){
     /** update the sphere */
@@ -517,6 +523,9 @@ __global__ void getApproxEnclosingBall_kernel
     cen.m = rnew * rnew;
     rold = rnew;
   }
+#else///ADOPT_EBS_FOR_LET
+  cen.m = findFarthestParticle(cen, &r2max, cell, ipos, node, more, node2cell, pj, bmax, more0Buf, more1Buf, rjmaxBuf, overflow, bufSize);
+#endif//ADOPT_EBS_FOR_LET
 
   if( tidx == 0 )
     *ebs = cen;
@@ -534,45 +543,19 @@ __global__ void getApproxEnclosingBall_kernel
 
 #   if  GPUGEN >= 60
 /** capacity of shared memory is 64KiB per SM on newer GPUs */
-/** real4 smem[NTHREADS_EB] corresponds 16 * NTHREADS_EB bytes */
-#define NBLOCKS_PER_SM_EB (4096 / NTHREADS_EB)
+/** floc smem[NTHREADS_EB] corresponds 8 * NTHREADS_EB bytes */
+#define NBLOCKS_PER_SM_EB (8192 / NTHREADS_EB)
 #else///GPUGEN >= 60
 /** in L1 cache preferred configuration, capacity of shared memory is 16KiB per SM on older GPUs */
-/** real4 smem[NTHREADS_EB] corresponds 16 * NTHREADS_EB bytes */
-#define NBLOCKS_PER_SM_EB (1024 / NTHREADS_EB)
+/** floc smem[NTHREADS_EB] corresponds 8 * NTHREADS_EB bytes */
+#define NBLOCKS_PER_SM_EB (2048 / NTHREADS_EB)
 #endif//GPUGEN >= 60
 
-#define REGISTERS_PER_THREAD_EB (40)
-/* calcPHkey_kernel uses 32 registers @ Tesla M2090, Ttot = 1024 (registers are spilled to local memory) */
-/* calcPHkey_kernel uses 47 registers @ Tesla M2090, Ttot =  512 */
-/* calcPHkey_kernel uses 36 registers @ Tesla M2090, Ttot =  128, 256 */
-#   if  GPUVER == 20
-#undef  REGISTERS_PER_THREAD_EB
-#          if  NTHREADS_EB == 1024
-#define REGISTERS_PER_THREAD_EB (32)
-#       else///NTHREADS_EB == 1024
-#          if  NTHREADS_EB ==  512
-#define REGISTERS_PER_THREAD_EB (47)
-#       else///NTHREADS_EB ==  512
-#define REGISTERS_PER_THREAD_EB (36)
-#       endif//NTHREADS_EB ==  512
-#       endif//NTHREADS_EB == 1024
-#endif//GPUVER == 20
-/* calcPHkey_kernel uses 38 registers @ Tesla K20X */
-/* #   if  GPUVER == 35 */
-/* #undef  REGISTERS_PER_THREAD_EB */
-/* #define REGISTERS_PER_THREAD_EB (38) */
-/* #endif//GPUVER == 35 */
-/* calcPHkey_kernel uses 40 registers @ GTX 750 Ti */
-/* #   if  GPUVER == 50 */
-/* #undef  REGISTERS_PER_THREAD_EB */
-/* #define REGISTERS_PER_THREAD_EB (40) */
-/* #endif//GPUVER == 50 */
-/* calcPHkey_kernel uses 40 registers @ GTX 970 */
-/* #   if  GPUVER == 52 */
-/* #undef  REGISTERS_PER_THREAD_EB */
-/* #define REGISTERS_PER_THREAD_EB (40) */
-/* #endif//GPUVER == 52 */
+#ifdef  ADOPT_EBS_FOR_LET
+#define REGISTERS_PER_THREAD_EB (29)
+#else///ADOPT_EBS_FOR_LET
+#define REGISTERS_PER_THREAD_EB (30)
+#endif//ADOPT_EBS_FOR_LET
 
 /** limitation from number of registers */
 #   if  NBLOCKS_PER_SM_EB > (MAX_REGISTERS_PER_SM / (REGISTERS_PER_THREAD_EB * NTHREADS_EB))
@@ -718,9 +701,11 @@ __global__ void __launch_bounds__(NTHREADS_EB, NBLOCKS_PER_SM_EB) getApproxEnclo
   cen.m = ZERO;
 
   floc r2max;
-  /* float rold = CAST_R2F(cen.m) * rsqrtf(CAST_R2F(cen.m)); */
+
+#ifdef  ADOPT_EBS_FOR_LET
   float rold = 0.0f;
   while( findFarthestParticle(cen, &r2max, ipos, ihead, itail, smem, gmem, tidx, head, bidx, bnum, gsync0, gsync1) > cen.m ){
+
     /** update the sphere */
     const float dinv = rsqrtf(r2max.val);
     const float dmax = dinv * r2max.val;
@@ -750,6 +735,9 @@ __global__ void __launch_bounds__(NTHREADS_EB, NBLOCKS_PER_SM_EB) getApproxEnclo
     cen.m = rnew * rnew;
     rold = rnew;
   }
+#else///ADOPT_EBS_FOR_LET
+  cen.m = findFarthestParticle(cen, &r2max, ipos, ihead, itail, smem, gmem, tidx, head, bidx, bnum, gsync0, gsync1);
+#endif//ADOPT_EBS_FOR_LET
 
   if( tidx + bidx == 0 )
     *ebs = cen;
@@ -792,7 +780,7 @@ static inline void checkDeadLockCondition(void (*func)(position * RESTRICT ebs, 
  * @brief Memory allocation for enclosing ball generator for LET.
  */
 extern "C"
-muse allocApproxEnclosingBall_dev(void **dev, const deviceProp devProp)
+muse allocApproxEnclosingBall_dev(void **dev, int **gsync0, int **gsync1, soaEncBall *soa, const deviceProp devProp)
 {
   __NOTE__("%s\n", "start");
 
@@ -803,6 +791,18 @@ muse allocApproxEnclosingBall_dev(void **dev, const deviceProp devProp)
   const size_t num = devProp.numSM * NBLOCKS_PER_SM_EB;
   mycudaMalloc(dev, num * sizeof(floc));
   alloc.device +=   num * sizeof(floc);
+
+
+  mycudaMalloc((void **)gsync0, num * sizeof(int));  alloc.device += num * sizeof(int);
+  mycudaMalloc((void **)gsync1, num * sizeof(int));  alloc.device += num * sizeof(int);
+
+  initGsync_kernel<<<1, num>>>(num, *gsync0, *gsync1);
+  getLastCudaError("initGsync_kernel");
+
+  soa->gmem   = *dev;
+  soa->gsync0 = *gsync0;
+  soa->gsync1 = *gsync1;
+
 
   /** error checking before running the kernel */
   checkDeadLockCondition(getApproxEnclosingBall_kernel, "getApproxEnclosingBall_kernel", (const char *)__FILE__, __LINE__, (const char *)__func__, REGISTERS_PER_THREAD_EB, NTHREADS_EB,
@@ -825,11 +825,13 @@ muse allocApproxEnclosingBall_dev(void **dev, const deviceProp devProp)
  * @brief Memory deallocation for enclosing ball generator for LET.
  */
 extern "C"
-void  freeApproxEnclosingBall_dev(void *dev)
+void  freeApproxEnclosingBall_dev(void *dev, int *gsync0, int *gsync1)
 {
   __NOTE__("%s\n", "start");
 
   mycudaFree(dev);
+  mycudaFree(gsync0);
+  mycudaFree(gsync1);
 
   __NOTE__("%s\n", "end");
 }
@@ -863,7 +865,7 @@ void getApproxEnclosingBall_dev
 #ifdef  OCTREE_BASED_SEARCH
  , const soaTreeCell cell, const soaTreeNode node, const soaMakeTreeBuf buf
 #else///OCTREE_BASED_SEARCH
- , void *gmem, const soaPHsort soa, const deviceProp devProp
+ , const soaEncBall soaEB, const soaPHsort soaPH, const deviceProp devProp
 #endif//OCTREE_BASED_SEARCH
  , const cudaStream_t stream
 #ifdef  EXEC_BENCHMARK
@@ -894,7 +896,7 @@ void getApproxEnclosingBall_dev
 #else///OCTREE_BASED_SEARCH
 
   getApproxEnclosingBall_kernel<<<devProp.numSM * NBLOCKS_PER_SM_EB, NTHREADS_EB, SMEM_SIZE, stream>>>
-    (body.encBall, num, body.pos, soa.min, soa.max, (floc *)gmem, soa.gsync0, soa.gsync1);
+    (body.encBall, num, body.pos, soaPH.min, soaPH.max, (floc *)(soaEB.gmem), soaEB.gsync0, soaEB.gsync1);
   getLastCudaError("getApproxEnclosingBall_kernel");
 
 #endif//OCTREE_BASED_SEARCH
