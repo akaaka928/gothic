@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/04/03 (Mon)
+ * @date 2017/09/07 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -148,6 +148,11 @@ typedef struct __align__(16)
 #endif//BLOCK_TIME_STEP
 
 
+#   if  defined(MPI_ONE_SIDED_FOR_EXCG) && !defined(SERIALIZED_EXECUTION) && !defined(MPI_INCLUDED) && !defined(OMPI_MPI_H)
+typedef int MPI_Win;/**< sizeof(MPI_Win) = 4 byte */
+#endif//defined(MPI_ONE_SIDED_FOR_EXCG) && !defined(SERIALIZED_EXECUTION) && !defined(MPI_INCLUDED) && !defined(OMPI_MPI_H)
+
+
 /**
  * @struct iparticle
  *
@@ -184,6 +189,19 @@ typedef struct
 #ifdef  GADGET_MAC
   real amin;
 #endif//GADGET_MAC
+#   if  defined(MPI_ONE_SIDED_FOR_EXCG) && !defined(SERIALIZED_EXECUTION)
+  MPI_Win win_ipos;
+#ifdef  GADGET_MAC
+  MPI_Win win_iacc;
+#endif//GADGET_MAC
+#ifdef  BLOCK_TIME_STEP
+  MPI_Win win_ivel;
+  MPI_Win win_time;
+#else///BLOCK_TIME_STEP
+  MPI_Win win_vx, win_vy, win_vz;
+#endif//BLOCK_TIME_STEP
+  MPI_Win win_idx;
+#endif//defined(MPI_ONE_SIDED_FOR_EXCG) && !defined(SERIALIZED_EXECUTION)
 } iparticle;
 
 

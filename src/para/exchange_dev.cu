@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/30 (Wed)
+ * @date 2017/09/08 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <math.h>
 #include <mpi.h>
 #include <time.h>
@@ -44,6 +45,22 @@
 #include "exchange.h"
 #include "exchange_dev.h"
 
+
+/**
+ * @fn pickupSamples_kernel
+ *
+ * @brief Pick up sample particles on GPU.
+ */
+__global__ void pickupSamples_kernel(const int num, const int nskip, READ_ONLY position * ipos, float * RESTRICT xi, float * RESTRICT yi, float * RESTRICT zi, const int offset)
+{
+  const int ii = offset + GLOBALIDX_X1D;
+  if( ii < num ){
+    const position pi = ipos[ii * nskip];
+    xi[ii] = CAST_R2F(pi.x);
+    yi[ii] = CAST_R2F(pi.y);
+    zi[ii] = CAST_R2F(pi.z);
+  }/* if( ii < num ){ */
+}
 
 
 #define NTHREADS_COMPARE_VEC3_INC NTHREADS_BOX
@@ -203,7 +220,7 @@ static inline void sort_xpos_dev(const int num, samplePos src, samplePos dst)
 {
   __NOTE__("%s\n", "start");
 
-
+  データが device に置いてある場合なので，hst は不要;
   checkCudaErrors(cudaMemcpy(src.x_dev, src.x_hst, num * sizeof(float), cudaMemcpyHostToDevice));
   int Nrem = BLOCKSIZE(num, NTHREADS_SETIDX);
   int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
@@ -273,12 +290,12 @@ static inline void sort_xpos_hst(const int num, samplePos RESTRICT src, samplePo
  *
  * @brief Sort position array by x.
  */
-static inline void sort_xpos(const int num, samplePos * RESTRICT src, samplePos * RESTRICT dst)
+static inline void sort_xpos(const int num, samplePos * RESTRICT src, samplePos * RESTRICT dst, const bool device)
 {
   __NOTE__("%s\n", "start");
 
-  if( num >= NCRIT_XPOS_SORT )    sort_xpos_dev(num, *src, *dst);
-  else                            sort_xpos_hst(num, *src, *dst);
+  if( device )    sort_xpos_dev(num, *src, *dst);
+  else            sort_xpos_hst(num, *src, *dst);
 
   /** swap the list structure */
   samplePos _tmp;
@@ -300,6 +317,7 @@ static inline void sort_ypos_dev(const int num, samplePos src)
   __NOTE__("%s\n", "start");
 
 
+  データが device に置いてある場合なので，hst は不要;
   checkCudaErrors(cudaMemcpy(src.y_dev, src.y_hst, num * sizeof(float), cudaMemcpyHostToDevice));
   checkCudaErrors(cudaMemcpy(src.z_dev, src.z_hst, num * sizeof(float), cudaMemcpyHostToDevice));
 
@@ -333,12 +351,12 @@ static inline void sort_ypos_hst(const int num, samplePos src)
  *
  * @brief Sort position array by y.
  */
-static inline void sort_ypos(const int num, samplePos * RESTRICT src)
+static inline void sort_ypos(const int num, samplePos * RESTRICT src, const bool device)
 {
   __NOTE__("%s\n", "start");
 
-  if( num >= NCRIT_YPOS_SORT )    sort_ypos_dev(num, *src);
-  else                            sort_ypos_hst(num, *src);
+  if( device )    sort_ypos_dev(num, *src);
+  else            sort_ypos_hst(num, *src);
 
   __NOTE__("%s\n", "end");
 }
@@ -353,6 +371,7 @@ static inline void sort_zpos_dev(const int num, samplePos src)
 {
   __NOTE__("%s\n", "start");
 
+  データが device に置いてある場合なので，hst は不要;
   checkCudaErrors(cudaMemcpy(src.z_dev, src.z_hst, num * sizeof(float), cudaMemcpyHostToDevice));
 
   /** sort using thrust */
@@ -383,12 +402,12 @@ static inline void sort_zpos_hst(const int num, samplePos src)
  *
  * @brief Sort position array by z.
  */
-static inline void sort_zpos(const int num, samplePos * RESTRICT src)
+static inline void sort_zpos(const int num, samplePos * RESTRICT src, const bool device)
 {
   __NOTE__("%s\n", "start");
 
-  if( num >= NCRIT_ZPOS_SORT )    sort_zpos_dev(num, *src);
-  else                            sort_zpos_hst(num, *src);
+  if( device )    sort_zpos_dev(num, *src);
+  else            sort_zpos_hst(num, *src);
 
   __NOTE__("%s\n", "end");
 }
@@ -456,6 +475,7 @@ void  releaseSamplePos
 }
 
 
+#if 0
 /**
  * @fn setParticlePosition_kernel
  *
@@ -501,6 +521,8 @@ static inline void copyParticlePositionAsync_dev2hst(const int Ni, position * RE
 
   __NOTE__("%s\n", "end");
 }
+#endif
+
 
 /**
  * @fn sortParticlesDDkey_kernel
@@ -715,7 +737,7 @@ void exchangeParticles_dev
 #endif//CARE_EXTERNAL_PARTICLES
  , brentStatus *status, brentMemory *memory
 #ifdef  EXEC_BENCHMARK
- , wall_clock_time *execTime
+ , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
  )
 {
@@ -726,10 +748,100 @@ void exchangeParticles_dev
   checkCudaErrors(cudaDeviceSynchronize());
   clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
-  /** set current (local) distribution */
-  /** copy particle position from device to host */
-  copyParticlePositionAsync_dev2hst(numOld, (*src_dev).pos, pos_dev, pos_hst, devInfo.stream[0]);
+  const bool device = true;
+  const bool host = false;
 
+  /* /\** copy particle position from device to host *\/ */
+  /* copyParticlePositionAsync_dev2hst(numOld, (*src_dev).pos, pos_dev, pos_hst, devInfo.stream[0]); */
+
+
+  /** pick up sample particles */
+  /** weight is determined using elapsed time by each process */
+  __NOTE__("rank %d: tloc = %e, numOld = %d, xmin = %e, xmax = %e, ymin = %e, ymax = %e, zmin = %e, zmax = %e\n", mpi.rank, tloc, numOld, min.x, max.x, min.y, max.y, min.z, max.z);
+  double ttot = tloc;
+  chkMPIerr(MPI_Allreduce(&tloc, &ttot, 1, MPI_DOUBLE, MPI_SUM, mpi.comm));
+  const float frac = fminf((float)(tloc / ttot), MAX_FACTOR_INCREASE / (float)mpi.size);
+  const int Nsub = (int)ceilf((float)Ntot * sample.rate * frac);
+  __NOTE__("rank %d: tloc = %e, ttot = %e, frac = %e, numOld = %d, Nsub = %d\n", mpi.rank, tloc, ttot, tloc / ttot, numOld, Nsub);
+
+  const int iskip = (Nsub < numOld) ? (numOld / Nsub) : (1);
+  int sendNum = numOld / iskip;
+  int Nrem = BLOCKSIZE(sendNum, NTHREADS_PICKUP);
+  int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
+  int hidx = 0;
+  for(int iter = 0; iter < Niter; iter++){
+    int Nblck = (Nrem < MAX_BLOCKS_PER_GRID) ? Nrem : MAX_BLOCKS_PER_GRID;
+    int Nsub = Nblck * NTHREADS_PICKUP;
+    pickupSamples_kernel<<<Nblck, NTHREADS_PICKUP>>>(sendNum, iskip, (*src_dev).pos, loc.x_dev, loc.y_dev, loc.z_dev, offset);
+
+    hidx += Nsub;
+    Nrem -= Nblck;
+  }/* for(int iter = 0; iter < Niter; iter++){ */
+  getLastCudaError("pickupSamples_kernel");
+  /* for(int ii = 0; ii < numOld; ii += iskip){ */
+  /*   loc.x_hst[sendNum] = pos_hst.x[ii]; */
+  /*   loc.y_hst[sendNum] = pos_hst.y[ii]; */
+  /*   loc.z_hst[sendNum] = pos_hst.z[ii]; */
+  /*   sendNum++; */
+  /* }/\* for(int ii = 0; ii < numOld; ii += iskip){ *\/ */
+  __NOTE__("rank %d: iskip = %d, sendNum = %d\n", mpi.rank, iskip, sendNum);
+
+  /** sort sample particles in each direction */
+  if(             mpi.dim[0] != 1 )     sort_xpos(sendNum, &loc, &ful, device);
+  else{	   if(	  mpi.dim[1] != 1 )	sort_ypos(sendNum, &loc      , device);
+    else      if( mpi.dim[2] != 1 )	sort_zpos(sendNum, &loc      , device);
+  }
+#ifdef  MPI_VIA_HOST
+  checkCudaErrors(cudaMemcpy(loc.x_hst, loc.x_dev, sendNum * sizeof(float), cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaMemcpy(loc.y_hst, loc.y_dev, sendNum * sizeof(float), cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaMemcpy(loc.z_hst, loc.z_dev, sendNum * sizeof(float), cudaMemcpyDeviceToHost));
+#endif//MPI_VIA_HOST
+
+
+  /** gather sampling points to the root process */
+  chkMPIerr(MPI_Gather(&sendNum, 1, MPI_INT, sample.rnum, 1, MPI_INT, 0, mpi.comm));
+
+  /** set receive displacements (root process only) */
+  int recvNum = 0;
+  if( mpi.rank == 0 ){
+    sample.disp[0] = 0;
+    for(int jj = 1; jj < mpi.size; jj++)
+      sample.disp[jj] = sample.disp[jj - 1] + sample.rnum[jj - 1];
+    recvNum = sample.disp[mpi.size - 1] + sample.rnum[mpi.size - 1];
+  }/* if( orm[ii].rank == 0 ){ */
+
+  /** gather particle data to the root process */
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+
+  chkMPIerr(MPI_Win_lock_all(0, MPI_Win win);
+
+
+  chkMPIerr(MPI_Get(&((*dst_dev).pos[recvHead]), recvBuf[ii].body.num, mpi.ipos, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.ipos, MPI_Win win);
+
+
+  chkMPIerr(MPI_Win_unlock_all(MPI_Win win);
+
+
+#else///MPI_ONE_SIDED_FOR_EXCG
+
+#ifndef MPI_VIA_HOST
+  chkMPIerr(MPI_Gatherv(loc.x_dev, sendNum, MPI_FLOAT, ful.x_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
+  chkMPIerr(MPI_Gatherv(loc.y_dev, sendNum, MPI_FLOAT, ful.y_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
+  chkMPIerr(MPI_Gatherv(loc.z_dev, sendNum, MPI_FLOAT, ful.z_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
+#else///MPI_VIA_HOST
+  chkMPIerr(MPI_Gatherv(loc.x_hst, sendNum, MPI_FLOAT, ful.x_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
+  chkMPIerr(MPI_Gatherv(loc.y_hst, sendNum, MPI_FLOAT, ful.y_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
+  chkMPIerr(MPI_Gatherv(loc.z_hst, sendNum, MPI_FLOAT, ful.z_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
+#endif//MPI_VIA_HOST
+
+#endif//MPI_ONE_SIDED_FOR_EXCG
+
+
+
+
+
+
+  /** set current (local) distribution */
   /** get (current) box size for the local distribution of N-body particles */
   getBoxSize_dev(numOld, (*src_dev).pos, soa, devProp, devInfo.stream[1]);
   float3 min, max;
@@ -762,55 +874,20 @@ void exchangeParticles_dev
 #endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
 
 
-  /** pick up sample particles */
-  /** weight is determined using elapsed time by each process */
-  __NOTE__("rank %d: tloc = %e, numOld = %d, xmin = %e, xmax = %e, ymin = %e, ymax = %e, zmin = %e, zmax = %e\n", mpi.rank, tloc, numOld, min.x, max.x, min.y, max.y, min.z, max.z);
-  double ttot = tloc;
-  chkMPIerr(MPI_Allreduce(&tloc, &ttot, 1, MPI_DOUBLE, MPI_SUM, mpi.comm));
-  const float frac = fminf((float)(tloc / ttot), MAX_FACTOR_INCREASE / (float)mpi.size);
-  const int Nsub = (int)ceilf((float)Ntot * sample.rate * frac);
-  __NOTE__("rank %d: tloc = %e, ttot = %e, frac = %e, numOld = %d, Nsub = %d\n", mpi.rank, tloc, ttot, tloc / ttot, numOld, Nsub);
-
-  const int iskip = (Nsub < numOld) ? (numOld / Nsub) : (1);
-  int sendNum = 0;
-  for(int ii = 0; ii < numOld; ii += iskip){
-    loc.x_hst[sendNum] = pos_hst.x[ii];
-    loc.y_hst[sendNum] = pos_hst.y[ii];
-    loc.z_hst[sendNum] = pos_hst.z[ii];
-    sendNum++;
-  }/* for(int ii = 0; ii < numOld; ii += iskip){ */
-  __NOTE__("rank %d: iskip = %d, sendNum = %d\n", mpi.rank, iskip, sendNum);
-
-  /** sort sample particles in each direction */
-  if(             mpi.dim[0] != 1 )     sort_xpos(sendNum, &loc, &ful);
-  else{	   if(	  mpi.dim[1] != 1 )	sort_ypos(sendNum, &loc);
-    else      if( mpi.dim[2] != 1 )	sort_zpos(sendNum, &loc);
-  }
-  __NOTE__("rank %d\n", mpi.rank);
 
 
-  /** gather sampling points to the root process */
-  chkMPIerr(MPI_Gather(&sendNum, 1, MPI_INT, sample.rnum, 1, MPI_INT, 0, mpi.comm));
 
-  /** set receive displacements (root process only) */
-  int recvNum = 0;
-  if( mpi.rank == 0 ){
-    sample.disp[0] = 0;
-    for(int jj = 1; jj < mpi.size; jj++)
-      sample.disp[jj] = sample.disp[jj - 1] + sample.rnum[jj - 1];
-    recvNum = sample.disp[mpi.size - 1] + sample.rnum[mpi.size - 1];
-  }/* if( orm[ii].rank == 0 ){ */
 
-  /** gather particle data to the root process */
-  chkMPIerr(MPI_Gatherv(loc.x_hst, sendNum, MPI_FLOAT, ful.x_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
-  chkMPIerr(MPI_Gatherv(loc.y_hst, sendNum, MPI_FLOAT, ful.y_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
-  chkMPIerr(MPI_Gatherv(loc.z_hst, sendNum, MPI_FLOAT, ful.z_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
+
+
+
+
+
 
 
   /** determine local domain */
   float local_xmin = -0.5f * FLT_MAX;  float local_ymin = -0.5f * FLT_MAX;  float local_zmin = -0.5f * FLT_MAX;
   float local_xmax =  0.5f * FLT_MAX;  float local_ymax =  0.5f * FLT_MAX;  float local_zmax =  0.5f * FLT_MAX;
-
 
   /** domain decomposition in x-direction */
   if( mpi.dim[0] != 1 ){
@@ -819,7 +896,7 @@ void exchangeParticles_dev
       sendNum = recvNum;
       /** the root process determine the partition */
       if( rep[0].rank == 0 ){
-	sort_xpos(recvNum, &ful, &loc);
+	sort_xpos(recvNum, &ful, &loc, host);
 	sample.xmin[0] = -0.5f * FLT_MAX;
 	for(int ii = 0; ii < rep[0].size; ii++){
 	  int Nini = (sendNum * (    ii)) / rep[0].size;
@@ -870,7 +947,7 @@ void exchangeParticles_dev
       sendNum = recvNum;
       /** the root process determine the partition */
       if( rep[1].rank == 0 ){
-	sort_ypos(recvNum, &ful);
+	sort_ypos(recvNum, &ful, host);
 	sample.ymin[0] = -0.5f * FLT_MAX;
 	for(int ii = 0; ii < rep[1].size; ii++){
 	  int Nini = (sendNum * (    ii)) / rep[1].size;
@@ -919,7 +996,7 @@ void exchangeParticles_dev
       sendNum = recvNum;
       /** the root process determine the partition */
       if( rep[2].rank == 0 ){
-	sort_zpos(recvNum, &ful);
+	sort_zpos(recvNum, &ful, host);
 	sample.zmin[0] = -0.5f * FLT_MAX;
 	for(int ii = 0; ii < rep[2].size; ii++){
 	  int Nini = (sendNum * (    ii)) / rep[2].size;
@@ -973,12 +1050,31 @@ void exchangeParticles_dev
 #endif//CARE_EXTERNAL_PARTICLES
 
 
+
+
+
+
+
+
+
+
+
+
   /** exchange N-body particles */
   const int numProcs = mpi.size;
-  for(int ii = 0; ii < numProcs; ii++)
-    chkMPIerr(MPI_Irecv(&(recvBuf[ii].num), 1, MPI_INT, ii, ii, mpi.comm, &(recvBuf[ii].req)));
+  for(int ii = 0; ii < numProcs; ii++){
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+    chkMPIerr(MPI_Irecv(&(recvBuf[ii].body), 1, mpi.send, ii, ii, mpi.comm, &(recvBuf[ii].req)));
+#else///MPI_ONE_SIDED_FOR_EXCG
+    chkMPIerr(MPI_Irecv(&(recvBuf[ii].num ), 1, MPI_INT , ii, ii, mpi.comm, &(recvBuf[ii].req)));
+#endif//MPI_ONE_SIDED_FOR_EXCG
+  }/* for(int ii = 0; ii < numProcs; ii++){ */
 
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+  const sendBody nullSend = {0};
+#else///MPI_ONE_SIDED_FOR_EXCG
   const int nullSend = 0;
+#endif//MPI_ONE_SIDED_FOR_EXCG
   int overlapNum = 0;
   for(int ii = 0; ii < numProcs; ii++){
     if( (min.x <= domain.xmax[ii]) && (max.x >= domain.xmin[ii]) &&
@@ -986,7 +1082,11 @@ void exchangeParticles_dev
 	(min.z <= domain.zmax[ii]) && (max.z >= domain.zmin[ii]) ){
       /** if spatial overlap is detected, ... */
       sendBuf[overlapNum].rank = ii;
-      sendBuf[overlapNum].num  =  0;
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+      sendBuf[overlapNum].body.num = 0;
+#else///MPI_ONE_SIDED_FOR_EXCG
+      sendBuf[overlapNum].     num = 0;
+#endif//MPI_ONE_SIDED_FOR_EXCG
 
       sendBuf[overlapNum].xmin = (domain.xmin[ii] < -0.25f * FLT_MAX) ? (domain.xmin[ii]) : ((min.x > domain.xmin[ii]) ? (min.x) : (domain.xmin[ii]));
       sendBuf[overlapNum].ymin = (domain.ymin[ii] < -0.25f * FLT_MAX) ? (domain.ymin[ii]) : ((min.y > domain.ymin[ii]) ? (min.y) : (domain.ymin[ii]));
@@ -996,15 +1096,25 @@ void exchangeParticles_dev
       sendBuf[overlapNum].ymax = (domain.ymax[ii] >  0.25f * FLT_MAX) ? (domain.ymax[ii]) : ((max.y < domain.ymax[ii]) ? (max.y) : (domain.ymax[ii]));
       sendBuf[overlapNum].zmax = (domain.zmax[ii] >  0.25f * FLT_MAX) ? (domain.zmax[ii]) : ((max.z < domain.zmax[ii]) ? (max.z) : (domain.zmax[ii]));
 
+      /* sendBuf.xmin, ..., sendBuf.zmax を GPU に cudaMemcpy する準備をしておく */
+      /* sendCfg 中で real xmin, xmax, ... として設定しているが，real xmin[# of GPUs] みたいにしておいて cudaMallocHost で確保しておけば，cudaMemcpy しやすくなる */
+
       overlapNum++;
     }
     else{
       /* if covered areas do not overlap, ... */
-      chkMPIerr(MPI_Isend(&nullSend, 1, MPI_INT, ii, mpi.rank, mpi.comm, &(domain.req[ii])));
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+      chkMPIerr(MPI_Isend(&nullSend, 1, mpi.send, ii, mpi.rank, mpi.comm, &(domain.req[ii])));
+#else///MPI_ONE_SIDED_FOR_EXCG
+      chkMPIerr(MPI_Isend(&nullSend, 1, MPI_INT , ii, mpi.rank, mpi.comm, &(domain.req[ii])));
+#endif//MPI_ONE_SIDED_FOR_EXCG
     }/* else{ */
 
     __NOTE__("rank %d, dst = %d\n", mpi.rank, ii);
   }/* for(int ii = 0; ii < numProcs; ii++){ */
+
+
+	    /* sendBuf.xmin, ..., sendBuf.zmax を GPU に cudaMemcpy する */
 
 
   /** determine process rank for each particle to belong */
@@ -1013,12 +1123,22 @@ void exchangeParticles_dev
     bool find = false;
 #endif//NDEBUG
 
+    /* この処理を GPU 上でやりたいんだけど，可能?? */
+    /* sendBuf の値を host to device で送り付けてあげないといけない． */
+    /* というわけなので，何か配列を新作しないといけない; */
+    /* sendBuf.num の値の reduction をしないといけないので，そこをどうするか． */
+    /* overlapNum はどれだけ増えても O(10) にしかならないと思う */
     for(int jj = 0; jj < overlapNum; jj++){
       if( (pos_hst.x[ii] >= sendBuf[jj].xmin) && (pos_hst.x[ii] <= sendBuf[jj].xmax) &&
 	  (pos_hst.y[ii] >= sendBuf[jj].ymin) && (pos_hst.y[ii] <= sendBuf[jj].ymax) &&
 	  (pos_hst.z[ii] >= sendBuf[jj].zmin) && (pos_hst.z[ii] <= sendBuf[jj].zmax) ){
 	key.dstRank_hst[ii] = sendBuf[jj].rank;
-	sendBuf[jj].num++;
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+	sendBuf[jj].body.num++;
+#else///MPI_ONE_SIDED_FOR_EXCG
+	sendBuf[jj].     num++;
+#endif//MPI_ONE_SIDED_FOR_EXCG
+
 #ifndef NDEBUG
 	find = true;
 #endif//NDEBUG
@@ -1047,11 +1167,26 @@ void exchangeParticles_dev
 #endif//NDEBUG
   }/* for(int ii = 0; ii < numOld; ii++){ */
 
-  sendBuf[0].head = 0;
+
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+  sendBuf[0].body.head = 0;
+#else///MPI_ONE_SIDED_FOR_EXCG
+  sendBuf[0].     head = 0;
+#endif//MPI_ONE_SIDED_FOR_EXCG
   for(int ii = 0; ii < overlapNum; ii++){
-    chkMPIerr(MPI_Isend(&(sendBuf[ii].num), 1, MPI_INT, sendBuf[ii].rank, mpi.rank, mpi.comm, &(domain.req[sendBuf[ii].rank])));
-    if( ii > 0 )
-      sendBuf[ii].head = sendBuf[ii - 1].head + sendBuf[ii - 1].num;
+    if( ii > 0 ){
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+      sendBuf[ii].body.head = sendBuf[ii - 1].body.head + sendBuf[ii - 1].body.num;
+#else///MPI_ONE_SIDED_FOR_EXCG
+      sendBuf[ii].     head = sendBuf[ii - 1].     head + sendBuf[ii - 1].     num;
+#endif//MPI_ONE_SIDED_FOR_EXCG
+    }/* if( ii > 0 ){ */
+
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+    chkMPIerr(MPI_Isend(&(sendBuf[ii].body), 1, mpi.send, sendBuf[ii].rank, mpi.rank, mpi.comm, &(domain.req[sendBuf[ii].rank])));
+#else///MPI_ONE_SIDED_FOR_EXCG
+    chkMPIerr(MPI_Isend(&(sendBuf[ii].num ), 1, MPI_INT , sendBuf[ii].rank, mpi.rank, mpi.comm, &(domain.req[sendBuf[ii].rank])));
+#endif//MPI_ONE_SIDED_FOR_EXCG
   }/* for(int ii = 0; ii < overlapNum; ii++){ */
 
   if( (sendBuf[overlapNum - 1].head + sendBuf[overlapNum - 1].num) != numOld ){
@@ -1067,13 +1202,161 @@ void exchangeParticles_dev
   }/* for(int ii = 0; ii < numProcs; ii++){ */
 
 
-  /** if GPU-GPU direct communication is not available */
+  /** send particle data */
+#ifdef  MPI_VIA_HOST
   copyParticle_dev2hst(numOld, *src_dev, *src_hst
 #ifdef  EXEC_BENCHMARK
-		       , execTime
+		       , elapsed
 #endif//EXEC_BENCHMARK
 		       );
+#endif//MPI_VIA_HOST
+
+
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+  /** receive particle data */
+#ifndef MPI_VIA_HOST
+  chkMPIerr(MPI_Win_lock_all(0, (*src_dev).win_ipos));
+#ifdef  GADGET_MAC
+  chkMPIerr(MPI_Win_lock_all(0, (*src_dev).win_iacc));
+#endif//GADGET_MAC
+#ifdef  BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_lock_all(0, (*src_dev).win_ivel));
+  chkMPIerr(MPI_Win_lock_all(0, (*src_dev).win_time));
+#else///BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_lock_all(0, (*src_dev).win_vx));
+  chkMPIerr(MPI_Win_lock_all(0, (*src_dev).win_vy));
+  chkMPIerr(MPI_Win_lock_all(0, (*src_dev).win_vz));
+#endif//BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_lock_all(0, (*src_dev).win_idx));
+#else///MPI_VIA_HOST
+  chkMPIerr(MPI_Win_lock_all(0, (*src_hst).win_ipos));
+#ifdef  GADGET_MAC
+  chkMPIerr(MPI_Win_lock_all(0, (*src_hst).win_iacc));
+#endif//GADGET_MAC
+#ifdef  BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_lock_all(0, (*src_hst).win_ivel));
+  chkMPIerr(MPI_Win_lock_all(0, (*src_hst).win_time));
+#else///BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_lock_all(0, (*src_hst).win_vx));
+  chkMPIerr(MPI_Win_lock_all(0, (*src_hst).win_vy));
+  chkMPIerr(MPI_Win_lock_all(0, (*src_hst).win_vz));
+#endif//BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_lock_all(0, (*src_hst).win_idx));
+#endif//MPI_VIA_HOST
+
+
+  *numNew = 0;
+  int recvHead = 0;
+  for(int ii = 0; ii < numProcs; ii++){
+    /** receive recvNum */
+    MPI_Status status;
+    chkMPIerr(MPI_Wait(&(recvBuf[ii].req), &status));
+
+    /** if recvNum != 0, then set receive buffer */
+    if( recvBuf[ii].body.num != 0 ){
+#ifndef MPI_VIA_HOST
+      chkMPIerr(MPI_Get(&((*dst_dev).pos[recvHead]), recvBuf[ii].body.num, mpi.ipos, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.ipos, (*src_dev).win_ipos));
+#ifdef  GADGET_MAC
+      chkMPIerr(MPI_Get(&((*dst_dev).acc[recvHead]), recvBuf[ii].body.num, mpi.iacc, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.iacc, (*src_dev).win_iacc));
+#endif//GADGET_MAC
+#ifdef  BLOCK_TIME_STEP
+      chkMPIerr(MPI_Get(&((*dst_dev).vel [recvHead]), recvBuf[ii].body.num, mpi.ivel, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.ivel, (*src_dev).win_ivel));
+      chkMPIerr(MPI_Get(&((*dst_dev).time[recvHead]), recvBuf[ii].body.num, mpi.time, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.time, (*src_dev).win_time));
+#else///BLOCK_TIME_STEP
+      chkMPIerr(MPI_Get(&((*dst_dev).vx[recvHead]), recvBuf[ii].body.num, MPI_REALDAT, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, MPI_REALDAT, (*src_dev).win_vx));
+      chkMPIerr(MPI_Get(&((*dst_dev).vy[recvHead]), recvBuf[ii].body.num, MPI_REALDAT, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, MPI_REALDAT, (*src_dev).win_vy));
+      chkMPIerr(MPI_Get(&((*dst_dev).vz[recvHead]), recvBuf[ii].body.num, MPI_REALDAT, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, MPI_REALDAT, (*src_dev).win_vz));
+#endif//BLOCK_TIME_STEP
+      chkMPIerr(MPI_Get(&((*dst_dev).idx[recvHead]), recvBuf[ii].body.num, MPI_UNSIGNED_LONG, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, MPI_UNSIGNED_LONG, (*src_dev).win_idx));
+#else///MPI_VIA_HOST
+      chkMPIerr(MPI_Get(&((*dst_hst).pos[recvHead]), recvBuf[ii].body.num, mpi.ipos, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.ipos, (*src_hst).win_ipos));
+#ifdef  GADGET_MAC
+      chkMPIerr(MPI_Get(&((*dst_hst).acc[recvHead]), recvBuf[ii].body.num, mpi.iacc, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.iacc, (*src_hst).win_iacc));
+#endif//GADGET_MAC
+#ifdef  BLOCK_TIME_STEP
+      chkMPIerr(MPI_Get(&((*dst_hst).vel [recvHead]), recvBuf[ii].body.num, mpi.ivel, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.ivel, (*src_hst).win_ivel));
+      chkMPIerr(MPI_Get(&((*dst_hst).time[recvHead]), recvBuf[ii].body.num, mpi.time, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.time, (*src_hst).win_time));
+#else///BLOCK_TIME_STEP
+      chkMPIerr(MPI_Get(&((*dst_hst).vx[recvHead]), recvBuf[ii].body.num, MPI_REALDAT, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, MPI_REALDAT, (*src_hst).win_vx));
+      chkMPIerr(MPI_Get(&((*dst_hst).vy[recvHead]), recvBuf[ii].body.num, MPI_REALDAT, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, MPI_REALDAT, (*src_hst).win_vy));
+      chkMPIerr(MPI_Get(&((*dst_hst).vz[recvHead]), recvBuf[ii].body.num, MPI_REALDAT, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, MPI_REALDAT, (*src_hst).win_vz));
+#endif//BLOCK_TIME_STEP
+      chkMPIerr(MPI_Get(&((*dst_hst).idx[recvHead]), recvBuf[ii].body.num, MPI_UNSIGNED_LONG, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, MPI_UNSIGNED_LONG, (*src_hst).win_idx));
+#endif//MPI_VIA_HOST
+
+      *numNew  += recvBuf[ii].body.num;
+      recvHead += recvBuf[ii].body.num;
+    }/* if( recvBuf[ii].body.num != 0 ){ */
+  }/* for(int ii = 0; ii < numProcs; ii++){ */
+
+
+
+
+
+
+
+
+
+#if 0
+  for(int ii = 0; ii < numProcs; ii++){
+    chkMPIerr(MPI_Win_flush(let[ii].rank, mpi.win_more));
+  }/* for(int ii = 0; ii < numProcs; ii++){ */
+#endif
+
+
+
+
+#ifndef MPI_VIA_HOST
+  chkMPIerr(MPI_Win_unlock_all((*src_dev).win_ipos));
+#ifdef  GADGET_MAC
+  chkMPIerr(MPI_Win_unlock_all((*src_dev).win_iacc));
+#endif//GADGET_MAC
+#ifdef  BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_unlock_all((*src_dev).win_ivel));
+  chkMPIerr(MPI_Win_unlock_all((*src_dev).win_time));
+#else///BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_unlock_all((*src_dev).win_vx));
+  chkMPIerr(MPI_Win_unlock_all((*src_dev).win_vy));
+  chkMPIerr(MPI_Win_unlock_all((*src_dev).win_vz));
+#endif//BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_unlock_all((*src_dev).win_idx));
+#else///MPI_VIA_HOST
+  chkMPIerr(MPI_Win_unlock_all((*src_hst).win_ipos));
+#ifdef  GADGET_MAC
+  chkMPIerr(MPI_Win_unlock_all((*src_hst).win_iacc));
+#endif//GADGET_MAC
+#ifdef  BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_unlock_all((*src_hst).win_ivel));
+  chkMPIerr(MPI_Win_unlock_all((*src_hst).win_time));
+#else///BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_unlock_all((*src_hst).win_vx));
+  chkMPIerr(MPI_Win_unlock_all((*src_hst).win_vy));
+  chkMPIerr(MPI_Win_unlock_all((*src_hst).win_vz));
+#endif//BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_unlock_all((*src_hst).win_idx));
+#endif//MPI_VIA_HOST
+
+
+#else///MPI_ONE_SIDED_FOR_EXCG
+
+
+  /** send particle data */
   for(int ii = 0; ii < overlapNum; ii++){
+#ifndef MPI_VIA_HOST
+    chkMPIerr(MPI_Isend(&((*src_dev).pos [sendBuf[ii].head]), sendBuf[ii].num, mpi.ipos         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].pos)));
+#ifdef  GADGET_MAC
+    chkMPIerr(MPI_Isend(&((*src_dev).acc [sendBuf[ii].head]), sendBuf[ii].num, mpi.iacc         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].acc)));
+#endif//GADGET_MAC
+#ifdef  BLOCK_TIME_STEP
+    chkMPIerr(MPI_Isend(&((*src_dev).vel [sendBuf[ii].head]), sendBuf[ii].num, mpi.ivel         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].vel)));
+    chkMPIerr(MPI_Isend(&((*src_dev).time[sendBuf[ii].head]), sendBuf[ii].num, mpi.time         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].time)));
+#else///BLOCK_TIME_STEP
+    chkMPIerr(MPI_Isend(&((*src_dev).vx  [sendBuf[ii].head]), sendBuf[ii].num, MPI_REALDAT      , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].vx )));
+    chkMPIerr(MPI_Isend(&((*src_dev).vy  [sendBuf[ii].head]), sendBuf[ii].num, MPI_REALDAT      , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].vy )));
+    chkMPIerr(MPI_Isend(&((*src_dev).vz  [sendBuf[ii].head]), sendBuf[ii].num, MPI_REALDAT      , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].vz )));
+#endif//BLOCK_TIME_STEP
+    chkMPIerr(MPI_Isend(&((*src_dev).idx [sendBuf[ii].head]), sendBuf[ii].num, MPI_UNSIGNED_LONG, sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].idx)));
+#else///MPI_VIA_HOST
     chkMPIerr(MPI_Isend(&((*src_hst).pos [sendBuf[ii].head]), sendBuf[ii].num, mpi.ipos         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].pos)));
 #ifdef  GADGET_MAC
     chkMPIerr(MPI_Isend(&((*src_hst).acc [sendBuf[ii].head]), sendBuf[ii].num, mpi.iacc         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].acc)));
@@ -1087,10 +1370,11 @@ void exchangeParticles_dev
     chkMPIerr(MPI_Isend(&((*src_hst).vz  [sendBuf[ii].head]), sendBuf[ii].num, MPI_REALDAT      , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].vz )));
 #endif//BLOCK_TIME_STEP
     chkMPIerr(MPI_Isend(&((*src_hst).idx [sendBuf[ii].head]), sendBuf[ii].num, MPI_UNSIGNED_LONG, sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].idx)));
+#endif//MPI_VIA_HOST
   }/* for(int ii = 0; ii < overlapNum; ii++){ */
 
 
-  /** src is receive buffer */
+  /** receive particle data */
   *numNew = 0;
   for(int ii = 0; ii < numProcs; ii++)
     recvBuf[ii].head = 0;
@@ -1101,6 +1385,21 @@ void exchangeParticles_dev
 
     /** if recvNum != 0, then set receive buffer */
     if( recvBuf[ii].num != 0 ){
+#ifndef MPI_VIA_HOST
+      chkMPIerr(MPI_Irecv(&((*dst_dev).pos [recvBuf[ii].head]), recvBuf[ii].num, mpi.ipos         , ii, ii, mpi.comm, &(recvBuf[ii].pos)));
+#ifdef  GADGET_MAC
+      chkMPIerr(MPI_Irecv(&((*dst_dev).acc [recvBuf[ii].head]), recvBuf[ii].num, mpi.iacc         , ii, ii, mpi.comm, &(recvBuf[ii].acc)));
+#endif//GADGET_MAC
+#ifdef  BLOCK_TIME_STEP
+      chkMPIerr(MPI_Irecv(&((*dst_dev).vel [recvBuf[ii].head]), recvBuf[ii].num, mpi.ipos         , ii, ii, mpi.comm, &(recvBuf[ii].vel)));
+      chkMPIerr(MPI_Irecv(&((*dst_dev).time[recvBuf[ii].head]), recvBuf[ii].num, mpi.ipos         , ii, ii, mpi.comm, &(recvBuf[ii].time)));
+#else///BLOCK_TIME_STEP
+      chkMPIerr(MPI_Irecv(&((*dst_dev).vx  [recvBuf[ii].head]), recvBuf[ii].num, MPI_REALDAT      , ii, ii, mpi.comm, &(recvBuf[ii].vx )));
+      chkMPIerr(MPI_Irecv(&((*dst_dev).vy  [recvBuf[ii].head]), recvBuf[ii].num, MPI_REALDAT      , ii, ii, mpi.comm, &(recvBuf[ii].vy )));
+      chkMPIerr(MPI_Irecv(&((*dst_dev).vz  [recvBuf[ii].head]), recvBuf[ii].num, MPI_REALDAT      , ii, ii, mpi.comm, &(recvBuf[ii].vz )));
+#endif//BLOCK_TIME_STEP
+      chkMPIerr(MPI_Irecv(&((*dst_dev).idx [recvBuf[ii].head]), recvBuf[ii].num, MPI_UNSIGNED_LONG, ii, ii, mpi.comm, &(recvBuf[ii].idx)));
+#else///MPI_VIA_HOST
       chkMPIerr(MPI_Irecv(&((*dst_hst).pos [recvBuf[ii].head]), recvBuf[ii].num, mpi.ipos         , ii, ii, mpi.comm, &(recvBuf[ii].pos)));
 #ifdef  GADGET_MAC
       chkMPIerr(MPI_Irecv(&((*dst_hst).acc [recvBuf[ii].head]), recvBuf[ii].num, mpi.iacc         , ii, ii, mpi.comm, &(recvBuf[ii].acc)));
@@ -1114,6 +1413,7 @@ void exchangeParticles_dev
       chkMPIerr(MPI_Irecv(&((*dst_hst).vz  [recvBuf[ii].head]), recvBuf[ii].num, MPI_REALDAT      , ii, ii, mpi.comm, &(recvBuf[ii].vz )));
 #endif//BLOCK_TIME_STEP
       chkMPIerr(MPI_Irecv(&((*dst_hst).idx [recvBuf[ii].head]), recvBuf[ii].num, MPI_UNSIGNED_LONG, ii, ii, mpi.comm, &(recvBuf[ii].idx)));
+#endif//MPI_VIA_HOST
 
       *numNew += recvBuf[ii].num;
 
@@ -1121,6 +1421,7 @@ void exchangeParticles_dev
 	recvBuf[ii + 1].head = recvBuf[ii].head + recvBuf[ii].num;
     }/* if( recvBuf[ii].num != 0 ){ */
   }/* for(int ii = 0; ii < numProcs; ii++){ */
+#endif//MPI_ONE_SIDED_FOR_EXCG
 
   if( *numNew > numMax ){
     __KILL__(stderr, "ERROR: # of required receive buffer (%d) exceeds the maximum number of particles per process (%d).\n\tsuggestion: consider increasing \"MAX_FACTOR_INCREASE\" or \"MAX_FACTOR_SAFETY\" defined in src/para/mpicfg.h (current values are %f and %f, respectively) at least %e times.\n", *numNew, numMax, MAX_FACTOR_INCREASE, MAX_FACTOR_SAFETY, (float)(*numNew) / (float)numMax);
@@ -1170,19 +1471,28 @@ void exchangeParticles_dev
       __KILL__(stderr, "ERROR: domain decomposition cause some error (duplication of %d particles)\n", diff_sum);
     }/* if( diff_sum != 0 ){ */
 
+#endif//MPI_ONE_SIDED_FOR_EXCG
 
+
+#ifdef  MPI_VIA_HOST
   /** copy N-body particles from host to device */
   copyParticle_hst2dev(*numNew, *dst_hst, *src_dev
 #ifdef  EXEC_BENCHMARK
-		       , execTime
+		       , elapsed
 #endif//EXEC_BENCHMARK
 		       );
+#endif//MPI_VIA_HOST
   __NOTE__("numOld = %d, numNew = %d @ rank %d\n", numOld, *numNew, mpi.rank);
 
   iparticle _tmp_hst;
   _tmp_hst = *src_hst;
   *src_hst = *dst_hst;
   *dst_hst = _tmp_hst;
+#ifndef MPI_VIA_HOST
+  _tmp_hst = *src_dev;
+  *src_dev = *dst_dev;
+  *dst_dev = _tmp_hst;
+#endif//MPI_VIA_HOST
 
 
   /** modify parameters related to auto-tuning */
@@ -1205,7 +1515,7 @@ void exchangeParticles_dev
   clock_gettime(CLOCK_MONOTONIC_RAW, &finish);
   measured->excg = calcElapsedTimeInSec(start, finish);
 #ifdef  EXEC_BENCHMARK
-  elapsed->excgBody = measured->excg;
+  elapsed->excgBody_dev = measured->excg;
 #endif//EXEC_BENCHMARK
 
 

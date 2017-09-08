@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/30 (Wed)
+ * @date 2017/09/07 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1070,9 +1070,9 @@ muse allocTreeNode_dev
 #ifdef  WS93_MAC
  real **mr2_dev,
 #endif//WS93_MAC
-#   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
  soaTreeNode *hst, uint **more_hst, jparticle **pj_hst, jmass **mj_hst,
-#endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
  int **gmem_make_tree, int **gsync0_make_tree, int **gsync1_make_tree, int **gsync2_make_tree, int **gsync3_make_tree,
  int **gmem_link_tree, int **gsync0_link_tree, int **gsync1_link_tree,
 #ifdef  GADGET_MAC
@@ -1094,11 +1094,11 @@ muse allocTreeNode_dev
   mycudaMalloc    ((void **)   mj_dev, num * sizeof(jmass    ));  alloc.device += num * sizeof(jmass    );  dev->mj        = *   mj_dev;
   mycudaMalloc    ((void **)  n2c_dev, num * sizeof(int      ));  alloc.device += num * sizeof(int      );  dev->node2cell = *  n2c_dev;
 
-#   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
   mycudaMallocHost((void **) more_hst, num * sizeof(uint     ));  alloc.host += num * sizeof(uint     );  hst->more      = * more_hst;
   mycudaMallocHost((void **)   pj_hst, num * sizeof(jparticle));  alloc.host += num * sizeof(jparticle);  hst->jpos      = *   pj_hst;
   mycudaMallocHost((void **)   mj_hst, num * sizeof(jmass    ));  alloc.host += num * sizeof(jmass    );  hst->mj        = *   mj_hst;
-#endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
 
 #ifdef  GADGET_MAC
   mycudaMalloc((void **)mac_dev, num * sizeof(real));  alloc.device += num * sizeof(real);  dev->mac = *mac_dev;
@@ -1208,9 +1208,9 @@ void  freeTreeNode_dev
 #ifdef  WS93_MAC
  real  *mr2_dev,
 #endif//WS93_MAC
-#   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
  uint  *more_hst, jparticle  *pj_hst, jmass  *mj_hst,
-#endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
  int  *gmem_make_tree, int  *gsync0_make_tree, int  *gsync1_make_tree, int  *gsync2_make_tree, int  *gsync3_make_tree,
  int  *gmem_link_tree, int  *gsync0_link_tree, int  *gsync1_link_tree,
 #ifdef  GADGET_MAC
@@ -1229,11 +1229,11 @@ void  freeTreeNode_dev
   mycudaFree    (   mj_dev);
   mycudaFree    (  n2c_dev);
 
-#   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
   mycudaFreeHost( more_hst);
   mycudaFreeHost(   pj_hst);
   mycudaFreeHost(   mj_hst);
-#endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
 
 #ifdef  GADGET_MAC
   mycudaFree(mac_dev);
@@ -1261,41 +1261,6 @@ void  freeTreeNode_dev
   mycudaFree(gsync1_external);
   mycudaFree(diameter_dev);  mycudaFreeHost(diameter_hst);
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-
-
-  __NOTE__("%s\n", "end");
-}
-
-
-/**
- * @fn setTreeNode_dev
- *
- * @brief Send tree node as pseudo j-particles from the host to the device using the default CUDA stream.
- * @detail perhaps, this function is not called; therefore, can be eliminated.
- */
-extern "C"
-void setTreeNode_dev
-(const size_t Nj, const soaTreeNode dev, const soaTreeNode hst, const size_t Ni
-#ifdef EXEC_BENCHMARK
- , wall_clock_time *elapsed
-#endif//EXEC_BENCHMARK
- )
-{
-  __NOTE__("%s\n", "start");
-
-
-#ifdef EXEC_BENCHMARK
-  initStopwatch();
-#endif//EXEC_BENCHMARK
-
-  checkCudaErrors(cudaMemcpy(dev.more, hst.more, sizeof(uint) * Nj, cudaMemcpyHostToDevice));
-
-  checkCudaErrors(cudaMemcpy(dev.node2cell, hst.node2cell, sizeof(      int) * Nj, cudaMemcpyHostToDevice));
-  checkCudaErrors(cudaMemcpy(dev.jtag     , hst.jtag     , sizeof(      int) * Ni, cudaMemcpyHostToDevice));
-
-#ifdef EXEC_BENCHMARK
-  stopStopwatch(&(elapsed->setTreeNode_dev));
-#endif//EXEC_BENCHMARK
 
 
   __NOTE__("%s\n", "end");
@@ -2771,13 +2736,14 @@ void calcMultipole_dev
 #ifdef  EXEC_BENCHMARK
   double time = 0.0;
   stopStopwatch(&time);
-  elapsed->calcMultipole += time;
+  elapsed->calcMultipole_dev = time;
+  *tmac += time;
 #else///EXEC_BENCHMARK
 #ifndef SERIALIZED_EXECUTION
   static struct timespec finish;
   checkCudaErrors(cudaDeviceSynchronize());
   clock_gettime(CLOCK_MONOTONIC_RAW, &finish);
-  *tmac +=calcElapsedTimeInSec(start, finish);
+  *tmac += calcElapsedTimeInSec(start, finish);
 #endif//SERIALIZED_EXECUTION
 #endif//EXEC_BENCHMARK
 

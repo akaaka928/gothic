@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/09/05 (Tue)
+ * @date 2017/09/07 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -890,12 +890,12 @@ int main(int argc, char **argv)
 #ifdef  WS93_MAC
   real *mr2_dev;
 #endif//WS93_MAC
-#   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
   soaTreeNode soaNode_hst;
   uint *more;
   jparticle *pj;
   jmass     *mj;
-#endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
   int *gmem_make_tree_dev, *gsync0_make_tree_dev, *gsync1_make_tree_dev, *gsync2_make_tree_dev, *gsync3_make_tree_dev;
   int *gmem_link_tree_dev, *gsync0_link_tree_dev, *gsync1_link_tree_dev;
 #ifdef  GADGET_MAC
@@ -913,9 +913,9 @@ int main(int argc, char **argv)
 #ifdef  WS93_MAC
 						&mr2_dev,
 #endif//WS93_MAC
-#   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
 						&soaNode_hst, &more, &pj, &mj,
-#endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
 						&gmem_make_tree_dev, &gsync0_make_tree_dev, &gsync1_make_tree_dev, &gsync2_make_tree_dev, &gsync3_make_tree_dev,
 						&gmem_link_tree_dev, &gsync0_link_tree_dev, &gsync1_link_tree_dev,
 #ifdef  GADGET_MAC
@@ -983,19 +983,69 @@ int main(int argc, char **argv)
   const muse alloc_appEnc = allocApproxEnclosingBall_dev(&appEncBall_dev, &gsync0_EB, &gsync1_EB, &soaEB, devProp);
 #endif//defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
 
-#ifdef  MPI_ONE_SIDED_FOR_LET_EXCG
+#ifdef  MPI_ONE_SIDED_FOR_LET
   /** create MPI Window objects for one-sided communication */
-  const size_t win_size = (size_t)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE);
-#ifndef LET_COMMUNICATION_VIA_HOST
-  chkMPIerr(MPI_Win_create(soaNode_dev.more, sizeof(uint)      * win_size, sizeof(uint)	    , letcfg.info, letcfg.comm, &(letcfg.win_more)));
-  chkMPIerr(MPI_Win_create(soaNode_dev.jpos, sizeof(jparticle) * win_size, sizeof(jparticle), letcfg.info, letcfg.comm, &(letcfg.win_jpos)));
-  chkMPIerr(MPI_Win_create(soaNode_dev.mj  , sizeof(jmass)     * win_size, sizeof(jmass)    , letcfg.info, letcfg.comm, &(letcfg.win_mass)));
-#else///LET_COMMUNICATION_VIA_HOST
-  chkMPIerr(MPI_Win_create(soaNode_hst.more, sizeof(uint)      * win_size, sizeof(uint)	    , letcfg.info, letcfg.comm, &(letcfg.win_more)));
-  chkMPIerr(MPI_Win_create(soaNode_hst.jpos, sizeof(jparticle) * win_size, sizeof(jparticle), letcfg.info, letcfg.comm, &(letcfg.win_jpos)));
-  chkMPIerr(MPI_Win_create(soaNode_hst.mj  , sizeof(jmass)     * win_size, sizeof(jmass)    , letcfg.info, letcfg.comm, &(letcfg.win_mass)));
-#endif//LET_COMMUNICATION_VIA_HOST
-#endif//MPI_ONE_SIDED_FOR_LET_EXCG
+  const size_t let_win_size = (size_t)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE);/**< corresponding to # of elements of tree nodes allocated in allocTreeNode_dev() in src/tree/make_dev.cu */
+#ifndef MPI_VIA_HOST
+  chkMPIerr(MPI_Win_create(soaNode_dev.more, sizeof(uint)      * let_win_size, sizeof(uint)	    , letcfg.info, letcfg.comm, &(letcfg.win_more)));
+  chkMPIerr(MPI_Win_create(soaNode_dev.jpos, sizeof(jparticle) * let_win_size, sizeof(jparticle), letcfg.info, letcfg.comm, &(letcfg.win_jpos)));
+  chkMPIerr(MPI_Win_create(soaNode_dev.mj  , sizeof(jmass)     * let_win_size, sizeof(jmass)    , letcfg.info, letcfg.comm, &(letcfg.win_mass)));
+#else///MPI_VIA_HOST
+  chkMPIerr(MPI_Win_create(soaNode_hst.more, sizeof(uint)      * let_win_size, sizeof(uint)	    , letcfg.info, letcfg.comm, &(letcfg.win_more)));
+  chkMPIerr(MPI_Win_create(soaNode_hst.jpos, sizeof(jparticle) * let_win_size, sizeof(jparticle), letcfg.info, letcfg.comm, &(letcfg.win_jpos)));
+  chkMPIerr(MPI_Win_create(soaNode_hst.mj  , sizeof(jmass)     * let_win_size, sizeof(jmass)    , letcfg.info, letcfg.comm, &(letcfg.win_mass)));
+#endif//MPI_VIA_HOST
+#endif//MPI_ONE_SIDED_FOR_LET
+
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+  const size_t body_win_size = (size_t)num_max + (size_t)(((num_max % NTHREADS) != 0) ? (NTHREADS - (num_max & NTHREADS)) : (0));/**< corresponding to # of particles per node allocated in allocParticleDataSoA_dev() in src/misc/allocate_dev.cu */
+
+#ifndef MPI_VIA_HOST
+  chkMPIerr(MPI_Win_create(ibody0_dev.pos, sizeof(position) * body_win_size, sizeof(position), letcfg.info, letcfg.comm, &(ibody0_dev.win_ipos)));
+  chkMPIerr(MPI_Win_create(ibody1_dev.pos, sizeof(position) * body_win_size, sizeof(position), letcfg.info, letcfg.comm, &(ibody1_dev.win_ipos)));
+#ifdef  GADGET_MAC
+  chkMPIerr(MPI_Win_create(ibody0_dev.acc, sizeof(acceleration) * body_win_size, sizeof(acceleration), letcfg.info, letcfg.comm, &(ibody0_dev.win_iacc)));
+  chkMPIerr(MPI_Win_create(ibody1_dev.acc, sizeof(acceleration) * body_win_size, sizeof(acceleration), letcfg.info, letcfg.comm, &(ibody1_dev.win_iacc)));
+#endif//GADGET_MAC
+#ifdef  BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_create(ibody0_dev.vel, sizeof(velocity) * body_win_size, sizeof(position), letcfg.info, letcfg.comm, &(ibody0_dev.win_ivel)));
+  chkMPIerr(MPI_Win_create(ibody1_dev.vel, sizeof(velocity) * body_win_size, sizeof(position), letcfg.info, letcfg.comm, &(ibody1_dev.win_ivel)));
+  chkMPIerr(MPI_Win_create(ibody0_dev.time, sizeof(ibody_time) * body_win_size, sizeof(ibody_time), letcfg.info, letcfg.comm, &(ibody0_dev.win_time)));
+  chkMPIerr(MPI_Win_create(ibody1_dev.time, sizeof(ibody_time) * body_win_size, sizeof(ibody_time), letcfg.info, letcfg.comm, &(ibody1_dev.win_time)));
+#else///BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_create(ibody0_dev.vx, sizeof(real) * body_win_size, sizeof(real), letcfg.info, letcfg.comm, &(ibody0_dev.win_vx)));
+  chkMPIerr(MPI_Win_create(ibody1_dev.vx, sizeof(real) * body_win_size, sizeof(real), letcfg.info, letcfg.comm, &(ibody1_dev.win_vx)));
+  chkMPIerr(MPI_Win_create(ibody0_dev.vy, sizeof(real) * body_win_size, sizeof(real), letcfg.info, letcfg.comm, &(ibody0_dev.win_vy)));
+  chkMPIerr(MPI_Win_create(ibody1_dev.vy, sizeof(real) * body_win_size, sizeof(real), letcfg.info, letcfg.comm, &(ibody1_dev.win_vy)));
+  chkMPIerr(MPI_Win_create(ibody0_dev.vz, sizeof(real) * body_win_size, sizeof(real), letcfg.info, letcfg.comm, &(ibody0_dev.win_vz)));
+  chkMPIerr(MPI_Win_create(ibody1_dev.vz, sizeof(real) * body_win_size, sizeof(real), letcfg.info, letcfg.comm, &(ibody1_dev.win_vz)));
+#endif//BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_create(ibody0_dev.idx, sizeof(ulong) * body_win_size, sizeof(ulong), letcfg.info, letcfg.comm, &(ibody0_dev.win_idx)));
+  chkMPIerr(MPI_Win_create(ibody1_dev.idx, sizeof(ulong) * body_win_size, sizeof(ulong), letcfg.info, letcfg.comm, &(ibody1_dev.win_idx)));
+#else///MPI_VIA_HOST
+  chkMPIerr(MPI_Win_create(ibody0.pos, sizeof(position) * body_win_size, sizeof(position), letcfg.info, letcfg.comm, &(ibody0.win_ipos)));
+  chkMPIerr(MPI_Win_create(ibody1.pos, sizeof(position) * body_win_size, sizeof(position), letcfg.info, letcfg.comm, &(ibody1.win_ipos)));
+#ifdef  GADGET_MAC
+  chkMPIerr(MPI_Win_create(ibody0.acc, sizeof(acceleration) * body_win_size, sizeof(acceleration), letcfg.info, letcfg.comm, &(ibody0.win_iacc)));
+  chkMPIerr(MPI_Win_create(ibody1.acc, sizeof(acceleration) * body_win_size, sizeof(acceleration), letcfg.info, letcfg.comm, &(ibody1.win_iacc)));
+#endif//GADGET_MAC
+#ifdef  BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_create(ibody0.vel, sizeof(velocity) * body_win_size, sizeof(position), letcfg.info, letcfg.comm, &(ibody0.win_ivel)));
+  chkMPIerr(MPI_Win_create(ibody1.vel, sizeof(velocity) * body_win_size, sizeof(position), letcfg.info, letcfg.comm, &(ibody1.win_ivel)));
+  chkMPIerr(MPI_Win_create(ibody0.time, sizeof(ibody_time) * body_win_size, sizeof(ibody_time), letcfg.info, letcfg.comm, &(ibody0.win_time)));
+  chkMPIerr(MPI_Win_create(ibody1.time, sizeof(ibody_time) * body_win_size, sizeof(ibody_time), letcfg.info, letcfg.comm, &(ibody1.win_time)));
+#else///BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_create(ibody0.vx, sizeof(real) * body_win_size, sizeof(real), letcfg.info, letcfg.comm, &(ibody0.win_vx)));
+  chkMPIerr(MPI_Win_create(ibody1.vx, sizeof(real) * body_win_size, sizeof(real), letcfg.info, letcfg.comm, &(ibody1.win_vx)));
+  chkMPIerr(MPI_Win_create(ibody0.vy, sizeof(real) * body_win_size, sizeof(real), letcfg.info, letcfg.comm, &(ibody0.win_vy)));
+  chkMPIerr(MPI_Win_create(ibody1.vy, sizeof(real) * body_win_size, sizeof(real), letcfg.info, letcfg.comm, &(ibody1.win_vy)));
+  chkMPIerr(MPI_Win_create(ibody0.vz, sizeof(real) * body_win_size, sizeof(real), letcfg.info, letcfg.comm, &(ibody0.win_vz)));
+  chkMPIerr(MPI_Win_create(ibody1.vz, sizeof(real) * body_win_size, sizeof(real), letcfg.info, letcfg.comm, &(ibody1.win_vz)));
+#endif//BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_create(ibody0.idx, sizeof(ulong) * body_win_size, sizeof(ulong), letcfg.info, letcfg.comm, &(ibody0.win_idx)));
+  chkMPIerr(MPI_Win_create(ibody1.idx, sizeof(ulong) * body_win_size, sizeof(ulong), letcfg.info, letcfg.comm, &(ibody1.win_idx)));
+#endif//MPI_VIA_HOST
+#endif//MPI_ONE_SIDED_FOR_EXCG
 
 #endif//SERIALIZED_EXECUTION
 
@@ -1247,49 +1297,12 @@ int main(int argc, char **argv)
 
 
 #ifdef  EXEC_BENCHMARK
-  /** preparation of the benchmark */
-  /** declaration of counters */
-  static wall_clock_time execTime[BENCHMARK_STEPS];
+    /** preparation of the benchmark */
+    /** declaration of counters */
+    static wall_clock_time execTime[BENCHMARK_STEPS];/**< zero-clear by static modifier */
 #ifdef  COUNT_INTERACTIONS
-  static tree_metrics    treeProp[BENCHMARK_STEPS];
+    static tree_metrics    treeProp[BENCHMARK_STEPS];/**< zero-clear by static modifier */
 #endif//COUNT_INTERACTIONS
-  {
-    /** zero-clear of all counters */
-    const wall_clock_time zero_time =
-      {0.0, 0.0, 0.0,/**< calcGravity_dev, calcMultipole, makeTree */
-#ifdef  BLOCK_TIME_STEP
-       0.0, 0.0, 0.0, 0.0,/**< prediction_dev, correction_dev, setLaneTime_dev, adjustParticleTime_dev */
-#else///BLOCK_TIME_STEP
-       0.0, 0.0,/**< advPos_dev, advVel_dev */
-#endif//BLOCK_TIME_STEP
-       0.0, 0.0,/**< setTimeStep_dev, sortParticlesPHcurve */
-       0.0, 0.0,/**< copyParticle_dev2hst, copyParticle_hst2dev */
-       0.0, 0.0,/**< setTreeNode_dev, setTreeCell_dev */
-       0.0, 0.0/**< examineNeighbor_dev, searchNeighbor_dev */
-#ifdef  HUNT_MAKE_PARAMETER
-       , 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/* genPHkey_kernel, rsortKey_library, sortBody_kernel, makeTree_kernel, linkTree_kernel, trimTree_kernel */
-       , 0.0, 0.0, 0.0, 0.0, 0.0/* initTreeLink_kernel, initTreeCell_kernel, initTreeNode_kernel, initTreeBody_kernel, copyRealBody_kernel */
-#endif//HUNT_MAKE_PARAMETER
-#ifdef  HUNT_FIND_PARAMETER
-       , 0.0, 0.0, 0.0, 0.0/* searchNeighbor_kernel, sortNeighbors, countNeighbors_kernel, commitNeighbors */
-#endif//HUNT_FIND_PARAMETER
-      };
-#ifdef  COUNT_INTERACTIONS
-    const tree_stats tree_zero = {ZERO, ZERO, ZERO, ZERO, 0, 0};
-    tree_metrics zero_tree;
-    for(uint ll = 0; ll < MAXIMUM_PHKEY_LEVEL; ll++)
-      zero_tree.level[ll] = tree_zero;
-    zero_tree.total = tree_zero;
-    zero_tree.Ninteractions = 0;
-#endif//COUNT_INTERACTIONS
-
-    for(uint ll = 0; ll < BENCHMARK_STEPS; ll++){
-      execTime[ll] = zero_time;
-#ifdef  COUNT_INTERACTIONS
-      treeProp[ll] = zero_tree;
-#endif//COUNT_INTERACTIONS
-    }/* for(uint ll = 0; ll < BENCHMARK_STEPS; ll++){ */
-  }
 
   static uint bench_begin;
   bench_begin = steps;
@@ -1468,9 +1481,9 @@ int main(int argc, char **argv)
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
 		    , &elapsed, numNode
-#ifdef  LET_COMMUNICATION_VIA_HOST
+#ifdef  MPI_VIA_HOST
 		    , soaNode_hst
-#endif//LET_COMMUNICATION_VIA_HOST
+#endif//MPI_VIA_HOST
 		    , letcfg.size, nodeInfo, Nstream_let, stream_let, letcfg
 #ifdef  MONITOR_LETGEN_TIME
 #ifdef  USE_CUDA_EVENT
@@ -1497,9 +1510,6 @@ int main(int argc, char **argv)
     recoverGADGET_MAC_dev(numNode, soaNode_dev);
     /** reset stop watch */
     elapsed.walkTree[0] = 0.0;
-#ifdef  EXEC_BENCHMARK
-    execTime[steps - bench_begin].calcGravity_dev = 0.0;
-#endif//EXEC_BENCHMARK
 #ifndef SERIALIZED_EXECUTION
     /** find center of enclosing ball */
 #ifdef  USE_ENCLOSING_BALL_FOR_LET
@@ -1551,9 +1561,9 @@ int main(int argc, char **argv)
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
 		    , &elapsed, numNode
-#ifdef  LET_COMMUNICATION_VIA_HOST
+#ifdef  MPI_VIA_HOST
 		    , soaNode_hst
-#endif//LET_COMMUNICATION_VIA_HOST
+#endif//MPI_VIA_HOST
 		    , letcfg.size, nodeInfo, Nstream_let, stream_let, letcfg
 #ifdef  MONITOR_LETGEN_TIME
 #ifdef  USE_CUDA_EVENT
@@ -2050,9 +2060,9 @@ int main(int argc, char **argv)
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
 		      , &elapsed, numNode
-#ifdef  LET_COMMUNICATION_VIA_HOST
+#ifdef  MPI_VIA_HOST
 		      , soaNode_hst
-#endif//LET_COMMUNICATION_VIA_HOST
+#endif//MPI_VIA_HOST
 		      , letcfg.size, nodeInfo, Nstream_let, stream_let, letcfg
 #ifdef  MONITOR_LETGEN_TIME
 #ifdef  USE_CUDA_EVENT
@@ -2090,7 +2100,6 @@ int main(int argc, char **argv)
 	Ni_active += laneInfo_hst[ii].num;
       printf("%d\t%d\t%le\n", grpNum, Ni_active, execTime[steps - bench_begin].calcGravity_dev);
       fflush(stdout);
-      execTime[steps - bench_begin].calcGravity_dev = 0.0;
     }/* for(grpNum = Ngrp; grpNum >= NGROUPS; grpNum = (int)((double)grpNum * M_SQRT1_2)){ */
     steps = bench_begin + BENCHMARK_STEPS - 1;/**< kill other benchmark */
 #endif//SHOW_NI_DEPENDENCE
@@ -2324,11 +2333,64 @@ int main(int argc, char **argv)
 #endif//!defined(EXEC_BENCHMARK) && !defined(COMPARE_WITH_DIRECT_SOLVER)
 
 
-#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_ONE_SIDED_FOR_LET_EXCG)
+#ifndef SERIALIZED_EXECUTION
+
+#ifdef  MPI_ONE_SIDED_FOR_LET
   chkMPIerr(MPI_Win_free(&(letcfg.win_more)));
   chkMPIerr(MPI_Win_free(&(letcfg.win_jpos)));
   chkMPIerr(MPI_Win_free(&(letcfg.win_mass)));
-#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_ONE_SIDED_FOR_LET_EXCG)
+#endif//MPI_ONE_SIDED_FOR_LET
+
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+
+#ifndef MPI_VIA_HOST
+  chkMPIerr(MPI_Win_free(&(ibody0_dev.win_ipos)));
+  chkMPIerr(MPI_Win_free(&(ibody1_dev.win_ipos)));
+#ifdef  GADGET_MAC
+  chkMPIerr(MPI_Win_free(&(ibody0_dev.win_iacc)));
+  chkMPIerr(MPI_Win_free(&(ibody1_dev.win_iacc)));
+#endif//GADGET_MAC
+#ifdef  BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_free(&(ibody0_dev.win_ivel)));
+  chkMPIerr(MPI_Win_free(&(ibody1_dev.win_ivel)));
+  chkMPIerr(MPI_Win_free(&(ibody0_dev.win_time)));
+  chkMPIerr(MPI_Win_free(&(ibody1_dev.win_time)));
+#else///BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_free(&(ibody0_dev.win_vx)));
+  chkMPIerr(MPI_Win_free(&(ibody1_dev.win_vx)));
+  chkMPIerr(MPI_Win_free(&(ibody0_dev.win_vy)));
+  chkMPIerr(MPI_Win_free(&(ibody1_dev.win_vy)));
+  chkMPIerr(MPI_Win_free(&(ibody0_dev.win_vz)));
+  chkMPIerr(MPI_Win_free(&(ibody1_dev.win_vz)));
+#endif//BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_free(&(ibody0_dev.win_idx)));
+  chkMPIerr(MPI_Win_free(&(ibody1_dev.win_idx)));
+#else///MPI_VIA_HOST
+  chkMPIerr(MPI_Win_free(&(ibody0.win_ipos)));
+  chkMPIerr(MPI_Win_free(&(ibody1.win_ipos)));
+#ifdef  GADGET_MAC
+  chkMPIerr(MPI_Win_free(&(ibody0.win_iacc)));
+  chkMPIerr(MPI_Win_free(&(ibody1.win_iacc)));
+#endif//GADGET_MAC
+#ifdef  BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_free(&(ibody0.win_ivel)));
+  chkMPIerr(MPI_Win_free(&(ibody1.win_ivel)));
+  chkMPIerr(MPI_Win_free(&(ibody0.win_time)));
+  chkMPIerr(MPI_Win_free(&(ibody1.win_time)));
+#else///BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_free(&(ibody0.win_vx)));
+  chkMPIerr(MPI_Win_free(&(ibody1.win_vx)));
+  chkMPIerr(MPI_Win_free(&(ibody0.win_vy)));
+  chkMPIerr(MPI_Win_free(&(ibody1.win_vy)));
+  chkMPIerr(MPI_Win_free(&(ibody0.win_vz)));
+  chkMPIerr(MPI_Win_free(&(ibody1.win_vz)));
+#endif//BLOCK_TIME_STEP
+  chkMPIerr(MPI_Win_free(&(ibody0.win_idx)));
+  chkMPIerr(MPI_Win_free(&(ibody1.win_idx)));
+#endif//MPI_VIA_HOST
+#endif//MPI_ONE_SIDED_FOR_EXCG
+
+#endif//SERIALIZED_EXECUTION
 
 
   /** memory deallocation */
@@ -2402,9 +2464,9 @@ int main(int argc, char **argv)
 #       ifdef  WS93_MAC
 		   mr2_dev,
 #       endif//WS93_MAC
-#   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
 		   more, pj, mj,
-#endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
 		   gmem_make_tree_dev, gsync0_make_tree_dev, gsync1_make_tree_dev, gsync2_make_tree_dev, gsync3_make_tree_dev,
 		   gmem_link_tree_dev, gsync0_link_tree_dev, gsync1_link_tree_dev,
 #ifdef  GADGET_MAC

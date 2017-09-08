@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/30 (Wed)
+ * @date 2017/09/07 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -95,14 +95,14 @@ typedef struct
   position icom;
   int *numSend_hst, *numSend_dev;
   MPI_Request reqSendInfo, reqRecvInfo;
-#ifdef  MPI_ONE_SIDED_FOR_LET_EXCG
+#ifdef  MPI_ONE_SIDED_FOR_LET
   MPI_Request reqSendHead, reqRecvHead;
   int headDisp;
-#else///MPI_ONE_SIDED_FOR_LET_EXCG
+#else///MPI_ONE_SIDED_FOR_LET
   MPI_Request reqSendMore, reqRecvMore;
   MPI_Request reqSendJpos, reqRecvJpos;
   MPI_Request reqSendMass, reqRecvMass;
-#endif//MPI_ONE_SIDED_FOR_LET_EXCG
+#endif//MPI_ONE_SIDED_FOR_LET
   int headSend, headRecv, numSend, numRecv, numRecvGuess;
   int maxSend, maxRecv, numFull, numNode;/**< numFull is # of nodes in local full tree, numNode is # of nodes in distant full tree */
   int overEstimateSend, overEstimateRecv;

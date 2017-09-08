@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/09/06 (Wed)
+ * @date 2017/09/07 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -905,13 +905,7 @@ void getApproxEnclosingBall_dev
   checkCudaErrors(cudaMemcpy(body.encBall_hst, body.encBall, sizeof(position), cudaMemcpyDeviceToHost));
 
 
-  /**# EBS の初期推定値は毎ステップ固定 or 前ステップで採用した値で良いと思う． */
-  /**# つまり，getEBS() については初期の推定値を外から渡してあげる形式に書き換える． */
-  /**# そうすると，後半部分の振る舞いが geometric の場合と書き変わるだけだから，define を使って関数の中身を ON/OFF するだけで切り換えられることになるので，その方が楽だと思う． */
-  /**# EBS を与えるコードができていれば，そいつに center を渡して上げるだけで簡単にできるはず */
-  /**# box size は src/para/exchange_dev.cu 中の getBoxSize_kernel() を動かせば結果が得られる． */
-  /**# この box size は tree rebuild 毎に評価する程度にサボっても良いと思う． */
 #ifdef  EXEC_BENCHMARK
-  stopStopwatch(&(elapsed->getApproxEnclosingBall_kernel));
+  stopStopwatch(&(elapsed->encBall_dev));
 #endif//EXEC_BENCHMARK
 }

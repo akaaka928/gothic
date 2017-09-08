@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/30 (Wed)
+ * @date 2017/09/07 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -34,14 +34,6 @@
 #include "../misc/tune.h"
 #include "../para/mpicfg.h"
 #include "../tree/let.h"
-
-/* /\** */
-/*  * @def MPI_ONE_SIDED_FOR_LET_EXCG */
-/*  * */
-/*  * @brief activates one-sided communication for exchanging LETs among multiple processes */
-/*  *\/ */
-/* #define MPI_ONE_SIDED_FOR_LET_EXCG */
-
 #endif//SERIALIZED_EXECUTION
 #endif//defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 
@@ -575,9 +567,9 @@ extern "C"
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 #ifndef SERIALIZED_EXECUTION
    , measuredTime *measured, const int pjNum
-#ifdef  LET_COMMUNICATION_VIA_HOST
+#ifdef  MPI_VIA_HOST
    , const soaTreeNode tree_hst
-#endif//LET_COMMUNICATION_VIA_HOST
+#endif//MPI_VIA_HOST
    , const int Nlet, domainInfo *let, const int Nstream_let, cudaStream_t stream_let[], MPIcfg_tree mpi
 #ifdef  MONITOR_LETGEN_TIME
 #ifdef  USE_CUDA_EVENT

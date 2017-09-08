@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/03/03 (Fri)
+ * @date 2017/09/08 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -102,8 +102,11 @@ typedef struct
  */
 typedef struct
 {
-  real xmin, xmax, ymin, ymax, zmin, zmax;
-  int rank, num, head;
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+  sendBody body;
+  MPI_Request req;
+#else///MPI_ONE_SIDED_FOR_EXCG
+  int num, head;
   MPI_Request pos, idx;
 #ifdef  GADGET_MAC
   MPI_Request acc;
@@ -113,6 +116,9 @@ typedef struct
 #else///BLOCK_TIME_STEP
   MPI_Request vx, vy, vz;
 #endif//BLOCK_TIME_STEP
+#endif//MPI_ONE_SIDED_FOR_EXCG
+  real xmin, xmax, ymin, ymax, zmin, zmax;
+  int rank;
 } sendCfg;
 
 /**
@@ -122,8 +128,15 @@ typedef struct
  */
 typedef struct
 {
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+  sendBody body;
+  MPI_Request dsp;
+#else///MPI_ONE_SIDED_FOR_EXCG
   int num, head;
-  MPI_Request req, pos, idx;
+#endif//MPI_ONE_SIDED_FOR_EXCG
+  MPI_Request req;
+#ifndef MPI_ONE_SIDED_FOR_EXCG
+  MPI_Request pos, idx;
 #ifdef  GADGET_MAC
   MPI_Request acc;
 #endif//GADGET_MAC
@@ -132,6 +145,7 @@ typedef struct
 #else///BLOCK_TIME_STEP
   MPI_Request vx, vy, vz;
 #endif//BLOCK_TIME_STEP
+#endif//MPI_ONE_SIDED_FOR_EXCG
 } recvCfg;
 
 /**

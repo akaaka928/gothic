@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/30 (Wed)
+ * @date 2017/09/07 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -480,9 +480,9 @@ extern "C"
 #       ifdef  WS93_MAC
    real **mr2_dev,
 #       endif//WS93_MAC
-#   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
    soaTreeNode *hst, uint **more_hst, jparticle **pj_hst, jmass **mj_hst,
-#endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
    int **gmem_make_tree, int **gsync0_make_tree, int **gsync1_make_tree, int **gsync2_make_tree, int **gsync3_make_tree,
    int **gmem_link_tree, int **gsync0_link_tree, int **gsync1_link_tree,
 #ifdef  GADGET_MAC
@@ -498,9 +498,9 @@ extern "C"
 #       ifdef  WS93_MAC
    real  *mr2_dev,
 #       endif//WS93_MAC
-#   if  !defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
    uint  *more_hst, jparticle  *pj_hst, jmass  *mj_hst,
-#endif//!defined(SERIALIZED_EXECUTION) && defined(LET_COMMUNICATION_VIA_HOST)
+#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
    int  *gmem_make_tree, int  *gsync0_make_tree, int  *gsync1_make_tree, int  *gsync2_make_tree, int  *gsync3_make_tree,
    int  *gmem_link_tree, int  *gsync0_link_tree, int  *gsync1_link_tree,
 #ifdef  GADGET_MAC
@@ -510,13 +510,6 @@ extern "C"
    int  *gmem_external, int  *gsync0_external, int  *gsync1_external, float  *diameter_dev, float  *diameter_hst,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
    int  *more0Buf, int  *more1Buf, real  *rjmaxBuf, int  *fail_dev);
-
-  void setTreeNode_dev
-  (const size_t Nj, const soaTreeNode dev, const soaTreeNode hst, const size_t Ni
-#ifdef EXEC_BENCHMARK
-   , wall_clock_time *elapsed
-#endif//EXEC_BENCHMARK
-   );
 
   muse allocTreeCell_dev
   (soaTreeCell *dev, treecell **cell_dev, bool **leaf_dev, uint **node_dev, PHinfo **info_dev,

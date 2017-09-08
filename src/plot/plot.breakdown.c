@@ -76,12 +76,12 @@ int main(int argc, char **argv)
   /* read the measured data */
   static PLINT step[BENCHMARK_STEPS];
   static PLFLT walkTree[BENCHMARK_STEPS], calcMAC[BENCHMARK_STEPS], makeTree[BENCHMARK_STEPS], sortPH[BENCHMARK_STEPS];
-  static PLFLT getBody[BENCHMARK_STEPS], setBody[BENCHMARK_STEPS], copyNode[BENCHMARK_STEPS], copyCell[BENCHMARK_STEPS];
+  static PLFLT getBody[BENCHMARK_STEPS], setBody[BENCHMARK_STEPS];
   static PLFLT predJpar[BENCHMARK_STEPS], corrIpar[BENCHMARK_STEPS], setGlbDt[BENCHMARK_STEPS], setLocDt[BENCHMARK_STEPS], adjustDt[BENCHMARK_STEPS];
   static PLFLT calcIsep[BENCHMARK_STEPS], spltIgrp[BENCHMARK_STEPS];
 #ifdef  CUMULATIVE_PLOT
   static PLFLT walkTreeSum[BENCHMARK_STEPS], calcMACSum[BENCHMARK_STEPS], makeTreeSum[BENCHMARK_STEPS], sortPHSum[BENCHMARK_STEPS];
-  static PLFLT getBodySum[BENCHMARK_STEPS], setBodySum[BENCHMARK_STEPS], copyNodeSum[BENCHMARK_STEPS], copyCellSum[BENCHMARK_STEPS];
+  static PLFLT getBodySum[BENCHMARK_STEPS], setBodySum[BENCHMARK_STEPS];
   static PLFLT predJparSum[BENCHMARK_STEPS], corrIparSum[BENCHMARK_STEPS], setGlbDtSum[BENCHMARK_STEPS], setLocDtSum[BENCHMARK_STEPS], adjustDtSum[BENCHMARK_STEPS];
   static PLFLT calcIsepSum[BENCHMARK_STEPS], spltIgrpSum[BENCHMARK_STEPS];
 #endif//CUMULATIVE_PLOT
@@ -93,9 +93,9 @@ int main(int argc, char **argv)
   //-----------------------------------------------------------------------
   int checker = 1;
   for(int ii = 0; ii < BENCHMARK_STEPS; ii++)
-    checker &= (16 == fscanf(fp, "%d\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le", &step[ii],
+    checker &= (16 == fscanf(fp, "%d\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le", &step[ii],
 			     &walkTree[ii], &calcMAC[ii], &makeTree[ii], &setGlbDt[ii], &sortPH[ii],
-			     &getBody[ii], &setBody[ii], &copyNode[ii], &copyCell[ii],
+			     &getBody[ii], &setBody[ii],
 			     &predJpar[ii], &corrIpar[ii], &setLocDt[ii], &adjustDt[ii], &calcIsep[ii], &spltIgrp[ii]));
   //-----------------------------------------------------------------------
   fclose(fp);
@@ -111,8 +111,6 @@ int main(int argc, char **argv)
   sortPHSum  [0] = sortPH  [0];
   getBodySum [0] =  getBody[0];
   setBodySum [0] =  setBody[0];
-  copyNodeSum[0] = copyNode[0];
-  copyCellSum[0] = copyCell[0];
   predJparSum[0] = predJpar[0];
   corrIparSum[0] = corrIpar[0];
   setLocDtSum[0] = setLocDt[0];
@@ -127,8 +125,6 @@ int main(int argc, char **argv)
     sortPHSum  [ii] = sortPH  [ii] + sortPHSum  [ii - 1];
     getBodySum [ii] =  getBody[ii] + getBodySum [ii - 1];
     setBodySum [ii] =  setBody[ii] + setBodySum [ii - 1];
-    copyNodeSum[ii] = copyNode[ii] + copyNodeSum[ii - 1];
-    copyCellSum[ii] = copyCell[ii] + copyCellSum[ii - 1];
     predJparSum[ii] = predJpar[ii] + predJparSum[ii - 1];
     corrIparSum[ii] = corrIpar[ii] + corrIparSum[ii - 1];
     setLocDtSum[ii] = setLocDt[ii] + setLocDtSum[ii - 1];
@@ -143,7 +139,7 @@ int main(int argc, char **argv)
     walkTree[ii] =                         log10(walkTree[ii])          ;/* time to calculate gravity (calcGrav_dev) */
     makeTree[ii] = (makeTree[ii] != 0.0) ? log10(makeTree[ii]) : DBL_MAX;/* time to build tree structure (makeTree) */
     sortPH  [ii] = (sortPH  [ii] != 0.0) ? log10(sortPH  [ii]) : DBL_MAX;/* time to generate and sort PH-key and sort N-body particles (sortPHcurve) */
-    calcMAC [ii] =                         log10(calcMAC [ii])          ;/* time to calculate mass, size and MAC for pseudo j-particles (calcMultipole) */
+    calcMAC [ii] =                         log10(calcMAC [ii])          ;/* time to calculate mass, size and MAC for pseudo j-particles (calcMultipole_dev) */
     spltIgrp[ii] = (spltIgrp[ii] != 0.0) ? log10(spltIgrp[ii]) : DBL_MAX;/* time to slice group of i-particles (searchNeighbor_dev) */
     predJpar[ii] =                         log10(predJpar[ii])          ;/* time to calculate position and velocity of j-particles (predoction_dev) */
     corrIpar[ii] = (corrIpar[ii] != 0.0) ? log10(corrIpar[ii]) : DBL_MAX;/* time to calculate position of i-particles (correction_dev) */
@@ -153,8 +149,6 @@ int main(int argc, char **argv)
     adjustDt[ii] =                         log10(adjustDt[ii])          ;/* time to adjust time step of N-body particles (adjustTime_dev) */
     setBody [ii] = (setBody [ii] != 0.0) ? log10( setBody[ii]) : DBL_MAX;/* time to copy N-body particles from host to device (cpBody_hst2dev) */
     getBody [ii] = (getBody [ii] != 0.0) ? log10( getBody[ii]) : DBL_MAX;/* time to copy N-body particles from device to host (cpBody_dev2hst) */
-    copyNode[ii] = (copyNode[ii] != 0.0) ? log10(copyNode[ii]) : DBL_MAX;/* time to copy tree node from host to device (setTreeNode_dev) */
-    copyCell[ii] = (copyCell[ii] != 0.0) ? log10(copyCell[ii]) : DBL_MAX;/* time to copy tree cell from host to device (setTreeNode_dev) */
     //---------------------------------------------------------------------
 /* #ifdef  CUMULATIVE_PLOT */
 /*     walkTreeSum[ii] = log10(walkTreeSum[ii]); */
@@ -164,8 +158,6 @@ int main(int argc, char **argv)
 /*     sortPHSum  [ii] = log10(sortPHSum  [ii]); */
 /*     getBodySum [ii] = log10(getBodySum [ii]); */
 /*     setBodySum [ii] = log10(setBodySum [ii]); */
-/*     copyNodeSum[ii] = log10(copyNodeSum[ii]); */
-/*     copyCellSum[ii] = log10(copyCellSum[ii]); */
 /*     predJparSum[ii] = log10(predJparSum[ii]); */
 /*     corrIparSum[ii] = log10(corrIparSum[ii]); */
 /*     setLocDtSum[ii] = log10(setLocDtSum[ii]); */

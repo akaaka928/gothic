@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/30 (Wed)
+ * @date 2017/09/08 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -58,6 +58,19 @@
 #define MAX_FACTOR_FROM_EQUIPARTITION (MAX_FACTOR_INCREASE * MAX_FACTOR_SAFETY)
 
 
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+/**
+ * @struct sendBody
+ *
+ * @brief structure for sending information on send buffer (8 byte aligned)
+ */
+typedef struct __align__(8)
+{
+  int num, head;
+} sendBody;
+#endif//MPI_ONE_SIDED_FOR_EXCG
+
+
 /**
  * @struct MPIcfg_tree
  *
@@ -65,6 +78,10 @@
  */
 typedef struct
 {
+  int dim[3], prd[3], pos[3];
+  int rank, size;
+  MPI_Comm comm, cart;
+  MPI_Info info;
   MPI_Datatype ipos, jpos, more, mass;
 #ifdef  GADGET_MAC
   MPI_Datatype iacc;
@@ -72,13 +89,12 @@ typedef struct
 #ifdef  BLOCK_TIME_STEP
   MPI_Datatype ivel, time;
 #endif//BLOCK_TIME_STEP
-#ifdef  MPI_ONE_SIDED_FOR_LET_EXCG
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+  MPI_Datatype send;
+#endif//MPI_ONE_SIDED_FOR_EXCG
+#ifdef  MPI_ONE_SIDED_FOR_LET
   MPI_Win win_more, win_jpos, win_mass;
-#endif//MPI_ONE_SIDED_FOR_LET_EXCG
-  MPI_Comm comm, cart;
-  MPI_Info info;
-  int rank, size;
-  int dim[3], prd[3], pos[3];
+#endif//MPI_ONE_SIDED_FOR_LET
 } MPIcfg_tree;
 
 

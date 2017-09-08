@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/09/03 (Sun)
+ * @date 2017/09/07 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -3354,25 +3354,14 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
   char filename[128];
   FILE *fp;
 
-  wall_clock_time mean =
-    {0.0, 0.0, 0.0,/**< calcGravity_dev, calcMultipole, makeTree */
-#ifdef  BLOCK_TIME_STEP
-     0.0, 0.0, 0.0, 0.0,/**< prediction_dev, correction_dev, setLaneTime_dev, adjustParticleTime_dev */
-#else///BLOCK_TIME_STEP
-     0.0, 0.0,/**< advPos_dev, advVel_dev */
-#endif//BLOCK_TIME_STEP
-     0.0, 0.0,/**< setTimeStep_dev, sortParticlesPHcurve */
-     0.0, 0.0,/**< copyParticle_dev2hst, copyParticle_hst2dev */
-     0.0, 0.0/**< setTreeNode_dev, setTreeCell_dev */
-     , 0.0, 0.0/**< examineNeighbor_dev, searchNeighbor_dev */
-#ifdef  HUNT_MAKE_PARAMETER
-     , 0.0, 0.0, 0.0, 0.0, 0.0, 0.0/**< genPHkey_kernel, rsortKey_library, sortBody_kernel, makeTree_kernel, linkTree_kernel, trimTree_kernel */
-     , 0.0, 0.0, 0.0, 0.0, 0.0/**< initTreeLink_kernel, initTreeCell_kernel, initTreeNode_kernel, initTreeBody_kernel, copyRealBody_kernel */
-#endif//HUNT_MAKE_PARAMETER
-#ifdef  HUNT_FIND_PARAMETER
-     , 0.0, 0.0, 0.0, 0.0/**< searchNeighbor_kernel, sortNeighbors, countNeighbors_kernel, commitNeighbors */
-#endif//HUNT_FIND_PARAMETER
-    };
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+  wall_clock_time mean = {0};
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 
 
   sprintf(filename, "%s/%s.%s%.8d.%s.dat", BENCH_LOG_FOLDER, file, WALLCLOCK, jobID, "bare");
@@ -3381,9 +3370,9 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
   if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
 
   if( newFile ){
-    fprintf(fp, "#%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", "step",
-	    "calcGrav_dev", "calcMultipole", "makeTree", "setTimeStep_dev", "sortPHcurve",
-	    "cpBody_dev2hst", "cpBody_hst2dev", "setTreeNode_dev", "setTreeCell_dev");
+    fprintf(fp, "#%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", "step",
+	    "calcGrav_dev", "calcMom_dev", "makeTree", "setTimeStep_dev", "sortPHcurve",
+	    "cpBody_dev2hst", "cpBody_hst2dev");
 #ifdef  BLOCK_TIME_STEP
     fprintf(fp, "\t%s\t%s\t%s\t%s", "prediction_dev", "correction_dev", "setLaneTime_dev", "adjustTime_dev");
 #else///BLOCK_TIME_STEP
@@ -3400,9 +3389,9 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
     fprintf(fp, "\n");
   }/* if( newFile ){ */
   for(int ii = 0; ii < steps; ii++){
-    fprintf(fp, "%4d\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e", ii,
-	    dat[ii].calcGravity_dev, dat[ii].calcMultipole, dat[ii].makeTree, dat[ii].setTimeStep_dev, dat[ii].sortParticlesPHcurve,
-	    dat[ii].copyParticle_dev2hst, dat[ii].copyParticle_hst2dev, dat[ii].setTreeNode_dev, dat[ii].setTreeCell_dev);
+    fprintf(fp, "%4d\t%e\t%e\t%e\t%e\t%e\t%e\t%e", ii,
+	    dat[ii].calcGravity_dev, dat[ii].calcMultipole_dev, dat[ii].makeTree, dat[ii].setTimeStep_dev, dat[ii].sortParticlesPHcurve,
+	    dat[ii].copyParticle_dev2hst, dat[ii].copyParticle_hst2dev);
 #ifdef  BLOCK_TIME_STEP
     fprintf(fp, "\t%e\t%e\t%e\t%e", dat[ii].prediction_dev, dat[ii].correction_dev, dat[ii].setLaneTime_dev, dat[ii].adjustParticleTime_dev);
 #else///BLOCK_TIME_STEP
@@ -3418,7 +3407,7 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
 #endif//HUNT_FIND_PARAMETER
     fprintf(fp, "\n");
     mean.calcGravity_dev      += dat[ii].calcGravity_dev;
-    mean.calcMultipole        += dat[ii].calcMultipole;
+    mean.calcMultipole_dev    += dat[ii].calcMultipole_dev;
     mean.makeTree             += dat[ii].makeTree;
 #ifdef  BLOCK_TIME_STEP
     mean.prediction_dev         += dat[ii].prediction_dev;
@@ -3433,8 +3422,6 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
     mean.sortParticlesPHcurve += dat[ii].sortParticlesPHcurve;
     mean.copyParticle_dev2hst += dat[ii].copyParticle_dev2hst;
     mean.copyParticle_hst2dev += dat[ii].copyParticle_hst2dev;
-    mean.setTreeNode_dev      += dat[ii].setTreeNode_dev;
-    mean.setTreeCell_dev      += dat[ii].setTreeCell_dev;
     mean.examineNeighbor_dev += dat[ii].examineNeighbor_dev;
     mean. searchNeighbor_dev += dat[ii]. searchNeighbor_dev;
 #ifdef  HUNT_MAKE_PARAMETER
@@ -3466,9 +3453,9 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
   if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
 
   if( newFile ){
-    fprintf(fp, "#%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
-	    "calcGrav_dev", "calcMultipole", "makeTree", "setTimeStep_dev", "sortPHcurve",
-	    "cpBody_dev2hst", "cpBody_hst2dev", "setTreeNode_dev", "setTreeCell_dev");
+    fprintf(fp, "#%s\t%s\t%s\t%s\t%s\t%s\t%s",
+	    "calcGrav_dev", "calcMom_dev", "makeTree", "setTimeStep_dev", "sortPHcurve",
+	    "cpBody_dev2hst", "cpBody_hst2dev");
 #ifdef  BLOCK_TIME_STEP
     fprintf(fp, "\t%s\t%s\t%s\t%s", "prediction_dev", "correction_dev", "setLaneTime_dev", "adjustTime_dev");
 #else///BLOCK_TIME_STEP
@@ -3485,9 +3472,9 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
     fprintf(fp, "\n");
   }
   const double inv = 1.0 / (double)steps;
-  fprintf(fp, "%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e",
-	  inv * mean.calcGravity_dev, inv * mean.calcMultipole, inv * mean.makeTree, inv * mean.setTimeStep_dev, inv * mean.sortParticlesPHcurve,
-	  inv * mean.copyParticle_dev2hst, inv * mean.copyParticle_hst2dev, inv * mean.setTreeNode_dev, inv * mean.setTreeCell_dev);
+  fprintf(fp, "%e\t%e\t%e\t%e\t%e\t%e\t%e",
+	  inv * mean.calcGravity_dev, inv * mean.calcMultipole_dev, inv * mean.makeTree, inv * mean.setTimeStep_dev, inv * mean.sortParticlesPHcurve,
+	  inv * mean.copyParticle_dev2hst, inv * mean.copyParticle_hst2dev);
 #ifdef  BLOCK_TIME_STEP
   fprintf(fp, "\t%e\t%e\t%e\t%e", inv * mean.prediction_dev, inv * mean.correction_dev, inv * mean.setLaneTime_dev, inv * mean.adjustParticleTime_dev);
 #else///BLOCK_TIME_STEP

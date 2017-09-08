@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/08/30 (Wed)
+ * @date 2017/09/08 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -104,6 +104,15 @@ static inline void createMPIcfg_tree(MPIcfg_tree *let, MPIinfo mpi)
   let->mass = MPI_REALDAT;
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+  /* commit sendBody */
+  num = 1;
+  type[0] = MPI_INT;
+  blck[0] = 2;
+  disp[0] = 0;
+  commitMPIstruct(num, blck, disp, type, &(let->send));
+#endif//MPI_ONE_SIDED_FOR_EXCG
+
 #else
 
   commitMPIbyte(&(let->ipos), (int)sizeof(position));
@@ -117,6 +126,9 @@ static inline void createMPIcfg_tree(MPIcfg_tree *let, MPIinfo mpi)
   commitMPIbyte(&(let->jpos), (int)sizeof(jparticle));
   commitMPIbyte(&(let->more), (int)sizeof(uint));
   commitMPIbyte(&(let->mass), (int)sizeof(jmass));
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+  commitMPIbyte(&(let->send), (int)sizeof(sendBody));
+#endif//MPI_ONE_SIDED_FOR_EXCG
 
 #endif
 
