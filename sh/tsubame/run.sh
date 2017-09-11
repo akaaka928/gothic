@@ -31,16 +31,16 @@ fi
 if [ -z "$NZ" ]; then
     NZ=1
 fi
-if [ $SLURM_NTASKS -eq 1 ]; then
-    NX=1
-    NY=1
-    NZ=1
-fi
-PROCS=`expr $NX \* $NY \* $NZ`
-if [ $PROCS -ne $SLURM_NTASKS ]; then
-    echo "product of $NX, $NY, and $NZ must be equal to the number of total MPI processes ($SLURM_NTASKS)"
-    exit 1
-fi
+# if [ $SLURM_NTASKS -eq 1 ]; then
+#     NX=1
+#     NY=1
+#     NZ=1
+# fi
+# PROCS=`expr $NX \* $NY \* $NZ`
+# if [ $PROCS -ne $SLURM_NTASKS ]; then
+#     echo "product of $NX, $NY, and $NZ must be equal to the number of total MPI processes ($SLURM_NTASKS)"
+#     exit 1
+# fi
 ###############################################################
 # value of accuracy controling parameter: GADGET MAC by Springel (2005)
 if [ -z "$ABSERR" ]; then
@@ -281,7 +281,7 @@ if [ $PROBLEM -eq 81 ]; then
 fi
 ###############################################################
 # set input arguments
-OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$SLURM_JOB_ID"
+OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID"
 ###############################################################
 
 

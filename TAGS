@@ -41,7 +41,7 @@ void writeSnapshotMultiGroups(3021,134254
 void  readApproxAccel(3280,146333
 void writeApproxAccel(3314,147507
 void dumpBenchmark(3349,148624
-void dumpStatistics(3678,164905
+void dumpStatistics(3665,163854
 
 src/file/io.h,898
 #define IO_H18,387
@@ -610,9 +610,9 @@ static inline void configDistribution291,8082
 static inline void dumpSnapshot355,9722
 static inline void dumpRestarter497,13897
 int main(569,16118
-void analyzeWalkStatistics(2576,92389
-static inline void analyzeTreeStatistics(2619,93338
-void analyzeTreeMetrics(2637,93880
+void analyzeWalkStatistics(2640,97538
+static inline void analyzeTreeStatistics(2683,98487
+void analyzeTreeMetrics(2701,99029
 
 src/main/showOptConfig.c,805
 #define NADD 22,1138
@@ -672,67 +672,74 @@ src/misc/allocate.h,26
 src/misc/allocate_dev.h,30
 #define ALLOCATE_DEV_H18,390
 
-src/misc/benchmark.h,1976
+src/misc/benchmark.h,2424
 #define BENCHMARK_H18,379
 #define BENCHMARK_STEPS 41,918
 #define WALLCLOCK 45,989
   double calcGravity_dev;55,1128
-  double calcMultipole;56,1154
-  double makeTree;57,1178
-  double prediction_dev;59,1221
-  double correction_dev;60,1246
-  double setLaneTime_dev;61,1271
-  double adjustParticleTime_dev;62,1297
-  double advPos_dev;64,1354
-  double advVel_dev;65,1375
-  double setTimeStep_dev;67,1420
-  double sortParticlesPHcurve;68,1446
-  double copyParticle_dev2hst;69,1477
-  double copyParticle_hst2dev;70,1508
-  double setTreeNode_dev;71,1539
-  double setTreeCell_dev;72,1565
-  double examineNeighbor_dev;73,1591
-  double  searchNeighbor_dev;74,1621
-  double genPHkey_kernel;76,1679
-  double rsortKey_library;77,1705
-  double sortBody_kernel;78,1732
-  double makeTree_kernel;79,1758
-  double linkTree_kernel;80,1784
-  double trimTree_kernel;81,1810
-  double initTreeLink_kernel;82,1836
-  double initTreeCell_kernel;83,1866
-  double initTreeNode_kernel;84,1896
-  double initTreeBody_kernel;85,1926
-  double copyRealBody_kernel;86,1956
-  double searchNeighbor_kernel;89,2042
-  double sortNeighbors;90,2074
-  double countNeighbors_kernel;91,2098
-  double commitNeighbors;92,2130
-} wall_clock_time;94,2184
-  real mjMean,104,2323
-  real mjMean, mjSdev;104,2323
-  real r2Mean,105,2346
-  real r2Mean, r2Sdev;105,2346
-  int cellNum,106,2369
-  int cellNum, nodeNum;106,2369
-} tree_stats;107,2393
-  int Ngroup,115,2519
-  int Ngroup, min,115,2519
-  int Ngroup, min, max;115,2519
-  float mean,116,2543
-  float mean, sdev;116,2543
-} walk_stats;117,2563
-  tree_stats level[level125,2689
-  tree_stats total;126,2768
-  walk_stats Nbuf;127,2788
-  walk_stats Nj;128,2807
-  ulong Ninteractions;129,2824
-  size_t bufSize;130,2894
-} tree_metrics;131,2912
-static struct timespec _benchIni,136,2967
-static struct timespec _benchIni, _benchFin;136,2967
-static inline void initStopwatch(143,3080
-static inline void stopStopwatch(157,3369
+  double calcMultipole_dev;56,1221
+  double makeTree;57,1318
+  double prediction_dev;59,1434
+  double correction_dev;60,1524
+  double setLaneTime_dev;61,1614
+  double adjustParticleTime_dev;62,1706
+  double advPos_dev;64,1836
+  double advVel_dev;65,1918
+  double setTimeStep_dev;67,2024
+  double sortParticlesPHcurve;68,2116
+  double copyParticle_dev2hst;69,2224
+  double copyParticle_hst2dev;70,2326
+  double examineNeighbor_dev;71,2428
+  double  searchNeighbor_dev;72,2537
+  double genPHkey_kernel;74,2669
+  double rsortKey_library;75,2764
+  double sortBody_kernel;76,2868
+  double makeTree_kernel;77,2974
+  double linkTree_kernel;78,3067
+  double trimTree_kernel;79,3160
+  double initTreeLink_kernel;80,3253
+  double initTreeCell_kernel;81,3354
+  double initTreeNode_kernel;82,3455
+  double initTreeBody_kernel;83,3556
+  double copyRealBody_kernel;84,3657
+  double searchNeighbor_kernel;87,3814
+  double sortNeighbors;88,3929
+  double countNeighbors_kernel;89,4025
+  double commitNeighbors;90,4141
+  double calcAcc_kernel;93,4312
+  double exchangeLET;94,4461
+  double makeLET_kernel;96,4599
+  double encBall_dev;99,4810
+  double calc_r2max_dev;102,4946
+  double excgBody_dev;107,5040
+  なるべく process ごとの値を生で保存しておいて，後から load balancing 111,5148
+  HUNT_????_PARAMETER _PARAMETER113,5280
+  各関数の処理時間を正確に測定しようとすると，auto-tuning によって実行パラメータが変化していくので，breakdown breakdown115,5395
+} wall_clock_time;119,5692
+  real mjMean,129,5831
+  real mjMean, mjSdev;129,5831
+  real r2Mean,130,5854
+  real r2Mean, r2Sdev;130,5854
+  int cellNum,131,5877
+  int cellNum, nodeNum;131,5877
+} tree_stats;132,5901
+  int Ngroup,140,6027
+  int Ngroup, min,140,6027
+  int Ngroup, min, max;140,6027
+  float mean,141,6051
+  float mean, sdev;141,6051
+} walk_stats;142,6071
+  tree_stats level[level150,6197
+  tree_stats total;151,6276
+  walk_stats Nbuf;152,6296
+  walk_stats Nj;153,6315
+  ulong Ninteractions;154,6332
+  size_t bufSize;155,6402
+} tree_metrics;156,6420
+static struct timespec _benchIni,161,6475
+static struct timespec _benchIni, _benchFin;161,6475
+static inline void initStopwatch(168,6588
+static inline void stopStopwatch(182,6877
 
 src/misc/brent.h,582
 #define BRENT_H18,379
@@ -759,7 +766,7 @@ src/misc/brent.h,582
   int interval;69,1672
 } brentMemory;70,1762
 
-src/misc/structure.h,1344
+src/misc/structure.h,1623
 #define STRUCTURE_H18,406
 #define NUM_BODY_MAX 38,791
 #undef  NUM_BODY_MAX52,1178
@@ -782,28 +789,37 @@ typedef struct __align__(113,2194
 typedef struct __align__(123,2376
 typedef struct __align__(135,2577
 typedef struct __align__(144,2729
-  position     *pos;pos158,2908
-  acceleration *acc;acc159,2929
-  acceleration *acc_old;acc_old161,2969
-  velocity     *vel;vel164,3037
-  position     *jpos;jpos165,3058
-  velocity     *jvel;jvel166,3080
-  ibody_time   *time;time167,3102
-  real         *vx;vx169,3148
-  real         *vy;vy170,3168
-  real         *vz;vz171,3188
-  real         *neighbor;neighbor173,3232
-  ulong        *idx;idx174,3258
-  position *encBall,encBall176,3320
-  position *encBall, *encBall_hst;encBall_hst176,3320
-  DPacc *tmp;tmp179,3500
-  acceleration *res;res182,3565
-  real amin;185,3670
-} iparticle;187,3702
-  int *jtag;jtag197,3835
-  int *  Nj;199,3875
-  int *Nbuf;Nbuf200,3888
-} iparticle_treeinfo;202,3928
+typedef int MPI_Win;152,2941
+  position     *pos;pos163,3211
+  acceleration *acc;acc164,3232
+  acceleration *acc_old;acc_old166,3272
+  velocity     *vel;vel169,3340
+  position     *jpos;jpos170,3361
+  velocity     *jvel;jvel171,3383
+  ibody_time   *time;time172,3405
+  real         *vx;vx174,3451
+  real         *vy;vy175,3471
+  real         *vz;vz176,3491
+  real         *neighbor;neighbor178,3535
+  ulong        *idx;idx179,3561
+  position *encBall,encBall181,3623
+  position *encBall, *encBall_hst;encBall_hst181,3623
+  DPacc *tmp;tmp184,3803
+  acceleration *res;res187,3868
+  real amin;190,3973
+  MPI_Win win_ipos;193,4079
+  MPI_Win win_iacc;195,4118
+  MPI_Win win_ivel;198,4181
+  MPI_Win win_time;199,4201
+  MPI_Win win_vx,201,4245
+  MPI_Win win_vx, win_vy,201,4245
+  MPI_Win win_vx, win_vy, win_vz;201,4245
+  MPI_Win win_idx;203,4303
+} iparticle;205,4396
+  int *jtag;jtag215,4529
+  int *  Nj;217,4569
+  int *Nbuf;Nbuf218,4582
+} iparticle_treeinfo;220,4622
 
 src/misc/convert.c,84
 void backVel(37,768
@@ -864,35 +880,37 @@ static const double tolerance4chisq 120,2668
 
 src/para/mpicfg.c,74
 static inline void createMPIcfg_tree(38,643
-void setNodeConfig(135,2728
+void setNodeConfig(147,3049
 
-src/para/mpicfg.h,776
+src/para/mpicfg.h,839
 #define MPICFG_H18,373
 #define GPUS_PER_PROCESS 33,553
 #define MAX_FACTOR_INCREASE 42,721
 #define MAX_FACTOR_SAFETY 50,915
 #define MAX_FACTOR_FROM_EQUIPARTITION 58,1103
-  MPI_Datatype ipos,68,1287
-  MPI_Datatype ipos, jpos,68,1287
-  MPI_Datatype ipos, jpos, more,68,1287
-  MPI_Datatype ipos, jpos, more, mass;68,1287
-  MPI_Datatype iacc;70,1345
-  MPI_Datatype ivel,73,1409
-  MPI_Datatype ivel, time;73,1409
-  MPI_Win win_more,76,1495
-  MPI_Win win_more, win_jpos,76,1495
-  MPI_Win win_more, win_jpos, win_mass;76,1495
-  MPI_Comm comm,78,1570
-  MPI_Comm comm, cart;78,1570
-  MPI_Info info;79,1593
-  int rank,80,1610
-  int rank, size;80,1610
-  int dim[dim81,1628
-  int dim[3], prd[prd81,1628
-  int dim[3], prd[3], pos[pos81,1628
-} MPIcfg_tree;82,1658
+typedef struct __align__(67,1323
+  int dim[dim81,1517
+  int dim[3], prd[prd81,1517
+  int dim[3], prd[3], pos[pos81,1517
+  int rank,82,1547
+  int rank, size;82,1547
+  MPI_Comm comm,83,1565
+  MPI_Comm comm, cart;83,1565
+  MPI_Info info;84,1588
+  MPI_Datatype ipos,85,1605
+  MPI_Datatype ipos, jpos,85,1605
+  MPI_Datatype ipos, jpos, more,85,1605
+  MPI_Datatype ipos, jpos, more, mass;85,1605
+  MPI_Datatype iacc;87,1663
+  MPI_Datatype ivel,90,1727
+  MPI_Datatype ivel, time;90,1727
+  MPI_Datatype send;93,1809
+  MPI_Win win_more,96,1891
+  MPI_Win win_more, win_jpos,96,1891
+  MPI_Win win_more, win_jpos, win_mass;96,1891
+} MPIcfg_tree;98,1961
 
-src/para/exchange.h,2579
+src/para/exchange.h,2665
 #define EXCHANGE_H18,388
 #define DEFAULT_SAMPLING_RATE 38,673
 #define DEFAULT_SAMPLING_NUMBER 46,855
@@ -928,47 +946,51 @@ src/para/exchange.h,2579
   float *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;zmax94,1694
   MPI_Request *req;req95,1744
 } domainCfg;96,1764
-  real xmin,105,1877
-  real xmin, xmax,105,1877
-  real xmin, xmax, ymin,105,1877
-  real xmin, xmax, ymin, ymax,105,1877
-  real xmin, xmax, ymin, ymax, zmin,105,1877
-  real xmin, xmax, ymin, ymax, zmin, zmax;105,1877
-  int rank,106,1920
-  int rank, num,106,1920
-  int rank, num, head;106,1920
-  MPI_Request pos,107,1943
-  MPI_Request pos, idx;107,1943
-  MPI_Request acc;109,1986
-  MPI_Request vel,112,2048
-  MPI_Request vel, time;112,2048
-  MPI_Request vx,114,2097
-  MPI_Request vx, vy,114,2097
-  MPI_Request vx, vy, vz;114,2097
-} sendCfg;116,2147
-  int num,125,2261
-  int num, head;125,2261
-  MPI_Request req,126,2278
-  MPI_Request req, pos,126,2278
-  MPI_Request req, pos, idx;126,2278
-  MPI_Request acc;128,2326
-  MPI_Request vel,131,2388
-  MPI_Request vel, time;131,2388
-  MPI_Request vx,133,2437
-  MPI_Request vx, vy,133,2437
-  MPI_Request vx, vy, vz;133,2437
-} recvCfg;135,2487
-  int *dstRank_hst,dstRank_hst144,2612
-  int *dstRank_hst, *dstRank_dev,dstRank_dev144,2612
-  int *dstRank_hst, *dstRank_dev, *bodyIdx_dev;bodyIdx_dev144,2612
-} domainDecomposeKey;145,2660
-static const double loadImbalanceCrit 149,2778
-#define SLOW_DOWN_PROCS_CRIT(150,2865
-  double tmin,159,3023
-  double tmin, tmax;159,3023
-  bool enable,160,3044
-  bool enable, execute;160,3044
-} loadImbalanceDetector;161,3068
+  sendBody body;106,1908
+  MPI_Request req;107,1925
+  int num,109,1975
+  int num, head;109,1975
+  MPI_Request pos,110,1992
+  MPI_Request pos, idx;110,1992
+  MPI_Request acc;112,2035
+  MPI_Request vel,115,2097
+  MPI_Request vel, time;115,2097
+  MPI_Request vx,117,2146
+  MPI_Request vx, vy,117,2146
+  MPI_Request vx, vy, vz;117,2146
+  real xmin,120,2227
+  real xmin, xmax,120,2227
+  real xmin, xmax, ymin,120,2227
+  real xmin, xmax, ymin, ymax,120,2227
+  real xmin, xmax, ymin, ymax, zmin,120,2227
+  real xmin, xmax, ymin, ymax, zmin, zmax;120,2227
+  int rank;121,2270
+} sendCfg;122,2282
+  sendBody body;132,2427
+  MPI_Request dsp;133,2444
+  int num,135,2494
+  int num, head;135,2494
+  MPI_Request req;137,2542
+  MPI_Request pos,139,2592
+  MPI_Request pos, idx;139,2592
+  MPI_Request acc;141,2635
+  MPI_Request vel,144,2697
+  MPI_Request vel, time;144,2697
+  MPI_Request vx,146,2746
+  MPI_Request vx, vy,146,2746
+  MPI_Request vx, vy, vz;146,2746
+} recvCfg;149,2827
+  int *dstRank_hst,dstRank_hst158,2952
+  int *dstRank_hst, *dstRank_dev,dstRank_dev158,2952
+  int *dstRank_hst, *dstRank_dev, *bodyIdx_dev;bodyIdx_dev158,2952
+} domainDecomposeKey;159,3000
+static const double loadImbalanceCrit 163,3118
+#define SLOW_DOWN_PROCS_CRIT(164,3205
+  double tmin,173,3363
+  double tmin, tmax;173,3363
+  bool enable,174,3384
+  bool enable, execute;174,3384
+} loadImbalanceDetector;175,3408
 
 src/para/exchange.c,68
 muse allocateORMtopology(38,714
@@ -1237,7 +1259,7 @@ src/plot/plot.breakdown.c,222
 #define HIGHLIGHTING_COLOR_MAP19,1096
 #define NSEQUENCES 24,1340
 int main(55,2650
-void plotBreakdown220,12156
+void plotBreakdown212,11442
 
 src/plot/plot.distribution.c,3826
 #define DUMP_DISKHEIGHT_PROFILE17,312
@@ -1501,128 +1523,128 @@ src/tree/let.h,1462
   int *numSend_hst, *numSend_dev;numSend_dev96,1914
   MPI_Request reqSendInfo,97,1948
   MPI_Request reqSendInfo, reqRecvInfo;97,1948
-  MPI_Request reqSendHead,99,2023
-  MPI_Request reqSendHead, reqRecvHead;99,2023
-  int headDisp;100,2063
-  MPI_Request reqSendMore,102,2114
-  MPI_Request reqSendMore, reqRecvMore;102,2114
-  MPI_Request reqSendJpos,103,2154
-  MPI_Request reqSendJpos, reqRecvJpos;103,2154
-  MPI_Request reqSendMass,104,2194
-  MPI_Request reqSendMass, reqRecvMass;104,2194
-  int headSend,106,2269
-  int headSend, headRecv,106,2269
-  int headSend, headRecv, numSend,106,2269
-  int headSend, headRecv, numSend, numRecv,106,2269
-  int headSend, headRecv, numSend, numRecv, numRecvGuess;106,2269
-  int maxSend,107,2327
-  int maxSend, maxRecv,107,2327
-  int maxSend, maxRecv, numFull,107,2327
-  int maxSend, maxRecv, numFull, numNode;107,2327
-  int overEstimateSend,108,2461
-  int overEstimateSend, overEstimateRecv;108,2461
-  int rank;109,2503
-  real amin;111,2534
-} domainInfo;113,2566
+  MPI_Request reqSendHead,99,2018
+  MPI_Request reqSendHead, reqRecvHead;99,2018
+  int headDisp;100,2058
+  MPI_Request reqSendMore,102,2104
+  MPI_Request reqSendMore, reqRecvMore;102,2104
+  MPI_Request reqSendJpos,103,2144
+  MPI_Request reqSendJpos, reqRecvJpos;103,2144
+  MPI_Request reqSendMass,104,2184
+  MPI_Request reqSendMass, reqRecvMass;104,2184
+  int headSend,106,2254
+  int headSend, headRecv,106,2254
+  int headSend, headRecv, numSend,106,2254
+  int headSend, headRecv, numSend, numRecv,106,2254
+  int headSend, headRecv, numSend, numRecv, numRecvGuess;106,2254
+  int maxSend,107,2312
+  int maxSend, maxRecv,107,2312
+  int maxSend, maxRecv, numFull,107,2312
+  int maxSend, maxRecv, numFull, numNode;107,2312
+  int overEstimateSend,108,2446
+  int overEstimateSend, overEstimateRecv;108,2446
+  int rank;109,2488
+  real amin;111,2519
+} domainInfo;113,2551
 
 src/tree/macutil.h,48
 #define MACUTIL_H18,392
 #undef WS93_MAC25,482
 
-src/tree/walk_dev.h,2714
+src/tree/walk_dev.h,2712
 #define WALK_DEV_H18,405
-#define PARTIAL_SUM_ACCELERATION58,1333
-#define ACCURATE_ACCUMULATION71,1766
-#undef          ACCURATE_PARTIAL_SUM76,1937
-#define ADOPT_APPROXIMATED_ENCLOSING_BALL116,2913
-#define ADOPT_ENCLOSING_BALL121,3016
-#       undef   ADOPT_APPROXIMATED_ENCLOSING_BALL125,3140
-#       undef   COMPARE_ENCLOSING_BALLS129,3415
-#        define  ADOPT_ENCLOSING_BALL133,3752
-#define USE_WARP_SHUFFLE_FUNC139,4114
-#undef          USE_WARP_SHUFFLE_FUNC143,4229
-#define NWARP 156,4551
-#define NWARP 158,4590
-#define NWARP 164,4711
-#undef  NWARP170,4794
-#define NWARP 171,4808
-#define NTHREADS 182,4973
-#define NTHREADS 185,5038
-#define NTHREADS 187,5082
-#undef  NTHREADS195,5421
-#define NTHREADS 196,5438
-#undef  DIV_NTHREADS200,5507
-#define DIV_NTHREADS(203,5574
-#define DIV_NTHREADS(206,5660
-#define DIV_NTHREADS(209,5746
-#define DIV_NTHREADS(212,5832
-#define TSUB 223,6068
-#undef  TSUB229,6219
-#define TSUB 230,6232
-#undef  TSUB235,6366
-#define TSUB 236,6379
-#undef  TSUB240,6496
-#define TSUB 241,6509
-#undef  DIV_TSUB245,6575
-#define DIV_TSUB(248,6628
-#define DIV_TSUB(251,6697
-#define DIV_TSUB(254,6766
-#define DIV_TSUB(257,6835
-#define DIV_TSUB(260,6904
-#define DIV_TSUB(263,6973
-#undef  DIV_NWARP267,7037
-#define DIV_NWARP(270,7093
-#define DIV_NWARP(273,7165
-#define DIV_NWARP(276,7237
-#define DIV_NWARP(279,7309
-#define DIV_NWARP(282,7381
-#define DIV_NWARP(285,7453
-#define NGROUPS 288,7501
-#define NLOOP 297,7654
-#define NLOOP 299,7693
-#define NBLOCKS_PER_SM 311,7894
-#define NSM4TRAVERSAL 320,8135
-#define NSM4TRAVERSAL 323,8281
-#undef  NLOOP326,8386
-#define NLOOP 327,8400
-#define NQUEUE 330,8540
-#define NQUEUE 332,8634
-#define NSM4TRAVERSAL 337,8844
-#define NSM4TRAVERSAL 340,8958
-#undef  NLOOP343,9081
-#define NLOOP 344,9095
-#define NQUEUE 347,9243
-#define NQUEUE 349,9354
-#define NSM4TRAVERSAL 358,9687
-#define NSM4TRAVERSAL 361,9833
-#undef  NLOOP364,9938
-#define NLOOP 365,9952
-#define NQUEUE 368,10092
-#define NQUEUE 370,10186
-#define NSM4TRAVERSAL 375,10396
-#define NSM4TRAVERSAL 378,10510
-#undef  NLOOP381,10633
-#define NLOOP 382,10647
-#define NQUEUE 385,10821
-#define NQUEUE 387,10932
-#define NSTOCK 400,11236
-#define IDX_SHIFT_BITS 411,11473
-#define IDX_SHIFT_MASK 419,11650
-typedef struct __align__(423,11700
-  cudaStream_t *stream;stream434,11864
-  int idx,435,11888
-  int idx, num;435,11888
-} kernelStream;436,11904
-#define  NDIM_SEB 441,11961
-#define NDIM2_SEB 442,11983
-#undef   NDIM_SEB444,12048
-#undef  NDIM2_SEB445,12066
-typedef struct __align__(453,12210
-typedef union __align__(464,12367
-typedef union __align__(479,12620
-  uint i;499,12944
-  real r;500,12954
-} uint_real;501,12964
+#define PARTIAL_SUM_ACCELERATION50,1123
+#define ACCURATE_ACCUMULATION63,1556
+#undef          ACCURATE_PARTIAL_SUM68,1727
+#define ADOPT_APPROXIMATED_ENCLOSING_BALL108,2703
+#define ADOPT_ENCLOSING_BALL113,2806
+#       undef   ADOPT_APPROXIMATED_ENCLOSING_BALL117,2930
+#       undef   COMPARE_ENCLOSING_BALLS121,3205
+#        define  ADOPT_ENCLOSING_BALL125,3542
+#define USE_WARP_SHUFFLE_FUNC131,3904
+#undef          USE_WARP_SHUFFLE_FUNC135,4019
+#define NWARP 148,4341
+#define NWARP 150,4380
+#define NWARP 156,4501
+#undef  NWARP162,4584
+#define NWARP 163,4598
+#define NTHREADS 174,4763
+#define NTHREADS 177,4828
+#define NTHREADS 179,4872
+#undef  NTHREADS187,5211
+#define NTHREADS 188,5228
+#undef  DIV_NTHREADS192,5297
+#define DIV_NTHREADS(195,5364
+#define DIV_NTHREADS(198,5450
+#define DIV_NTHREADS(201,5536
+#define DIV_NTHREADS(204,5622
+#define TSUB 215,5858
+#undef  TSUB221,6009
+#define TSUB 222,6022
+#undef  TSUB227,6156
+#define TSUB 228,6169
+#undef  TSUB232,6286
+#define TSUB 233,6299
+#undef  DIV_TSUB237,6365
+#define DIV_TSUB(240,6418
+#define DIV_TSUB(243,6487
+#define DIV_TSUB(246,6556
+#define DIV_TSUB(249,6625
+#define DIV_TSUB(252,6694
+#define DIV_TSUB(255,6763
+#undef  DIV_NWARP259,6827
+#define DIV_NWARP(262,6883
+#define DIV_NWARP(265,6955
+#define DIV_NWARP(268,7027
+#define DIV_NWARP(271,7099
+#define DIV_NWARP(274,7171
+#define DIV_NWARP(277,7243
+#define NGROUPS 280,7291
+#define NLOOP 289,7444
+#define NLOOP 291,7483
+#define NBLOCKS_PER_SM 303,7684
+#define NSM4TRAVERSAL 312,7925
+#define NSM4TRAVERSAL 315,8071
+#undef  NLOOP318,8176
+#define NLOOP 319,8190
+#define NQUEUE 322,8330
+#define NQUEUE 324,8424
+#define NSM4TRAVERSAL 329,8634
+#define NSM4TRAVERSAL 332,8748
+#undef  NLOOP335,8871
+#define NLOOP 336,8885
+#define NQUEUE 339,9033
+#define NQUEUE 341,9144
+#define NSM4TRAVERSAL 350,9477
+#define NSM4TRAVERSAL 353,9623
+#undef  NLOOP356,9728
+#define NLOOP 357,9742
+#define NQUEUE 360,9882
+#define NQUEUE 362,9976
+#define NSM4TRAVERSAL 367,10186
+#define NSM4TRAVERSAL 370,10300
+#undef  NLOOP373,10423
+#define NLOOP 374,10437
+#define NQUEUE 377,10611
+#define NQUEUE 379,10722
+#define NSTOCK 392,11026
+#define IDX_SHIFT_BITS 403,11263
+#define IDX_SHIFT_MASK 411,11440
+typedef struct __align__(415,11490
+  cudaStream_t *stream;stream426,11654
+  int idx,427,11678
+  int idx, num;427,11678
+} kernelStream;428,11694
+#define  NDIM_SEB 433,11751
+#define NDIM2_SEB 434,11773
+#undef   NDIM_SEB436,11838
+#undef  NDIM2_SEB437,11856
+typedef struct __align__(445,12000
+typedef union __align__(456,12157
+typedef union __align__(471,12410
+  uint i;491,12734
+  real r;492,12744
+} uint_real;493,12754
 
 src/tree/neighbor_dev.h,209
 #define NEIGHBOR_DEV_H18,415
@@ -1804,19 +1826,21 @@ src/tree/geo_dev.h,85
   int Nblock;41,735
 } soaGEO;42,749
 
-src/tree/icom_dev.h,391
+src/tree/icom_dev.h,441
 #define ICOM_DEV_H18,422
-#define OCTREE_BASED_SEARCH26,585
-#define ADOPT_EBS_FOR_LET34,769
-#define NTHREADS_EB 45,1086
-#define USE_WARP_SHUFFLE_FUNC_EB49,1134
-#undef          USE_WARP_SHUFFLE_FUNC_EB51,1226
-#define NI_R2MAX_ESTIMATE 56,1356
-#define NBUF_EB 57,1389
-#undef  NBUF_EB60,1546
-#define NBUF_EB 61,1562
-#undef  NI_R2MAX_ESTIMATE62,1582
-#define NI_R2MAX_ESTIMATE 63,1608
+#define NTHREADS_EB 45,1098
+  void *gmem;gmem57,1263
+  int *gsync0,gsync058,1277
+  int *gsync0, *gsync1;gsync158,1277
+} soaEncBall;59,1301
+#define USE_WARP_SHUFFLE_FUNC_EB63,1345
+#undef          USE_WARP_SHUFFLE_FUNC_EB65,1437
+#define NI_R2MAX_ESTIMATE 70,1567
+#define NBUF_EB 71,1600
+#undef  NBUF_EB74,1757
+#define NBUF_EB 75,1773
+#undef  NI_R2MAX_ESTIMATE76,1793
+#define NI_R2MAX_ESTIMATE 77,1819
 
 src/anal/anal.error.c,54
 #define USE_SZIP_COMPRESSION12,812

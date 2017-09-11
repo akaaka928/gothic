@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2017/09/05 (Tue) 15:17:24
+# last updated on 2017/09/11 (Mon) 16:27:03
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -15,8 +15,8 @@ VERBOSE	:=
 # VERBOSE	:= @
 #################################################################################################
 # Macros for Pre-Processor
-# DEBUG	:= -DNDEBUG
-# # PROFILE	:= -pg
+DEBUG	:= -DNDEBUG
+# PROFILE	:= -pg
 #################################################################################################
 # Execution options
 FORCE_SINGLE_GPU_RUN	:= 0

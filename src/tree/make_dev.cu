@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/09/07 (Thu)
+ * @date 2017/09/11 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2737,7 +2737,7 @@ void calcMultipole_dev
   double time = 0.0;
   stopStopwatch(&time);
   elapsed->calcMultipole_dev = time;
-  *tmac += time;
+  /* *tmac += time; */
 #else///EXEC_BENCHMARK
 #ifndef SERIALIZED_EXECUTION
   static struct timespec finish;

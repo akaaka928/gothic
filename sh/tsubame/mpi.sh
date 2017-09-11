@@ -280,7 +280,7 @@ if [ $PROBLEM -eq 81 ]; then
 fi
 ###############################################################
 # set input arguments
-OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$SLURM_JOB_ID"
+OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID"
 ###############################################################
 
 
