@@ -71,6 +71,9 @@ typedef struct
   float *x_hst, *y_hst, *z_hst;
   float *x_dev, *y_dev, *z_dev;
   int *i_hst, *i_dev;
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+  MPI_Win win_x, win_y, win_z;
+#endif//MPI_ONE_SIDED_FOR_EXCG
 } samplePos;
 
 /**

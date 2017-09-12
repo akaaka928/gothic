@@ -132,34 +132,6 @@
 #endif//NTHREADS_DDSORT
 
 
-/**
- * @def NCRIT_XPOS_SORT
- *
- * @brief critical number to switch GPU sort and CPU sort, must be determined by benchmarks
- */
-#ifndef NCRIT_XPOS_SORT
-#define NCRIT_XPOS_SORT (65536)
-#endif//NCRIT_XPOS_SORT
-
-/**
- * @def NCRIT_YPOS_SORT
- *
- * @brief critical number to switch GPU sort and CPU sort, must be determined by benchmarks
- */
-#ifndef NCRIT_YPOS_SORT
-#define NCRIT_YPOS_SORT (65536)
-#endif//NCRIT_YPOS_SORT
-
-/**
- * @def NCRIT_ZPOS_SORT
- *
- * @brief critical number to switch GPU sort and CPU sort, must be determined by benchmarks
- */
-#ifndef NCRIT_ZPOS_SORT
-#define NCRIT_ZPOS_SORT (65536)
-#endif//NCRIT_ZPOS_SORT
-
-
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 /* list of functions appeared in ``exchange_dev.cu'' */
 

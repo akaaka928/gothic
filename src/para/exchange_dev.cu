@@ -220,8 +220,6 @@ static inline void sort_xpos_dev(const int num, samplePos src, samplePos dst)
 {
   __NOTE__("%s\n", "start");
 
-  データが device に置いてある場合なので，hst は不要;
-  checkCudaErrors(cudaMemcpy(src.x_dev, src.x_hst, num * sizeof(float), cudaMemcpyHostToDevice));
   int Nrem = BLOCKSIZE(num, NTHREADS_SETIDX);
   int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
   int hidx = 0;
@@ -237,10 +235,8 @@ static inline void sort_xpos_dev(const int num, samplePos src, samplePos dst)
 
   /** sort using thrust */
   thrust::stable_sort_by_key((thrust::device_ptr<float>)(src.x_dev), (thrust::device_ptr<float>)((src.x_dev) + num), (thrust::device_ptr<int>)(src.i_dev));
-  checkCudaErrors(cudaMemcpy(dst.x_hst, src.x_dev, num * sizeof(float), cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaMemcpy(dst.x_dev, src.x_dev, num * sizeof(float), cudaMemcpyDeviceToDevice));
 
-  checkCudaErrors(cudaMemcpy(src.y_dev, src.y_hst, num * sizeof(float), cudaMemcpyHostToDevice));
-  checkCudaErrors(cudaMemcpy(src.z_dev, src.z_hst, num * sizeof(float), cudaMemcpyHostToDevice));
   Nrem = BLOCKSIZE(num, NTHREADS_SORTYZ);
   Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
   hidx = 0;
@@ -253,9 +249,6 @@ static inline void sort_xpos_dev(const int num, samplePos src, samplePos dst)
     Nrem -= Nblck;
   }/* for(int iter = 0; iter < Niter; iter++){ */
   getLastCudaError("sortSamplePos_yz_kernel");
-  checkCudaErrors(cudaMemcpy(dst.y_hst, dst.y_dev, num * sizeof(float), cudaMemcpyDeviceToHost));
-  checkCudaErrors(cudaMemcpy(dst.z_hst, dst.z_dev, num * sizeof(float), cudaMemcpyDeviceToHost));
-
 
   __NOTE__("%s\n", "end");
 }
@@ -316,17 +309,8 @@ static inline void sort_ypos_dev(const int num, samplePos src)
 {
   __NOTE__("%s\n", "start");
 
-
-  データが device に置いてある場合なので，hst は不要;
-  checkCudaErrors(cudaMemcpy(src.y_dev, src.y_hst, num * sizeof(float), cudaMemcpyHostToDevice));
-  checkCudaErrors(cudaMemcpy(src.z_dev, src.z_hst, num * sizeof(float), cudaMemcpyHostToDevice));
-
   /** sort using thrust */
   thrust::stable_sort_by_key((thrust::device_ptr<float>)(src.y_dev), (thrust::device_ptr<float>)((src.y_dev) + num), (thrust::device_ptr<float>)(src.z_dev));
-
-  checkCudaErrors(cudaMemcpy(src.y_hst, src.y_dev, num * sizeof(float), cudaMemcpyDeviceToHost));
-  checkCudaErrors(cudaMemcpy(src.z_hst, src.z_dev, num * sizeof(float), cudaMemcpyDeviceToHost));
-
 
   __NOTE__("%s\n", "end");
 }
@@ -371,13 +355,8 @@ static inline void sort_zpos_dev(const int num, samplePos src)
 {
   __NOTE__("%s\n", "start");
 
-  データが device に置いてある場合なので，hst は不要;
-  checkCudaErrors(cudaMemcpy(src.z_dev, src.z_hst, num * sizeof(float), cudaMemcpyHostToDevice));
-
   /** sort using thrust */
   thrust::stable_sort((thrust::device_ptr<float>)(src.z_dev), (thrust::device_ptr<float>)((src.z_dev) + num));
-
-  checkCudaErrors(cudaMemcpy(src.z_hst, src.z_dev, num * sizeof(float), cudaMemcpyDeviceToHost));
 
   __NOTE__("%s\n", "end");
 }
@@ -778,12 +757,6 @@ void exchangeParticles_dev
     Nrem -= Nblck;
   }/* for(int iter = 0; iter < Niter; iter++){ */
   getLastCudaError("pickupSamples_kernel");
-  /* for(int ii = 0; ii < numOld; ii += iskip){ */
-  /*   loc.x_hst[sendNum] = pos_hst.x[ii]; */
-  /*   loc.y_hst[sendNum] = pos_hst.y[ii]; */
-  /*   loc.z_hst[sendNum] = pos_hst.z[ii]; */
-  /*   sendNum++; */
-  /* }/\* for(int ii = 0; ii < numOld; ii += iskip){ *\/ */
   __NOTE__("rank %d: iskip = %d, sendNum = %d\n", mpi.rank, iskip, sendNum);
 
   /** sort sample particles in each direction */
@@ -813,14 +786,20 @@ void exchangeParticles_dev
   /** gather particle data to the root process */
 #ifdef  MPI_ONE_SIDED_FOR_EXCG
 
-  chkMPIerr(MPI_Win_lock_all(0, MPI_Win win);
+  chkMPIerr(MPI_Win_lock_all(0, loc.win_x));
+  chkMPIerr(MPI_Win_lock_all(0, loc.win_y));
+  chkMPIerr(MPI_Win_lock_all(0, loc.win_z));
 
+  if( mpi.rank == 0 )
+    for(int ii = 0; ii < mpi.size; ii++){
+      chkMPIerr(MPI_Get(loc.x_hst, sample.rnum[ii], MPI_FLOAT, ii, sample.disp[ii], sample.rnum[ii], MPI_FLOAT, loc.win_x));
+      chkMPIerr(MPI_Get(loc.y_hst, sample.rnum[ii], MPI_FLOAT, ii, sample.disp[ii], sample.rnum[ii], MPI_FLOAT, loc.win_y));
+      chkMPIerr(MPI_Get(loc.z_hst, sample.rnum[ii], MPI_FLOAT, ii, sample.disp[ii], sample.rnum[ii], MPI_FLOAT, loc.win_z));
+    }/* for(int ii = 0; ii < mpi.size; ii++){ */
 
-  chkMPIerr(MPI_Get(&((*dst_dev).pos[recvHead]), recvBuf[ii].body.num, mpi.ipos, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.ipos, MPI_Win win);
-
-
-  chkMPIerr(MPI_Win_unlock_all(MPI_Win win);
-
+  chkMPIerr(MPI_Win_unlock_all(loc.win_x));
+  chkMPIerr(MPI_Win_unlock_all(loc.win_y));
+  chkMPIerr(MPI_Win_unlock_all(loc.win_z));
 
 #else///MPI_ONE_SIDED_FOR_EXCG
 
@@ -1088,6 +1067,7 @@ void exchangeParticles_dev
       sendBuf[overlapNum].     num = 0;
 #endif//MPI_ONE_SIDED_FOR_EXCG
 
+      /* domainCfg の中に array を追加してしまうのが楽だったりする??; */
       sendBuf[overlapNum].xmin = (domain.xmin[ii] < -0.25f * FLT_MAX) ? (domain.xmin[ii]) : ((min.x > domain.xmin[ii]) ? (min.x) : (domain.xmin[ii]));
       sendBuf[overlapNum].ymin = (domain.ymin[ii] < -0.25f * FLT_MAX) ? (domain.ymin[ii]) : ((min.y > domain.ymin[ii]) ? (min.y) : (domain.ymin[ii]));
       sendBuf[overlapNum].zmin = (domain.zmin[ii] < -0.25f * FLT_MAX) ? (domain.zmin[ii]) : ((min.z > domain.zmin[ii]) ? (min.z) : (domain.zmin[ii]));
@@ -1114,7 +1094,7 @@ void exchangeParticles_dev
   }/* for(int ii = 0; ii < numProcs; ii++){ */
 
 
-	    /* sendBuf.xmin, ..., sendBuf.zmax を GPU に cudaMemcpy する */
+  /* sendBuf.xmin, ..., sendBuf.zmax を GPU に cudaMemcpy する */
 
 
   /** determine process rank for each particle to belong */

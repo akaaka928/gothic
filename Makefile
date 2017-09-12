@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2017/09/11 (Mon) 16:27:03
+# last updated on 2017/09/12(Tue) 13:25:53
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -95,7 +95,8 @@ endif
 ifeq ($(MEASURE_ELAPSED_TIME), 1)
 CCARG	+= -DEXEC_BENCHMARK
 CUARG	+= -DEXEC_BENCHMARK
-CCARG	+= -DTFIN_MIN_BENCHMARK="(60)"
+# CCARG	+= -DTFIN_MIN_BENCHMARK="(60)"
+CCARG	+= -DTFIN_MIN_BENCHMARK="(1430)"
 DEBUG	:= -DNDEBUG
 PROFILE	:=
 USEDBG	:= 0
