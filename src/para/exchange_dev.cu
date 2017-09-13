@@ -1068,6 +1068,21 @@ void exchangeParticles_dev
 #endif//MPI_ONE_SIDED_FOR_EXCG
 
       /* domainCfg の中に array を追加してしまうのが楽だったりする??; */
+      /* domainCfg の中に既に xmin, xmax があったりして混同しやすそうなので，新しい SoA を作って，その中に配列を追加してやるのがよいのではないかと思う; */
+      /* ということで，sendDom という struct を新作することにしたよ，と; */
+      /* exchange_dev.h に置くのが良いと思っている; */
+
+/**
+ * @struct sendDom
+ *
+ * @brief structure for sending domain
+ */
+typedef struct
+{
+  float *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;
+} sendDom;
+
+
       sendBuf[overlapNum].xmin = (domain.xmin[ii] < -0.25f * FLT_MAX) ? (domain.xmin[ii]) : ((min.x > domain.xmin[ii]) ? (min.x) : (domain.xmin[ii]));
       sendBuf[overlapNum].ymin = (domain.ymin[ii] < -0.25f * FLT_MAX) ? (domain.ymin[ii]) : ((min.y > domain.ymin[ii]) ? (min.y) : (domain.ymin[ii]));
       sendBuf[overlapNum].zmin = (domain.zmin[ii] < -0.25f * FLT_MAX) ? (domain.zmin[ii]) : ((min.z > domain.zmin[ii]) ? (min.z) : (domain.zmin[ii]));
