@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/09/08 (Fri)
+ * @date 2017/09/14 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1072,15 +1072,6 @@ void exchangeParticles_dev
       /* ということで，sendDom という struct を新作することにしたよ，と; */
       /* exchange_dev.h に置くのが良いと思っている; */
 
-/**
- * @struct sendDom
- *
- * @brief structure for sending domain
- */
-typedef struct
-{
-  float *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;
-} sendDom;
 
 
       sendBuf[overlapNum].xmin = (domain.xmin[ii] < -0.25f * FLT_MAX) ? (domain.xmin[ii]) : ((min.x > domain.xmin[ii]) ? (min.x) : (domain.xmin[ii]));

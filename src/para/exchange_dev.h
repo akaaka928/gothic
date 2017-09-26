@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tsukuba)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/07/18 (Tue)
+ * @date 2017/09/14 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -139,6 +139,18 @@
 #include "../misc/structure.h"
 #include "../sort/peano_dev.h"
 #include "../para/exchange.h"
+
+
+/**
+ * @struct sendDom
+ *
+ * @brief structure for sending domain
+ */
+typedef struct
+{
+  float *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;
+} sendDom;
+
 
 #ifdef  __CUDACC__
 extern "C"
