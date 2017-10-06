@@ -148,7 +148,8 @@
  */
 typedef struct
 {
-  float *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;
+  float *xmin_dev, *xmax_dev, *ymin_dev, *ymax_dev, *zmin_dev, *zmax_dev;
+  float *xmin_hst, *xmax_hst, *ymin_hst, *ymax_hst, *zmin_hst, *zmax_hst;
 } sendDom;
 
 
@@ -173,10 +174,15 @@ extern "C"
   void  releaseParticlePosition(float  *xhst, float  *yhst, float  *zhst,
 				float  *xdev, float  *ydev, float  *zdev,	            int  *rank_hst, int  *rank_dev, int  *idx_dev);
 
+  muse allocateDomainPos(float **xmin_dev, float **xmax_dev, float **ymin_dev, float **ymax_dev, float **zmin_dev, float **zmax_dev,
+			 float **xmin_hst, float **xmax_hst, float **ymin_hst, float **ymax_hst, float **zmin_hst, float **zmax_hst, sendDom *dom, const int Ngpu);
+  void  releaseDomainPos(float  *xmin_dev, float  *xmax_dev, float  *ymin_dev, float  *ymax_dev, float  *zmin_dev, float  *zmax_dev,
+			 float  *xmin_hst, float  *xmax_hst, float  *ymin_hst, float  *ymax_hst, float  *zmin_hst, float  *zmax_hst);
+
   void exchangeParticles_dev
   (const int numOld, const ulong Ntot, const int numMax, int *numNew,
    iparticle * RESTRICT src_dev, iparticle * RESTRICT dst_dev, iparticle * RESTRICT src_hst, iparticle * RESTRICT dst_hst,
-   particlePos pos_hst, particlePos pos_dev, domainDecomposeKey key, sendCfg *sendBuf, recvCfg *recvBuf,
+   sendDom domBoundary, particlePos pos_hst, particlePos pos_dev, domainDecomposeKey key, sendCfg *sendBuf, recvCfg *recvBuf,
    MPIinfo orm[], MPIinfo rep[], domainCfg domain, MPIcfg_tree mpi,
    const double tloc, sampling sample, samplePos loc, samplePos ful,
    soaPHsort soa, const deviceProp devProp, const deviceInfo devInfo,

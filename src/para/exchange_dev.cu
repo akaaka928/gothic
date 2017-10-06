@@ -682,6 +682,54 @@ void  releaseParticlePosition(float  *xhst, float  *yhst, float  *zhst,
 }
 
 
+/**
+ * @fn allocateDomainPos
+ *
+ * @brief Memory allocation to send domain boundary toward device.
+ */
+extern "C"
+muse allocateDomainPos(float **xmin_dev, float **xmax_dev, float **ymin_dev, float **ymax_dev, float **zmin_dev, float **zmax_dev,
+		       float **xmin_hst, float **xmax_hst, float **ymin_hst, float **ymax_hst, float **zmin_hst, float **zmax_hst, sendDom *dom, const int Ngpu)
+{
+  __NOTE__("%s\n", "start");
+
+
+  muse alloc = {0, 0};
+
+  mycudaMalloc    ((void **)xmin_dev, Ngpu * sizeof(float));  alloc.device += Ngpu * sizeof(float);  mycudaMalloc    ((void **)xmax_dev, Ngpu * sizeof(float));  alloc.device += Ngpu * sizeof(float);
+  mycudaMalloc	  ((void **)ymin_dev, Ngpu * sizeof(float));  alloc.device += Ngpu * sizeof(float);  mycudaMalloc    ((void **)ymax_dev, Ngpu * sizeof(float));  alloc.device += Ngpu * sizeof(float);
+  mycudaMalloc	  ((void **)zmin_dev, Ngpu * sizeof(float));  alloc.device += Ngpu * sizeof(float);  mycudaMalloc    ((void **)zmax_dev, Ngpu * sizeof(float));  alloc.device += Ngpu * sizeof(float);
+  mycudaMallocHost((void **)xmin_hst, Ngpu * sizeof(float));  alloc.host   += Ngpu * sizeof(float);  mycudaMallocHost((void **)xmax_hst, Ngpu * sizeof(float));  alloc.host   += Ngpu * sizeof(float);
+  mycudaMallocHost((void **)ymin_hst, Ngpu * sizeof(float));  alloc.host   += Ngpu * sizeof(float);  mycudaMallocHost((void **)ymax_hst, Ngpu * sizeof(float));  alloc.host   += Ngpu * sizeof(float);
+  mycudaMallocHost((void **)zmin_hst, Ngpu * sizeof(float));  alloc.host   += Ngpu * sizeof(float);  mycudaMallocHost((void **)zmax_hst, Ngpu * sizeof(float));  alloc.host   += Ngpu * sizeof(float);
+
+  dom->xmin_dev = *xmin_dev;  dom->xmax_dev = *xmax_dev;  dom->xmin_hst = *xmin_hst;  dom->xmax_hst = *xmax_hst;
+  dom->ymin_dev = *ymin_dev;  dom->ymax_dev = *ymax_dev;  dom->ymin_hst = *ymin_hst;  dom->ymax_hst = *ymax_hst;
+  dom->zmin_dev = *zmin_dev;  dom->zmax_dev = *zmax_dev;  dom->zmin_hst = *zmin_hst;  dom->zmax_hst = *zmax_hst;
+
+
+  __NOTE__("%s\n", "end");
+  return (alloc);
+}
+
+/**
+ * @fn releaseDomainPos
+ *
+ * @brief Memory deallocation.
+ */
+extern "C"
+void  releaseDomainPos(float  *xmin_dev, float  *xmax_dev, float  *ymin_dev, float  *ymax_dev, float  *zmin_dev, float  *zmax_dev,
+		       float  *xmin_hst, float  *xmax_hst, float  *ymin_hst, float  *ymax_hst, float  *zmin_hst, float  *zmax_hst)
+{
+  __NOTE__("%s\n", "start");
+
+  mycudaFree    (xmin_dev);  mycudaFree    (xmax_dev);  mycudaFree    (ymin_dev);  mycudaFree    (ymax_dev);  mycudaFree    (zmin_dev);  mycudaFree    (zmax_dev);
+  mycudaFreeHost(xmin_hst);  mycudaFreeHost(xmax_hst);  mycudaFreeHost(ymin_hst);  mycudaFreeHost(ymax_hst);  mycudaFreeHost(zmin_hst);  mycudaFreeHost(zmax_hst);
+
+  __NOTE__("%s\n", "end");
+}
+
+
 #ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
 static inline float cutting(float ll, float rr, float min, float dL, float dLinv){  return (min + dL * nearbyintf(((0.5f * (ll + rr)) - min) * dLinv));}
 #else///ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
@@ -706,7 +754,7 @@ extern "C"
 void exchangeParticles_dev
 (const int numOld, const ulong Ntot, const int numMax, int *numNew,
  iparticle * RESTRICT src_dev, iparticle * RESTRICT dst_dev, iparticle * RESTRICT src_hst, iparticle * RESTRICT dst_hst,
- particlePos pos_hst, particlePos pos_dev, domainDecomposeKey key, sendCfg *sendBuf, recvCfg *recvBuf,
+ sendDom domBoundary, particlePos pos_hst, particlePos pos_dev, domainDecomposeKey key, sendCfg *sendBuf, recvCfg *recvBuf,
  MPIinfo orm[], MPIinfo rep[], domainCfg domain, MPIcfg_tree mpi,
  const double tloc, sampling sample, samplePos loc, samplePos ful,
  soaPHsort soa, const deviceProp devProp, const deviceInfo devInfo,
@@ -816,10 +864,6 @@ void exchangeParticles_dev
 #endif//MPI_ONE_SIDED_FOR_EXCG
 
 
-
-
-
-
   /** set current (local) distribution */
   /** get (current) box size for the local distribution of N-body particles */
   getBoxSize_dev(numOld, (*src_dev).pos, soa, devProp, devInfo.stream[1]);
@@ -851,17 +895,6 @@ void exchangeParticles_dev
   const float dL    = diameter * ldexpf(1.0f, -(((int)ceilf(log2f((float)Ntot) / 3.0f)) >> 1));
   const float dLinv = 1.0f / dL;
 #endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
-
-
-
-
-
-
-
-
-
-
-
 
 
   /** determine local domain */
@@ -1071,7 +1104,7 @@ void exchangeParticles_dev
       /* domainCfg の中に既に xmin, xmax があったりして混同しやすそうなので，新しい SoA を作って，その中に配列を追加してやるのがよいのではないかと思う; */
       /* ということで，sendDom という struct を新作することにしたよ，と; */
       /* exchange_dev.h に置くのが良いと思っている; */
-
+      /* sendDom domBoundary is the new SoA */
 
 
       sendBuf[overlapNum].xmin = (domain.xmin[ii] < -0.25f * FLT_MAX) ? (domain.xmin[ii]) : ((min.x > domain.xmin[ii]) ? (min.x) : (domain.xmin[ii]));

@@ -16,19 +16,26 @@
 # NCRIT=1024
 NCRIT=2048
 ###############################################################
-EXTENSION=svg
+EXTENSION=png
 ###############################################################
 PLTENE=bin/plot.energy
 PLTMAP=bin/plot.distribution
 PLTCDF=bin/plot.cdf
 ###############################################################
-# PROBLEM=3
-# TARGET=0
+PROBLEM=0
+TARGET=0
 ###############################################################
 #
 #
 ###############################################################
 # specific configurations
+###############################################################
+# cold collapse of a uniform sphere
+if [ $PROBLEM -eq 0 ]; then
+    FILE=ccuni
+    FINISH=11.75
+    INTERVAL=0.25
+fi
 ###############################################################
 # dynamical stability of a King sphere
 if [ $PROBLEM -eq 1 ]; then
@@ -193,7 +200,7 @@ PROCS=`expr $NODES \* $PROCS_PER_NODE`
 ###############################################################
 . /opt/Modules/default/init/bash
 export MODULEPATH=$MODULEPATH:/work/GALAXY/ymiki/opt/Modules
-module load intel/15.0.5 intelmpi/5.1.1
+module load intel/16.0.4 mvapich2/2.2_intel_cuda-7.5.18
 module load cuda/7.5.18 cuda/samples_7.5.18
 module load gsl hdf5 plplot
 ###############################################################

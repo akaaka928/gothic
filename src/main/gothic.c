@@ -173,7 +173,7 @@ static inline void setMultipoleMoment
 static inline void updateDomain
 (int *num, const int num_max, int *Ni,
  iparticle *ibody0_dev, iparticle *ibody1_dev, iparticle *ibody0_hst, iparticle *ibody1_hst, const ulong Ntot,
- particlePos pos_hst, particlePos pos_dev, domainCfg domain, domainDecomposeKey key,
+ sendDom domBoundary, particlePos pos_hst, particlePos pos_dev, domainCfg domain, domainDecomposeKey key,
  sampling sample, samplePos loc, samplePos ful, soaPHsort soa, const deviceProp devProp, const deviceInfo devInfo,
  autoTuningParam *exchangeParam, double *exchangeInterval, MPIinfo orm[restrict], MPIinfo rep[restrict],
 #ifdef  CARE_EXTERNAL_PARTICLES
@@ -201,7 +201,7 @@ static inline void updateDomain
   /** execute particle exchanging */
   exchangeParticles_dev
     (*num, Ntot, num_max, num, ibody0_dev, ibody1_dev, ibody0_hst, ibody1_hst,
-     pos_hst, pos_dev, key, iparticleSendBuf, iparticleRecvBuf,
+     domBoundary, pos_hst, pos_dev, key, iparticleSendBuf, iparticleRecvBuf,
      orm, rep, domain, letcfg,
      measured->sum_excg,
      sample, loc, ful, soa, devProp, devInfo, measured
@@ -959,6 +959,12 @@ int main(int argc, char **argv)
   domainDecomposeKey domDecKey;
   const muse alloc_pos = allocateParticlePosition(&xhst, &yhst, &zhst, &particlePos_hst, &xdev, &ydev, &zdev, &particlePos_dev, &rank_hst, &rank_dev, &idx_dev, &domDecKey, Ntot);
 
+  float *xmin_dev, *xmax_dev, *ymin_dev, *ymax_dev, *zmin_dev, *zmax_dev;
+  float *xmin_hst, *xmax_hst, *ymin_hst, *ymax_hst, *zmin_hst, *zmax_hst;
+  sendDom domBoundary;
+  const muse alloc_dom = allocateDomainPos(&xmin_dev, &xmax_dev, &ymin_dev, &ymax_dev, &zmin_dev, &zmax_dev,
+					   &xmin_hst, &xmax_hst, &ymin_hst, &ymax_hst, &zmin_hst, &zmax_hst, &domBoundary, letcfg.size);
+
   soaGEO soaGEO_dev;
   real *r2geo_dev;
   const muse alloc_r2geo = allocGeometricEnclosingBall_dev(&r2geo_dev, &soaGEO_dev, num_max);
@@ -1195,8 +1201,8 @@ int main(int argc, char **argv)
 			 alloc_dd.device + alloc_LETtopology.device};
   used_mem.host   += let_mem.host;
   used_mem.device += let_mem.device;
-  const muse box_mem = {alloc_spl.host   + alloc_pos.host  ,
-			alloc_spl.device + alloc_pos.device};
+  const muse box_mem = {alloc_spl.host   + alloc_pos.host   + alloc_dom.host  ,
+			alloc_spl.device + alloc_pos.device + alloc_dom.device};
   used_mem.host   += box_mem.host;
   used_mem.device += box_mem.device;
 #   if  defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
@@ -1353,7 +1359,7 @@ int main(int argc, char **argv)
 #endif
   updateDomain(&num, num_max, &Ni,
 	       &ibody0_dev, &ibody1_dev, &ibody0, &ibody1, Ntot,
-	       particlePos_hst, particlePos_dev, domCfg, domDecKey,
+	       domBoundary, particlePos_hst, particlePos_dev, domCfg, domDecKey,
 	       sample, samplePos0, samplePos1, soaPH_dev, devProp, devInfo,
 	       &exchangeParam, &exchangeInterval, ormCfg, repCfg,
 #ifdef  CARE_EXTERNAL_PARTICLES
@@ -1788,7 +1794,7 @@ int main(int argc, char **argv)
     if( balancer.execute ){
       updateDomain(&num, num_max, &Ni,
 		   &ibody0_dev, &ibody1_dev, &ibody0, &ibody1, Ntot,
-		   particlePos_hst, particlePos_dev, domCfg, domDecKey,
+		   domBoundary, particlePos_hst, particlePos_dev, domCfg, domDecKey,
 		   sample, samplePos0, samplePos1, soaPH_dev, devProp, devInfo,
 		   &exchangeParam, &exchangeInterval, ormCfg, repCfg,
 #ifdef  CARE_EXTERNAL_PARTICLES
@@ -2542,6 +2548,8 @@ int main(int argc, char **argv)
   releaseSamplePos(x0hst, x1hst, y0hst, y1hst, z0hst, z1hst, idhst,
 		   x0dev, x1dev, y0dev, y1dev, z0dev, z1dev, iddev);
   releaseParticlePosition(xhst, yhst, zhst, xdev, ydev, zdev, rank_hst, rank_dev, idx_dev);
+  releaseDomainPos(xmin_dev, xmax_dev, ymin_dev, ymax_dev, zmin_dev, zmax_dev,
+		   xmin_hst, xmax_hst, ymin_hst, ymax_hst, zmin_hst, zmax_hst);
 
   freeGeometricEnclosingBall_dev(r2geo_dev);
 #endif//SERIALIZED_EXECUTION

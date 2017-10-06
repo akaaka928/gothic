@@ -62,15 +62,13 @@ extern const real newton;
  */
 static inline void isotropicDistribution(const real rad, iparticle body, const int idx, rand_state *rand)
 {
-  //-----------------------------------------------------------------------
   const real proj = RANDVAL(rand);
   body.pos[idx].z = rad * proj;
   real Rproj  = rad * SQRT(UNITY - proj * proj);
-  //-----------------------------------------------------------------------
+
   real theta = TWO * CAST_D2R(M_PI) * UNIRAND(rand);
   body.pos[idx].x = Rproj * COS(theta);
   body.pos[idx].y = Rproj * SIN(theta);
-  //-----------------------------------------------------------------------
 }
 
 
@@ -119,6 +117,7 @@ void makeUniformSphere(ulong num, iparticle body, real mtot, real length, real s
   __NOTE__("%s\n", "start");
 
   real mass = mtot / (real)num;
+  const real sigma1D = sigma / (real)M_SQRT3;
   for(ulong ii = 0; ii < num; ii++){
     isotropicDistribution(length * POW(UNIRAND(rand), ONE_THIRD), body, ii, rand);
     body.pos[ii].m = mass;
@@ -129,13 +128,13 @@ void makeUniformSphere(ulong num, iparticle body, real mtot, real length, real s
     body.acc[ii].pot = ZERO;
 
 #ifdef  BLOCK_TIME_STEP
-    body.vel[ii].x = sigma * gaussian(rand);
-    body.vel[ii].y = sigma * gaussian(rand);
-    body.vel[ii].z = sigma * gaussian(rand);
+    body.vel[ii].x = sigma1D * gaussian(rand);
+    body.vel[ii].y = sigma1D * gaussian(rand);
+    body.vel[ii].z = sigma1D * gaussian(rand);
 #else///BLOCK_TIME_STEP
-    body.vx[ii] = sigma * gaussian();
-    body.vy[ii] = sigma * gaussian();
-    body.vz[ii] = sigma * gaussian();
+    body.vx[ii] = sigma1D * gaussian();
+    body.vy[ii] = sigma1D * gaussian();
+    body.vz[ii] = sigma1D * gaussian();
 #endif//BLOCK_TIME_STEP
 
     body.idx[ii] = ii;

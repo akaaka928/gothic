@@ -15,7 +15,7 @@ PROCS=`expr $NODES \* $PROCS_PER_NODE`
 ###############################################################
 EXEC=bin/gothic
 ###############################################################
-PROBLEM=10
+PROBLEM=0
 ###############################################################
 #
 #
@@ -28,8 +28,8 @@ PROBLEM=10
 # ABSERR=3.125000000e-2
 # ABSERR=1.562500000e-2
 # ABSERR=7.812500000e-3
-ABSERR=3.906250000e-3
-# ABSERR=1.953125000e-3
+# ABSERR=3.906250000e-3
+ABSERR=1.953125000e-3
 # ABSERR=9.765625000e-4
 # ABSERR=4.882812500e-4
 # ABSERR=2.441406250e-4
@@ -181,7 +181,8 @@ fi
 ###############################################################
 . /opt/Modules/default/init/bash
 export MODULEPATH=$MODULEPATH:/work/GALAXY/ymiki/opt/Modules
-module load intel/16.0.4 mvapich2/2.2_intel_cuda-8.0.44 cuda/8.0.44 cuda-samples/8.0.44
+module load intel/16.0.4 mvapich2/2.2_intel_cuda-7.5.18
+module load cuda/7.5.18 cuda/samples_7.5.18
 # module load ddt/5.1 reports/5.1
 module load hdf5 cub
 ###############################################################
