@@ -120,7 +120,8 @@ typedef struct
   MPI_Request vx, vy, vz;
 #endif//BLOCK_TIME_STEP
 #endif//MPI_ONE_SIDED_FOR_EXCG
-  real xmin, xmax, ymin, ymax, zmin, zmax;
+  /* move them to sendDom domBoundary */
+  /* real xmin, xmax, ymin, ymax, zmin, zmax; */
   int rank;
 } sendCfg;
 

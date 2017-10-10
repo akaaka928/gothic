@@ -1088,6 +1088,7 @@ void exchangeParticles_dev
   const int nullSend = 0;
 #endif//MPI_ONE_SIDED_FOR_EXCG
   int overlapNum = 0;
+  /* this function should be performed on host, use pinned memory */
   for(int ii = 0; ii < numProcs; ii++){
     if( (min.x <= domain.xmax[ii]) && (max.x >= domain.xmin[ii]) &&
 	(min.y <= domain.ymax[ii]) && (max.y >= domain.ymin[ii]) &&
@@ -1100,12 +1101,16 @@ void exchangeParticles_dev
       sendBuf[overlapNum].     num = 0;
 #endif//MPI_ONE_SIDED_FOR_EXCG
 
-      /* domainCfg の中に array を追加してしまうのが楽だったりする??; */
-      /* domainCfg の中に既に xmin, xmax があったりして混同しやすそうなので，新しい SoA を作って，その中に配列を追加してやるのがよいのではないかと思う; */
-      /* ということで，sendDom という struct を新作することにしたよ，と; */
-      /* exchange_dev.h に置くのが良いと思っている; */
-      /* sendDom domBoundary is the new SoA */
+#if 1
+      domBoundary.xmin_hst[overlapNum] = (domain.xmin[ii] < -0.25f * FLT_MAX) ? (domain.xmin[ii]) : ((min.x > domain.xmin[ii]) ? (min.x) : (domain.xmin[ii]));
+      domBoundary.ymin_hst[overlapNum] = (domain.ymin[ii] < -0.25f * FLT_MAX) ? (domain.ymin[ii]) : ((min.y > domain.ymin[ii]) ? (min.y) : (domain.ymin[ii]));
+      domBoundary.zmin_hst[overlapNum] = (domain.zmin[ii] < -0.25f * FLT_MAX) ? (domain.zmin[ii]) : ((min.z > domain.zmin[ii]) ? (min.z) : (domain.zmin[ii]));
 
+      domBoundary.xmax_hst[overlapNum] = (domain.xmax[ii] >  0.25f * FLT_MAX) ? (domain.xmax[ii]) : ((max.x < domain.xmax[ii]) ? (max.x) : (domain.xmax[ii]));
+      domBoundary.ymax_hst[overlapNum] = (domain.ymax[ii] >  0.25f * FLT_MAX) ? (domain.ymax[ii]) : ((max.y < domain.ymax[ii]) ? (max.y) : (domain.ymax[ii]));
+      domBoundary.zmax_hst[overlapNum] = (domain.zmax[ii] >  0.25f * FLT_MAX) ? (domain.zmax[ii]) : ((max.z < domain.zmax[ii]) ? (max.z) : (domain.zmax[ii]));
+
+#else
 
       sendBuf[overlapNum].xmin = (domain.xmin[ii] < -0.25f * FLT_MAX) ? (domain.xmin[ii]) : ((min.x > domain.xmin[ii]) ? (min.x) : (domain.xmin[ii]));
       sendBuf[overlapNum].ymin = (domain.ymin[ii] < -0.25f * FLT_MAX) ? (domain.ymin[ii]) : ((min.y > domain.ymin[ii]) ? (min.y) : (domain.ymin[ii]));
@@ -1114,9 +1119,7 @@ void exchangeParticles_dev
       sendBuf[overlapNum].xmax = (domain.xmax[ii] >  0.25f * FLT_MAX) ? (domain.xmax[ii]) : ((max.x < domain.xmax[ii]) ? (max.x) : (domain.xmax[ii]));
       sendBuf[overlapNum].ymax = (domain.ymax[ii] >  0.25f * FLT_MAX) ? (domain.ymax[ii]) : ((max.y < domain.ymax[ii]) ? (max.y) : (domain.ymax[ii]));
       sendBuf[overlapNum].zmax = (domain.zmax[ii] >  0.25f * FLT_MAX) ? (domain.zmax[ii]) : ((max.z < domain.zmax[ii]) ? (max.z) : (domain.zmax[ii]));
-
-      /* sendBuf.xmin, ..., sendBuf.zmax を GPU に cudaMemcpy する準備をしておく */
-      /* sendCfg 中で real xmin, xmax, ... として設定しているが，real xmin[# of GPUs] みたいにしておいて cudaMallocHost で確保しておけば，cudaMemcpy しやすくなる */
+#endif
 
       overlapNum++;
     }
@@ -1133,7 +1136,13 @@ void exchangeParticles_dev
   }/* for(int ii = 0; ii < numProcs; ii++){ */
 
 
-  /* sendBuf.xmin, ..., sendBuf.zmax を GPU に cudaMemcpy する */
+  /** send domBoundary from host to device */
+  checkCudaErrors(cudaMemcpy(domBoundary.xmin_dev, domBoundary.xmin_hst, sizeof(float) * overlapNum, cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(domBoundary.xmax_dev, domBoundary.xmax_hst, sizeof(float) * overlapNum, cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(domBoundary.ymin_dev, domBoundary.ymin_hst, sizeof(float) * overlapNum, cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(domBoundary.ymax_dev, domBoundary.ymax_hst, sizeof(float) * overlapNum, cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(domBoundary.zmin_dev, domBoundary.zmin_hst, sizeof(float) * overlapNum, cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(domBoundary.zmax_dev, domBoundary.zmax_hst, sizeof(float) * overlapNum, cudaMemcpyHostToDevice));
 
 
   /** determine process rank for each particle to belong */
@@ -1147,6 +1156,11 @@ void exchangeParticles_dev
     /* というわけなので，何か配列を新作しないといけない; */
     /* sendBuf.num の値の reduction をしないといけないので，そこをどうするか． */
     /* overlapNum はどれだけ増えても O(10) にしかならないと思う */
+
+    /* overlapNum 個のthread-blocksをたててしまえば良い気がする */
+    /* その中で、大量に threads をたてて粒子をなめてあげる感じにしてしまう */
+    /* 粒子をなめる回数は増えるが、reduction の大変さはだいぶ楽になるので、実装が簡単になる */
+
     for(int jj = 0; jj < overlapNum; jj++){
       if( (pos_hst.x[ii] >= sendBuf[jj].xmin) && (pos_hst.x[ii] <= sendBuf[jj].xmax) &&
 	  (pos_hst.y[ii] >= sendBuf[jj].ymin) && (pos_hst.y[ii] <= sendBuf[jj].ymax) &&
