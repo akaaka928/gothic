@@ -1161,6 +1161,8 @@ void exchangeParticles_dev
     /* その中で、大量に threads をたてて粒子をなめてあげる感じにしてしまう */
     /* 粒子をなめる回数は増えるが、reduction の大変さはだいぶ楽になるので、実装が簡単になる */
 
+    /* 一応、複数の grids が同時に流れるようにしたいから、2 CUDA streams が同時に流れるぐらいの設定にはしてあげたい */
+
     for(int jj = 0; jj < overlapNum; jj++){
       if( (pos_hst.x[ii] >= sendBuf[jj].xmin) && (pos_hst.x[ii] <= sendBuf[jj].xmax) &&
 	  (pos_hst.y[ii] >= sendBuf[jj].ymin) && (pos_hst.y[ii] <= sendBuf[jj].ymax) &&
