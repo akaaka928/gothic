@@ -1145,6 +1145,11 @@ void exchangeParticles_dev
   checkCudaErrors(cudaMemcpy(domBoundary.zmax_dev, domBoundary.zmax_hst, sizeof(float) * overlapNum, cudaMemcpyHostToDevice));
 
 
+  for(int ii = 0; ii < overlapNum; ii++)
+    hogehoge_kernel<<<block_size, thread_num, SMEM_SIZE, cuda_stream>>>();
+  getLastCudaError("hogehoge_kernel");
+
+
   /** determine process rank for each particle to belong */
   for(int ii = 0; ii < numOld; ii++){
 #ifndef NDEBUG
