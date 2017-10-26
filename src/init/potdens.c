@@ -3,10 +3,10 @@
  *
  * @brief Source code for calculating potential-density pair of disk component(s)
  *
- * @author Yohei Miki (University of Tsukuba)
+ * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/07/22 (Sat)
+ * @date 2017/10/26 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.

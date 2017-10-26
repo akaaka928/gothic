@@ -3,10 +3,10 @@
  *
  * @brief Source code for parallel prefix sum library on GPU
  *
- * @author Yohei Miki (University of Tsukuba)
+ * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/09/05 (Tue)
+ * @date 2017/10/26 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -345,14 +345,14 @@ template <typename Type>
 __device__ __forceinline__ Type TOTAL_SUM_BLCK(Type val, volatile Type * __restrict__ smem, const int tidx, const int head)
 {
   /** 1. total sum within a warp */
-  Type temp = totalSumWarp(val
+  val = totalSumWarp(val
 #ifndef USE_WARP_SHUFFLE_FUNC_SCAN_INC
 			   , smem, tidx, head
 #endif//USE_WARP_SHUFFLE_FUNC_SCAN_INC
 			 );
 #ifdef  USE_WARP_SHUFFLE_FUNC_SCAN_INC
   if( tidx == head )
-    smem[tidx] = temp;
+    smem[tidx] = val;
 #endif//USE_WARP_SHUFFLE_FUNC_SCAN_INC
 
 
@@ -405,6 +405,66 @@ __device__ __forceinline__ Type TOTAL_SUM_BLCK(Type val, volatile Type * __restr
   __syncthreads();
   val = smem[0];
   __syncthreads();
+
+  return (val);
+}
+
+
+/**
+ * @fn TOTAL_SUM_GRID
+ *
+ * @brief Get total sum within a grid.
+ */
+template <typename Type>
+__device__ __forceinline__ Type TOTAL_SUM_GRID
+(Type val, volatile Type * __restrict__ smem, const int tidx, const int head,
+ volatile Type * __restrict__ gmem, const int bidx, const int bnum, int * __restrict__ gsync0, int * __restrict__ gsync1)
+{
+  val = TOTAL_SUM_BLCK(val, smem, tidx, head);
+
+  /** global prefix sum is necessary only if number of blocks is greater than unity */
+  if( bnum > 1 ){
+    /** share local prefix sum via global memory */
+    /** store data on the global memory */
+    if( tidx == 0 )
+      gmem[bidx] = val;
+
+    /** global synchronization within bnum blocks */
+    globalSync(tidx, bidx, bnum, gsync0, gsync1);
+
+
+    /** calculate global prefix sum by a representative block */
+    if( bidx == 0 ){
+      const int Nloop = BLOCKSIZE(bnum, NTHREADS_SCAN_INC);
+      Type sum = 0;
+      for(int loop = 0; loop < Nloop; loop++){
+	const int target = tidx + loop * NTHREADS_SCAN_INC;
+
+	/** load from the global memory */
+	Type subset = ((target < bnum) ? gmem[target] : 0);
+
+	/** calculate partial sum */
+	sum += TOTAL_SUM_BLCK(subset, smem, lane, tidx);
+
+	__syncthreads();
+      }/* for(int loop = 0; loop < Nloop; loop++){ */
+      if( tidx == 0 )
+	gmem[0] = sum;
+    }/* if( bidx == 0 ){ */
+
+
+    /** global synchronization within bnum blocks */
+    globalSync(tidx, bidx, bnum, gsync0, gsync1);
+
+    /** load from the global memory */
+    if( tidx == 0 )
+      smem[tidx] = gmem[0];
+    __syncthreads();
+
+    /** upload calculated total sum */
+    val = smem[0];
+    __syncthreads();
+  }/* if( bnum > 1 ){ */
 
   return (val);
 }

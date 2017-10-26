@@ -1,44 +1,47 @@
-/*************************************************************************\
- *                                                                       *
-                  last updated on 2016/12/06(Tue) 12:37:52
- *                                                                       *
- *    Plot Code of Breakdown of Tree code on K20X with acceleration MAC  *
- *                                                                       *
- *                                                                       *
- *                                             written by Yohei MIKI     *
- *                                                                       *
-\*************************************************************************/
-//-------------------------------------------------------------------------
+/**
+ * @file plot.breakdown.c
+ *
+ * @brief Plot code of breakdown of tree code
+ *
+ * @author Yohei Miki (University of Tokyo)
+ *
+ * @date 2017/10/26 (Thu)
+ *
+ * Copyright (C) 2017 Yohei Miki
+ * All rights reserved.
+ *
+ * The MIT License is applied to this software, see LICENSE.txt
+ *
+ */
+
 #ifndef EXEC_BENCHMARK
 #define EXEC_BENCHMARK
 #endif//EXEC_BENCHMARK
-//-------------------------------------------------------------------------
+
 #define SHOW_LEGEND_OF_SYMBOLS
-//-------------------------------------------------------------------------
+
 #define CONNECT_SYMBOLS_BY_LINE
 #define HIGHLIGHTING_COLOR_MAP
-//-------------------------------------------------------------------------
+
 /* #define CUMULATIVE_PLOT */
-//-------------------------------------------------------------------------
+
 #ifdef  HIGHLIGHTING_COLOR_MAP
 #define NSEQUENCES (3)
 #endif//HIGHLIGHTING_COLOR_MAP
-//-------------------------------------------------------------------------
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <math.h>
-//-------------------------------------------------------------------------
+
 #include "macro.h"
 #include "myutil.h"
 #include "name.h"
 #include "plplotlib.h"
-//-------------------------------------------------------------------------
+
 #include "../misc/benchmark.h"
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 void plotBreakdown
 (PLINT step[restrict],
  PLFLT walkTree[restrict], PLFLT makeTree[restrict], PLFLT sortPH[restrict], PLFLT calcMAC[restrict],
@@ -48,32 +51,24 @@ void plotBreakdown
  PLFLT spltIgrpSum[restrict], PLFLT predJparSum[restrict], PLFLT corrIparSum[restrict],
 #endif//CUMULATIVE_PLOT
  PLplotPltRange box, char file[], int argc, char **argv);
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 int main(int argc, char **argv)
 {
-  //-----------------------------------------------------------------------
-  /* initialization */
-  //-----------------------------------------------------------------------
+  /** initialization */
   if( argc < 2 ){
     __FPRINTF__(stderr, "insufficient number of input parameters of %d (at least %d inputs are required).\n", argc, 2);
     __FPRINTF__(stderr, "Usage is: %s\n", argv[0]);
     __FPRINTF__(stderr, "          -file=<char *>\n");
     __KILL__(stderr, "%s\n", "insufficient command line arguments");
   }/* if( argc < 2 ){ */
-  //-----------------------------------------------------------------------
+
   char *file;  requiredCmdArg(getCmdArgStr(argc, (const char * const *)argv, "file", &file));
-  //-----------------------------------------------------------------------
   modifyArgcArgv4PLplot(&argc, argv, 2);
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* prepare dataset */
-  //-----------------------------------------------------------------------
-  /* read the measured data */
+  /** prepare dataset */
+  /** read the measured data */
   static PLINT step[BENCHMARK_STEPS];
   static PLFLT walkTree[BENCHMARK_STEPS], calcMAC[BENCHMARK_STEPS], makeTree[BENCHMARK_STEPS], sortPH[BENCHMARK_STEPS];
   static PLFLT getBody[BENCHMARK_STEPS], setBody[BENCHMARK_STEPS];
@@ -90,19 +85,19 @@ int main(int argc, char **argv)
   sprintf(filename, "%s/%s.time.bare.dat", BENCH_LOG_FOLDER, file);
   fp = fopen(filename, "r");
   if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
-  //-----------------------------------------------------------------------
+
   int checker = 1;
   for(int ii = 0; ii < BENCHMARK_STEPS; ii++)
     checker &= (16 == fscanf(fp, "%d\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le", &step[ii],
 			     &walkTree[ii], &calcMAC[ii], &makeTree[ii], &setGlbDt[ii], &sortPH[ii],
 			     &getBody[ii], &setBody[ii],
 			     &predJpar[ii], &corrIpar[ii], &setLocDt[ii], &adjustDt[ii], &calcIsep[ii], &spltIgrp[ii]));
-  //-----------------------------------------------------------------------
+
   fclose(fp);
   if( checker != 1 ){
     __KILL__(stderr, "ERROR: failure to read data from \"%s\"\n", filename);
   }/* if( checker != 1 ){ */
-  //-----------------------------------------------------------------------
+
 #ifdef  CUMULATIVE_PLOT
   walkTreeSum[0] = walkTree[0];
   calcMACSum [0] = calcMAC [0];
@@ -133,23 +128,22 @@ int main(int argc, char **argv)
     spltIgrpSum[ii] = spltIgrp[ii] + spltIgrpSum[ii - 1];
   }/* for(int ii = 1; ii < BENCHMARK_STEPS; ii++){ */
 #endif//CUMULATIVE_PLOT
-  //-----------------------------------------------------------------------
+
   for(int ii = 0; ii < BENCHMARK_STEPS; ii++){
-    //---------------------------------------------------------------------
-    walkTree[ii] =                         log10(walkTree[ii])          ;/* time to calculate gravity (calcGrav_dev) */
-    makeTree[ii] = (makeTree[ii] != 0.0) ? log10(makeTree[ii]) : DBL_MAX;/* time to build tree structure (makeTree) */
-    sortPH  [ii] = (sortPH  [ii] != 0.0) ? log10(sortPH  [ii]) : DBL_MAX;/* time to generate and sort PH-key and sort N-body particles (sortPHcurve) */
-    calcMAC [ii] =                         log10(calcMAC [ii])          ;/* time to calculate mass, size and MAC for pseudo j-particles (calcMultipole_dev) */
-    spltIgrp[ii] = (spltIgrp[ii] != 0.0) ? log10(spltIgrp[ii]) : DBL_MAX;/* time to slice group of i-particles (searchNeighbor_dev) */
-    predJpar[ii] =                         log10(predJpar[ii])          ;/* time to calculate position and velocity of j-particles (predoction_dev) */
-    corrIpar[ii] = (corrIpar[ii] != 0.0) ? log10(corrIpar[ii]) : DBL_MAX;/* time to calculate position of i-particles (correction_dev) */
-    calcIsep[ii] = (calcIsep[ii] != 0.0) ? log10(calcIsep[ii]) : DBL_MAX;/* time to calculate separation between i-particles within a group (examineNeighbor_dev) */
-    setGlbDt[ii] = (setGlbDt[ii] != 0.0) ? log10(setGlbDt[ii]) : DBL_MAX;/* time to set global time step of the simulation (setTimeStep_dev) */
-    setLocDt[ii] =                         log10(setLocDt[ii])          ;/* time to set  local time step of the simulation (setLaneTime_dev) */
-    adjustDt[ii] =                         log10(adjustDt[ii])          ;/* time to adjust time step of N-body particles (adjustTime_dev) */
-    setBody [ii] = (setBody [ii] != 0.0) ? log10( setBody[ii]) : DBL_MAX;/* time to copy N-body particles from host to device (cpBody_hst2dev) */
-    getBody [ii] = (getBody [ii] != 0.0) ? log10( getBody[ii]) : DBL_MAX;/* time to copy N-body particles from device to host (cpBody_dev2hst) */
-    //---------------------------------------------------------------------
+    walkTree[ii] =                         log10(walkTree[ii])          ;/**< time to calculate gravity (calcGrav_dev) */
+    makeTree[ii] = (makeTree[ii] != 0.0) ? log10(makeTree[ii]) : DBL_MAX;/**< time to build tree structure (makeTree) */
+    sortPH  [ii] = (sortPH  [ii] != 0.0) ? log10(sortPH  [ii]) : DBL_MAX;/**< time to generate and sort PH-key and sort N-body particles (sortPHcurve) */
+    calcMAC [ii] =                         log10(calcMAC [ii])          ;/**< time to calculate mass, size and MAC for pseudo j-particles (calcMultipole_dev) */
+    spltIgrp[ii] = (spltIgrp[ii] != 0.0) ? log10(spltIgrp[ii]) : DBL_MAX;/**< time to slice group of i-particles (searchNeighbor_dev) */
+    predJpar[ii] =                         log10(predJpar[ii])          ;/**< time to calculate position and velocity of j-particles (predoction_dev) */
+    corrIpar[ii] = (corrIpar[ii] != 0.0) ? log10(corrIpar[ii]) : DBL_MAX;/**< time to calculate position of i-particles (correction_dev) */
+    calcIsep[ii] = (calcIsep[ii] != 0.0) ? log10(calcIsep[ii]) : DBL_MAX;/**< time to calculate separation between i-particles within a group (examineNeighbor_dev) */
+    setGlbDt[ii] = (setGlbDt[ii] != 0.0) ? log10(setGlbDt[ii]) : DBL_MAX;/**< time to set global time step of the simulation (setTimeStep_dev) */
+    setLocDt[ii] =                         log10(setLocDt[ii])          ;/**< time to set  local time step of the simulation (setLaneTime_dev) */
+    adjustDt[ii] =                         log10(adjustDt[ii])          ;/**< time to adjust time step of N-body particles (adjustTime_dev) */
+    setBody [ii] = (setBody [ii] != 0.0) ? log10( setBody[ii]) : DBL_MAX;/**< time to copy N-body particles from host to device (cpBody_hst2dev) */
+    getBody [ii] = (getBody [ii] != 0.0) ? log10( getBody[ii]) : DBL_MAX;/**< time to copy N-body particles from device to host (cpBody_dev2hst) */
+
 /* #ifdef  CUMULATIVE_PLOT */
 /*     walkTreeSum[ii] = log10(walkTreeSum[ii]); */
 /*     calcMACSum [ii] = log10(calcMACSum [ii]); */
@@ -165,14 +159,10 @@ int main(int argc, char **argv)
 /*     calcIsepSum[ii] = log10(calcIsepSum[ii]); */
 /*     spltIgrpSum[ii] = log10(spltIgrpSum[ii]); */
 /* #endif//CUMULATIVE_PLOT */
-    //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < BENCHMARK_STEPS; ii++){ */
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* plot breakdown as a function of step */
-  //-----------------------------------------------------------------------
+  /** plot breakdown as a function of step */
   PLplotPltRange range;
   range.xmin =   0.0;
   /* range.xmax = 300.0; */
@@ -192,23 +182,18 @@ int main(int argc, char **argv)
   range.xmin -= length;
   range.xmax += length;
 #endif
-  //-----------------------------------------------------------------------
+
   plotBreakdown(step, walkTree, makeTree, sortPH, calcMAC, spltIgrp, predJpar, corrIpar,
 #ifdef  CUMULATIVE_PLOT
 		walkTreeSum, makeTreeSum, sortPHSum, calcMACSum, spltIgrpSum, predJparSum, corrIparSum,
 #endif//CUMULATIVE_PLOT
 		range, file, argc, argv);
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
   return (0);
-  //-----------------------------------------------------------------------
 }
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 void plotBreakdown
 (PLINT step[restrict],
  PLFLT walkTree[restrict], PLFLT makeTree[restrict], PLFLT sortPH[restrict], PLFLT calcMAC[restrict],
@@ -219,14 +204,11 @@ void plotBreakdown
 #endif//CUMULATIVE_PLOT
  PLplotPltRange box, char file[], int argc, char **argv)
 {
-  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* global setting(s) */
-  //-----------------------------------------------------------------------
-  /* maximum number of data kinds */
+
+  /** global setting(s) */
+  /** maximum number of data kinds */
   const PLINT pkind = 7;
 #ifdef  CONNECT_SYMBOLS_BY_LINE
   /* const PLINT lkind = 1; */
@@ -234,21 +216,18 @@ void plotBreakdown
 #else///CONNECT_SYMBOLS_BY_LINE
   const PLINT lkind = 0;
 #endif//CONNECT_SYMBOLS_BY_LINE
-  //-----------------------------------------------------------------------
   const PLBOOL puni = true;
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* preparation for dataset */
-  //-----------------------------------------------------------------------
-  /* memory allocation for index */
+
+  /** preparation for dataset */
+  /** memory allocation for index */
   PLINT kind = (puni) ? (IMAX(pkind, lkind)) : (pkind + lkind);
   PLINT *num;  allocPLINT(&num, kind);
-  //-----------------------------------------------------------------------
-  /* set number of data points */
+
+  /** set number of data points */
   for(PLINT ii = 0; ii < kind; ii++)    num[ii] = BENCHMARK_STEPS;
-  //-----------------------------------------------------------------------
-  /* data preparation */
+
+  /** data preparation */
   static PLFLT xdat[BENCHMARK_STEPS];
   for(int ii = 0; ii < BENCHMARK_STEPS; ii++)
     xdat[ii] = (PLFLT)step[ii];
@@ -283,8 +262,8 @@ void plotBreakdown
       numTreeBuild++;
     }/* if( makeTree[ii] < DBL_MAX ){ */
 #endif//CONNECT_SYMBOLS_BY_LINE
-  //-----------------------------------------------------------------------
-  /* set symbol and line style */
+
+  /** set symbol and line style */
   PLplotPointType *pt;  setDefaultPointType(pkind, &pt);
   /* pt[0].color =     RED;  sprintf(pt[0].type, PLplotSymbolType[openCircle  ]);  pt[0].scale = PLplotSymbolSize[openCircle  ]; */
   pt[0].color =     RED;  sprintf(pt[0].type, PLplotSymbolType[fillCircle  ]);  pt[0].scale = PLplotSymbolSize[fillCircle  ];
@@ -305,19 +284,19 @@ void plotBreakdown
     ls[ii].style = SOLID_LINE;
   }/* for(int ii = 0; ii < lkind; ii++){ */
 #endif//CONNECT_SYMBOLS_BY_LINE
-  //-----------------------------------------------------------------------
-  /* set labels */
+
+  /** set labels */
   char hlab[PLplotCharWords];  sprintf(hlab, "Step");
   char vlab[PLplotCharWords];  sprintf(vlab, "Execution time (s)");
 #ifdef  CUMULATIVE_PLOT
   char clab[PLplotCharWords];  sprintf(clab, "Elapsed time (s)");
 #endif//CUMULATIVE_PLOT
-  //-----------------------------------------------------------------------
-  /* set caption(s) */
+
+  /** set caption(s) */
   PLplotCaption basecap;  setDefaultCaption(&basecap);  basecap.write = false;
   sprintf(basecap.side, "%s", "t");
-  //-----------------------------------------------------------------------
-  /* set legends */
+
+  /** set legends */
   PLplotLegend pleg;  setDefaultLegend(&pleg, false);  pleg.write = false;
 #ifdef  SHOW_LEGEND_OF_SYMBOLS
   pleg.write = true;
@@ -335,27 +314,24 @@ void plotBreakdown
   sprintf(pleg.text[6], "corrector");
   /* pleg.pos = PL_POSITION_RIGHT | PL_POSITION_TOP | PL_POSITION_OUTSIDE; */
   pleg.pos = PL_POSITION_RIGHT | PL_POSITION_TOP | PL_POSITION_BOTTOM | PL_POSITION_OUTSIDE;
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* memory allocation to exploit multiple-plot function */
-  //-----------------------------------------------------------------------
-  /* maximum number of panels in each direction */
+  /** memory allocation to exploit multiple-plot function */
+  /** maximum number of panels in each direction */
   const PLINT nxpanel = 1;
 #ifdef  CUMULATIVE_PLOT
   const PLINT nypanel = 2;
 #else///CUMULATIVE_PLOT
   const PLINT nypanel = 1;
 #endif//CUMULATIVE_PLOT
-  //-----------------------------------------------------------------------
-  /* memory allocation for data */
+
+  /** memory allocation for data */
   PLFLT **hor;  allocPointer4PLFLT(&hor, nxpanel * nypanel * kind);
   PLFLT **ver;  allocPointer4PLFLT(&ver, nxpanel * nypanel * kind);
-  //-----------------------------------------------------------------------
-  /* specify plot or skip panel */
+
+  /** specify plot or skip panel */
   PLBOOL *plot;  allocPLBOOL(&plot, nxpanel * nypanel);
-  /* arrays related to draw line(s) and point(s) */
+  /** arrays related to draw line(s) and point(s) */
   PLINT *nlkind;  allocPLINT(&nlkind, nxpanel * nypanel);
   PLINT *npkind;  allocPLINT(&npkind, nxpanel * nypanel);
   PLINT **lnum;  allocPointer4PLINT(&lnum, nxpanel * nypanel);
@@ -366,27 +342,24 @@ void plotBreakdown
   PLFLT ***py;  allocDoublePointer4PLFLT(&py, nxpanel * nypanel);
   PLplotLineStyle ** line;  allocPointer4PLplotLineStyle(& line, nxpanel * nypanel);
   PLplotPointType **point;  allocPointer4PLplotPointType(&point, nxpanel * nypanel);
-  /* arrays related to errorbar(s) */
+  /** arrays related to errorbar(s) */
   PLINT *errbar;  allocPLINT(&errbar, nxpanel * nypanel);
-  /* arrays for caption(s) */
+  /** arrays for caption(s) */
   PLplotCaption *cap;  allocPLplotCaption(&cap, nxpanel * nypanel);
-  /* arrays for legend(s) */
+  /** arrays for legend(s) */
   PLplotLegend *leg;  allocPLplotLegend(&leg, nxpanel * nypanel);
   PLBOOL       *uni;  allocPLBOOL      (&uni, nxpanel * nypanel);
-  /* arrays for plot range */
+  /** arrays for plot range */
   PLplotPltRange *range;  allocPLplotPltRange(&range, nxpanel * nypanel);
-  /* arrays related to axis labels */
+  /** arrays related to axis labels */
   char **xlabel;  allocPointer4Char4PLplot(&xlabel, nxpanel * nypanel);
   char **ylabel;  allocPointer4Char4PLplot(&ylabel, nxpanel * nypanel);
-  /* array to set figure name */
+  /** array to set figure name */
   char figfile[PLplotCharWords];
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* configure to plot elapsed time as a function of number of N-body particles */
-  //-----------------------------------------------------------------------
-  /* data preparation */
+  /** configure to plot elapsed time as a function of number of N-body particles */
+  /** data preparation */
   for(int ii = 0; ii < kind; ii++)
     hor[ii] = xdat;
   ver[0] = walkTree;
@@ -417,19 +390,16 @@ void plotBreakdown
   hor[kind + 4] = xtree;  ver[kind + 4] = yspltSum;
 #endif//CONNECT_SYMBOLS_BY_LINE
 #endif//CUMULATIVE_PLOT
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* common setting(s) */
+
+  /** common setting(s) */
   for(PLINT ii = 0; ii < nxpanel; ii++)
     for(PLINT jj = 0; jj < nypanel; jj++){
-      //-------------------------------------------------------------------
       const PLINT idx = INDEX2D(nxpanel, nypanel, ii, jj);
-      //-------------------------------------------------------------------
-      /* global setting(s) */
+      /** global setting(s) */
       plot[idx] = true;
-      //-------------------------------------------------------------------
-      /* line setting(s) */
+
+      /** line setting(s) */
       nlkind[idx] = lkind;
 #ifdef  CONNECT_SYMBOLS_BY_LINE
       line  [idx] = ls;
@@ -442,18 +412,18 @@ void plotBreakdown
       lx    [idx] = NULL;
       ly    [idx] = NULL;
 #endif//CONNECT_SYMBOLS_BY_LINE
-      //-------------------------------------------------------------------
-      /* point setting(s) */
+
+      /** point setting(s) */
       npkind[idx] = pkind;
       point [idx] = pt;
       pnum  [idx] = num;
       px    [idx] = &hor[INDEX2D(nxpanel * nypanel, pkind, idx, 0)];
       py    [idx] = &ver[INDEX2D(nxpanel * nypanel, pkind, idx, 0)];
-      //-------------------------------------------------------------------
-      /* errorbar setting(s) */
+
+      /** errorbar setting(s) */
       errbar[idx] = false;
-      //-------------------------------------------------------------------
-      /* plot area */
+
+      /** plot area */
       range[idx] = box;
 #ifdef  CUMULATIVE_PLOT
       if( idx != 0 ){
@@ -462,16 +432,16 @@ void plotBreakdown
 	range[idx].ymax = 40.0;
       }
 #endif//CUMULATIVE_PLOT
-      //-------------------------------------------------------------------
-      /* label setting(s) */
+
+      /** label setting(s) */
       xlabel[idx] = hlab;
       ylabel[idx] = vlab;
 #ifdef  CUMULATIVE_PLOT
       if( idx != 0 )
 	ylabel[idx] = clab;
 #endif//CUMULATIVE_PLOT
-      //-------------------------------------------------------------------
-      /* misc(s) */
+
+      /** misc(s) */
       leg[idx] = pleg;
 #ifdef  CUMULATIVE_PLOT
       if( idx != 0 )
@@ -479,12 +449,10 @@ void plotBreakdown
 #endif//CUMULATIVE_PLOT
       uni[idx] = puni;
       cap[idx] = basecap;
-      //-------------------------------------------------------------------
     }/* for(PLINT jj = 0; jj < nypanel; jj++){ */
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* individual file names */
+
+  /** individual file names */
 #ifndef CUMULATIVE_PLOT
 #ifdef  CONNECT_SYMBOLS_BY_LINE
   sprintf(figfile, "%s_%s", file, "breakdown_line");
@@ -498,13 +466,10 @@ void plotBreakdown
   sprintf(figfile, "%s_%s", file, "breakdown_cum");
 #endif//CONNECT_SYMBOLS_BY_LINE
 #endif//CUMULATIVE_PLOT
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
 #ifdef  HIGHLIGHTING_COLOR_MAP
-  //-----------------------------------------------------------------------
-  /* highlight fast, inetermediate, and slow sequences by background color */
+  /** highlight fast, inetermediate, and slow sequences by background color */
   /* PLFLT colDat[2][2]; */
   PLFLT *_colDat = malloc(sizeof(PLFLT  ) * 2 * 2);
   PLFLT **colDat = malloc(sizeof(PLFLT *) * 2);
@@ -523,53 +488,46 @@ void plotBreakdown
   colMap[2][0][1] = log10(3.0e-3);  colMap[2][1][1] = log10(1.6e-2);
   PLFLT pp[NSEQUENCES][2], c0[NSEQUENCES][2], c1[NSEQUENCES][2], c2[NSEQUENCES][2], aa[NSEQUENCES][2];
 #if 1
-  /* slow sequence: red (H = 0, L = 1/2, S = 1) */
+  /** slow sequence: red (H = 0, L = 1/2, S = 1) */
   pp[0][0] = 0.0;  c0[0][0] = 0.0;  c1[0][0] = 0.5;  c2[0][0] = 1.0;  aa[0][0] = 0.4;
   pp[0][1] = 1.0;  c0[0][1] = 0.0;  c1[0][1] = 0.5;  c2[0][1] = 1.0;  aa[0][1] = 0.4;
-  /* intermediate sequence: red (H = 0, L = 1/2, S = 1) */
+  /** intermediate sequence: red (H = 0, L = 1/2, S = 1) */
   pp[1][0] = 0.0;  c0[1][0] = 0.0;  c1[1][0] = 0.5;  c2[1][0] = 1.0;  aa[1][0] = 0.2;
   pp[1][1] = 1.0;  c0[1][1] = 0.0;  c1[1][1] = 0.5;  c2[1][1] = 1.0;  aa[1][1] = 0.2;
-  /* fast sequence: red (H = 0, L = 1/2, S = 1) */
+  /** fast sequence: red (H = 0, L = 1/2, S = 1) */
   pp[2][0] = 0.0;  c0[2][0] = 0.0;  c1[2][0] = 0.5;  c2[2][0] = 1.0;  aa[2][0] = 0.1;
   pp[2][1] = 1.0;  c0[2][1] = 0.0;  c1[2][1] = 0.5;  c2[2][1] = 1.0;  aa[2][1] = 0.1;
 #else
-  /* slow sequence: cyan (H = 180, L = 1/2, S = 1) */
+  /** slow sequence: cyan (H = 180, L = 1/2, S = 1) */
   pp[0][0] = 0.0;  c0[0][0] = 180.0;  c1[0][0] = 0.5;  c2[0][0] = 1.0;  aa[0][0] = 0.3;
   pp[0][1] = 1.0;  c0[0][1] = 180.0;  c1[0][1] = 0.5;  c2[0][1] = 1.0;  aa[0][1] = 0.3;
-  /* intermediate sequence: green (H = 120, L = 1/2, S = 1) */
+  /** intermediate sequence: green (H = 120, L = 1/2, S = 1) */
   pp[1][0] = 0.0;  c0[1][0] = 120.0;  c1[1][0] = 0.5;  c2[1][0] = 1.0;  aa[1][0] = 0.3;
   pp[1][1] = 1.0;  c0[1][1] = 120.0;  c1[1][1] = 0.5;  c2[1][1] = 1.0;  aa[1][1] = 0.3;
-  /* fast sequence: yellow (H = 60, L = 1/2, S = 1) */
+  /** fast sequence: yellow (H = 60, L = 1/2, S = 1) */
   pp[2][0] = 0.0;  c0[2][0] =  60.0;  c1[2][0] = 0.5;  c2[2][0] = 1.0;  aa[2][0] = 0.3;
   pp[2][1] = 1.0;  c0[2][1] =  60.0;  c1[2][1] = 0.5;  c2[2][1] = 1.0;  aa[2][1] = 0.3;
 #endif
   PLBOOL rr[2] = {false, false};
-  //-----------------------------------------------------------------------
 #endif//HIGHLIGHTING_COLOR_MAP
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* create figure(s) */
-  //-----------------------------------------------------------------------
+  /** create figure(s) */
   initPLplot(argc, argv, figfile);
   const PLBOOL xjoin = false;
   const PLBOOL yjoin = false;
   const PLFLT scale = 1.0;
   const PLFLT aspect = 0.25;
-  //-----------------------------------------------------------------------
+
   for(PLINT ii = 0; ii < nxpanel; ii++)
     for(PLINT jj = 0; jj < nypanel; jj++){
-      //-------------------------------------------------------------------
       PLINT idx = nypanel * ii + jj;
       if( plot[idx] ){
-//-----------------------------------------------------------------
-  	/* unified control of lines and points */
+  	/** unified control of lines and points */
   	const PLBOOL useLS = false;
   	const PLBOOL usePT =  true;
-  	//-----------------------------------------------------------------
   	setViewPort((idx == 0) ? true : false, nxpanel, nypanel, idx, xjoin, yjoin, range[idx], aspect);
-  	//-----------------------------------------------------------------
+
 #ifdef  HIGHLIGHTING_COLOR_MAP
 #ifdef  CUMULATIVE_PLOT
 	if( idx == 0 )
@@ -579,7 +537,7 @@ void plotBreakdown
 	  plimagefr((const PLFLT * const *)colDat, 2, 2, colMap[ss][0][0], colMap[ss][1][0], colMap[ss][0][1], colMap[ss][1][1], 0.0, 1.0, 0.0, 1.0, NULL, NULL);
 	}/* for(int ss = 0; ss < NSEQUENCES; ss++){ */
 #endif//HIGHLIGHTING_COLOR_MAP
-  	//-----------------------------------------------------------------
+
 #if 1
 	drawLine(1, lnum[idx], lx[idx], ly[idx],  line[idx], scale);
 	drawLine(1, &lnum[idx][6], &lx[idx][6], &ly[idx][6],  &line[idx][6], scale);
@@ -587,7 +545,7 @@ void plotBreakdown
 	drawLine(nlkind[idx], lnum[idx], lx[idx], ly[idx],  line[idx], scale);
 #endif
   	dotPoint(npkind[idx], pnum[idx], px[idx], py[idx], point[idx], scale);
-  	//-----------------------------------------------------------------
+
   	makeFrameAspect(nxpanel, ii, range[idx].xlog, range[idx].xgrd, xjoin, xlabel[idx], nypanel, jj, range[idx].ylog, range[idx].ygrd, yjoin, ylabel[idx], "", aspect);
 #ifdef  HIGHLIGHTING_COLOR_MAP
 #ifdef  CUMULATIVE_PLOT
@@ -601,9 +559,9 @@ void plotBreakdown
 	}/* if( idx == 0 ){ */
 #endif//CUMULATIVE_PLOT
 #endif//HIGHLIGHTING_COLOR_MAP
-  	//-----------------------------------------------------------------
+
   	if( cap[idx].write == true )	  makeCaption(cap[idx], scale);
-  	//-----------------------------------------------------------------
+
   	if( leg[idx].write == true ){
 	  PLFLT *bufPtSize;	  allocPLFLT(&bufPtSize, npkind[idx]);
 	  for(int kk = 0; kk < npkind[idx]; kk++){
@@ -615,23 +573,17 @@ void plotBreakdown
 	    point[idx][kk].scale = bufPtSize[kk];
 	  free(bufPtSize);
 	}/* if( leg[idx].write == true ){ */
-  	//-----------------------------------------------------------------
       }/* if( plot[idx] ){ */
-      //-------------------------------------------------------------------
     }/* for(PLINT jj = 0; jj < nypanel; jj++){ */
-  //-----------------------------------------------------------------------
   exitPLplot();
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* memory deallocation */
-  //-----------------------------------------------------------------------
+  /** memory deallocation */
 #ifdef  HIGHLIGHTING_COLOR_MAP
   free(_colDat);
   free(colDat);
 #endif//HIGHLIGHTING_COLOR_MAP
-  //-----------------------------------------------------------------------
+
   free(plot);
   free(nlkind);  free(lnum);  free(lx);  free(ly);  free( line);
   free(npkind);  free(pnum);  free(px);  free(py);  free(point);
@@ -639,15 +591,15 @@ void plotBreakdown
   free(cap);  free(leg);  free(uni);
   free(range);
   free(xlabel);  free(ylabel);
-  //-----------------------------------------------------------------------
+
   free(plegTxt);
-  //-----------------------------------------------------------------------
+
   free(num);  free(hor);  free(ver);
   free(pt);
 #ifdef  CONNECT_SYMBOLS_BY_LINE
   free(ls);
 #endif//CONNECT_SYMBOLS_BY_LINE
-  //-----------------------------------------------------------------------
+
 #ifdef  CONNECT_SYMBOLS_BY_LINE
   free(xtree);
   free(ymake);
@@ -659,11 +611,7 @@ void plotBreakdown
   free(yspltSum);
 #endif//CUMULATIVE_PLOT
 #endif//CONNECT_SYMBOLS_BY_LINE
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
-  //-----------------------------------------------------------------------
 }
-//-------------------------------------------------------------------------

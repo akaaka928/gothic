@@ -3,10 +3,10 @@
  *
  * @brief Source code for generating table of f' and f'' from f using cubic spline interpolation
  *
- * @author Yohei Miki (University of Tsukuba)
+ * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/06/02 (Fri)
+ * @date 2017/10/26 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.

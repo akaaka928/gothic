@@ -1,11 +1,11 @@
 /**
- * @file plot.distribution.c
+ * @file plot.action.c
  *
- * @brief Plot code for radial profiles of multiple components
+ * @brief Plot code for angle-action variables of multiple components
  *
- * @author Yohei Miki (University of Tsukuba)
+ * @author Yohei Miki (University of Tokyo)
  *
- * @date 2017/08/14 (Mon)
+ * @date 2017/10/26 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.

@@ -4,10 +4,10 @@
  * @brief Utility tool for inter-block GPU synchronization
  *        (based on GPU Lock-Free Synchronization by Xiao & Feng 2009)
  *
- * @author Yohei Miki (University of Tsukuba)
+ * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/02/28 (Tue)
+ * @date 2017/10/26 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.

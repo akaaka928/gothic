@@ -3,9 +3,9 @@
  *
  * @brief Source code for generating uniform sphere with Gaussian velocity dispersion
  *
- * @author Yohei Miki (University of Tsukuba)
+ * @author Yohei Miki (University of Tokyo)
  *
- * @date 2017/02/28 (Tue)
+ * @date 2017/10/26 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.

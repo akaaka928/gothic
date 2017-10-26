@@ -4,10 +4,10 @@
  * @brief Source code for GOTHIC (Gravitational Oct-Tree code accelerated by HIerarchical time step Controlling)
  * @detail See Miki & Umemura (2017), New Astronomy, 52, 65--81 for implementation details
  *
- * @author Yohei Miki (University of Tsukuba)
+ * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/09/07 (Thu)
+ * @date 2017/10/26 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.

@@ -3,10 +3,10 @@
  *
  * @brief Source code for domain decomposition using GPUs with MPI
  *
- * @author Yohei Miki (University of Tsukuba)
+ * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/09/14 (Thu)
+ * @date 2017/10/26 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -503,6 +503,9 @@ static inline void copyParticlePositionAsync_dev2hst(const int Ni, position * RE
 #endif
 
 
+#define NTHREADS_SCAN_VEC4_INC NTHREADS_ASSIGN
+#include "../util/scan_vec4_inc.cu"
+/* NOTE: must create util/scan_vec4_inc.cu */
 /**
  * @fn assignNewDomain_kernel
  *
@@ -512,7 +515,9 @@ static inline void copyParticlePositionAsync_dev2hst(const int Ni, position * RE
 /* どうにかして、複数の overlapNum をなめられるのが best なのだけれど... */
 /* まあ、4 or 8 or 16領域ずつ分類していきますよ、とかいう約束ごとを設定しておけばうまくいきそうな気がする。 */
 __global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assignNewDomain_kernel
-(const int numOld, const int domIdx)
+     (const int num, READ_ONLY position * RESTRICT ipos,
+      const int domHead, const int domRem, int * RESTRICT target, float * RESTRICT xmin, float * RESTRICT xmax, float * RESTRICT ymin, float * RESTRICT ymax, float * RESTRICT zmin, float * RESTRICT zmax,
+      int4 * RESTRICT sum_all, int * RESTRICT gsync0, int * RESTRICT gsync1)
 {
   /** identify thread properties */
   const int tidx = THREADIDX_X1D;
@@ -525,15 +530,76 @@ __global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assign
   const int itail = (num * (1 + bidx)) / bnum;
 
 
+  /** load boundaries of domains */
+  const int domNum = (domRem >= 4) ? 4 : domRem;
+  __shared__ float3 boxmin_sm[4], boxmax_sm[4];
+  __shared__ int4 rank_sm;/* corresponds to sendBuf[jj].rank */
+  if( tidx < domNum ){
+    boxmin_sm[tidx].x = xmin[domHead + tidx];
+    boxmax_sm[tidx].x = xmax[domHead + tidx];
+    boxmin_sm[tidx].y = ymin[domHead + tidx];
+    boxmax_sm[tidx].y = ymax[domHead + tidx];
+    boxmin_sm[tidx].z = zmin[domHead + tidx];
+    boxmax_sm[tidx].z = zmax[domHead + tidx];
 
-  const int ii = GLOBALIDX_X1D;
-  if( ii < numOld ){
+    switch( tidx ){
+    case 0:      rank_sm.x = target[domHead    ];      break;
+    case 1:      rank_sm.y = target[domHead + 1];      break;
+    case 2:      rank_sm.z = target[domHead + 2];      break;
+    case 3:      rank_sm.w = target[domHead + 3];      break;
+    }/* switch( tidx ){ */
+  }/* if( tidx < domNum ){ */
+  else{
+    if( tidx < 4 ){
+      boxmin_sm[tidx].x =  0.25f * FLT_MAX;
+      boxmax_sm[tidx].x = -0.25f * FLT_MAX;
+      boxmin_sm[tidx].y =  0.25f * FLT_MAX;
+      boxmax_sm[tidx].y = -0.25f * FLT_MAX;
+      boxmin_sm[tidx].z =  0.25f * FLT_MAX;
+      boxmax_sm[tidx].z = -0.25f * FLT_MAX;
+
+      switch( tidx ){
+      case 3:	rank_sm.x = -1;	break;
+      case 2:	rank_sm.x = -1;	break;
+      case 1:	rank_sm.x = -1;	break;
+      case 0:	rank_sm.x = -1;	break;
+      }/* switch( tidx ){ */
+    }/* if( tidx < 4 ){ */
+  }/* else{ */
+  __syncthreads();
 
 
+  /** determine process rank for each particle to belong */
+  const int4 rank = rank_sm;
+  int4 numNew = {0, 0, 0, 0};
+  for(int ih = ihead; ih < itail; ih += NTHREADS_ASSIGN){
+    const int ii = ih + tidx;
+    if( ii < itail ){
+      const position pi = ipos[ii];
+      const float xi = CAST_R2F(pi.x);
+      const float yi = CAST_R2F(pi.y);
+      const float zi = CAST_R2F(pi.z);
+
+      for(int jj = 0; jj < domNum; jj++){
+	if( (xi >= boxmin_sm[jj].x) && (xi <= boxmax_sm[jj].x) &&
+	    (yi >= boxmin_sm[jj].y) && (yi <= boxmax_sm[jj].y) &&
+	    (zi >= boxmin_sm[jj].z) && (zi <= boxmax_sm[jj].z) ){
+
+	  switch( jj ){
+	  case 0:	    dstRank[ii] = rank.x;	    numNew.x++;	    break;
+	  case 1:	    dstRank[ii] = rank.y;	    numNew.y++;	    break;
+	  case 2:	    dstRank[ii] = rank.z;	    numNew.z++;	    break;
+	  case 3:	    dstRank[ii] = rank.w;	    numNew.w++;	    break;
+	  }/* switch(jj){ */
+	  break;
+	}
+      }/* for(int jj = 0; jj < domNum; jj++){ */
+    }/* if( ii < itail ){ */
+  }/* for(int ih = ihead; ih < itail; ih += NTHREADS_ASSIGN){ */
 
 
+  /** reduction about numNew */
 
-  }/* if( ii < numOld ){ */
 }
 
 

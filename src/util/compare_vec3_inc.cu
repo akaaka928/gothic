@@ -3,10 +3,10 @@
  *
  * @brief Source code for comparing values in 3-components vector on GPU
  *
- * @author Yohei Miki (University of Tsukuba)
+ * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/04/05 (Wed)
+ * @date 2017/10/26 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -339,7 +339,7 @@ __device__ __forceinline__ Type GET_VEC3_MIN_GRID
     /** share local reduction via global memory */
     /** stvec data on the global memory */
     if( tidx == 0 )
-      gmem[bidx] = ret;
+      stvec((Type *)gmem, bidx, ret);
 
     /** global synchronization within bnum blocks */
     globalSync(tidx, bidx, bnum, gsync0, gsync1);
@@ -352,7 +352,7 @@ __device__ __forceinline__ Type GET_VEC3_MIN_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_VEC3_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem[target] : ret);
+	Type tmp = ((target < bnum) ? ldvec(gmem[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_VEC3_MIN_BLCK(tmp, smem, tidx, head);
@@ -367,7 +367,7 @@ __device__ __forceinline__ Type GET_VEC3_MIN_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem[bidx] = ret;
+	stvec((Type *)gmem, bidx, ret);
     }/* if( bidx == 0 ){ */
 
 
@@ -376,11 +376,11 @@ __device__ __forceinline__ Type GET_VEC3_MIN_GRID
 
     /** load from the global memory */
     if( tidx == 0 )
-      smem[0] = gmem[0];
+      stvec((Type *)smem, 0, ldvec(gmem[0]));
     __syncthreads();
 
     /** upload obtained result */
-    ret = smem[0];
+    ret = ldvec(smem[0]);
     __syncthreads();
   }/* if( bnum > 1 ){ */
 
@@ -406,7 +406,7 @@ __device__ __forceinline__ Type GET_VEC3_MAX_GRID
     /** share local reduction via global memory */
     /** stvec data on the global memory */
     if( tidx == 0 )
-      gmem[bidx] = ret;
+      stvec((Type *)gmem, bidx, ret);
 
     /** global synchronization within bnum blocks */
     globalSync(tidx, bidx, bnum, gsync0, gsync1);
@@ -419,7 +419,7 @@ __device__ __forceinline__ Type GET_VEC3_MAX_GRID
 	const int target = tidx + loop * NTHREADS_COMPARE_VEC3_INC;
 
 	/** load from the global memory */
-	Type tmp = ((target < bnum) ? gmem[target] : ret);
+	Type tmp = ((target < bnum) ? ldvec(gmem[target]) : ret);
 
 	/** calculate local reduction */
 	tmp = GET_VEC3_MAX_BLCK(tmp, smem, tidx, head);
@@ -433,7 +433,7 @@ __device__ __forceinline__ Type GET_VEC3_MAX_GRID
 
       /** share global reduction via global memory */
       if( tidx == 0 )
-	gmem[bidx] = ret;
+	stvec((Type *)gmem, bidx, ret);
     }/* if( bidx == 0 ){ */
 
 
@@ -442,11 +442,11 @@ __device__ __forceinline__ Type GET_VEC3_MAX_GRID
 
     /** load from the global memory */
     if( tidx == 0 )
-      smem[0] = gmem[0];
+      stvec((Type *)smem, 0, ldvec(gmem[0]));
     __syncthreads();
 
     /** upload obtained result */
-    ret = smem[0];
+    ret = ldvec(smem[0]);
     __syncthreads();
   }/* if( bnum > 1 ){ */
 

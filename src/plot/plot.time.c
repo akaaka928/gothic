@@ -1,45 +1,48 @@
-/*************************************************************************\
- *                                                                       *
-                  last updated on 2016/12/06(Tue) 12:41:41
- *                                                                       *
- *    Plot Code of Elapsed time of Tree code                             *
- *                                                                       *
- *                                                                       *
- *                                             written by Yohei MIKI     *
- *                                                                       *
-\*************************************************************************/
-//-------------------------------------------------------------------------
+/**
+ * @file plot.time.c
+ *
+ * @brief Plot code of elapsed time of tree code
+ *
+ * @author Yohei Miki (University of Tokyo)
+ *
+ * @date 2017/10/26 (Thu)
+ *
+ * Copyright (C) 2017 Yohei Miki
+ * All rights reserved.
+ *
+ * The MIT License is applied to this software, see LICENSE.txt
+ *
+ */
+
 #define PLOT_SUMMARY_FIGURE_ONLY
-//-------------------------------------------------------------------------
+
 #define COMPARE_FOCUS_VARIABLE
-//-------------------------------------------------------------------------
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 #include <math.h>
 #include <mpi.h>
-//-------------------------------------------------------------------------
+
 #include "macro.h"
 #include "myutil.h"
 #include "mpilib.h"
 #include "plplotlib.h"
 #include "name.h"
-//-------------------------------------------------------------------------
+
 #include "cdflib.h"
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #define NMAX (18)
-//-------------------------------------------------------------------------
+
 #define NARC (3)
 /* #define NARC (2) */
 #define NCHK (3)
 #define NINT (2)
 #define NMAC (4)
 /* #define NMAC (3) */
-//-------------------------------------------------------------------------
+
 static char arcname[NARC][ 8] =
   {"cc20", "cc35"
 #   if  NARC > 2
@@ -60,16 +63,12 @@ static char synonym[NMAC][16] =
 #endif//NMAC > 3
   };
 static char intname[NINT][ 8] = {"block", "share"};
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 #define LOGPLOT_HOR
 #define LOGPLOT_VER
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 void plotElapsedTime
 (PLFLT err[restrict][NCHK][NARC][NINT][NMAC][NMAX], PLFLT time[restrict][NINT][NMAC][NMAX], PLplotPltRange box, char file[], MPIinfo mpi, int argc, char **argv);
 void compareCheckTarget
@@ -78,22 +77,16 @@ void plotSpeedup
 (PLFLT mac[restrict][NARC][NINT][NMAC][NMAX], PLFLT time[restrict][NINT][NMAC][NMAX], PLplotPltRange relativeMAC, PLplotPltRange openingAngle, char file[], int argc, char **argv);
 void plotBenefit
 (PLFLT mac[restrict][NARC][NINT][NMAC][NMAX], PLFLT time[restrict][NINT][NMAC][NMAX], PLplotPltRange relativeMAC, PLplotPltRange openingAngle, char file[], int argc, char **argv);
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 int main(int argc, char **argv)
 {
-  //-----------------------------------------------------------------------
-  /* parallelized region employing MPI start */
-  //-----------------------------------------------------------------------
+  /** parallelized region employing MPI start */
   static MPIinfo mpi;
   initMPI(&mpi, &argc, &argv);
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* initialization */
-  //-----------------------------------------------------------------------
+
+  /** initialization */
   if( argc < 3 ){
     __FPRINTF__(stderr, "insufficient number of input parameters of %d (at least %d inputs are required).\n", argc, 3);
     __FPRINTF__(stderr, "Usage is: %s\n", argv[0]);
@@ -101,21 +94,18 @@ int main(int argc, char **argv)
     __FPRINTF__(stderr, "          -Ntot=<unsigned long int>\n");
     __KILL__(stderr, "%s\n", "insufficient command line arguments");
   }/* if( argc < 3 ){ */
-  //-----------------------------------------------------------------------
+
   char *file;  requiredCmdArg(getCmdArgStr(argc, (const char * const *)argv, "file", &file));
   ulong Ntot;  requiredCmdArg(getCmdArgUlg(argc, (const char * const *)argv, "Ntot", &Ntot));
-  //-----------------------------------------------------------------------
+
   modifyArgcArgv4PLplot(&argc, argv, 3);
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* prepare dataset */
-  //-----------------------------------------------------------------------
+  /** prepare dataset */
   double *percentage;
   allocPercentile(&percentage);
-  //-----------------------------------------------------------------------
-  /* read the analyzed tree error for the initial snapshot */
+
+  /** read the analyzed tree error for the initial snapshot */
   static double mac          [NCHK][NARC][NINT][NMAC][NMAX];
   static double err[NSUMMARY][NCHK][NARC][NINT][NMAC][NMAX];
   for(int jj = 0; jj < NCHK; jj++)
@@ -134,9 +124,7 @@ int main(int argc, char **argv)
   for(int ii = 0; ii < NCHK; ii++)
     for(int jj = 0; jj < NARC; jj++)
       for(int kk = 0; kk < NMAC; kk++){
-	//-----------------------------------------------------------------
 	if( ((((ii * NARC + jj) * NMAC) + kk) % mpi.size) == mpi.rank ){
-	  //---------------------------------------------------------------
 	  FILE *fp;
 	  char filename[128];
 	  sprintf(filename, "%s/%s/%s.%s.%s.%.3d.txt", DATAFOLDER, arcname[jj], file, macname[kk], chkname[ii], 0);
@@ -155,19 +143,19 @@ int main(int argc, char **argv)
 		   )
 	      ll++;
 	    fclose(fp);
-	    //-------------------------------------------------------------
+
 	    for(int mm = ll; mm < NMAX; mm++)
 	      mac[ii][jj][0][kk][mm] = mac[ii][jj][0][kk][ll - 1];
 	    for(int nn = 0; nn < NSUMMARY; nn++)
 	      for(int mm = ll; mm < NMAX; mm++)
 		err[nn][ii][jj][0][kk][mm] = err[nn][ii][jj][0][kk][ll - 1];
-	    //-------------------------------------------------------------
+
 #ifdef  LOGPLOT_HOR
 	    for(int nn = 0; nn < NSUMMARY; nn++)
 	      for(int mm = 0; mm < NMAX; mm++)
 		err[nn][ii][jj][0][kk][mm] = log10(err[nn][ii][jj][0][kk][mm]);
 #endif//LOGPLOT_HOR
-	    //-------------------------------------------------------------
+
 	    for(int oo = 0; oo < NINT; oo++)
 	      for(int mm = 0; mm < NMAX; mm++)
 		mac[ii][jj][oo][kk][mm] = mac[ii][jj][0][kk][mm];
@@ -175,17 +163,14 @@ int main(int argc, char **argv)
 	      for(int oo = 0; oo < NINT; oo++)
 		for(int mm = 0; mm < NMAX; mm++)
 		  err[nn][ii][jj][oo][kk][mm] = err[nn][ii][jj][0][kk][mm];
-	    //-------------------------------------------------------------
 	  }/* if( fp != NULL ){ */
-	  //---------------------------------------------------------------
 	}/* if( ((((ii * NARC + jj) * NMAC) + kk) % mpi.size) == mpi.rank ){ */
-	//-----------------------------------------------------------------
       }/* for(int kk = 0; kk < NMAC; kk++){ */
-  //-----------------------------------------------------------------------
+
   chkMPIerr(MPI_Allreduce(MPI_IN_PLACE,  mac,            NCHK * NARC * NINT * NMAC * NMAX, MPI_DOUBLE, MPI_SUM, mpi.comm));
   chkMPIerr(MPI_Allreduce(MPI_IN_PLACE,  err, NSUMMARY * NCHK * NARC * NINT * NMAC * NMAX, MPI_DOUBLE, MPI_SUM, mpi.comm));
-  //-----------------------------------------------------------------------
-  /* read the elapsed time */
+
+  /** read the elapsed time */
   static double time[NARC][NINT][NMAC][NMAX];
   for(int ii = 0; ii < NARC; ii++)
     for(int jj = 0; jj < NINT; jj++)
@@ -195,9 +180,7 @@ int main(int argc, char **argv)
   for(int ii = 0; ii < NARC; ii++)
     for(int jj = 0; jj < NINT; jj++)
       for(int kk = 0; kk < NMAC; kk++){
-	//-----------------------------------------------------------------
 	if( (((ii * NINT + jj) * NMAC + kk) % mpi.size) == mpi.rank ){
-	  //---------------------------------------------------------------
 	  FILE *fp;
 	  char filename[128];
 	  sprintf(filename, "%s/%s.%s.%s.%s.%zu.time.log", LOGFOLDER, file, synonym[kk], intname[jj], arcname[ii], Ntot);
@@ -208,12 +191,12 @@ int main(int argc, char **argv)
 	    while( EOF != fscanf(fp, "%*le\t%*le\t%*le\t%le", &time[ii][jj][kk][ll] ) )
 	      ll++;
 	    fclose(fp);
-	    //-------------------------------------------------------------
+
 #ifdef  LOGPLOT_VER
 	    for(int mm = 0; mm < ll; mm++)
 	      time[ii][jj][kk][mm] = log10(time[ii][jj][kk][mm]);
 #endif//LOGPLOT_VER
-	    //-------------------------------------------------------------
+
 	    for(int nn = 0; nn < NCHK; nn++)
 	      for(int mm = ll; mm < NMAX; mm++)
 		mac[nn][ii][jj][kk][mm] = mac[nn][ii][jj][kk][ll - 1];
@@ -221,22 +204,16 @@ int main(int argc, char **argv)
 	      for(int nn = 0; nn < NCHK; nn++)
 		for(int mm = ll; mm < NMAX; mm++)
 		  err[oo][nn][ii][jj][kk][mm] = err[oo][nn][ii][jj][kk][ll - 1];
-	    //-------------------------------------------------------------
 	  }/* if( fp != NULL ){ */
-	  //---------------------------------------------------------------
 	}/* if( (((ii * NINT + jj) * NMAC + kk) % mpi.size) == mpi.rank ){ */
-	//-----------------------------------------------------------------
       }/* for(int kk = 0; kk < NMAC; kk++){ */
-  //-----------------------------------------------------------------------
+
   chkMPIerr(MPI_Allreduce(MPI_IN_PLACE,  mac,            NCHK * NARC * NINT * NMAC * NMAX, MPI_DOUBLE, MPI_MAX, mpi.comm));
   chkMPIerr(MPI_Allreduce(MPI_IN_PLACE,  err, NSUMMARY * NCHK * NARC * NINT * NMAC * NMAX, MPI_DOUBLE, MPI_MAX, mpi.comm));
   chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, time,                   NARC * NINT * NMAC * NMAX, MPI_DOUBLE, MPI_MIN, mpi.comm));
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* plot elapsed time as a function of accuracy */
-  //-----------------------------------------------------------------------
+  /** plot elapsed time as a function of accuracy */
   PLplotPltRange range;
 #ifdef  LOGPLOT_HOR
   range.xmin = log10(1.1e-6);
@@ -262,17 +239,15 @@ int main(int argc, char **argv)
   range.ylog = LINEAR_PLOT;
 #endif//LOGPLOT_VER
   range.xgrd = range.ygrd = true;
-  //-----------------------------------------------------------------------
+
   plotElapsedTime   (err, time, range, file, mpi, argc, argv);
 #ifdef  COMPARE_FOCUS_VARIABLE
   compareCheckTarget(err, time, range, file, mpi, argc, argv);
 #endif//COMPARE_FOCUS_VARIABLE
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* plot speed-up as a function of accuracy controlling parameter */
-  /* plot acceleration from Fermi architecture */
-  //-----------------------------------------------------------------------
+
+  /** plot speed-up as a function of accuracy controlling parameter */
+  /** plot acceleration from Fermi architecture */
   PLplotPltRange relativeMAC, openingAngle;
   relativeMAC.xmin = log10(1.1e-6);
   relativeMAC.xmax = log10(9.9e-1);
@@ -311,7 +286,7 @@ int main(int argc, char **argv)
 	for(int kk = 0; kk < ((NMAC <= 3) ? (NMAC) : (3)) - 1; kk++)
 	  for(int ll = 0; ll < NMAX; ll++)
 	    mac[ii][jj][mm][kk][ll] = log10(mac[ii][jj][mm][kk][ll]);
-  //-----------------------------------------------------------------------
+
   if( mpi.rank == 0 )
     plotSpeedup(mac, time, relativeMAC, openingAngle, file, argc, argv);
   relativeMAC.ymin = openingAngle.ymin = 1.0;
@@ -323,38 +298,27 @@ int main(int argc, char **argv)
   }/* if( strcmp(file, "nfw") == 0 ){ */
   if( mpi.rank == mpi.size - 1 )
     plotBenefit(mac, time, relativeMAC, openingAngle, file, argc, argv);
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* memory deallocation */
-  //-----------------------------------------------------------------------
+
+  /** memory deallocation */
   freePercentile(percentage);
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
   exitMPI();
-  //-----------------------------------------------------------------------
   return (0);
-  //-----------------------------------------------------------------------
 }
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-/* err [NSUMMARY][NCHK][NARC]      [NMAC][NMAX]; */
-/* time                [NARC][NINT][NMAC][NMAX] */
+/** err [NSUMMARY][NCHK][NARC]      [NMAC][NMAX]; */
+/** time                [NARC][NINT][NMAC][NMAX] */
 void plotElapsedTime
 (PLFLT err[restrict][NCHK][NARC][NINT][NMAC][NMAX], PLFLT time[restrict][NINT][NMAC][NMAX], PLplotPltRange box, char file[], MPIinfo mpi, int argc, char **argv)
 {
-  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* global setting(s) */
-  //-----------------------------------------------------------------------
-  /* maximum number of data kinds */
+
+  /** global setting(s) */
+  /** maximum number of data kinds */
 #   if  NMAC <= 3
   const PLINT pkind = NINT * NMAC;
   const PLINT lkind = NINT * NMAC;
@@ -362,34 +326,32 @@ void plotElapsedTime
   const PLINT pkind = NINT * 3 + (NMAC - 3);
   const PLINT lkind = NINT * 3 + (NMAC - 3);
 #endif//NMAC <= 3
-  //-----------------------------------------------------------------------
-  const PLBOOL puni = true;
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* preparation for dataset */
-  //-----------------------------------------------------------------------
-  /* memory allocation for index */
+  const PLBOOL puni = true;
+
+
+  /** preparation for dataset */
+  /** memory allocation for index */
   PLINT kind = (puni) ? (IMAX(pkind, lkind)) : (pkind + lkind);
   if( (pkind != kind) || (lkind != kind) ){
     __KILL__(stderr, "ERROR: pkind(%d), lkind(%d), and kind(%d) must be the same\n", pkind, lkind, kind);
   }/* if( (pkind != kind) || (lkind != kind) ){ */
   PLINT *num;  allocPLINT(&num, kind);
-  //-----------------------------------------------------------------------
-  /* set number of data points */
+
+  /** set number of data points */
   for(PLINT ii = 0; ii < kind; ii++)    num[ii] = NMAX;
-  //-----------------------------------------------------------------------
-  /* set symbol and line style */
+
+  /** set symbol and line style */
   PLplotLineStyle *ls;  setDefaultLineStyle(lkind, &ls);
   PLplotPointType *pt;  setDefaultPointType(pkind, &pt);
-  /* block time step */
+  /** block time step */
   ls[0].color =   RED;  ls[0].style =  SOLID_LINE;  ls[0].width = MIDDLE_LINE;
   ls[1].color =  BLUE;  ls[1].style =  SOLID_LINE;  ls[1].width = MIDDLE_LINE;
   ls[2].color = BLACK;  ls[2].style =  SOLID_LINE;  ls[2].width = MIDDLE_LINE;
   sprintf(pt[0].type, PLplotSymbolType[fillCircle ]);  pt[0].scale = PLplotSymbolSize[fillCircle ];
   sprintf(pt[1].type, PLplotSymbolType[openSquare ]);  pt[1].scale = PLplotSymbolSize[openSquare ];
   sprintf(pt[2].type, PLplotSymbolType[fillDiamond]);  pt[2].scale = PLplotSymbolSize[fillDiamond];
-  /* shared time step */
+  /** shared time step */
   ls[3].color =   RED;  ls[3].style = DOTTED_LINE;  ls[3].width = MIDDLE_LINE;
   ls[4].color =  BLUE;  ls[4].style = DOTTED_LINE;  ls[4].width = MIDDLE_LINE;
   ls[5].color = BLACK;  ls[5].style = DOTTED_LINE;  ls[5].width = MIDDLE_LINE;
@@ -397,20 +359,20 @@ void plotElapsedTime
   sprintf(pt[4].type, PLplotSymbolType[fillSquare ]);  pt[4].scale = PLplotSymbolSize[fillSquare ];
   sprintf(pt[5].type, PLplotSymbolType[openDiamond]);  pt[5].scale = PLplotSymbolSize[openDiamond];
 #   if  NMAC > 3
-  /* Bonsai2 */
+  /** Bonsai2 */
   ls[6].color = GREEN;  ls[6].style = DASHED_LINE;  ls[6].width = MIDDLE_LINE;
   sprintf(pt[6].type, PLplotSymbolType[fillTriangle]);  pt[6].scale = PLplotSymbolSize[fillTriangle];
 #endif//NMAC > 3
   for(int ii = 0; ii < kind; ii++)
     pt[ii].color = ls[ii].color;
-  //-----------------------------------------------------------------------
-  /* set labels */
+
+  /** set labels */
   char vlab[PLplotCharWords];  sprintf(vlab, "|#fi#<0x12>a#fr#di#u#utree#d - #fi#<0x12>a#fr#di#u#udirect#d| / #fia#fr#di#u#udirect#d");
   char slab[PLplotCharWords];  sprintf(slab, "|#fia#fr#di#u#utree#d / #fia#fr#di#u#udirect#d - 1|");
   char plab[PLplotCharWords];  sprintf(plab, "|#fi#gF#fr#di#u#utree#d / #fi#gF#fr#di#u#udirect#d -1|");
   char tlab[PLplotCharWords];  sprintf(tlab, "Elapsed time per step (s)");
-  //-----------------------------------------------------------------------
-  /* set caption(s) */
+
+  /** set caption(s) */
   PLplotCaption basecap;  setDefaultCaption(&basecap);  basecap.write =  true;
   sprintf(basecap.side, "%s", "b");
   PLplotCaption cc20cap;  setDefaultCaption(&cc20cap);  cc20cap.write = false;
@@ -461,8 +423,8 @@ void plotElapsedTime
   sprintf(pcap[26].text, "%s", "-4#fi#gs#fr Error");
   sprintf(pcap[27].text, "%s", "-5#fi#gs#fr Error");
 #endif//NSUMMARY == 28
-  //-----------------------------------------------------------------------
-  /* set legends */
+
+  /** set legends */
   PLplotLegend pleg;  setDefaultLegend(&pleg, false);  pleg.write = true;
   char *plegTxt;
   allocChar4PLplot(&plegTxt, kind);
@@ -478,23 +440,20 @@ void plotElapsedTime
   sprintf(pleg.text[6], "%s", "Bonsai");
 #endif//NMAC <= 3
   pleg.pos = PL_POSITION_RIGHT | PL_POSITION_TOP | PL_POSITION_INSIDE;
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* memory allocation to exploit multiple-plot function */
-  //-----------------------------------------------------------------------
-  /* maximum number of panels in each direction */
+  /** memory allocation to exploit multiple-plot function */
+  /** maximum number of panels in each direction */
   const PLINT nxpanel = NARC;
   const PLINT nypanel = 2;
-  //-----------------------------------------------------------------------
-  /* memory allocation for data */
+
+  /** memory allocation for data */
   PLFLT **hor;  allocPointer4PLFLT(&hor, nxpanel * nypanel * kind);
   PLFLT **ver;  allocPointer4PLFLT(&ver, nxpanel * nypanel * kind);
-  //-----------------------------------------------------------------------
-  /* specify plot or skip panel */
+
+  /** specify plot or skip panel */
   PLBOOL *plot;  allocPLBOOL(&plot, nxpanel * nypanel);
-  /* arrays related to draw line(s) and point(s) */
+  /** arrays related to draw line(s) and point(s) */
   PLINT *nlkind;  allocPLINT(&nlkind, nxpanel * nypanel);
   PLINT *npkind;  allocPLINT(&npkind, nxpanel * nypanel);
   PLINT **lnum;  allocPointer4PLINT(&lnum, nxpanel * nypanel);
@@ -505,36 +464,32 @@ void plotElapsedTime
   PLFLT ***py;  allocDoublePointer4PLFLT(&py, nxpanel * nypanel);
   PLplotLineStyle ** line;  allocPointer4PLplotLineStyle(& line, nxpanel * nypanel);
   PLplotPointType **point;  allocPointer4PLplotPointType(&point, nxpanel * nypanel);
-  /* arrays related to errorbar(s) */
+  /** arrays related to errorbar(s) */
   PLINT *errbar;  allocPLINT(&errbar, nxpanel * nypanel);
-  /* arrays for caption(s) */
+  /** arrays for caption(s) */
   PLplotCaption *cap;  allocPLplotCaption(&cap, nxpanel * nypanel);
-  /* arrays for legend(s) */
+  /** arrays for legend(s) */
   PLplotLegend *leg;  allocPLplotLegend(&leg, nxpanel * nypanel);
   PLBOOL       *uni;  allocPLBOOL      (&uni, nxpanel * nypanel);
-  /* arrays for plot range */
+  /** arrays for plot range */
   PLplotPltRange *range;  allocPLplotPltRange(&range, nxpanel * nypanel);
-  /* arrays related to axis labels */
+  /** arrays related to axis labels */
   char **xlabel;  allocPointer4Char4PLplot(&xlabel, nxpanel * nypanel);
   char **ylabel;  allocPointer4Char4PLplot(&ylabel, nxpanel * nypanel);
-  /* array to set figure name */
+  /** array to set figure name */
   char figfile[PLplotCharWords];
   char *_figname;  allocChar4PLplot        (&_figname, nxpanel);
   char **figname;  allocPointer4Char4PLplot(& figname, nxpanel);
   assignChar4PLplot(nxpanel, figname, _figname);
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* configure to plot elapsed time as a function of tree error by multiple processes */
-  //-----------------------------------------------------------------------
+  /** configure to plot elapsed time as a function of tree error by multiple processes */
   for(int prec = mpi.rank; prec < NSUMMARY >> 1; prec += mpi.size){
-    //---------------------------------------------------------------------
-    /* data preparation */
+    /** data preparation */
     for(int ii = 0; ii < nxpanel; ii++){
 #   if  NMAC <= 3
       for(int jj = 0; jj < kind; jj++){
-	hor[INDEX(nxpanel, nypanel, kind, ii, 0, jj)] = &err [NSUMMARY >> 1][0][ii][jj / NMAC][jj % NMAC][0];/* median error */
+	hor[INDEX(nxpanel, nypanel, kind, ii, 0, jj)] = &err [NSUMMARY >> 1][0][ii][jj / NMAC][jj % NMAC][0];/**< median error */
 	hor[INDEX(nxpanel, nypanel, kind, ii, 1, jj)] = &err [         prec][0][ii][jj / NMAC][jj % NMAC][0];
 	ver[INDEX(nxpanel, nypanel, kind, ii, 0, jj)] = &time                  [ii][jj / NMAC][jj % NMAC][0];
 	ver[INDEX(nxpanel, nypanel, kind, ii, 1, jj)] = &time                  [ii][jj / NMAC][jj % NMAC][0];
@@ -542,94 +497,84 @@ void plotElapsedTime
 #else///NMAC <= 3
       /* GOTHIC */
       for(int jj = 0; jj < NINT * 3; jj++){
-	hor[INDEX(nxpanel, nypanel, kind, ii, 0, jj)] = &err [NSUMMARY >> 1][0][ii][jj / 3][jj % 3][0];/* median error */
+	hor[INDEX(nxpanel, nypanel, kind, ii, 0, jj)] = &err [NSUMMARY >> 1][0][ii][jj / 3][jj % 3][0];/**< median error */
 	hor[INDEX(nxpanel, nypanel, kind, ii, 1, jj)] = &err [         prec][0][ii][jj / 3][jj % 3][0];
 	ver[INDEX(nxpanel, nypanel, kind, ii, 0, jj)] = &time                  [ii][jj / 3][jj % 3][0];
 	ver[INDEX(nxpanel, nypanel, kind, ii, 1, jj)] = &time                  [ii][jj / 3][jj % 3][0];
       }/* for(int jj = 0; jj < kind; jj++){ */
       /* Bonsai2 */
-      hor[INDEX(nxpanel, nypanel, kind, ii, 0, 6)] = &err [NSUMMARY >> 1][0][ii][1][3][0];/* median error */
+      hor[INDEX(nxpanel, nypanel, kind, ii, 0, 6)] = &err [NSUMMARY >> 1][0][ii][1][3][0];/**< median error */
       hor[INDEX(nxpanel, nypanel, kind, ii, 1, 6)] = &err [         prec][0][ii][1][3][0];
       ver[INDEX(nxpanel, nypanel, kind, ii, 0, 6)] = &time                  [ii][1][3][0];
       ver[INDEX(nxpanel, nypanel, kind, ii, 1, 6)] = &time                  [ii][1][3][0];
 #endif//NMAC <= 3
     }/* for(int ii = 0; ii < nxpanel; ii++){ */
-    //---------------------------------------------------------------------
 
-    //---------------------------------------------------------------------
-    /* common setting(s) */
+    /** common setting(s) */
     for(PLINT ii = 0; ii < nxpanel; ii++)
       for(PLINT jj = 0; jj < nypanel; jj++){
-	//-----------------------------------------------------------------
 	const PLINT idx = INDEX2D(nxpanel, nypanel, ii, jj);
-	//-----------------------------------------------------------------
-	/* global setting(s) */
+
+	/** global setting(s) */
 	plot[idx] = true;
-	//-----------------------------------------------------------------
-	/* line setting(s) */
+
+	/** line setting(s) */
 	nlkind[idx] = lkind;
 	line  [idx] = ls;
 	lnum  [idx] = num;
 	lx    [idx] = &hor[INDEX2D(nxpanel * nypanel, lkind, idx, 0)];
 	ly    [idx] = &ver[INDEX2D(nxpanel * nypanel, lkind, idx, 0)];
-	//-----------------------------------------------------------------
-	/* point setting(s) */
+
+	/** point setting(s) */
 	npkind[idx] = pkind;
 	point [idx] = pt;
 	pnum  [idx] = num;
 	px    [idx] = &hor[INDEX2D(nxpanel * nypanel, pkind, idx, 0)];
 	py    [idx] = &ver[INDEX2D(nxpanel * nypanel, pkind, idx, 0)];
-	//-----------------------------------------------------------------
-	/* errorbar setting(s) */
+
+	/** errorbar setting(s) */
 	errbar[idx] = false;
-	//-----------------------------------------------------------------
-	/* plot area */
+
+	/** plot area */
 	range[idx] = box;
-	//-----------------------------------------------------------------
-	/* label setting(s) */
+
+	/** label setting(s) */
 	xlabel[idx] = vlab;
 	ylabel[idx] = tlab;
-	//-----------------------------------------------------------------
-	/* misc(s) */
+
+	/** misc(s) */
 	leg[idx] = pleg;
 	uni[idx] = puni;
 	cap[idx] = basecap;
-	/* 97 is "a" in ASCII code */
+	/** 97 is "a" in ASCII code */
 	sprintf(cap[idx].text, "(%c) %s on %s", 97 + INDEX2D(nypanel, nxpanel, nypanel - jj - 1, ii), pcap[(jj == 0) ? (NSUMMARY >> 1) : prec].text, gpucap[ii].text);
-	//-----------------------------------------------------------------
       }/* for(PLINT jj = 0; jj < nypanel; jj++){ */
-    //---------------------------------------------------------------------
 
-    //---------------------------------------------------------------------
-    /* individual file names */
+
+    /** individual file names */
     sprintf(figfile, "%s_%s_%.2d", file, "acc", prec);
     for(int ii = 0; ii < nxpanel; ii++)
       sprintf(figname[ii], "%s_%s_%.2d_%s", file, "acc", prec, arcname[ii]);
-    //---------------------------------------------------------------------
 
 
-    //---------------------------------------------------------------------
-    /* create figure(s) */
-    //---------------------------------------------------------------------
+    /** create figure(s) */
 #ifndef PLOT_SUMMARY_FIGURE_ONLY
     for(int ii = 0; ii < nxpanel; ii++){
-      //-------------------------------------------------------------------
       const PLINT idx = INDEX2D(nxpanel, nypanel, ii, 1);
       const PLBOOL tmp = cap[idx].write;
       cap[idx].write = false;
-      //-------------------------------------------------------------------
+
       plotData(1, 1, &plot[idx], false, false,
 	       &nlkind[idx], & line[idx], &lnum[idx], &lx[idx], &ly[idx],
 	       &npkind[idx], &point[idx], &pnum[idx], &px[idx], &py[idx],
 	       &errbar[idx], NULL, NULL, NULL, NULL, NULL, NULL,
 	       &cap[idx], &leg[idx], &uni[idx], &range[idx],
 	       &xlabel[idx], &ylabel[idx], "", figname[ii], argc, argv);
-      //-------------------------------------------------------------------
+
       cap[idx].write = tmp;
-      //-------------------------------------------------------------------
     }/* for(int ii = 0; ii < nxpanel; ii++){ */
 #endif//PLOT_SUMMARY_FIGURE_ONLY
-    //---------------------------------------------------------------------
+
     for(int ii = 0; ii < nxpanel; ii++)
       for(int jj = 0; jj < nypanel; jj++){
 	const PLINT idx = INDEX2D(nxpanel, nypanel, ii, jj);
@@ -643,14 +588,10 @@ void plotElapsedTime
 	     errbar, NULL, NULL, NULL, NULL, NULL, NULL,
 	     cap, leg, uni, range,
 	     xlabel, ylabel, "", figfile, argc, argv);
-    //---------------------------------------------------------------------
   }/* for(int prec = mpi.rank; prec < NSUMMARY >> 1; prec += mpi.size){ */
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* memory deallocation */
-  //-----------------------------------------------------------------------
+  /** memory deallocation */
   free(plot);
   free(nlkind);  free(lnum);  free(lx);  free(ly);  free( line);
   free(npkind);  free(pnum);  free(px);  free(py);  free(point);
@@ -659,65 +600,55 @@ void plotElapsedTime
   free(range);
   free(xlabel);  free(ylabel);
   free(figname);  free(_figname);
-  //-----------------------------------------------------------------------
+
   free(plegTxt);
-  //-----------------------------------------------------------------------
+
   free(num);  free(hor);  free(ver);
   free(ls);  free(pt);
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
-  //-----------------------------------------------------------------------
 }
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-/* err [NSUMMARY][NCHK][NARC]      [NMAC][NMAX]; */
-/* time                [NARC][NINT][NMAC][NMAX] */
+/** err [NSUMMARY][NCHK][NARC]      [NMAC][NMAX]; */
+/** time                [NARC][NINT][NMAC][NMAX] */
 void compareCheckTarget
 (PLFLT err[restrict][NCHK][NARC][NINT][NMAC][NMAX], PLFLT time[restrict][NINT][NMAC][NMAX], PLplotPltRange box, char file[], MPIinfo mpi, int argc, char **argv)
 {
-  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* global setting(s) */
-  //-----------------------------------------------------------------------
-  /* maximum number of data kinds */
+
+  /** global setting(s) */
+  /** maximum number of data kinds */
   const PLINT pkind = NINT * ((NMAC <= 3) ? NMAC : 3);
   const PLINT lkind = NINT * ((NMAC <= 3) ? NMAC : 3);
-  //-----------------------------------------------------------------------
-  const PLBOOL puni = true;
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* preparation for dataset */
-  //-----------------------------------------------------------------------
-  /* memory allocation for index */
+  const PLBOOL puni = true;
+
+
+  /** preparation for dataset */
+  /** memory allocation for index */
   PLINT kind = (puni) ? (IMAX(pkind, lkind)) : (pkind + lkind);
   if( (pkind != kind) || (lkind != kind) ){
     __KILL__(stderr, "ERROR: pkind(%d), lkind(%d), and kind(%d) must be the same\n", pkind, lkind, kind);
   }/* if( (pkind != kind) || (lkind != kind) ){ */
   PLINT *num;  allocPLINT(&num, kind);
-  //-----------------------------------------------------------------------
-  /* set number of data points */
+
+  /** set number of data points */
   for(PLINT ii = 0; ii < kind; ii++)    num[ii] = NMAX;
-  //-----------------------------------------------------------------------
-  /* set symbol and line style */
+
+  /** set symbol and line style */
   PLplotLineStyle *ls;  setDefaultLineStyle(lkind, &ls);
   PLplotPointType *pt;  setDefaultPointType(pkind, &pt);
-  /* block time step */
+  /** block time step */
   ls[0].color =   RED;  ls[0].style =  SOLID_LINE;  ls[0].width =   BOLD_LINE;
   ls[1].color =  BLUE;  ls[1].style =  SOLID_LINE;  ls[1].width = MIDDLE_LINE;
   ls[2].color = BLACK;  ls[2].style =  SOLID_LINE;  ls[2].width = MIDDLE_LINE;
   sprintf(pt[0].type, PLplotSymbolType[fillCircle ]);  pt[0].scale = PLplotSymbolSize[fillCircle ] * 0.75;
   sprintf(pt[1].type, PLplotSymbolType[openSquare ]);  pt[1].scale = PLplotSymbolSize[openSquare ] * 0.75;
   sprintf(pt[2].type, PLplotSymbolType[fillDiamond]);  pt[2].scale = PLplotSymbolSize[fillDiamond] * 0.75;
-  /* shared time step */
+  /** shared time step */
   ls[3].color =   RED;  ls[3].style = DOTTED_LINE;  ls[3].width =   BOLD_LINE;
   ls[4].color =  BLUE;  ls[4].style = DOTTED_LINE;  ls[4].width = MIDDLE_LINE;
   ls[5].color = BLACK;  ls[5].style = DOTTED_LINE;  ls[5].width = MIDDLE_LINE;
@@ -726,14 +657,14 @@ void compareCheckTarget
   sprintf(pt[5].type, PLplotSymbolType[openDiamond]);  pt[5].scale = PLplotSymbolSize[openDiamond] * 0.75;
   for(int ii = 0; ii < kind; ii++)
     pt[ii].color = ls[ii].color;
-  //-----------------------------------------------------------------------
-  /* set labels */
+
+  /** set labels */
   char vlab[PLplotCharWords];  sprintf(vlab, "|#fi#<0x12>a#fr#di#u#utree#d - #fi#<0x12>a#fr#di#u#udirect#d| / #fia#fr#di#u#udirect#d");
   char slab[PLplotCharWords];  sprintf(slab, "|#fia#fr#di#u#utree#d / #fia#fr#di#u#udirect#d - 1|");
   char plab[PLplotCharWords];  sprintf(plab, "|#fi#gF#fr#di#u#utree#d / #fi#gF#fr#di#u#udirect#d -1|");
   char tlab[PLplotCharWords];  sprintf(tlab, "Elapsed time per step (s)");
-  //-----------------------------------------------------------------------
-  /* set caption(s) */
+
+  /** set caption(s) */
   PLplotCaption basecap;  setDefaultCaption(&basecap);  basecap.write =  true;
   sprintf(basecap.side, "%s", "b");
   PLplotCaption cc20cap;  setDefaultCaption(&cc20cap);  cc20cap.write = false;
@@ -778,8 +709,8 @@ void compareCheckTarget
   sprintf(pcap[26].text, "%s", "-4#fi#gs#fr Error");
   sprintf(pcap[27].text, "%s", "-5#fi#gs#fr Error");
 #endif//NSUMMARY == 28
-  //-----------------------------------------------------------------------
-  /* set legends */
+
+  /** set legends */
   PLplotLegend pleg;  setDefaultLegend(&pleg, false);  pleg.write = true;
   char *plegTxt;
   allocChar4PLplot(&plegTxt, kind);
@@ -789,23 +720,20 @@ void compareCheckTarget
   for(int ii = 0; ii < kind; ii++)
     sprintf(pleg.text[ii], "%s, %s", intname[ii / ((NMAC <= 3) ? NMAC : 3)], tmpname[ii % ((NMAC <= 3) ? NMAC : 3)]);
   pleg.pos = PL_POSITION_RIGHT | PL_POSITION_TOP | PL_POSITION_INSIDE;
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* memory allocation to exploit multiple-plot function */
-  //-----------------------------------------------------------------------
-  /* maximum number of panels in each direction */
+  /** memory allocation to exploit multiple-plot function */
+  /** maximum number of panels in each direction */
   const PLINT nxpanel = NCHK;
   const PLINT nypanel = 2;
-  //-----------------------------------------------------------------------
-  /* memory allocation for data */
+
+  /** memory allocation for data */
   PLFLT **hor;  allocPointer4PLFLT(&hor, nxpanel * nypanel * kind);
   PLFLT **ver;  allocPointer4PLFLT(&ver, nxpanel * nypanel * kind);
-  //-----------------------------------------------------------------------
-  /* specify plot or skip panel */
+
+  /** specify plot or skip panel */
   PLBOOL *plot;  allocPLBOOL(&plot, nxpanel * nypanel);
-  /* arrays related to draw line(s) and point(s) */
+  /** arrays related to draw line(s) and point(s) */
   PLINT *nlkind;  allocPLINT(&nlkind, nxpanel * nypanel);
   PLINT *npkind;  allocPLINT(&npkind, nxpanel * nypanel);
   PLINT **lnum;  allocPointer4PLINT(&lnum, nxpanel * nypanel);
@@ -816,72 +744,65 @@ void compareCheckTarget
   PLFLT ***py;  allocDoublePointer4PLFLT(&py, nxpanel * nypanel);
   PLplotLineStyle ** line;  allocPointer4PLplotLineStyle(& line, nxpanel * nypanel);
   PLplotPointType **point;  allocPointer4PLplotPointType(&point, nxpanel * nypanel);
-  /* arrays related to errorbar(s) */
+  /** arrays related to errorbar(s) */
   PLINT *errbar;  allocPLINT(&errbar, nxpanel * nypanel);
-  /* arrays for caption(s) */
+  /** arrays for caption(s) */
   PLplotCaption *cap;  allocPLplotCaption(&cap, nxpanel * nypanel);
-  /* arrays for legend(s) */
+  /** arrays for legend(s) */
   PLplotLegend *leg;  allocPLplotLegend(&leg, nxpanel * nypanel);
   PLBOOL       *uni;  allocPLBOOL      (&uni, nxpanel * nypanel);
-  /* arrays for plot range */
+  /** arrays for plot range */
   PLplotPltRange *range;  allocPLplotPltRange(&range, nxpanel * nypanel);
-  /* arrays related to axis labels */
+  /** arrays related to axis labels */
   char **xlabel;  allocPointer4Char4PLplot(&xlabel, nxpanel * nypanel);
   char **ylabel;  allocPointer4Char4PLplot(&ylabel, nxpanel * nypanel);
-  /* array to set figure name */
+  /** array to set figure name */
   char figfile[PLplotCharWords];
   char *_figname;  allocChar4PLplot        (&_figname, nxpanel);
   char **figname;  allocPointer4Char4PLplot(& figname, nxpanel);
   assignChar4PLplot(nxpanel, figname, _figname);
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* configure to plot elapsed time as a function of tree error by multiple processes */
-  //-----------------------------------------------------------------------
+  /** configure to plot elapsed time as a function of tree error by multiple processes */
   for(int prec = mpi.rank; prec < NSUMMARY >> 1; prec += mpi.size){
-    //---------------------------------------------------------------------
-    /* data preparation */
+    /** data preparation */
     for(int ii = 0; ii < nxpanel; ii++)
       for(int jj = 0; jj < kind; jj++){
-	hor[INDEX(nxpanel, nypanel, kind, ii, 0, jj)] = &err [NSUMMARY >> 1][ii][0][jj / ((NMAC <= 3) ? NMAC : 3)][jj % ((NMAC <= 3) ? NMAC : 3)][0];/* median error */
+	hor[INDEX(nxpanel, nypanel, kind, ii, 0, jj)] = &err [NSUMMARY >> 1][ii][0][jj / ((NMAC <= 3) ? NMAC : 3)][jj % ((NMAC <= 3) ? NMAC : 3)][0];/**< median error */
 	hor[INDEX(nxpanel, nypanel, kind, ii, 1, jj)] = &err [         prec][ii][0][jj / ((NMAC <= 3) ? NMAC : 3)][jj % ((NMAC <= 3) ? NMAC : 3)][0];
 	ver[INDEX(nxpanel, nypanel, kind, ii, 0, jj)] = &time                   [0][jj / ((NMAC <= 3) ? NMAC : 3)][jj % ((NMAC <= 3) ? NMAC : 3)][0];
 	ver[INDEX(nxpanel, nypanel, kind, ii, 1, jj)] = &time                   [0][jj / ((NMAC <= 3) ? NMAC : 3)][jj % ((NMAC <= 3) ? NMAC : 3)][0];
       }/* for(int jj = 0; jj < kind; jj++){ */
-    //---------------------------------------------------------------------
 
-    //---------------------------------------------------------------------
-    /* common setting(s) */
+    /** common setting(s) */
     for(PLINT ii = 0; ii < nxpanel; ii++)
       for(PLINT jj = 0; jj < nypanel; jj++){
-	//-----------------------------------------------------------------
 	const PLINT idx = INDEX2D(nxpanel, nypanel, ii, jj);
-	//-----------------------------------------------------------------
-	/* global setting(s) */
+
+	/** global setting(s) */
 	plot[idx] = true;
-	//-----------------------------------------------------------------
-	/* line setting(s) */
+
+	/** line setting(s) */
 	nlkind[idx] = lkind;
 	line  [idx] = ls;
 	lnum  [idx] = num;
 	lx    [idx] = &hor[INDEX2D(nxpanel * nypanel, lkind, idx, 0)];
 	ly    [idx] = &ver[INDEX2D(nxpanel * nypanel, lkind, idx, 0)];
-	//-----------------------------------------------------------------
-	/* point setting(s) */
+
+	/** point setting(s) */
 	npkind[idx] = pkind;
 	point [idx] = pt;
 	pnum  [idx] = num;
 	px    [idx] = &hor[INDEX2D(nxpanel * nypanel, pkind, idx, 0)];
 	py    [idx] = &ver[INDEX2D(nxpanel * nypanel, pkind, idx, 0)];
-	//-----------------------------------------------------------------
-	/* errorbar setting(s) */
+
+	/** errorbar setting(s) */
 	errbar[idx] = false;
-	//-----------------------------------------------------------------
-	/* plot area */
+
+	/** plot area */
 	range[idx] = box;
-	//-----------------------------------------------------------------
-	/* label setting(s) */
+
+	/** label setting(s) */
 	switch( ii ){
 	case 0:	  xlabel[idx] = vlab;	  break;
 	case 1:	  xlabel[idx] = slab;	  break;
@@ -889,47 +810,40 @@ void compareCheckTarget
 	default:	  __KILL__(stderr, "ERROR: ii(%d) must be 0, 1, or 2.\n", ii);	  break;
 	}/* switch( ii ){ */
 	ylabel[idx] = tlab;
-	//-----------------------------------------------------------------
-	/* misc(s) */
+
+	/** misc(s) */
 	leg[idx] = pleg;
 	uni[idx] = puni;
 	cap[idx] = basecap;
-	/* 97 is "a" in ASCII code */
+	/** 97 is "a" in ASCII code */
 	sprintf(cap[idx].text, "(%c) %s about %s", 97 + INDEX2D(nypanel, nxpanel, nypanel - jj - 1, ii), pcap[(jj == 0) ? (NSUMMARY >> 1) : prec].text, chkname[ii]);
-	//-----------------------------------------------------------------
       }/* for(PLINT jj = 0; jj < nypanel; jj++){ */
-    //---------------------------------------------------------------------
 
-    //---------------------------------------------------------------------
-    /* individual file names */
+
+    /** individual file names */
     sprintf(figfile, "%s_%s_%.2d", file, arcname[0], prec);
     for(int ii = 0; ii < nxpanel; ii++)
       sprintf(figname[ii], "%s_%s_%.2d_%s", file, arcname[0], prec, chkname[ii]);
-    //---------------------------------------------------------------------
 
 
-    //---------------------------------------------------------------------
-    /* create figure(s) */
-    //---------------------------------------------------------------------
+    /** create figure(s) */
 #ifndef PLOT_SUMMARY_FIGURE_ONLY
     for(int ii = 0; ii < nxpanel; ii++){
-      //-------------------------------------------------------------------
       const PLINT idx = INDEX2D(nxpanel, nypanel, ii, 1);
       const PLBOOL tmp = cap[idx].write;
       cap[idx].write = false;
-      //-------------------------------------------------------------------
+
       plotData(1, 1, &plot[idx], false, false,
 	       &nlkind[idx], & line[idx], &lnum[idx], &lx[idx], &ly[idx],
 	       &npkind[idx], &point[idx], &pnum[idx], &px[idx], &py[idx],
 	       &errbar[idx], NULL, NULL, NULL, NULL, NULL, NULL,
 	       &cap[idx], &leg[idx], &uni[idx], &range[idx],
 	       &xlabel[idx], &ylabel[idx], "", figname[ii], argc, argv);
-      //-------------------------------------------------------------------
+
       cap[idx].write = tmp;
-      //-------------------------------------------------------------------
     }/* for(int ii = 0; ii < nxpanel; ii++){ */
 #endif//PLOT_SUMMARY_FIGURE_ONLY
-    //---------------------------------------------------------------------
+
     for(int ii = 0; ii < nxpanel; ii++)
       for(int jj = 0; jj < nypanel; jj++){
 	const PLINT idx = INDEX2D(nxpanel, nypanel, ii, jj);
@@ -942,14 +856,10 @@ void compareCheckTarget
 	     errbar, NULL, NULL, NULL, NULL, NULL, NULL,
 	     cap, leg, uni, range,
 	     xlabel, ylabel, "", figfile, argc, argv);
-    //---------------------------------------------------------------------
   }/* for(int prec = mpi.rank; prec < NSUMMARY >> 1; prec += mpi.size){ */
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* memory deallocation */
-  //-----------------------------------------------------------------------
+  /** memory deallocation */
   free(plot);
   free(nlkind);  free(lnum);  free(lx);  free(ly);  free( line);
   free(npkind);  free(pnum);  free(px);  free(py);  free(point);
@@ -958,55 +868,45 @@ void compareCheckTarget
   free(range);
   free(xlabel);  free(ylabel);
   free(figname);  free(_figname);
-  //-----------------------------------------------------------------------
+
   free(plegTxt);
-  //-----------------------------------------------------------------------
+
   free(num);  free(hor);  free(ver);
   free(ls);  free(pt);
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
-  //-----------------------------------------------------------------------
 }
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-/* mac [NCHK][NARC][NINT][NMAC][NMAX]; */
-/* time      [NARC][NINT][NMAC][NMAX] */
+/** mac [NCHK][NARC][NINT][NMAC][NMAX]; */
+/** time      [NARC][NINT][NMAC][NMAX] */
 void plotSpeedup
 (PLFLT mac[restrict][NARC][NINT][NMAC][NMAX], PLFLT time[restrict][NINT][NMAC][NMAX], PLplotPltRange relativeMAC, PLplotPltRange openingAngle, char file[], int argc, char **argv)
 {
-  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* global setting(s) */
-  //-----------------------------------------------------------------------
-  /* maximum number of data kinds */
+
+  /** global setting(s) */
+  /** maximum number of data kinds */
   const PLINT pkind = NINT * (NARC - 1);
   const PLINT lkind = NINT * (NARC - 1);
-  //-----------------------------------------------------------------------
-  const PLBOOL puni = true;
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* preparation for dataset */
-  //-----------------------------------------------------------------------
-  /* memory allocation for index */
+  const PLBOOL puni = true;
+
+
+  /** preparation for dataset */
+  /** memory allocation for index */
   PLINT kind = (puni) ? (IMAX(pkind, lkind)) : (pkind + lkind);
   if( (pkind != kind) || (lkind != kind) ){
     __KILL__(stderr, "ERROR: pkind(%d), lkind(%d), and kind(%d) must be the same\n", pkind, lkind, kind);
   }/* if( (pkind != kind) || (lkind != kind) ){ */
   PLINT *num;  allocPLINT(&num, kind);
-  //-----------------------------------------------------------------------
-  /* set number of data points */
+
+  /** set number of data points */
   for(PLINT ii = 0; ii < kind; ii++)    num[ii] = NMAX;
-  //-----------------------------------------------------------------------
-  /* data preparation and analysis */
+
+  /** data preparation and analysis */
   static PLFLT ss[((NMAC <= 3) ? NMAC : 3)][NINT][NARC - 1][NMAX];
 #ifdef  LOGPLOT_VER
   for(int ii = 0; ii < NINT; ii++)
@@ -1023,42 +923,42 @@ void plotSpeedup
 	  ss[jj][ii][ll][kk] = time[1 + ll][ii][jj][kk] * inv;
       }/* for(int kk = 0; kk < NMAX; kk++){ */
 #endif//LOGPLOT_VER
-  /* mac [NCHK][NARC][NINT][((NMAC <= 3) ? NMAC : 3)][NMAX]; */
+  /** mac [NCHK][NARC][NINT][((NMAC <= 3) ? NMAC : 3)][NMAX]; */
   for(int ii = 0; ii < ((NMAC <= 3) ? NMAC : 3); ii++)
     for(int jj = 0; jj < NINT; jj++)
       for(int kk = 1; kk < NMAX; kk++)
 	if( mac[0][0][jj][ii][kk] >= mac[0][0][jj][ii][kk - 1] )
 	  for(int ll = 0; ll < NARC - 1; ll++)
 	    ss[ii][jj][ll][kk] = DBL_MAX;
-  //-----------------------------------------------------------------------
-  /* set symbol and line style */
+
+  /** set symbol and line style */
   PLplotLineStyle *ls;  setDefaultLineStyle(lkind, &ls);
   PLplotPointType *pt;  setDefaultPointType(pkind, &pt);
-  /* block time step on K20X */
+  /** block time step on K20X */
   ls[0].color = BLACK;  ls[0].style =  SOLID_LINE;  ls[0].width = MIDDLE_LINE;
   sprintf(pt[0].type, PLplotSymbolType[fillCircle  ]);  pt[0].scale = PLplotSymbolSize[fillCircle  ] * 0.75;
-  /* shared time step on K20X */
+  /** shared time step on K20X */
   ls[1].color = BLACK;  ls[1].style = DOTTED_LINE;  ls[1].width = MIDDLE_LINE;
   sprintf(pt[1].type, PLplotSymbolType[openCircle  ]);  pt[1].scale = PLplotSymbolSize[openCircle  ] * 0.75;
 #   if  NARC > 2
-  /* block time step on TITAN X */
+  /** block time step on TITAN X */
   ls[2].color = BLACK;  ls[2].style =  SOLID_LINE;  ls[2].width = MIDDLE_LINE;
   sprintf(pt[2].type, PLplotSymbolType[fillSquare  ]);  pt[2].scale = PLplotSymbolSize[fillSquare  ] * 0.75;
-  /* shared time step on TITAN X */
+  /** shared time step on TITAN X */
   ls[3].color = BLACK;  ls[3].style = DOTTED_LINE;  ls[3].width = MIDDLE_LINE;
   sprintf(pt[3].type, PLplotSymbolType[openSquare  ]);  pt[3].scale = PLplotSymbolSize[openSquare  ] * 0.75;
 #endif//NARC > 2
   for(int ii = 0; ii < kind; ii++)
     pt[ii].color = ls[ii].color;
-  //-----------------------------------------------------------------------
-  /* set labels */
-  /* char hlab[PLplotCharWords];  sprintf(hlab, "Accuracy controlling parameter"); */
+
+  /** set labels */
+  /** char hlab[PLplotCharWords];  sprintf(hlab, "Accuracy controlling parameter"); */
   char alab[PLplotCharWords];  sprintf(alab, "#fi#gD#fr#dacc#u");
   char mlab[PLplotCharWords];  sprintf(mlab, "#fi#gD#fr#dmul#u");
   char tlab[PLplotCharWords];  sprintf(tlab, "#gh");
   char vlab[PLplotCharWords];  sprintf(vlab, "Speed up");
-  //-----------------------------------------------------------------------
-  /* set caption(s) */
+
+  /** set caption(s) */
   PLplotCaption basecap;  setDefaultCaption(&basecap);  basecap.write =  true;
   sprintf(basecap.side, "%s", "b");
   PLplotCaption   acccap;  setDefaultCaption(&  acccap);    acccap.write = false;
@@ -1071,8 +971,8 @@ void plotSpeedup
   maccap[0] =   acccap;
   maccap[1] =   mulcap;
   maccap[2] = thetacap;
-  //-----------------------------------------------------------------------
-  /* set legends */
+
+  /** set legends */
   PLplotLegend pleg;  setDefaultLegend(&pleg, false);  pleg.write = true;
   char *plegTxt;
   allocChar4PLplot(&plegTxt, kind);
@@ -1088,23 +988,20 @@ void plotSpeedup
   for(int ii = 0; ii < kind; ii++)
     sprintf(pleg.text[ii], "%s on %s", intname[ii % NINT], tmpname[ii / NINT]);
   pleg.pos = PL_POSITION_LEFT | PL_POSITION_TOP | PL_POSITION_INSIDE;
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* memory allocation to exploit multiple-plot function */
-  //-----------------------------------------------------------------------
-  /* maximum number of panels in each direction */
+  /** memory allocation to exploit multiple-plot function */
+  /** maximum number of panels in each direction */
   const PLINT nxpanel = ((NMAC <= 3) ? NMAC : 3);
   const PLINT nypanel = 1;
-  //-----------------------------------------------------------------------
-  /* memory allocation for data */
+
+  /** memory allocation for data */
   PLFLT **hor;  allocPointer4PLFLT(&hor, nxpanel * nypanel * kind);
   PLFLT **ver;  allocPointer4PLFLT(&ver, nxpanel * nypanel * kind);
-  //-----------------------------------------------------------------------
-  /* specify plot or skip panel */
+
+  /** specify plot or skip panel */
   PLBOOL *plot;  allocPLBOOL(&plot, nxpanel * nypanel);
-  /* arrays related to draw line(s) and point(s) */
+  /** arrays related to draw line(s) and point(s) */
   PLINT *nlkind;  allocPLINT(&nlkind, nxpanel * nypanel);
   PLINT *npkind;  allocPLINT(&npkind, nxpanel * nypanel);
   PLINT **lnum;  allocPointer4PLINT(&lnum, nxpanel * nypanel);
@@ -1115,32 +1012,29 @@ void plotSpeedup
   PLFLT ***py;  allocDoublePointer4PLFLT(&py, nxpanel * nypanel);
   PLplotLineStyle ** line;  allocPointer4PLplotLineStyle(& line, nxpanel * nypanel);
   PLplotPointType **point;  allocPointer4PLplotPointType(&point, nxpanel * nypanel);
-  /* arrays related to errorbar(s) */
+  /** arrays related to errorbar(s) */
   PLINT *errbar;  allocPLINT(&errbar, nxpanel * nypanel);
-  /* arrays for caption(s) */
+  /** arrays for caption(s) */
   PLplotCaption *cap;  allocPLplotCaption(&cap, nxpanel * nypanel);
-  /* arrays for legend(s) */
+  /** arrays for legend(s) */
   PLplotLegend *leg;  allocPLplotLegend(&leg, nxpanel * nypanel);
   PLBOOL       *uni;  allocPLBOOL      (&uni, nxpanel * nypanel);
-  /* arrays for plot range */
+  /** arrays for plot range */
   PLplotPltRange *range;  allocPLplotPltRange(&range, nxpanel * nypanel);
-  /* arrays related to axis labels */
+  /** arrays related to axis labels */
   char **xlabel;  allocPointer4Char4PLplot(&xlabel, nxpanel * nypanel);
   char **ylabel;  allocPointer4Char4PLplot(&ylabel, nxpanel * nypanel);
-  /* array to set figure name */
+  /** array to set figure name */
   char figfile[PLplotCharWords];
   char *_figname;  allocChar4PLplot        (&_figname, nxpanel);
   char **figname;  allocPointer4Char4PLplot(& figname, nxpanel);
   assignChar4PLplot(nxpanel, figname, _figname);
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* configure to plot elapsed time as a function of tree error by multiple processes */
-  //-----------------------------------------------------------------------
-  /* data preparation */
-  /* mac[NCHK][NARC][NINT][((NMAC <= 3) ? NMAC : 3)][NMAX]; */
-  /* ss       [((NMAC <= 3) ? NMAC : 3)][NINT][NARC - 1][NMAX]; */
+  /** configure to plot elapsed time as a function of tree error by multiple processes */
+  /** data preparation */
+  /** mac[NCHK][NARC][NINT][((NMAC <= 3) ? NMAC : 3)][NMAX]; */
+  /** ss       [((NMAC <= 3) ? NMAC : 3)][NINT][NARC - 1][NMAX]; */
   for(int ii = 0; ii < nxpanel; ii++)
     for(int jj = 0; jj < kind; jj++){
       /* hor[INDEX(nxpanel, nypanel, kind, ii, 0, jj)] = &mac[ 0][              0][jj / (NARC - 1)][ii             ][0]; */
@@ -1148,39 +1042,37 @@ void plotSpeedup
       hor[INDEX(nxpanel, nypanel, kind, ii, 0, jj)] = &mac[ 0][0][jj % NINT][ii][0];
       ver[INDEX(nxpanel, nypanel, kind, ii, 0, jj)] = &ss [ii]   [jj % NINT][jj / NINT][0];
     }/* for(int jj = 0; jj < kind; jj++){ */
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* common setting(s) */
+
+  /** common setting(s) */
   for(PLINT ii = 0; ii < nxpanel; ii++)
     for(PLINT jj = 0; jj < nypanel; jj++){
-      //-------------------------------------------------------------------
       const PLINT idx = INDEX2D(nxpanel, nypanel, ii, jj);
-      //-------------------------------------------------------------------
-      /* global setting(s) */
+
+      /** global setting(s) */
       plot[idx] = true;
-      //-------------------------------------------------------------------
-      /* line setting(s) */
+
+      /** line setting(s) */
       nlkind[idx] = lkind;
       line  [idx] = ls;
       lnum  [idx] = num;
       lx    [idx] = &hor[INDEX2D(nxpanel * nypanel, lkind, idx, 0)];
       ly    [idx] = &ver[INDEX2D(nxpanel * nypanel, lkind, idx, 0)];
-      //-------------------------------------------------------------------
-      /* point setting(s) */
+
+      /** point setting(s) */
       npkind[idx] = pkind;
       point [idx] = pt;
       pnum  [idx] = num;
       px    [idx] = &hor[INDEX2D(nxpanel * nypanel, pkind, idx, 0)];
       py    [idx] = &ver[INDEX2D(nxpanel * nypanel, pkind, idx, 0)];
-      //-------------------------------------------------------------------
-      /* errorbar setting(s) */
+
+      /** errorbar setting(s) */
       errbar[idx] = false;
-      //-------------------------------------------------------------------
-      /* plot area */
+
+      /** plot area */
       range[idx] = (ii < 2) ? relativeMAC : openingAngle;
-      //-------------------------------------------------------------------
-      /* label setting(s) */
+
+      /** label setting(s) */
       switch( ii ){
       case 0:	xlabel[idx] = alab;	break;
       case 1:	xlabel[idx] = mlab;	break;
@@ -1190,47 +1082,39 @@ void plotSpeedup
 	break;
       }/* switch( ii ){ */
       ylabel[idx] = vlab;
-      //-------------------------------------------------------------------
-      /* misc(s) */
+
+      /** misc(s) */
       leg[idx] = pleg;
       uni[idx] = puni;
       cap[idx] = basecap;
       /* 97 is "a" in ASCII code */
       sprintf(cap[idx].text, "(%c) %s", 97 + INDEX2D(nypanel, nxpanel, nypanel - jj - 1, ii), maccap[ii].text);
-      //-------------------------------------------------------------------
     }/* for(PLINT jj = 0; jj < nypanel; jj++){ */
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* individual file names */
+
+  /** individual file names */
   sprintf(figfile, "%s_%s", file, "speedup");
   for(int ii = 0; ii < nxpanel; ii++)
     sprintf(figname[ii], "%s_%s_%s", file, "speedup", synonym[ii]);
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* create figure(s) */
-  //-----------------------------------------------------------------------
+  /** create figure(s) */
 /* #ifndef PLOT_SUMMARY_FIGURE_ONLY */
   for(int ii = 0; ii < nxpanel; ii++){
-    //---------------------------------------------------------------------
     const PLINT idx = INDEX2D(nxpanel, nypanel, ii, 0);
     const PLBOOL tmp = cap[idx].write;
     cap[idx].write = false;
-    //---------------------------------------------------------------------
+
     plotData(1, 1, &plot[idx], false, false,
 	     &nlkind[idx], & line[idx], &lnum[idx], &lx[idx], &ly[idx],
 	     &npkind[idx], &point[idx], &pnum[idx], &px[idx], &py[idx],
 	     &errbar[idx], NULL, NULL, NULL, NULL, NULL, NULL,
 	     &cap[idx], &leg[idx], &uni[idx], &range[idx],
 	     &xlabel[idx], &ylabel[idx], "", figname[ii], argc, argv);
-    //---------------------------------------------------------------------
     cap[idx].write = tmp;
-    //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < nxpanel; ii++){ */
 /* #endif//PLOT_SUMMARY_FIGURE_ONLY */
-  //-----------------------------------------------------------------------
+
   for(int ii = 0; ii < nxpanel; ii++)
     for(int jj = 0; jj < nypanel; jj++){
       const PLINT idx = INDEX2D(nxpanel, nypanel, ii, jj);
@@ -1243,12 +1127,9 @@ void plotSpeedup
 	   errbar, NULL, NULL, NULL, NULL, NULL, NULL,
 	   cap, leg, uni, range,
 	   xlabel, ylabel, "", figfile, argc, argv);
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* memory deallocation */
-  //-----------------------------------------------------------------------
+  /** memory deallocation */
   free(plot);
   free(nlkind);  free(lnum);  free(lx);  free(ly);  free( line);
   free(npkind);  free(pnum);  free(px);  free(py);  free(point);
@@ -1257,55 +1138,45 @@ void plotSpeedup
   free(range);
   free(xlabel);  free(ylabel);
   free(figname);  free(_figname);
-  //-----------------------------------------------------------------------
+
   free(plegTxt);
-  //-----------------------------------------------------------------------
+
   free(num);  free(hor);  free(ver);
   free(ls);  free(pt);
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
-  //-----------------------------------------------------------------------
 }
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
-/* mac [NCHK][NARC][NINT][NMAC][NMAX]; */
-/* time      [NARC][NINT][NMAC][NMAX] */
+/** mac [NCHK][NARC][NINT][NMAC][NMAX]; */
+/** time      [NARC][NINT][NMAC][NMAX] */
 void plotBenefit
 (PLFLT mac[restrict][NARC][NINT][NMAC][NMAX], PLFLT time[restrict][NINT][NMAC][NMAX], PLplotPltRange relativeMAC, PLplotPltRange openingAngle, char file[], int argc, char **argv)
 {
-  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* global setting(s) */
-  //-----------------------------------------------------------------------
-  /* maximum number of data kinds */
+
+  /** global setting(s) */
+  /** maximum number of data kinds */
   const PLINT pkind = NARC;
   const PLINT lkind = NARC;
-  //-----------------------------------------------------------------------
-  const PLBOOL puni = true;
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* preparation for dataset */
-  //-----------------------------------------------------------------------
-  /* memory allocation for index */
+  const PLBOOL puni = true;
+
+
+  /** preparation for dataset */
+  /** memory allocation for index */
   PLINT kind = (puni) ? (IMAX(pkind, lkind)) : (pkind + lkind);
   if( (pkind != kind) || (lkind != kind) ){
     __KILL__(stderr, "ERROR: pkind(%d), lkind(%d), and kind(%d) must be the same\n", pkind, lkind, kind);
   }/* if( (pkind != kind) || (lkind != kind) ){ */
   PLINT *num;  allocPLINT(&num, kind);
-  //-----------------------------------------------------------------------
-  /* set number of data points */
+
+  /** set number of data points */
   for(PLINT ii = 0; ii < kind; ii++)    num[ii] = NMAX;
-  //-----------------------------------------------------------------------
-  /* data preparation and analysis */
+
+  /** data preparation and analysis */
   static PLFLT gain[NARC][((NMAC <= 3) ? NMAC : 3)][NMAX];
 #ifdef  LOGPLOT_VER
   for(int ii = 0; ii < NARC; ii++)
@@ -1323,8 +1194,8 @@ void plotBenefit
       for(int kk = 1; kk < NMAX; kk++)
 	if( mac[0][ii][1][jj][kk] >= mac[0][ii][1][jj][kk - 1] )
 	  gain[ii][jj][kk] = DBL_MAX;
-  //-----------------------------------------------------------------------
-  /* set symbol and line style */
+
+  /** set symbol and line style */
   PLplotLineStyle *ls;  setDefaultLineStyle(lkind, &ls);
   PLplotPointType *pt;  setDefaultPointType(pkind, &pt);
   ls[0].color = BLACK;  ls[0].style = DASHED_LINE;  ls[0].width = MIDDLE_LINE;
@@ -1339,14 +1210,14 @@ void plotBenefit
 #endif//NARC > 2
   for(int ii = 0; ii < kind; ii++)
     pt[ii].color = ls[ii].color;
-  //-----------------------------------------------------------------------
-  /* set labels */
+
+  /** set labels */
   char alab[PLplotCharWords];  sprintf(alab, "#fi#gD#fr#dacc#u");
   char mlab[PLplotCharWords];  sprintf(mlab, "#fi#gD#fr#dmul#u");
   char tlab[PLplotCharWords];  sprintf(tlab, "#gh");
   char vlab[PLplotCharWords];  sprintf(vlab, "Speed up");
-  //-----------------------------------------------------------------------
-  /* set caption(s) */
+
+  /** set caption(s) */
   PLplotCaption basecap;  setDefaultCaption(&basecap);  basecap.write =  true;
   sprintf(basecap.side, "%s", "b");
   PLplotCaption   acccap;  setDefaultCaption(&  acccap);    acccap.write = false;
@@ -1359,8 +1230,8 @@ void plotBenefit
   maccap[0] =   acccap;
   maccap[1] =   mulcap;
   maccap[2] = thetacap;
-  //-----------------------------------------------------------------------
-  /* set legends */
+
+  /** set legends */
   PLplotLegend pleg;  setDefaultLegend(&pleg, false);  pleg.write = true;
   char *plegTxt;
   allocChar4PLplot(&plegTxt, kind);
@@ -1372,23 +1243,20 @@ void plotBenefit
   sprintf(pleg.text[2], "%s", "GTX TITAN X");
 #endif//NARC > 2
   pleg.pos = PL_POSITION_LEFT | PL_POSITION_TOP | PL_POSITION_INSIDE;
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* memory allocation to exploit multiple-plot function */
-  //-----------------------------------------------------------------------
-  /* maximum number of panels in each direction */
+  /** memory allocation to exploit multiple-plot function */
+  /** maximum number of panels in each direction */
   const PLINT nxpanel = ((NMAC <= 3) ? NMAC : 3);
   const PLINT nypanel = 1;
-  //-----------------------------------------------------------------------
-  /* memory allocation for data */
+
+  /** memory allocation for data */
   PLFLT **hor;  allocPointer4PLFLT(&hor, nxpanel * nypanel * kind);
   PLFLT **ver;  allocPointer4PLFLT(&ver, nxpanel * nypanel * kind);
-  //-----------------------------------------------------------------------
-  /* specify plot or skip panel */
+
+  /** specify plot or skip panel */
   PLBOOL *plot;  allocPLBOOL(&plot, nxpanel * nypanel);
-  /* arrays related to draw line(s) and point(s) */
+  /** arrays related to draw line(s) and point(s) */
   PLINT *nlkind;  allocPLINT(&nlkind, nxpanel * nypanel);
   PLINT *npkind;  allocPLINT(&npkind, nxpanel * nypanel);
   PLINT **lnum;  allocPointer4PLINT(&lnum, nxpanel * nypanel);
@@ -1399,68 +1267,63 @@ void plotBenefit
   PLFLT ***py;  allocDoublePointer4PLFLT(&py, nxpanel * nypanel);
   PLplotLineStyle ** line;  allocPointer4PLplotLineStyle(& line, nxpanel * nypanel);
   PLplotPointType **point;  allocPointer4PLplotPointType(&point, nxpanel * nypanel);
-  /* arrays related to errorbar(s) */
+  /** arrays related to errorbar(s) */
   PLINT *errbar;  allocPLINT(&errbar, nxpanel * nypanel);
-  /* arrays for caption(s) */
+  /** arrays for caption(s) */
   PLplotCaption *cap;  allocPLplotCaption(&cap, nxpanel * nypanel);
-  /* arrays for legend(s) */
+  /** arrays for legend(s) */
   PLplotLegend *leg;  allocPLplotLegend(&leg, nxpanel * nypanel);
   PLBOOL       *uni;  allocPLBOOL      (&uni, nxpanel * nypanel);
-  /* arrays for plot range */
+  /** arrays for plot range */
   PLplotPltRange *range;  allocPLplotPltRange(&range, nxpanel * nypanel);
-  /* arrays related to axis labels */
+  /** arrays related to axis labels */
   char **xlabel;  allocPointer4Char4PLplot(&xlabel, nxpanel * nypanel);
   char **ylabel;  allocPointer4Char4PLplot(&ylabel, nxpanel * nypanel);
-  /* array to set figure name */
+  /** array to set figure name */
   char figfile[PLplotCharWords];
   char *_figname;  allocChar4PLplot        (&_figname, nxpanel);
   char **figname;  allocPointer4Char4PLplot(& figname, nxpanel);
   assignChar4PLplot(nxpanel, figname, _figname);
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* configure to plot elapsed time as a function of tree error by multiple processes */
-  //-----------------------------------------------------------------------
-  /* data preparation */
+  /** configure to plot elapsed time as a function of tree error by multiple processes */
+  /** data preparation */
   for(int ii = 0; ii < nxpanel; ii++)
     for(int jj = 0; jj < kind; jj++){
       hor[INDEX2D(nxpanel, kind, ii, jj)] = &mac [0][jj][0][ii][0];
       ver[INDEX2D(nxpanel, kind, ii, jj)] = &gain   [jj]   [ii][0];
     }/* for(int jj = 0; jj < kind; jj++){ */
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* common setting(s) */
+
+  /** common setting(s) */
   for(PLINT ii = 0; ii < nxpanel; ii++)
     for(PLINT jj = 0; jj < nypanel; jj++){
-      //-------------------------------------------------------------------
       const PLINT idx = INDEX2D(nxpanel, nypanel, ii, jj);
-      //-------------------------------------------------------------------
-      /* global setting(s) */
+
+      /** global setting(s) */
       plot[idx] = true;
-      //-------------------------------------------------------------------
-      /* line setting(s) */
+
+      /** line setting(s) */
       nlkind[idx] = lkind;
       line  [idx] = ls;
       lnum  [idx] = num;
       lx    [idx] = &hor[INDEX2D(nxpanel * nypanel, lkind, idx, 0)];
       ly    [idx] = &ver[INDEX2D(nxpanel * nypanel, lkind, idx, 0)];
-      //-------------------------------------------------------------------
-      /* point setting(s) */
+
+      /** point setting(s) */
       npkind[idx] = pkind;
       point [idx] = pt;
       pnum  [idx] = num;
       px    [idx] = &hor[INDEX2D(nxpanel * nypanel, pkind, idx, 0)];
       py    [idx] = &ver[INDEX2D(nxpanel * nypanel, pkind, idx, 0)];
-      //-------------------------------------------------------------------
-      /* errorbar setting(s) */
+
+      /** errorbar setting(s) */
       errbar[idx] = false;
-      //-------------------------------------------------------------------
-      /* plot area */
+
+      /** plot area */
       range[idx] = (ii < 2) ? relativeMAC : openingAngle;
-      //-------------------------------------------------------------------
-      /* label setting(s) */
+
+      /** label setting(s) */
       switch( ii ){
       case 0:	xlabel[idx] = alab;	break;
       case 1:	xlabel[idx] = mlab;	break;
@@ -1470,47 +1333,40 @@ void plotBenefit
 	break;
       }/* switch( ii ){ */
       ylabel[idx] = vlab;
-      //-------------------------------------------------------------------
-      /* misc(s) */
+
+      /** misc(s) */
       leg[idx] = pleg;
       uni[idx] = puni;
       cap[idx] = basecap;
-      /* 97 is "a" in ASCII code */
+      /** 97 is "a" in ASCII code */
       sprintf(cap[idx].text, "(%c) %s", 97 + INDEX2D(nypanel, nxpanel, nypanel - jj - 1, ii), maccap[ii].text);
-      //-------------------------------------------------------------------
     }/* for(PLINT jj = 0; jj < nypanel; jj++){ */
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
-  /* individual file names */
+
+  /** individual file names */
   sprintf(figfile, "%s_%s", file, "gain");
   for(int ii = 0; ii < nxpanel; ii++)
     sprintf(figname[ii], "%s_%s_%s", file, "gain", synonym[ii]);
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* create figure(s) */
-  //-----------------------------------------------------------------------
+  /** create figure(s) */
 /* #ifndef PLOT_SUMMARY_FIGURE_ONLY */
   for(int ii = 0; ii < nxpanel; ii++){
-    //---------------------------------------------------------------------
     const PLINT idx = INDEX2D(nxpanel, nypanel, ii, 0);
     const PLBOOL tmp = cap[idx].write;
     cap[idx].write = false;
-    //---------------------------------------------------------------------
+
     plotData(1, 1, &plot[idx], false, false,
 	     &nlkind[idx], & line[idx], &lnum[idx], &lx[idx], &ly[idx],
 	     &npkind[idx], &point[idx], &pnum[idx], &px[idx], &py[idx],
 	     &errbar[idx], NULL, NULL, NULL, NULL, NULL, NULL,
 	     &cap[idx], &leg[idx], &uni[idx], &range[idx],
 	     &xlabel[idx], &ylabel[idx], "", figname[ii], argc, argv);
-    //---------------------------------------------------------------------
+
     cap[idx].write = tmp;
-    //---------------------------------------------------------------------
   }/* for(int ii = 0; ii < nxpanel; ii++){ */
 /* #endif//PLOT_SUMMARY_FIGURE_ONLY */
-  //-----------------------------------------------------------------------
+
   for(int ii = 0; ii < nxpanel; ii++)
     for(int jj = 0; jj < nypanel; jj++){
       const PLINT idx = INDEX2D(nxpanel, nypanel, ii, jj);
@@ -1523,12 +1379,9 @@ void plotBenefit
 	   errbar, NULL, NULL, NULL, NULL, NULL, NULL,
 	   cap, leg, uni, range,
 	   xlabel, ylabel, "", figfile, argc, argv);
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
-  /* memory deallocation */
-  //-----------------------------------------------------------------------
+  /** memory deallocation */
   free(plot);
   free(nlkind);  free(lnum);  free(lx);  free(ly);  free( line);
   free(npkind);  free(pnum);  free(px);  free(py);  free(point);
@@ -1537,16 +1390,12 @@ void plotBenefit
   free(range);
   free(xlabel);  free(ylabel);
   free(figname);  free(_figname);
-  //-----------------------------------------------------------------------
+
   free(plegTxt);
-  //-----------------------------------------------------------------------
+
   free(num);  free(hor);  free(ver);
   free(ls);  free(pt);
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
-  //-----------------------------------------------------------------------
 }
-//-------------------------------------------------------------------------

@@ -3,9 +3,9 @@
  *
  * @brief Plot code for radial profiles of multiple components
  *
- * @author Yohei Miki (University of Tsukuba)
+ * @author Yohei Miki (University of Tokyo)
  *
- * @date 2017/07/26 (Wed)
+ * @date 2017/10/26 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
