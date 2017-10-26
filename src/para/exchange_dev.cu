@@ -504,6 +504,40 @@ static inline void copyParticlePositionAsync_dev2hst(const int Ni, position * RE
 
 
 /**
+ * @fn assignNewDomain_kernel
+ *
+ * @brief Assign N-body particles to new computational domain on GPU.
+ */
+/* global synchronization を使った reduction kernel を使った実装が必要になる。 */
+/* どうにかして、複数の overlapNum をなめられるのが best なのだけれど... */
+/* まあ、4 or 8 or 16領域ずつ分類していきますよ、とかいう約束ごとを設定しておけばうまくいきそうな気がする。 */
+__global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assignNewDomain_kernel
+(const int numOld, const int domIdx)
+{
+  /** identify thread properties */
+  const int tidx = THREADIDX_X1D;
+  const int bidx =  BLOCKIDX_X1D;
+  const int bnum =   GRIDDIM_X1D;
+
+  const int hidx = tidx - (tidx & (warpSize - 1));
+
+  const int ihead = (num *      bidx ) / bnum;
+  const int itail = (num * (1 + bidx)) / bnum;
+
+
+
+  const int ii = GLOBALIDX_X1D;
+  if( ii < numOld ){
+
+
+
+
+
+  }/* if( ii < numOld ){ */
+}
+
+
+/**
  * @fn sortParticlesDDkey_kernel
  *
  * @brief Sort particle data by domain index on GPU.
@@ -1146,8 +1180,8 @@ void exchangeParticles_dev
 
 
   for(int ii = 0; ii < overlapNum; ii++)
-    hogehoge_kernel<<<block_size, thread_num, SMEM_SIZE, cuda_stream>>>();
-  getLastCudaError("hogehoge_kernel");
+    assignNewDomain_kernel<<<block_size, thread_num, SMEM_SIZE, cuda_stream>>>();
+  getLastCudaError("assignNewDomain_kernel");
 
 
   /** determine process rank for each particle to belong */
