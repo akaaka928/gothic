@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2017/10/30 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -505,19 +505,15 @@ static inline void copyParticlePositionAsync_dev2hst(const int Ni, position * RE
 
 #define NTHREADS_SCAN_VEC4_INC NTHREADS_ASSIGN
 #include "../util/scan_vec4_inc.cu"
-/* NOTE: must create util/scan_vec4_inc.cu */
 /**
  * @fn assignNewDomain_kernel
  *
  * @brief Assign N-body particles to new computational domain on GPU.
  */
-/* global synchronization を使った reduction kernel を使った実装が必要になる。 */
-/* どうにかして、複数の overlapNum をなめられるのが best なのだけれど... */
-/* まあ、4 or 8 or 16領域ずつ分類していきますよ、とかいう約束ごとを設定しておけばうまくいきそうな気がする。 */
 __global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assignNewDomain_kernel
-     (const int num, READ_ONLY position * RESTRICT ipos,
-      const int domHead, const int domRem, int * RESTRICT target, float * RESTRICT xmin, float * RESTRICT xmax, float * RESTRICT ymin, float * RESTRICT ymax, float * RESTRICT zmin, float * RESTRICT zmax,
-      int4 * RESTRICT sum_all, int * RESTRICT gsync0, int * RESTRICT gsync1)
+     (const int num, int * RESTRICT numNew_gm, READ_ONLY position * RESTRICT ipos,
+      const int domHead, const int domRem, READ_ONLY int * RESTRICT target, READ_ONLY float * RESTRICT xmin, READ_ONLY float * RESTRICT xmax, READ_ONLY float * RESTRICT ymin, READ_ONLY float * RESTRICT ymax, READ_ONLY float * RESTRICT zmin, READ_ONLY float * RESTRICT zmax,
+      int4 * RESTRICT gmem, int * RESTRICT gsync0, int * RESTRICT gsync1)
 {
   /** identify thread properties */
   const int tidx = THREADIDX_X1D;
@@ -591,6 +587,7 @@ __global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assign
 	  case 2:	    dstRank[ii] = rank.z;	    numNew.z++;	    break;
 	  case 3:	    dstRank[ii] = rank.w;	    numNew.w++;	    break;
 	  }/* switch(jj){ */
+
 	  break;
 	}
       }/* for(int jj = 0; jj < domNum; jj++){ */
@@ -599,7 +596,17 @@ __global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assign
 
 
   /** reduction about numNew */
+  __shared__ int4 num_sm[NTHREADS_ASSIGN];
+  numNew = TOTAL_SUM_VEC4_GRID(numNew, num_sm, tidx, hidx, gmem, bidx, bnum, gsync0, gsync1);
 
+
+  /** upload number of N-body particles to be assigned to new computational domain */
+  if( (bidx + tidx) == 0 ){
+    numNew_gm[0] = numNew.x;
+    numNew_gm[1] = numNew.y;
+    numNew_gm[2] = numNew.z;
+    numNew_gm[3] = numNew.w;
+  }/* if( (bidx + tidx) == 0 ){ */
 }
 
 
@@ -1245,8 +1252,14 @@ void exchangeParticles_dev
   checkCudaErrors(cudaMemcpy(domBoundary.zmax_dev, domBoundary.zmax_hst, sizeof(float) * overlapNum, cudaMemcpyHostToDevice));
 
 
-  for(int ii = 0; ii < overlapNum; ii++)
-    assignNewDomain_kernel<<<block_size, thread_num, SMEM_SIZE, cuda_stream>>>();
+  first check of assignNewDomain_kernel at function for malloc;
+/* __global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assignNewDomain_kernel */
+/*      (const int num, int * RESTRICT numNew_gm, READ_ONLY position * RESTRICT ipos, */
+/*       const int domHead, const int domRem, READ_ONLY int * RESTRICT target, READ_ONLY float * RESTRICT xmin, READ_ONLY float * RESTRICT xmax, READ_ONLY float * RESTRICT ymin, READ_ONLY float * RESTRICT ymax, READ_ONLY float * RESTRICT zmin, READ_ONLY float * RESTRICT zmax, */
+/*       int4 * RESTRICT gmem, int * RESTRICT gsync0, int * RESTRICT gsync1) */
+  for(int ii = 0; ii < overlapNum; ii += 4){
+    assignNewDomain_kernel<<<devProp.numSM * NBLOCKS_PER_SM_ASSIGN, NTHREADS_ASSIGN>>>(numOld, );
+  }/* for(int ii = 0; ii < overlapNum; ii += 4){ */
   getLastCudaError("assignNewDomain_kernel");
 
 
