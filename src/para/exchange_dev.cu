@@ -1252,6 +1252,8 @@ void exchangeParticles_dev
   checkCudaErrors(cudaMemcpy(domBoundary.zmax_dev, domBoundary.zmax_hst, sizeof(float) * overlapNum, cudaMemcpyHostToDevice));
 
 
+  /** determine process rank for each particle to belong */
+#if 1
   first check of assignNewDomain_kernel at function for malloc;
 /* __global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assignNewDomain_kernel */
 /*      (const int num, int * RESTRICT numNew_gm, READ_ONLY position * RESTRICT ipos, */
@@ -1262,24 +1264,12 @@ void exchangeParticles_dev
   }/* for(int ii = 0; ii < overlapNum; ii += 4){ */
   getLastCudaError("assignNewDomain_kernel");
 
+#else
 
-  /** determine process rank for each particle to belong */
   for(int ii = 0; ii < numOld; ii++){
 #ifndef NDEBUG
     bool find = false;
 #endif//NDEBUG
-
-    /* この処理を GPU 上でやりたいんだけど，可能?? */
-    /* sendBuf の値を host to device で送り付けてあげないといけない． */
-    /* というわけなので，何か配列を新作しないといけない; */
-    /* sendBuf.num の値の reduction をしないといけないので，そこをどうするか． */
-    /* overlapNum はどれだけ増えても O(10) にしかならないと思う */
-
-    /* overlapNum 個のthread-blocksをたててしまえば良い気がする */
-    /* その中で、大量に threads をたてて粒子をなめてあげる感じにしてしまう */
-    /* 粒子をなめる回数は増えるが、reduction の大変さはだいぶ楽になるので、実装が簡単になる */
-
-    /* 一応、複数の grids が同時に流れるようにしたいから、2 CUDA streams が同時に流れるぐらいの設定にはしてあげたい */
 
     for(int jj = 0; jj < overlapNum; jj++){
       if( (pos_hst.x[ii] >= sendBuf[jj].xmin) && (pos_hst.x[ii] <= sendBuf[jj].xmax) &&
@@ -1319,6 +1309,7 @@ void exchangeParticles_dev
     }
 #endif//NDEBUG
   }/* for(int ii = 0; ii < numOld; ii++){ */
+#endif
 
 
 #ifdef  MPI_ONE_SIDED_FOR_EXCG
