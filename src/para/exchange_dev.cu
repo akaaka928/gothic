@@ -790,6 +790,50 @@ void  releaseParticlePosition(float  *xhst, float  *yhst, float  *zhst,
 
 
 /**
+ * @fn checkDomainPos_dev
+ *
+ * @brief Error detection before running the kernel
+ *
+ * @sa assignNewDomain_kernel
+ */
+extern "C"
+void checkDomainPos_dev(const deviceProp devProp)
+{
+  __NOTE__("%s\n", "start");
+
+
+  struct cudaFuncAttributes funcAttr;
+  checkCudaErrors(cudaFuncGetAttributes(&funcAttr, assignNewDomain_kernel));
+  if( funcAttr.numRegs != REGISTERS_PER_THREAD_ASSIGN ){
+    fprintf(stderr, "%s(%d): %s\n", __FILE__, __LINE__, __func__);
+    fprintf(stderr, "warning: # of registers used (%d) in assignNewDomain_kernel() is not match with the predicted value (%d).\n", funcAttr.numRegs, REGISTERS_PER_THREAD_ASSIGN);
+    fprintf(stderr, "note: GPUGEN = %d, GPUVER = %d, NTHREADS_ASSIGN = %d.\n", GPUGEN, GPUVER, NTHREADS_ASSIGN);
+    fflush (stderr);
+  }/* if( funcAttr.numRegs != REGISTERS_PER_THREAD_ASSIGN ){ */
+
+  int regLimit = MAX_REGISTERS_PER_SM / (funcAttr.numRegs * NTHREADS_ASSIGN);
+  if( regLimit > (MAX_REGISTERS_PER_SM / NTHREADS_ASSIGN) )
+    regLimit = (MAX_REGISTERS_PER_SM / NTHREADS_ASSIGN);
+  int memLimit = SMEM_SIZE_L1_PREF / funcAttr.sharedSizeBytes;
+  int Nblck = (regLimit <= memLimit) ? regLimit : memLimit;
+  if( Nblck > (MAX_THREADS_PER_SM       / NTHREADS_ASSIGN) )    Nblck = MAX_THREADS_PER_SM       / NTHREADS_ASSIGN;
+  if( Nblck >   MAX_BLOCKS_PER_SM                      )    Nblck = MAX_BLOCKS_PER_SM;
+  if( Nblck > (( MAX_WARPS_PER_SM * 32) / NTHREADS_ASSIGN) )    Nblck = ((MAX_WARPS_PER_SM * 32) / NTHREADS_ASSIGN);
+
+  if( Nblck != NBLOCKS_PER_SM_ASSIGN ){
+    __KILL__(stderr, "ERROR: # of blocks per SM for assignNewDomain_kernel() is mispredicted (%d).\n\tThe limits come from register and shared memory are %d and %d, respectively.\n\tHowever, the expected value of NBLOCKS_PER_SM_ASSIGN defined in src/para/exchange_dev.cu is %d.\n\tAdditional information: # of registers per thread is %d while predicted as %d (GPUGEN = %d, GPUVER = %d).\n", Nblck, regLimit, memLimit, NBLOCKS_PER_SM_ASSIGN, funcAttr.numRegs, REGISTERS_PER_THREAD_ASSIGN, GPUGEN, GPUVER);
+  }/* if( Nblck != NBLOCKS_PER_SM ){ */
+
+  if( (devProp.numSM * NBLOCKS_PER_SM_ASSIGN) > NTHREADS_ASSIGN ){
+    __KILL__(stderr, "ERROR: product (%d) of devProp.numSM(%d) * NBLOCKS_PER_SM_ASSIGN(%d) must be smaller than NTHREADS_ASSIGN(%d) to use shared memory.\n", devProp.numSM * NBLOCKS_PER_SM_ASSIGN, devProp.numSM, NBLOCKS_PER_SM_ASSIGN, NTHREADS_ASSIGN);
+  }/* if( (devProp.numSM * NBLOCKS_PER_SM_ASSIGN) > NTHREADS_ASSIGN ){ */
+
+
+  __NOTE__("%s\n", "end");
+}
+
+
+/**
  * @fn allocateDomainPos
  *
  * @brief Memory allocation to send domain boundary toward device.
@@ -813,6 +857,33 @@ muse allocateDomainPos(float **xmin_dev, float **xmax_dev, float **ymin_dev, flo
   dom->xmin_dev = *xmin_dev;  dom->xmax_dev = *xmax_dev;  dom->xmin_hst = *xmin_hst;  dom->xmax_hst = *xmax_hst;
   dom->ymin_dev = *ymin_dev;  dom->ymax_dev = *ymax_dev;  dom->ymin_hst = *ymin_hst;  dom->ymax_hst = *ymax_hst;
   dom->zmin_dev = *zmin_dev;  dom->zmax_dev = *zmax_dev;  dom->zmin_hst = *zmin_hst;  dom->zmax_hst = *zmax_hst;
+
+
+
+
+
+
+  mycudaMalloc((void **)numNew, Ngpu * sizeof(int));
+  alloc.device += Ngpu * sizeof(int);
+
+  const size_t size = devProp.numSM * NBLOCKS_PER_SM_ASSIGN;
+  mycudaMalloc((void **)gmem, size * sizeof(int4));
+  alloc.device += size * sizeof(int4);
+  mycudaMalloc((void **)gsync0, size * sizeof(int));
+  alloc.device += size * sizeof(int);
+  mycudaMalloc((void **)gsync1, size * sizeof(int));
+  alloc.device += size * sizeof(int);
+
+  dom->numNew = *numNew;
+  dom->gmem = *gmem;
+  dom->gsync0 = *gsync0;
+  dom->gsync1 = *gsync1;
+
+
+  /* check # of blocks launched in assignNewDomain_kernel(); */
+  checkDomainPos_dev(devProp);
+
+
 
 
   __NOTE__("%s\n", "end");
@@ -1255,12 +1326,11 @@ void exchangeParticles_dev
   /** determine process rank for each particle to belong */
 #if 1
   first check of assignNewDomain_kernel at function for malloc;
-/* __global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assignNewDomain_kernel */
-/*      (const int num, int * RESTRICT numNew_gm, READ_ONLY position * RESTRICT ipos, */
-/*       const int domHead, const int domRem, READ_ONLY int * RESTRICT target, READ_ONLY float * RESTRICT xmin, READ_ONLY float * RESTRICT xmax, READ_ONLY float * RESTRICT ymin, READ_ONLY float * RESTRICT ymax, READ_ONLY float * RESTRICT zmin, READ_ONLY float * RESTRICT zmax, */
-/*       int4 * RESTRICT gmem, int * RESTRICT gsync0, int * RESTRICT gsync1) */
+  /* assignNewDomain_kernel() is written below 513-th line */
+  /* memory allocation may be implemented in allocateDomainPos() */
+
   for(int ii = 0; ii < overlapNum; ii += 4){
-    assignNewDomain_kernel<<<devProp.numSM * NBLOCKS_PER_SM_ASSIGN, NTHREADS_ASSIGN>>>(numOld, );
+    assignNewDomain_kernel<<<devProp.numSM * NBLOCKS_PER_SM_ASSIGN, NTHREADS_ASSIGN>>>(numOld, domBoundary.numNew, READ_ONLY position * RESTRICT ipos, const int domHead, const int domRem, key.dstRank_dev, domBoundary.xmin_dev, domBoundary.xmax_dev, domBoundary.ymin_dev, domBoundary.ymax_dev, domBoundary.zmin_dev, domBoundary.zmax_dev, domBoundary.gmem, domBoundary.gsync0, domBoundary.gsync1);
   }/* for(int ii = 0; ii < overlapNum; ii += 4){ */
   getLastCudaError("assignNewDomain_kernel");
 

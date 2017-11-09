@@ -150,6 +150,10 @@ typedef struct
 {
   float *xmin_dev, *xmax_dev, *ymin_dev, *ymax_dev, *zmin_dev, *zmax_dev;
   float *xmin_hst, *xmax_hst, *ymin_hst, *ymax_hst, *zmin_hst, *zmax_hst;
+
+  int *numNew;
+  int4 *gmem;
+  int *gsync0, *gsync1;
 } sendDom;
 
 
