@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2017/11/09 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -132,6 +132,16 @@
 #endif//NTHREADS_DDSORT
 
 
+/**
+ * @def NTHREADS_ASSIGN
+ *
+ * @brief number of threads per block for assignNewDomain_kernel
+ */
+#ifndef NTHREADS_ASSIGN
+#define NTHREADS_ASSIGN (256)
+#endif//NTHREADS_ASSIGN
+
+
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 /* list of functions appeared in ``exchange_dev.cu'' */
 
@@ -150,8 +160,7 @@ typedef struct
 {
   float *xmin_dev, *xmax_dev, *ymin_dev, *ymax_dev, *zmin_dev, *zmax_dev;
   float *xmin_hst, *xmax_hst, *ymin_hst, *ymax_hst, *zmin_hst, *zmax_hst;
-
-  int *numNew;
+  int *numNew, *numNew_hst;
   int4 *gmem;
   int *gsync0, *gsync1;
 } sendDom;
@@ -179,9 +188,12 @@ extern "C"
 				float  *xdev, float  *ydev, float  *zdev,	            int  *rank_hst, int  *rank_dev, int  *idx_dev);
 
   muse allocateDomainPos(float **xmin_dev, float **xmax_dev, float **ymin_dev, float **ymax_dev, float **zmin_dev, float **zmax_dev,
-			 float **xmin_hst, float **xmax_hst, float **ymin_hst, float **ymax_hst, float **zmin_hst, float **zmax_hst, sendDom *dom, const int Ngpu);
+			 float **xmin_hst, float **xmax_hst, float **ymin_hst, float **ymax_hst, float **zmin_hst, float **zmax_hst,
+			 int **numNew, int **numNew_hst, int4 **gmem, int **gsync0, int **gsync1,
+			 sendDom *dom, const int Ngpu, const deviceProp devProp);
   void  releaseDomainPos(float  *xmin_dev, float  *xmax_dev, float  *ymin_dev, float  *ymax_dev, float  *zmin_dev, float  *zmax_dev,
-			 float  *xmin_hst, float  *xmax_hst, float  *ymin_hst, float  *ymax_hst, float  *zmin_hst, float  *zmax_hst);
+			 float  *xmin_hst, float  *xmax_hst, float  *ymin_hst, float  *ymax_hst, float  *zmin_hst, float  *zmax_hst,
+			 int  *numNew, int  *numNew_hst, int4  *gmem, int  *gsync0, int  *gsync1);
 
   void exchangeParticles_dev
   (const int numOld, const ulong Ntot, const int numMax, int *numNew,

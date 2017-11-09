@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/30 (Mon)
+ * @date 2017/11/09 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -44,6 +44,57 @@
 #include "mpicfg.h"
 #include "exchange.h"
 #include "exchange_dev.h"
+
+
+/** tentative treatment for GTX TITAN X: (# of SM = 24) * (# of blocks per SM = 8) = 192 exceeds NTHREADS_ASSIGN */
+#   if  GPUGEN == 52
+#   if  NTHREADS_ASSIGN < 256
+#undef  NTHREADS_ASSIGN
+#define NTHREADS_ASSIGN  (256)
+#endif//NTHREADS_ASSIGN < 256
+#endif//GPUGEN == 52
+
+#   if  GPUGEN >= 60
+/** capacity of shared memory is 64KiB per SM on newer GPUs */
+/** int4 num_sm[NTHREADS_ASSIGN] corresponds 16 * NTHREADS_ASSIGN bytes */
+#define NBLOCKS_PER_SM_ASSIGN (4096 / NTHREADS_ASSIGN)
+#else///GPUGEN >= 60
+/** in L1 cache preferred configuration, capacity of shared memory is 16KiB per SM on older GPUs */
+/** int4 num_sm[NTHREADS_ASSIGN] corresponds 16 * NTHREADS_ASSIGN bytes */
+#define NBLOCKS_PER_SM_ASSIGN (1024 / NTHREADS_ASSIGN)
+#endif//GPUGEN >= 60
+
+#define REGISTERS_PER_THREAD_ASSIGN (32)
+
+/** limitation from number of registers */
+#   if  NBLOCKS_PER_SM_ASSIGN > (MAX_REGISTERS_PER_SM / (REGISTERS_PER_THREAD_ASSIGN * NTHREADS_ASSIGN))
+#undef  NBLOCKS_PER_SM_ASSIGN
+#define NBLOCKS_PER_SM_ASSIGN   (MAX_REGISTERS_PER_SM / (REGISTERS_PER_THREAD_ASSIGN * NTHREADS_ASSIGN))
+#endif//NBLOCKS_PER_SM_ASSIGN > (MAX_REGISTERS_PER_SM / (REGISTERS_PER_THREAD_ASSIGN * NTHREADS_ASSIGN))
+
+/** maximum # of registers per SM */
+#   if  NBLOCKS_PER_SM_ASSIGN > (MAX_THREADS_PER_SM / NTHREADS_ASSIGN)
+#undef  NBLOCKS_PER_SM_ASSIGN
+#define NBLOCKS_PER_SM_ASSIGN   (MAX_THREADS_PER_SM / NTHREADS_ASSIGN)
+#endif//NBLOCKS_PER_SM_ASSIGN > (MAX_THREADS_PER_SM / NTHREADS_ASSIGN)
+
+/** maximum # of resident blocks per SM */
+#   if  NBLOCKS_PER_SM_ASSIGN > MAX_BLOCKS_PER_SM
+#undef  NBLOCKS_PER_SM_ASSIGN
+#define NBLOCKS_PER_SM_ASSIGN   MAX_BLOCKS_PER_SM
+#endif//NBLOCKS_PER_SM_ASSIGN > MAX_BLOCKS_PER_SM
+
+/** maximum # of resident warps per SM */
+#   if  NBLOCKS_PER_SM_ASSIGN > ((MAX_WARPS_PER_SM * 32) / NTHREADS_ASSIGN)
+#undef  NBLOCKS_PER_SM_ASSIGN
+#define NBLOCKS_PER_SM_ASSIGN   ((MAX_WARPS_PER_SM * 32) / NTHREADS_ASSIGN)
+#endif//NBLOCKS_PER_SM_ASSIGN > ((MAX_WARPS_PER_SM * 32) / NTHREADS_ASSIGN)
+
+/** # of blocks per SM must not be zero */
+#   if  NBLOCKS_PER_SM_ASSIGN < 1
+#undef  NBLOCKS_PER_SM_ASSIGN
+#define NBLOCKS_PER_SM_ASSIGN  (1)
+#endif//NBLOCKS_PER_SM_ASSIGN < 1
 
 
 /**
@@ -840,7 +891,9 @@ void checkDomainPos_dev(const deviceProp devProp)
  */
 extern "C"
 muse allocateDomainPos(float **xmin_dev, float **xmax_dev, float **ymin_dev, float **ymax_dev, float **zmin_dev, float **zmax_dev,
-		       float **xmin_hst, float **xmax_hst, float **ymin_hst, float **ymax_hst, float **zmin_hst, float **zmax_hst, sendDom *dom, const int Ngpu)
+		       float **xmin_hst, float **xmax_hst, float **ymin_hst, float **ymax_hst, float **zmin_hst, float **zmax_hst,
+		       int **numNew, int **numNew_hst, int4 **gmem, int **gsync0, int **gsync1,
+		       sendDom *dom, const int Ngpu, const deviceProp devProp)
 {
   __NOTE__("%s\n", "start");
 
@@ -859,31 +912,24 @@ muse allocateDomainPos(float **xmin_dev, float **xmax_dev, float **ymin_dev, flo
   dom->zmin_dev = *zmin_dev;  dom->zmax_dev = *zmax_dev;  dom->zmin_hst = *zmin_hst;  dom->zmax_hst = *zmax_hst;
 
 
-
-
-
-
-  mycudaMalloc((void **)numNew, Ngpu * sizeof(int));
-  alloc.device += Ngpu * sizeof(int);
+  /* number of elements for *numNew must be multiple of 4 */
+  const size_t num = ((Ngpu % 4) == 0) ? Ngpu : (Ngpu + (4 - (Ngpu % 4)));
+  mycudaMalloc    ((void **)numNew    , num * sizeof(int));  alloc.device += num * sizeof(int);
+  mycudaMallocHost((void **)numNew_hst, num * sizeof(int));  alloc.host   += num * sizeof(int);
 
   const size_t size = devProp.numSM * NBLOCKS_PER_SM_ASSIGN;
-  mycudaMalloc((void **)gmem, size * sizeof(int4));
-  alloc.device += size * sizeof(int4);
-  mycudaMalloc((void **)gsync0, size * sizeof(int));
-  alloc.device += size * sizeof(int);
-  mycudaMalloc((void **)gsync1, size * sizeof(int));
-  alloc.device += size * sizeof(int);
+  mycudaMalloc((void **)gmem  , size * sizeof(int4));  alloc.device += size * sizeof(int4);
+  mycudaMalloc((void **)gsync0, size * sizeof(int ));  alloc.device += size * sizeof(int);
+  mycudaMalloc((void **)gsync1, size * sizeof(int ));  alloc.device += size * sizeof(int);
 
-  dom->numNew = *numNew;
-  dom->gmem = *gmem;
+  dom->numNew     = *numNew;
+  dom->numNew_hst = *numNew_hst;
+  dom->gmem   = *gmem;
   dom->gsync0 = *gsync0;
   dom->gsync1 = *gsync1;
 
-
   /* check # of blocks launched in assignNewDomain_kernel(); */
   checkDomainPos_dev(devProp);
-
-
 
 
   __NOTE__("%s\n", "end");
@@ -897,12 +943,17 @@ muse allocateDomainPos(float **xmin_dev, float **xmax_dev, float **ymin_dev, flo
  */
 extern "C"
 void  releaseDomainPos(float  *xmin_dev, float  *xmax_dev, float  *ymin_dev, float  *ymax_dev, float  *zmin_dev, float  *zmax_dev,
-		       float  *xmin_hst, float  *xmax_hst, float  *ymin_hst, float  *ymax_hst, float  *zmin_hst, float  *zmax_hst)
+		       float  *xmin_hst, float  *xmax_hst, float  *ymin_hst, float  *ymax_hst, float  *zmin_hst, float  *zmax_hst,
+		       int  *numNew, int  *numNew_hst, int4  *gmem, int  *gsync0, int  *gsync1)
 {
   __NOTE__("%s\n", "start");
 
   mycudaFree    (xmin_dev);  mycudaFree    (xmax_dev);  mycudaFree    (ymin_dev);  mycudaFree    (ymax_dev);  mycudaFree    (zmin_dev);  mycudaFree    (zmax_dev);
   mycudaFreeHost(xmin_hst);  mycudaFreeHost(xmax_hst);  mycudaFreeHost(ymin_hst);  mycudaFreeHost(ymax_hst);  mycudaFreeHost(zmin_hst);  mycudaFreeHost(zmax_hst);
+
+  mycudaFree(numNew);  mycudaFreeHost(numNew_hst);
+  mycudaFree(gmem);
+  mycudaFree(gsync0);  mycudaFree(gsync1);
 
   __NOTE__("%s\n", "end");
 }
@@ -1240,16 +1291,6 @@ void exchangeParticles_dev
 #endif//CARE_EXTERNAL_PARTICLES
 
 
-
-
-
-
-
-
-
-
-
-
   /** exchange N-body particles */
   const int numProcs = mpi.size;
   for(int ii = 0; ii < numProcs; ii++){
@@ -1287,9 +1328,7 @@ void exchangeParticles_dev
       domBoundary.xmax_hst[overlapNum] = (domain.xmax[ii] >  0.25f * FLT_MAX) ? (domain.xmax[ii]) : ((max.x < domain.xmax[ii]) ? (max.x) : (domain.xmax[ii]));
       domBoundary.ymax_hst[overlapNum] = (domain.ymax[ii] >  0.25f * FLT_MAX) ? (domain.ymax[ii]) : ((max.y < domain.ymax[ii]) ? (max.y) : (domain.ymax[ii]));
       domBoundary.zmax_hst[overlapNum] = (domain.zmax[ii] >  0.25f * FLT_MAX) ? (domain.zmax[ii]) : ((max.z < domain.zmax[ii]) ? (max.z) : (domain.zmax[ii]));
-
 #else
-
       sendBuf[overlapNum].xmin = (domain.xmin[ii] < -0.25f * FLT_MAX) ? (domain.xmin[ii]) : ((min.x > domain.xmin[ii]) ? (min.x) : (domain.xmin[ii]));
       sendBuf[overlapNum].ymin = (domain.ymin[ii] < -0.25f * FLT_MAX) ? (domain.ymin[ii]) : ((min.y > domain.ymin[ii]) ? (min.y) : (domain.ymin[ii]));
       sendBuf[overlapNum].zmin = (domain.zmin[ii] < -0.25f * FLT_MAX) ? (domain.zmin[ii]) : ((min.z > domain.zmin[ii]) ? (min.z) : (domain.zmin[ii]));
@@ -1325,12 +1364,8 @@ void exchangeParticles_dev
 
   /** determine process rank for each particle to belong */
 #if 1
-  first check of assignNewDomain_kernel at function for malloc;
-  /* assignNewDomain_kernel() is written below 513-th line */
-  /* memory allocation may be implemented in allocateDomainPos() */
-
   for(int ii = 0; ii < overlapNum; ii += 4){
-    assignNewDomain_kernel<<<devProp.numSM * NBLOCKS_PER_SM_ASSIGN, NTHREADS_ASSIGN>>>(numOld, domBoundary.numNew, READ_ONLY position * RESTRICT ipos, const int domHead, const int domRem, key.dstRank_dev, domBoundary.xmin_dev, domBoundary.xmax_dev, domBoundary.ymin_dev, domBoundary.ymax_dev, domBoundary.zmin_dev, domBoundary.zmax_dev, domBoundary.gmem, domBoundary.gsync0, domBoundary.gsync1);
+    assignNewDomain_kernel<<<devProp.numSM * NBLOCKS_PER_SM_ASSIGN, NTHREADS_ASSIGN>>>(numOld, domBoundary.numNew, (*src_dev).pos, ii, overlapNum - ii, key.dstRank_dev, domBoundary.xmin_dev, domBoundary.xmax_dev, domBoundary.ymin_dev, domBoundary.ymax_dev, domBoundary.zmin_dev, domBoundary.zmax_dev, domBoundary.gmem, domBoundary.gsync0, domBoundary.gsync1);
   }/* for(int ii = 0; ii < overlapNum; ii += 4){ */
   getLastCudaError("assignNewDomain_kernel");
 
@@ -1382,12 +1417,21 @@ void exchangeParticles_dev
 #endif
 
 
+  checkCudaErrors(cudaMemcpy(domBoundary.numNew_hst, domBoundary.numNew, overlapNum * sizeof(int), cudaMemcpyDeviceToHost));
+
+
 #ifdef  MPI_ONE_SIDED_FOR_EXCG
   sendBuf[0].body.head = 0;
 #else///MPI_ONE_SIDED_FOR_EXCG
   sendBuf[0].     head = 0;
 #endif//MPI_ONE_SIDED_FOR_EXCG
   for(int ii = 0; ii < overlapNum; ii++){
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+    sendBuf[ii].body.num = domBoundary.numNew_hst[ii];
+#else///MPI_ONE_SIDED_FOR_EXCG
+    sendBuf[ii].     num = domBoundary.numNew_hst[ii];
+#endif//MPI_ONE_SIDED_FOR_EXCG
+
     if( ii > 0 ){
 #ifdef  MPI_ONE_SIDED_FOR_EXCG
       sendBuf[ii].body.head = sendBuf[ii - 1].body.head + sendBuf[ii - 1].body.num;
@@ -1502,22 +1546,6 @@ void exchangeParticles_dev
       recvHead += recvBuf[ii].body.num;
     }/* if( recvBuf[ii].body.num != 0 ){ */
   }/* for(int ii = 0; ii < numProcs; ii++){ */
-
-
-
-
-
-
-
-
-
-#if 0
-  for(int ii = 0; ii < numProcs; ii++){
-    chkMPIerr(MPI_Win_flush(let[ii].rank, mpi.win_more));
-  }/* for(int ii = 0; ii < numProcs; ii++){ */
-#endif
-
-
 
 
 #ifndef MPI_VIA_HOST
@@ -1635,12 +1663,6 @@ void exchangeParticles_dev
 	recvBuf[ii + 1].head = recvBuf[ii].head + recvBuf[ii].num;
     }/* if( recvBuf[ii].num != 0 ){ */
   }/* for(int ii = 0; ii < numProcs; ii++){ */
-#endif//MPI_ONE_SIDED_FOR_EXCG
-
-  if( *numNew > numMax ){
-    __KILL__(stderr, "ERROR: # of required receive buffer (%d) exceeds the maximum number of particles per process (%d).\n\tsuggestion: consider increasing \"MAX_FACTOR_INCREASE\" or \"MAX_FACTOR_SAFETY\" defined in src/para/mpicfg.h (current values are %f and %f, respectively) at least %e times.\n", *numNew, numMax, MAX_FACTOR_INCREASE, MAX_FACTOR_SAFETY, (float)(*numNew) / (float)numMax);
-  }/* if( *numNew > numMax ){ */
-
 
   /** complete MPI communications */
   for(int ii = 0; ii < overlapNum; ii++){
@@ -1676,7 +1698,14 @@ void exchangeParticles_dev
       MPI_Status  idx;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. idx), &idx));
     }/* if( recvBuf[ii].num != 0 ){ */
 
+#endif//MPI_ONE_SIDED_FOR_EXCG
+
+
   /** confirmation */
+  if( *numNew > numMax ){
+    __KILL__(stderr, "ERROR: # of required receive buffer (%d) exceeds the maximum number of particles per process (%d).\n\tsuggestion: consider increasing \"MAX_FACTOR_INCREASE\" or \"MAX_FACTOR_SAFETY\" defined in src/para/mpicfg.h (current values are %f and %f, respectively) at least %e times.\n", *numNew, numMax, MAX_FACTOR_INCREASE, MAX_FACTOR_SAFETY, (float)(*numNew) / (float)numMax);
+  }/* if( *numNew > numMax ){ */
+
   const int diff = (*numNew) - numOld;
   int diff_sum;
   chkMPIerr(MPI_Reduce(&diff, &diff_sum, 1, MPI_INT, MPI_SUM, 0, mpi.comm));
@@ -1684,8 +1713,6 @@ void exchangeParticles_dev
     if( diff_sum != 0 ){
       __KILL__(stderr, "ERROR: domain decomposition cause some error (duplication of %d particles)\n", diff_sum);
     }/* if( diff_sum != 0 ){ */
-
-#endif//MPI_ONE_SIDED_FOR_EXCG
 
 
 #ifdef  MPI_VIA_HOST
