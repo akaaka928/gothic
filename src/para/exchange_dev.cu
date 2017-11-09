@@ -563,7 +563,7 @@ static inline void copyParticlePositionAsync_dev2hst(const int Ni, position * RE
  */
 __global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assignNewDomain_kernel
      (const int num, int * RESTRICT numNew_gm, READ_ONLY position * RESTRICT ipos,
-      const int domHead, const int domRem, READ_ONLY int * RESTRICT target, READ_ONLY float * RESTRICT xmin, READ_ONLY float * RESTRICT xmax, READ_ONLY float * RESTRICT ymin, READ_ONLY float * RESTRICT ymax, READ_ONLY float * RESTRICT zmin, READ_ONLY float * RESTRICT zmax,
+      const int domHead, const int domRem, READ_ONLY int * RESTRICT domRank, int * RESTRICT dstRank, READ_ONLY float * RESTRICT xmin, READ_ONLY float * RESTRICT xmax, READ_ONLY float * RESTRICT ymin, READ_ONLY float * RESTRICT ymax, READ_ONLY float * RESTRICT zmin, READ_ONLY float * RESTRICT zmax,
       int4 * RESTRICT gmem, int * RESTRICT gsync0, int * RESTRICT gsync1)
 {
   /** identify thread properties */
@@ -590,10 +590,10 @@ __global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assign
     boxmax_sm[tidx].z = zmax[domHead + tidx];
 
     switch( tidx ){
-    case 0:      rank_sm.x = target[domHead    ];      break;
-    case 1:      rank_sm.y = target[domHead + 1];      break;
-    case 2:      rank_sm.z = target[domHead + 2];      break;
-    case 3:      rank_sm.w = target[domHead + 3];      break;
+    case 0:      rank_sm.x = domRank[domHead    ];      break;
+    case 1:      rank_sm.y = domRank[domHead + 1];      break;
+    case 2:      rank_sm.z = domRank[domHead + 2];      break;
+    case 3:      rank_sm.w = domRank[domHead + 3];      break;
     }/* switch( tidx ){ */
   }/* if( tidx < domNum ){ */
   else{
@@ -892,7 +892,7 @@ void checkDomainPos_dev(const deviceProp devProp)
 extern "C"
 muse allocateDomainPos(float **xmin_dev, float **xmax_dev, float **ymin_dev, float **ymax_dev, float **zmin_dev, float **zmax_dev,
 		       float **xmin_hst, float **xmax_hst, float **ymin_hst, float **ymax_hst, float **zmin_hst, float **zmax_hst,
-		       int **numNew, int **numNew_hst, int4 **gmem, int **gsync0, int **gsync1,
+		       int **rank, int **rank_hst, int **numNew, int **numNew_hst, int4 **gmem, int **gsync0, int **gsync1,
 		       sendDom *dom, const int Ngpu, const deviceProp devProp)
 {
   __NOTE__("%s\n", "start");
@@ -912,6 +912,9 @@ muse allocateDomainPos(float **xmin_dev, float **xmax_dev, float **ymin_dev, flo
   dom->zmin_dev = *zmin_dev;  dom->zmax_dev = *zmax_dev;  dom->zmin_hst = *zmin_hst;  dom->zmax_hst = *zmax_hst;
 
 
+  mycudaMalloc    ((void **)rank    , Ngpu * sizeof(int));  alloc.device += Ngpu * sizeof(int);
+  mycudaMallocHost((void **)rank_hst, Ngpu * sizeof(int));  alloc.host   += Ngpu * sizeof(int);
+
   /* number of elements for *numNew must be multiple of 4 */
   const size_t num = ((Ngpu % 4) == 0) ? Ngpu : (Ngpu + (4 - (Ngpu % 4)));
   mycudaMalloc    ((void **)numNew    , num * sizeof(int));  alloc.device += num * sizeof(int);
@@ -922,8 +925,8 @@ muse allocateDomainPos(float **xmin_dev, float **xmax_dev, float **ymin_dev, flo
   mycudaMalloc((void **)gsync0, size * sizeof(int ));  alloc.device += size * sizeof(int);
   mycudaMalloc((void **)gsync1, size * sizeof(int ));  alloc.device += size * sizeof(int);
 
-  dom->numNew     = *numNew;
-  dom->numNew_hst = *numNew_hst;
+  dom->rank   = *rank  ;  dom->  rank_hst = *  rank_hst;
+  dom->numNew = *numNew;  dom->numNew_hst = *numNew_hst;
   dom->gmem   = *gmem;
   dom->gsync0 = *gsync0;
   dom->gsync1 = *gsync1;
@@ -944,13 +947,14 @@ muse allocateDomainPos(float **xmin_dev, float **xmax_dev, float **ymin_dev, flo
 extern "C"
 void  releaseDomainPos(float  *xmin_dev, float  *xmax_dev, float  *ymin_dev, float  *ymax_dev, float  *zmin_dev, float  *zmax_dev,
 		       float  *xmin_hst, float  *xmax_hst, float  *ymin_hst, float  *ymax_hst, float  *zmin_hst, float  *zmax_hst,
-		       int  *numNew, int  *numNew_hst, int4  *gmem, int  *gsync0, int  *gsync1)
+		       int  *rank, int  *rank_hst, int  *numNew, int  *numNew_hst, int4  *gmem, int  *gsync0, int  *gsync1)
 {
   __NOTE__("%s\n", "start");
 
   mycudaFree    (xmin_dev);  mycudaFree    (xmax_dev);  mycudaFree    (ymin_dev);  mycudaFree    (ymax_dev);  mycudaFree    (zmin_dev);  mycudaFree    (zmax_dev);
   mycudaFreeHost(xmin_hst);  mycudaFreeHost(xmax_hst);  mycudaFreeHost(ymin_hst);  mycudaFreeHost(ymax_hst);  mycudaFreeHost(zmin_hst);  mycudaFreeHost(zmax_hst);
 
+  mycudaFree(rank);  mycudaFreeHost(rank_hst);
   mycudaFree(numNew);  mycudaFreeHost(numNew_hst);
   mycudaFree(gmem);
   mycudaFree(gsync0);  mycudaFree(gsync1);
@@ -1028,7 +1032,7 @@ void exchangeParticles_dev
   for(int iter = 0; iter < Niter; iter++){
     int Nblck = (Nrem < MAX_BLOCKS_PER_GRID) ? Nrem : MAX_BLOCKS_PER_GRID;
     int Nsub = Nblck * NTHREADS_PICKUP;
-    pickupSamples_kernel<<<Nblck, NTHREADS_PICKUP>>>(sendNum, iskip, (*src_dev).pos, loc.x_dev, loc.y_dev, loc.z_dev, offset);
+    pickupSamples_kernel<<<Nblck, NTHREADS_PICKUP>>>(sendNum, iskip, (*src_dev).pos, loc.x_dev, loc.y_dev, loc.z_dev, hidx);
 
     hidx += Nsub;
     Nrem -= Nblck;
@@ -1314,11 +1318,12 @@ void exchangeParticles_dev
 	(min.z <= domain.zmax[ii]) && (max.z >= domain.zmin[ii]) ){
       /** if spatial overlap is detected, ... */
       sendBuf[overlapNum].rank = ii;
-#ifdef  MPI_ONE_SIDED_FOR_EXCG
-      sendBuf[overlapNum].body.num = 0;
-#else///MPI_ONE_SIDED_FOR_EXCG
-      sendBuf[overlapNum].     num = 0;
-#endif//MPI_ONE_SIDED_FOR_EXCG
+      domBoundary.rank_hst[overlapNum] = ii;
+/* #ifdef  MPI_ONE_SIDED_FOR_EXCG */
+/*       sendBuf[overlapNum].body.num = 0; */
+/* #else///MPI_ONE_SIDED_FOR_EXCG */
+/*       sendBuf[overlapNum].     num = 0; */
+/* #endif//MPI_ONE_SIDED_FOR_EXCG */
 
 #if 1
       domBoundary.xmin_hst[overlapNum] = (domain.xmin[ii] < -0.25f * FLT_MAX) ? (domain.xmin[ii]) : ((min.x > domain.xmin[ii]) ? (min.x) : (domain.xmin[ii]));
@@ -1354,6 +1359,7 @@ void exchangeParticles_dev
 
 
   /** send domBoundary from host to device */
+  checkCudaErrors(cudaMemcpy(domBoundary.rank    , domBoundary.rank_hst, sizeof(int)   * overlapNum, cudaMemcpyHostToDevice));
   checkCudaErrors(cudaMemcpy(domBoundary.xmin_dev, domBoundary.xmin_hst, sizeof(float) * overlapNum, cudaMemcpyHostToDevice));
   checkCudaErrors(cudaMemcpy(domBoundary.xmax_dev, domBoundary.xmax_hst, sizeof(float) * overlapNum, cudaMemcpyHostToDevice));
   checkCudaErrors(cudaMemcpy(domBoundary.ymin_dev, domBoundary.ymin_hst, sizeof(float) * overlapNum, cudaMemcpyHostToDevice));
@@ -1365,7 +1371,7 @@ void exchangeParticles_dev
   /** determine process rank for each particle to belong */
 #if 1
   for(int ii = 0; ii < overlapNum; ii += 4){
-    assignNewDomain_kernel<<<devProp.numSM * NBLOCKS_PER_SM_ASSIGN, NTHREADS_ASSIGN>>>(numOld, domBoundary.numNew, (*src_dev).pos, ii, overlapNum - ii, key.dstRank_dev, domBoundary.xmin_dev, domBoundary.xmax_dev, domBoundary.ymin_dev, domBoundary.ymax_dev, domBoundary.zmin_dev, domBoundary.zmax_dev, domBoundary.gmem, domBoundary.gsync0, domBoundary.gsync1);
+    assignNewDomain_kernel<<<devProp.numSM * NBLOCKS_PER_SM_ASSIGN, NTHREADS_ASSIGN>>>(numOld, domBoundary.numNew, (*src_dev).pos, ii, overlapNum - ii, domBoundary.rank, key.dstRank_dev, domBoundary.xmin_dev, domBoundary.xmax_dev, domBoundary.ymin_dev, domBoundary.ymax_dev, domBoundary.zmin_dev, domBoundary.zmax_dev, domBoundary.gmem, domBoundary.gsync0, domBoundary.gsync1);
   }/* for(int ii = 0; ii < overlapNum; ii += 4){ */
   getLastCudaError("assignNewDomain_kernel");
 
@@ -1447,10 +1453,17 @@ void exchangeParticles_dev
 #endif//MPI_ONE_SIDED_FOR_EXCG
   }/* for(int ii = 0; ii < overlapNum; ii++){ */
 
+#ifdef  MPI_ONE_SIDED_FOR_EXCG
+  if( (sendBuf[overlapNum - 1].body.head + sendBuf[overlapNum - 1].body.num) != numOld ){
+    __KILL__(stderr, "ERROR: total number of scattered particles (%d) is differ from that of local particles (%d)\n",
+	     sendBuf[overlapNum - 1].body.head + sendBuf[overlapNum - 1].body.num, numOld);
+  }
+#else///MPI_ONE_SIDED_FOR_EXCG
   if( (sendBuf[overlapNum - 1].head + sendBuf[overlapNum - 1].num) != numOld ){
     __KILL__(stderr, "ERROR: total number of scattered particles (%d) is differ from that of local particles (%d)\n",
 	     sendBuf[overlapNum - 1].head + sendBuf[overlapNum - 1].num, numOld);
   }
+#endif//MPI_ONE_SIDED_FOR_EXCG
 
   sortDomainDecomposeKey(numOld, key, src_dev, dst_dev);
 

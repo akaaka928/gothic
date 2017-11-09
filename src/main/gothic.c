@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2017/11/09 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -943,6 +943,7 @@ int main(int argc, char **argv)
 					    &sxmin, &sxmax, &symin, &symax, &szmin, &szmax,
 					    &iparticleSendBuf, &iparticleRecvBuf, &sampleRecvNum, &sampleRecvDsp,
 					    ormCfg, repCfg, Nx, Ny, Nz, &letcfg, &domCfg, &sample, Ntot);
+
   /* float4 *pmin_hst, *pmax_hst, *pmin_dev, *pmax_dev; */
   /* int *gsync_box0, *gsync_box1; */
   /* soaBoxSize soaBox; */
@@ -961,9 +962,15 @@ int main(int argc, char **argv)
 
   float *xmin_dev, *xmax_dev, *ymin_dev, *ymax_dev, *zmin_dev, *zmax_dev;
   float *xmin_hst, *xmax_hst, *ymin_hst, *ymax_hst, *zmin_hst, *zmax_hst;
+  int *domrank_dev, *domrank_hst;
+  int *numNew_dev, *numNew_hst;
+  int4 *gmem_dom;
+  int *gsync0_dom, *gsync1_dom;
   sendDom domBoundary;
   const muse alloc_dom = allocateDomainPos(&xmin_dev, &xmax_dev, &ymin_dev, &ymax_dev, &zmin_dev, &zmax_dev,
-					   &xmin_hst, &xmax_hst, &ymin_hst, &ymax_hst, &zmin_hst, &zmax_hst, &domBoundary, letcfg.size);
+					   &xmin_hst, &xmax_hst, &ymin_hst, &ymax_hst, &zmin_hst, &zmax_hst,
+					   &domrank_dev, &domrank_hst, &numNew_dev, &numNew_hst, &gmem_dom, &gsync0_dom, &gsync1_dom,
+					   &domBoundary, letcfg.size, devProp);
 
   soaGEO soaGEO_dev;
   real *r2geo_dev;
@@ -2549,7 +2556,8 @@ int main(int argc, char **argv)
 		   x0dev, x1dev, y0dev, y1dev, z0dev, z1dev, iddev);
   releaseParticlePosition(xhst, yhst, zhst, xdev, ydev, zdev, rank_hst, rank_dev, idx_dev);
   releaseDomainPos(xmin_dev, xmax_dev, ymin_dev, ymax_dev, zmin_dev, zmax_dev,
-		   xmin_hst, xmax_hst, ymin_hst, ymax_hst, zmin_hst, zmax_hst);
+		   xmin_hst, xmax_hst, ymin_hst, ymax_hst, zmin_hst, zmax_hst,
+		   domrank_dev, domrank_hst, numNew_dev, numNew_hst, gmem_dom, gsync0_dom, gsync1_dom);
 
   freeGeometricEnclosingBall_dev(r2geo_dev);
 #endif//SERIALIZED_EXECUTION

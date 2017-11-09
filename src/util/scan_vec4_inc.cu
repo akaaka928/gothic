@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2017/11/09 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -152,6 +152,8 @@ __device__ __forceinline__ Type PREFIX_SUM_VEC4_GRID
 
   /** global prefix sum is necessary only if number of blocks is greater than unity */
   if( bnum > 1 ){
+    const Type zero = {0, 0, 0, 0};
+
     /** share local prefix sum via global memory */
     /** store data on the global memory */
     if( tidx == (NTHREADS_SCAN_VEC4_INC - 1) )
@@ -164,12 +166,12 @@ __device__ __forceinline__ Type PREFIX_SUM_VEC4_GRID
     /** calculate global prefix sum by a representative block */
     if( bidx == 0 ){
       const int Nloop = BLOCKSIZE(bnum, NTHREADS_SCAN_VEC4_INC);
-      Type head = {0, 0, 0, 0};
+      Type head = zero;
       for(int loop = 0; loop < Nloop; loop++){
 	const int target = tidx + loop * NTHREADS_SCAN_VEC4_INC;
 
 	/** load from the global memory */
-	Type pidx = ((target < bnum) ? ldvec(gmem[target]) : {0, 0, 0, 0});
+	Type pidx = ((target < bnum) ? ldvec(gmem[target]) : zero);
 
 	/** calculate local prefix sum */
 	PREFIX_SUM_VEC4_BLCK(pidx, smem, lane, tidx);
@@ -181,10 +183,10 @@ __device__ __forceinline__ Type PREFIX_SUM_VEC4_GRID
 	  stvec((Type *)gmem, target, tmp);
 	}/* if( target < bnum ){ */
 
-	head.x += smem[NTHREADS_SCAN_INC - 1].x;
-	head.y += smem[NTHREADS_SCAN_INC - 1].y;
-	head.z += smem[NTHREADS_SCAN_INC - 1].z;
-	head.w += smem[NTHREADS_SCAN_INC - 1].w;
+	head.x += smem[NTHREADS_SCAN_VEC4_INC - 1].x;
+	head.y += smem[NTHREADS_SCAN_VEC4_INC - 1].y;
+	head.z += smem[NTHREADS_SCAN_VEC4_INC - 1].z;
+	head.w += smem[NTHREADS_SCAN_VEC4_INC - 1].w;
 	if( loop != (Nloop - 1) )
 	  __syncthreads();
       }/* for(int loop = 0; loop < Nloop; loop++){ */
@@ -196,7 +198,7 @@ __device__ __forceinline__ Type PREFIX_SUM_VEC4_GRID
 
     /** load from the global memory */
     if( tidx < 2 )
-      stvec((Type *)smem, tidx, (tidx == 0) ? ((bidx > 0) ? ldvec(gmem[bidx - 1]) : {0, 0, 0, 0}) : ldvec(gmem[bnum - 1]));
+      stvec((Type *)smem, tidx, (tidx == 0) ? ((bidx > 0) ? ldvec(gmem[bidx - 1]) : zero) : ldvec(gmem[bnum - 1]));
     __syncthreads();
 
     Type psub = ldvec(smem[0]);
@@ -228,15 +230,17 @@ __device__ __forceinline__ Type PREFIX_SUM_VEC4_GRID_WITH_PARTITION
  Type * __restrict__ headIdx, Type * __restrict__ scanNum,
  volatile Type * __restrict__ gmem, const int bidx, const int bnum, int * __restrict__ gsync0, int * __restrict__ gsync1)
 {
+  const Type zero = {0, 0, 0, 0};
+
   Type scan = PREFIX_SUM_VEC4_BLCK(val, smem, lane, tidx);
-  *headIdx = {0, 0, 0, 0};
-  *scanNum = ldvec(smem[NTHREADS_SCAN_INC - 1]);
+  *headIdx = zero;
+  *scanNum = ldvec(smem[NTHREADS_SCAN_VEC4_INC - 1]);
 
   /** global prefix sum is necessary only if number of blocks is greater than unity */
   if( bnum > 1 ){
     /** share local prefix sum via global memory */
     /** store data on the global memory */
-    if( tidx == (NTHREADS_SCAN_INC - 1) )
+    if( tidx == (NTHREADS_SCAN_VEC4_INC - 1) )
       stvec((Type *)gmem, bidx, scan);
 
     /** global synchronization within bnum blocks */
@@ -245,13 +249,13 @@ __device__ __forceinline__ Type PREFIX_SUM_VEC4_GRID_WITH_PARTITION
 
     /** calculate global prefix sum by a representative block */
     if( bidx == 0 ){
-      const int Nloop = BLOCKSIZE(bnum, NTHREADS_SCAN_INC);
-      Type head = {0, 0, 0, 0};
+      const int Nloop = BLOCKSIZE(bnum, NTHREADS_SCAN_VEC4_INC);
+      Type head = zero;
       for(int loop = 0; loop < Nloop; loop++){
-	const int target = tidx + loop * NTHREADS_SCAN_INC;
+	const int target = tidx + loop * NTHREADS_SCAN_VEC4_INC;
 
 	/** load from the global memory */
-	Type pidx = ((target < bnum) ? ldvec(gmem[target]) : {0, 0, 0, 0});
+	Type pidx = ((target < bnum) ? ldvec(gmem[target]) : zero);
 
 	/** calculate local prefix sum */
 	PREFIX_SUM_VEC4_BLCK(pidx, smem, lane, tidx);
@@ -263,10 +267,10 @@ __device__ __forceinline__ Type PREFIX_SUM_VEC4_GRID_WITH_PARTITION
 	  stvec((Type *)gmem, target, tmp);
 	}/* if( target < bnum ){ */
 
-	head.x += smem[NTHREADS_SCAN_INC - 1].x;
-	head.y += smem[NTHREADS_SCAN_INC - 1].y;
-	head.z += smem[NTHREADS_SCAN_INC - 1].z;
-	head.w += smem[NTHREADS_SCAN_INC - 1].w;
+	head.x += smem[NTHREADS_SCAN_VEC4_INC - 1].x;
+	head.y += smem[NTHREADS_SCAN_VEC4_INC - 1].y;
+	head.z += smem[NTHREADS_SCAN_VEC4_INC - 1].z;
+	head.w += smem[NTHREADS_SCAN_VEC4_INC - 1].w;
 	if( loop != (Nloop - 1) )
 	  __syncthreads();
       }/* for(int loop = 0; loop < Nloop; loop++){ */
@@ -278,12 +282,12 @@ __device__ __forceinline__ Type PREFIX_SUM_VEC4_GRID_WITH_PARTITION
 
     /** load from the global memory */
     if( tidx < 2 )
-      stvec((Type *)smem, tidx, (tidx == 0) ? ((bidx > 0) ? ldvec(gmem[bidx - 1]) : {0, 0, 0, 0}) : ldvec(gmem[bnum - 1]));
+      stvec((Type *)smem, tidx, (tidx == 0) ? ((bidx > 0) ? ldvec(gmem[bidx - 1]) : zero) : ldvec(gmem[bnum - 1]));
     __syncthreads();
 
     Type psub = ldvec(smem[0]);
-    *scanNum = ldvec(smem[1]);
-    *headIdx = psub;
+    *scanNum  = ldvec(smem[1]);
+    *headIdx  = psub;
     scan.x += psub.x;    scan.y += psub.y;    scan.z += psub.z;    scan.w += psub.w;
     __syncthreads();
 
@@ -312,7 +316,7 @@ __device__ __forceinline__ Type TOTAL_SUM_VEC4_BLCK(Type val, volatile Type * __
   __syncthreads();
 
   /** warpSize = 32 = 2^5; NTHREADS_SCAN_VEC4_INC <= 1024 --> NTHREADS_SCAN_VEC4_INC >> 5 <= 32 = warpSize */
-  if( tidx < (NTHREADS_SCAN_INC >> 5) ){
+  if( tidx < (NTHREADS_SCAN_VEC4_INC >> 5) ){
     val = ldvec(smem[tidx * warpSize]);
 
     stvec((Type *)smem, tidx, val);
@@ -352,10 +356,12 @@ __device__ __forceinline__ Type TOTAL_SUM_VEC4_GRID
 (Type val, volatile Type * __restrict__ smem, const int tidx, const int head,
  volatile Type * __restrict__ gmem, const int bidx, const int bnum, int * __restrict__ gsync0, int * __restrict__ gsync1)
 {
-  val = TOTAL_SUM_BLCK(val, smem, tidx, head);
+  val = TOTAL_SUM_VEC4_BLCK(val, smem, tidx, head);
 
   /** global prefix sum is necessary only if number of blocks is greater than unity */
   if( bnum > 1 ){
+    const Type zero = {0, 0, 0, 0};
+
     /** share local prefix sum via global memory */
     /** store data on the global memory */
     if( tidx == 0 )
@@ -368,15 +374,15 @@ __device__ __forceinline__ Type TOTAL_SUM_VEC4_GRID
     /** calculate global prefix sum by a representative block */
     if( bidx == 0 ){
       const int Nloop = BLOCKSIZE(bnum, NTHREADS_SCAN_VEC4_INC);
-      Type sum = {0, 0, 0, 0};
+      Type sum = zero;
       for(int loop = 0; loop < Nloop; loop++){
 	const int target = tidx + loop * NTHREADS_SCAN_VEC4_INC;
 
 	/** load from the global memory */
-	Type subset = ((target < bnum) ? ldvec(gmem[target]) : {0, 0, 0, 0});
+	Type subset = ((target < bnum) ? ldvec(gmem[target]) : zero);
 
 	/** calculate partial sum */
-	subset = TOTAL_SUM_BLCK(subset, smem, lane, tidx);
+	subset = TOTAL_SUM_VEC4_BLCK(subset, smem, tidx, head);
 	sum.x += subset.x;	sum.y += subset.y;	sum.z += subset.z;	sum.w += subset.w;
 
 	__syncthreads();

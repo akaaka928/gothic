@@ -105,6 +105,15 @@
 #endif//NTHREADS_SETIDX
 
 /**
+ * @def NTHREADS_PICKUP
+ *
+ * @brief number of threads per block for pickupSamples_kernel
+ */
+#ifndef NTHREADS_PICKUP
+#define NTHREADS_PICKUP (256)
+#endif//NTHREADS_PICKUP
+
+/**
  * @def NTHREADS_SORTYZ
  *
  * @brief number of threads per block for sortSamplePos_yz_kernel
@@ -160,6 +169,7 @@ typedef struct
 {
   float *xmin_dev, *xmax_dev, *ymin_dev, *ymax_dev, *zmin_dev, *zmax_dev;
   float *xmin_hst, *xmax_hst, *ymin_hst, *ymax_hst, *zmin_hst, *zmax_hst;
+  int *rank, *rank_hst;
   int *numNew, *numNew_hst;
   int4 *gmem;
   int *gsync0, *gsync1;
@@ -189,11 +199,11 @@ extern "C"
 
   muse allocateDomainPos(float **xmin_dev, float **xmax_dev, float **ymin_dev, float **ymax_dev, float **zmin_dev, float **zmax_dev,
 			 float **xmin_hst, float **xmax_hst, float **ymin_hst, float **ymax_hst, float **zmin_hst, float **zmax_hst,
-			 int **numNew, int **numNew_hst, int4 **gmem, int **gsync0, int **gsync1,
+			 int **rank, int **rank_hst, int **numNew, int **numNew_hst, int4 **gmem, int **gsync0, int **gsync1,
 			 sendDom *dom, const int Ngpu, const deviceProp devProp);
   void  releaseDomainPos(float  *xmin_dev, float  *xmax_dev, float  *ymin_dev, float  *ymax_dev, float  *zmin_dev, float  *zmax_dev,
 			 float  *xmin_hst, float  *xmax_hst, float  *ymin_hst, float  *ymax_hst, float  *zmin_hst, float  *zmax_hst,
-			 int  *numNew, int  *numNew_hst, int4  *gmem, int  *gsync0, int  *gsync1);
+			 int  *rank, int  *rank_hst, int  *numNew, int  *numNew_hst, int4  *gmem, int  *gsync0, int  *gsync1);
 
   void exchangeParticles_dev
   (const int numOld, const ulong Ntot, const int numMax, int *numNew,

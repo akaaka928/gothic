@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2017/11/09 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -444,7 +444,7 @@ __device__ __forceinline__ Type TOTAL_SUM_GRID
 	Type subset = ((target < bnum) ? gmem[target] : 0);
 
 	/** calculate partial sum */
-	sum += TOTAL_SUM_BLCK(subset, smem, lane, tidx);
+	sum += TOTAL_SUM_BLCK(subset, smem, tidx, head);
 
 	__syncthreads();
       }/* for(int loop = 0; loop < Nloop; loop++){ */
