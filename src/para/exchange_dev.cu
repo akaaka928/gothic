@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/11/09 (Thu)
+ * @date 2017/11/24 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -554,6 +554,16 @@ static inline void copyParticlePositionAsync_dev2hst(const int Ni, position * RE
 #endif
 
 
+/**
+ * @struct union_i4_f4
+ *
+ * @brief union for reducing usage of shared memory
+ */
+typedef union __align__(16)
+{
+  int4 i4;
+  float4 f4;
+} union_i4_f4;
 #define NTHREADS_SCAN_VEC4_INC NTHREADS_ASSIGN
 #include "../util/scan_vec4_inc.cu"
 /**
@@ -576,40 +586,62 @@ __global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assign
   const int ihead = (num *      bidx ) / bnum;
   const int itail = (num * (1 + bidx)) / bnum;
 
+  /* __shared__ int4 num_sm[NTHREADS_ASSIGN]; */
+  __shared__ union_i4_f4 num_sm[NTHREADS_ASSIGN];
 
   /** load boundaries of domains */
   const int domNum = (domRem >= 4) ? 4 : domRem;
-  __shared__ float3 boxmin_sm[4], boxmax_sm[4];
-  __shared__ int4 rank_sm;/* corresponds to sendBuf[jj].rank */
+  /* __shared__ float3 boxmin_sm[4], boxmax_sm[4]; */
+  /* __shared__ int4 rank_sm;/\* corresponds to sendBuf[jj].rank *\/ */
   if( tidx < domNum ){
-    boxmin_sm[tidx].x = xmin[domHead + tidx];
-    boxmax_sm[tidx].x = xmax[domHead + tidx];
-    boxmin_sm[tidx].y = ymin[domHead + tidx];
-    boxmax_sm[tidx].y = ymax[domHead + tidx];
-    boxmin_sm[tidx].z = zmin[domHead + tidx];
-    boxmax_sm[tidx].z = zmax[domHead + tidx];
+    /* boxmin_sm[tidx].x = xmin[domHead + tidx]; */
+    /* boxmax_sm[tidx].x = xmax[domHead + tidx]; */
+    /* boxmin_sm[tidx].y = ymin[domHead + tidx]; */
+    /* boxmax_sm[tidx].y = ymax[domHead + tidx]; */
+    /* boxmin_sm[tidx].z = zmin[domHead + tidx]; */
+    /* boxmax_sm[tidx].z = zmax[domHead + tidx]; */
+    num_sm[    tidx].f4.x = xmin[domHead + tidx];
+    num_sm[4 + tidx].f4.x = xmax[domHead + tidx];
+    num_sm[    tidx].f4.y = ymin[domHead + tidx];
+    num_sm[4 + tidx].f4.y = ymax[domHead + tidx];
+    num_sm[    tidx].f4.z = zmin[domHead + tidx];
+    num_sm[4 + tidx].f4.z = zmax[domHead + tidx];
 
     switch( tidx ){
-    case 0:      rank_sm.x = domRank[domHead    ];      break;
-    case 1:      rank_sm.y = domRank[domHead + 1];      break;
-    case 2:      rank_sm.z = domRank[domHead + 2];      break;
-    case 3:      rank_sm.w = domRank[domHead + 3];      break;
+    /* case 0:      rank_sm.x = domRank[domHead    ];      break; */
+    /* case 1:      rank_sm.y = domRank[domHead + 1];      break; */
+    /* case 2:      rank_sm.z = domRank[domHead + 2];      break; */
+    /* case 3:      rank_sm.w = domRank[domHead + 3];      break; */
+    case 0:      num_sm[8].i4.x = domRank[domHead    ];      break;
+    case 1:      num_sm[8].i4.y = domRank[domHead + 1];      break;
+    case 2:      num_sm[8].i4.z = domRank[domHead + 2];      break;
+    case 3:      num_sm[8].i4.w = domRank[domHead + 3];      break;
     }/* switch( tidx ){ */
   }/* if( tidx < domNum ){ */
   else{
     if( tidx < 4 ){
-      boxmin_sm[tidx].x =  0.25f * FLT_MAX;
-      boxmax_sm[tidx].x = -0.25f * FLT_MAX;
-      boxmin_sm[tidx].y =  0.25f * FLT_MAX;
-      boxmax_sm[tidx].y = -0.25f * FLT_MAX;
-      boxmin_sm[tidx].z =  0.25f * FLT_MAX;
-      boxmax_sm[tidx].z = -0.25f * FLT_MAX;
+      /* boxmin_sm[tidx].x =  0.25f * FLT_MAX; */
+      /* boxmax_sm[tidx].x = -0.25f * FLT_MAX; */
+      /* boxmin_sm[tidx].y =  0.25f * FLT_MAX; */
+      /* boxmax_sm[tidx].y = -0.25f * FLT_MAX; */
+      /* boxmin_sm[tidx].z =  0.25f * FLT_MAX; */
+      /* boxmax_sm[tidx].z = -0.25f * FLT_MAX; */
+      num_sm[    tidx].f4.x =  0.25f * FLT_MAX;
+      num_sm[4 + tidx].f4.x = -0.25f * FLT_MAX;
+      num_sm[    tidx].f4.y =  0.25f * FLT_MAX;
+      num_sm[4 + tidx].f4.y = -0.25f * FLT_MAX;
+      num_sm[    tidx].f4.z =  0.25f * FLT_MAX;
+      num_sm[4 + tidx].f4.z = -0.25f * FLT_MAX;
 
       switch( tidx ){
-      case 3:	rank_sm.x = -1;	break;
-      case 2:	rank_sm.x = -1;	break;
-      case 1:	rank_sm.x = -1;	break;
-      case 0:	rank_sm.x = -1;	break;
+      /* case 3:	rank_sm.x = -1;	break; */
+      /* case 2:	rank_sm.x = -1;	break; */
+      /* case 1:	rank_sm.x = -1;	break; */
+      /* case 0:	rank_sm.x = -1;	break; */
+      case 3:	num_sm[8].i4.x = -1;	break;
+      case 2:	num_sm[8].i4.x = -1;	break;
+      case 1:	num_sm[8].i4.x = -1;	break;
+      case 0:	num_sm[8].i4.x = -1;	break;
       }/* switch( tidx ){ */
     }/* if( tidx < 4 ){ */
   }/* else{ */
@@ -617,7 +649,8 @@ __global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assign
 
 
   /** determine process rank for each particle to belong */
-  const int4 rank = rank_sm;
+  /* const int4 rank = rank_sm; */
+  const int4 rank = num_sm[8].i4;
   int4 numNew = {0, 0, 0, 0};
   for(int ih = ihead; ih < itail; ih += NTHREADS_ASSIGN){
     const int ii = ih + tidx;
@@ -628,9 +661,12 @@ __global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assign
       const float zi = CAST_R2F(pi.z);
 
       for(int jj = 0; jj < domNum; jj++){
-	if( (xi >= boxmin_sm[jj].x) && (xi <= boxmax_sm[jj].x) &&
-	    (yi >= boxmin_sm[jj].y) && (yi <= boxmax_sm[jj].y) &&
-	    (zi >= boxmin_sm[jj].z) && (zi <= boxmax_sm[jj].z) ){
+	/* if( (xi >= boxmin_sm[jj].x) && (xi <= boxmax_sm[jj].x) && */
+	/*     (yi >= boxmin_sm[jj].y) && (yi <= boxmax_sm[jj].y) && */
+	/*     (zi >= boxmin_sm[jj].z) && (zi <= boxmax_sm[jj].z) ){ */
+	if( (xi >= num_sm[jj].f4.x) && (xi <= num_sm[4 + jj].f4.x) &&
+	    (yi >= num_sm[jj].f4.y) && (yi <= num_sm[4 + jj].f4.y) &&
+	    (zi >= num_sm[jj].f4.z) && (zi <= num_sm[4 + jj].f4.z) ){
 
 	  switch( jj ){
 	  case 0:	    dstRank[ii] = rank.x;	    numNew.x++;	    break;
@@ -644,11 +680,11 @@ __global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assign
       }/* for(int jj = 0; jj < domNum; jj++){ */
     }/* if( ii < itail ){ */
   }/* for(int ih = ihead; ih < itail; ih += NTHREADS_ASSIGN){ */
+  __syncthreads();/* additional synchronization to use union */
 
 
   /** reduction about numNew */
-  __shared__ int4 num_sm[NTHREADS_ASSIGN];
-  numNew = TOTAL_SUM_VEC4_GRID(numNew, num_sm, tidx, hidx, gmem, bidx, bnum, gsync0, gsync1);
+  numNew = TOTAL_SUM_VEC4_GRID(numNew, (int4 *)num_sm, tidx, hidx, gmem, bidx, bnum, gsync0, gsync1);
 
 
   /** upload number of N-body particles to be assigned to new computational domain */
@@ -1017,7 +1053,7 @@ void exchangeParticles_dev
 
   /** pick up sample particles */
   /** weight is determined using elapsed time by each process */
-  __NOTE__("rank %d: tloc = %e, numOld = %d, xmin = %e, xmax = %e, ymin = %e, ymax = %e, zmin = %e, zmax = %e\n", mpi.rank, tloc, numOld, min.x, max.x, min.y, max.y, min.z, max.z);
+  __NOTE__("rank %d: tloc = %e, numOld = %d\n", mpi.rank, tloc, numOld);
   double ttot = tloc;
   chkMPIerr(MPI_Allreduce(&tloc, &ttot, 1, MPI_DOUBLE, MPI_SUM, mpi.comm));
   const float frac = fminf((float)(tloc / ttot), MAX_FACTOR_INCREASE / (float)mpi.size);
@@ -1049,11 +1085,13 @@ void exchangeParticles_dev
   checkCudaErrors(cudaMemcpy(loc.x_hst, loc.x_dev, sendNum * sizeof(float), cudaMemcpyDeviceToHost));
   checkCudaErrors(cudaMemcpy(loc.y_hst, loc.y_dev, sendNum * sizeof(float), cudaMemcpyDeviceToHost));
   checkCudaErrors(cudaMemcpy(loc.z_hst, loc.z_dev, sendNum * sizeof(float), cudaMemcpyDeviceToHost));
+  __NOTE__("rank %d: cudaMemcpy from device to host\n", mpi.rank);
 #endif//MPI_VIA_HOST
 
 
   /** gather sampling points to the root process */
   chkMPIerr(MPI_Gather(&sendNum, 1, MPI_INT, sample.rnum, 1, MPI_INT, 0, mpi.comm));
+  __NOTE__("rank %d: MPI_Gather\n", mpi.rank);
 
   /** set receive displacements (root process only) */
   int recvNum = 0;
@@ -1062,10 +1100,13 @@ void exchangeParticles_dev
     for(int jj = 1; jj < mpi.size; jj++)
       sample.disp[jj] = sample.disp[jj - 1] + sample.rnum[jj - 1];
     recvNum = sample.disp[mpi.size - 1] + sample.rnum[mpi.size - 1];
-  }/* if( orm[ii].rank == 0 ){ */
+  }/* if( mpi.rank == 0 ){ */
+  __NOTE__("rank %d: recvNum = %d\n", mpi.rank, recvNum);
 
   /** gather particle data to the root process */
 #ifdef  MPI_ONE_SIDED_FOR_EXCG
+
+  __NOTE__("rank %d: MPI_Get start\n", mpi.rank);
 
   chkMPIerr(MPI_Win_lock_all(0, loc.win_x));
   chkMPIerr(MPI_Win_lock_all(0, loc.win_y));
@@ -1082,16 +1123,23 @@ void exchangeParticles_dev
   chkMPIerr(MPI_Win_unlock_all(loc.win_y));
   chkMPIerr(MPI_Win_unlock_all(loc.win_z));
 
+  __NOTE__("rank %d: MPI_Get finish\n", mpi.rank);
+  /* is MPI_Get failed @ rank = 0?? */
+
 #else///MPI_ONE_SIDED_FOR_EXCG
 
 #ifndef MPI_VIA_HOST
+  __NOTE__("rank %d: MPI_Gatherv start\n", mpi.rank);
   chkMPIerr(MPI_Gatherv(loc.x_dev, sendNum, MPI_FLOAT, ful.x_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
   chkMPIerr(MPI_Gatherv(loc.y_dev, sendNum, MPI_FLOAT, ful.y_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
   chkMPIerr(MPI_Gatherv(loc.z_dev, sendNum, MPI_FLOAT, ful.z_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
+  __NOTE__("rank %d: MPI_Gatherv finish\n", mpi.rank);
 #else///MPI_VIA_HOST
+  __NOTE__("rank %d: MPI_Gatherv start\n", mpi.rank);
   chkMPIerr(MPI_Gatherv(loc.x_hst, sendNum, MPI_FLOAT, ful.x_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
   chkMPIerr(MPI_Gatherv(loc.y_hst, sendNum, MPI_FLOAT, ful.y_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
   chkMPIerr(MPI_Gatherv(loc.z_hst, sendNum, MPI_FLOAT, ful.z_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
+  __NOTE__("rank %d: MPI_Gatherv finish\n", mpi.rank);
 #endif//MPI_VIA_HOST
 
 #endif//MPI_ONE_SIDED_FOR_EXCG
@@ -1107,6 +1155,11 @@ void exchangeParticles_dev
   max.x = soa.max_hst->x;
   max.y = soa.max_hst->y;
   max.z = soa.max_hst->z;
+#if 1
+  cudaDeviceSynchronize();
+  MPI_Barrier(MPI_COMM_WORLD);
+#endif
+  __NOTE__("rank %d: xmin = %e, xmax = %e, ymin = %e, ymax = %e, zmin = %e, zmax = %e\n", mpi.rank, min.x, max.x, min.y, max.y, min.z, max.z);
 
 #ifdef  SHARE_PH_BOX_BOUNDARY
   chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, soa.min_hst, 3, MPI_FLOAT, MPI_MIN, mpi.comm));

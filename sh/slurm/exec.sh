@@ -1,7 +1,8 @@
 #!/bin/bash
 ###############################################################
 #SBATCH -J gothic             # name of job
-#SBATCH -t 24:00:00           # upper limit of elapsed time
+##SBATCH -t 24:00:00           # upper limit of elapsed time
+#SBATCH -t 00:10:00           # upper limit of elapsed time
 #SBATCH -p normal             # partition name
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
 # #SBATCH --ntasks=1            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
