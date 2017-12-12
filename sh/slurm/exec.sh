@@ -311,13 +311,13 @@ echo "start: $TIME"
 ###############################################################
 # execute the job
 if [ `which numactl` ]; then
-    # mpirun with numactl
-    echo "mpirun -np $SLURM_NTASKS sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-    mpirun -np $SLURM_NTASKS sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    # mpiexec with numactl
+    echo "mpiexec -np $SLURM_NTASKS -l -exitinfo sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+    mpiexec -np $SLURM_NTASKS -l -exitinfo sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 else
-    # mpirun without numactl
-    echo "mpirun -np $SLURM_NTASKS $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-    mpirun -np $SLURM_NTASKS $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    # mpiexec without numactl
+    echo "mpiexec -np $SLURM_NTASKS -l -exitinfo $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+    mpiexec -np $SLURM_NTASKS -l -exitinfo $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 fi
 ###############################################################
 # finish logging

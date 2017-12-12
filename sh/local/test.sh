@@ -12,7 +12,7 @@ else
     PROCS=1
 fi
 ###############################################################
-MPIRUN=sh/local/mpirun.sh
+MPIEXEC=sh/local/mpiexec.sh
 EXE=bin/gothic
 PLTENE=bin/plot.energy
 PLTMAP=bin/plot.distribution
@@ -265,8 +265,8 @@ if [ $PROCS -eq 1 ]; then
 echo "$EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
 $EXE -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
 else
-echo "$MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
-$MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
+echo "$MPIEXEC $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
+$MPIEXEC $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
 fi
 TIME=`date`
 echo "$TIME: $EXE finish" >> $LOG

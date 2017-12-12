@@ -296,7 +296,7 @@ STDERR=log/$REQUEST.e$JOB_ID
 export MODULEPATH=$MODULEPATH:$HOME/opt/Modules
 module load intel intel-mpi phdf5
 module load gsl
-module load cuda cub
+module load cuda/8.0.61 cub
 module list 1>>$STDOUT 2>>$STDERR
 ###############################################################
 cat $PE_HOSTFILE 1>>$STDOUT 2>>$STDERR
@@ -314,8 +314,8 @@ echo "NHOSTS: $NHOSTS" 1>>$STDOUT 2>>$STDERR
 #     numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 # else
     # run without numactl
-    echo "mpirun -ppn 1 -n $NQUEUES $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
-    mpirun -ppn 1 -n $NQUEUES $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    echo "mpiexec -ppn 1 -n $NQUEUES -l -exitinfo $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
+    mpiexec -ppn 1 -n $NQUEUES -l -exitinfo $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
     # NQUEUE or NSLOTS or NHOSTS
 # fi
 ###############################################################

@@ -30,13 +30,13 @@ STDERR=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.err
 
 # execute the job
 if [ `which numactl` ]; then
-    # mpirun with numactl
-    echo "mpirun -np $SLURM_NTASKS numactl --cpunodebind=$SOCKET --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-    mpirun -np $SLURM_NTASKS numactl --cpunodebind=$SOCKET --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    # mpiexec with numactl
+    echo "mpiexec -np $SLURM_NTASKS -l -exitinfo numactl --cpunodebind=$SOCKET --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+    mpiexec -np $SLURM_NTASKS -l -exitinfo numactl --cpunodebind=$SOCKET --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 else
-    # mpirun without numactl
-    echo "mpirun -np $SLURM_NTASKS $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-    mpirun -np $SLURM_NTASKS $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    # mpiexec without numactl
+    echo "mpiexec -np $SLURM_NTASKS -l -exitinfo $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+    mpiexec -np $SLURM_NTASKS -l -exitinfo $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 fi
 
 # finish logging

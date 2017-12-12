@@ -305,11 +305,11 @@ echo "start: $TIME"
 ###############################################################
 # execute the job
 if [ `which numactl` ]; then
-    # mpirun with numactl
+    # mpiexec with numactl
     echo "numactl --cpunodebind=0 --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
     numactl --cpunodebind=0 --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 else
-    # mpirun without numactl
+    # mpiexec without numactl
     echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
     $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 fi

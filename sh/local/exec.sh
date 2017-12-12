@@ -33,7 +33,7 @@ fi
 # global configurations
 ###############################################################
 MEMCHK=cuda-memcheck
-MPIRUN=sh/local/mpirun.sh
+MPIEXE=sh/local/mpiexec.sh
 EXE=bin/gothic
 ###############################################################
 # accuracy contoling parameters
@@ -281,11 +281,11 @@ if [ $PROCS -eq 1 ]; then
     fi
 else
     if [ $DO_MEMCHK -eq 0 ]; then
-	echo "$MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
-	$MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
+	echo "$MPIEXE $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
+	$MPIEXE $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
     else
-	echo "$MEMCHK $MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
-	$MEMCHK $MPIRUN $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
+	echo "$MEMCHK $MPIEXE $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR" >> $LOG
+	$MEMCHK $MPIEXE $EXE $PROCS $LOG -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID 1>>$STDOUT 2>>$STDERR
     fi
 fi
 TIME=`date`

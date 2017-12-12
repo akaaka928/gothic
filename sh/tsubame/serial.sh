@@ -296,7 +296,7 @@ STDERR=log/$REQUEST.e$JOB_ID
 export MODULEPATH=$MODULEPATH:$HOME/opt/Modules
 module load intel intel-mpi phdf5
 module load gsl
-module load cuda cub
+module load cuda/8.0.61 cub
 module list 1>>$STDOUT 2>>$STDERR
 ###############################################################
 cat $PE_HOSTFILE 1>>$STDOUT 2>>$STDERR

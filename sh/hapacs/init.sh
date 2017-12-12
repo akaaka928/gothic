@@ -10,11 +10,11 @@
 #PBS -j oe
 ###############################################################
 NTOT=8388608
-SAVE=1380.0
+SAVE=55.0
 ###############################################################
 INI=bin/magi
 ###############################################################
-PROBLEM=1
+PROBLEM=10
 ###############################################################
 #
 #
@@ -27,8 +27,8 @@ FILE=king
 CONFIG=single/king.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=4.0
-INTERVAL=8.0
+FINISH=94.0
+INTERVAL=2.0
 fi
 ###############################################################
 # dynamical stability of a Hernquist sphere
@@ -37,8 +37,8 @@ FILE=hernquist
 CONFIG=single/hernquist.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=4.0
-INTERVAL=8.0
+FINISH=94.0
+INTERVAL=2.0
 fi
 ###############################################################
 # dynamical stability of an NFW sphere with small truncation radius
@@ -47,8 +47,8 @@ FILE=nfw
 CONFIG=single/nfw.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=4.0
-INTERVAL=8.0
+FINISH=94.0
+INTERVAL=2.0
 fi
 ###############################################################
 # dynamical stability of an Einasto profile
@@ -57,8 +57,8 @@ FILE=einasto
 CONFIG=single/einasto.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=4.0
-INTERVAL=8.0
+FINISH=94.0
+INTERVAL=2.0
 fi
 ###############################################################
 # dynamical stability of a Plummer profile
@@ -67,8 +67,8 @@ FILE=plummer
 CONFIG=single/plummer.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=4.0
-INTERVAL=8.0
+FINISH=94.0
+INTERVAL=2.0
 fi
 ###############################################################
 # dynamical stability of a Burkert profile
@@ -77,8 +77,8 @@ FILE=burkert
 CONFIG=single/burkert.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=8.0
-INTERVAL=16.0
+FINISH=94.0
+INTERVAL=2.0
 fi
 ###############################################################
 # dynamical stability of a Moore profile
@@ -87,8 +87,8 @@ FILE=moore
 CONFIG=single/moore.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=4.0
-INTERVAL=8.0
+FINISH=94.0
+INTERVAL=2.0
 fi
 ###############################################################
 # dynamical stability of a Two-power sphere
@@ -97,8 +97,8 @@ FILE=twopower
 CONFIG=single/twopower.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=2.0
-INTERVAL=4.0
+FINISH=94.0
+INTERVAL=2.0
 fi
 ###############################################################
 # dynamical stability of a King sphere within an Einasto profile
@@ -107,8 +107,8 @@ FILE=hb
 CONFIG=multi/hb.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=4.0
-INTERVAL=8.0
+FINISH=94.0
+INTERVAL=2.0
 fi
 ###############################################################
 # dynamical stability of an exponential disk in an NFW sphere and a King sphere
@@ -117,8 +117,10 @@ FILE=hbd
 CONFIG=multi/hbd.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=8.0
-INTERVAL=16.0
+FINISH=94.0
+INTERVAL=2.0
+# FINISH=1648.0
+# INTERVAL=16.0
 fi
 ###############################################################
 # dynamical stability of exponential disks (thick/thin disk) in an NFW sphere and a King sphere
@@ -127,8 +129,10 @@ FILE=hbdd
 CONFIG=multi/hbdd.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=8.0
-INTERVAL=16.0
+FINISH=94.0
+INTERVAL=2.0
+# FINISH=1400.0
+# INTERVAL=8.0
 fi
 ###############################################################
 # dynamical stability of thick exponential disk and thin Sersic disk in an Einasto sphere and a King sphere
@@ -137,8 +141,10 @@ FILE=ekes
 CONFIG=multi/ekes.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=4.0
-INTERVAL=8.0
+FINISH=94.0
+INTERVAL=2.0
+# FINISH=1400.0
+# INTERVAL=8.0
 fi
 ###############################################################
 # dynamical stability of an M31 model determined by Fardal et al. (2007)
@@ -147,8 +153,10 @@ FILE=m31
 CONFIG=galaxy/f07.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=6.25
+FINISH=75.0
 INTERVAL=25.0
+# FINISH=5175.0
+# INTERVAL=25.0
 fi
 ###############################################################
 # dynamical stability of an M31 model determined by Fardal et al. (2007) in unit of GalactICS system
@@ -157,8 +165,8 @@ FILE=m31_gics
 CONFIG=galaxy/f07_gics.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=4.88896113
-INTERVAL=2.5
+FINISH=5175.0
+INTERVAL=25.0
 fi
 ###############################################################
 # dynamical stability of multi components galaxy model
@@ -167,8 +175,10 @@ FILE=galaxy
 CONFIG=galaxy/galaxy.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=6.25
+FINISH=75.0
 INTERVAL=25.0
+# FINISH=3175.0
+# INTERVAL=25.0
 fi
 ###############################################################
 # dynamical stability of MW model (Sofue 2015; Akhter et al. 2012; Gillessen et al. 2009; Juric et al. 2008)
@@ -177,8 +187,10 @@ FILE=mw
 CONFIG=galaxy/mw.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=6.25
+FINISH=75.0
 INTERVAL=25.0
+# FINISH=3175.0
+# INTERVAL=25.0
 fi
 ###############################################################
 # dynamical stability of M31 model (Sofue 2015; Gilbert et al. 2012)
@@ -187,7 +199,167 @@ FILE=s15
 CONFIG=galaxy/s15.cfg
 EPS=1.5625e-2
 ETA=0.5
-FINISH=6.25
+FINISH=75.0
+INTERVAL=25.0
+# FINISH=3175.0
+# INTERVAL=25.0
+fi
+###############################################################
+# time evolution of MW/A defined in Kuijken & Dubinski (1995)
+if [ $PROBLEM -eq 30 ]; then
+FILE=kd95a
+CONFIG=gics/kd95/MWa.cfg
+EPS=1.5625e-2
+ETA=0.5
+# FINISH=124.0
+# INTERVAL=4.0
+FINISH=2032.0
+INTERVAL=16.0
+fi
+###############################################################
+# time evolution of MW/B defined in Kuijken & Dubinski (1995)
+if [ $PROBLEM -eq 31 ]; then
+FILE=kd95b
+CONFIG=gics/kd95/MWb.cfg
+EPS=1.5625e-2
+ETA=0.5
+# FINISH=124.0
+# INTERVAL=4.0
+FINISH=2032.0
+INTERVAL=16.0
+fi
+###############################################################
+# time evolution of MW/C defined in Kuijken & Dubinski (1995)
+if [ $PROBLEM -eq 32 ]; then
+FILE=kd95c
+CONFIG=gics/kd95/MWc.cfg
+EPS=1.5625e-2
+ETA=0.5
+# FINISH=124.0
+# INTERVAL=4.0
+FINISH=2032.0
+INTERVAL=16.0
+fi
+###############################################################
+# time evolution of MW/D defined in Kuijken & Dubinski (1995)
+if [ $PROBLEM -eq 33 ]; then
+FILE=kd95d
+CONFIG=gics/kd95/MWd.cfg
+EPS=1.5625e-2
+ETA=0.5
+# FINISH=124.0
+# INTERVAL=4.0
+FINISH=2032.0
+INTERVAL=16.0
+fi
+###############################################################
+# time evolution of M31/A defined in Widrow et al. (2003)
+if [ $PROBLEM -eq 34 ]; then
+FILE=w03a
+CONFIG=gics/w03/M31a.cfg
+EPS=1.5625e-2
+ETA=0.5
+# FINISH=124.0
+# INTERVAL=4.0
+FINISH=2032.0
+INTERVAL=16.0
+fi
+###############################################################
+# time evolution of M31/D defined in Widrow et al. (2003)
+if [ $PROBLEM -eq 35 ]; then
+FILE=w03d
+CONFIG=gics/w03/M31d.cfg
+EPS=1.5625e-2
+ETA=0.5
+# FINISH=124.0
+# INTERVAL=4.0
+FINISH=2032.0
+INTERVAL=16.0
+fi
+###############################################################
+# time evolution of MWa defined in Widrow & Dubinski (2005)
+if [ $PROBLEM -eq 36 ]; then
+FILE=mwa
+CONFIG=gics/wd05/MWa.cfg
+EPS=1.5625e-2
+ETA=0.5
+FINISH=124.0
+INTERVAL=4.0
+# FINISH=1016.0
+# INTERVAL=8.0
+fi
+###############################################################
+# time evolution of MWb defined in Widrow & Dubinski (2005)
+if [ $PROBLEM -eq 37 ]; then
+FILE=mwb
+CONFIG=gics/wd05/MWb.cfg
+EPS=1.5625e-2
+ETA=0.5
+FINISH=124.0
+INTERVAL=4.0
+# FINISH=1016.0
+# INTERVAL=8.0
+fi
+###############################################################
+# time evolution of MW like galaxy (based on Widrow et al. 2008; Bedorf et al. 2014)
+if [ $PROBLEM -eq 38 ]; then
+FILE=bonsai
+CONFIG=gics/bonsai/b14.cfg
+EPS=1.5625e-2
+ETA=0.5
+FINISH=124.0
+INTERVAL=4.0
+# FINISH=1176.0
+# INTERVAL=8.0
+fi
+###############################################################
+# dynamical stability of a Plummer profile in table form
+if [ $PROBLEM -eq 40 ]; then
+FILE=tplummer
+CONFIG=table/tplummer.cfg
+EPS=1.5625e-2
+ETA=0.5
+FINISH=1575.0
+INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of a Two-power slope profile in table form
+if [ $PROBLEM -eq 41 ]; then
+FILE=dblpower
+CONFIG=table/dblpower.cfg
+EPS=1.5625e-2
+ETA=0.5
+FINISH=1575.0
+INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of a de Vaucouleurs sphere in table form
+if [ $PROBLEM -eq 42 ]; then
+FILE=bulgetbl
+CONFIG=table/bulgetbl.cfg
+EPS=1.5625e-2
+ETA=0.5
+FINISH=1575.0
+INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of a spherical Sersic profile
+if [ $PROBLEM -eq 50 ]; then
+FILE=deVaucouleurs
+CONFIG=abel/deVaucouleurs.cfg
+EPS=1.5625e-2
+ETA=0.5
+FINISH=1575.0
+INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of a projected Two-power model
+if [ $PROBLEM -eq 51 ]; then
+FILE=prjTwoPow
+CONFIG=abel/prjTwoPow.cfg
+EPS=1.5625e-2
+ETA=0.5
+FINISH=1575.0
 INTERVAL=25.0
 fi
 ###############################################################
@@ -203,8 +375,9 @@ EXEC=$INI
 PROCS=`expr $NODES \* $PROCS_PER_NODE`
 ###############################################################
 . /opt/Modules/default/init/bash
-module load intel/15.0.5 intelmpi/5.1.1
-module load cuda/7.5.18 cuda/samples_7.5.18
+export MODULEPATH=$MODULEPATH:/work/GALAXY/ymiki/opt/Modules
+module load intel/16.0.4 mvapich2/2.2_intel_cuda-8.0.44 cuda/8.0.44 cuda-samples/8.0.44
+module load gsl hdf5
 ###############################################################
 cd $PBS_O_WORKDIR
 STDOUT=log/$PBS_JOBNAME.$PBS_JOBID.out
@@ -214,7 +387,11 @@ cat $PBS_NODEFILE >> $STDOUT
 TIME=`date`
 echo "start: $TIME" >> $STDOUT
 ###############################################################
-mpirun -np $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE $EXEC -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+# # for IntelMPI
+# mpiexec -np $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE -l -exitinfo $EXEC -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+###############################################################
+# for mvapich2
+mpiexec -np $PROCS -hostfile $PBS_NODEFILE -l -exitinfo $EXEC -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
 ###############################################################
 TIME=`date`
 echo "finish: $TIME" >> $STDOUT
