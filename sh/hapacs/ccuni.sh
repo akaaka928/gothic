@@ -55,10 +55,10 @@ TIME=`date`
 echo "start: $TIME" >> $STDOUT
 ###############################################################
 # # for IntelMPI
-# mpiexec -np $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE -l -exitinfo $EXEC -file=$FILE -unit=$UNIT -Ntot=$NTOT -Mtot=$MTOT -virial=$VIRIAL -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+# mpirun -n $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE -l $EXEC -file=$FILE -unit=$UNIT -Ntot=$NTOT -Mtot=$MTOT -virial=$VIRIAL -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
 ###############################################################
 # for mvapich2
-mpiexec -np $PROCS -hostfile $PBS_NODEFILE -l -exitinfo $EXEC -file=$FILE -unit=$UNIT -Ntot=$NTOT -Mtot=$MTOT -virial=$VIRIAL -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+mpirun -n $PROCS -hostfile $PBS_NODEFILE -l $EXEC -file=$FILE -unit=$UNIT -Ntot=$NTOT -Mtot=$MTOT -virial=$VIRIAL -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
 ###############################################################
 TIME=`date`
 echo "finish: $TIME" >> $STDOUT

@@ -195,13 +195,13 @@ TIME=`date`
 echo "start: $TIME" >> $STDOUT
 ###############################################################
 # export ALLINEA_NO_TIMEOUT
-# perf-report mpiexec -np $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE -l -exitinfo $EXEC -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID 1>>$STDOUT 2>>$STDERR
+# perf-report mpirun -n $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE -l $EXEC -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID 1>>$STDOUT 2>>$STDERR
 ###############################################################
 # # for IntelMPI
-# mpiexec -np $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE -l -exitinfo $EXEC -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID 1>>$STDOUT 2>>$STDERR
+# mpirun -n $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE -l $EXEC -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID 1>>$STDOUT 2>>$STDERR
 ###############################################################
 # for mvapich2
-mpiexec -np $PROCS -hostfile $PBS_NODEFILE -l -exitinfo $EXEC -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID 1>>$STDOUT 2>>$STDERR
+mpirun -n $PROCS -hostfile $PBS_NODEFILE -l $EXEC -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID 1>>$STDOUT 2>>$STDERR
 ###############################################################
 TIME=`date`
 echo "finish: $TIME" >> $STDOUT

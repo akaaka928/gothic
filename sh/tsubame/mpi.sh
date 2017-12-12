@@ -1,8 +1,11 @@
-#!/bin/sh
+#!/bin/bash
 #$ -cwd
-#$ -l s_gpu=2
-#$ -l h_rt=1:00:00
+#$ -l h_node=1
+##$ -l s_gpu=2
+#$ -l h_rt=00:05:00
 #$ -N gothic
+###############################################################
+NGPUS_PER_NODE=2
 ###############################################################
 
 
@@ -13,7 +16,8 @@ EXEC=bin/gothic
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=20
+    PROBLEM=2
+    # PROBLEM=20
     # PROBLEM=26
     # PROBLEM=28
     # PROBLEM=80
@@ -30,14 +34,15 @@ fi
 if [ -z "$NZ" ]; then
     NZ=1
 fi
-if [ $SLURM_NTASKS -eq 1 ]; then
+NGPUS=`expr $NQUEUES \* $NGPUS_PER_NODE`
+if [ $NGPUS -eq 1 ]; then
     NX=1
     NY=1
     NZ=1
 fi
 PROCS=`expr $NX \* $NY \* $NZ`
-if [ $PROCS -ne $SLURM_NTASKS ]; then
-    echo "product of $NX, $NY, and $NZ must be equal to the number of total MPI processes ($SLURM_NTASKS)"
+if [ $PROCS -ne $NGPUS ]; then
+    echo "product of $NX, $NY, and $NZ must be equal to the number of total MPI processes ($NGPUS)"
     exit 1
 fi
 ###############################################################
@@ -288,8 +293,8 @@ OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$N
 # job execution via UNIVA Grid Engine
 ###############################################################
 # set stdout and stderr
-STDOUT=log/$REQUEST.o$JOB_ID
-STDERR=log/$REQUEST.e$JOB_ID
+STDOUT=$REQUEST.o$JOB_ID
+STDERR=$REQUEST.e$JOB_ID
 ###############################################################
 # load modules
 . /etc/profile.d/modules.sh
@@ -303,10 +308,6 @@ cat $PE_HOSTFILE 1>>$STDOUT 2>>$STDERR
 TIME=`date`
 echo "start: $TIME" 1>>$STDOUT 2>>$STDERR
 ###############################################################
-echo "NQUEUE: $NQUEUE" 1>>$STDOUT 2>>$STDERR
-echo "NSLOTS: $NSLOTS" 1>>$STDOUT 2>>$STDERR
-echo "NHOSTS: $NHOSTS" 1>>$STDOUT 2>>$STDERR
-###############################################################
 # execute the job
 # if [ `which numactl` ]; then
 #     # run with numactl
@@ -314,9 +315,8 @@ echo "NHOSTS: $NHOSTS" 1>>$STDOUT 2>>$STDERR
 #     numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 # else
     # run without numactl
-    echo "mpiexec -ppn 1 -n $NQUEUES -l -exitinfo $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
-    mpiexec -ppn 1 -n $NQUEUES -l -exitinfo $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
-    # NQUEUE or NSLOTS or NHOSTS
+    echo "mpirun -ppn $NGPUS_PER_NODE -n $PROCS $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
+    mpirun -ppn $NGPUS_PER_NODE -n $PROCS -l $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 # fi
 ###############################################################
 # finish logging

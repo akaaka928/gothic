@@ -34,7 +34,7 @@ echo "start: $TIME" >> $STDOUT
 echo "0" > doc/$FILE.cfg.dat
 cp ../../dat/$FILE.tmp0.h5 dat/
 ###############################################################
-mpiexec -np $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE -l -exitinfo $EXEC -absErr=$VALUE -accErr=$VALUE -theta=$VALUE -file=$FILE -jobID=$PBS_JOBID 1>>$STDOUT 2>>$STDERR
+mpirun -n $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE -l $EXEC -absErr=$VALUE -accErr=$VALUE -theta=$VALUE -file=$FILE -jobID=$PBS_JOBID 1>>$STDOUT 2>>$STDERR
 ###############################################################
 TIME=`date`
 echo "finish: $TIME" >> $STDOUT

@@ -29,7 +29,7 @@ cat $PBS_NODEFILE >> $STDOUT
 TIME=`date`
 echo "start: $TIME" >> $STDOUT
 ###############################################################
-mpiexec -np $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE -l -exitinfo $EXEC -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID 1>>$STDOUT 2>>$STDERR
+mpirun -n $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE -l $EXEC -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID 1>>$STDOUT 2>>$STDERR
 ###############################################################
 TIME=`date`
 echo "finish: $TIME" >> $STDOUT

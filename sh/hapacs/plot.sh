@@ -213,13 +213,13 @@ TIME=`date`
 echo "start: $TIME" >> $STDOUT
 ###############################################################
 if [ $TARGET -eq 0 ]; then
-mpiexec -np $PROCS -hostfile $PBS_NODEFILE -l -exitinfo $PLTENE -file=$FILE -start=$START -end=$END -interval=$INCREMENT -problem=$PROBLEM               -dev ${EXTENSION}cairo 1>>$STDOUT 2>>$STDERR
+mpirun -n $PROCS -hostfile $PBS_NODEFILE -l $PLTENE -file=$FILE -start=$START -end=$END -interval=$INCREMENT -problem=$PROBLEM               -dev ${EXTENSION}cairo 1>>$STDOUT 2>>$STDERR
 fi
 if [ $TARGET -eq 1 ]; then
-mpiexec -np $PROCS -hostfile $PBS_NODEFILE -l -exitinfo $PLTMAP -file=$FILE -start=$START -end=$END -interval=$INCREMENT -problem=$PROBLEM -ncrit=$NCRIT -dev ${EXTENSION}cairo 1>>$STDOUT 2>>$STDERR
+mpirun -n $PROCS -hostfile $PBS_NODEFILE -l $PLTMAP -file=$FILE -start=$START -end=$END -interval=$INCREMENT -problem=$PROBLEM -ncrit=$NCRIT -dev ${EXTENSION}cairo 1>>$STDOUT 2>>$STDERR
 fi
 if [ $TARGET -eq 2 ]; then
-mpiexec -np $PROCS -hostfile $PBS_NODEFILE -l -exitinfo $PLTCDF -file=$FILE                                                                              -dev ${EXTENSION}cairo 1>>$STDOUT 2>>$STDERR
+mpirun -n $PROCS -hostfile $PBS_NODEFILE -l $PLTCDF -file=$FILE                                                                              -dev ${EXTENSION}cairo 1>>$STDOUT 2>>$STDERR
 fi
 ###############################################################
 TIME=`date`

@@ -402,27 +402,27 @@ echo "start: $TIME"
 # execute the job
 if [ `which numactl` ]; then
     # mpiexec with numactl
-    echo "mpiexec -np $SLURM_NTASKS -l -exitinfo sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTENE $OPTENE 1>>$STDOUT 2>>$STDERR"
-    mpiexec -np $SLURM_NTASKS -l -exitinfo sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTENE $OPTENE 1>>$STDOUT 2>>$STDERR
+    echo "mpiexec -n $SLURM_NTASKS -l sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTENE $OPTENE 1>>$STDOUT 2>>$STDERR"
+    mpiexec -n $SLURM_NTASKS -l sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTENE $OPTENE 1>>$STDOUT 2>>$STDERR
 
-    echo "mpiexec -np $SLURM_NTASKS -l -exitinfo sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTMAP $OPTMAP 1>>$STDOUT 2>>$STDERR"
-    mpiexec -np $SLURM_NTASKS -l -exitinfo sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTMAP $OPTMAP 1>>$STDOUT 2>>$STDERR
+    echo "mpiexec -n $SLURM_NTASKS -l sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTMAP $OPTMAP 1>>$STDOUT 2>>$STDERR"
+    mpiexec -n $SLURM_NTASKS -l sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTMAP $OPTMAP 1>>$STDOUT 2>>$STDERR
 
     if [ -e dat/$FILE.direct000.dat ]; then
-	echo "mpiexec -np $SLURM_NTASKS -l -exitinfo sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTCDF $OPTCDF 1>>$STDOUT 2>>$STDERR"
-	mpiexec -np $SLURM_NTASKS -l -exitinfo sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTCDF $OPTCDF 1>>$STDOUT 2>>$STDERR
+	echo "mpiexec -n $SLURM_NTASKS -l sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTCDF $OPTCDF 1>>$STDOUT 2>>$STDERR"
+	mpiexec -n $SLURM_NTASKS -l sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTCDF $OPTCDF 1>>$STDOUT 2>>$STDERR
     fi
 else
     # mpiexec without numactl
-    echo "mpiexec -np $SLURM_NTASKS -l -exitinfo $PLTENE $OPTENE 1>>$STDOUT 2>>$STDERR"
-    mpiexec -np $SLURM_NTASKS -l -exitinfo $PLTENE $OPTENE 1>>$STDOUT 2>>$STDERR
+    echo "mpiexec -n $SLURM_NTASKS -l $PLTENE $OPTENE 1>>$STDOUT 2>>$STDERR"
+    mpiexec -n $SLURM_NTASKS -l $PLTENE $OPTENE 1>>$STDOUT 2>>$STDERR
 
-    echo "mpiexec -np $SLURM_NTASKS -l -exitinfo $PLTMAP $OPTMAP 1>>$STDOUT 2>>$STDERR"
-    mpiexec -np $SLURM_NTASKS -l -exitinfo $PLTMAP $OPTMAP 1>>$STDOUT 2>>$STDERR
+    echo "mpiexec -n $SLURM_NTASKS -l $PLTMAP $OPTMAP 1>>$STDOUT 2>>$STDERR"
+    mpiexec -n $SLURM_NTASKS -l $PLTMAP $OPTMAP 1>>$STDOUT 2>>$STDERR
 
     if [ -e dat/$FILE.direct000.dat ]; then
-	echo "mpiexec -np $SLURM_NTASKS -l -exitinfo $PLTCDF $OPTCDF 1>>$STDOUT 2>>$STDERR"
-	mpiexec -np $SLURM_NTASKS -l -exitinfo $PLTCDF $OPTCDF 1>>$STDOUT 2>>$STDERR
+	echo "mpiexec -n $SLURM_NTASKS -l $PLTCDF $OPTCDF 1>>$STDOUT 2>>$STDERR"
+	mpiexec -n $SLURM_NTASKS -l $PLTCDF $OPTCDF 1>>$STDOUT 2>>$STDERR
     fi
 fi
 ###############################################################

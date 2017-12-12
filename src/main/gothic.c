@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/11/09 (Thu)
+ * @date 2017/12/12 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -659,6 +659,7 @@ int main(int argc, char **argv)
 #else///SERIALIZED_EXECUTION
   openAcceleratorGPUs(&devIdx, &devInfo, &devProp, 0, 1, mpi.rank, mpi.size);
 #endif//SERIALIZED_EXECUTION
+  __NOTE__("devIdx = %d\n", devIdx);
 
   /** set CUDA streams */
   cudaStream_t *stream;
@@ -1324,6 +1325,7 @@ int main(int argc, char **argv)
 
       fclose(fp);
     }
+  __NOTE__("%zu MiB (%zu GiB) for tree walk buffer\n"  , alloc_buf_dev.device >> 20, alloc_buf_dev.device >> 30);
 
 
 #ifdef  EXEC_BENCHMARK

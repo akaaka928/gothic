@@ -25,17 +25,17 @@ fi
 ##################################################################
 if [ `which numactl` ]; then
     # run with numactl
-    echo "mpiexec -np $PROCS -hostfile $HOSTFILE -l -exitinfo sh/local/numarun.sh $PROCS_PER_SOCKET $LOG $EXEC $OPTION" >> $LOG
-    mpiexec -np $PROCS -hostfile $HOSTFILE -l -exitinfo sh/local/numarun.sh $PROCS_PER_SOCKET $LOG $EXEC $OPTION
+    echo "mpiexec -n $PROCS -hostfile $HOSTFILE -l sh/local/numarun.sh $PROCS_PER_SOCKET $LOG $EXEC $OPTION" >> $LOG
+    mpiexec -n $PROCS -hostfile $HOSTFILE -l sh/local/numarun.sh $PROCS_PER_SOCKET $LOG $EXEC $OPTION
 else
     # run without numactl
-    echo "mpiexec -np $PROCS -hostfile $HOSTFILE -l -exitinfo $EXEC $OPTION" >> $LOG
-    mpiexec -np $PROCS -hostfile $HOSTFILE -l -exitinfo $EXEC $OPTION
+    echo "mpiexec -n $PROCS -hostfile $HOSTFILE -l $EXEC $OPTION" >> $LOG
+    mpiexec -n $PROCS -hostfile $HOSTFILE -l $EXEC $OPTION
 fi
 ##################################################################
 # # collecting data with nvprof
-# echo "mpiexec -np $PROCS -hostfile $HOSTFILE -l -exitinfo nvprof --timeout 25 --force-overwrite -o $LOG.$$.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION" >> $LOG
-# TMPDIR=. mpiexec -np $PROCS -hostfile $HOSTFILE -l -exitinfo nvprof --timeout 25 --force-overwrite -o $LOG.$$.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION
-# # echo "mpiexec -np $PROCS -hostfile $HOSTFILE -l -exitinfo nvprof --timeout 3 --device-buffer-size 128 --device-cdp-buffer-size 128 --system-profiling on --force-overwrite -o $LOG.$$.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION" >> $LOG
-# # mpiexec -np $PROCS -hostfile $HOSTFILE -l -exitinfo nvprof --timeout 3 --device-buffer-size 128 --device-cdp-buffer-size 128 --system-profiling on --force-overwrite -o $LOG.$$.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION
+# echo "mpiexec -n $PROCS -hostfile $HOSTFILE -l nvprof --timeout 25 --force-overwrite -o $LOG.$$.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION" >> $LOG
+# TMPDIR=. mpiexec -n $PROCS -hostfile $HOSTFILE -l nvprof --timeout 25 --force-overwrite -o $LOG.$$.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION
+# # echo "mpiexec -n $PROCS -hostfile $HOSTFILE -l nvprof --timeout 3 --device-buffer-size 128 --device-cdp-buffer-size 128 --system-profiling on --force-overwrite -o $LOG.$$.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION" >> $LOG
+# # mpiexec -n $PROCS -hostfile $HOSTFILE -l nvprof --timeout 3 --device-buffer-size 128 --device-cdp-buffer-size 128 --system-profiling on --force-overwrite -o $LOG.$$.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION
 #################################################################

@@ -24,5 +24,5 @@ fi
 ##################################################################
 NCORE=`expr $NODES \* $NCORE_PER_NODE`
 ##################################################################
-mpiexec -np $NCORE -hostfile $HOSTFILE -l -exitinfo $EXEC -file=$FILENAME $OPTION -dev ${EXTENSION}cairo
+mpiexec -n $NCORE -hostfile $HOSTFILE -l $EXEC -file=$FILENAME $OPTION -dev ${EXTENSION}cairo
 ##################################################################
