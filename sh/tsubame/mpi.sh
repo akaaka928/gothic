@@ -2,7 +2,7 @@
 #$ -cwd
 #$ -l f_node=1
 ##$ -l h_node=1
-##$ -l s_gpu=8
+##$ -l s_gpu=4
 #$ -l h_rt=00:05:00
 #$ -N gothic
 ###############################################################
@@ -318,8 +318,8 @@ echo "start: $TIME" 1>>$STDOUT 2>>$STDERR
 #     numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 # else
     # run without numactl
-    echo "mpirun -ppn $NGPUS_PER_NODE -n $PROCS $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
-    mpirun -ppn $NGPUS_PER_NODE -n $PROCS -l $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    echo "mpiexec -ppn $NGPUS_PER_NODE -n $PROCS $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
+    mpiexec -ppn $NGPUS_PER_NODE -n $PROCS -l $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 # fi
 ###############################################################
 # finish logging

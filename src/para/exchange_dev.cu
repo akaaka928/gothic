@@ -1105,33 +1105,35 @@ void exchangeParticles_dev
   }/* if( mpi.rank == 0 ){ */
   __NOTE__("rank %d: recvNum = %d\n", mpi.rank, recvNum);
 
+#if 0
 #ifndef NDEBUG
   __NOTE__("before MPI communication\n");
-  MPI_Barrier(MPI_COMM_WORLD);
   for(int ii = 0; ii < sendNum; ii++)
     fprintf(stdout, "loc.x[%d] = %e, ful.x[%d] = %e\n", ii, loc.x_hst[ii], ii, ful.x_hst[ii]);
   MPI_Barrier(MPI_COMM_WORLD);
 #endif//NDEBUG
+#endif
 
   /** gather particle data to the root process */
 #ifdef  MPI_ONE_SIDED_FOR_EXCG
 
   __NOTE__("rank %d: MPI_Get start\n", mpi.rank);
 
-  chkMPIerr(MPI_Win_lock_all(0, loc.win_x));
-  chkMPIerr(MPI_Win_lock_all(0, loc.win_y));
-  chkMPIerr(MPI_Win_lock_all(0, loc.win_z));
+  if( mpi.rank == 0 ){
+    chkMPIerr(MPI_Win_lock_all(0, loc.win_x));
+    chkMPIerr(MPI_Win_lock_all(0, loc.win_y));
+    chkMPIerr(MPI_Win_lock_all(0, loc.win_z));
 
-  if( mpi.rank == 0 )
     for(int ii = 0; ii < mpi.size; ii++){
-      chkMPIerr(MPI_Get(loc.x_hst, sample.rnum[ii], MPI_FLOAT, ii, sample.disp[ii], sample.rnum[ii], MPI_FLOAT, loc.win_x));
-      chkMPIerr(MPI_Get(loc.y_hst, sample.rnum[ii], MPI_FLOAT, ii, sample.disp[ii], sample.rnum[ii], MPI_FLOAT, loc.win_y));
-      chkMPIerr(MPI_Get(loc.z_hst, sample.rnum[ii], MPI_FLOAT, ii, sample.disp[ii], sample.rnum[ii], MPI_FLOAT, loc.win_z));
+      chkMPIerr(MPI_Get(ful.x_hst, sample.rnum[ii], MPI_FLOAT, ii, sample.disp[ii], sample.rnum[ii], MPI_FLOAT, loc.win_x));
+      chkMPIerr(MPI_Get(ful.y_hst, sample.rnum[ii], MPI_FLOAT, ii, sample.disp[ii], sample.rnum[ii], MPI_FLOAT, loc.win_y));
+      chkMPIerr(MPI_Get(ful.z_hst, sample.rnum[ii], MPI_FLOAT, ii, sample.disp[ii], sample.rnum[ii], MPI_FLOAT, loc.win_z));
     }/* for(int ii = 0; ii < mpi.size; ii++){ */
 
-  chkMPIerr(MPI_Win_unlock_all(loc.win_x));
-  chkMPIerr(MPI_Win_unlock_all(loc.win_y));
-  chkMPIerr(MPI_Win_unlock_all(loc.win_z));
+    chkMPIerr(MPI_Win_unlock_all(loc.win_x));
+    chkMPIerr(MPI_Win_unlock_all(loc.win_y));
+    chkMPIerr(MPI_Win_unlock_all(loc.win_z));
+  }/* if( mpi.rank == 0 ){ */
 
   __NOTE__("rank %d: MPI_Get finish\n", mpi.rank);
   /* is MPI_Get failed @ rank = 0?? */
@@ -1154,14 +1156,18 @@ void exchangeParticles_dev
 
 #endif//MPI_ONE_SIDED_FOR_EXCG
 
+#if 0
 #ifndef NDEBUG
-  MPI_Barrier(MPI_COMM_WORLD);
-  __NOTE__("after MPI communication\n");
-  if( mpi.rank == 0 )
-    for(int ii = 0; ii < sendNum; ii++)
+  if( mpi.rank == 0 ){
+    __NOTE__("after MPI communication\n");
+    for(int ii = 0; ii < recvNum; ii++)
       fprintf(stdout, "loc.x[%d] = %e, ful.x[%d] = %e\n", ii, loc.x_hst[ii], ii, ful.x_hst[ii]);
+  }
   MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Finalize();
+  exit(0);
 #endif//NDEBUG
+#endif
 
 
   /** set current (local) distribution */
