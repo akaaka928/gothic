@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/11/24 (Fri)
+ * @date 2017/12/14 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -14,6 +14,8 @@
  * The MIT License is applied to this software, see LICENSE.txt
  *
  */
+
+/* #define OMIT_INPLACE_IN_SCATTERV */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1045,7 +1047,7 @@ void exchangeParticles_dev
   clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
   const bool device = true;
-  const bool host = false;
+  const bool   host = false;
 
   /* /\** copy particle position from device to host *\/ */
   /* copyParticlePositionAsync_dev2hst(numOld, (*src_dev).pos, pos_dev, pos_hst, devInfo.stream[0]); */
@@ -1103,6 +1105,14 @@ void exchangeParticles_dev
   }/* if( mpi.rank == 0 ){ */
   __NOTE__("rank %d: recvNum = %d\n", mpi.rank, recvNum);
 
+#ifndef NDEBUG
+  __NOTE__("before MPI communication\n");
+  MPI_Barrier(MPI_COMM_WORLD);
+  for(int ii = 0; ii < sendNum; ii++)
+    fprintf(stdout, "loc.x[%d] = %e, ful.x[%d] = %e\n", ii, loc.x_hst[ii], ii, ful.x_hst[ii]);
+  MPI_Barrier(MPI_COMM_WORLD);
+#endif//NDEBUG
+
   /** gather particle data to the root process */
 #ifdef  MPI_ONE_SIDED_FOR_EXCG
 
@@ -1143,6 +1153,15 @@ void exchangeParticles_dev
 #endif//MPI_VIA_HOST
 
 #endif//MPI_ONE_SIDED_FOR_EXCG
+
+#ifndef NDEBUG
+  MPI_Barrier(MPI_COMM_WORLD);
+  __NOTE__("after MPI communication\n");
+  if( mpi.rank == 0 )
+    for(int ii = 0; ii < sendNum; ii++)
+      fprintf(stdout, "loc.x[%d] = %e, ful.x[%d] = %e\n", ii, loc.x_hst[ii], ii, ful.x_hst[ii]);
+  MPI_Barrier(MPI_COMM_WORLD);
+#endif//NDEBUG
 
 
   /** set current (local) distribution */
@@ -1195,6 +1214,15 @@ void exchangeParticles_dev
       /** the root process determine the partition */
       if( rep[0].rank == 0 ){
 	sort_xpos(recvNum, &ful, &loc, host);
+#ifndef NDEBUG
+	for(int ii = 0; ii < recvNum; ii++)
+	  fprintf(stderr, "ful.x_hst[%d] = %e, loc.x_hst[%d] = %e, cutted = %e\n", ii, ful.x_hst[ii], ii, loc.x_hst[ii], cutting(ful.x_hst[ii], ful.x_hst[ii]
+#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+					 , soa.min_hst->x, dL, dLinv
+#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
+					 )
+		  );
+#endif//NDEBUG
 	sample.xmin[0] = -0.5f * FLT_MAX;
 	for(int ii = 0; ii < rep[0].size; ii++){
 	  int Nini = (sendNum * (    ii)) / rep[0].size;
@@ -1209,6 +1237,7 @@ void exchangeParticles_dev
 					 );
 	    sample.xmax[ii    ] = middle;
 	    sample.xmin[ii + 1] = middle;
+	    __NOTE__("sendNum = %d, size = %d, ii = %d, Nini = %d, Nfin = %d, middle = %e\n", sendNum, rep[0].size, ii, Nini, Nfin, middle);
 	  }/* if( ii != (rep[0].size - 1) ){ */
 	}/* for(int ii = 0; ii < rep[0].size; ii++){ */
 	sample.xmax[rep[0].size - 1] = 0.5f * FLT_MAX;
@@ -1227,8 +1256,13 @@ void exchangeParticles_dev
 
 	/** scatter particle data from the root process */
 	chkMPIerr(MPI_Scatter(sample.rnum, 1, MPI_INT, &recvNum, 1, MPI_INT, 0, rep[0].comm));
+#ifndef OMIT_INPLACE_IN_SCATTERV
 	chkMPIerr(MPI_Scatterv(ful.y_hst, sample.rnum, sample.disp, MPI_FLOAT, MPI_IN_PLACE, recvNum, MPI_FLOAT, 0, rep[0].comm));
 	chkMPIerr(MPI_Scatterv(ful.z_hst, sample.rnum, sample.disp, MPI_FLOAT, MPI_IN_PLACE, recvNum, MPI_FLOAT, 0, rep[0].comm));
+#else///OMIT_INPLACE_IN_SCATTERV
+	chkMPIerr(MPI_Scatterv(ful.y_hst, sample.rnum, sample.disp, MPI_FLOAT, ful.y_hst, recvNum, MPI_FLOAT, 0, rep[0].comm));
+	chkMPIerr(MPI_Scatterv(ful.z_hst, sample.rnum, sample.disp, MPI_FLOAT, ful.z_hst, recvNum, MPI_FLOAT, 0, rep[0].comm));
+#endif//OMIT_INPLACE_IN_SCATTERV
       }/* if( (mpi.dim[1] != 1) || (mpi.dim[2] != 1) ){ */
     }/* if( orm[0].rank == 0 ){ */
 
@@ -1277,7 +1311,11 @@ void exchangeParticles_dev
 
 	/** scatter particle data from the root process */
 	chkMPIerr(MPI_Scatter(sample.rnum, 1, MPI_INT, &recvNum, 1, MPI_INT, 0, rep[1].comm));
+#ifndef OMIT_INPLACE_IN_SCATTERV
 	chkMPIerr(MPI_Scatterv(ful.z_hst, sample.rnum, sample.disp, MPI_FLOAT, MPI_IN_PLACE, recvNum, MPI_FLOAT, 0, rep[1].comm));
+#else///OMIT_INPLACE_IN_SCATTERV
+	chkMPIerr(MPI_Scatterv(ful.z_hst, sample.rnum, sample.disp, MPI_FLOAT, ful.z_hst, recvNum, MPI_FLOAT, 0, rep[1].comm));
+#endif//OMIT_INPLACE_IN_SCATTERV
       }/* if( mpi.dim[2] != 1 ){ */
     }/* if( orm[1].rank == 0 ){ */
 

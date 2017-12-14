@@ -1,11 +1,14 @@
 #!/bin/bash
 #$ -cwd
-#$ -l h_node=1
-##$ -l s_gpu=2
+#$ -l f_node=1
+##$ -l h_node=1
+##$ -l s_gpu=8
 #$ -l h_rt=00:05:00
 #$ -N gothic
 ###############################################################
-NGPUS_PER_NODE=2
+NGPUS_PER_NODE=4
+# NGPUS_PER_NODE=2
+# NGPUS_PER_NODE=1
 ###############################################################
 
 
@@ -26,7 +29,7 @@ fi
 ###############################################################
 # topology of MPI processes
 if [ -z "$NX" ]; then
-    NX=2
+    NX=4
 fi
 if [ -z "$NY" ]; then
     NY=1

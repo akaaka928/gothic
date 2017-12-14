@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/12/12 (Tue)
+ * @date 2017/12/14 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1014,19 +1014,34 @@ int main(int argc, char **argv)
 #ifdef  MPI_ONE_SIDED_FOR_EXCG
 
 #ifndef MPI_VIA_HOST
-  chkMPIerr(MPI_Win_create(samplePos0.x_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_x)));
-  chkMPIerr(MPI_Win_create(samplePos0.y_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_y)));
-  chkMPIerr(MPI_Win_create(samplePos0.z_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_z)));
-  chkMPIerr(MPI_Win_create(samplePos1.x_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_x)));
-  chkMPIerr(MPI_Win_create(samplePos1.y_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_y)));
-  chkMPIerr(MPI_Win_create(samplePos1.z_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_z)));
+
+  /* chkMPIerr(MPI_Win_create(samplePos0.x_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_x))); */
+  /* chkMPIerr(MPI_Win_create(samplePos0.y_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_y))); */
+  /* chkMPIerr(MPI_Win_create(samplePos0.z_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_z))); */
+  /* chkMPIerr(MPI_Win_create(samplePos1.x_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_x))); */
+  /* chkMPIerr(MPI_Win_create(samplePos1.y_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_y))); */
+  /* chkMPIerr(MPI_Win_create(samplePos1.z_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_z))); */
+  chkMPIerr(MPI_Win_create(samplePos0.x_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_x)));
+  chkMPIerr(MPI_Win_create(samplePos0.y_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_y)));
+  chkMPIerr(MPI_Win_create(samplePos0.z_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_z)));
+  chkMPIerr(MPI_Win_create(samplePos1.x_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_x)));
+  chkMPIerr(MPI_Win_create(samplePos1.y_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_y)));
+  chkMPIerr(MPI_Win_create(samplePos1.z_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_z)));
+
 #else///MPI_VIA_HOST
-  chkMPIerr(MPI_Win_create(samplePos0.x_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_x)));
-  chkMPIerr(MPI_Win_create(samplePos0.y_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_y)));
-  chkMPIerr(MPI_Win_create(samplePos0.z_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_z)));
-  chkMPIerr(MPI_Win_create(samplePos1.x_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_x)));
-  chkMPIerr(MPI_Win_create(samplePos1.y_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_y)));
-  chkMPIerr(MPI_Win_create(samplePos1.z_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_z)));
+
+  /* chkMPIerr(MPI_Win_create(samplePos0.x_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_x))); */
+  /* chkMPIerr(MPI_Win_create(samplePos0.y_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_y))); */
+  /* chkMPIerr(MPI_Win_create(samplePos0.z_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_z))); */
+  /* chkMPIerr(MPI_Win_create(samplePos1.x_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_x))); */
+  /* chkMPIerr(MPI_Win_create(samplePos1.y_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_y))); */
+  /* chkMPIerr(MPI_Win_create(samplePos1.z_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_z))); */
+  chkMPIerr(MPI_Win_create(samplePos0.x_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_x)));
+  chkMPIerr(MPI_Win_create(samplePos0.y_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_y)));
+  chkMPIerr(MPI_Win_create(samplePos0.z_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_z)));
+  chkMPIerr(MPI_Win_create(samplePos1.x_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_x)));
+  chkMPIerr(MPI_Win_create(samplePos1.y_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_y)));
+  chkMPIerr(MPI_Win_create(samplePos1.z_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_z)));
 #endif//MPI_VIA_HOST
 
   const size_t body_win_size = (size_t)num_max + (size_t)(((num_max % NTHREADS) != 0) ? (NTHREADS - (num_max & NTHREADS)) : (0));/**< corresponding to # of particles per node allocated in allocParticleDataSoA_dev() in src/misc/allocate_dev.cu */
