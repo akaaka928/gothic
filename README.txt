@@ -1,7 +1,7 @@
 #################################################################################################
 #################################################################################################
 README file for tree code with block time step on GPU(s) written by Yohei MIKI
-                                                         last updated on 2017/03/16 (Thu) 19:56:05
+                                                         last updated on 2017/12/15 (Fri) 13:20:19
 #################################################################################################
 #################################################################################################
 
@@ -207,20 +207,15 @@ MAGI:
 
 
 
+parallelized GOTHIC のデバッグ方針
+	     1. MPI_Isend/MPI_Irecv version, via host communication のデバッグ
+	     2. MPI_Isend/MPI_Irecv version, via GPUDirect RDMA communication のデバッグ
+	     3. MPI_Put/MPI_Get version, via host communication のデバッグ
+	     4. MPI_Put/MPI_Get version, via GPUDirect RDMA communication のデバッグ
 
-
-下記のオプションについては，常時 ON になっているべきものなので，ソースコードからはこのフラグを消してしまう．
-消し終わったら，Makefile からも該当する分岐を削除する．
-
-
-下記のオプションについては，常時 OFF になっているべきものなので，ソースコードからはこのフラグを消してしまう．
-消し終わったら，Makefile からも該当する分岐を削除する．
-
-
-
-Doxygen 化については，anal, plot, main/showOptConfig.c は後回し．
-
-tree/icom_dev.cu は作成中のコードなので，とりあえず放置．
+auto-tuning for pseudo i-particle:
+	    clock64() base で実装したら、clock freqnency が動的に変化する問題の影響をうけないと予想される。
+	    演算量を最小化するためのしかけだったので、実行時間そのものが欲しいわけではないと思えば、結構有望だと思う。
 
 
 
