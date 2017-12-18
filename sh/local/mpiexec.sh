@@ -11,27 +11,18 @@ LOG=$3
 ##################################################################
 OPTION="`echo $@ | sed -e "s|$EXEC||" -e "s/$PROCS//" -e "s|$LOG||"`"
 ##################################################################
-HOSTNAME=`hostname`
-HOSTFILE=host/$HOSTNAME
-# PROCS=`expr $NODES \* $PROCS_PER_NODE`
-##################################################################
 PROCS_PER_SOCKET=2
-if [ $HOSTNAME = augustus ]; then
-PROCS_PER_SOCKET=1
-fi
-# if [ $HOSTNAME = mw ]; then
-# PROCS_PER_SOCKET=1
-# fi
 ##################################################################
-if [ `which numactl` ]; then
-    # run with numactl
-    echo "mpiexec -n $PROCS -hostfile $HOSTFILE -l sh/local/numarun.sh $PROCS_PER_SOCKET $LOG $EXEC $OPTION" >> $LOG
-    mpiexec -n $PROCS -hostfile $HOSTFILE -l sh/local/numarun.sh $PROCS_PER_SOCKET $LOG $EXEC $OPTION
-else
-    # run without numactl
-    echo "mpiexec -n $PROCS -hostfile $HOSTFILE -l $EXEC $OPTION" >> $LOG
-    mpiexec -n $PROCS -hostfile $HOSTFILE -l $EXEC $OPTION
-fi
+mpiexec -n $PROCS sh/wrapper.sh $EXEC $LOG $JOB_ID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION
+# if [ `which numactl` ]; then
+#     # run with numactl
+#     echo "mpiexec -n $PROCS -hostfile $HOSTFILE -l sh/local/numarun.sh $PROCS_PER_SOCKET $LOG $EXEC $OPTION" >> $LOG
+#     mpiexec -n $PROCS -hostfile $HOSTFILE -l sh/local/numarun.sh $PROCS_PER_SOCKET $LOG $EXEC $OPTION
+# else
+#     # run without numactl
+#     echo "mpiexec -n $PROCS -hostfile $HOSTFILE -l $EXEC $OPTION" >> $LOG
+#     mpiexec -n $PROCS -hostfile $HOSTFILE -l $EXEC $OPTION
+# fi
 ##################################################################
 # # collecting data with nvprof
 # echo "mpiexec -n $PROCS -hostfile $HOSTFILE -l nvprof --timeout 25 --force-overwrite -o $LOG.$$.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION" >> $LOG

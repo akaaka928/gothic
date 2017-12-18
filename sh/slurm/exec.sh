@@ -310,15 +310,17 @@ TIME=`date`
 echo "start: $TIME"
 ###############################################################
 # execute the job
-if [ `which numactl` ]; then
-    # mpiexec with numactl
-    echo "mpiexec -n $SLURM_NTASKS -l sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-    mpiexec -n $SLURM_NTASKS -l sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
-else
-    # mpiexec without numactl
-    echo "mpiexec -n $SLURM_NTASKS -l $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-    mpiexec -n $SLURM_NTASKS -l $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
-fi
+echo "mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION"
+mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION
+# if [ `which numactl` ]; then
+#     # mpiexec with numactl
+#     echo "mpiexec -n $SLURM_NTASKS -l sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+#     mpiexec -n $SLURM_NTASKS -l sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+# else
+#     # mpiexec without numactl
+#     echo "mpiexec -n $SLURM_NTASKS -l $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+#     mpiexec -n $SLURM_NTASKS -l $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+# fi
 ###############################################################
 # finish logging
 TIME=`date`

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2017/12/18 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -171,27 +171,14 @@ void setNodeConfig(ulong Ntot, int *Nnode, int *Ni, MPIinfo mpi, MPIcfg_tree *le
 
 
   /** make a simple log of MPI */
-  static char filename[128];
-  static FILE *fp;
-  sprintf(filename, "%s/mpi%.4d.txt", DOCUMENTFOLDER, mpi.rank);
-  fp = fopen(filename, "w");
-  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
-
-  /** write fundamental information on MPI */
   static char name[MPI_MAX_PROCESSOR_NAME];
   int tmp;
   chkMPIerr(MPI_Get_processor_name(name, &tmp));
-  fprintf(fp, "host name: %s\n", name);
-  fprintf(fp, "\n");
-  fprintf(fp, "MPI info: rank %d out of %d processes\n", mpi.rank, mpi.size);
-  fprintf(fp, "GPU info: device ID is %d\n", devID);
-  fprintf(fp, "\n");
+  fprintf(stdout, "host name: %s\n", name);
+  fprintf(stdout, "MPI info: rank %d out of %d processes\n", mpi.rank, mpi.size);
+  fprintf(stdout, "GPU info: device ID is %d\n", devID);
 
-  /** write information on domain decomposition */
-  fprintf(fp, "# of N-body particles is %d out of %zu\n", *Nnode, Ntot);
-  fprintf(fp, "\n");
-
-  fclose(fp);
+  fflush(NULL);
 
 
   __NOTE__("%s\n", "end");

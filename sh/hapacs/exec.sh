@@ -11,6 +11,7 @@
 ###############################################################
 NODES=1
 PROCS_PER_NODE=1
+NGPUS_PER_SOCKET=2
 PROCS=`expr $NODES \* $PROCS_PER_NODE`
 ###############################################################
 EXEC=bin/gothic
@@ -179,20 +180,20 @@ fi
 ###############################################################
 # execute numerical simulation
 ###############################################################
+TIME=`date`
+echo "start: $TIME"
+###############################################################
 . /opt/Modules/default/init/bash
 export MODULEPATH=$MODULEPATH:/work/GALAXY/ymiki/opt/Modules
 module load intel/16.0.4 mvapich2/2.2_intel_cuda-7.5.18
 module load cuda/7.5.18 cuda/samples_7.5.18
 # module load ddt/5.1 reports/5.1
 module load hdf5 cub
+module list
 ###############################################################
 cd $PBS_O_WORKDIR
-STDOUT=log/$PBS_JOBNAME.$PBS_JOBID.out
-STDERR=log/$PBS_JOBNAME.$PBS_JOBID.err
-echo "used hosts:" >> $STDOUT
-cat $PBS_NODEFILE >> $STDOUT
-TIME=`date`
-echo "start: $TIME" >> $STDOUT
+echo "used hosts:"
+cat $PBS_NODEFILE
 ###############################################################
 # export ALLINEA_NO_TIMEOUT
 # perf-report mpirun -n $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE -l $EXEC -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID 1>>$STDOUT 2>>$STDERR
@@ -200,8 +201,11 @@ echo "start: $TIME" >> $STDOUT
 # # for IntelMPI
 # mpirun -n $PROCS -hostfile $PBS_NODEFILE -perhost $PROCS_PER_NODE -l $EXEC -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID 1>>$STDOUT 2>>$STDERR
 ###############################################################
+# # for mvapich2
+# mpirun -n $PROCS -hostfile $PBS_NODEFILE -l $EXEC -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID 1>>$STDOUT 2>>$STDERR
+###############################################################
 # for mvapich2
-mpirun -n $PROCS -hostfile $PBS_NODEFILE -l $EXEC -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID 1>>$STDOUT 2>>$STDERR
+mpiexec -ppn $PROCS_PER_NODE -n $PROCS -hostfile $PBS_NODEFILE sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $NGPUS_PER_SOCKET -absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID
 ###############################################################
 TIME=`date`
 echo "finish: $TIME" >> $STDOUT

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/11/09 (Thu)
+ * @date 2017/12/18 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -146,8 +146,9 @@
  *
  * @brief number of threads per block for assignNewDomain_kernel
  */
+/* the below value must be greater than devProp.numSM * NBLOCKS_PER_SM_ASSIGN */
 #ifndef NTHREADS_ASSIGN
-#define NTHREADS_ASSIGN (256)
+#define NTHREADS_ASSIGN (512)
 #endif//NTHREADS_ASSIGN
 
 

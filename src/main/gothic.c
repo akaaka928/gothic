@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/12/14 (Thu)
+ * @date 2017/12/18 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1272,63 +1272,54 @@ int main(int argc, char **argv)
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES) && !defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) && !defined(TIME_BASED_MODIFICATION)
 
   /** output memory usage */
-#ifndef SERIALIZED_EXECUTION
-  if( mpi.rank == 0 )
-#endif//SERIALIZED_EXECUTION
     {
-      static FILE *fp;
-      static char memlog[256];
-      sprintf(memlog, "%s/%s.%s.txt", LOGFOLDER, file, "memory");
-      fp = fopen(memlog, "w");
-      if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", memlog);  }
-
       size_t free, used, total;
       queryFreeDeviceMemory(&free, &total);      used = total - free;
 
-      fprintf(fp, "Allocated memory on device per process: %zu B (%zu GiB, %zu MiB)\n", used_mem.device, used_mem.device >> 30, used_mem.device >> 20);
-      fprintf(fp, "    total memory on device per process: %zu B (%zu GiB, %zu MiB)\n"       , total, total >> 30, total >> 20);
-      fprintf(fp, "     used memory on device per process: %zu B (%zu GiB, %zu MiB; %lf%%)\n",  used,  used >> 30,  used >> 20, 100.0 * (double)used / (double)total);
-      fprintf(fp, "     free memory on device per process: %zu B (%zu GiB, %zu MiB; %lf%%)\n",  free,  free >> 30,  free >> 20, 100.0 * (double)free / (double)total);
+      fprintf(stdout, "Allocated memory on device per process: %zu B (%zu GiB, %zu MiB)\n", used_mem.device, used_mem.device >> 30, used_mem.device >> 20);
+      fprintf(stdout, "    total memory on device per process: %zu B (%zu GiB, %zu MiB)\n"       , total, total >> 30, total >> 20);
+      fprintf(stdout, "     used memory on device per process: %zu B (%zu GiB, %zu MiB; %lf%%)\n",  used,  used >> 30,  used >> 20, 100.0 * (double)used / (double)total);
+      fprintf(stdout, "     free memory on device per process: %zu B (%zu GiB, %zu MiB; %lf%%)\n",  free,  free >> 30,  free >> 20, 100.0 * (double)free / (double)total);
 
-      fprintf(fp, "Allocated memory on   host per process: %zu B (%zu GiB, %zu MiB)\n", used_mem.host  , used_mem.host   >> 30, used_mem.host   >> 20);
+      fprintf(stdout, "Allocated memory on   host per process: %zu B (%zu GiB, %zu MiB)\n", used_mem.host  , used_mem.host   >> 30, used_mem.host   >> 20);
 
-      fprintf(fp, "\nBreakdown of allocated memory on device:\n");
-      fprintf(fp, "\t%zu MiB (%zu GiB) for N-body particles\n"  , body_mem.device >> 20, body_mem.device >> 30);
-      fprintf(fp, "\t%zu MiB (%zu GiB) for tree structure\n"    , tree_mem.device >> 20, tree_mem.device >> 30);
-      fprintf(fp, "\t%zu MiB for miscellaneous data\n", misc_mem.device >> 20);
-      fprintf(fp, "\t%zu MiB (%zu GiB) for tree walk buffer\n"  , alloc_buf_dev.device >> 20, alloc_buf_dev.device >> 30);
+      fprintf(stdout, "\nBreakdown of allocated memory on device:\n");
+      fprintf(stdout, "\t%zu MiB (%zu GiB) for N-body particles\n"  , body_mem.device >> 20, body_mem.device >> 30);
+      fprintf(stdout, "\t%zu MiB (%zu GiB) for tree structure\n"    , tree_mem.device >> 20, tree_mem.device >> 30);
+      fprintf(stdout, "\t%zu MiB for miscellaneous data\n", misc_mem.device >> 20);
+      fprintf(stdout, "\t%zu MiB (%zu GiB) for tree walk buffer\n"  , alloc_buf_dev.device >> 20, alloc_buf_dev.device >> 30);
 #ifndef SERIALIZED_EXECUTION
-      fprintf(fp, "\t%zu MiB (%zu B) for LET related data\n"  ,  let_mem.device >> 20,  let_mem.device);
-      fprintf(fp, "\t%zu MiB (%zu KiB) for domain decomposition related data\n", box_mem.device >> 20, box_mem.device >> 10);
-      fprintf(fp, "\t%zu MiB (%zu KiB) for enclosing ball related data\n", ball_mem.device >> 20, ball_mem.device >> 10);
+      fprintf(stdout, "\t%zu MiB (%zu B) for LET related data\n"  ,  let_mem.device >> 20,  let_mem.device);
+      fprintf(stdout, "\t%zu MiB (%zu KiB) for domain decomposition related data\n", box_mem.device >> 20, box_mem.device >> 10);
+      fprintf(stdout, "\t%zu MiB (%zu KiB) for enclosing ball related data\n", ball_mem.device >> 20, ball_mem.device >> 10);
 #endif//SERIALIZED_EXECUTION
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
-      fprintf(fp, "\t%zu MiB (%zu GiB) for accuracy test data\n", alloc_acc_dev.device >> 20, alloc_acc_dev.device >> 30);
+      fprintf(stdout, "\t%zu MiB (%zu GiB) for accuracy test data\n", alloc_acc_dev.device >> 20, alloc_acc_dev.device >> 30);
 #endif//COMPARE_WITH_DIRECT_SOLVER
 #ifndef BLOCK_TIME_STEP
-      fprintf(fp, "\t%zu B (%zu KiB) for time step value\n", alloc_dt_dev.device >> 20, alloc_dt_dev.device >> 10);
+      fprintf(stdout, "\t%zu B (%zu KiB) for time step value\n", alloc_dt_dev.device >> 20, alloc_dt_dev.device >> 10);
 #endif//BLOCK_TIME_STEP
 
-      fprintf(fp, "\nBreakdown of allocated memory on host:\n");
-      fprintf(fp, "\t%zu MiB (%zu GiB) for N-body particles\n"  , body_mem.host >> 20, body_mem.host >> 30);
-      fprintf(fp, "\t%zu MiB (%zu GiB) for tree structure\n"    , tree_mem.host >> 20, tree_mem.host >> 30);
-      fprintf(fp, "\t%zu MiB for miscellaneous data\n", misc_mem.host >> 20);
-      fprintf(fp, "\t%zu MiB (%zu B) for tree walk buffer\n", alloc_buf_dev.host >> 20, alloc_buf_dev.host);
+      fprintf(stdout, "\nBreakdown of allocated memory on host:\n");
+      fprintf(stdout, "\t%zu MiB (%zu GiB) for N-body particles\n"  , body_mem.host >> 20, body_mem.host >> 30);
+      fprintf(stdout, "\t%zu MiB (%zu GiB) for tree structure\n"    , tree_mem.host >> 20, tree_mem.host >> 30);
+      fprintf(stdout, "\t%zu MiB for miscellaneous data\n", misc_mem.host >> 20);
+      fprintf(stdout, "\t%zu MiB (%zu B) for tree walk buffer\n", alloc_buf_dev.host >> 20, alloc_buf_dev.host);
 #ifndef SERIALIZED_EXECUTION
-      fprintf(fp, "\t%zu MiB (%zu B) for LET related data\n", let_mem.host >> 20, let_mem.host);
-      fprintf(fp, "\t%zu MiB (%zu KiB) for domain decomposition related data\n", box_mem.host >> 20, box_mem.host >> 10);
-      fprintf(fp, "\t%zu MiB (%zu B) for enclosing ball related data\n", ball_mem.host >> 20, ball_mem.host);
+      fprintf(stdout, "\t%zu MiB (%zu B) for LET related data\n", let_mem.host >> 20, let_mem.host);
+      fprintf(stdout, "\t%zu MiB (%zu KiB) for domain decomposition related data\n", box_mem.host >> 20, box_mem.host >> 10);
+      fprintf(stdout, "\t%zu MiB (%zu B) for enclosing ball related data\n", ball_mem.host >> 20, ball_mem.host);
 #endif//SERIALIZED_EXECUTION
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
-      fprintf(fp, "\t%zu MiB (%zu GiB) for accuracy test data\n", alloc_acc_dev.host >> 20, alloc_acc_dev.host >> 30);
+      fprintf(stdout, "\t%zu MiB (%zu GiB) for accuracy test data\n", alloc_acc_dev.host >> 20, alloc_acc_dev.host >> 30);
 #endif//COMPARE_WITH_DIRECT_SOLVER
 #ifndef BLOCK_TIME_STEP
-      fprintf(fp, "\t%zu B (%zu KiB) for time step value\n", alloc_dt_dev.host >> 20, alloc_dt_dev.host >> 10);
+      fprintf(stdout, "\t%zu B (%zu KiB) for time step value\n", alloc_dt_dev.host >> 20, alloc_dt_dev.host >> 10);
 #endif//BLOCK_TIME_STEP
 
-      fclose(fp);
+      fprintf(stdout, "\n");
+      fflush(NULL);
     }
-  __NOTE__("%zu MiB (%zu GiB) for tree walk buffer\n"  , alloc_buf_dev.device >> 20, alloc_buf_dev.device >> 30);
 
 
 #ifdef  EXEC_BENCHMARK

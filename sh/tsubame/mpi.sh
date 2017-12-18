@@ -10,6 +10,8 @@ NGPUS_PER_NODE=4
 # NGPUS_PER_NODE=2
 # NGPUS_PER_NODE=1
 ###############################################################
+NGPUS_PER_SOCKET=2
+###############################################################
 
 
 ###############################################################
@@ -295,9 +297,8 @@ OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$N
 ###############################################################
 # job execution via UNIVA Grid Engine
 ###############################################################
-# set stdout and stderr
-STDOUT=$REQUEST.o$JOB_ID
-STDERR=$REQUEST.e$JOB_ID
+TIME=`date`
+echo "start: $TIME"
 ###############################################################
 # load modules
 . /etc/profile.d/modules.sh
@@ -305,24 +306,17 @@ export MODULEPATH=$MODULEPATH:$HOME/opt/Modules
 module load intel intel-mpi phdf5
 module load gsl
 module load cuda/8.0.61 cub
-module list 1>>$STDOUT 2>>$STDERR
+module list
 ###############################################################
-cat $PE_HOSTFILE 1>>$STDOUT 2>>$STDERR
-TIME=`date`
-echo "start: $TIME" 1>>$STDOUT 2>>$STDERR
+cat $PE_HOSTFILE
 ###############################################################
 # execute the job
-# if [ `which numactl` ]; then
-#     # run with numactl
-#     echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-#     numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
-# else
-    # run without numactl
-    echo "mpiexec -ppn $NGPUS_PER_NODE -n $PROCS $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
-    mpiexec -ppn $NGPUS_PER_NODE -n $PROCS -l $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
-# fi
+echo "mpiexec -ppn $NGPUS_PER_NODE -n $PROCS sh/wrapper.sh $EXEC log/${FILE}_${REQUEST} $JOB_ID $NGPUS_PER_NODE $NGPUS_PER_SOCKET $OPTION"
+mpiexec -ppn $NGPUS_PER_NODE -n $PROCS sh/wrapper.sh $EXEC log/${FILE}_${REQUEST} $JOB_ID $NGPUS_PER_NODE $NGPUS_PER_SOCKET $OPTION
 ###############################################################
 # finish logging
 TIME=`date`
-echo "finish: $TIME" 1>>$STDOUT 2>>$STDERR
+echo "finish: $TIME"
+###############################################################
+exit 0
 ###############################################################
