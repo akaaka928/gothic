@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2017/12/27 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -209,7 +209,7 @@ static inline double _kingFunc1(const double rad, const double yy)
  * @param (psi) non-dimensional potential at rad
  * @param (rho0inv) 1 / rho0
  * @param (rho1) rho1
- * @return right hand side of the Poisson's equation, see Equation (B3) in Miki & Umemura (in preparation)
+ * @return right hand side of the Poisson's equation, see Equation (B3) in Miki & Umemura (arXiv:1712.08760)
  */
 static inline double _kingFunc2(const double rad, const double psi, const double rho0inv, const double rho1)
 {

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/12/14 (Thu)
+ * @date 2017/12/26 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -328,6 +328,20 @@ static inline void sort_xpos_hst(const int num, samplePos RESTRICT src, samplePo
     dst.z_hst[ii] = src.z_hst[jj];
   }/* for(int ii = 0; ii < num; ii++){ */
 
+#ifndef NDEBUG
+#if 0
+  __PRINTF__("src:\n");
+  for(int ii = 0; ii < num; ii++)
+    __PRINTF__("%d: x = %e, y = %e, z = %e\n", ii, src.x_hst[ii], src.y_hst[ii], src.z_hst[ii]);
+
+  __PRINTF__("\ndst:\n");
+  for(int ii = 0; ii < num; ii++)
+    __PRINTF__("%d: x = %e, y = %e, z = %e\n", ii, dst.x_hst[ii], dst.y_hst[ii], dst.z_hst[ii]);
+  MPI_Abort(MPI_COMM_WORLD, 0);
+  exit(0);
+#endif
+#endif//NDEBUG
+
   __NOTE__("%s\n", "end");
 }
 
@@ -380,6 +394,15 @@ static inline void sort_ypos_hst(const int num, samplePos src)
   /** sort using thrust */
   thrust::stable_sort_by_key(src.y_hst, (src.y_hst) + num, src.z_hst);
 
+#ifndef NDEBUG
+#if 0
+  for(int ii = 0; ii < num; ii++)
+    __PRINTF__("%d: y = %e, z = %e\n", ii, src.y_hst[ii], src.z_hst[ii]);
+  MPI_Abort(MPI_COMM_WORLD, 0);
+  exit(0);
+#endif
+#endif//NDEBUG
+
   __NOTE__("%s\n", "end");
 }
 
@@ -425,6 +448,15 @@ static inline void sort_zpos_hst(const int num, samplePos src)
 
   /** sort using thrust */
   thrust::stable_sort(src.z_hst, (src.z_hst) + num);
+
+#ifndef NDEBUG
+#if 0
+  for(int ii = 0; ii < num; ii++)
+    __PRINTF__("%d: z = %e\n", ii, src.z_hst[ii]);
+  MPI_Abort(MPI_COMM_WORLD, 0);
+  exit(0);
+#endif
+#endif//NDEBUG
 
   __NOTE__("%s\n", "end");
 }
@@ -1117,7 +1149,7 @@ void exchangeParticles_dev
   /** gather particle data to the root process */
 #ifdef  MPI_ONE_SIDED_FOR_EXCG
 
-  __NOTE__("rank %d: MPI_Get start\n", mpi.rank);
+  __NOTE__("MPI_Get start\n");
 
   if( mpi.rank == 0 ){
     chkMPIerr(MPI_Win_lock_all(0, loc.win_x));
@@ -1135,23 +1167,23 @@ void exchangeParticles_dev
     chkMPIerr(MPI_Win_unlock_all(loc.win_z));
   }/* if( mpi.rank == 0 ){ */
 
-  __NOTE__("rank %d: MPI_Get finish\n", mpi.rank);
+  __NOTE__("MPI_Get finish\n");
   /* is MPI_Get failed @ rank = 0?? */
 
 #else///MPI_ONE_SIDED_FOR_EXCG
 
 #ifndef MPI_VIA_HOST
-  __NOTE__("rank %d: MPI_Gatherv start\n", mpi.rank);
+  __NOTE__("MPI_Gatherv start\n");
   chkMPIerr(MPI_Gatherv(loc.x_dev, sendNum, MPI_FLOAT, ful.x_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
   chkMPIerr(MPI_Gatherv(loc.y_dev, sendNum, MPI_FLOAT, ful.y_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
   chkMPIerr(MPI_Gatherv(loc.z_dev, sendNum, MPI_FLOAT, ful.z_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
-  __NOTE__("rank %d: MPI_Gatherv finish\n", mpi.rank);
+  __NOTE__("MPI_Gatherv finish\n");
 #else///MPI_VIA_HOST
-  __NOTE__("rank %d: MPI_Gatherv start\n", mpi.rank);
+  __NOTE__("MPI_Gatherv start\n");
   chkMPIerr(MPI_Gatherv(loc.x_hst, sendNum, MPI_FLOAT, ful.x_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
   chkMPIerr(MPI_Gatherv(loc.y_hst, sendNum, MPI_FLOAT, ful.y_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
   chkMPIerr(MPI_Gatherv(loc.z_hst, sendNum, MPI_FLOAT, ful.z_hst, sample.rnum, sample.disp, MPI_REALDAT, 0, mpi.comm));
-  __NOTE__("rank %d: MPI_Gatherv finish\n", mpi.rank);
+  __NOTE__("MPI_Gatherv finish\n");
 #endif//MPI_VIA_HOST
 
 #endif//MPI_ONE_SIDED_FOR_EXCG
@@ -1184,7 +1216,7 @@ void exchangeParticles_dev
   cudaDeviceSynchronize();
   MPI_Barrier(MPI_COMM_WORLD);
 #endif
-  __NOTE__("rank %d: xmin = %e, xmax = %e, ymin = %e, ymax = %e, zmin = %e, zmax = %e\n", mpi.rank, min.x, max.x, min.y, max.y, min.z, max.z);
+  __NOTE__("xmin = %e, xmax = %e, ymin = %e, ymax = %e, zmin = %e, zmax = %e\n", min.x, max.x, min.y, max.y, min.z, max.z);
 
 #ifdef  SHARE_PH_BOX_BOUNDARY
   chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, soa.min_hst, 3, MPI_FLOAT, MPI_MIN, mpi.comm));
@@ -1273,8 +1305,11 @@ void exchangeParticles_dev
     }/* if( orm[0].rank == 0 ){ */
 
     /** MPI_Bcast in orm[0].comm */
-    chkMPIerr(MPI_Bcast(&local_xmin, 1, MPI_FLOAT, 0, orm[0].comm));
-    chkMPIerr(MPI_Bcast(&local_xmax, 1, MPI_FLOAT, 0, orm[0].comm));
+    if( (mpi.dim[1] != 1) || (mpi.dim[2] != 1) ){
+      /**# ここの処理って必要なんですか? というのをチェックする。 */
+      chkMPIerr(MPI_Bcast(&local_xmin, 1, MPI_FLOAT, 0, orm[0].comm));
+      chkMPIerr(MPI_Bcast(&local_xmax, 1, MPI_FLOAT, 0, orm[0].comm));
+    }/* if( (mpi.dim[1] != 1) || (mpi.dim[2] != 1) ){ */
   }/* if( mpi.dim[0] != 1 ){ */
 
 
@@ -1285,12 +1320,12 @@ void exchangeParticles_dev
       sendNum = recvNum;
       /** the root process determine the partition */
       if( rep[1].rank == 0 ){
-	sort_ypos(recvNum, &ful, host);
+	sort_ypos(recvNum, &ful, host);/**< ful で正しいかを確認すること。というか、ポインタを送るのってなんだかおかしくないか? */
 	sample.ymin[0] = -0.5f * FLT_MAX;
 	for(int ii = 0; ii < rep[1].size; ii++){
 	  int Nini = (sendNum * (    ii)) / rep[1].size;
 	  int Nfin = (sendNum * (1 + ii)) / rep[1].size;
-	  sample.rnum[ii] = Nfin - Nini;
+	  sample.rnum[ii] = Nfin - Nini;/**< sample.rnum って、各方向別配列を設置しなくても大丈夫? */
 	  if( ii != (rep[1].size - 1) ){
 	    const float middle = cutting(ful.y_hst[Nfin], ful.y_hst[Nfin + 1]
 #ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
@@ -1310,7 +1345,7 @@ void exchangeParticles_dev
       if( mpi.dim[2] != 1 ){
 	/** set send displacements (root process only) */
 	if( rep[1].rank == 0 ){
-	  sample.disp[0] = 0;
+	  sample.disp[0] = 0;/**< sample.disp って、各方向別配列を設置しなくても大丈夫? */
 	  for(int ii = 1; ii < rep[1].size; ii++)
 	    sample.disp[ii] = sample.disp[ii - 1] + sample.rnum[ii - 1];
 	}/* if( rep[1].rank == 0 ){ */
@@ -1326,8 +1361,11 @@ void exchangeParticles_dev
     }/* if( orm[1].rank == 0 ){ */
 
     /** MPI_Bcast in orm[1].comm */
-    chkMPIerr(MPI_Bcast(&local_ymin, 1, MPI_FLOAT, 0, orm[1].comm));
-    chkMPIerr(MPI_Bcast(&local_ymax, 1, MPI_FLOAT, 0, orm[1].comm));
+    if( mpi.dim[2] != 1 ){
+      /**# ここの処理って必要なんですか? というのをチェックする。 */
+      chkMPIerr(MPI_Bcast(&local_ymin, 1, MPI_FLOAT, 0, orm[1].comm));
+      chkMPIerr(MPI_Bcast(&local_ymax, 1, MPI_FLOAT, 0, orm[1].comm));
+    }/* if( mpi.dim[2] != 1 ){ */
   }/* if( mpi.dim[1] != 1 ){ */
 
 
@@ -1338,12 +1376,12 @@ void exchangeParticles_dev
       sendNum = recvNum;
       /** the root process determine the partition */
       if( rep[2].rank == 0 ){
-	sort_zpos(recvNum, &ful, host);
+	sort_zpos(recvNum, &ful, host);/**< ful で正しいかを確認すること。というか、ポインタを送るのってなんだかおかしくないか? */
 	sample.zmin[0] = -0.5f * FLT_MAX;
 	for(int ii = 0; ii < rep[2].size; ii++){
 	  int Nini = (sendNum * (    ii)) / rep[2].size;
 	  int Nfin = (sendNum * (1 + ii)) / rep[2].size;
-	  sample.rnum[ii] = Nfin - Nini;
+	  sample.rnum[ii] = Nfin - Nini;/**< sample.rnum って、各方向別配列を設置しなくても大丈夫? */
 
 	  if( ii != (rep[2].size - 1) ){
 	    const float middle = cutting(ful.z_hst[Nfin], ful.z_hst[Nfin + 1]
@@ -1370,7 +1408,7 @@ void exchangeParticles_dev
   chkMPIerr(MPI_Allgather(&local_ymax, 1, MPI_FLOAT, domain.ymax, 1, MPI_FLOAT, mpi.comm));
   chkMPIerr(MPI_Allgather(&local_zmin, 1, MPI_FLOAT, domain.zmin, 1, MPI_FLOAT, mpi.comm));
   chkMPIerr(MPI_Allgather(&local_zmax, 1, MPI_FLOAT, domain.zmax, 1, MPI_FLOAT, mpi.comm));
-  __NOTE__("rank %d: [%e, %e]x[%e, %e]x[%e, %e]\n", mpi.rank,
+  __NOTE__("[%e, %e]x[%e, %e]x[%e, %e]\n",
 	   domain.xmin[mpi.rank], domain.xmax[mpi.rank],
 	   domain.ymin[mpi.rank], domain.ymax[mpi.rank],
 	   domain.zmin[mpi.rank], domain.zmax[mpi.rank]);

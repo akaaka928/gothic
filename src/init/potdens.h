@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2017/12/27 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -66,7 +66,7 @@
  * @def ENABLE_VARIABLE_SCALE_HEIGHT
  *
  * @brief enable to remove the needle-like structure
- * @detail Equation (8) in Miki & Umemura (in preparation)
+ * @detail Equation (8) in Miki & Umemura (arXiv:1712.08760)
  */
 #define ENABLE_VARIABLE_SCALE_HEIGHT
 
@@ -81,7 +81,7 @@
  * @def DISK_DIMMING_HEIGHT
  *
  * @brief parameter to remove the needle-like structure
- * @detail see Equation (8) in Miki & Umemura (in preparation)
+ * @detail see Equation (8) in Miki & Umemura (arXiv:1712.08760)
  */
 #define DISK_DIMMING_HEIGHT (16.0)
 
