@@ -1527,7 +1527,6 @@ void outputFundamentalInformation
 	fprintf(fp, "Dimensionless scale factor     b is %e\n", cfg[ii].b_sersic);
       }/* if( cfg[ii].kind == SERSIC ){ */
       fprintf(fp, "Scale height of the component zd is %e (= %e %s)\n", cfg[ii].zd, cfg[ii].zd * length2astro, length_astro_unit_name);
-      fprintf(fp, "Retrograding fraction            is %e\n", cfg[ii].retrogradeFrac);
       fprintf(fp, "``ENABLE_VARIABLE_SCALE_HEIGHT'' is %s.\n",
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
 	      "on"
@@ -1538,6 +1537,11 @@ void outputFundamentalInformation
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
       fprintf(fp, "Dimming height of the component is %f times zd\n", DISK_DIMMING_HEIGHT);
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
+      fprintf(fp, "Retrograding fraction            is %e\n", cfg[ii].retrogradeFrac);
+      fprintf(fp, "Central surface density   Sigma0 is %e (= %e %s)\n", cfg[ii].Sigma0, cfg[ii].Sigma0 * col_density2astro, col_density_astro_unit_name);
+      fprintf(fp, "Circular speed at scale radius   is %e (= %e %s)\n", cfg[ii].vcirc_Rd   , cfg[ii].vcirc_Rd    * velocity2astro, velocity_astro_unit_name);
+      fprintf(fp, "Maximum circular speed           is %e (= %e %s)\n", cfg[ii].vcirc_max  , cfg[ii].vcirc_max   * velocity2astro, velocity_astro_unit_name);
+      fprintf(fp, "Circular speed is maximized      at %e (= %e %s)\n", cfg[ii].vcirc_max_R, cfg[ii].vcirc_max_R *   length2astro,   length_astro_unit_name);
       fprintf(fp, "``ENFORCE_EPICYCLIC_APPROXIMATION'' is %s.\n",
 #ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
 	      "on"
@@ -1545,10 +1549,6 @@ void outputFundamentalInformation
 	      "off"
 #endif//ENFORCE_EPICYCLIC_APPROXIMATION
 	      );
-      fprintf(fp, "Central surface density   Sigma0 is %e (= %e %s)\n", cfg[ii].Sigma0, cfg[ii].Sigma0 * col_density2astro, col_density_astro_unit_name);
-      fprintf(fp, "Circular speed at scale radius   is %e (= %e %s)\n", cfg[ii].vcirc_Rd   , cfg[ii].vcirc_Rd    * velocity2astro, velocity_astro_unit_name);
-      fprintf(fp, "Maximum circular speed           is %e (= %e %s)\n", cfg[ii].vcirc_max  , cfg[ii].vcirc_max   * velocity2astro, velocity_astro_unit_name);
-      fprintf(fp, "Circular speed is maximized      at %e (= %e %s)\n", cfg[ii].vcirc_max_R, cfg[ii].vcirc_max_R *   length2astro,   length_astro_unit_name);
 #ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
       fprintf(fp, "Horizontal velocity dispersion   is %e of circular velocity or vertical velocity dispersion (maximum is used)\n", cfg[ii].vdisp_frac);
 #else///ENFORCE_EPICYCLIC_APPROXIMATION
