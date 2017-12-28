@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2017/12/28 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -158,10 +158,11 @@ typedef struct
   char file[128];
   char table[128];/**< parameter for reading density profile in table form */
   double Mtot, rs;/**< parameters for all profiles */
+  double rho0;/**< parameter to set a fixed potential field */
   double einasto_alpha;/**< parameter for Einasto profile */
   double king_W0, king_rt, king_c;/**< parameter for King sphere */
 #ifdef  KING_CENTRAL_CUSP
-  double king_dWdx_0;/** dW/dx at the center */
+p  double king_dWdx_0;/** dW/dx at the center */
 #endif//KING_CENTRAL_CUSP
   double twopower_alpha, twopower_beta, twopower_gamma;/**< parameters for two-power model */
   double tripower_delta, tripower_epsilon, tripower_rout;/**< additional parameters for three-power model */

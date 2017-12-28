@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2017/12/28 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1516,6 +1516,9 @@ void outputFundamentalInformation
       fprintf(fp, "Internal power-law index    beta is %e\n", cfg[ii].twopower_beta);
       fprintf(fp, "   Outer power-law index   gamma is %e\n", cfg[ii].twopower_gamma);
     }/* if( cfg[ii].kind == SIGTWOPOW ){ */
+    if( (ii < skind) && (cfg[ii].kind != CENTRALBH) ){
+      fprintf(fp, "Scale density of the component rho0 is %e (= %e %s)\n", cfg[ii].rho0, cfg[ii].rho0 * density2astro, density_astro_unit_name);
+    }/* if( (ii < skind) && (cfg[ii].kind != CENTRALBH) ){ */
     fprintf(fp, "#############################################################################\n");
 
     if( (cfg[ii].kind == EXP_DISK) || (cfg[ii].kind == SERSIC) || (cfg[ii].kind == TBL_DISK) ){
