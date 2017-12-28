@@ -1527,6 +1527,24 @@ void outputFundamentalInformation
 	fprintf(fp, "Dimensionless scale factor     b is %e\n", cfg[ii].b_sersic);
       }/* if( cfg[ii].kind == SERSIC ){ */
       fprintf(fp, "Scale height of the component zd is %e (= %e %s)\n", cfg[ii].zd, cfg[ii].zd * length2astro, length_astro_unit_name);
+      fprintf(fp, "Retrograding fraction            is %e\n", cfg[ii].retrogradeFrac);
+      fprintf(fp, "``ENABLE_VARIABLE_SCALE_HEIGHT'' is %s.\n",
+#ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
+	      "on"
+#else///ENABLE_VARIABLE_SCALE_HEIGHT
+	      "off"
+#endif//ENABLE_VARIABLE_SCALE_HEIGHT
+	      );
+#ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
+      fprintf(fp, "Dimming height of the component is %f times zd\n", DISK_DIMMING_HEIGHT);
+#endif//ENABLE_VARIABLE_SCALE_HEIGHT
+      fprintf(fp, "``ENFORCE_EPICYCLIC_APPROXIMATION'' is %s.\n",
+#ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
+	      "on"
+#else///ENFORCE_EPICYCLIC_APPROXIMATION
+	      "off"
+#endif//ENFORCE_EPICYCLIC_APPROXIMATION
+	      );
       fprintf(fp, "Central surface density   Sigma0 is %e (= %e %s)\n", cfg[ii].Sigma0, cfg[ii].Sigma0 * col_density2astro, col_density_astro_unit_name);
       fprintf(fp, "Circular speed at scale radius   is %e (= %e %s)\n", cfg[ii].vcirc_Rd   , cfg[ii].vcirc_Rd    * velocity2astro, velocity_astro_unit_name);
       fprintf(fp, "Maximum circular speed           is %e (= %e %s)\n", cfg[ii].vcirc_max  , cfg[ii].vcirc_max   * velocity2astro, velocity_astro_unit_name);
@@ -1537,7 +1555,6 @@ void outputFundamentalInformation
       fprintf(fp, "Horizontal velocity dispersion   is %e (= %e %s)\n", cfg[ii].vdispR0  , cfg[ii].vdispR0   * velocity2astro, velocity_astro_unit_name);
 #endif//ENFORCE_EPICYCLIC_APPROXIMATION
       fprintf(fp, "Vertical   velocity dispersion   is %e (= %e %s)\n", cfg[ii].vdispz0  , cfg[ii].vdispz0   * velocity2astro, velocity_astro_unit_name);
-      fprintf(fp, "Retrograding fraction            is %e\n", cfg[ii].retrogradeFrac);
       fprintf(fp, "Toomre's Q-value at scale radius is %e\n", cfg[ii].toomre);
 #ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
       fprintf(fp, "Minimum of Toomre's Q-value      is %e at R = %e (= %e %s), when excluding central region (estimation from velocity dispersion profile)\n", cfg[ii].Qmin2, cfg[ii].qminR2, cfg[ii].qminR2 * length2astro, length_astro_unit_name);

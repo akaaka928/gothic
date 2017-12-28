@@ -1056,7 +1056,6 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     const double gam2inv = 0.25 * (3.0 + d2Phi / (DBL_MIN + Omega2));
     assert(gam2inv >= 0.0);
     const double gam2    = 1.0 / (DBL_MIN + gam2inv);
-    /* assert(gam2 <= 1.0); */
     assert(gam2 >= 0.0);
     const double sz2inv  = 1.0 / (DBL_MIN + sigmaz * sigmaz);
 #ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
