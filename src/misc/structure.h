@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/01/04 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -218,6 +218,34 @@ typedef struct
   int *Nbuf;
 #endif//COUNT_INTERACTIONS
 } iparticle_treeinfo;
+
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+/**
+ * @struct pot2
+ *
+ * @brief structure for fixed potential field
+ */
+#ifdef  DOUBLE_PRECISION
+typedef struct __align__(16)
+#else///DOUBLE_PRECISION
+typedef struct __align__( 8)
+#endif//DOUBLE_PRECISION
+{
+  real val, dr2;/**< potential and its 2nd-derivative */
+} pot2;
+
+/**
+ * @struct potential_field
+ *
+ * @brief structure for information on fixed potential field (SoA)
+ */
+typedef struct
+{
+  real *rad;
+  pot2 *Phi;
+} potential_field;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 
 #endif//STRUCTURE_H

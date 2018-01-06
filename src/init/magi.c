@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/12/28 (Thu)
+ * @date 2018/01/05 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -79,6 +79,10 @@
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
 #include "spline.h"
 #endif//MAKE_COLUMN_DENSITY_PROFILE
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+#include "external.h"
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 
 /* global constants to set unit system, defined in constants.c */
@@ -1109,6 +1113,20 @@ int main(int argc, char **argv)
     }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
 
+  /** generate tables for fixed potential field */
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  initBenchmark_cpu();
+  real *rad_pot;
+  pot2 *Phi_pot;
+  potential_field *pot_tbl, pot_tbl_sphe, pot_tbl_disk;
+  allocPotentialField(&rad_pot, &Phi_pot, &pot_tbl, N_EXT_POT_SPHE, kind, &pot_tbl_sphe, skind, &pot_tbl_disk);
+
+  genExtPotTbl1D(kind, prf, pot_tbl);
+  superposePotFld1D(kind, skind, pot_tbl, pot_tbl_sphe, pot_tbl_disk);
+  stopBenchmark_cpu(&execTime.external);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+
+
   /** evaluate observable quantities */
   initBenchmark_cpu();
   evaluateObservables(kind, skind, cfg, prf);
@@ -1155,18 +1173,24 @@ int main(int argc, char **argv)
   static brentStatus status;
   static brentMemory memory;
 #endif//RUN_WITHOUT_GOTHIC
+#endif//USE_HDF5_FORMAT
 
-  writeTentativeData(time, dt, steps, Ntot, body, file, &last, hdf5type
+  writeTentativeData(time, dt, steps, Ntot, body, file, &last
+#ifdef  USE_HDF5_FORMAT
+		     , hdf5type
 #ifndef RUN_WITHOUT_GOTHIC
 		     , rebuild, measured, rebuildParam, status, memory
 #ifdef  MONITOR_ENERGY_ERROR
 		     , relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #endif//RUN_WITHOUT_GOTHIC
+#endif//USE_HDF5_FORMAT
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+		     , N_EXT_POT_SPHE, kind, pot_tbl, skind, pot_tbl_sphe, pot_tbl_disk
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 		     );
+#ifdef  USE_HDF5_FORMAT
   removeHDF5DataType(hdf5type);
-#else///USE_HDF5_FORMAT
-  writeTentativeData(time, dt, steps, Ntot, body, file, &last);
 #endif//USE_HDF5_FORMAT
   updateConfigFile(last, file);
 
@@ -1183,6 +1207,16 @@ int main(int argc, char **argv)
     hidx += cfg[kk].num;
   }/* for(int kk = 0; kk < kind; kk++){ */
 #endif//WRITE_IN_GALACTICS_FORMAT
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  writeFixedPotentialTable(N_EXT_POT_SPHE, kind, pot_tbl, skind, pot_tbl_sphe, pot_tbl_disk,
+#ifdef  WRITE_IN_GALACTICS_FORMAT
+			   false
+#else///WRITE_IN_GALACTICS_FORMAT
+			   true
+#endif//WRITE_IN_GALACTICS_FORMAT
+			   );
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 #endif//!defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT)
 

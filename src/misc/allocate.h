@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/01/04 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -50,6 +50,12 @@ extern "C"
   muse allocSnapshotArray(real **pos, real **vel, real **acc, real **m, real **pot, ulong **idx, const int num, nbody_hdf5 *data);
   void  freeSnapshotArray(real  *pos, real  *vel, real  *acc, real  *m, real  *pot, ulong  *idx);
 #endif//USE_HDF5_FORMAT
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  muse allocPotentialField(real **rad, pot2 **Phi, potential_field **dat, const int num, const int kind, potential_field *sphe, const int skind, potential_field *disk);
+  void  freePotentialField(real  *rad, pot2  *Phi, potential_field  *dat);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+
 #ifdef  __CUDACC__
 }
 #endif//__CUDACC__

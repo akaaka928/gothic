@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/12/28 (Thu)
+ * @date 2018/01/05 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -803,6 +803,8 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
   const ulong num = disk.cfg->num;
 #ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
   const double frac = disk.cfg->vdisp_frac;
+#else///ENFORCE_EPICYCLIC_APPROXIMATION
+  const double vdispR0_2 = disk.cfg->vdispR0 * disk.cfg->vdispR0;
 #endif//ENFORCE_EPICYCLIC_APPROXIMATION
   const double Mmax = enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, 0, NDISKBIN_HOR)];
 
@@ -1064,7 +1066,8 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     const double sR2inv = gam2inv * sp2inv;
     const double sigmaR = sqrt(gam2) * sigmap;
 #else///ENFORCE_EPICYCLIC_APPROXIMATION
-    const double sR2inv = 1.0 / DISK_RADIAL_VDISP2(sig[INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, 0)] * sig[INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, 0)], Rg, disk.invRd);
+    /* const double sR2inv = 1.0 / DISK_RADIAL_VDISP2(sig[INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, 0)] * sig[INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, 0)], Rg, disk.invRd); */
+    const double sR2inv = 1.0 / DISK_RADIAL_VDISP2(vdispR0_2, Rg, disk.invRd);
     const double sp2inv = gam2 * sR2inv;
 #ifdef  SPEEDUP_CONVERGENCE
     const double sigmaR = 1.0 / sqrt(DBL_MIN + sR2inv);

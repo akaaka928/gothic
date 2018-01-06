@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/01/04 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -212,3 +212,74 @@ void  freeSnapshotArray(real  *pos, real  *vel, real  *acc, real  *m, real  *pot
   __NOTE__("%s\n", "end");
 }
 #endif//USE_HDF5_FORMAT
+
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+/**
+ * @fn allocPotentialField
+ *
+ * @brief Allocate arrays for external fixed potential field.
+ *
+ * @return (rad) radius
+ * @return (Phi) potential and its 2nd-derivative
+ * @return (dat) potential field of each component
+ * @param (num) number of data points for potential field
+ * @param (kind) number of components
+ * @return (sphe) superposed potential field of spherical components
+ * @param (kind) number of spherical symmetric components
+ * @return (disk) superposed (spherical averaged) potential field of disk components
+ */
+muse allocPotentialField(real **rad, pot2 **Phi, potential_field **dat, const int num, const int kind, potential_field *sphe, const int skind, potential_field *disk)
+{
+  __NOTE__("%s\n", "start");
+  muse alloc = {0, 0};
+
+  size_t size = (size_t)num * (size_t)(kind + 1 + (kind > skind));
+
+  /* allocate data array for external potential field */
+  *rad = (real *)malloc(size * sizeof(real));  alloc.host += size * sizeof(real);
+  *Phi = (pot2 *)malloc(size * sizeof(pot2));  alloc.host += size * sizeof(pot2);
+  if( *rad == NULL ){    __KILL__(stderr, "ERROR: failure to allocate rad\n"  );  }
+  if( *Phi == NULL ){    __KILL__(stderr, "ERROR: failure to allocate Phi\n"  );  }
+
+  /* allocate structure for storing external potential field */
+  *dat = (potential_field *)malloc(kind * sizeof(potential_field));  alloc.host += kind * sizeof(potential_field);
+  if( *dat == NULL ){    __KILL__(stderr, "ERROR: failure to allocate dat\n"  );  }
+
+  /* asign arrays */
+  for(int ii = 0; ii < kind; ii++){
+    (*dat)[ii].rad = &((*rad)[ii * num]);
+    (*dat)[ii].Phi = &((*Phi)[ii * num]);
+  }/* for(int ii = 0; ii < kind; ii++){ */
+
+  sphe->rad = &((*rad)[kind * num]);
+  sphe->Phi = &((*Phi)[kind * num]);
+
+  if( kind > skind ){
+    disk->rad = &((*rad)[(kind + 1) * num]);
+    disk->Phi = &((*Phi)[(kind + 1) * num]);
+  }/* if( kind > skind ){ */
+
+  __NOTE__("%s\n", "end");
+  return (alloc);
+}
+/**
+ * @fn freePotentialField
+ *
+ * @brief Deallocate arrays for external fixed potential field.
+ *
+ * @param (rad) radius
+ * @param (Phi) potential and its 2nd-derivative
+ * @param (dat) potential field of each component
+ */
+void  freePotentialField(real  *rad, pot2  *Phi, potential_field  *dat)
+{
+  __NOTE__("%s\n", "start");
+
+  free(rad);
+  free(Phi);
+  free(dat);
+
+  __NOTE__("%s\n", "end");
+}
+#endif//SET_EXTERNAL_POTENTIAL_FIELD

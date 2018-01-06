@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/01/05 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -462,6 +462,13 @@ void createHDF5DataType(hdf5struct *type)
   chkHDF5err(H5Tinsert(type->brentMemory, "interval", HOFFSET(brentMemory, interval), H5T_NATIVE_INT));
 #endif//RUN_WITHOUT_GOTHIC
 
+  /* commit a data type of pot2 */
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  type->pot2 = H5Tcreate(H5T_COMPOUND, sizeof(pot2));
+  chkHDF5err(H5Tinsert(type->pot2, "val", HOFFSET(pot2, val), type->real));
+  chkHDF5err(H5Tinsert(type->pot2, "dr2", HOFFSET(pot2, dr2), type->real));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+
 
   __NOTE__("%s\n", "end");
 }
@@ -487,6 +494,10 @@ void removeHDF5DataType(hdf5struct  type)
 #endif//RUN_WITHOUT_GOTHIC
 
   chkHDF5err(H5Tclose(type.str4unit));
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  chkHDF5err(H5Tclose(type.pot2));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
   __NOTE__("%s\n", "end");
 }
@@ -765,6 +776,12 @@ void  readTentativeData(double *time, double *dt, ulong *steps, int num, ipartic
  * @param (status) parameters for auto-tuning based on Brent method in the previous run (only for GOTHIC with HDF5)
  * @param (memory) parameters for auto-tuning based on Brent method in the previous run (only for GOTHIC with HDF5)
  * @param (relEneErr) energy error in the previous run (only for GOTHIC with HDF5)
+ * @param (Ndat) number of data points for external potential-field
+ * @param (kind) number of components in MAGI
+ * @param (pot_tbl) potential field for cubic spline interpolation
+ * @param (skind) number of spherical symmetric components in MAGI
+ * @param (pot_tbl_sphe) superposed potential field for cubic spline interpolation (only for spherical symmetric components)
+ * @param (pot_tbl_disk) superposed potential field for cubic spline interpolation (only for spherical averaged disk components)
  */
 void writeTentativeData(double  time, double  dt, ulong  steps, ulong num, iparticle body, char file[], int *last
 #ifdef  USE_HDF5_FORMAT
@@ -776,6 +793,9 @@ void writeTentativeData(double  time, double  dt, ulong  steps, ulong num, ipart
 #endif//MONITOR_ENERGY_ERROR
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+			, const int Ndat, const int kind, potential_field *pot_tbl, const int skind, potential_field pot_tbl_sphe, potential_field pot_tbl_disk
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 			)
 {
   __NOTE__("%s\n", "start");
@@ -806,7 +826,23 @@ void writeTentativeData(double  time, double  dt, ulong  steps, ulong num, ipart
 #endif//BLOCK_TIME_STEP
   tmp = num;  if( tmp != fwrite(body.idx, sizeof(ulong), tmp, fp) )    success = false;
   if( success != true ){    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);  }
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  tmp =    1;  if( tmp != fwrite(& Ndat, sizeof(int), tmp, fp) )    success = false;
+  tmp =    1;  if( tmp != fwrite(& kind, sizeof(int), tmp, fp) )    success = false;
+  tmp =    1;  if( tmp != fwrite(&skind, sizeof(int), tmp, fp) )    success = false;
+  tmp = Ndat;  if( tmp != fwrite(pot_tbl_sphe.rad, sizeof(real), tmp, fp) )    success = false;
+  tmp = Ndat;  if( tmp != fwrite(pot_tbl_sphe.Phi, sizeof(pot2), tmp, fp) )    success = false;
+  if( kind > skind ){
+    tmp = Ndat;  if( tmp != fwrite(pot_tbl_disk.rad, sizeof(real), tmp, fp) )    success = false;
+    tmp = Ndat;  if( tmp != fwrite(pot_tbl_disk.Phi, sizeof(pot2), tmp, fp) )    success = false;
+  }/* if( kind > skind ){ */
+  for(int ii = 0; ii < kind; ii++){
+    tmp = Ndat;  if( tmp != fwrite(pot_tbl[ii].rad, sizeof(real), tmp, fp) )    success = false;
+    tmp = Ndat;  if( tmp != fwrite(pot_tbl[ii].Phi, sizeof(pot2), tmp, fp) )    success = false;
+  }/* for(int ii = 0; ii < kind; ii++){ */
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
+  if( success != true ){    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);  }
   fclose(fp);
   *last ^= 1;
 #else///USE_HDF5_FORMAT
@@ -1056,6 +1092,99 @@ void writeTentativeData(double  time, double  dt, ulong  steps, ulong num, ipart
     chkHDF5err(H5Gclose(group));
   }/* if( steps != 0 ){ */
 #endif//RUN_WITHOUT_GOTHIC
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  group = H5Gcreate(target, "external potential field", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+  dims = Ndat;
+  dataspace = H5Screate_simple(1, &dims, NULL);
+
+#ifdef  USE_SZIP_COMPRESSION
+  property = H5Pcreate(H5P_DATASET_CREATE);
+  cdims_loc = cdims;
+  if( dims < cdims_loc )
+    cdims_loc = (hsize_t)1 << llog2((ulong)dims);
+  cdims_max = (MAXIMUM_CHUNK_SIZE_4BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_4BIT : MAXIMUM_CHUNK_SIZE;
+  if( cdims_loc > cdims_max )
+    cdims_loc = cdims_max;
+  chkHDF5err(H5Pset_chunk(property, 1, &cdims_loc));
+  chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+#endif//USE_SZIP_COMPRESSION
+
+
+  /* write potential table for superposed spherical components */
+  hid_t sub = H5Gcreate(group, "spherical", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  /* write radius */
+  dataset = H5Dcreate(sub, "r", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, pot_tbl_sphe.rad));
+  chkHDF5err(H5Dclose(dataset));
+  /* write potential */
+  dataset = H5Dcreate(sub, "Phi(r)", type.pot2, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, type.pot2, H5S_ALL, H5S_ALL, H5P_DEFAULT, pot_tbl_sphe.Phi));
+  chkHDF5err(H5Dclose(dataset));
+  chkHDF5err(H5Gclose(sub));
+
+
+  /* write (spherical averaged) potential table for superposed disk components */
+  if( kind > skind ){
+    sub = H5Gcreate(group, "disk", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    /* write radius */
+    dataset = H5Dcreate(sub, "r", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, pot_tbl_disk.rad));
+    chkHDF5err(H5Dclose(dataset));
+    /* write potential */
+    dataset = H5Dcreate(sub, "Phi(r)", type.pot2, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.pot2, H5S_ALL, H5S_ALL, H5P_DEFAULT, pot_tbl_disk.Phi));
+    chkHDF5err(H5Dclose(dataset));
+    chkHDF5err(H5Gclose(sub));
+  }/* if( kind > skind ){ */
+
+
+  /* write potential table for each component */
+  if( kind > 1 )
+    for(int ii = 0; ii < kind; ii++){
+      char grp[16];
+      sprintf(grp, "data%d", ii);
+      sub = H5Gcreate(group, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+      /* write radius */
+      dataset = H5Dcreate(sub, "r", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, pot_tbl[ii].rad));
+      chkHDF5err(H5Dclose(dataset));
+      /* write potential */
+      dataset = H5Dcreate(sub, "Phi(r)", type.pot2, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.pot2, H5S_ALL, H5S_ALL, H5P_DEFAULT, pot_tbl[ii].Phi));
+      chkHDF5err(H5Dclose(dataset));
+
+      chkHDF5err(H5Gclose(sub));
+    }/* for(int ii = 0; ii < kind; ii++){ */
+  chkHDF5err(H5Sclose(dataspace));
+
+#ifdef  USE_SZIP_COMPRESSION
+  chkHDF5err(H5Pclose(property));
+#endif//USE_SZIP_COMPRESSION
+
+  /* write attribute data */
+  /* create the data space for the attribute */
+  attr_dims = 1;
+  dataspace = H5Screate_simple(1, &attr_dims, NULL);
+  /* write # of data points */
+  attribute = H5Acreate(group, "Ndat", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &Ndat));
+  chkHDF5err(H5Aclose(attribute));
+  /* write # of components */
+  attribute = H5Acreate(group, "kind", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &kind));
+  chkHDF5err(H5Aclose(attribute));
+  /* write # of spherical components */
+  attribute = H5Acreate(group, "skind", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &skind));
+  chkHDF5err(H5Aclose(attribute));
+  /* close the dataspace */
+  chkHDF5err(H5Sclose(dataspace));
+
+  chkHDF5err(H5Gclose(group));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
   /* close the file */
   chkHDF5err(H5Fclose(target));
@@ -2116,6 +2245,101 @@ void writeGalactICSFile(double time, int head, int num, iparticle body, char fil
 
   fclose(fp);
 }
+
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+/**
+ * @fn writeFixedPotentialTable
+ *
+ * @brief Write fixed potential field represented in cubic spline interpolation.
+ *
+ * @param (Ndat) number of data points for external potential-field
+ * @param (kind) number of components in MAGI
+ * @param (pot_tbl) potential field for cubic spline interpolation
+ * @param (skind) number of spherical symmetric components in MAGI
+ * @param (pot_tbl_sphe) superposed potential field for cubic spline interpolation (only for spherical symmetric components)
+ * @param (pot_tbl_disk) superposed potential field for cubic spline interpolation (only for spherical averaged disk components)
+ * @param (binary) write in binary format when binary is true; otherwise, write in ASCII format
+ */
+void writeFixedPotentialTable(const int Ndat, const int kind, potential_field *pot_tbl, const int skind, potential_field pot_tbl_sphe, potential_field pot_tbl_disk, const bool binary)
+{
+  char filename[256];
+  FILE *fp;
+
+  /* write numeric table for superposed spherical components */
+  sprintf(filename, "%s/%s.%s.%s", DATAFOLDER, file, "pot", "sphe");
+  fp = fopen(filename, binary ? "wb" : "w");
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);  }
+  if( binary ){
+    bool success = true;
+    size_t tmp;
+    tmp = 1;    if( tmp != fwrite(&Ndat, sizeof(int), tmp, fp) )      success = false;
+
+    tmp = Ndat;    if( tmp != fwrite(pot_tbl_sphe.rad, sizeof(real), tmp, fp) )      success = false;
+    tmp = Ndat;    if( tmp != fwrite(pot_tbl_sphe.Phi, sizeof(pot2), tmp, fp) )      success = false;
+
+    if( success != true ){      __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);    }
+  }/* if( binary ){ */
+  else{
+    fprintf(fp, "%d\n", Ndat);
+
+    for(int ii = 0; ii < Ndat; ii++)
+      fprintf(fp, "%e\t%e\t%e\n", pot_tbl_sphe.rad[ii], pot_tbl_sphe.Phi[ii].val, pot_tbl_sphe.Phi[ii].dr2);
+  }/* else{ */
+  fclose(fp);
+
+
+  /* write numeric table for superposed (spherical averaged) disk components */
+  if( kind > skind ){
+    sprintf(filename, "%s/%s.%s.%s", DATAFOLDER, file, "pot", "disk");
+    fp = fopen(filename, binary ? "wb" : "w");
+    if( fp == NULL ){      __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);    }
+    if( binary ){
+      bool success = true;
+      size_t tmp;
+      tmp = 1;      if( tmp != fwrite(&Ndat, sizeof(int), tmp, fp) )	success = false;
+
+      tmp = Ndat;      if( tmp != fwrite(pot_tbl_disk.rad, sizeof(real), tmp, fp) )	success = false;
+      tmp = Ndat;      if( tmp != fwrite(pot_tbl_disk.Phi, sizeof(pot2), tmp, fp) )	success = false;
+
+      if( success != true ){	__KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);      }
+    }/* if( binary ){ */
+    else{
+      fprintf(fp, "%d\n", Ndat);
+
+      for(int ii = 0; ii < Ndat; ii++)
+	fprintf(fp, "%e\t%e\t%e\n", pot_tbl_disk.rad[ii], pot_tbl_disk.Phi[ii].val, pot_tbl_disk.Phi[ii].dr2);
+    }/* else{ */
+    fclose(fp);
+  }/* if( binary ){ */
+
+
+  /* write numeric table for each component */
+  if( kind > skind )
+    for(int kk = 0; kk < kind; kk++){
+      sprintf(filename, "%s/%s.%s.%d", DATAFOLDER, file, "pot", kk);
+      fp = fopen(filename, binary ? "wb" : "w");
+      if( fp == NULL ){	__KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);      }
+      if( binary ){
+	bool success = true;
+	size_t tmp;
+	tmp = 1;	if( tmp != fwrite(&Ndat, sizeof(int), tmp, fp) )	  success = false;
+
+	tmp = Ndat;	if( tmp != fwrite(pot_tbl[kk].rad, sizeof(real), tmp, fp) )	  success = false;
+	tmp = Ndat;	if( tmp != fwrite(pot_tbl[kk].Phi, sizeof(pot2), tmp, fp) )	  success = false;
+
+	if( success != true ){	  __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);	}
+      }/* if( binary ){ */
+      else{
+	fprintf(fp, "%d\n", Ndat);
+
+	for(int ii = 0; ii < Ndat; ii++)
+	  fprintf(fp, "%e\t%e\t%e\n", pot_tbl[kk].rad[ii], pot_tbl[kk].Phi[ii].val, pot_tbl[kk].Phi[ii].dr2);
+      }/* else{ */
+      fclose(fp);
+    }/* for(int kk = 0; kk < kind; kk++){ */
+}
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 
 /**
