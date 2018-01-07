@@ -2150,10 +2150,9 @@ void writeFixedPotentialTable(const int Ndat, const int kind, potential_field *p
 #else///USE_HDF5_FORMAT
 			      , const bool binary
 #endif//USE_HDF5_FORMAT
-			      )
+			      , char file[])
 {
   char filename[256];
-  FILE *fp;
 
 #ifdef  USE_HDF5_FORMAT
 
@@ -2268,6 +2267,7 @@ void writeFixedPotentialTable(const int Ndat, const int kind, potential_field *p
 
   /* write numeric table for superposed spherical components */
   sprintf(filename, "%s/%s.%s.%s", DATAFOLDER, file, "pot", "sphe");
+  FILE *fp;
   fp = fopen(filename, binary ? "wb" : "w");
   if( fp == NULL ){    __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);  }
   if( binary ){

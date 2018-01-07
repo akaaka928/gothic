@@ -1218,7 +1218,7 @@ int main(int argc, char **argv)
 			   , true
 #endif//WRITE_IN_GALACTICS_FORMAT
 #endif//USE_HDF5_FORMAT
-			   );
+			   , file);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 #ifdef  USE_HDF5_FORMAT
