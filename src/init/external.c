@@ -99,9 +99,6 @@ void genExtPotTbl1D(const int kind, profile **prf, potential_field *pot)
   static double bp[N_EXT_POT_SPHE], y2[N_EXT_POT_SPHE];
 
 
-  potential table should be start from r = 0;
-
-
   for(int ii = 0; ii < kind; ii++){
     double aa, bb, cc;
 
@@ -163,9 +160,6 @@ void superposePotFld1D(const int kind, const int skind, potential_field *pot, po
 {
   __NOTE__("%s\n", "start");
 
-
-  potential_field zero = {ZERO, ZERO};
-
   /** assume all potential field share the same radius */
 #pragma omp parallel for
   for(int ii = 0; ii < N_EXT_POT_SPHE; ii++){
@@ -196,7 +190,6 @@ void superposePotFld1D(const int kind, const int skind, potential_field *pot, po
       disk.Phi[ii].dr2 = dr2;
     }/* for(int ii = 0; ii < N_EXT_POT_SPHE; ii++){ */
   }/* if( kind > skind ){ */
-
 
   __NOTE__("%s\n", "end");
 }
