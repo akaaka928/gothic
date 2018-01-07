@@ -28,44 +28,55 @@
 #include "external.h"
 
 
-#define NFIT_EXT (4)
+#define NFIT_EXT (6)
+const double tiny = 1.0e-20;
 
 /**
  * @fn leastSquaresMethod
  *
- * @brief Data fitting by the least squares method (assume power-law model).
+ * @brief Data fitting by the least squares method (assume ax + b + c/x and sigma_i = 1).
  *
  * @param (num) number of data points
  * @param (xx) x
  * @param (yy) y = y(x)
- * @return (pp) the resultant power-law index
- * @return (bb) the resultant base
+ * @return (aa) the resultant a
+ * @return (bb) the resultant b
+ * @return (cc) the resultant c
  */
-static inline void leastSquaresMethod(const int num, double * restrict xx, double * restrict yy, double * restrict pp, double * restrict bb)
+static inline void leastSquaresMethod(const int num, double * restrict xx, double * restrict yy, double * restrict aa, double * restrict bb, double * restrict cc)
 {
-  double SS, Sx, Sy, Sxx, Sxy;
-  SS = Sx = Sy = Sxx = Sxy = 0.0;
+  double Sxy = 0.0;
+  double Sxx = 0.0;
+  double Sx = 0.0;
+  double S = 0.0;
+  double Sy = 0.0;
+  double Sp = 0.0;/**< S_{x'} */
+  double Spy = 0.0;/**< S_{x'y} */
+  double Spp = 0.0;/**< S_{x'x'} */
 
   for(int ii = 0; ii < num; ii++){
-    const double logx = log10(xx[ii]);
-    const double logy = log10(yy[ii]);
-    SS  += 1.0;
-    Sx  += logx;
-    Sxx += logx * logx;
-    Sy  +=        logy;
-    Sxy += logx * logy;
+    const double x = xx[ii];
+    const double y = yy[ii];
+    const double xinv = 1.0 / (tiny + x);
+
+    /** sigma_i^2 is assumed to be unity */
+    S   += 1.0;
+    Sx  += x;
+    Sy  += y;
+    Sxx += x * x;
+    Sxy += x * y;
+    Sp  += xinv;
+    Spp += xinv * xinv;
+    Spy += xinv * y;
   }/* for(int ii = 0; ii < num; ii++){ */
 
-  *pp = (SS * Sxy - Sx * Sy) / (SS * Sxx - Sx * Sx);
-  *bb = pow(10.0, (Sy - (*pp) * Sx) / SS);
+  const double a = ((Spp * Sx - S * Sp) * (Spp * Sy - Sp * Spy) + (Spy * S - Spp * Sxy) * (Spp * S - Sp * Sp)) / ((Spp * Sxx - S * S) * (Spp * S - Sp * Sp) - (Spp * Sx - S * Sp) * (Spp * Sx - S * Sp));
+  const double b = (Spp * Sy - Sp * Spy - (Spp * Sx - S * Sp) * a) / (Spp * S - Sp * Sp);
+  const double c = (Spy - a * S - b * Sp) / Spp;
 
-#if 1
-  /** tentative treatment for the case that y is almost zero and hence least squares method returns inf */
-  if( isfinite(*bb) == 0 ){
-    *pp = 1.0;
-    *bb = 0.0;/* 0.5 * (yy[(num - 1) >> 1] + yy[num >> 1]);/\* this is the median of yy *\/ */
-  }/* if( isfinite(*bb) == 0 ){ */
-#endif
+  *aa = a;
+  *bb = b;
+  *cc = c;
 }
 
 
@@ -92,35 +103,40 @@ void genExtPotTbl1D(const int kind, profile **prf, potential_field *pot)
 
 
   for(int ii = 0; ii < kind; ii++){
-    double pp, bb;
+    double aa, bb, cc;
 
     /** extrapolate for the innermost position by least squares method */
     for(int jj = 0; jj < NFIT_EXT; jj++){
       xx[jj] =  prf[ii][jj].rad;
       ff[jj] = -prf[ii][jj].psi;
     }/* for(int jj = 0; jj < NFIT_EXT; jj++){ */
-    leastSquaresMethod(NFIT_EXT, xx, ff, &pp, &bb);
-    const double fpl = bb * pp * pow(xx[0], pp - 1.0);
+    leastSquaresMethod(NFIT_EXT, xx, ff, &aa, &bb, &cc);
+    rr[0] = 0.0;    pot[ii].rad[0] = ZERO;
+    yy[0] = aa * rr[0] + bb + cc / (tiny + rr[0]);
+    pot[ii].Phi[0].val = CAST_D2R(yy[0]);
 
     /** extrapolate for the outermost position by least squares method */
     for(int jj = 0; jj < NFIT_EXT; jj++){
       xx[jj] =  prf[ii][NRADBIN - NFIT_EXT + jj].rad;
       ff[jj] = -prf[ii][NRADBIN - NFIT_EXT + jj].psi;
     }/* for(int jj = 0; jj < NFIT_EXT; jj++){ */
-    leastSquaresMethod(NFIT_EXT, xx, ff, &pp, &bb);
-    const double fpr = bb * pp * pow(xx[NFIT_EXT - 1], pp - 1.0);
+    leastSquaresMethod(NFIT_EXT, xx, ff, &aa, &bb, &cc);
+    rr[N_EXT_POT_SPHE - 1] = 10.0 * prf[ii][NRADBIN - 1].rad;    pot[ii].rad[N_EXT_POT_SPHE - 1] = CAST_D2R(rr[N_EXT_POT_SPHE - 1]);
+    yy[N_EXT_POT_SPHE - 1] = aa * rr[N_EXT_POT_SPHE - 1] + bb + cc / (tiny + rr[N_EXT_POT_SPHE - 1]);
+    pot[ii].Phi[N_EXT_POT_SPHE - 1].val = CAST_D2R(yy[N_EXT_POT_SPHE - 1]);
 
     /** apply cubic spline interpolation */
-    const int skip = N_EXT_POT_SPHE / NRADBIN;
-    for(int jj = 0; jj < N_EXT_POT_SPHE; jj++){
+    const int skip = N_EXT_SPH / NRADBIN;
+    for(int jj = 0; jj < N_EXT_SPH; jj++){
       const int kk = jj * skip;
       const double rad =  prf[ii][kk].rad;
       const double Phi = -prf[ii][kk].psi;
 
-      rr[jj] = rad;    pot[ii].rad[jj]     = CAST_D2R(rad);
-      yy[jj] = Phi;    pot[ii].Phi[jj].val = CAST_D2R(Phi);
+      const int ll = (N_EXT_CAP >> 1) + jj;
+      rr[ll] = rad;    pot[ii].rad[ll]     = CAST_D2R(rad);
+      yy[ll] = Phi;    pot[ii].Phi[ll].val = CAST_D2R(Phi);
     }/* for(int ii = 0; ii < N_EXT_POT_SPHE; ii++){ */
-    genCubicSpline1D(N_EXT_POT_SPHE, xx, yy, bp, ypl, ypr, y2);
+    genCubicSpline1D(N_EXT_POT_SPHE, rr, yy, bp, NATURAL_CUBIC_SPLINE, NATURAL_CUBIC_SPLINE, y2);
 
     for(int jj = 0; jj < N_EXT_POT_SPHE; jj++)
       pot[ii].Phi[jj].dr2 = CAST_D2R(y2[jj]);

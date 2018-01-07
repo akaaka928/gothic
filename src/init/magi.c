@@ -113,6 +113,9 @@ typedef struct
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   double column;
 #endif//MAKE_COLUMN_DENSITY_PROFILE
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  double external;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 } breakdown;
 
 
@@ -1185,13 +1188,7 @@ int main(int argc, char **argv)
 #endif//MONITOR_ENERGY_ERROR
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
-#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-		     , N_EXT_POT_SPHE, kind, pot_tbl, skind, pot_tbl_sphe, pot_tbl_disk
-#endif//SET_EXTERNAL_POTENTIAL_FIELD
 		     );
-#ifdef  USE_HDF5_FORMAT
-  removeHDF5DataType(hdf5type);
-#endif//USE_HDF5_FORMAT
   updateConfigFile(last, file);
 
 #else///!defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT)
@@ -1208,17 +1205,25 @@ int main(int argc, char **argv)
   }/* for(int kk = 0; kk < kind; kk++){ */
 #endif//WRITE_IN_GALACTICS_FORMAT
 
+#endif//!defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT)
+
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-  writeFixedPotentialTable(N_EXT_POT_SPHE, kind, pot_tbl, skind, pot_tbl_sphe, pot_tbl_disk,
+  writeFixedPotentialTable(N_EXT_POT_SPHE, kind, pot_tbl, skind, pot_tbl_sphe, pot_tbl_disk
+#ifdef  USE_HDF5_FORMAT
+			   , hdf5type
+#else///USE_HDF5_FORMAT
 #ifdef  WRITE_IN_GALACTICS_FORMAT
-			   false
+			   , false
 #else///WRITE_IN_GALACTICS_FORMAT
-			   true
+			   , true
 #endif//WRITE_IN_GALACTICS_FORMAT
+#endif//USE_HDF5_FORMAT
 			   );
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
-#endif//!defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT)
+#ifdef  USE_HDF5_FORMAT
+  removeHDF5DataType(hdf5type);
+#endif//USE_HDF5_FORMAT
 
   stopBenchmark_cpu(&execTime.file);
 
@@ -1235,6 +1240,9 @@ int main(int argc, char **argv)
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   ttot += execTime.column;
 #endif//MAKE_COLUMN_DENSITY_PROFILE
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  ttot += execTime.external;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
   FILE *fp;
   char filename[128];
@@ -1242,12 +1250,13 @@ int main(int argc, char **argv)
   if( 0 != access(filename, F_OK) ){
     fp = fopen(filename, "w");
     if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
-    fprintf(fp, "#%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+    fprintf(fp, "#%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 	    "ttot", "bodyAlloc", "file",
 	    "spheAlloc", "spheProf", "spheDist", "spheInfo", "eddington",
 	    "diskAlloc", "diskProf", "diskDist", "diskInfo", "diskTbl", "diskVel",
 	    "observe",
-	    "vdisp", "column");
+    "vdisp", "column",
+    "external");
     fclose(fp);
   }/* if( 0 != access(filename, F_OK) ){ */
   fp = fopen(filename, "a");
@@ -1263,6 +1272,9 @@ int main(int argc, char **argv)
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   fprintf(fp, "\t%e", execTime.column);
 #endif//MAKE_COLUMN_DENSITY_PROFILE
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  fprintf(fp, "\t%e", execTime.external);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   fprintf(fp, "\n");
   fclose(fp);
 
@@ -1289,7 +1301,9 @@ int main(int argc, char **argv)
   fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.spheAlloc, execTime.spheAlloc * ttot, "memory allocation for spherical component(s)");
   if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskAlloc, execTime.diskAlloc * ttot, "memory allocation for disk component(s)");
   fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.bodyAlloc, execTime.bodyAlloc * ttot, "memory allocation for N-body particles");
-
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.external, execTime.external * ttot, "execute cubic spline interpolation to generate external potential field");
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 #ifdef  PRINT_OUT_ASCII_DATA_FOR_QUICK_CHECK
   /** print out particle distribution in ASCII format for quick check */

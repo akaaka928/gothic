@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2017/12/18 (Mon) 15:06:38
+# last updated on 2018/01/07(Sun) 16:11:47
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -42,6 +42,7 @@ DUMPFILE_IN_TIPSY	:= 0
 DUMPFILE_AS_GALACTICS	:= 0
 USE_OFFICIAL_SFMT	:= 1
 USE_OFFICIAL_SFMT_JUMP	:= 1
+SET_EXTERNAL_FIELD	:= 1
 #################################################################################################
 # Debugging options
 EVALUATE_FORCE_ERROR	:= 0
@@ -239,6 +240,11 @@ USE_OFFICIAL_SFMT_JUMP	:= 0
 endif
 ifeq ($(USE_OFFICIAL_SFMT_JUMP), 1)
 CCARG	+= -DUSE_SFMTJUMP
+endif
+#################################################################################################
+ifeq ($(SET_EXTERNAL_FIELD), 1)
+CCARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD
+CUARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD
 endif
 #################################################################################################
 NUM_NTHREADS	:= 512

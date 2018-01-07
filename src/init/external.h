@@ -21,14 +21,19 @@
 #include "../misc/structure.h"
 #include "../init/profile.h"
 
+/* r = 0 and r = \infty */
+#define N_EXT_CAP (2)
+#define N_EXT_SPH (16384)
 
-#define N_EXT_POT_SPHE (16384)
+#   if  N_EXT_SPH > NRADBIN
+#undef  N_EXT_SPH
+#define N_EXT_SPH   NRADBIN
+#endif//N_EXT_SPH > NRADBIN
+
+#define N_EXT_POT_SPHE (N_EXT_SPH + N_EXT_CAP)
+
+
 #define N_EXT_POT_DISK (2048)
-
-#   if  N_EXT_POT_SPHE > NRADBIN
-#undef  N_EXT_POT_SPHE
-#define N_EXT_POT_SPHE   NRADBIN
-#endif//N_EXT_POT_SPHE > NRADBIN
 
 
 /* list of functions appeared in ``external.c'' */
