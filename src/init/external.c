@@ -127,6 +127,7 @@ void genExtPotTbl1D(const int kind, profile **prf, potential_field *pot)
 
     /** apply cubic spline interpolation */
     const int skip = N_EXT_SPH / NRADBIN;
+#pragma omp parallel for
     for(int jj = 0; jj < N_EXT_SPH; jj++){
       const int kk = jj * skip;
       const double rad =  prf[ii][kk].rad;

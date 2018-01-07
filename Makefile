@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/01/07(Sun) 16:11:47
+# last updated on 2018/01/07(Sun) 16:33:09
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -515,7 +515,7 @@ COLDSRC	:= uniformsphere.c
 MAGISRC	:= magi.c
 SMPLSRC	:= sample.c
 DISKLIB	:= potdens.c diskDF.c
-MAGILIB	:= profile.c eddington.c king.c abel.c blas.c spline.c table.c
+MAGILIB	:= profile.c eddington.c king.c abel.c blas.c spline.c table.c external.c
 #################################################################################################
 PENESRC	:= plot.energy.c
 PACTSRC	:= plot.action.c
@@ -1036,6 +1036,9 @@ endif
 ifeq ($(HUNT_OPTIMAL_NEIGHBOUR), 1)
 IO_DEP	+=	$(TREEDIR)/neighbor_dev.h
 endif
+ifeq ($(SET_EXTERNAL_FIELD), 1)
+IO_DEP	+=	$(INITDIR)/external.h
+endif
 $(OBJDIR)/io.mpi.hdf5.o:	$(IO_DEP)	$(MYINC)/hdf5lib.h
 $(OBJDIR)/io.mpi.o:		$(IO_DEP)
 #################################################################################################
@@ -1090,6 +1093,7 @@ $(OBJDIR)/spline.omp.o:	$(COMMON_DEP)	$(INITDIR)/spline.h
 SPLINE_DEP	:=	$(COMMON_DEP)	$(INITDIR)/profile.h	$(INITDIR)/table.h	$(INITDIR)/spline.h
 $(OBJDIR)/abel.omp.o:	$(SPLINE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/abel.h
 $(OBJDIR)/table.omp.o:	$(SPLINE_DEP)
+$(OBJDIR)/external.omp.o:	$(SPLINE_DEP)	$(INITDIR)/external.h
 PROFILE_DEP	:=	$(COMMON_DEP)	$(MYINC)/constants.h	$(INITDIR)/profile.h	$(INITDIR)/magi.h
 $(OBJDIR)/eddington.omp.o:	$(PROFILE_DEP)	$(INITDIR)/eddington.h
 $(OBJDIR)/king.omp.o:		$(PROFILE_DEP)	$(INITDIR)/king.h
@@ -1108,6 +1112,9 @@ $(OBJDIR)/uniformsphere.sfmt.o:			$(IOFILE_DEP)	$(MYINC)/rand.h
 $(OBJDIR)/uniformsphere.gsl.o:			$(IOFILE_DEP)	$(MYINC)/rand.h
 MAGI_DEP	:=	$(MYINC)/rotate.h	$(MYINC)/rand.h	$(INITDIR)/magi.h	$(INITDIR)/king.h	$(INITDIR)/profile.h	$(INITDIR)/eddington.h
 MAGI_DEP	+=	$(INITDIR)/table.h	$(INITDIR)/abel.h	$(INITDIR)/potdens.h	$(INITDIR)/diskDF.h
+ifeq ($(SET_EXTERNAL_FIELD), 1)
+MAGI_DEP	+=	$(INITDIR)/external.h
+endif
 $(OBJDIR)/magi.ompmpi.gsl.smtj.hdf5.o:	$(IOFILE_DEP)	$(MAGI_DEP)	$(MYINC)/hdf5lib.h	$(MYINC)/sfmtjump_polynomial.h
 $(OBJDIR)/magi.ompmpi.gsl.sfmt.hdf5.o:	$(IOFILE_DEP)	$(MAGI_DEP)	$(MYINC)/hdf5lib.h
 $(OBJDIR)/magi.ompmpi.gsl.hdf5.o:	$(IOFILE_DEP)	$(MAGI_DEP)	$(MYINC)/hdf5lib.h
