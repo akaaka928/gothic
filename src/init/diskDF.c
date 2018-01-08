@@ -804,6 +804,16 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
 #ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
   const double frac = disk.cfg->vdisp_frac;
 #else///ENFORCE_EPICYCLIC_APPROXIMATION
+#ifdef  INPUT_TOOMRES_Q_VALUE
+
+  /* get physical quantities @ R = Rs */
+  {
+    const double kappa0 = ;
+    const double Sigma0 = ;
+
+    disk.cfg->vdispR0 = 3.36 * CAST_R2D(newton) * Sigma0 / (DBL_MIN + kappa);
+  }
+#endif//INPUT_TOOMRES_Q_VALUE
   const double vdispR0_2 = disk.cfg->vdispR0 * disk.cfg->vdispR0;
 #endif//ENFORCE_EPICYCLIC_APPROXIMATION
   const double Mmax = enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, 0, NDISKBIN_HOR)];

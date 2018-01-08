@@ -1734,7 +1734,7 @@ void outputFundamentalInformation
 	fprintf(fp, "Cutoff radius over scale radius  is %e\n", cfg[ii].rc / cfg[ii].rs);
 	fprintf(fp, "Cutoff  width over scale radius  is %e\n", cfg[ii].rc_width / cfg[ii].rs);
       }/* if( cfg[ii].cutoff ){ */
-      fprintf(fp, "Cutoff energy of the component   is %e (= %e %s) (= %e G Mtot / rs)\n", cfg[ii].Ecut, cfg[ii].Ecut * senergy2astro, senergy_astro_unit_name, cfg[ii].Ecut / (newton * cfg[ii].Mtot / cfg[ii].rs));
+      fprintf(fp, "Cutoff energy of the component   is %e (= %e %s) (= %e G Mtot / rs)\n", cfg[ii].Ecut, cfg[ii].Ecut * senergy2astro, senergy_astro_unit_name, cfg[ii].Ecut / (CAST_R2D(newton) * cfg[ii].Mtot / cfg[ii].rs));
     }/* if( cfg[ii].kind != CENTRALBH ){ */
     fprintf(fp, "#############################################################################\n");
 
@@ -2705,8 +2705,8 @@ static void evaluateDiskProperties
     const double sigmap = sigmaR * kappa * 0.5 / (DBL_MIN + Omega);
 #endif//ENFORCE_EPICYCLIC_APPROXIMATION
     const double Sigma = disk_info[diskID].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
-    const double toomre = sigmaR * kappa / (DBL_MIN + 3.36 * newton * Sigma);
-    const double lambda = 4.0 * M_PI * M_PI * newton * Sigma / (DBL_MIN + kappa * kappa);
+    const double toomre = sigmaR * kappa / (DBL_MIN + 3.36 * CAST_R2D(newton) * Sigma);
+    const double lambda = 4.0 * M_PI * M_PI * CAST_R2D(newton) * Sigma / (DBL_MIN + kappa * kappa);
 
     /** find the maximum circular speed */
     if( vcirc > disk_info[diskID].cfg->vcirc_max ){
