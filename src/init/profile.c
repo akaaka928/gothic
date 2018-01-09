@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/12/28 (Thu)
+ * @date 2018/01/08 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1030,7 +1030,11 @@ static inline void writeProfileCfgFormat(char *filename, const profile_cfg cfg)
       fprintf(stderr, "\tn_sersic<real>: Sersic index\n");
     fprintf(stderr, "\tRt<real> Rt_width<real>: cutoff radius and width of the disk mid-plane density in horizontal direction in astrophysical units, respectively\n");
     fprintf(stderr, "\tzd<real>: scale height of isothermal disk in the vertical direction in astrophysical units\n");
+#ifdef  INPUT_TOOMRE_Q
+    fprintf(stderr, "\tsigmaR0<real> Toomre's Q @ R = Rs<real>: ignored input value, Toomre's Q-value at the scale radius\n");
+#else///INPUT_TOOMRE_Q
     fprintf(stderr, "\tsigmaR0<real> frac<real>: velocity dispersion in radial direction at the center in astrophysical units (negative value indicates sigmaR0 = sigmaz0), perpendicular velocity dispersion over circular velocity\n");
+#endif//INPUT_TOOMRE_Q
     fprintf(stderr, "\t\tif the inputted sigmaR0 is negative, then the default value (= sigma_z(R = 0)) is substituted\n");
     fprintf(stderr, "\t\tif ENFORCE_EPICYCLIC_APPROXIMATION defined in src/init/disk_polar.h is ON, then frac is used; if that is OFF, then sigmaR0 is used.\n");
     fprintf(stderr, "\t\tif the inputted retrogradeFrac<real> is not zero ([0., 1.]), then rotation axis of particles with the given fraction is anti-parallel with normal component.\n");
@@ -1180,6 +1184,9 @@ void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg)
       }/* if( (*cfg)[ii].kind == SERSIC ){ */
       checker &= (1 == fscanf(fp, "%le", &(*cfg)[ii].zd));      (*cfg)[ii].zd   *= length_astro2com;
       checker &= (2 == fscanf(fp, "%le %le", &(*cfg)[ii].vdispR0, &(*cfg)[ii].vdisp_frac));      (*cfg)[ii].vdispR0 *= velocity_astro2com;
+#ifdef  INPUT_TOOMRE_Q
+      (*cfg)[ii].toomre = (*cfg)[ii].vdisp_frac;
+#endif//INPUT_TOOMRE_Q
       checker &= (1 == fscanf(fp, "%le", &(*cfg)[ii].retrogradeFrac));
     }/* if( ((*cfg)[ii].kind == EXP_DISK) || ((*cfg)[ii].kind == SERSIC) || ((*cfg)[ii].kind == TBL_DISK) ){ */
 

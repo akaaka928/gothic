@@ -43,6 +43,7 @@ DUMPFILE_AS_GALACTICS	:= 0
 USE_OFFICIAL_SFMT	:= 1
 USE_OFFICIAL_SFMT_JUMP	:= 1
 SET_EXTERNAL_FIELD	:= 1
+INPUT_TOOMRE_Q_VALUE	:= 1
 #################################################################################################
 # Debugging options
 EVALUATE_FORCE_ERROR	:= 0
@@ -245,6 +246,10 @@ endif
 ifeq ($(SET_EXTERNAL_FIELD), 1)
 CCARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD
 CUARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD
+endif
+#################################################################################################
+ifeq ($(INPUT_TOOMRE_Q_VALUE), 1)
+CCARG	+= -DINPUT_TOOMRE_Q
 endif
 #################################################################################################
 NUM_NTHREADS	:= 512

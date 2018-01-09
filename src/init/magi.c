@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/05 (Fri)
+ * @date 2018/01/08 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1600,6 +1600,13 @@ void outputFundamentalInformation
 #ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
       fprintf(fp, "Horizontal velocity dispersion   is %e of circular velocity or vertical velocity dispersion (maximum is used)\n", cfg[ii].vdisp_frac);
 #else///ENFORCE_EPICYCLIC_APPROXIMATION
+      fprintf(fp, "``INPUT_TOOMRE_Q'' is %s.\n",
+#ifdef  INPUT_TOOMRE_Q
+	      "on"
+#else///INPUT_TOOMRE_Q
+	      "off"
+#endif//INPUT_TOOMRE_Q
+	      );
       fprintf(fp, "Horizontal velocity dispersion   is %e (= %e %s)\n", cfg[ii].vdispR0  , cfg[ii].vdispR0   * velocity2astro, velocity_astro_unit_name);
 #endif//ENFORCE_EPICYCLIC_APPROXIMATION
       fprintf(fp, "Vertical   velocity dispersion   is %e (= %e %s)\n", cfg[ii].vdispz0  , cfg[ii].vdispz0   * velocity2astro, velocity_astro_unit_name);
