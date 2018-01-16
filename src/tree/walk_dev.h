@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/01/16 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -554,6 +554,9 @@ extern "C"
 #   if  !defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
    , const int Ni
 #endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+   , const potential_field sphe
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
    , char *file
 #endif//PRINT_PSEUDO_PARTICLE_INFO

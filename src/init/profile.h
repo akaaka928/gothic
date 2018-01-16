@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/04 (Thu)
+ * @date 2018/01/15 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -162,7 +162,7 @@ typedef struct
   double einasto_alpha;/**< parameter for Einasto profile */
   double king_W0, king_rt, king_c;/**< parameter for King sphere */
 #ifdef  KING_CENTRAL_CUSP
-p  double king_dWdx_0;/** dW/dx at the center */
+  double king_dWdx_0;/** dW/dx at the center */
 #endif//KING_CENTRAL_CUSP
   double twopower_alpha, twopower_beta, twopower_gamma;/**< parameters for two-power model */
   double tripower_delta, tripower_epsilon, tripower_rout;/**< additional parameters for three-power model */

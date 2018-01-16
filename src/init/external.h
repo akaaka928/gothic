@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/04 (Thu)
+ * @date 2018/01/15 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -21,16 +21,12 @@
 #include "../misc/structure.h"
 #include "../init/profile.h"
 
-/* r = 0 and r = \infty */
-#define N_EXT_CAP (2)
-#define N_EXT_SPH (16384)
+#define N_EXT_POT_SPHE (16384)
 
-#   if  N_EXT_SPH > NRADBIN
-#undef  N_EXT_SPH
-#define N_EXT_SPH   NRADBIN
-#endif//N_EXT_SPH > NRADBIN
-
-#define N_EXT_POT_SPHE (N_EXT_SPH + N_EXT_CAP)
+#   if  N_EXT_POT_SPHE > NRADBIN
+#undef  N_EXT_POT_SPHE
+#define N_EXT_POT_SPHE   NRADBIN
+#endif//N_EXT_POT_SPHE > NRADBIN
 
 
 #define N_EXT_POT_DISK (2048)
@@ -38,7 +34,7 @@
 
 /* list of functions appeared in ``external.c'' */
 void genExtPotTbl1D(const int kind, profile **prf, potential_field *pot);
-void superposePotFld1D(const int kind, const int skind, potential_field *pot, potential_field sphe, potential_field disk);
+void superposePotFld1D(const int kind, const int skind, potential_field * restrict pot, potential_field * restrict sphe, potential_field * restrict disk);
 
 
 #endif//EXTERNAL_H

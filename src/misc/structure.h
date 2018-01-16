@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/04 (Thu)
+ * @date 2018/01/16 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -244,6 +244,8 @@ typedef struct
 {
   real *rad;
   pot2 *Phi;
+  real logrmin, logrbin, invlogrbin;
+  int num;
 } potential_field;
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 

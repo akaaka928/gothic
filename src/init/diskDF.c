@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/08 (Mon)
+ * @date 2018/01/15 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -842,32 +842,35 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
 
 #ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
   const double frac = disk.cfg->vdisp_frac;
+  if( disk.cfg->vdispR0 < 0.0 )
+    disk.cfg->vdispR0 = disk.cfg->vdispz0;
 #else///ENFORCE_EPICYCLIC_APPROXIMATION
-#ifdef  INPUT_TOOMRE_Q
+  if( disk.cfg->vdispR0 < 0.0 ){
+    if( disk.cfg->toomre >= 0.0 ){
+      /* get physical quantities @ R = Rs to obtain Toomre's Q-value */
+      double aR;
+      int ii, lev;
+      ii = bisection4nestedGrid(disk.cfg->rs, NDISKBIN_HOR + 1, enc, false, 1.0, &aR, maxLev, &lev, tab_lev);
+      aR /= (enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, 1 + ii)] - enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, ii)]);
 
-  /* get physical quantities @ R = Rs */
-  {
-    double aR;
-    int ii, lev;
-    ii = bisection4nestedGrid(disk.cfg->rs, NDISKBIN_HOR + 1, enc, false, 1.0, &aR, maxLev, &lev, tab_lev);
-    aR /= (enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, 1 + ii)] - enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, ii)]);
-
-    const double Sigma0 = (1.0 - aR) * disk.Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + aR * disk.Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + ii)];
+      const double Sigma0 = (1.0 - aR) * disk.Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + aR * disk.Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + ii)];
 
 #ifndef USE_POTENTIAL_SCALING_SCHEME
-    const double  dPhidR  = (1.0 - aR) * disk. dPhidR [INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] + aR * disk. dPhidR [INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, 1 + ii, 0)];
-    const double d2PhidR2 = (1.0 - aR) * disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] + aR * disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, 1 + ii, 0)];
+      const double  dPhidR  = (1.0 - aR) * disk. dPhidR [INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] + aR * disk. dPhidR [INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, 1 + ii, 0)];
+      const double d2PhidR2 = (1.0 - aR) * disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] + aR * disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, 1 + ii, 0)];
 #else///USE_POTENTIAL_SCALING_SCHEME
-    const double Omega0 = sqrt(disk. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] / disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
-    const double kappa0 = sqrt(disk.d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + 3.0 * Omega0 * Omega0);
+      const double Omega0 = sqrt(disk. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] / disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
+      const double kappa0 = sqrt(disk.d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + 3.0 * Omega0 * Omega0);
 #endif//USE_POTENTIAL_SCALING_SCHEME
 
-    const double Omega0 = sqrt( dPhidR  / disk.cfg->rs);
-    const double kappa0 = sqrt(d2PhidR2 + 3.0 * Omega0 * Omega0);
+      const double Omega0 = sqrt( dPhidR  / disk.cfg->rs);
+      const double kappa0 = sqrt(d2PhidR2 + 3.0 * Omega0 * Omega0);
 
-    disk.cfg->vdispR0 = 3.36 * CAST_R2D(newton) * Sigma0 * disk.cfg->toomre / (DBL_MIN + kappa0);
-  }
-#endif//INPUT_TOOMRE_Q
+      disk.cfg->vdispR0 = sqrt(M_E) * 3.36 * CAST_R2D(newton) * Sigma0 * disk.cfg->toomre / (DBL_MIN + kappa0);
+    }/* if( disk.cfg->toomre >= 0.0 ){ */
+    else
+      disk.cfg->vdispR0 = disk.cfg->vdispz0;
+  }/* if( disk.cfg->vdispR0 < 0.0 ){ */
   const double vdispR0_2 = disk.cfg->vdispR0 * disk.cfg->vdispR0;
 #endif//ENFORCE_EPICYCLIC_APPROXIMATION
 

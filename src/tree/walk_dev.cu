@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/12/13 (Wed)
+ * @date 2018/01/16 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -66,6 +66,9 @@
 
 #include "walk_dev.h"
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+#include "potential_dev.h"
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 #   if  !defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
 #define USE_GPU_BASE_CLOCK_FREQ
@@ -1985,7 +1988,7 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
  * @brief Calculate gravitational acceleration based on the width-first tree traversal.
  */
 static inline void callCalcGravityFunc
-(const dim3 blck, const dim3 thrd, kernelStream *sinfo, int *sidx,
+(const int blck, const int thrd, kernelStream *sinfo, int *sidx,
  laneinfo * RESTRICT laneInfo, const iparticle pi, const int rootIdx, const soaTreeNode tree
 #ifndef SERIALIZED_EXECUTION
  , const int grpNum, const int jhead
@@ -2013,7 +2016,7 @@ static inline void callCalcGravityFunc
 #   if  defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
   if( grpNum != 0 ){
 #endif//defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
-    if( blck.x <= MAX_BLOCKS_PER_GRID ){
+    if( blck <= MAX_BLOCKS_PER_GRID ){
       calcAcc_kernel<<<blck, thrd, SMEM_SIZE, sinfo->stream[*sidx]>>>
 	(laneInfo,
 #ifdef  BLOCK_TIME_STEP
@@ -2053,9 +2056,9 @@ static inline void callCalcGravityFunc
 	 );
 
       *sidx ^= 1;
-    }/* if( blck.x <= MAX_BLOCKS_PER_GRID ){ */
+    }/* if( blck <= MAX_BLOCKS_PER_GRID ){ */
     else{
-      int Nrem = blck.x;
+      int Nrem = blck;
       const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
       int hidx = 0;
 
@@ -2064,7 +2067,7 @@ static inline void callCalcGravityFunc
 	if( Nblck > Nrem )	  Nblck = Nrem;
 
 	int Nsub = Nblck * NGROUPS;
-	calcAcc_kernel<<<Nblck, thrd.x, SMEM_SIZE, sinfo->stream[*sidx]>>>
+	calcAcc_kernel<<<Nblck, thrd, SMEM_SIZE, sinfo->stream[*sidx]>>>
 	  (&laneInfo[hidx],
 #ifdef  BLOCK_TIME_STEP
 	   pi.jpos,
@@ -2138,6 +2141,9 @@ void calcGravity_dev
 #   if  !defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
  , const int Ni
 #endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ , const potential_field sphe
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
  , char *file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
@@ -2189,9 +2195,9 @@ void calcGravity_dev
 
 
   /** set thread-block configuration */
-  static dim3 thrd, blck;
-  thrd.x = NTHREADS;  thrd.y = 1;  thrd.z = 1;
-  blck.x = BLOCKSIZE(grpNum, NGROUPS);  blck.y = 1;  blck.z = 1;
+  static int thrd, blck;
+  thrd = NTHREADS;
+  blck = BLOCKSIZE(grpNum, NGROUPS);
 
   /** initialize measurement counters */
 #ifdef  USE_CUDA_EVENT
@@ -2274,7 +2280,7 @@ void calcGravity_dev
 
 #ifdef  BLOCK_TIME_STEP
       int Nsub = Nblck * NWARP * NGROUPS;
-      initAcc_kernel<<<Nblck, thrd.x>>>
+      initAcc_kernel<<<Nblck, thrd>>>
 	(pi.acc, BLOCKSIZE(Nsub, NGROUPS) * NGROUPS, &laneInfo[hidx]
 #ifdef  GADGET_MAC
 	 , pi.acc_old
@@ -2532,7 +2538,7 @@ void calcGravity_dev
 	  if( grpNum != 0 ){
 #endif//defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
 	    checkCudaErrors(cudaStreamSynchronize(sinfo->stream[sidx ^ 1]));
-	    if( blck.x > MAX_BLOCKS_PER_GRID )
+	    if( blck > MAX_BLOCKS_PER_GRID )
 	      checkCudaErrors(cudaStreamSynchronize(sinfo->stream[sidx ]));
 #   if  defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
 	  }/* if( grpNum != 0 ){ */
@@ -2617,7 +2623,7 @@ void calcGravity_dev
 	  if( grpNum != 0 ){
 #endif//defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
 	    checkCudaErrors(cudaStreamSynchronize(sinfo->stream[sidx ^ 1]));
-	    if( blck.x > MAX_BLOCKS_PER_GRID )
+	    if( blck > MAX_BLOCKS_PER_GRID )
 	      checkCudaErrors(cudaStreamSynchronize(sinfo->stream[sidx ]));
 #   if  defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
 	  }/* if( grpNum != 0 ){ */
@@ -2820,7 +2826,7 @@ void calcGravity_dev
   checkCudaErrors(cudaMemcpy(cycles_hst, cycles_dev, sizeof(unsigned long long int), cudaMemcpyDeviceToHost));
   /** get information on enclosing ball */
   acceleration *seb;
-  const int Nseb = blck.x * NGROUPS;
+  const int Nseb = blck * NGROUPS;
   mycudaMallocHost((void **)&seb, (size_t)Nseb * sizeof(acceleration));
   checkCudaErrors(cudaMemcpy(seb, pi.acc, (size_t)Nseb * sizeof(acceleration), cudaMemcpyDeviceToHost));
 
@@ -2922,7 +2928,7 @@ void calcGravity_dev
 
 #ifdef  BLOCK_TIME_STEP
       int Nsub = Nblck * NWARP * NGROUPS;
-      trimAcc_kernel<<<Nblck, thrd.x>>>
+      trimAcc_kernel<<<Nblck, thrd>>>
 	(pi.acc, pi.pos, BLOCKSIZE(Nsub, NGROUPS) * NGROUPS, &laneInfo[hidx]
 #ifdef  DPADD_FOR_ACC
 	 , pi.tmp
@@ -2951,6 +2957,16 @@ void calcGravity_dev
 
   getLastCudaError("trimAcc_kernel");
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  calcExternalGravity_dev
+    (pi, sphe
+#ifdef  BLOCK_TIME_STEP
+     , thrd, grpNum, laneInfo
+#else///BLOCK_TIME_STEP
+     , Ni
+#endif//BLOCK_TIME_STEP
+     );
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
   /** evaluate GPU time */
 #   if  defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
@@ -2982,7 +2998,7 @@ void calcGravity_dev
 #ifdef  USE_GPU_BASE_CLOCK_FREQ
   const double devClock = devProp.coreClk * 1.0e+9;
 #endif//USE_GPU_BASE_CLOCK_FREQ
-  const double calcAcc = ((double)(*cycles_hst) / (devClock * (double)(blck.x * mpi.size))) * (double)BLOCKSIZE(blck.x * mpi.size, devProp.numSM);
+  const double calcAcc = ((double)(*cycles_hst) / (devClock * (double)(blck * mpi.size))) * (double)BLOCKSIZE(blck * mpi.size, devProp.numSM);
 #endif//USE_CUDA_EVENT
   measured->sum_excg    += calcAcc;
   measured->sum_rebuild += calcAcc;

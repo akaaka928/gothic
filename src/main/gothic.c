@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/12/18 (Mon)
+ * @date 2018/01/16 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -375,6 +375,9 @@ static inline void dumpSnapshot
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
  , const real eps2
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ , const potential_field sphe
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
  , char *accfile
 #endif//COMPARE_WITH_DIRECT_SOLVER
  )
@@ -444,6 +447,9 @@ static inline void dumpSnapshot
 #   if  !defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 		    , Ni
 #endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+		    , pot_tbl_sphe
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifndef SERIALIZED_EXECUTION
 		    , NULL, 0, 1, NULL, letcfg, NULL, NULL, 0, NULL, NULL, NULL
 #endif//SERIALIZED_EXECUTION
@@ -598,6 +604,9 @@ int main(int argc, char **argv)
     __FPRINTF__(stderr, "          -theta=<real>\n");
 #endif//WS93_MAC
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    __FPRINTF__(stderr, "          -pot_file_sphe=<char *>\n");
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
     __FPRINTF__(stderr, "          -dropPrevTune=<int> (optional)\n");
     __KILL__(stderr, "%s\n", "insufficient command line arguments");
   }
@@ -613,6 +622,9 @@ int main(int argc, char **argv)
   theta2 = theta * theta;
 #endif//WS93_MAC
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  char *pot_file_sphe;  requiredCmdArg(getCmdArgStr(argc, (const char * const *)(void *)argv,  "pot_file_sphe", &pot_file_sphe));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  EXEC_BENCHMARK
   static int jobID;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)(void *)argv, "jobID", &jobID));
 #endif//EXEC_BENCHMARK
@@ -1194,6 +1206,21 @@ int main(int argc, char **argv)
 #endif//defined(BLOCK_TIME_STEP) || !defined(EXEC_BENCHMARK)
 
 
+  /** read numeric table for fixed potential field */
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  potential_field pot_tbl_sphe;
+  real *pot_tbl_sphe_rad;
+  pot2 *pot_tbl_sphe_Phi;
+, real **rad, pot2 **Phi
+  const muse alloc_ext_pot_sphe = readFixedPotentialTableSpherical
+    (unit, pot_file_sphe, &pot_tbl_sphe, &pot_tbl_sphe_rad, &pot_tbl_sphe_Phi
+#ifdef  USE_HDF5_FORMAT
+     , hdf5type
+#endif//USE_HDF5_FORMAT
+     );
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+
+
   /** check size of memory in use */
   muse       body_mem = {alloc_phkey.host   + alloc_ibody0.host   + alloc_ibody1.host   + alloc_ibody_dev.host,
 			 alloc_phkey.device + alloc_ibody0.device + alloc_ibody1.device + alloc_ibody_dev.device};
@@ -1495,6 +1522,9 @@ int main(int argc, char **argv)
 #   if  !defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 		    , Ni
 #endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+		    , pot_tbl_sphe
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
 		    , file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
@@ -1575,6 +1605,9 @@ int main(int argc, char **argv)
 #   if  !defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 		    , Ni
 #endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+		    , pot_tbl_sphe
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
 		    , file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
@@ -1671,6 +1704,9 @@ int main(int argc, char **argv)
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
 		 , eps * eps
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+		 , pot_tbl_sphe
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 		 , accfile
 #endif//COMPARE_WITH_DIRECT_SOLVER
 		 );
@@ -2074,6 +2110,9 @@ int main(int argc, char **argv)
 #   if  !defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 		      , Ni
 #endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+		      , pot_tbl_sphe
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
 		      , file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
@@ -2276,6 +2315,9 @@ int main(int argc, char **argv)
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
 	 , eps * eps
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+	 , pot_tbl_sphe
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 	 , accfile
 #endif//COMPARE_WITH_DIRECT_SOLVER
 	 );
@@ -2532,6 +2574,10 @@ int main(int argc, char **argv)
 #ifndef BLOCK_TIME_STEP
   freeTimeStep_dev(dt_dev);
 #endif//BLOCK_TIME_STEP
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  freeSphericalPotentialTable_dev(pot_tbl_sphe_rad, pot_tbl_sphe_Phi);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 #ifndef SERIALIZED_EXECUTION
   releaseLETtopology(nodeInfo, ipos,

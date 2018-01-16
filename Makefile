@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/01/07(Sun) 16:33:09
+# last updated on 2018/01/09 (Tue) 15:48:46
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -19,7 +19,7 @@ VERBOSE	:=
 # # PROFILE	:= -pg
 #################################################################################################
 # Execution options
-FORCE_SINGLE_GPU_RUN	:= 0
+FORCE_SINGLE_GPU_RUN	:= 1
 ENCLOSING_BALL_FOR_LET	:= 1
 COMMUNICATION_VIA_HOST	:= 1
 USE_MPI_PUT_FOR_LET	:= 0
@@ -43,7 +43,8 @@ DUMPFILE_AS_GALACTICS	:= 0
 USE_OFFICIAL_SFMT	:= 1
 USE_OFFICIAL_SFMT_JUMP	:= 1
 SET_EXTERNAL_FIELD	:= 1
-INPUT_TOOMRE_Q_VALUE	:= 1
+SET_EXTERNAL_FIELD_SPHE	:= 1
+SET_EXTERNAL_FIELD_DISK	:= 0
 #################################################################################################
 # Debugging options
 EVALUATE_FORCE_ERROR	:= 0
@@ -246,10 +247,19 @@ endif
 ifeq ($(SET_EXTERNAL_FIELD), 1)
 CCARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD
 CUARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD
+else
+SET_EXTERNAL_FIELD_SPHE	:= 0
+SET_EXTERNAL_FIELD_DISK	:= 0
 endif
 #################################################################################################
-ifeq ($(INPUT_TOOMRE_Q_VALUE), 1)
-CCARG	+= -DINPUT_TOOMRE_Q
+ifeq ($(SET_EXTERNAL_FIELD_SPHE), 1)
+CCARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD_SPHERICAL
+CUARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD_SPHERICAL
+endif
+#################################################################################################
+ifeq ($(SET_EXTERNAL_FIELD_DISK), 1)
+CCARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD_DISK
+CUARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD_DISK
 endif
 #################################################################################################
 NUM_NTHREADS	:= 512
@@ -520,7 +530,10 @@ COLDSRC	:= uniformsphere.c
 MAGISRC	:= magi.c
 SMPLSRC	:= sample.c
 DISKLIB	:= potdens.c diskDF.c
-MAGILIB	:= profile.c eddington.c king.c abel.c blas.c spline.c table.c external.c
+MAGILIB	:= profile.c eddington.c king.c abel.c blas.c spline.c table.c
+ifeq ($(SET_EXTERNAL_FIELD), 1)
+MAGILIB	+= external.c
+endif
 #################################################################################################
 PENESRC	:= plot.energy.c
 PACTSRC	:= plot.action.c

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/08 (Mon)
+ * @date 2018/01/15 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -950,17 +950,11 @@ int main(int argc, char **argv)
     diffAxisymmetricPotential(maxLev, disk_info[0]);
     /** set velocity dispersion in vertical direction */
     calcVerticalVdisp(ndisk, maxLev, disk_info);
-    for(int ii = skind; ii < kind; ii++){
-      cfg[ii].vdispz0 = disk_info[ii - skind].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, 0)];
-      if( cfg[ii].vdispR0 < 0.0 )
-	cfg[ii].vdispR0 = cfg[ii].vdispz0;
-    }/* for(int ii = skind; ii < kind; ii++){ */
-    stopBenchmark_cpu(&execTime.diskVel);
 
-    /** output fundamental quantities of the disk component */
-    initBenchmark_cpu();
-    writeDiskData(file, ndisk, maxLev, disk_info);
-    stopBenchmark_cpu(&execTime.diskInfo);
+    for(int ii = skind; ii < kind; ii++)
+      cfg[ii].vdispz0 = disk_info[ii - skind].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, 0)];
+
+    stopBenchmark_cpu(&execTime.diskVel);
   }/* if( addDisk ){ */
 
 
@@ -1101,6 +1095,11 @@ int main(int argc, char **argv)
 #pragma omp master
 #endif//USE_SFMTJUMP
       stopBenchmark_cpu(&execTime.diskDist);
+
+      /** output fundamental quantities of the disk component */
+      initBenchmark_cpu();
+      writeDiskData(file, ndisk, maxLev, disk_info);
+      stopBenchmark_cpu(&execTime.diskInfo);
     }/* if( addDisk ){ */
 
     /** release pseudo random number generator */
@@ -1125,7 +1124,7 @@ int main(int argc, char **argv)
   allocPotentialField(&rad_pot, &Phi_pot, &pot_tbl, N_EXT_POT_SPHE, kind, &pot_tbl_sphe, skind, &pot_tbl_disk);
 
   genExtPotTbl1D(kind, prf, pot_tbl);
-  superposePotFld1D(kind, skind, pot_tbl, pot_tbl_sphe, pot_tbl_disk);
+  superposePotFld1D(kind, skind, pot_tbl, &pot_tbl_sphe, &pot_tbl_disk);
   stopBenchmark_cpu(&execTime.external);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
@@ -1208,7 +1207,7 @@ int main(int argc, char **argv)
 #endif//!defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT)
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-  writeFixedPotentialTable(N_EXT_POT_SPHE, kind, pot_tbl, skind, pot_tbl_sphe, pot_tbl_disk
+  writeFixedPotentialTable(unit, kind, pot_tbl, skind, pot_tbl_sphe, pot_tbl_disk
 #ifdef  USE_HDF5_FORMAT
 			   , hdf5type
 #else///USE_HDF5_FORMAT
@@ -1600,13 +1599,6 @@ void outputFundamentalInformation
 #ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
       fprintf(fp, "Horizontal velocity dispersion   is %e of circular velocity or vertical velocity dispersion (maximum is used)\n", cfg[ii].vdisp_frac);
 #else///ENFORCE_EPICYCLIC_APPROXIMATION
-      fprintf(fp, "``INPUT_TOOMRE_Q'' is %s.\n",
-#ifdef  INPUT_TOOMRE_Q
-	      "on"
-#else///INPUT_TOOMRE_Q
-	      "off"
-#endif//INPUT_TOOMRE_Q
-	      );
       fprintf(fp, "Horizontal velocity dispersion   is %e (= %e %s)\n", cfg[ii].vdispR0  , cfg[ii].vdispR0   * velocity2astro, velocity_astro_unit_name);
 #endif//ENFORCE_EPICYCLIC_APPROXIMATION
       fprintf(fp, "Vertical   velocity dispersion   is %e (= %e %s)\n", cfg[ii].vdispz0  , cfg[ii].vdispz0   * velocity2astro, velocity_astro_unit_name);
