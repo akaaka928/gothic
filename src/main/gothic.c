@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/16 (Tue)
+ * @date 2018/01/17 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -78,6 +78,9 @@
 
 #include "../time/adv_dev.h"
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+#include "../tree/potential_dev.h"
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 #define LEAP_FROG_INTEGRATOR
 #   if  defined(LEAP_FROG_INTEGRATOR) && defined(BLOCK_TIME_STEP)
@@ -1211,7 +1214,6 @@ int main(int argc, char **argv)
   potential_field pot_tbl_sphe;
   real *pot_tbl_sphe_rad;
   pot2 *pot_tbl_sphe_Phi;
-, real **rad, pot2 **Phi
   const muse alloc_ext_pot_sphe = readFixedPotentialTableSpherical
     (unit, pot_file_sphe, &pot_tbl_sphe, &pot_tbl_sphe_rad, &pot_tbl_sphe_Phi
 #ifdef  USE_HDF5_FORMAT
