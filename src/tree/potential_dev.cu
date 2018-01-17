@@ -32,6 +32,7 @@
 
 #include "macro.h"
 #include "cudalib.h"
+#include "name.h"
 
 #include "../misc/benchmark.h"
 #include "../misc/structure.h"
@@ -484,12 +485,14 @@ muse  readFixedPotentialTableSpherical(const int unit, char cfg[], potential_fie
 
   tmp = num;  if( tmp != fread(rad_hst, sizeof(real), tmp, fp) )    success = false;
 
-  if( (Nread == 1) && (list[0] == READ_SUPERPOSED_TABLE) ){
+  int list;
+  success_cfg &= (1 == fscanf(fp_cfg, "%d", &list));
+  if( (Nread == 1) && (list == READ_SUPERPOSED_TABLE) ){
     tmp = num;    if( tmp != fread(Phi_hst, sizeof(pot2), tmp, fp) )      success = false;
 
     if( success != true ){      __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);    }
     fclose(fp);
-  }/* if( (Nread == 1) && (list[0] == READ_SUPERPOSED_TABLE) ){ */
+  }/* if( (Nread == 1) && (list == READ_SUPERPOSED_TABLE) ){ */
   else{
     /* close the superposed file */
     if( success != true ){      __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);    }
@@ -504,8 +507,6 @@ muse  readFixedPotentialTableSpherical(const int unit, char cfg[], potential_fie
 
     /* open another file */
     for(int ii = 0; ii < Nread; ii++){
-      int list;
-      success_cfg &= (1 == fscanf(fp_cfg, "%d", &list));
       sprintf(filename, "%s/%s.%s.%d", DATAFOLDER, file, "pot", list);
       fp = fopen(filename, "rb");
 
@@ -518,6 +519,9 @@ muse  readFixedPotentialTableSpherical(const int unit, char cfg[], potential_fie
 
       if( success != true ){	__KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);      }
       fclose(fp);
+
+      if( ii < (Nread - 1) )
+	success_cfg &= (1 == fscanf(fp_cfg, "%d", &list));
     }/* for(int ii = 0; ii < Nread; ii++){ */
     free(Phi_tmp);
   }/* else{ */

@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/01/17 (Wed) 19:43:44
+# last updated on 2018/01/17 (Wed) 20:16:54
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -399,6 +399,7 @@ endif
 #################################################################################################
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 CCARG	+= -DUSE_HDF5_FORMAT
+CUARG	+= -DUSE_HDF5_FORMAT
 else
 HDF5_FOR_ZINDAIJI	:= 0
 endif
@@ -1134,8 +1135,8 @@ ICOM_DEV_DEP	:=	$(TREE_DEV_DEP)	$(TREEDIR)/make_dev.h	$(SORTDIR)/peano_dev.h	$(T
 ICOM_DEV_DEP	+=	$(UTILDIR)/compare_inc.cu	$(UTILDIR)/compare_inc.cuh	$(UTILDIR)/compare_del.cuh
 ICOM_DEV_DEP	+=	$(UTILDIR)/scan_inc.cu	$(UTILDIR)/scan_inc.cuh	$(UTILDIR)/scan_del.cuh
 $(OBJDIR)/icom_dev.o:	$(ICOM_DEV_DEP)
-$(OBJDIR)/potential_dev.mpi.hdf5.o:	$(TREE_DEP)	$(MYINC)/cudalib.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/potential_dev.h	$(MYINC)/hdf5lib.h
-$(OBJDIR)/potential_dev.mpi.o:		$(TREE_DEP)	$(MYINC)/cudalib.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/potential_dev.h
+$(OBJDIR)/potential_dev.mpi.hdf5.o:	$(TREE_DEP)	$(MYINC)/name.h	$(MYINC)/cudalib.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/potential_dev.h	$(MYINC)/hdf5lib.h
+$(OBJDIR)/potential_dev.mpi.o:		$(TREE_DEP)	$(MYINC)/name.h	$(MYINC)/cudalib.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/potential_dev.h
 #################################################################################################
 ## $(INITDIR)/*
 $(OBJDIR)/sample.o:	$(COMMON_DEP)	$(MYINC)/name.h

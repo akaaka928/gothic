@@ -1261,6 +1261,10 @@ int main(int argc, char **argv)
   used_mem.host   += alloc_dt_dev.host  ;
   used_mem.device += alloc_dt_dev.device;
 #endif//BLOCK_TIME_STEP
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  used_mem.host   += alloc_ext_pot_sphe.host  ;
+  used_mem.device += alloc_ext_pot_sphe.device;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
   /** declarations of arrays to prevent for stack overflow */
   int *fail_dev;
@@ -1317,6 +1321,9 @@ int main(int argc, char **argv)
       fprintf(stdout, "\t%zu MiB (%zu GiB) for tree structure\n"    , tree_mem.device >> 20, tree_mem.device >> 30);
       fprintf(stdout, "\t%zu MiB for miscellaneous data\n", misc_mem.device >> 20);
       fprintf(stdout, "\t%zu MiB (%zu GiB) for tree walk buffer\n"  , alloc_buf_dev.device >> 20, alloc_buf_dev.device >> 30);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+      fprintf(stdout, "\t%zu MiB (%zu KiB) for external potential field\n", alloc_ext_pot_sphe.device >> 20, alloc_ext_pot_sphe.device >> 10);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifndef SERIALIZED_EXECUTION
       fprintf(stdout, "\t%zu MiB (%zu B) for LET related data\n"  ,  let_mem.device >> 20,  let_mem.device);
       fprintf(stdout, "\t%zu MiB (%zu KiB) for domain decomposition related data\n", box_mem.device >> 20, box_mem.device >> 10);
@@ -1334,6 +1341,9 @@ int main(int argc, char **argv)
       fprintf(stdout, "\t%zu MiB (%zu GiB) for tree structure\n"    , tree_mem.host >> 20, tree_mem.host >> 30);
       fprintf(stdout, "\t%zu MiB for miscellaneous data\n", misc_mem.host >> 20);
       fprintf(stdout, "\t%zu MiB (%zu B) for tree walk buffer\n", alloc_buf_dev.host >> 20, alloc_buf_dev.host);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+      fprintf(stdout, "\t%zu MiB (%zu KiB) for external potential field\n", alloc_ext_pot_sphe.host >> 20, alloc_ext_pot_sphe.host >> 10);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifndef SERIALIZED_EXECUTION
       fprintf(stdout, "\t%zu MiB (%zu B) for LET related data\n", let_mem.host >> 20, let_mem.host);
       fprintf(stdout, "\t%zu MiB (%zu KiB) for domain decomposition related data\n", box_mem.host >> 20, box_mem.host >> 10);
@@ -1883,7 +1893,9 @@ int main(int argc, char **argv)
       printf("#rebuild @ %zu-th step\n", steps);
       fflush(stdout);
 #endif//EXEC_BENCHMARK
-      __NOTE__("rebuild @ %zu-th step, t = %e, sum_rebuild = %e @ rank %d\n", steps, time, elapsed.sum_rebuild, mpi.rank);
+#ifndef SERIALIZED_EXECUTION
+      __NOTE__("rebuild @ %zu-th step, t = %e, sum_rebuild = %e\n", steps, time, elapsed.sum_rebuild);
+#endif//SERIALIZED_EXECUTION
 
       buildTreeStructure(num, &ibody0_dev, &ibody1_dev, soaPH_dev, devProp,
 #ifdef  CUB_AVAILABLE

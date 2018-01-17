@@ -52,11 +52,6 @@
 #define WALK_STAT "stat.walk"
 
 
-#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-#define READ_SUPERPOSED_TABLE (-1)
-#endif//SET_EXTERNAL_POTENTIAL_FIELD
-
-
 /**
  * @struct MPIcfg_dataio
  *

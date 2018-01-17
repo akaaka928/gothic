@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/16 (Tue)
+ * @date 2018/01/17 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2006,7 +2006,9 @@ static inline void callCalcGravityFunc
 #endif//COUNT_INTERACTIONS
  )
 {
+#ifndef SERIALIZED_EXECUTION
   __NOTE__("%s (grpNum = %d, jhead = %d)\n", "start", grpNum, jhead);
+#endif//SERIALIZED_EXECUTION
 
 
 #   if  defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))

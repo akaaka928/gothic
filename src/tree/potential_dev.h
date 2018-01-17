@@ -29,6 +29,12 @@
 #include "../file/io.h"
 #endif//USE_HDF5_FORMAT
 
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+#define READ_SUPERPOSED_TABLE (-1)
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+
+
 /* list of functions appeared in ``potential_dev.cu'' */
 #ifdef  __CUDACC__
 extern "C"
