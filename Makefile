@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/01/17 (Wed) 19:22:24
+# last updated on 2018/01/17 (Wed) 19:43:44
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -526,6 +526,9 @@ endif
 else
 TREEGPU	+= adv_dev.cu make_dev.cu walk_dev.cu
 endif
+ifeq ($(SET_EXTERNAL_FIELD), 1)
+POT_EXT	:= potential_dev.cu
+endif
 #################################################################################################
 COLDSRC	:= uniformsphere.c
 MAGISRC	:= magi.c
@@ -565,9 +568,15 @@ AERRSRC	:= anal.error.c
 #################################################################################################
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 OBJMPGT	:= $(patsubst %.c,  $(OBJDIR)/%.mpi.hdf5.o, $(notdir $(NBDYSRC) $(FILELIB) $(ALLCLIB) $(CNVTLIB)))
+ifeq ($(SET_EXTERNAL_FIELD), 1)
+OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.mpi.hdf5.o, $(notdir $(POT_EXT)))
+endif
 else
 OBJMPGT	:= $(patsubst %.c,  $(OBJDIR)/%.mpi.o,      $(notdir $(NBDYSRC) $(FILELIB)))
 OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.o,          $(notdir $(ALLCLIB) $(CNVTLIB)))
+ifeq ($(SET_EXTERNAL_FIELD), 1)
+OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.mpi.o,      $(notdir $(POT_EXT)))
+endif
 endif
 OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.o,          $(notdir $(TREESRC) $(TUNELIB)))
 OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.o,          $(notdir $(UTILGPU) $(TREEGPU)))
@@ -1033,6 +1042,9 @@ ifeq ($(ENCLOSING_BALL_FOR_LET), 1)
 GOTHIC_DEP	+=	$(TREEDIR)/icom_dev.h
 endif
 endif
+ifeq ($(SET_EXTERNAL_FIELD), 1)
+GOTHIC_DEP	+=	$(TREEDIR)/potential_dev.h
+endif
 GOTHIC_DEP	+=	$(MISCDIR)/brent.h
 GOTHIC_DEP	+=	$(SORTDIR)/peano_dev.h
 GOTHIC_DEP	+=	$(TREEDIR)/neighbor_dev.h
@@ -1113,12 +1125,17 @@ SHRINK_DEV_DEP	+=	$(TREEDIR)/neighbor_dev.h
 $(OBJDIR)/shrink_dev.mpi.o:	$(TREE_DEP)	$(SHRINK_DEV_DEP)
 $(OBJDIR)/shrink_dev.o:		$(TREE_DEP)	$(SHRINK_DEV_DEP)
 WALK_DEV_DEP	:=	$(TREE_DEV_DEP)	$(TREE_BUF_DEP)	$(MYINC)/timer.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/seb_dev.cu
+ifeq ($(SET_EXTERNAL_FIELD), 1)
+WALK_DEV_DEP	+=	$(TREEDIR)/potential_dev.h
+endif
 $(OBJDIR)/walk_dev.mpi.o:	$(WALK_DEV_DEP)	$(TREE_LET_DEP)	$(PARADIR)/mpicfg.h	$(MISCDIR)/tune.h
 $(OBJDIR)/walk_dev.o:		$(WALK_DEV_DEP)
 ICOM_DEV_DEP	:=	$(TREE_DEV_DEP)	$(TREEDIR)/make_dev.h	$(SORTDIR)/peano_dev.h	$(TREEDIR)/icom_dev.h
 ICOM_DEV_DEP	+=	$(UTILDIR)/compare_inc.cu	$(UTILDIR)/compare_inc.cuh	$(UTILDIR)/compare_del.cuh
 ICOM_DEV_DEP	+=	$(UTILDIR)/scan_inc.cu	$(UTILDIR)/scan_inc.cuh	$(UTILDIR)/scan_del.cuh
 $(OBJDIR)/icom_dev.o:	$(ICOM_DEV_DEP)
+$(OBJDIR)/potential_dev.mpi.hdf5.o:	$(TREE_DEP)	$(MYINC)/cudalib.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/potential_dev.h	$(MYINC)/hdf5lib.h
+$(OBJDIR)/potential_dev.mpi.o:		$(TREE_DEP)	$(MYINC)/cudalib.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/potential_dev.h
 #################################################################################################
 ## $(INITDIR)/*
 $(OBJDIR)/sample.o:	$(COMMON_DEP)	$(MYINC)/name.h
