@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/15 (Mon)
+ * @date 2018/01/16 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -45,9 +45,6 @@
  */
 #define CHECK_OSTRIKER_PEEBLES_CRITERION
 
-
-/** CFGFOLDER must same with CFGFOLDER defined in sample.c */
-#define CFGFOLDER "cfg"
 
 /** macros to specify the density distribution model */
 /** positive value indicates spherical component(s) */

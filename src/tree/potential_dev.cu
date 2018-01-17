@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/16 (Tue)
+ * @date 2018/01/17 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -19,6 +19,16 @@
 #include <stdlib.h>
 #include <math.h>
 #include <helper_cuda.h>
+
+#ifdef  USE_HDF5_FORMAT
+#include <hdf5.h>
+#include "hdf5lib.h"
+/* The maximum number of elements in a chunk is 2^32-1 which is equal to 4,294,967,295 */
+/* The maximum size for any chunk is 4GB */
+#define MAXIMUM_CHUNK_SIZE      ((hsize_t)1 << 31)
+#define MAXIMUM_CHUNK_SIZE_4BIT ((hsize_t)1 << 30)
+#define MAXIMUM_CHUNK_SIZE_8BIT ((hsize_t)1 << 29)
+#endif//USE_HDF5_FORMAT
 
 #include "macro.h"
 #include "cudalib.h"
@@ -306,3 +316,279 @@ void calcExternalGravity_dev
 
   __NOTE__("%s\n", "end");
 }
+
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_SPHERICAL
+/**
+ * @fn  readFixedPotentialTableSpherical
+ *
+ * @brief Read fixed potential field (of spherical symmetric components) represented in cubic spline interpolation for GOTHIC.
+ *
+ * @param (unit) unit system of the potential field
+ * @param (cfg) name of the input file
+ * @return (pot_tbl) superposed potential field for cubic spline interpolation (only for spherical symmetric components)
+ * @return (rad) radius for cubic spline interpolation
+ * @return (Phi) potential field for cubic spline interpolation
+ */
+extern "C"
+muse  readFixedPotentialTableSpherical(const int unit, char cfg[], potential_field *pot_tbl, real **rad, pot2 **Phi
+#ifdef  USE_HDF5_FORMAT
+				       , hdf5struct type
+#endif//USE_HDF5_FORMAT
+				       )
+{
+  __NOTE__("%s\n", "start");
+
+
+  FILE *fp_cfg;
+  fp_cfg = fopen(cfg, "r");
+  if( fp_cfg == NULL ){    __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", cfg);  }
+
+  char *file;
+  int Nread;
+
+  bool success_cfg = true;
+  success_cfg &= (1 == fscanf(fp_cfg, "%s", file));
+  success_cfg &= (1 == fscanf(fp_cfg, "%d", &Nread));
+
+  /* open an existing file with read only option */
+  char filename[128];
+#ifdef  USE_HDF5_FORMAT
+
+  sprintf(filename, "%s/%s.%s.h5", DATAFOLDER, file, "ext_pot");
+  hid_t target = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+
+  /* read attribute data */
+  hid_t attribute;
+  /* read flag about unit system */
+  int unit_pot;
+  attribute = H5Aopen(target, "unit system/UNITSYSTEM", H5P_DEFAULT);
+  chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &unit_pot));
+  chkHDF5err(H5Aclose(attribute));
+  /* read flag about DOUBLE_PRECISION */
+  int useDP;
+  attribute = H5Aopen(target, "useDP", H5P_DEFAULT);
+  chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &useDP));
+  chkHDF5err(H5Aclose(attribute));
+
+  /* simple error checks */
+#ifdef  DOUBLE_PRECISION
+  if( useDP != 1 ){    __KILL__(stderr, "ERROR: useDP (%d) differs with that in the code (%d)\n", useDP, true);  }
+#else///DOUBLE_PRECISION
+  if( useDP != 0 ){    __KILL__(stderr, "ERROR: useDP (%d) differs with that in the code (%d)\n", useDP, false);  }
+#endif//DOUBLE_PRECISION
+  if( unit_pot != unit ){
+    __KILL__(stderr, "ERROR: unit system of the potential field (%d) differs with that in the simulation run (%d)\n", unit_pot, unit);
+  }/* if( unit_pot != unit ){ */
+
+  /* read # of data points */
+  attribute = H5Aopen(target, "spherical/num", H5P_DEFAULT);
+  chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &pot_tbl->num));
+  chkHDF5err(H5Aclose(attribute));
+  /* read log_10(r_min) */
+  attribute = H5Aopen(target, "spherical/logrmin", H5P_DEFAULT);
+  chkHDF5err(H5Aread(attribute, type.real, &pot_tbl->logrmin));
+  chkHDF5err(H5Aclose(attribute));
+  /* read logrbin */
+  attribute = H5Aopen(target, "spherical/logrbin", H5P_DEFAULT);
+  chkHDF5err(H5Aread(attribute, type.real, &pot_tbl->logrbin));
+  chkHDF5err(H5Aclose(attribute));
+
+  const int num = pot_tbl->num;
+
+  /* memory allocation on the accelerator device */
+  muse alloc_tbl = allocSphericalPotentialTable_dev(rad, Phi, num);
+  real *rad_hst;
+  pot2 *Phi_hst;
+  allocSphericalPotentialTable_hst(&rad_hst, &Phi_hst, num);
+
+  /* memory allocation on the host as a temporary buffer */
+  pot2 *Phi_tmp;
+  if( Nread == 1 )
+    Phi_tmp = Phi_hst;
+  else{
+    Phi_tmp = (pot2 *)malloc(num * sizeof(pot2));    if( Phi_tmp == NULL ){      __KILL__(stderr, "ERROR: failure to allocate Phi_tmp\n");    }
+
+    const pot2 zero = {ZERO, ZERO};
+    for(int ii = 0; ii < num; ii++)
+      Phi_hst[ii] = zero;
+  }/* else{ */
+
+
+  for(int ii = 0; ii < Nread; ii++){
+    hid_t dataset;
+
+    /* open an existing group */
+    char *list;
+    success_cfg &= (1 == fscanf(fp_cfg, "%s", list));
+    hid_t group = H5Gopen(target, list, H5P_DEFAULT);
+
+    /* read radius */
+    if( ii == 0 ){
+      dataset = H5Dopen(group, "r", H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, rad_hst));
+      chkHDF5err(H5Dclose(dataset));
+    }/* if( ii == 0 ){ */
+
+    /* read potential */
+    dataset = H5Dopen(group, "Phi(r)", H5P_DEFAULT);
+    chkHDF5err(H5Dread(dataset, type.pot2, H5S_ALL, H5S_ALL, H5P_DEFAULT, Phi_tmp));
+    chkHDF5err(H5Dclose(dataset));
+
+    chkHDF5err(H5Gclose(group));
+
+    if( Nread > 1 )
+      for(int jj = 0; jj < num; jj++){
+	Phi_hst[jj].val += Phi_tmp[jj].val;
+	Phi_hst[jj].dr2 += Phi_tmp[jj].dr2;
+      }/* for(int jj = 0; jj < num; jj++){ */
+  }/* for(int ii = 0; ii < Nread; ii++){ */
+  if( Nread != 1 )
+    free(Phi_tmp);
+
+  /* close the file */
+  chkHDF5err(H5Fclose(target));
+
+#else///USE_HDF5_FORMAT
+
+  /* read numeric table for superposed spherical components */
+  sprintf(filename, "%s/%s.%s.%s", DATAFOLDER, file, "pot", "sphe");
+  FILE *fp;
+  fp = fopen(filename, "rb");
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);  }
+
+  int unit_pot, num;
+  real rmin, rbin;
+
+  bool success = true;
+  size_t tmp;
+  tmp = 1;  if( tmp != fread(&unit_pot, sizeof(int), tmp, fp) )    success = false;
+  tmp = 1;  if( tmp != fread(&num, sizeof(int), tmp, fp) )    success = false;
+  tmp = 1;  if( tmp != fread(&rmin, sizeof(real), tmp, fp) )    success = false;
+  tmp = 1;  if( tmp != fread(&rbin, sizeof(real), tmp, fp) )    success = false;
+
+  /* simple error check */
+  if( unit_pot != unit ){
+    __KILL__(stderr, "ERROR: unit system of the potential field (%d) differs with that in the simulation run (%d)\n", unit_pot, unit);
+  }/* if( unit_pot != unit ){ */
+
+  pot_tbl->num = num;
+  pot_tbl->logrmin = rmin;
+  pot_tbl->logrbin = rbin;
+
+  /* memory allocation on the accelerator device */
+  muse alloc_tbl = allocSphericalPotentialTable_dev(rad, Phi, num);
+  real *rad_hst;
+  pot2 *Phi_hst;
+  allocSphericalPotentialTable_hst(&rad_hst, &Phi_hst, num);
+
+  tmp = num;  if( tmp != fread(rad_hst, sizeof(real), tmp, fp) )    success = false;
+
+  if( (Nread == 1) && (list[0] == READ_SUPERPOSED_TABLE) ){
+    tmp = num;    if( tmp != fread(Phi_hst, sizeof(pot2), tmp, fp) )      success = false;
+
+    if( success != true ){      __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);    }
+    fclose(fp);
+  }/* if( (Nread == 1) && (list[0] == READ_SUPERPOSED_TABLE) ){ */
+  else{
+    /* close the superposed file */
+    if( success != true ){      __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);    }
+    fclose(fp);
+
+    pot2 *Phi_tmp;
+    Phi_tmp = (pot2 *)malloc(num * sizeof(pot2));    if( Phi_tmp == NULL ){      __KILL__(stderr, "ERROR: failure to allocate Phi_tmp\n");    }
+
+    const pot2 zero = {ZERO, ZERO};
+    for(int ii = 0; ii < num; ii++)
+      Phi_hst[ii] = zero;
+
+    /* open another file */
+    for(int ii = 0; ii < Nread; ii++){
+      int list;
+      success_cfg &= (1 == fscanf(fp_cfg, "%d", &list));
+      sprintf(filename, "%s/%s.%s.%d", DATAFOLDER, file, "pot", list);
+      fp = fopen(filename, "rb");
+
+      tmp = num;      if( tmp != fread(Phi_tmp, sizeof(pot2), tmp, fp) )	success = false;
+
+      for(int jj = 0; jj < num; jj++){
+	Phi_hst[jj].val += Phi_tmp[jj].val;
+	Phi_hst[jj].dr2 += Phi_tmp[jj].dr2;
+      }/* for(int jj = 0; jj < *Nr; jj++){ */
+
+      if( success != true ){	__KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);      }
+      fclose(fp);
+    }/* for(int ii = 0; ii < Nread; ii++){ */
+    free(Phi_tmp);
+  }/* else{ */
+
+#endif//USE_HDF5_FORMAT
+
+  setSphericalPotentialTable_dev(rad_hst, Phi_hst, *rad, *Phi, num);
+  freeSphericalPotentialTable_hst(rad_hst, Phi_hst);
+
+  pot_tbl->rad = *rad;
+  pot_tbl->Phi = *Phi;
+  pot_tbl->invlogrbin = UNITY / pot_tbl->logrbin;
+
+  if( success_cfg != true ){    __KILL__(stderr, "ERROR: failure to read \"%s\"\n", cfg);  }
+  fclose(fp_cfg);
+
+
+  __NOTE__("%s\n", "end");
+
+  return (alloc_tbl);
+}
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_SPHERICAL
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+
+/**
+ * @fn  readFixedPotentialTableDisk
+ *
+ * @brief Read fixed potential field (of disk components) represented in cubic spline interpolation for GOTHIC.
+ *
+ * @param (file) name of the input file
+ * @param (Nlead) number of components to be read
+ * @param (list) list of data groups to be read
+ * @return (level)
+ * @return (NR) number of data points for external potential-field
+ * @return (Nz) number of data points for external potential-field
+ * @return (RR) R for bilinear interpolation
+ * @return (zz) z for bilinear interpolation
+ * @return (Phi_Rz) 2-dimensional potential field for bilinear interpolation
+ * @return (Nr) number of data points for (spherically averaged) external potential-field
+ * @return (rr) r for cubic spline interpolation (for outermost regions)
+ * @return (Phi_rr) potential field for cubic spline interpolation (for outermost regions)
+ */
+extern "C"
+void  readFixedPotentialTableDisk(char file[], const int Nread
+#ifdef  USE_HDF5_FORMAT
+				  , char *list[], hdf5struct type
+#else///USE_HDF5_FORMAT
+				  , int *list
+#endif//USE_HDF5_FORMAT
+				  , int *level, int *NR, int *Nz, real **RR, real **zz, pot2 **Phi_Rz, int *Nr, real **rr, pot2 **Phi_rr
+				  )
+{
+  __NOTE__("%s\n", "start");
+  __NOTE__("%s\n", "end");
+}
+
+
+# of returned components must be 1;
+if the number is greater than unity, then calculate superposed potential and return it;
+
+
+
+# of components to be read, data group of each component
+# of components to be passed to GOTHIC, 
+
+ /* use table in (R, z)-plane for short- or middle-range force and r-plane for long-range force */
+
+/* use nested-grid table and bilinear interpolation */
+
+ /* add R = -dR and z = -dz to describe symmetry around R = 0, z = 0 */
+
+
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK

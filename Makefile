@@ -437,6 +437,7 @@ VPATH	:= $(MAINDIR) $(MISCDIR) $(UTILDIR) $(FILEDIR) $(TIMEDIR) $(SORTDIR) $(TRE
 GOTHIC	:= $(BINDIR)/gothic
 MKCOLD	:= $(BINDIR)/uniformsphere
 MAGI	:= $(BINDIR)/magi
+EDITOR	:= $(BINDIR)/editor
 PLTENE	:= $(BINDIR)/plot.energy
 PLTACT	:= $(BINDIR)/plot.action
 PLTDST	:= $(BINDIR)/plot.distribution
@@ -534,6 +535,7 @@ MAGILIB	:= profile.c eddington.c king.c abel.c blas.c spline.c table.c
 ifeq ($(SET_EXTERNAL_FIELD), 1)
 MAGILIB	+= external.c
 endif
+EDITSRC	:= editor.c
 #################################################################################################
 PENESRC	:= plot.energy.c
 PACTSRC	:= plot.action.c
@@ -633,6 +635,15 @@ endif
 OBJMAGI	+= $(patsubst %.c, $(OBJDIR)/%.omp.o,                  $(notdir $(MAGILIB)))
 #################################################################################################
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
+OBJEDIT	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.hdf5.o, $(notdir $(EDITSRC)))
+OBJEDIT	+= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o,    $(notdir $(FILELIB) $(ALLCLIB)))
+else
+OBJEDIT	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.o,      $(notdir $(EDITSRC)))
+OBJEDIT	+= $(patsubst %.c, $(OBJDIR)/%.o,             $(notdir $(ALLCLIB)))
+OBJEDIT	+= $(patsubst %.c, $(OBJDIR)/%.mpi.o,         $(notdir $(FILELIB)))
+endif
+#################################################################################################
+ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 OBJPENE	:= $(patsubst %.c, $(OBJDIR)/%.mpi.pl.hdf5.o, $(notdir $(PENESRC)))
 OBJPENE	+= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o,    $(notdir $(FILELIB) $(ALLCLIB)))
 else
@@ -723,14 +734,14 @@ endif
 #################################################################################################
 ## Rules
 #################################################################################################
-all:	TAGS $(GOTHIC) $(MAGI) $(PLTENE) $(PLTACT) $(PLTDST)# $(MKCOLD) $(PLTCDF)# $(PLTMUL)# $(OBJASM)
+all:	TAGS $(GOTHIC) $(MAGI) $(EDITOR) $(PLTENE) $(PLTACT) $(PLTDST)# $(MKCOLD) $(PLTCDF)# $(PLTMUL)# $(OBJASM)
 #################################################################################################
-.PHONY:	gothic init magi cold edf plot bench sample disk anal
+.PHONY:	gothic init magi cold editor plot bench sample disk anal
 gothic:	TAGS $(GOTHIC)
-init:	TAGS $(MAGI) $(MKCOLD)
+init:	TAGS $(MAGI) $(MKCOLD) $(EDITOR)
 magi:	TAGS $(MAGI)
 cold:	TAGS $(MKCOLD)
-edf:	TAGS $(MAGI)
+editor:	TAGS $(EDITOR)
 plot:	TAGS $(PLTENE) $(PLTACT) $(PLTDST) $(PLTCDF)# $(PLTMUL)
 bench:	TAGS $(OPTCFG) $(PLTELP) $(PLTDEP) $(PLTBRK) $(PLTCMP) $(PLTFLP) $(PLTRAD)
 sample:	TAGS $(SAMPLE) $(PLTDF)
@@ -776,6 +787,8 @@ $(MKCOLD):	$(OBJCOLD)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)const
 $(MAGI):	$(OBJMAGI)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)rand_gsl.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib -l$(LIBPREC)rand_gsl $(GSLLIB) -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib $(HDF5LIB)
 endif
+$(EDITOR):	$(OBJEDIT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEDIT) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib $(HDF5LIB)
 $(PLTENE):	$(OBJPENE)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPENE) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib -l$(LIBPREC)hdf5lib $(HDF5LIB)
 $(PLTACT):	$(OBJPACT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
@@ -807,6 +820,8 @@ $(MKCOLD):	$(OBJCOLD)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)const
 $(MAGI):	$(OBJMAGI)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)rand_gsl.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib -l$(LIBPREC)rand_gsl $(GSLLIB) -l$(LIBPREC)timer -l$(LIBPREC)rotate
 endif
+$(EDITOR):	$(OBJEDIT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEDIT) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib -l$(LIBPREC)timer -l$(LIBPREC)rotate
 $(PLTENE):	$(OBJPENE)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPENE) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib
 $(PLTACT):	$(OBJPACT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a
@@ -888,6 +903,7 @@ clean:
 	$(VERBOSE)rm -f $(GOTHIC) $(OBJMPGT) $(GOTHIC).sass
 	$(VERBOSE)rm -f $(MKCOLD) $(OBJCOLD)
 	$(VERBOSE)rm -f $(MAGI)   $(OBJMAGI)
+	$(VERBOSE)rm -f $(EDITOR) $(OBJEDIT)
 	$(VERBOSE)rm -f $(PLTENE) $(OBJPENE)
 	$(VERBOSE)rm -f $(PLTACT) $(OBJPACT)
 	$(VERBOSE)rm -f $(PLTDST) $(OBJDIST)
@@ -1105,17 +1121,17 @@ ICOM_DEV_DEP	+=	$(UTILDIR)/scan_inc.cu	$(UTILDIR)/scan_inc.cuh	$(UTILDIR)/scan_d
 $(OBJDIR)/icom_dev.o:	$(ICOM_DEV_DEP)
 #################################################################################################
 ## $(INITDIR)/*
-$(OBJDIR)/sample.o:	$(COMMON_DEP)
+$(OBJDIR)/sample.o:	$(COMMON_DEP)	$(MYINC)/name.h
 $(OBJDIR)/blas.omp.o:	$(COMMON_DEP)	$(INITDIR)/blas.h
 $(OBJDIR)/spline.omp.o:	$(COMMON_DEP)	$(INITDIR)/spline.h
 SPLINE_DEP	:=	$(COMMON_DEP)	$(INITDIR)/profile.h	$(INITDIR)/table.h	$(INITDIR)/spline.h
-$(OBJDIR)/abel.omp.o:	$(SPLINE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/abel.h
-$(OBJDIR)/table.omp.o:	$(SPLINE_DEP)
+$(OBJDIR)/abel.omp.o:	$(SPLINE_DEP)	$(MYINC)/name.h	$(INITDIR)/magi.h	$(INITDIR)/abel.h
+$(OBJDIR)/table.omp.o:	$(SPLINE_DEP)	$(MYINC)/name.h
 $(OBJDIR)/external.omp.o:	$(SPLINE_DEP)	$(INITDIR)/external.h
 PROFILE_DEP	:=	$(COMMON_DEP)	$(MYINC)/constants.h	$(INITDIR)/profile.h	$(INITDIR)/magi.h
 $(OBJDIR)/eddington.omp.o:	$(PROFILE_DEP)	$(INITDIR)/eddington.h
 $(OBJDIR)/king.omp.o:		$(PROFILE_DEP)	$(INITDIR)/king.h
-$(OBJDIR)/profile.omp.o:	$(PROFILE_DEP)
+$(OBJDIR)/profile.omp.o:	$(PROFILE_DEP)	$(MYINC)/name.h
 DISK_DEP	:=	$(PROFILE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/spline.h	$(INITDIR)/blas.h	$(INITDIR)/potdens.h
 $(OBJDIR)/potdens.omp.gsl.o:	$(DISK_DEP)	$(INITDIR)/abel.h
 $(OBJDIR)/potdens.omp.gsl.sfmt.o:	$(DISK_DEP)	$(INITDIR)/abel.h
@@ -1139,6 +1155,8 @@ $(OBJDIR)/magi.ompmpi.gsl.hdf5.o:	$(IOFILE_DEP)	$(MAGI_DEP)	$(MYINC)/hdf5lib.h
 $(OBJDIR)/magi.ompmpi.gsl.smtj.o:	$(IOFILE_DEP)	$(MAGI_DEP)	$(MYINC)/sfmtjump_polynomial.h
 $(OBJDIR)/magi.ompmpi.gsl.sfmt.o:	$(IOFILE_DEP)	$(MAGI_DEP)
 $(OBJDIR)/magi.ompmpi.gsl.o:		$(IOFILE_DEP)	$(MAGI_DEP)
+$(OBJDIR)/editor.ompmpi.hdf5.o:	$(IOFILE_DEP)	$(MYINC)/rotate.h	$(MYINC)/hdf5lib.h
+$(OBJDIR)/editor.ompmpi.o:	$(IOFILE_DEP)	$(MYINC)/rotate.h
 #################################################################################################
 ## $(PLOTDIR)/*
 PLOT_DEP	:=	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/constants.h	\
