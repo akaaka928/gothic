@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/15 (Mon)
+ * @date 2018/01/18 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1095,11 +1095,6 @@ int main(int argc, char **argv)
 #pragma omp master
 #endif//USE_SFMTJUMP
       stopBenchmark_cpu(&execTime.diskDist);
-
-      /** output fundamental quantities of the disk component */
-      initBenchmark_cpu();
-      writeDiskData(file, ndisk, maxLev, disk_info);
-      stopBenchmark_cpu(&execTime.diskInfo);
     }/* if( addDisk ){ */
 
     /** release pseudo random number generator */
@@ -1151,6 +1146,12 @@ int main(int argc, char **argv)
 #endif//USE_HDF5_FORMAT
   stopBenchmark_cpu(&execTime.spheInfo);
 
+  /** output fundamental quantities of the disk component */
+  if( addDisk ){
+    initBenchmark_cpu();
+    writeDiskData(file, ndisk, maxLev, disk_info);
+    stopBenchmark_cpu(&execTime.diskInfo);
+  }/* if( addDisk ){ */
 
   /** write particle data */
   double time = 0.0;

@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/01/17 (Wed)
+ * @date 2018/01/18 (Thu)
  *
  * Copyright (C) 2018 Yohei Miki
  * All rights reserved.
@@ -137,14 +137,15 @@ static inline void writeEditorCfgFormat(char *filename)
  *
  * @param (cfg) file name of the configuration
  * @return (unit) unit system of the simulation
- * @return (num) number of objects
+ * @return (Nobj) number of objects
  * @return (obj) summary of the object(s)
+ * @return (Ncmp) number of components
  * @return (cmp) summary of component(s) in the object(s)
  *
  * @sa writeEditorCfgFormat
  * @sa writeSystemCfgFormat
  */
-static inline void readEditorCfg(char *cfg, int *unit, int *num, object **obj, component **cmp)
+static inline void readEditorCfg(char *cfg, int *unit, int *Nobj, object **obj, int *Ncmp, component **cmp)
 {
   __NOTE__("%s\n", "start");
 
@@ -159,10 +160,10 @@ static inline void readEditorCfg(char *cfg, int *unit, int *num, object **obj, c
   int checker = 1;
 
   /** read the number of input files */
-  checker &= (1 == fscanf(fp, "%d", num));
-  *obj = (object *)malloc(sizeof(object) * (*num));  if( *obj == NULL ){    __KILL__(stderr, "ERROR: failure to allocate obj\n");  }
+  checker &= (1 == fscanf(fp, "%d", Nobj));
+  *obj = (object *)malloc(sizeof(object) * (*Nobj));  if( *obj == NULL ){    __KILL__(stderr, "ERROR: failure to allocate obj\n");  }
 
-  for(int ii = 0; ii < *num; ii++)
+  for(int ii = 0; ii < *Nobj; ii++)
     checker &= (2 == fscanf(fp, "%s %s", (*obj)[ii].file, (*obj)[ii].cfg));
 
   fclose(fp);
@@ -171,7 +172,7 @@ static inline void readEditorCfg(char *cfg, int *unit, int *num, object **obj, c
 
 
   int kind = 0;
-  for(int ii = 0; ii < *num; ii++){
+  for(int ii = 0; ii < *Nobj; ii++){
     sprintf(filename, "%s/%s.summary.txt", DOCUMENTFOLDER, (*obj)[ii].file);
     fp = fopen(filename, "r");
     if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
@@ -193,13 +194,14 @@ static inline void readEditorCfg(char *cfg, int *unit, int *num, object **obj, c
     }/* if( ii > 0 ){ */
     else
       *unit = unit_tmp;
-  }/* for(int ii = 0; ii < *num; ii++){ */
+  }/* for(int ii = 0; ii < *Nobj; ii++){ */
 
+  *Ncmp = kind;
   *cmp = (component *)malloc(sizeof(component) * kind);  if( *cmp == NULL ){    __KILL__(stderr, "ERROR: failure to allocate cmp\n");  }
 
 
   /** read individual objects */
-  for(int ii = 0; ii < *num; ii++){
+  for(int ii = 0; ii < *Nobj; ii++){
     sprintf(filename, "%s/%s", CFGFOLDER, (*obj)[ii].cfg);
     fp = fopen(filename, "r");
     if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
@@ -451,10 +453,10 @@ int main(int argc, char **argv)
 
   /** read system configuration and set unit system */
   int unit;
-  int Nobj;
+  int Nobj, Ncmp;
   object *obj;
   component *cmp;
-  readEditorCfg(fcfg, &unit, &Nobj, &obj, &cmp);
+  readEditorCfg(fcfg, &unit, &Nobj, &obj, &Ncmp, &cmp);
   setPhysicalConstantsAndUnitSystem(unit, 1);
 
   /** read input arguments depend on the unit system adopted in the numerical simulation */
@@ -619,6 +621,9 @@ int main(int argc, char **argv)
   fprintf(fp, "Total number of particles Ntot is %zu (= 2^%u)\n", Ntot, ilog2((uint)Ntot));
   fprintf(fp, "Number of components      kind is %d\n", kind);
   fprintf(fp, "Number of original objects     is %d\n", Nobj);
+  fprintf(fp, "Number of original components  is %d\n", Ncmp);
+  for(int ii = 0; ii < Nobj; ii++)
+    fprintf(fp, "\t%d-th object: contains %d components\n", ii, obj[ii].kind);
   fprintf(fp, "#############################################################################\n");
   fprintf(fp, "Length of Plummer softening  is %e (= %e %s)\n", eps, eps * length2astro, length_astro_unit_name);
   fprintf(fp, "Snapshot interval            is %e (= %e %s)\n", snapshotInterval, snapshotInterval * time2astro, time_astro_unit_name);
@@ -634,8 +639,8 @@ int main(int argc, char **argv)
     fprintf(fp, "#############################################################################\n");
     fprintf(fp, "rotation angle is %e radian\n", obj[ii].angle);
     fprintf(fp, "rotation axis is (%e, %e, %e)\n", obj[ii].ax, obj[ii].ay, obj[ii].az);
-    fprintf(fp, "initial position is (%e, %e, %e) = (%e %s, %e %s, %e %s)", obj[ii].xx, obj[ii].yy, obj[ii].zz, obj[ii].xx * length2astro, length_astro_unit_name, obj[ii].yy * length2astro, length_astro_unit_name, obj[ii].zz * length2astro, length_astro_unit_name);
-    fprintf(fp, "initial velocity is (%e, %e, %e) = (%e %s, %e %s, %e %s)", obj[ii].vx, obj[ii].vy, obj[ii].vz, obj[ii].vx * velocity2astro, velocity_astro_unit_name, obj[ii].vy * velocity2astro, velocity_astro_unit_name, obj[ii].vz * velocity2astro, velocity_astro_unit_name);
+    fprintf(fp, "initial position is (%e, %e, %e) = (%e %s, %e %s, %e %s)\n", obj[ii].xx, obj[ii].yy, obj[ii].zz, obj[ii].xx * length2astro, length_astro_unit_name, obj[ii].yy * length2astro, length_astro_unit_name, obj[ii].zz * length2astro, length_astro_unit_name);
+    fprintf(fp, "initial velocity is (%e, %e, %e) = (%e %s, %e %s, %e %s)\n", obj[ii].vx, obj[ii].vy, obj[ii].vz, obj[ii].vx * velocity2astro, velocity_astro_unit_name, obj[ii].vy * velocity2astro, velocity_astro_unit_name, obj[ii].vz * velocity2astro, velocity_astro_unit_name);
     fprintf(fp, "#############################################################################\n");
 
     for(int jj = obj[ii].head; jj < obj[ii].head + obj[ii].kind; jj++)

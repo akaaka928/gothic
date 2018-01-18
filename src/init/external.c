@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/17 (Wed)
+ * @date 2018/01/18 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -49,7 +49,7 @@ void genExtPotTbl1D(const int kind, profile **prf, potential_field *pot)
 
   for(int ii = 0; ii < kind; ii++){
     /** apply cubic spline interpolation */
-    const int skip = N_EXT_POT_SPHE / NRADBIN;
+    const int skip = NRADBIN / N_EXT_POT_SPHE;
 #pragma omp parallel for
     for(int jj = 0; jj < N_EXT_POT_SPHE; jj++){
       const int kk = jj * skip;

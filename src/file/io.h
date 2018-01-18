@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/17 (Wed)
+ * @date 2018/01/18 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -50,6 +50,13 @@
 #define ACCERR "accerr"
 #define TREE_STAT "stat.tree"
 #define WALK_STAT "stat.walk"
+
+#ifndef USE_HDF5_FORMAT
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+#define READ_SUPERPOSED_TABLE_SPHE (-1)
+#define READ_SUPERPOSED_TABLE_DISK (-2)
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+#endif//USE_HDF5_FORMAT
 
 
 /**

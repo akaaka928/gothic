@@ -298,10 +298,6 @@ OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$N
 # set number of MPI processes per node
 PROCS_PER_NODE=`expr $SLURM_NTASKS / $SLURM_JOB_NUM_NODES`
 ###############################################################
-# set stdout and stderr
-STDOUT=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.out
-STDERR=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.err
-###############################################################
 # start logging
 cd $SLURM_SUBMIT_DIR
 echo "use $SLURM_JOB_NUM_NODES nodes"
@@ -310,17 +306,23 @@ TIME=`date`
 echo "start: $TIME"
 ###############################################################
 # execute the job
-echo "mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION"
-mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION
-# if [ `which numactl` ]; then
-#     # mpiexec with numactl
-#     echo "mpiexec -n $SLURM_NTASKS -l sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-#     mpiexec -n $SLURM_NTASKS -l sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
-# else
-#     # mpiexec without numactl
-#     echo "mpiexec -n $SLURM_NTASKS -l $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-#     mpiexec -n $SLURM_NTASKS -l $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
-# fi
+if [ $PROCS -gt 1 ]; then
+    echo "mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION"
+    mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION
+else
+    # set stdout and stderr
+    STDOUT=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.out
+    STDERR=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.err
+    if [ `which numactl` ]; then
+	# run with numactl
+	echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+	numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    else
+	# run without numactl
+	echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+	$EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    fi
+fi
 ###############################################################
 # finish logging
 TIME=`date`

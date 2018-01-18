@@ -162,7 +162,7 @@ avtGOTHIC_snpFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
   // open the target file
   const char* filename = GetFilename();
   hid_t target = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
-  hid_t group = H5Gopen(target, "unit system/axis labels", H5P_DEFAULT);
+  hid_t group = H5Gopen(target, "unit_system/axis labels", H5P_DEFAULT);
   // read unit name contained in the file (written as an attribute)
   hid_t str4format = H5Tcopy(H5T_C_S1);
   const int charSize = 16;
@@ -232,7 +232,7 @@ avtGOTHIC_snpFileFormat::GetMesh(const char *meshname)
     hid_t target = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
 
     // read conversion factor
-    hid_t group = H5Gopen(target, "unit system/conversion factors", H5P_DEFAULT);
+    hid_t group = H5Gopen(target, "unit_system/conversion factors", H5P_DEFAULT);
     double length2astro;
     hid_t attribute = H5Aopen(group, "length2astro", H5P_DEFAULT);
     chkHDF5err(H5Aread(attribute, H5T_NATIVE_DOUBLE, &length2astro));
@@ -379,7 +379,7 @@ avtGOTHIC_snpFileFormat::GetVar(const char *varname)
       chkHDF5err(H5Gclose(group));
 
       // read conversion factor
-      group = H5Gopen(target, "unit system/conversion factors", H5P_DEFAULT);
+      group = H5Gopen(target, "unit_system/conversion factors", H5P_DEFAULT);
       double factor = 0.0;
       string dimension;
       if( strcmp(variable.c_str(), "potential") == 0 )      dimension = "senergy2astro";
@@ -410,7 +410,7 @@ avtGOTHIC_snpFileFormat::GetVar(const char *varname)
       chkHDF5err(H5Gclose(group));
 
       // read conversion factor
-      group = H5Gopen(target, "unit system/conversion factors", H5P_DEFAULT);
+      group = H5Gopen(target, "unit_system/conversion factors", H5P_DEFAULT);
       double factor = 0.0;
       string dimension;
       if( strcmp(variable.c_str(), "potential") == 0 )      dimension = "senergy2astro";
@@ -487,7 +487,7 @@ avtGOTHIC_snpFileFormat::GetVectorVar(const char *varname)
   hid_t target = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
 
   // read conversion factor
-  hid_t group = H5Gopen(target, "unit system/conversion factors", H5P_DEFAULT);
+  hid_t group = H5Gopen(target, "unit_system/conversion factors", H5P_DEFAULT);
   double factor = 0.0;
   string dimension;
   if( strcmp(variable.c_str(),     "velocity") == 0 )    dimension = "velocity2astro";
@@ -578,7 +578,7 @@ avtGOTHIC_snpFileFormat::GetTime(void)
   chkHDF5err(H5Gclose(group));
 
   // read conversion factor
-  group = H5Gopen(target, "unit system/conversion factors", H5P_DEFAULT);
+  group = H5Gopen(target, "unit_system/conversion factors", H5P_DEFAULT);
   double factor = 0.0;
   attribute = H5Aopen(group, "time2astro", H5P_DEFAULT);
   chkHDF5err(H5Aread(attribute, H5T_NATIVE_DOUBLE, &factor));

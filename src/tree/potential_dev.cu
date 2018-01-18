@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/17 (Wed)
+ * @date 2018/01/18 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -332,7 +332,7 @@ void calcExternalGravity_dev
  * @return (Phi) potential field for cubic spline interpolation
  */
 extern "C"
-muse  readFixedPotentialTableSpherical(const int unit, char cfg[], potential_field *pot_tbl, real **rad, pot2 **Phi
+muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_field *pot_tbl, real **rad, pot2 **Phi
 #ifdef  USE_HDF5_FORMAT
 				       , hdf5struct type
 #endif//USE_HDF5_FORMAT
@@ -341,15 +341,14 @@ muse  readFixedPotentialTableSpherical(const int unit, char cfg[], potential_fie
   __NOTE__("%s\n", "start");
 
 
+  char cfgfile[128];
+  sprintf(cfgfile, "%s/%s.%s.cfg", DOCUMENTFOLDER, file, "ext_pot_sphe");
   FILE *fp_cfg;
-  fp_cfg = fopen(cfg, "r");
-  if( fp_cfg == NULL ){    __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", cfg);  }
+  fp_cfg = fopen(cfgfile, "r");
+  if( fp_cfg == NULL ){    __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", cfgfile);  }
 
-  char *file;
   int Nread;
-
   bool success_cfg = true;
-  success_cfg &= (1 == fscanf(fp_cfg, "%s", file));
   success_cfg &= (1 == fscanf(fp_cfg, "%d", &Nread));
 
   /* open an existing file with read only option */
@@ -361,16 +360,18 @@ muse  readFixedPotentialTableSpherical(const int unit, char cfg[], potential_fie
 
   /* read attribute data */
   hid_t attribute;
-  /* read flag about unit system */
-  int unit_pot;
-  attribute = H5Aopen(target, "unit system/UNITSYSTEM", H5P_DEFAULT);
-  chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &unit_pot));
-  chkHDF5err(H5Aclose(attribute));
   /* read flag about DOUBLE_PRECISION */
   int useDP;
   attribute = H5Aopen(target, "useDP", H5P_DEFAULT);
   chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &useDP));
   chkHDF5err(H5Aclose(attribute));
+  /* read flag about unit system */
+  int unit_pot;
+  hid_t group = H5Gopen(target, "unit_system", H5P_DEFAULT);
+  attribute = H5Aopen(group, "unit", H5P_DEFAULT);
+  chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &unit_pot));
+  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Gclose(group));
 
   /* simple error checks */
 #ifdef  DOUBLE_PRECISION
@@ -382,18 +383,20 @@ muse  readFixedPotentialTableSpherical(const int unit, char cfg[], potential_fie
     __KILL__(stderr, "ERROR: unit system of the potential field (%d) differs with that in the simulation run (%d)\n", unit_pot, unit);
   }/* if( unit_pot != unit ){ */
 
+  group = H5Gopen(target, "spherical", H5P_DEFAULT);
   /* read # of data points */
-  attribute = H5Aopen(target, "spherical/num", H5P_DEFAULT);
+  attribute = H5Aopen(group, "num", H5P_DEFAULT);
   chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &pot_tbl->num));
   chkHDF5err(H5Aclose(attribute));
   /* read log_10(r_min) */
-  attribute = H5Aopen(target, "spherical/logrmin", H5P_DEFAULT);
+  attribute = H5Aopen(group, "logrmin", H5P_DEFAULT);
   chkHDF5err(H5Aread(attribute, type.real, &pot_tbl->logrmin));
   chkHDF5err(H5Aclose(attribute));
   /* read logrbin */
-  attribute = H5Aopen(target, "spherical/logrbin", H5P_DEFAULT);
+  attribute = H5Aopen(group, "logrbin", H5P_DEFAULT);
   chkHDF5err(H5Aread(attribute, type.real, &pot_tbl->logrbin));
   chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Gclose(group));
 
   const int num = pot_tbl->num;
 
@@ -420,9 +423,9 @@ muse  readFixedPotentialTableSpherical(const int unit, char cfg[], potential_fie
     hid_t dataset;
 
     /* open an existing group */
-    char *list;
+    char list[64];
     success_cfg &= (1 == fscanf(fp_cfg, "%s", list));
-    hid_t group = H5Gopen(target, list, H5P_DEFAULT);
+    group = H5Gopen(target, list, H5P_DEFAULT);
 
     /* read radius */
     if( ii == 0 ){
@@ -487,12 +490,12 @@ muse  readFixedPotentialTableSpherical(const int unit, char cfg[], potential_fie
 
   int list;
   success_cfg &= (1 == fscanf(fp_cfg, "%d", &list));
-  if( (Nread == 1) && (list == READ_SUPERPOSED_TABLE) ){
+  if( (Nread == 1) && (list == READ_SUPERPOSED_TABLE_SPHE) ){
     tmp = num;    if( tmp != fread(Phi_hst, sizeof(pot2), tmp, fp) )      success = false;
 
     if( success != true ){      __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);    }
     fclose(fp);
-  }/* if( (Nread == 1) && (list == READ_SUPERPOSED_TABLE) ){ */
+  }/* if( (Nread == 1) && (list == READ_SUPERPOSED_TABLE_SPHE) ){ */
   else{
     /* close the superposed file */
     if( success != true ){      __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);    }
@@ -535,7 +538,7 @@ muse  readFixedPotentialTableSpherical(const int unit, char cfg[], potential_fie
   pot_tbl->Phi = *Phi;
   pot_tbl->invlogrbin = UNITY / pot_tbl->logrbin;
 
-  if( success_cfg != true ){    __KILL__(stderr, "ERROR: failure to read \"%s\"\n", cfg);  }
+  if( success_cfg != true ){    __KILL__(stderr, "ERROR: failure to read \"%s\"\n", cfgfile);  }
   fclose(fp_cfg);
 
 

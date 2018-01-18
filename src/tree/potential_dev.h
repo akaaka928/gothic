@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/17 (Wed)
+ * @date 2018/01/18 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -26,13 +26,9 @@
 
 #ifdef  USE_HDF5_FORMAT
 #include <hdf5.h>
-#include "../file/io.h"
 #endif//USE_HDF5_FORMAT
 
-
-#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-#define READ_SUPERPOSED_TABLE (-1)
-#endif//SET_EXTERNAL_POTENTIAL_FIELD
+#include "../file/io.h"
 
 
 /* list of functions appeared in ``potential_dev.cu'' */
@@ -60,7 +56,7 @@ extern "C"
 
   /* read fixed potential field */
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD_SPHERICAL
-  muse  readFixedPotentialTableSpherical(const int unit, char cfg[], potential_field *pot_tbl, real **rad, pot2 **Phi
+  muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_field *pot_tbl, real **rad, pot2 **Phi
 #ifdef  USE_HDF5_FORMAT
 					 , hdf5struct type
 #endif//USE_HDF5_FORMAT
