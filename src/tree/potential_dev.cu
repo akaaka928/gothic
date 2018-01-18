@@ -229,9 +229,9 @@ __global__ void calcExternalGravity_kernel
     F_r *= rinv;
 
     /** accumulate the external force */
-    ai.x   += F_r * ai.x;
-    ai.y   += F_r * ai.y;
-    ai.z   += F_r * ai.z;
+    ai.x   += F_r * pi.x;
+    ai.y   += F_r * pi.y;
+    ai.z   += F_r * pi.z;
     ai.pot += Phi;
 
     /** store acceleration */
