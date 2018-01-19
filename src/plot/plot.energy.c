@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/01/19 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -93,26 +93,41 @@ int main(int argc, char **argv)
   createHDF5DataType(&hdf5type);
   nbody_hdf5 body;
   real *hdf5_pos, *hdf5_vel, *hdf5_acc, *hdf5_m, *hdf5_pot;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  real *hdf5_acc_ext, *hdf5_pot_ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   ulong *hdf5_idx;
-  allocSnapshotArray(&hdf5_pos, &hdf5_vel, &hdf5_acc, &hdf5_m, &hdf5_pot, &hdf5_idx, (int)Ntot, &body);
+  allocSnapshotArray
+    (&hdf5_pos, &hdf5_vel, &hdf5_acc, &hdf5_m, &hdf5_pot, &hdf5_idx,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     &hdf5_acc_ext, &hdf5_pot_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     (int)Ntot, &body);
 #else///USE_HDF5_FORMAT
   iparticle body;
   ulong *idx;
   position *pos;
   acceleration *acc;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  acceleration *ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   velocity *vel;
   ibody_time *ti;
 #else///BLOCK_TIME_STEP
   real *vx, *vy, *vz;
 #endif//BLOCK_TIME_STEP
-  allocParticleData((int)Ntot, &body, &idx, &pos, &acc,
+  allocParticleData
+    ((int)Ntot, &body, &idx, &pos, &acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     &ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
-		    &vel, &ti
+     &vel, &ti
 #else///BLOCK_TIME_STEP
-		    &vx, &vy, &vz
+     &vx, &vy, &vz
 #endif//BLOCK_TIME_STEP
-		    );
+     );
 #endif//USE_HDF5_FORMAT
 
 
@@ -124,6 +139,9 @@ int main(int argc, char **argv)
   PLFLT *Ekin;  allocPLFLT(&Ekin, nfile);
   PLFLT *Epot;  allocPLFLT(&Epot, nfile);
   PLFLT *Etot;  allocPLFLT(&Etot, nfile);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  PLFLT *Eext;  allocPLFLT(&Eext, nfile);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
   PLFLT *momx;  allocPLFLT(&momx, nfile);
   PLFLT *momy;  allocPLFLT(&momy, nfile);
@@ -136,6 +154,9 @@ int main(int argc, char **argv)
     Ekin[ii] = 0.0;
     Epot[ii] = 0.0;
     Etot[ii] = 0.0;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    Eext[ii] = 0.0;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
     momx[ii] = 0.0;
     momy[ii] = 0.0;
@@ -170,20 +191,20 @@ int main(int argc, char **argv)
 
     for(int ii = 0; ii < (int)Ntot; ii++){
 #ifdef  USE_HDF5_FORMAT
-      const double mass = (double)body.m  [ii        ];
-      const double velx = (double)body.vel[ii * 3    ];
-      const double vely = (double)body.vel[ii * 3 + 1];
-      const double velz = (double)body.vel[ii * 3 + 2];
+      const double mass = CAST_R2D(body.m  [ii	      ]);
+      const double velx = CAST_R2D(body.vel[ii * 3    ]);
+      const double vely = CAST_R2D(body.vel[ii * 3 + 1]);
+      const double velz = CAST_R2D(body.vel[ii * 3 + 2]);
 #else///USE_HDF5_FORMAT
-      const double mass = (double)body.pos[ii].m;
+      const double mass = CAST_R2D(body.pos[ii].m);
 #ifdef  BLOCK_TIME_STEP
-      const double velx = (double)body.vel[ii].x;
-      const double vely = (double)body.vel[ii].y;
-      const double velz = (double)body.vel[ii].z;
+      const double velx = CAST_R2D(body.vel[ii].x);
+      const double vely = CAST_R2D(body.vel[ii].y);
+      const double velz = CAST_R2D(body.vel[ii].z);
 #else///BLOCK_TIME_STEP
-      const double velx = (double)body.vx[ii];
-      const double vely = (double)body.vy[ii];
-      const double velz = (double)body.vz[ii];
+      const double velx = CAST_R2D(body.vx[ii]);
+      const double vely = CAST_R2D(body.vy[ii]);
+      const double velz = CAST_R2D(body.vz[ii]);
 #endif//BLOCK_TIME_STEP
 #endif//USE_HDF5_FORMAT
 
@@ -193,10 +214,18 @@ int main(int argc, char **argv)
 
       Ekin[ifile] += (PLFLT)(mass * (velx * velx + vely * vely + velz * velz));
 #ifdef  USE_HDF5_FORMAT
-      Epot[ifile] += (PLFLT)(mass * (double)body.pot[ii]);
+      Epot[ifile] += (PLFLT)(mass * CAST_R2D(body.pot[ii]));
 #else///USE_HDF5_FORMAT
-      Epot[ifile] += (PLFLT)(mass * (double)body.acc[ii].pot);
+      Epot[ifile] += (PLFLT)(mass * CAST_R2D(body.acc[ii].pot));
 #endif//USE_HDF5_FORMAT
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  USE_HDF5_FORMAT
+      Eext[ifile] += (PLFLT)(mass * CAST_R2D(body.pot_ext[ii]));
+#else///USE_HDF5_FORMAT
+      Eext[ifile] += (PLFLT)(mass * CAST_R2D(body.acc_ext[ii].pot));
+#endif//USE_HDF5_FORMAT
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
       momx[ifile] += mass * velx;
       momy[ifile] += mass * vely;
@@ -209,7 +238,12 @@ int main(int argc, char **argv)
     }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 
     Ekin[ifile] *= 0.5 * energy2astro;
+#ifndef SET_EXTERNAL_POTENTIAL_FIELD
     Epot[ifile] *= 0.5 * energy2astro;
+#else///SET_EXTERNAL_POTENTIAL_FIELD
+    Epot[ifile] = Eext[ifile] + 0.5 * Epot[ifile];
+    Epot[ifile] *= energy2astro;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
     Etot[ifile] = Ekin[ifile] + Epot[ifile];
 
 #ifdef  NORMALIZED_MOMENTUM_ERROR
@@ -485,20 +519,32 @@ int main(int argc, char **argv)
 
 #ifdef  USE_HDF5_FORMAT
   removeHDF5DataType(hdf5type);
-  freeSnapshotArray(hdf5_pos, hdf5_vel, hdf5_acc, hdf5_m, hdf5_pot, hdf5_idx);
+  freeSnapshotArray
+    (hdf5_pos, hdf5_vel, hdf5_acc, hdf5_m, hdf5_pot, hdf5_idx
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , hdf5_acc_ext, hdf5_pot_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
 #else///USE_HDF5_FORMAT
-  freeParticleData(idx, pos, acc,
+  freeParticleData
+    (idx, pos, acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
-		    vel, ti
+     vel, ti
 #else///BLOCK_TIME_STEP
-		    vx, vy, vz
+     vx, vy, vz
 #endif//BLOCK_TIME_STEP
-		    );
+     );
 #endif//USE_HDF5_FORMAT
 
   free(time);  free(step);
   free(Ekin);  free(Epot);  free(Etot);
   free(momx);  free(momy);  free(momz);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  free(Eext);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 
   exitMPI();

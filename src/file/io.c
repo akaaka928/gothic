@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/18 (Thu)
+ * @date 2018/01/19 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -555,6 +555,9 @@ void  readTentativeData(double *time, double *dt, ulong *steps, int num, ipartic
   tmp =   1;  if( tmp != fread(steps, sizeof( ulong), tmp, fp) )    success = false;
   tmp = num;  if( tmp != fread(body.pos, sizeof(    position), tmp, fp) )    success = false;
   tmp = num;  if( tmp != fread(body.acc, sizeof(acceleration), tmp, fp) )    success = false;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  tmp = num;  if( tmp != fread(body.acc_ext, sizeof(acceleration), tmp, fp) )    success = false;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   tmp = num;  if( tmp != fread(body. vel, sizeof(  velocity), tmp, fp) )    success = false;
   tmp = num;  if( tmp != fread(body.time, sizeof(ibody_time), tmp, fp) )    success = false;
@@ -641,6 +644,12 @@ void  readTentativeData(double *time, double *dt, ulong *steps, int num, ipartic
   dataset = H5Dopen(group, "acceleration", H5P_DEFAULT);
   chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.acc));
   chkHDF5err(H5Dclose(dataset));
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  /* read particle acceleration by external potential field */
+  dataset = H5Dopen(group, "acceleration_external", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.acc_ext));
+  chkHDF5err(H5Dclose(dataset));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   /* read particle velocity */
   dataset = H5Dopen(group, "velocity", H5P_DEFAULT);
@@ -807,6 +816,9 @@ void writeTentativeData(double  time, double  dt, ulong  steps, ulong num, ipart
   tmp =   1;  if( tmp != fwrite(&steps, sizeof(         ulong), tmp, fp) )    success = false;
   tmp = num;  if( tmp != fwrite(body.pos, sizeof(    position), tmp, fp) )    success = false;
   tmp = num;  if( tmp != fwrite(body.acc, sizeof(acceleration), tmp, fp) )    success = false;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  tmp = num;  if( tmp != fwrite(body.acc_ext, sizeof(acceleration), tmp, fp) )    success = false;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   tmp = num;  if( tmp != fwrite(body. vel, sizeof(  velocity), tmp, fp) )    success = false;
   tmp = num;  if( tmp != fwrite(body.time, sizeof(ibody_time), tmp, fp) )    success = false;
@@ -860,6 +872,12 @@ void writeTentativeData(double  time, double  dt, ulong  steps, ulong num, ipart
   dataset = H5Dcreate(group, "acceleration", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
   chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.acc));
   chkHDF5err(H5Dclose(dataset));
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  /* write particle acceleration by external potential field */
+  dataset = H5Dcreate(group, "acceleration_external", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.acc_ext));
+  chkHDF5err(H5Dclose(dataset));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   /* write particle velocity */
   dataset = H5Dcreate(group, "velocity", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
@@ -1156,6 +1174,12 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int *num
   chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(acceleration), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
   chkMPIerr(MPI_File_read(fh, body.acc, (*num) * 4, MPI_REALDAT, &status));
   disp += Ntot * (MPI_Offset)sizeof(acceleration);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  /* the whole processes read acceleration by external potential field */
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(acceleration), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_read(fh, body.acc_ext, (*num) * 4, MPI_REALDAT, &status));
+  disp += Ntot * (MPI_Offset)sizeof(acceleration);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   /* the whole processes read velocity and time */
 #ifdef  BLOCK_TIME_STEP
   chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(velocity), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
@@ -1459,6 +1483,15 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int *num
   chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.acc));
   chkHDF5err(H5Sclose(hyperslab));
   chkHDF5err(H5Dclose(dataset));
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  /* read particle acceleration by external potential field */
+  dataset = H5Dopen(group, "acceleration_external", H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dread(dataset, type.real, locSpace, hyperslab, r_property, body.acc_ext));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   dataset = H5Dopen(group, "velocity", H5P_DEFAULT);
   hyperslab = H5Dget_space(dataset);
@@ -1623,6 +1656,13 @@ void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num,
   chkMPIerr(MPI_File_write(fh, body.acc, num * 4, MPI_REALDAT, &status));
   chkMPIerr(MPI_File_sync(fh));
   disp += Ntot * (MPI_Offset)sizeof(acceleration);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  /* the whole processes write acceleration by external potential field */
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(acceleration), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, body.acc_ext, num * 4, MPI_REALDAT, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  disp += Ntot * (MPI_Offset)sizeof(acceleration);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   /* the whole processes write velocity and time */
 #ifdef  BLOCK_TIME_STEP
   chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(velocity), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
@@ -1702,6 +1742,15 @@ void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num,
   chkHDF5err(H5Dwrite(dset, type.real, locSpace, hyperslab, w_property, body.acc));
   chkHDF5err(H5Sclose(hyperslab));
   chkHDF5err(H5Dclose(dset));
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  /* write particle acceleration by external potential field */
+  dset = H5Dcreate(group, "acceleration_external", type.real, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+  hyperslab = H5Dget_space(dset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, &offset, &stride, &count, &block));
+  chkHDF5err(H5Dwrite(dset, type.real, locSpace, hyperslab, w_property, body.acc_ext));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dset));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   /* write particle velocity */
   dset = H5Dcreate(group, "velocity", type.real, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
@@ -2485,6 +2534,9 @@ void  readSnapshot(int *unit, double *time, ulong *steps, int num, char file[], 
   tmp =   1;  if( tmp != fread(steps, sizeof(         ulong), tmp, fp) )    success = false;
   tmp = num;  if( tmp != fread(body.pos, sizeof(    position), tmp, fp) )    success = false;
   tmp = num;  if( tmp != fread(body.acc, sizeof(acceleration), tmp, fp) )    success = false;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  tmp = num;  if( tmp != fread(body.acc_ext, sizeof(acceleration), tmp, fp) )    success = false;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   tmp = num;  if( tmp != fread(body.vel, sizeof(velocity), tmp, fp) )    success = false;
 #else///BLOCK_TIME_STEP
@@ -2519,6 +2571,12 @@ void  readSnapshot(int *unit, double *time, ulong *steps, int num, char file[], 
   dataset = H5Dopen(group, "acceleration", H5P_DEFAULT);
   chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body->acc));
   chkHDF5err(H5Dclose(dataset));
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  /* read particle acceleration by external potential field */
+  dataset = H5Dopen(group, "acceleration_external", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body->acc_ext));
+  chkHDF5err(H5Dclose(dataset));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   /* read particle mass */
   dataset = H5Dopen(group, "mass", H5P_DEFAULT);
   chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body->m));
@@ -2527,6 +2585,12 @@ void  readSnapshot(int *unit, double *time, ulong *steps, int num, char file[], 
   dataset = H5Dopen(group, "potential", H5P_DEFAULT);
   chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body->pot));
   chkHDF5err(H5Dclose(dataset));
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  /* read particle potential by external potential field */
+  dataset = H5Dopen(group, "potential_external", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body->pot_ext));
+  chkHDF5err(H5Dclose(dataset));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   /* read particle index */
   dataset = H5Dopen(group, "index", H5P_DEFAULT);
   chkHDF5err(H5Dread(dataset, H5T_NATIVE_ULONG, H5S_ALL, H5S_ALL, H5P_DEFAULT, body->idx));
@@ -2623,6 +2687,9 @@ void writeSnapshot(int  unit, double  time, ulong  steps, int num, char file[], 
 #   if  defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR)
   double Ekin = 0.0;
   double Epot = 0.0;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  double Eext = 0.0;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   for(int ii = 0; ii < num; ii++){
     const double mass = CAST_R2D(body->m  [ii	     ]);
     const double velx = CAST_R2D(body->vel[ii * 3    ]);
@@ -2630,10 +2697,18 @@ void writeSnapshot(int  unit, double  time, ulong  steps, int num, char file[], 
     const double velz = CAST_R2D(body->vel[ii * 3 + 2]);
     Ekin += mass * (velx * velx + vely * vely + velz * velz);
     Epot += mass * CAST_R2D(body->pot[ii]);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    Eext += mass * CAST_R2D(body->pot_ext[ii]);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   }/* for(int ii = 0; ii < num; ii++){ */
 
   Ekin *= 0.5 * energy2astro;
+#ifndef SET_EXTERNAL_POTENTIAL_FIELD
   Epot *= 0.5 * energy2astro;
+#else///SET_EXTERNAL_POTENTIAL_FIELD
+  Epot = Eext + 0.5 * Epot;
+  Epot *= energy2astro;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   const double Etot = Ekin + Epot;
 
   FILE *fp;
@@ -2673,6 +2748,9 @@ void writeSnapshot(int  unit, double  time, ulong  steps, int num, char file[], 
   tmp =   1;  if( tmp != fwrite(&steps, sizeof(         ulong), tmp, fp) )    success = false;
   tmp = num;  if( tmp != fwrite(body.pos, sizeof(    position), tmp, fp) )    success = false;
   tmp = num;  if( tmp != fwrite(body.acc, sizeof(acceleration), tmp, fp) )    success = false;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  tmp = num;  if( tmp != fwrite(body.acc_ext, sizeof(acceleration), tmp, fp) )    success = false;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   tmp = num;  if( tmp != fwrite(body.vel, sizeof(velocity), tmp, fp) )    success = false;
 #else///BLOCK_TIME_STEP
@@ -2730,6 +2808,12 @@ void writeSnapshot(int  unit, double  time, ulong  steps, int num, char file[], 
   dataset = H5Dcreate(group, "acceleration", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
   chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body->acc));
   chkHDF5err(H5Dclose(dataset));
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  /* write particle acceleration by external potential field */
+  dataset = H5Dcreate(group, "acceleration_external", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body->acc_ext));
+  chkHDF5err(H5Dclose(dataset));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  USE_SZIP_COMPRESSION
   chkHDF5err(H5Pclose(property));
 #endif//USE_SZIP_COMPRESSION
@@ -2758,6 +2842,12 @@ void writeSnapshot(int  unit, double  time, ulong  steps, int num, char file[], 
   dataset = H5Dcreate(group, "potential", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
   chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body->pot));
   chkHDF5err(H5Dclose(dataset));
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  /* write particle potential by external potential field */
+  dataset = H5Dcreate(group, "potential_external", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body->pot_ext));
+  chkHDF5err(H5Dclose(dataset));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   /* write particle index */
   dataset = H5Dcreate(group, "index", H5T_NATIVE_ULONG, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
   chkHDF5err(H5Dwrite(dataset, H5T_NATIVE_ULONG, H5S_ALL, H5S_ALL, H5P_DEFAULT, body->idx));
@@ -2958,6 +3048,9 @@ void writeSnapshotParallel(int  unit, double  time, ulong  steps, int num, char 
 #   if  defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR)
   double Ekin = 0.0;
   double Epot = 0.0;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  double Eext = 0.0;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   for(int ii = 0; ii < num; ii++){
     const double mass = CAST_R2D(body->m  [ii	     ]);
     const double velx = CAST_R2D(body->vel[ii * 3    ]);
@@ -2965,12 +3058,23 @@ void writeSnapshotParallel(int  unit, double  time, ulong  steps, int num, char 
     const double velz = CAST_R2D(body->vel[ii * 3 + 2]);
     Ekin += mass * (velx * velx + vely * vely + velz * velz);
     Epot += mass * CAST_R2D(body->pot[ii]);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    Eext += mass * CAST_R2D(body->pot_ext[ii]);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   }/* for(int ii = 0; ii < num; ii++){ */
 
   chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &Ekin, 1, MPI_DOUBLE, MPI_SUM, mpi->comm));
   chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &Epot, 1, MPI_DOUBLE, MPI_SUM, mpi->comm));
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &Eext, 1, MPI_DOUBLE, MPI_SUM, mpi->comm));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   Ekin *= 0.5 * energy2astro;
+#ifndef SET_EXTERNAL_POTENTIAL_FIELD
   Epot *= 0.5 * energy2astro;
+#else///SET_EXTERNAL_POTENTIAL_FIELD
+  Epot = Eext + 0.5 * Epot;
+  Epot *= energy2astro;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   const double Etot = Ekin + Epot;
 
   if( id == 0 ){
@@ -3047,6 +3151,13 @@ void writeSnapshotParallel(int  unit, double  time, ulong  steps, int num, char 
   chkMPIerr(MPI_File_write(fh, body.acc, num * 4, MPI_REALDAT, &status));
   chkMPIerr(MPI_File_sync(fh));
   disp += Ntot * (MPI_Offset)sizeof(acceleration);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  /* the whole processes write acceleration by external potential field */
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(acceleration), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, body.acc_ext, num * 4, MPI_REALDAT, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  disp += Ntot * (MPI_Offset)sizeof(acceleration);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   /* the whole processes write velocity */
 #ifdef  BLOCK_TIME_STEP
   chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(velocity), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
@@ -3133,6 +3244,15 @@ void writeSnapshotParallel(int  unit, double  time, ulong  steps, int num, char 
   chkHDF5err(H5Dwrite(dataset, type.real, locSpace, hyperslab, w_property, body->acc));
   chkHDF5err(H5Sclose(hyperslab));
   chkHDF5err(H5Dclose(dataset));
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  /* write particle acceleration by external potential field */
+  dataset = H5Dcreate(group, "acceleration_external", type.real, fulSpace, H5P_DEFAULT, data_create, data_access);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, offset, stride, count, block));
+  chkHDF5err(H5Dwrite(dataset, type.real, locSpace, hyperslab, w_property, body->acc_ext));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   /* close the dataspace */
   chkHDF5err(H5Pclose(data_access));
   chkHDF5err(H5Pclose(data_create));
@@ -3161,6 +3281,15 @@ void writeSnapshotParallel(int  unit, double  time, ulong  steps, int num, char 
   chkHDF5err(H5Dwrite(dataset, type.real, locSpace, hyperslab, w_property, body->pot));
   chkHDF5err(H5Sclose(hyperslab));
   chkHDF5err(H5Dclose(dataset));
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  /* write particle potential by external potential field */
+  dataset = H5Dcreate(group, "potential_external", type.real, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, offset, stride, count, block));
+  chkHDF5err(H5Dwrite(dataset, type.real, locSpace, hyperslab, w_property, body->pot_ext));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   /* write particle index */
   dataset = H5Dcreate(group, "index", H5T_NATIVE_ULONG, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
   hyperslab = H5Dget_space(dataset);
@@ -3464,7 +3593,7 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
 #endif//USE_SZIP_COMPRESSION
     /* write particle position */
     for(int jj = 3 * head[ii]; jj < 3 * (head[ii] + num[ii]); jj++)
-      body->pos[jj] = (real)((double)body->pos[jj] * length2astro);
+      body->pos[jj] = CAST_D2R(CAST_R2D(body->pos[jj]) * length2astro);
 #ifdef  HDF5_FOR_ZINDAIJI
     dataset = H5Dcreate(group,      "xyz", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &body->pos[head[ii] * 3]));
@@ -3477,14 +3606,14 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
     /* write particle velocity */
 #ifdef  HDF5_FOR_ZINDAIJI
     for(int jj = 0; jj < 3 * num[ii]; jj++)
-      tmp[jj] = (real)((double)body->vel[jj + 3 * head[ii]] * vel2zin);
+      tmp[jj] = CAST_D2R(CAST_R2D(body->vel[jj + 3 * head[ii]]) * vel2zin);
     dataset = H5Dcreate(group,   "vxvyvz", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp));
     chkHDF5err(H5Dclose(dataset));
 #endif//HDF5_FOR_ZINDAIJI
     /* coordinate transformation */
     for(int jj = 3 * head[ii]; jj < 3 * (head[ii] + num[ii]); jj++)
-      body->vel[jj] = (real)((double)body->vel[jj] * velocity2astro);
+      body->vel[jj] = CAST_D2R(CAST_R2D(body->vel[jj]) * velocity2astro);
     dataset = H5Dcreate(group, "velocity", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &body->vel[head[ii] * 3]));
     chkHDF5err(H5Dclose(dataset));
@@ -3492,17 +3621,25 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
 #ifdef  HDF5_FOR_ZINDAIJI
     /* write particle acceleration for Zindaiji */
     for(int jj = 0; jj < 3 * num[ii]; jj++)
-      tmp[jj] = (real)((double)body->acc[jj + 3 * head[ii]] * acc2zin);
+      tmp[jj] = CAST_D2R(CAST_R2D(body->acc[jj + 3 * head[ii]]) * acc2zin);
     dataset = H5Dcreate(group, "axayaz", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp));
     chkHDF5err(H5Dclose(dataset));
 #endif//HDF5_FOR_ZINDAIJI
     /* coordinate transformation */
     for(int jj = 3 * head[ii]; jj < 3 * (head[ii] + num[ii]); jj++)
-      body->acc[jj] = (real)((double)body->acc[jj] * accel2astro);
+      body->acc[jj] = CAST_D2R(CAST_R2D(body->acc[jj]) * accel2astro);
     dataset = H5Dcreate(group, "acceleration", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &body->acc[head[ii] * 3]));
     chkHDF5err(H5Dclose(dataset));
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    /* coordinate transformation */
+    for(int jj = 3 * head[ii]; jj < 3 * (head[ii] + num[ii]); jj++)
+      body->acc_ext[jj] = CAST_D2R(CAST_R2D(body->acc_ext[jj]) * accel2astro);
+    dataset = H5Dcreate(group, "acceleration_external", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &body->acc_ext[head[ii] * 3]));
+    chkHDF5err(H5Dclose(dataset));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  USE_SZIP_COMPRESSION
     if( (hsize_t)(num[ii] * 3) > (hsize_t)szip_pixels_per_block )
       chkHDF5err(H5Pclose(property));
@@ -3530,16 +3667,24 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
 #endif//USE_SZIP_COMPRESSION
     /* write particle mass */
     for(int jj = head[ii]; jj < head[ii] + num[ii]; jj++)
-      body->m[jj] = (real)((double)body->m[jj] * mass2astro);
+      body->m[jj] = CAST_D2R(CAST_R2D(body->m[jj]) * mass2astro);
     dataset = H5Dcreate(group, "mass", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &body->m[head[ii]]));
     chkHDF5err(H5Dclose(dataset));
     /* write particle potential */
     for(int jj = head[ii]; jj < head[ii] + num[ii]; jj++)
-      body->pot[jj] = (real)((double)body->pot[jj] * senergy2astro);
+      body->pot[jj] = CAST_D2R(CAST_R2D(body->pot[jj]) * senergy2astro);
     dataset = H5Dcreate(group, "potential", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &body->pot[head[ii]]));
     chkHDF5err(H5Dclose(dataset));
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    /* write particle potential by external potential field */
+    for(int jj = head[ii]; jj < head[ii] + num[ii]; jj++)
+      body->pot_ext[jj] = CAST_D2R(CAST_R2D(body->pot_ext[jj]) * senergy2astro);
+    dataset = H5Dcreate(group, "potential_external", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &body->pot_ext[head[ii]]));
+    chkHDF5err(H5Dclose(dataset));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
     /* write particle index */
     dataset = H5Dcreate(group, "index", H5T_NATIVE_ULONG, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, H5T_NATIVE_ULONG, H5S_ALL, H5S_ALL, H5P_DEFAULT, &body->idx[head[ii]]));

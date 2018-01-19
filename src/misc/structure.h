@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/16 (Tue)
+ * @date 2018/01/19 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -87,10 +87,13 @@ typedef struct
  */
 typedef struct
 {
-  real *pos;/**< x0, y0, z0, w0, x1, y1, z1, ... */
-  real *vel;/**< x0, y0, z0, w0, x1, y1, z1, ... */
-  real *acc;/**< x0, y0, z0, w0, x1, y1, z1, ... */
+  real *pos;/**< x0, y0, z0, x1, y1, z1, ... */
+  real *vel;/**< x0, y0, z0, x1, y1, z1, ... */
+  real *acc;/**< x0, y0, z0, x1, y1, z1, ... */
   real *m, *pot;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  real *acc_ext, *pot_ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   ulong *idx;
 } nbody_hdf5;
 #endif//USE_HDF5_FORMAT
@@ -165,6 +168,9 @@ typedef struct
 #ifdef  GADGET_MAC
   acceleration *acc_old;
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  acceleration *acc_ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   velocity     *vel;
   position     *jpos;
@@ -194,6 +200,9 @@ typedef struct
 #ifdef  GADGET_MAC
   MPI_Win win_iacc;
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  MPI_Win win_iext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   MPI_Win win_ivel;
   MPI_Win win_time;

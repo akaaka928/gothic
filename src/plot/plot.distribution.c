@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/01/19 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -126,6 +126,9 @@ typedef struct
   real vx, vy, vz;
   real ax, ay, az;
   real m, pot;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  real ax_ext, ay_ext, az_ext, pot_ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 } nbody_particle;
 
 
@@ -609,26 +612,41 @@ int main(int argc, char **argv)
   createHDF5DataType(&hdf5type);
   nbody_hdf5 hdf5;
   real *hdf5_pos, *hdf5_vel, *hdf5_acc, *hdf5_m, *hdf5_pot;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  real *hdf5_acc_ext, *hdf5_pot_ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   ulong *hdf5_idx;
-  allocSnapshotArray(&hdf5_pos, &hdf5_vel, &hdf5_acc, &hdf5_m, &hdf5_pot, &hdf5_idx, (int)Ntot, &hdf5);
+  allocSnapshotArray
+    (&hdf5_pos, &hdf5_vel, &hdf5_acc, &hdf5_m, &hdf5_pot, &hdf5_idx,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     &hdf5_acc_ext, &hdf5_pot_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     (int)Ntot, &hdf5);
 #else///USE_HDF5_FORMAT
   iparticle ibody;
   ulong *idx;
   position *pos;
   acceleration *acc;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  acceleration *ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   velocity *vel;
   ibody_time *ti;
 #else///BLOCK_TIME_STEP
   real *vx, *vy, *vz;
 #endif//BLOCK_TIME_STEP
-  allocParticleData((int)Ntot, &ibody, &idx, &pos, &acc,
+  allocParticleData
+    ((int)Ntot, &ibody, &idx, &pos, &acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     &ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
-		    &vel, &ti
+     &vel, &ti
 #else///BLOCK_TIME_STEP
-		    &vx, &vy, &vz
+     &vx, &vy, &vz
 #endif//BLOCK_TIME_STEP
-		    );
+     );
 #endif//USE_HDF5_FORMAT
 
 
@@ -930,6 +948,7 @@ int main(int argc, char **argv)
 
 
   /** read analytic profile and analyze */
+#ifndef SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  USE_HDF5_FORMAT
 #ifdef  DOUBLE_PRECISION
   hid_t hdf5_real = H5T_NATIVE_DOUBLE;
@@ -937,6 +956,7 @@ int main(int argc, char **argv)
   hid_t hdf5_real = H5T_NATIVE_FLOAT;
 #endif//DOUBLE_PRECISION
 #endif//USE_HDF5_FORMAT
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   int kind = 1;
   int skind = 1;
   model *group;
@@ -973,6 +993,7 @@ int main(int argc, char **argv)
 
   /** load initial profile */
   bool overlay_initial = false;
+#ifndef SET_EXTERNAL_POTENTIAL_FIELD
   if( problem >= 1 ){
     overlay_initial = true;
 
@@ -1357,7 +1378,7 @@ int main(int argc, char **argv)
     }/* for(int ii = 0; ii < kind; ii++){ */
 
 
-/** analyze column density profile of spherical components */
+    /** analyze column density profile of spherical components */
     const real logRmin = (real)log10(radmin);
     const real logRmax = (real)log10(radmax);
     const real logRbin = (logRmax - logRmin) / (real)(NUM_ANALYTIC - 1);
@@ -1369,14 +1390,14 @@ int main(int argc, char **argv)
       for(int kk = 0; kk < skind; kk++){
     	group[kk].hor  [ii] = RR;
     	group[kk].Sigma[ii] = (UNITY - ratio) * group[kk].Sig[ll] + ratio * group[kk].Sig[rr];
-      }
-    }
+      }/* for(int kk = 0; kk < skind; kk++){ */
+    }/* for(int ii = 0; ii < NUM_ANALYTIC; ii++){ */
 
     for(int kk = 0; kk < skind; kk++)
       integrateColumnDensity(NUM_ANALYTIC, logRbin, group[kk].hor, group[kk].Sigma, group[kk].Menc);
 
 
-/** analyze vertical density profile of spherical components */
+    /** analyze vertical density profile of spherical components */
     for(int kk = 0; kk < skind; kk++){
       const real    logrmin = LOG10(group[kk].rad[0]);
       const real    logrmax = LOG10(group[kk].rad[group[kk].nrad - 1]);
@@ -1414,10 +1435,11 @@ int main(int argc, char **argv)
 
       }/* for(int ii = 0; ii < NUM_HORIZONTAL_BIN; ii++){ */
     }/* for(int kk = 0; kk < skind; kk++){ */
-  }/* if( problem >= 2 ){ */
+  }/* if( problem >= 1 ){ */
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 
-/** read particle distribution and analyze */
+  /** read particle distribution and analyze */
 #ifdef  OVERPLOT_INITIAL_DISKHEIGHT
   int num_hor_t0;
   real *hor_pos_t0, *hor_zdisp_t0;
@@ -1448,6 +1470,10 @@ int main(int argc, char **argv)
       body[ii].vx  = hdf5.vel[ii * 3];      body[ii].vy = hdf5.vel[ii * 3 + 1];      body[ii].vz  = hdf5.vel[ii * 3 + 2];
       body[ii].ax  = hdf5.acc[ii * 3];      body[ii].ay = hdf5.acc[ii * 3 + 1];      body[ii].az  = hdf5.acc[ii * 3 + 2];
       body[ii].idx = hdf5.idx[ii    ];      body[ii]. m = hdf5.  m[ii        ];      body[ii].pot = hdf5.pot[ii        ];
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+      body[ii].ax_ext = hdf5.acc_ext[ii * 3];      body[ii].ay_ext = hdf5.acc_ext[ii * 3 + 1];      body[ii].az_ext = hdf5.acc_ext[ii * 3 + 2];
+      body[ii].pot_ext = hdf5.pot_ext[ii];
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
     }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 #else///USE_HDF5_FORMAT
     readSnapshot(&unit_read, &time, &steps, Ntot, file, ibody, (uint)filenum);
@@ -1456,6 +1482,10 @@ int main(int argc, char **argv)
       body[ii].vx  = ibody.vel[ii].x;      body[ii].vy = ibody.vel[ii].y;      body[ii].vz  = ibody.vel[ii].z;
       body[ii].ax  = ibody.acc[ii].x;      body[ii].ay = ibody.acc[ii].y;      body[ii].az  = ibody.acc[ii].z;
       body[ii].idx = ibody.idx[ii]  ;      body[ii]. m = ibody.pos[ii].m;      body[ii].pot = ibody.acc[ii].pot;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+      body[ii].ax_ext = ibody.acc_ext[ii].x;      body[ii].ay_ext = ibody.acc_ext[ii].y;      body[ii].az_ext = ibody.acc_ext[ii].z;
+      body[ii].pot_ext = ibody.acc_ext[ii].pot;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
     }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 #endif//USE_HDF5_FORMAT
     if( unit_read != unit ){
@@ -1471,12 +1501,12 @@ int main(int argc, char **argv)
       double vel[3] = {0.0, 0.0, 0.0};
 
       for(ulong ii = group[kk].head; ii < group[kk].head + group[kk].num; ii++){
-	const double mass = (double)body[ii].m;
+	const double mass = CAST_R2D(body[ii].m);
 
 	Mtot += mass;
-	com[0] += mass * (double)body[ii].x;	vel[0] += mass * (double)body[ii].vx;
-	com[1] += mass * (double)body[ii].y;	vel[1] += mass * (double)body[ii].vy;
-	com[2] += mass * (double)body[ii].z;	vel[2] += mass * (double)body[ii].vz;
+	com[0] += mass * CAST_R2D(body[ii].x);	vel[0] += mass * CAST_R2D(body[ii].vx);
+	com[1] += mass * CAST_R2D(body[ii].y);	vel[1] += mass * CAST_R2D(body[ii].vy);
+	com[2] += mass * CAST_R2D(body[ii].z);	vel[2] += mass * CAST_R2D(body[ii].vz);
       }/* for(ulong ii = group[kk].head; ii < group[kk].head + group[kk].num; ii++){ */
 
       Mtot = 1.0 / Mtot;
@@ -1485,8 +1515,8 @@ int main(int argc, char **argv)
 	com[ii] *= Mtot;
 	vel[ii] *= Mtot;
 
-	comPos[INDEX(nfile, kind, 3, (filenum - start) / interval, kk, ii)] = (real)com[ii];
-	comVel[INDEX(nfile, kind, 3, (filenum - start) / interval, kk, ii)] = (real)vel[ii];
+	comPos[INDEX(nfile, kind, 3, (filenum - start) / interval, kk, ii)] = CAST_D2R(com[ii]);
+	comVel[INDEX(nfile, kind, 3, (filenum - start) / interval, kk, ii)] = CAST_D2R(vel[ii]);
       }/* for(int ii = 0; ii < 3; ii++){ */
     }/* for(int kk = 0; kk < kind; kk++){ */
 #endif//OUTPUT_BULK_MOTION
@@ -1502,6 +1532,10 @@ int main(int argc, char **argv)
 	  hdf5.pos[ii * 3] = body[ii]. x ;	hdf5.pos[ii * 3 + 1] = body[ii]. y;	hdf5.pos[ii * 3 + 2] = body[ii]. z ;
 	  hdf5.vel[ii * 3] = body[ii].vx ;	hdf5.vel[ii * 3 + 1] = body[ii].vy;	hdf5.vel[ii * 3 + 2] = body[ii].vz ;
 	  hdf5.acc[ii * 3] = body[ii].ax ;	hdf5.acc[ii * 3 + 1] = body[ii].ay;	hdf5.acc[ii * 3 + 2] = body[ii].az ;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+	  hdf5.acc_ext[ii * 3] = body[ii].ax_ext;	  hdf5.acc_ext[ii * 3 + 1] = body[ii].ay_ext;	  hdf5.acc_ext[ii * 3 + 2] = body[ii].az_ext;
+	  hdf5.pot_ext[ii] = body[ii].pot_ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 	}/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 
 	int *group_head;      group_head = (int *)malloc(sizeof(int) * kind);
@@ -1623,14 +1657,12 @@ int main(int argc, char **argv)
     rem_ver += num_ver;    num_ver = 0;
 
     ifile += (int)(interval * mpi.size);
-    //---------------------------------------------------------------------
   }/* for(int filenum = start + mpi.rank * interval; filenum < end + 1; filenum += interval * mpi.size){ */
-  //-----------------------------------------------------------------------
+
 #ifdef  OUTPUT_BULK_MOTION
   chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, comPos, nfile * kind * 3, MPI_REALDAT, MPI_SUM, mpi.comm));
   chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, comVel, nfile * kind * 3, MPI_REALDAT, MPI_SUM, mpi.comm));
   if( mpi.rank == 0 ){
-    //---------------------------------------------------------------------
     fprintf(stdout, "# position of center-of-mass\n");
     fprintf(stdout, "# file");
     for(int ii = 0; ii < kind; ii++)      fprintf(stdout, "\tcom(%d)_x\tcom(%d)_y\tcom(%d)_z", ii, ii, ii);
@@ -1641,7 +1673,7 @@ int main(int argc, char **argv)
 	fprintf(stdout, "\t%e\t%e\t%e", comPos[INDEX(nfile, kind, 3, ii, kk, 0)], comPos[INDEX(nfile, kind, 3, ii, kk, 1)], comPos[INDEX(nfile, kind, 3, ii, kk, 2)]);
       fprintf(stdout, "\n");
     }/* for(int ii = 0; ii < nfile; ii++){ */
-    //---------------------------------------------------------------------
+
     fprintf(stdout, "# velocity of bulk motion\n");
     fprintf(stdout, "# file");
     for(int ii = 0; ii < kind; ii++)      fprintf(stdout, "\tvel(%d)_x\tvel(%d)_y\tvel(%d)_z", ii, ii, ii);
@@ -1652,12 +1684,11 @@ int main(int argc, char **argv)
 	fprintf(stdout, "\t%e\t%e\t%e", comVel[INDEX(nfile, kind, 3, ii, kk, 0)], comVel[INDEX(nfile, kind, 3, ii, kk, 1)], comVel[INDEX(nfile, kind, 3, ii, kk, 2)]);
       fprintf(stdout, "\n");
     }/* for(int ii = 0; ii < nfile; ii++){ */
-    //---------------------------------------------------------------------
   }/* if( mpi.rank == 0 ){ */
   free(comPos);
   free(comVel);
 #endif//OUTPUT_BULK_MOTION
-  //-----------------------------------------------------------------------
+
 #ifdef  OVERPLOT_INITIAL_DISKHEIGHT
   free(prf_hor_head_t0);
   free(prf_hor_num_t0);
@@ -1671,29 +1702,36 @@ int main(int argc, char **argv)
 #pragma GCC diagnostic pop
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #endif//OVERPLOT_INITIAL_DISKHEIGHT
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
+
 #ifdef  USE_HDF5_FORMAT
   removeHDF5DataType(hdf5type);
-  freeSnapshotArray(hdf5_pos, hdf5_vel, hdf5_acc, hdf5_m, hdf5_pot, hdf5_idx);
+  freeSnapshotArray
+    (hdf5_pos, hdf5_vel, hdf5_acc, hdf5_m, hdf5_pot, hdf5_idx
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , hdf5_acc_ext, hdf5_pot_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
 #else///USE_HDF5_FORMAT
-  freeParticleData(idx, pos, acc,
+  freeParticleData
+    (idx, pos, acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
-		    vel, ti
+     vel, ti
 #else///BLOCK_TIME_STEP
-		    vx, vy, vz
+     vx, vy, vz
 #endif//BLOCK_TIME_STEP
-		    );
+     );
 #endif//USE_HDF5_FORMAT
   free(body);
   free(rad);  free(rho);  free(enc);
   free(hor_pos);  free(hor_rho);  free(hor_zdisp);
   free(ver_pos);  free(ver_rho);
-  //-----------------------------------------------------------------------
+
   if( overlay_initial )
     for(int ii = 0; ii < kind; ii++){
-      //-------------------------------------------------------------------
       free(group[ii].rad);
       free(group[ii].rho);
       free(group[ii].enc);
@@ -1701,19 +1739,18 @@ int main(int argc, char **argv)
 #ifndef USE_HDF5_FORMAT
       free(group[ii].psi);
 #endif//USE_HDF5_FORMAT
-      //-------------------------------------------------------------------
+
       free(group[ii].hor);
       free(group[ii].ver);
       free(group[ii].Sigma);
       free(group[ii].Menc);
-      //-------------------------------------------------------------------
+
       for(int jj = 0; jj < NUM_HORIZONTAL_BIN; jj++){
 	free(group[ii].ver_pos[jj]);
 	free(group[ii].ver_rho[jj]);
       }/* for(int jj = 0; jj < NUM_HORIZONTAL_BIN; jj++){ */
-      //-------------------------------------------------------------------
+
       if( ii >= skind ){
-	//-----------------------------------------------------------------
 	free(group[ii].disk_radius );
 	free(group[ii].disk_height );
 	free(group[ii].disk_rho    );
@@ -1724,20 +1761,15 @@ int main(int argc, char **argv)
 	free(group[ii].disk_Sigma  );
 	free(group[ii].disk_rad1d  );
 	free(group[ii].disk_vol    );
-	//-----------------------------------------------------------------
       }/* if( ii >= skind ){ */
-      //-------------------------------------------------------------------
     }/* for(int ii = 0; ii < kind; ii++){ */
   free(group);
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
+
   exitMPI();
-  //-----------------------------------------------------------------------
+
   return (0);
-  //-----------------------------------------------------------------------
 }
-//-------------------------------------------------------------------------
 
 
 void plotDistributionMaps

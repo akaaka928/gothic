@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/01/19 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -324,19 +324,26 @@ int main(int argc, char **argv)
   ulong *idx;
   position *pos;
   acceleration *acc;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  acceleration *ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   velocity *vel;
   ibody_time *ti;
 #else///BLOCK_TIME_STEP
   real *vx, *vy, *vz;
 #endif//BLOCK_TIME_STEP
-  allocParticleData((int)Ntot, &body, &idx, &pos, &acc,
+  allocParticleData
+    ((int)Ntot, &body, &idx, &pos, &acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     &ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
-		    &vel, &ti
+     &vel, &ti
 #else///BLOCK_TIME_STEP
-		    &vx, &vy, &vz
+     &vx, &vy, &vz
 #endif//BLOCK_TIME_STEP
-		    );
+     );
 
   makeUniformSphere(Ntot, body, Mtot, rad, sigma, rand);
   shiftCenter(Ntot, body);
@@ -363,12 +370,13 @@ int main(int argc, char **argv)
   static autoTuningParam rebuildParam;
   static brentStatus status;
   static brentMemory memory;
-  writeTentativeData(time, dt, steps, Ntot, body, file, &last, hdf5type
-		     , rebuild, measured, rebuildParam, status, memory
+  writeTentativeData
+    (time, dt, steps, Ntot, body, file, &last, hdf5type
+     , rebuild, measured, rebuildParam, status, memory
 #ifdef  MONITOR_ENERGY_ERROR
-		     , relEneErr
+     , relEneErr
 #endif//MONITOR_ENERGY_ERROR
-		     );
+     );
   removeHDF5DataType(hdf5type);
 #else///USE_HDF5_FORMAT
   writeTentativeData(time, dt, steps, Ntot, body, file, &last);
@@ -376,12 +384,17 @@ int main(int argc, char **argv)
   updateConfigFile(last, file);
 
 
-  freeParticleData(idx, pos, acc,
+  freeParticleData
+    (idx, pos, acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
-		    vel, ti
+     vel, ti
 #else///BLOCK_TIME_STEP
-		    vx, vy, vz
+     vx, vy, vz
 #endif//BLOCK_TIME_STEP
-		    );
+     );
+
   return (0);
 }

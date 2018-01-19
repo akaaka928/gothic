@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/18 (Thu)
+ * @date 2018/01/19 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -599,6 +599,9 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
     body.acc[ii].x   = body.acc[ii].y = body.acc[ii].z = ZERO;
     body.pos[ii].m   = mass;
     body.acc[ii].pot = -CAST_D2R(psi);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    body.acc_ext[ii].x = body.acc_ext[ii].y = body.acc_ext[ii].z = body.acc_ext[ii].pot = ZERO;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
     body.idx[ii] = ii;
 
 #ifdef  PROGRESS_REPORT_ON
@@ -964,19 +967,26 @@ int main(int argc, char **argv)
   ulong *idx;
   position *pos;
   acceleration *acc;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  acceleration *ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   velocity *vel;
   ibody_time *ti;
 #else///BLOCK_TIME_STEP
   real *vx, *vy, *vz;
 #endif//BLOCK_TIME_STEP
-  allocParticleData((int)Ntot, &body, &idx, &pos, &acc,
+  allocParticleData
+    ((int)Ntot, &body, &idx, &pos, &acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     &ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
-		    &vel, &ti
+     &vel, &ti
 #else///BLOCK_TIME_STEP
-		    &vx, &vy, &vz
+     &vx, &vy, &vz
 #endif//BLOCK_TIME_STEP
-		    );
+     );
   stopBenchmark_cpu(&execTime.bodyAlloc);
 
   /** parallel region for OpenMP */
@@ -1345,28 +1355,33 @@ int main(int argc, char **argv)
 #endif//PRINT_OUT_ASCII_DATA_FOR_QUICK_CHECK
 
 
-  freeParticleData(idx, pos, acc,
+  freeParticleData
+    (idx, pos, acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
-		    vel, ti
+     vel, ti
 #else///BLOCK_TIME_STEP
-		    vx, vy, vz
+     vx, vy, vz
 #endif//BLOCK_TIME_STEP
-		    );
+     );
   free(cfg);
   free(prf);
   free(_prf);
   free(fene);
   free(_fene);
   if( addDisk )
-    freeDiskProfile(ndisk, disk_info,
-		    disk_hor, disk_ver, disk_node_hor, disk_node_ver,
-		    disk_pot, disk_rho, disk_rhoSum, disk_rhoTot, disk_dPhidR, disk_d2PhidR2,
-		     disk_Sigma, disk_sigmaz, disk_enc,
+    freeDiskProfile
+      (ndisk, disk_info,
+       disk_hor, disk_ver, disk_node_hor, disk_node_ver,
+       disk_pot, disk_rho, disk_rhoSum, disk_rhoTot, disk_dPhidR, disk_d2PhidR2,
+       disk_Sigma, disk_sigmaz, disk_enc,
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-		     disk_zd,
+       disk_zd,
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
-		     sph_rad, sph_rho, sph_enc,
-		     spline_xx, spline_ff, spline_f2, spline_bp);
+       sph_rad, sph_rho, sph_enc,
+       spline_xx, spline_ff, spline_f2, spline_bp);
 
 
   return (0);

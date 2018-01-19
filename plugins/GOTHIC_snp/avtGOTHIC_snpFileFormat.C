@@ -62,20 +62,15 @@
 // to use ostringstream
 #include <iostream>
 
-//-------------------------------------------------------------------------
 // HDF5 related original routines
-//-------------------------------------------------------------------------
 #include <hdf5.h>
-//-------------------------------------------------------------------------
 #define chkHDF5err(err) __chkHDF5err(err, __FILE__, __LINE__)
-//-------------------------------------------------------------------------
 #define __FPRINTF__(dst, ...)				\
   {								\
     fprintf(dst, "%s(%d): %s\n", __FILE__, __LINE__, __func__);	\
     fprintf(dst, ##__VA_ARGS__);				\
     fflush(NULL);						\
   }
-//-------------------------------------------------------------------------
 #if defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 #     define __KILL__(dst, ...)		\
   {						\
@@ -89,20 +84,16 @@
     exit(EXIT_FAILURE);				\
   }
 #endif
-//-------------------------------------------------------------------------
+
 void __chkHDF5err(herr_t err, const char *file, const int line)
 {
-  //-----------------------------------------------------------------------
   /* Returns a non-negative value if successful; otherwise returns a negative value. */
   if( err < 0 ){
     fprintf(stderr, "Error is detected at %s(%d)\n", file, line);
     __KILL__(stderr, "HDF5 error, error ID is %d\n", err);
   }/* if( err < 0 ){ */
-  //-----------------------------------------------------------------------
 }
-//-------------------------------------------------------------------------
 typedef unsigned long int ulong;
-//-------------------------------------------------------------------------
 
 
 using     std::string;

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/18 (Thu)
+ * @date 2018/01/19 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -214,9 +214,8 @@ __global__ void calcExternalGravity_kernel
     const int ii = GLOBALIDX_X1D;
 #endif//BLOCK_TIME_STEP
 
-    /** load particle position and acceleration */
+    /** load particle position */
     const position pi = pos[ii];
-    acceleration ai = acc[ii];
 
     /** set current location */
     const real r2 = 1.0e-30f + pi.x * pi.x + pi.y * pi.y + pi.z * pi.z;
@@ -229,10 +228,11 @@ __global__ void calcExternalGravity_kernel
     F_r *= rinv;
 
     /** accumulate the external force */
-    ai.x   += F_r * pi.x;
-    ai.y   += F_r * pi.y;
-    ai.z   += F_r * pi.z;
-    ai.pot += Phi;
+    acceleration ai;
+    ai.x   = F_r * pi.x;
+    ai.y   = F_r * pi.y;
+    ai.z   = F_r * pi.z;
+    ai.pot = Phi;
 
     /** store acceleration */
     acc[ii] = ai;
@@ -277,7 +277,7 @@ void calcExternalGravity_dev
     if( grpNum != 0 )
 #endif//defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
       calcExternalGravity_kernel<<<Nrem, thrd>>>
-	(pi.acc, pi.pos,
+	(pi.acc_ext, pi.pos,
 #ifdef  BLOCK_TIME_STEP
 	 BLOCKSIZE(grpNum, NGROUPS) * NGROUPS, laneInfo,
 #endif//BLOCK_TIME_STEP
@@ -301,9 +301,9 @@ void calcExternalGravity_dev
       calcExternalGravity_kernel<<<Nblck, thrd>>>
 	(
 #ifdef  BLOCK_TIME_STEP
-	 pi.acc, pi.pos, BLOCKSIZE(Nsub, NGROUPS) * NGROUPS, &laneInfo[hidx],
+	 pi.acc_ext, pi.pos, BLOCKSIZE(Nsub, NGROUPS) * NGROUPS, &laneInfo[hidx],
 #else///BLOCK_TIME_STEP
-	 &pi.acc[hidx], &pi.pos[hidx],
+	 &pi.acc_ext[hidx], &pi.pos[hidx],
 #endif//BLOCK_TIME_STEP
 	 sphe.logrmin, sphe.invlogrbin, sphe.num, sphe.rad, sphe.Phi);
 

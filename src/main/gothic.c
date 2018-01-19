@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/17 (Wed)
+ * @date 2018/01/19 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -756,12 +756,20 @@ int main(int argc, char **argv)
   nbody_hdf5 body_snapshot;
   real *hdf5_pos, *hdf5_vel, *hdf5_acc, *hdf5_m, *hdf5_pot;
   ulong *hdf5_idx;
-  const muse alloc_snap = allocSnapshotArray(&hdf5_pos, &hdf5_vel, &hdf5_acc, &hdf5_m, &hdf5_pot, &hdf5_idx, num_max, &body_snapshot);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  real *hdf5_acc_ext, *hdf5_pot_ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+  const muse alloc_snap = allocSnapshotArray
+    (&hdf5_pos, &hdf5_vel, &hdf5_acc, &hdf5_m, &hdf5_pot, &hdf5_idx,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     &hdf5_acc_ext, &hdf5_pot_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     num_max, &body_snapshot);
 #endif//USE_HDF5_FORMAT
 
   /** declarations of arrays to contain Peano--Hilbert key of N-body particles */
   PHint *peano, *peano_dev;
-  int   *  tag_dev;
+  int *tag_dev;
   float4 *min_dev, *max_dev;
 #ifndef SERIALIZED_EXECUTION
   float4 *box_min, *box_max, *min_hst, *max_hst;
@@ -771,7 +779,7 @@ int main(int argc, char **argv)
 #ifdef  CUB_AVAILABLE
   soaPHsort soaPH_pre;
   PHint *peano_pre;
-  int   *  tag_pre;
+  int *tag_pre;
   void *phsort_temp_storage;
 #endif//CUB_AVAILABLE
   const muse alloc_phkey = allocPeanoHilbertKey_dev
@@ -783,8 +791,7 @@ int main(int argc, char **argv)
 #ifdef  CUB_AVAILABLE
      &soaPH_pre, &phsort_temp_storage, &tag_pre, &peano_pre,
 #endif//CUB_AVAILABLE
-     devProp
-     );
+     devProp);
 
   /** declarations of arrays to contain information of i-particles */
   iparticle     ibody0,  ibody1,  ibody0_dev,  ibody1_dev;
@@ -792,6 +799,9 @@ int main(int argc, char **argv)
   position     *  pos0, *  pos1, *  pos0_dev, *  pos1_dev;
   acceleration *  acc0, *  acc1, *  acc0_dev, *  acc1_dev;
   real *neighbor_dev;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  acceleration *acc_ext0, *acc_ext1, *acc_ext_dev;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
   position *encBall_dev, *encBall_hst;
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
@@ -804,42 +814,70 @@ int main(int argc, char **argv)
 #ifdef  BLOCK_TIME_STEP
   velocity     * vel0, * vel1, * vel0_dev, * vel1_dev;
   ibody_time   *time0, *time1, *time0_dev, *time1_dev;
-  const muse alloc_ibody0    = allocParticleDataSoA_hst(num_max, &ibody0    , &idx0    , &pos0    , &acc0    , &vel0    , &time0    );
-  const muse alloc_ibody1    = allocParticleDataSoA_hst(num_max, &ibody1    , &idx1    , &pos1    , &acc1    , &vel1    , &time1    );
-  const muse alloc_ibody_dev = allocParticleDataSoA_dev(num_max
-							, &ibody0_dev, &idx0_dev, &pos0_dev, &acc0_dev, &vel0_dev, &time0_dev
-							, &ibody1_dev, &idx1_dev, &pos1_dev, &acc1_dev, &vel1_dev, &time1_dev
-							, &neighbor_dev
+  const muse alloc_ibody0    = allocParticleDataSoA_hst
+    (num_max, &ibody0, &idx0, &pos0, &acc0, &vel0, &time0
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , &acc_ext0
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
+  const muse alloc_ibody1    = allocParticleDataSoA_hst
+    (num_max, &ibody1, &idx1, &pos1, &acc1, &vel1, &time1
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , &acc_ext1
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
+  const muse alloc_ibody_dev = allocParticleDataSoA_dev
+    (num_max
+     , &ibody0_dev, &idx0_dev, &pos0_dev, &acc0_dev, &vel0_dev, &time0_dev
+     , &ibody1_dev, &idx1_dev, &pos1_dev, &acc1_dev, &vel1_dev, &time1_dev
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , &acc_ext_dev
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     , &neighbor_dev
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
-							, &encBall_dev, &encBall_hst
+     , &encBall_dev, &encBall_hst
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
 #ifdef  DPADD_FOR_ACC
-							, &tmp_dev
+     , &tmp_dev
 #endif//DPADD_FOR_ACC
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-							, &res_dev
+     , &res_dev
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-							);
+     );
 #else///BLOCK_TIME_STEP
   real *vx0, *vx1, *vx0_dev, *vx1_dev;
   real *vy0, *vy1, *vy0_dev, *vy1_dev;
   real *vz0, *vz1, *vz0_dev, *vz1_dev;
-  const muse alloc_ibody0    = allocParticleDataSoA_hst(num_max, &ibody0    , &idx0    , &pos0    , &acc0    , &vx0    , &vy0    , &vz0   );
-  const muse alloc_ibody1    = allocParticleDataSoA_hst(num_max, &ibody1    , &idx1    , &pos1    , &acc1    , &vx1    , &vy1    , &vz1   );
-  const muse alloc_ibody_dev = allocParticleDataSoA_dev(num_max
-							, &ibody0_dev, &idx0_dev, &pos0_dev, &acc0_dev, &vx0_dev, &vy0_dev, &vz0_dev
-							, &ibody1_dev, &idx1_dev, &pos1_dev, &acc1_dev, &vx1_dev, &vy1_dev, &vz1_dev
-							, &neighbor_dev
+  const muse alloc_ibody0    = allocParticleDataSoA_hst
+    (num_max, &ibody0, &idx0, &pos0, &acc0, &vx0, &vy0, &vz0
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , &acc_ext0
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
+  const muse alloc_ibody1    = allocParticleDataSoA_hst
+    (num_max, &ibody1, &idx1, &pos1, &acc1, &vx1, &vy1, &vz1
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , &acc_ext1
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
+  const muse alloc_ibody_dev = allocParticleDataSoA_dev
+    (num_max
+     , &ibody0_dev, &idx0_dev, &pos0_dev, &acc0_dev, &vx0_dev, &vy0_dev, &vz0_dev
+     , &ibody1_dev, &idx1_dev, &pos1_dev, &acc1_dev, &vx1_dev, &vy1_dev, &vz1_dev
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , &acc_ext_dev
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     , &neighbor_dev
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
-							, &encBall_dev, &encBall_hst
+     , &encBall_dev, &encBall_hst
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
 #ifdef  DPADD_FOR_ACC
-							, &tmp_dev
+     , &tmp_dev
 #endif//DPADD_FOR_ACC
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-							, &res_dev
+     , &res_dev
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-							);
+     );
 #endif//BLOCK_TIME_STEP
 
   iparticle_treeinfo treeinfo_dev;
@@ -925,22 +963,23 @@ int main(int argc, char **argv)
   int  *more0Buf, *more1Buf, *makeFail;
   real *rjmaxBuf;
   soaMakeTreeBuf soaMakeBuf;
-  const muse alloc_node_dev = allocTreeNode_dev(&soaNode_dev, &more_dev, &pj_dev, &mj_dev, &bmax_dev, &node2cell_dev, &gsync0, &gsync1, devProp,
+  const muse alloc_node_dev = allocTreeNode_dev
+    (&soaNode_dev, &more_dev, &pj_dev, &mj_dev, &bmax_dev, &node2cell_dev, &gsync0, &gsync1, devProp,
 #ifdef  WS93_MAC
-						&mr2_dev,
+     &mr2_dev,
 #endif//WS93_MAC
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
-						&soaNode_hst, &more, &pj, &mj,
+     &soaNode_hst, &more, &pj, &mj,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
-						&gmem_make_tree_dev, &gsync0_make_tree_dev, &gsync1_make_tree_dev, &gsync2_make_tree_dev, &gsync3_make_tree_dev,
-						&gmem_link_tree_dev, &gsync0_link_tree_dev, &gsync1_link_tree_dev,
+     &gmem_make_tree_dev, &gsync0_make_tree_dev, &gsync1_make_tree_dev, &gsync2_make_tree_dev, &gsync3_make_tree_dev,
+     &gmem_link_tree_dev, &gsync0_link_tree_dev, &gsync1_link_tree_dev,
 #ifdef  GADGET_MAC
-						&mac_dev,
+     &mac_dev,
 #endif//GADGET_MAC
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-						&gmem_external_dev, &gsync0_external_dev, &gsync1_external_dev, &diameter_dev, &diameter_hst, &location, CAST_R2F(eps), CAST_R2F(eta),
+     &gmem_external_dev, &gsync0_external_dev, &gsync1_external_dev, &diameter_dev, &diameter_hst, &location, CAST_R2F(eps), CAST_R2F(eta),
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-						&more0Buf, &more1Buf, &rjmaxBuf, &makeFail, &soaMakeBuf);
+     &more0Buf, &more1Buf, &rjmaxBuf, &makeFail, &soaMakeBuf);
   soaNode_dev.jtag = jtag_dev;
 
 
@@ -955,10 +994,11 @@ int main(int argc, char **argv)
   MPI_Request *dmreq;
   domainCfg domCfg;
   sampling sample;
-  const muse alloc_dd = allocateORMtopology(&dxmin, &dxmax, &dymin, &dymax, &dzmin, &dzmax, &dmreq,
-					    &sxmin, &sxmax, &symin, &symax, &szmin, &szmax,
-					    &iparticleSendBuf, &iparticleRecvBuf, &sampleRecvNum, &sampleRecvDsp,
-					    ormCfg, repCfg, Nx, Ny, Nz, &letcfg, &domCfg, &sample, Ntot);
+  const muse alloc_dd = allocateORMtopology
+    (&dxmin, &dxmax, &dymin, &dymax, &dzmin, &dzmax, &dmreq,
+     &sxmin, &sxmax, &symin, &symax, &szmin, &szmax,
+     &iparticleSendBuf, &iparticleRecvBuf, &sampleRecvNum, &sampleRecvDsp,
+     ormCfg, repCfg, Nx, Ny, Nz, &letcfg, &domCfg, &sample, Ntot);
 
   /* float4 *pmin_hst, *pmax_hst, *pmin_dev, *pmax_dev; */
   /* int *gsync_box0, *gsync_box1; */
@@ -968,13 +1008,15 @@ int main(int argc, char **argv)
   float *x0hst, *x1hst, *y0hst, *y1hst, *z0hst, *z1hst;  int *idhst;
   float *x0dev, *x1dev, *y0dev, *y1dev, *z0dev, *z1dev;  int *iddev;
   samplePos samplePos0, samplePos1;
-  const muse alloc_spl = allocateSamplePos(&x0hst, &x1hst, &y0hst, &y1hst, &z0hst, &z1hst, &idhst,
-					   &x0dev, &x1dev, &y0dev, &y1dev, &z0dev, &z1dev, &iddev, &samplePos0, &samplePos1, sample);
+  const muse alloc_spl = allocateSamplePos
+    (&x0hst, &x1hst, &y0hst, &y1hst, &z0hst, &z1hst, &idhst,
+     &x0dev, &x1dev, &y0dev, &y1dev, &z0dev, &z1dev, &iddev, &samplePos0, &samplePos1, sample);
   float *xhst, *yhst, *zhst;  particlePos particlePos_hst;
   float *xdev, *ydev, *zdev;  particlePos particlePos_dev;
   int *rank_hst, *rank_dev, *idx_dev;
   domainDecomposeKey domDecKey;
-  const muse alloc_pos = allocateParticlePosition(&xhst, &yhst, &zhst, &particlePos_hst, &xdev, &ydev, &zdev, &particlePos_dev, &rank_hst, &rank_dev, &idx_dev, &domDecKey, Ntot);
+  const muse alloc_pos = allocateParticlePosition
+    (&xhst, &yhst, &zhst, &particlePos_hst, &xdev, &ydev, &zdev, &particlePos_dev, &rank_hst, &rank_dev, &idx_dev, &domDecKey, Ntot);
 
   float *xmin_dev, *xmax_dev, *ymin_dev, *ymax_dev, *zmin_dev, *zmax_dev;
   float *xmin_hst, *xmax_hst, *ymin_hst, *ymax_hst, *zmin_hst, *zmax_hst;
@@ -983,10 +1025,11 @@ int main(int argc, char **argv)
   int4 *gmem_dom;
   int *gsync0_dom, *gsync1_dom;
   sendDom domBoundary;
-  const muse alloc_dom = allocateDomainPos(&xmin_dev, &xmax_dev, &ymin_dev, &ymax_dev, &zmin_dev, &zmax_dev,
-					   &xmin_hst, &xmax_hst, &ymin_hst, &ymax_hst, &zmin_hst, &zmax_hst,
-					   &domrank_dev, &domrank_hst, &numNew_dev, &numNew_hst, &gmem_dom, &gsync0_dom, &gsync1_dom,
-					   &domBoundary, letcfg.size, devProp);
+  const muse alloc_dom = allocateDomainPos
+    (&xmin_dev, &xmax_dev, &ymin_dev, &ymax_dev, &zmin_dev, &zmax_dev,
+     &xmin_hst, &xmax_hst, &ymin_hst, &ymax_hst, &zmin_hst, &zmax_hst,
+     &domrank_dev, &domrank_hst, &numNew_dev, &numNew_hst, &gmem_dom, &gsync0_dom, &gsync1_dom,
+     &domBoundary, letcfg.size, devProp);
 
   soaGEO soaGEO_dev;
   real *r2geo_dev;
@@ -999,11 +1042,12 @@ int main(int argc, char **argv)
 #endif//GADGET_MAC
   int Nstream_let;
   cudaStream_t *stream_let;
-  const muse alloc_LETtopology = configLETtopology(&nodeInfo, &ipos,
+  const muse alloc_LETtopology = configLETtopology
+    (&nodeInfo, &ipos,
 #ifdef  GADGET_MAC
-						   &amin,
+     &amin,
 #endif//GADGET_MAC
-						   &numSend_hst, &numSend_dev, &stream_let, &Nstream_let, devProp, letcfg);
+     &numSend_hst, &numSend_dev, &stream_let, &Nstream_let, devProp, letcfg);
 
 #   if  defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
   soaEncBall soaEB;
@@ -1029,16 +1073,13 @@ int main(int argc, char **argv)
 #ifdef  MPI_ONE_SIDED_FOR_EXCG
 
 #ifndef MPI_VIA_HOST
-
   chkMPIerr(MPI_Win_create(samplePos0.x_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_x)));
   chkMPIerr(MPI_Win_create(samplePos0.y_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_y)));
   chkMPIerr(MPI_Win_create(samplePos0.z_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_z)));
   chkMPIerr(MPI_Win_create(samplePos1.x_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_x)));
   chkMPIerr(MPI_Win_create(samplePos1.y_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_y)));
   chkMPIerr(MPI_Win_create(samplePos1.z_dev, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos1.win_z)));
-
 #else///MPI_VIA_HOST
-
   chkMPIerr(MPI_Win_create(samplePos0.x_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_x)));
   chkMPIerr(MPI_Win_create(samplePos0.y_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_y)));
   chkMPIerr(MPI_Win_create(samplePos0.z_hst, sizeof(float) * sample.Nmax, sizeof(float), letcfg.info, letcfg.comm, &(samplePos0.win_z)));
@@ -1056,6 +1097,10 @@ int main(int argc, char **argv)
   chkMPIerr(MPI_Win_create(ibody0_dev.acc, sizeof(acceleration) * body_win_size, sizeof(acceleration), letcfg.info, letcfg.comm, &(ibody0_dev.win_iacc)));
   chkMPIerr(MPI_Win_create(ibody1_dev.acc, sizeof(acceleration) * body_win_size, sizeof(acceleration), letcfg.info, letcfg.comm, &(ibody1_dev.win_iacc)));
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  chkMPIerr(MPI_Win_create(ibody0_dev.ext, sizeof(acceleration) * body_win_size, sizeof(acceleration), letcfg.info, letcfg.comm, &(ibody0_dev.win_iext)));
+  chkMPIerr(MPI_Win_create(ibody1_dev.ext, sizeof(acceleration) * body_win_size, sizeof(acceleration), letcfg.info, letcfg.comm, &(ibody1_dev.win_iext)));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   chkMPIerr(MPI_Win_create(ibody0_dev.vel, sizeof(velocity) * body_win_size, sizeof(position), letcfg.info, letcfg.comm, &(ibody0_dev.win_ivel)));
   chkMPIerr(MPI_Win_create(ibody1_dev.vel, sizeof(velocity) * body_win_size, sizeof(position), letcfg.info, letcfg.comm, &(ibody1_dev.win_ivel)));
@@ -1078,6 +1123,10 @@ int main(int argc, char **argv)
   chkMPIerr(MPI_Win_create(ibody0.acc, sizeof(acceleration) * body_win_size, sizeof(acceleration), letcfg.info, letcfg.comm, &(ibody0.win_iacc)));
   chkMPIerr(MPI_Win_create(ibody1.acc, sizeof(acceleration) * body_win_size, sizeof(acceleration), letcfg.info, letcfg.comm, &(ibody1.win_iacc)));
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  chkMPIerr(MPI_Win_create(ibody0.ext, sizeof(acceleration) * body_win_size, sizeof(acceleration), letcfg.info, letcfg.comm, &(ibody0.win_iext)));
+  chkMPIerr(MPI_Win_create(ibody1.ext, sizeof(acceleration) * body_win_size, sizeof(acceleration), letcfg.info, letcfg.comm, &(ibody1.win_iext)));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   chkMPIerr(MPI_Win_create(ibody0.vel, sizeof(velocity) * body_win_size, sizeof(position), letcfg.info, letcfg.comm, &(ibody0.win_ivel)));
   chkMPIerr(MPI_Win_create(ibody1.vel, sizeof(velocity) * body_win_size, sizeof(position), letcfg.info, letcfg.comm, &(ibody1.win_ivel)));
@@ -1164,23 +1213,25 @@ int main(int argc, char **argv)
   createHDF5DataType(&hdf5type);
 #endif//USE_HDF5_FORMAT
 #ifdef  SERIALIZED_EXECUTION
-  readTentativeData        (&time, &dt, &steps, num, ibody0, file, last
+  readTentativeData
+    (&time, &dt, &steps, num, ibody0, file, last
 #ifdef  USE_HDF5_FORMAT
-			    , hdf5type, &dropPrevTune, &rebuild, &elapsed, &rebuildParam, &brentDistance, &brentHistory
+     , hdf5type, &dropPrevTune, &rebuild, &elapsed, &rebuildParam, &brentDistance, &brentHistory
 #ifdef  MONITOR_ENERGY_ERROR
-			    , &relEneErr
+     , &relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #endif//USE_HDF5_FORMAT
-			    );
+     );
 #else///SERIALIZED_EXECUTION
-  readTentativeDataParallel(&time, &dt, &steps, &num, ibody0, file, last, &iocfg, Ntot
+  readTentativeDataParallel
+    (&time, &dt, &steps, &num, ibody0, file, last, &iocfg, Ntot
 #ifdef  USE_HDF5_FORMAT
-			    , hdf5type, &dropPrevTune, &rebuild, &elapsed, &rebuildParam, &brentDistance, &brentHistory
+     , hdf5type, &dropPrevTune, &rebuild, &elapsed, &rebuildParam, &brentDistance, &brentHistory
 #ifdef  MONITOR_ENERGY_ERROR
-			    , &relEneErr
+     , &relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #endif//USE_HDF5_FORMAT
-			    );
+     );
 #endif//SERIALIZED_EXECUTION
 #ifndef  BLOCK_TIME_STEP
   real *dt_dev;
@@ -1399,19 +1450,20 @@ int main(int argc, char **argv)
   if( steps == 0 )
     elapsed.sum_excg = 1.0f;
 #endif
-  updateDomain(&num, num_max, &Ni,
-	       &ibody0_dev, &ibody1_dev, &ibody0, &ibody1, Ntot,
-	       domBoundary, particlePos_hst, particlePos_dev, domCfg, domDecKey,
-	       sample, samplePos0, samplePos1, soaPH_dev, devProp, devInfo,
-	       &exchangeParam, &exchangeInterval, ormCfg, repCfg,
+  updateDomain
+    (&num, num_max, &Ni,
+     &ibody0_dev, &ibody1_dev, &ibody0, &ibody1, Ntot,
+     domBoundary, particlePos_hst, particlePos_dev, domCfg, domDecKey,
+     sample, samplePos0, samplePos1, soaPH_dev, devProp, devInfo,
+     &exchangeParam, &exchangeInterval, ormCfg, repCfg,
 #ifdef  CARE_EXTERNAL_PARTICLES
-	       &location,
+     &location,
 #endif//CARE_EXTERNAL_PARTICLES
-	       letcfg, iparticleSendBuf, iparticleRecvBuf, &elapsed, &brentDistance, &brentHistory
+     letcfg, iparticleSendBuf, iparticleRecvBuf, &elapsed, &brentDistance, &brentHistory
 #ifdef  EXEC_BENCHMARK
-	       , &execTime[steps - bench_begin]
+     , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-      );
+     );
 #endif//SERIALIZED_EXECUTION
 
 
@@ -1420,26 +1472,28 @@ int main(int argc, char **argv)
   int numNode = NUM_ALLOC_TREE_NODE;
 
   int bottomLev;
-  buildTreeStructure(num, &ibody0_dev, &ibody1_dev, soaPH_dev, devProp,
+  buildTreeStructure
+    (num, &ibody0_dev, &ibody1_dev, soaPH_dev, devProp,
 #ifdef  CUB_AVAILABLE
-		     soaPH_pre,
+     soaPH_pre,
 #endif//CUB_AVAILABLE
-		     &bottomLev, &numCell, &numNode, bottomLev_dev, scanNum_dev, numCell_dev, numNode_dev, soaMakeBuf, soaCell_dev, soaNode_dev
+     &bottomLev, &numCell, &numNode, bottomLev_dev, scanNum_dev, numCell_dev, numNode_dev, soaMakeBuf, soaCell_dev, soaNode_dev
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-		     , &location
+     , &location
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-		     , &start
+     , &start
 #ifdef  EXEC_BENCHMARK
-		     , &execTime[steps - bench_begin]
+     , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-		     );
+     );
 
 #ifdef  BLOCK_TIME_STEP
-  prediction_dev(num, time, ibody0_dev
+  prediction_dev
+    (num, time, ibody0_dev
 #ifdef  EXEC_BENCHMARK
-		 , &execTime[steps - bench_begin]
+     , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-		 );
+     );
 #endif//BLOCK_TIME_STEP
 
   setMultipoleMoment
@@ -1464,11 +1518,12 @@ int main(int argc, char **argv)
   if( dropPrevTune == 1 ){
     /** first call of examineParticleSeparation() */
     /** therefore, brentDistance.a, brentDistance.b, brentDistance.x.pos are set by calling brentInit1st() */
-    examineParticleSeparation(num, ibody0_dev, &brentDistance
+    examineParticleSeparation
+      (num, ibody0_dev, &brentDistance
 #ifdef  EXEC_BENCHMARK
-			      , execTime
+       , execTime
 #endif//EXEC_BENCHMARK
-			      );
+       );
     brentDistance.u = brentDistance.x;
  }/* if( dropPrevTune == 1 ){ */
 
@@ -1493,30 +1548,33 @@ int main(int argc, char **argv)
 #ifndef SERIALIZED_EXECUTION
   /** find center of enclosing ball */
 #ifdef  USE_ENCLOSING_BALL_FOR_LET
-  getApproxEnclosingBall_dev(num, ibody0_dev
+  getApproxEnclosingBall_dev
+    (num, ibody0_dev
 #ifdef  OCTREE_BASED_SEARCH
-			     , soaCell_dev, soaNode_dev, soaMakeBuf
+     , soaCell_dev, soaNode_dev, soaMakeBuf
 #else///OCTREE_BASED_SEARCH
-			     , soaEB, soaPH_dev, devProp
+     , soaEB, soaPH_dev, devProp
 #endif//OCTREE_BASED_SEARCH
-			     , stream_let[Nstream_let - 1]
+     , stream_let[Nstream_let - 1]
 #ifdef  EXEC_BENCHMARK
-			     , &execTime[steps - bench_begin]
+     , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-			     );
+     );
 #endif//USE_ENCLOSING_BALL_FOR_LET
 
   /** preparation to construct LET */
-  calc_r2max_dev(Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev
+  calc_r2max_dev
+    (Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev
 #ifdef  EXEC_BENCHMARK
-		 , &execTime[steps - bench_begin]
+     , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-		 );
-  shareNodePosition(letcfg.size, nodeInfo,    ipos, *(ibody0_dev.encBall_hst),
+     );
+  shareNodePosition
+    (letcfg.size, nodeInfo, ipos, *(ibody0_dev.encBall_hst),
 #ifdef  GADGET_MAC
-		    amin, ibody0_dev.amin,
+     amin, ibody0_dev.amin,
 #endif//GADGET_MAC
-		    letcfg);
+     letcfg);
   guessLETpartition(letcfg.size, nodeInfo, numNode, *(ibody0_dev.encBall_hst), letcfg);
 #endif//SERIALIZED_EXECUTION
 
@@ -1526,54 +1584,55 @@ int main(int argc, char **argv)
     /** set Barnes-Hut MAC */
     enforceBarnesHutMAC_dev(Ni, ibody0_dev, numNode, soaNode_dev);
     /** force calculation based on opening criterion (theta = 1.0) */
-    calcGravity_dev(
+    calcGravity_dev
+      (
 #ifdef  BLOCK_TIME_STEP
-		    Ngrp, &reduce,
+       Ngrp, &reduce,
 #endif//BLOCK_TIME_STEP
-		    Ngrp, laneInfo_dev, ibody0_dev, soaNode_dev, soaWalk_dev, &sinfo, devProp, &elapsed.walkTree[0]
+       Ngrp, laneInfo_dev, ibody0_dev, soaNode_dev, soaWalk_dev, &sinfo, devProp, &elapsed.walkTree[0]
 #   if  !defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
-		    , Ni
+       , Ni
 #endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-		    , pot_tbl_sphe
+       , pot_tbl_sphe
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
-		    , file
+       , file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifdef  USE_CUDA_EVENT
-		    , iniCalcAcc, finCalcAcc
+       , iniCalcAcc, finCalcAcc
 #else///USE_CUDA_EVENT
-		    , cycles_hst, cycles_dev
+       , cycles_hst, cycles_dev
 #endif//USE_CUDA_EVENT
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
-		    , &elapsed, numNode
+       , &elapsed, numNode
 #ifdef  MPI_VIA_HOST
-		    , soaNode_hst
+       , soaNode_hst
 #endif//MPI_VIA_HOST
-		    , letcfg.size, nodeInfo, Nstream_let, stream_let, letcfg
+       , letcfg.size, nodeInfo, Nstream_let, stream_let, letcfg
 #ifdef  MONITOR_LETGEN_TIME
 #ifdef  USE_CUDA_EVENT
-		    , iniMakeLET, finMakeLET
+       , iniMakeLET, finMakeLET
 #else///USE_CUDA_EVENT
-		    , cycles_let_hst, cycles_let_dev
+       , cycles_let_hst, cycles_let_dev
 #endif//USE_CUDA_EVENT
 #endif//MONITOR_LETGEN_TIME
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
-		    , treeinfo_dev
+       , treeinfo_dev
 #endif//COUNT_INTERACTIONS
 #ifdef  EXEC_BENCHMARK
-		    , &execTime[steps - bench_begin]
+       , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
-		    , true
+       , true
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
-		    , eps * eps
+       , eps * eps
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 #endif//COMPARE_WITH_DIRECT_SOLVER
-		    );
+       );
     /** set GADGET-MAC */
     recoverGADGET_MAC_dev(numNode, soaNode_dev);
     /** reset stop watch */
@@ -1581,82 +1640,86 @@ int main(int argc, char **argv)
 #ifndef SERIALIZED_EXECUTION
     /** find center of enclosing ball */
 #ifdef  USE_ENCLOSING_BALL_FOR_LET
-    getApproxEnclosingBall_dev(num, ibody0_dev
+    getApproxEnclosingBall_dev
+      (num, ibody0_dev
 #ifdef  OCTREE_BASED_SEARCH
-			       , soaCell_dev, soaNode_dev, soaMakeBuf
+       , soaCell_dev, soaNode_dev, soaMakeBuf
 #else///OCTREE_BASED_SEARCH
-			       , soaEB, soaPH_dev, devProp
+       , soaEB, soaPH_dev, devProp
 #endif//OCTREE_BASED_SEARCH
-			       , stream_let[Nstream_let - 1]
+       , stream_let[Nstream_let - 1]
 #ifdef  EXEC_BENCHMARK
-			       , &execTime[steps - bench_begin]
+       , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-			       );
+       );
 #endif//USE_ENCLOSING_BALL_FOR_LET
 
-    calc_r2max_dev(Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev
+    calc_r2max_dev
+      (Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev
 #ifdef  EXEC_BENCHMARK
-		   , &execTime[steps - bench_begin]
+       , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-		   );
-    shareNodePosition(letcfg.size, nodeInfo,    ipos, *(ibody0_dev.encBall_hst),
+       );
+    shareNodePosition
+      (letcfg.size, nodeInfo,    ipos, *(ibody0_dev.encBall_hst),
 #ifdef  GADGET_MAC
-		      amin, ibody0_dev.amin,
+       amin, ibody0_dev.amin,
 #endif//GADGET_MAC
-		      letcfg);
+       letcfg);
 #endif//SERIALIZED_EXECUTION
 #endif//GADGET_MAC
 
 
     /** calculate gravitational acceleration and potential */
-    calcGravity_dev(
+    calcGravity_dev
+      (
 #ifdef  BLOCK_TIME_STEP
-		    Ngrp, &reduce,
+       Ngrp, &reduce,
 #endif//BLOCK_TIME_STEP
-		    Ngrp, laneInfo_dev, ibody0_dev, soaNode_dev, soaWalk_dev, &sinfo, devProp, &elapsed.walkTree[0]
+       Ngrp, laneInfo_dev, ibody0_dev, soaNode_dev, soaWalk_dev, &sinfo, devProp, &elapsed.walkTree[0]
 #   if  !defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
-		    , Ni
+       , Ni
 #endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-		    , pot_tbl_sphe
+       , pot_tbl_sphe
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
-		    , file
+       , file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifdef  USE_CUDA_EVENT
-		    , iniCalcAcc, finCalcAcc
+       , iniCalcAcc, finCalcAcc
 #else///USE_CUDA_EVENT
-		    , cycles_hst, cycles_dev
+       , cycles_hst, cycles_dev
 #endif//USE_CUDA_EVENT
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
-		    , &elapsed, numNode
+       , &elapsed, numNode
 #ifdef  MPI_VIA_HOST
-		    , soaNode_hst
+       , soaNode_hst
 #endif//MPI_VIA_HOST
-		    , letcfg.size, nodeInfo, Nstream_let, stream_let, letcfg
+       , letcfg.size, nodeInfo, Nstream_let, stream_let, letcfg
 #ifdef  MONITOR_LETGEN_TIME
 #ifdef  USE_CUDA_EVENT
-		    , iniMakeLET, finMakeLET
+       , iniMakeLET, finMakeLET
 #else///USE_CUDA_EVENT
-		    , cycles_let_hst, cycles_let_dev
+       , cycles_let_hst, cycles_let_dev
 #endif//USE_CUDA_EVENT
 #endif//MONITOR_LETGEN_TIME
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
-		    , treeinfo_dev
+       , treeinfo_dev
 #endif//COUNT_INTERACTIONS
 #ifdef  EXEC_BENCHMARK
-		    , &execTime[steps - bench_begin]
+       , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
-		    , true
+       , true
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
-		    , eps * eps
+       , eps * eps
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 #endif//COMPARE_WITH_DIRECT_SOLVER
-		    );
+       );
 
     brentDistance.u.val += elapsed.walkTree[0];
     brentHistory.totNum += Ngrp;
@@ -1694,47 +1757,49 @@ int main(int argc, char **argv)
 #endif//GADGET_MAC
 #endif//COMPARE_WITH_DIRECT_SOLVER
 
-    dumpSnapshot(unit, num, ibody0_dev, ibody0,
+    dumpSnapshot
+      (unit, num, ibody0_dev, ibody0,
 #ifdef  USE_HDF5_FORMAT
-		 &body_snapshot, hdf5type,
+       &body_snapshot, hdf5type,
 #ifdef  MONITOR_ENERGY_ERROR
-		 &relEneErr,
+       &relEneErr,
 #endif//MONITOR_ENERGY_ERROR
 #endif//USE_HDF5_FORMAT
-		 time, steps, file, 0, &previous
+       time, steps, file, 0, &previous
 #ifdef  LEAP_FROG_INTEGRATOR
-		 , ZERO
+       , ZERO
 #endif//LEAP_FROG_INTEGRATOR
 #ifndef SERIALIZED_EXECUTION
-		 , &iocfg, Ntot
+       , &iocfg, Ntot
 #endif//SERIALIZED_EXECUTION
 #ifdef  EXEC_BENCHMARK
-		 , &execTime[steps - bench_begin]
+       , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
-		 , Ni, ibody_direct_dev, devProp, direct, Ngrp, laneInfo_dev
+       , Ni, ibody_direct_dev, devProp, direct, Ngrp, laneInfo_dev
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
-		 , eps * eps
+       , eps * eps
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-		 , pot_tbl_sphe
+       , pot_tbl_sphe
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-		 , accfile
+       , accfile
 #endif//COMPARE_WITH_DIRECT_SOLVER
-		 );
+       );
 #endif//EXEC_BENCHMARK
 
 
     /** initialize time step */
 #ifndef BLOCK_TIME_STEP
-    setTimeStep_dev(num, ibody0, eta, eps, dt_dev, &dt
+    setTimeStep_dev
+      (num, ibody0, eta, eps, dt_dev, &dt
 #ifndef SERIALIZED_EXECUTION
-		    , letcfg
+       , letcfg
 #endif//SERIALIZED_EXECUTION
 #ifdef  EXEC_BENCHMARK
-		    , &execTime[steps - bench_begin]
+       , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-		    );
+       );
 #endif//BLOCK_TIME_STEP
 #ifdef  LEAP_FROG_INTEGRATOR
     if( dt > eps * eta )
@@ -1745,20 +1810,22 @@ int main(int argc, char **argv)
 
   /** initialize time step */
 #ifdef  BLOCK_TIME_STEP
-  adjustParticleTime_dev(Ngrp, laneInfo_dev, laneTime_dev, eps, eta, ibody0_dev
+  adjustParticleTime_dev
+    (Ngrp, laneInfo_dev, laneTime_dev, eps, eta, ibody0_dev
 #ifdef  EXEC_BENCHMARK
-			 , &execTime[steps - bench_begin]
+     , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-			 );
+     );
 #endif//BLOCK_TIME_STEP
 
 #ifdef  LEAP_FROG_INTEGRATOR
   /** time integration for velocity to implement leap-frog method */
-  advVel_dev(Ni, ibody0_dev, HALF * (real)dt
+  advVel_dev
+    (Ni, ibody0_dev, HALF * (real)dt
 #ifdef  EXEC_BENCHMARK
-	     , &execTime[steps - bench_begin]
+     , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-	     );
+     );
 #endif//LEAP_FROG_INTEGRATOR
 
 
@@ -1843,19 +1910,20 @@ int main(int argc, char **argv)
     __NOTE__("balancer.execute = %d @ rank %d\n", balancer.execute, letcfg.rank);
 
     if( balancer.execute ){
-      updateDomain(&num, num_max, &Ni,
-		   &ibody0_dev, &ibody1_dev, &ibody0, &ibody1, Ntot,
-		   domBoundary, particlePos_hst, particlePos_dev, domCfg, domDecKey,
-		   sample, samplePos0, samplePos1, soaPH_dev, devProp, devInfo,
-		   &exchangeParam, &exchangeInterval, ormCfg, repCfg,
+      updateDomain
+	(&num, num_max, &Ni,
+	 &ibody0_dev, &ibody1_dev, &ibody0, &ibody1, Ntot,
+	 domBoundary, particlePos_hst, particlePos_dev, domCfg, domDecKey,
+	 sample, samplePos0, samplePos1, soaPH_dev, devProp, devInfo,
+	 &exchangeParam, &exchangeInterval, ormCfg, repCfg,
 #ifdef  CARE_EXTERNAL_PARTICLES
-		   &location,
+	 &location,
 #endif//CARE_EXTERNAL_PARTICLES
-		   letcfg, iparticleSendBuf, iparticleRecvBuf, &elapsed, &brentDistance, &brentHistory
+	 letcfg, iparticleSendBuf, iparticleRecvBuf, &elapsed, &brentDistance, &brentHistory
 #ifdef  EXEC_BENCHMARK
-		   , &execTime[steps - bench_begin]
+	 , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-		   );
+	 );
 
       rebuild.reuse = 0;
       balancer.enable = false;
@@ -1897,19 +1965,20 @@ int main(int argc, char **argv)
       __NOTE__("rebuild @ %zu-th step, t = %e, sum_rebuild = %e\n", steps, time, elapsed.sum_rebuild);
 #endif//SERIALIZED_EXECUTION
 
-      buildTreeStructure(num, &ibody0_dev, &ibody1_dev, soaPH_dev, devProp,
+      buildTreeStructure
+	(num, &ibody0_dev, &ibody1_dev, soaPH_dev, devProp,
 #ifdef  CUB_AVAILABLE
-			 soaPH_pre,
+	 soaPH_pre,
 #endif//CUB_AVAILABLE
-			 &bottomLev, &numCell, &numNode, bottomLev_dev, scanNum_dev, numCell_dev, numNode_dev, soaMakeBuf, soaCell_dev, soaNode_dev
+	 &bottomLev, &numCell, &numNode, bottomLev_dev, scanNum_dev, numCell_dev, numNode_dev, soaMakeBuf, soaCell_dev, soaNode_dev
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-			 , &location
+	 , &location
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-			 , &start
+	 , &start
 #ifdef  EXEC_BENCHMARK
-			 , &execTime[steps - bench_begin]
+	 , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-			 );
+	 );
 
       brentDistance.u.val /= (double)brentHistory.totNum;
       brentHistory.totNum = 0;
@@ -1932,11 +2001,12 @@ int main(int argc, char **argv)
 	brentHistory.previous = brentDistance.u.val;
 
 	if( perturbBrent ){
-	  examineParticleSeparation(num, ibody0_dev, &brentDistance
+	  examineParticleSeparation
+	    (num, ibody0_dev, &brentDistance
 #ifdef  EXEC_BENCHMARK
-				    , execTime
+	     , execTime
 #endif//EXEC_BENCHMARK
-				    );
+	     );
 
 	  brentHistory.interval = 0;
 	  brentHistory.degraded = 0;
@@ -1954,16 +2024,17 @@ int main(int argc, char **argv)
       }/* else{ */
 
       /** from the second time, brentCalc1st() is called internally */
-      configDistribution(num, inumPerLane, &Ngrp, maxNgrp, laneInfo_hst, laneInfo_dev,
-			 ibody0_dev, &brentDistance, inum_dev, inum_hst
+      configDistribution
+	(num, inumPerLane, &Ngrp, maxNgrp, laneInfo_hst, laneInfo_dev,
+	 ibody0_dev, &brentDistance, inum_dev, inum_hst
 #ifdef  BLOCK_TIME_STEP
-			 , laneTime_dev
+	 , laneTime_dev
 #endif//BLOCK_TIME_STEP
-			 , start, &elapsed
+	 , start, &elapsed
 #ifdef  EXEC_BENCHMARK
-			 , &execTime[steps - bench_begin]
+	 , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-			 );
+	 );
 
 #ifndef SERIALIZED_EXECUTION
       existNewTree = true;
@@ -1983,33 +2054,36 @@ int main(int argc, char **argv)
 
     /** time integration */
 #ifdef  BLOCK_TIME_STEP
-    setLaneTime_dev(Ngrp, laneInfo_dev, laneTime_dev, ibody0_dev
+    setLaneTime_dev
+      (Ngrp, laneInfo_dev, laneTime_dev, ibody0_dev
 #ifdef  EXEC_BENCHMARK
-		    , &execTime[steps - bench_begin]
+       , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-		    );
+       );
     int grpNum = 0;
-    setTimeStep_dev(Ngrp, laneInfo_dev, laneTime_dev, &grpNum, ibody0_dev,
-		    time, &time, &dt, rebuild.adjust, invSnapshotInterval, previous, &present
+    setTimeStep_dev
+      (Ngrp, laneInfo_dev, laneTime_dev, &grpNum, ibody0_dev,
+       time, &time, &dt, rebuild.adjust, invSnapshotInterval, previous, &present
 #ifndef SERIALIZED_EXECUTION
-		    , letcfg
+       , letcfg
 #endif//SERIALIZED_EXECUTION
 #ifdef  EXEC_BENCHMARK
-		    , &execTime[steps - bench_begin]
+       , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-		    );
+       );
     rebuild.adjust = false;
 #else///BLOCK_TIME_STEP
 #ifndef LEAP_FROG_INTEGRATOR
     /* initialize time step */
-    setTimeStep_dev(Ni, ibody0, eta, eps, dt_dev, &dt
+    setTimeStep_dev
+      (Ni, ibody0, eta, eps, dt_dev, &dt
 #ifndef SERIALIZED_EXECUTION
-		    , letcfg
+       , letcfg
 #endif//SERIALIZED_EXECUTION
 #ifdef  EXEC_BENCHMARK
-		    , &execTime[steps - bench_begin]
+       , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-		    );
+       );
 #endif//LEAP_FROG_INTEGRATOR
     time += dt;
 #endif//BLOCK_TIME_STEP
@@ -2025,31 +2099,35 @@ int main(int argc, char **argv)
 
     /** orbit integration (predict step) */
 #ifdef  BLOCK_TIME_STEP
-    prediction_dev(num, time, ibody0_dev
+    prediction_dev
+      (num, time, ibody0_dev
 #ifdef  EXEC_BENCHMARK
-		   , &execTime[steps - bench_begin]
+       , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-		   );
+       );
 #else///BLOCK_TIME_STEP
 #ifndef LEAP_FROG_INTEGRATOR
     /** predict velocity and update position of i-particles */
-    advVel_dev(Ni, ibody0_dev, HALF * (real)dt
+    advVel_dev
+      (Ni, ibody0_dev, HALF * (real)dt
 #ifdef  EXEC_BENCHMARK
-	       , &execTime[steps - bench_begin]
+       , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-	       );
-    advPos_dev(Ni, ibody0_dev,        (real)dt
+       );
+    advPos_dev
+      (Ni, ibody0_dev,        (real)dt
 #ifdef  EXEC_BENCHMARK
-	       , &execTime[steps - bench_begin]
+       , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-	       );
+       );
 #else///LEAP_FROG_INTEGRATOR
     /** update position of i-particles */
-    advPos_dev(Ni, ibody0_dev, (real)dt
+    advPos_dev
+      (Ni, ibody0_dev, (real)dt
 #ifdef  EXEC_BENCHMARK
-	       , &execTime[steps - bench_begin]
+       , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-	       );
+       );
 #endif//LEAP_FROG_INTEGRATOR
 #endif//BLOCK_TIME_STEP
 
@@ -2079,29 +2157,32 @@ int main(int argc, char **argv)
 #ifndef SERIALIZED_EXECUTION
     /** find center of enclosing ball */
 #ifdef  USE_ENCLOSING_BALL_FOR_LET
-    getApproxEnclosingBall_dev(num, ibody0_dev
+    getApproxEnclosingBall_dev
+      (num, ibody0_dev
 #ifdef  OCTREE_BASED_SEARCH
-			       , soaCell_dev, soaNode_dev, soaMakeBuf
+       , soaCell_dev, soaNode_dev, soaMakeBuf
 #else///OCTREE_BASED_SEARCH
-			       , soaEB, soaPH_dev, devProp
+       , soaEB, soaPH_dev, devProp
 #endif//OCTREE_BASED_SEARCH
-			       , stream_let[Nstream_let - 1]
+       , stream_let[Nstream_let - 1]
 #ifdef  EXEC_BENCHMARK
-			       , &execTime[steps - bench_begin]
+       , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-			       );
+       );
 #endif//USE_ENCLOSING_BALL_FOR_LET
 
-    calc_r2max_dev(Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev
+    calc_r2max_dev
+      (Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev
 #ifdef  EXEC_BENCHMARK
-		   , &execTime[steps - bench_begin]
+       , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-		   );
-    shareNodePosition(letcfg.size, nodeInfo, ipos, *(ibody0_dev.encBall_hst),
+       );
+    shareNodePosition
+      (letcfg.size, nodeInfo, ipos, *(ibody0_dev.encBall_hst),
 #ifdef  GADGET_MAC
-		      amin, ibody0_dev.amin,
+       amin, ibody0_dev.amin,
 #endif//GADGET_MAC
-		      letcfg);
+       letcfg);
     /** this function must be called when tree structure is rebuild */
     if( existNewTree )
       guessLETpartition(letcfg.size, nodeInfo, numNode, *(ibody0_dev.encBall_hst), letcfg);
@@ -2116,54 +2197,55 @@ int main(int argc, char **argv)
     printf("#grpNum\tNi_active\ttime(sec)\n");
     for(grpNum = Ngrp; grpNum >= NGROUPS; grpNum = (int)((double)grpNum * M_SQRT1_2)){
 #endif//SHOW_NI_DEPENDENCE
-      calcGravity_dev(
+      calcGravity_dev
+	(
 #ifdef  BLOCK_TIME_STEP
-		      grpNum, &reduce,
+	 grpNum, &reduce,
 #endif//BLOCK_TIME_STEP
-		      Ngrp, laneInfo_dev, ibody0_dev, soaNode_dev, soaWalk_dev, &sinfo, devProp, &elapsed.walkTree[rebuild.reuse]
+	 Ngrp, laneInfo_dev, ibody0_dev, soaNode_dev, soaWalk_dev, &sinfo, devProp, &elapsed.walkTree[rebuild.reuse]
 #   if  !defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
-		      , Ni
+	 , Ni
 #endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-		      , pot_tbl_sphe
+	 , pot_tbl_sphe
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
-		      , file
+	 , file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifdef  USE_CUDA_EVENT
-		      , iniCalcAcc, finCalcAcc
+	 , iniCalcAcc, finCalcAcc
 #else///USE_CUDA_EVENT
-		      , cycles_hst, cycles_dev
+	 , cycles_hst, cycles_dev
 #endif//USE_CUDA_EVENT
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
-		      , &elapsed, numNode
+	 , &elapsed, numNode
 #ifdef  MPI_VIA_HOST
-		      , soaNode_hst
+	 , soaNode_hst
 #endif//MPI_VIA_HOST
-		      , letcfg.size, nodeInfo, Nstream_let, stream_let, letcfg
+	 , letcfg.size, nodeInfo, Nstream_let, stream_let, letcfg
 #ifdef  MONITOR_LETGEN_TIME
 #ifdef  USE_CUDA_EVENT
-		      , iniMakeLET, finMakeLET
+	 , iniMakeLET, finMakeLET
 #else///USE_CUDA_EVENT
-		      , cycles_let_hst, cycles_let_dev
+	 , cycles_let_hst, cycles_let_dev
 #endif//USE_CUDA_EVENT
 #endif//MONITOR_LETGEN_TIME
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
-		      , treeinfo_dev
+	 , treeinfo_dev
 #endif//COUNT_INTERACTIONS
 #ifdef  EXEC_BENCHMARK
-		      , &execTime[steps - bench_begin]
+	 , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
-		      , true
+	 , true
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
-		      , eps * eps
+	 , eps * eps
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 #endif//COMPARE_WITH_DIRECT_SOLVER
-		      );
+	 );
 
       brentDistance.u.val += elapsed.walkTree[rebuild.reuse];
 #ifdef  BLOCK_TIME_STEP
@@ -2211,7 +2293,7 @@ int main(int argc, char **argv)
       if( rchi2 > rebuildParam.parabolicGuess.rchisq ){	rchi2 = rebuildParam.parabolicGuess.rchisq;	guess = rebuildParam.parabolicGuess.time;      }
       if( guess > (elapsed.makeTree * reduce) )
 	rebuild.reuse = 0;
-    }
+    }/* if( rebuild.interval > 3.5 ){ */
 #else///USE_PARABOLIC_GROWTH_MODEL
     if( (rebuild.interval > 3.5) &&
 	((rebuildParam.linearGuess.rchisq < 1.0e-30 + rebuildParam.powerGuess.rchisq) ? (rebuildParam.linearGuess.time) : (rebuildParam.powerGuess.time)) > (elapsed.makeTree * reduce) )
@@ -2221,26 +2303,29 @@ int main(int argc, char **argv)
 
     /** orbit integration (correct step) */
 #ifdef  BLOCK_TIME_STEP
-    correction_dev(grpNum, laneInfo_dev, laneTime_dev, eps, eta, ibody0_dev, rebuild.reuse
+    correction_dev
+      (grpNum, laneInfo_dev, laneTime_dev, eps, eta, ibody0_dev, rebuild.reuse
 #ifdef  EXEC_BENCHMARK
-		   , &execTime[steps - bench_begin]
+       , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-		   );
+       );
 #else///BLOCK_TIME_STEP
 #ifndef LEAP_FROG_INTEGRATOR
     /** correct velocity of i-particles */
-    advVel_dev(Ni, ibody0_dev, HALF * (real)dt
+    advVel_dev
+      (Ni, ibody0_dev, HALF * (real)dt
 #ifdef  EXEC_BENCHMARK
-	       , &execTime[steps - bench_begin]
+       , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-	       );
+       );
 #else///LEAP_FROG_INTEGRATOR
     /** update velocity of i-particles */
-    advVel_dev(Ni, ibody0_dev, (real)dt
+    advVel_dev
+      (Ni, ibody0_dev, (real)dt
 #ifdef  EXEC_BENCHMARK
-	       , &execTime[steps - bench_begin]
+       , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-	       );
+       );
 #endif//LEAP_FROG_INTEGRATOR
 #endif//BLOCK_TIME_STEP
 
@@ -2458,6 +2543,10 @@ int main(int argc, char **argv)
   chkMPIerr(MPI_Win_free(&(ibody0.win_iacc)));
   chkMPIerr(MPI_Win_free(&(ibody1.win_iacc)));
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  chkMPIerr(MPI_Win_free(&(ibody0.win_iext)));
+  chkMPIerr(MPI_Win_free(&(ibody1.win_iext)));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   chkMPIerr(MPI_Win_free(&(ibody0.win_ivel)));
   chkMPIerr(MPI_Win_free(&(ibody1.win_ivel)));
@@ -2481,7 +2570,12 @@ int main(int argc, char **argv)
 
   /** memory deallocation */
 #ifdef  USE_HDF5_FORMAT
-  freeSnapshotArray(hdf5_pos, hdf5_vel, hdf5_acc, hdf5_m, hdf5_pot, hdf5_idx);
+  freeSnapshotArray
+    (hdf5_pos, hdf5_vel, hdf5_acc, hdf5_m, hdf5_pot, hdf5_idx
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , hdf5_acc_ext, hdf5_pot_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
 #endif//USE_HDF5_FORMAT
 
   freePeanoHilbertKey_dev
@@ -2495,94 +2589,127 @@ int main(int argc, char **argv)
      );
 
 #ifdef  BLOCK_TIME_STEP
-  freeParticleDataSoA_hst(idx0    , pos0    , acc0    , vel0    , time0);
-  freeParticleDataSoA_hst(idx1    , pos1    , acc1    , vel1    , time1);
-  freeParticleDataSoA_dev(idx0_dev, pos0_dev, acc0_dev, vel0_dev, time0_dev,
-			  idx1_dev, pos1_dev, acc1_dev, vel1_dev, time1_dev
-			  , neighbor_dev
+  freeParticleDataSoA_hst
+    (idx0, pos0, acc0, vel0, time0
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , acc_ext0
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
+  freeParticleDataSoA_hst
+    (idx1, pos1, acc1, vel1, time1
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , acc_ext1
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
+  freeParticleDataSoA_dev
+    (idx0_dev, pos0_dev, acc0_dev, vel0_dev, time0_dev,
+     idx1_dev, pos1_dev, acc1_dev, vel1_dev, time1_dev
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , acc_ext_dev
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     , neighbor_dev
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
-			  , encBall_dev, encBall_hst
+     , encBall_dev, encBall_hst
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
 #ifdef  DPADD_FOR_ACC
-			  , tmp_dev
+     , tmp_dev
 #endif//DPADD_FOR_ACC
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-			  , res_dev
+     , res_dev
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-			  );
+     );
 #else///BLOCK_TIME_STEP
-  freeParticleDataSoA_hst(idx0    , pos0    , acc0    , vx0    , vy0    , vz0    );
-  freeParticleDataSoA_hst(idx1    , pos1    , acc1    , vx1    , vy1    , vz1    );
-  freeParticleDataSoA_dev(idx0_dev, pos0_dev, acc0_dev, vx0_dev, vy0_dev, vz0_dev
-			  , idx1_dev, pos1_dev, acc1_dev, vx1_dev, vy1_dev, vz1_dev
-			  , neighbor_dev
+  freeParticleDataSoA_hst
+    (idx0, pos0, acc0, vx0, vy0, vz0
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , acc_ext0
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
+  freeParticleDataSoA_hst
+    (idx1, pos1, acc1, vx1, vy1, vz1
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , acc_ext1
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
+  freeParticleDataSoA_dev
+    (idx0_dev, pos0_dev, acc0_dev, vx0_dev, vy0_dev, vz0_dev
+     , idx1_dev, pos1_dev, acc1_dev, vx1_dev, vy1_dev, vz1_dev
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , acc_ext_dev
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     , neighbor_dev
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
-			  , encBall_dev, encBall_hst
+     , encBall_dev, encBall_hst
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
 #ifdef  DPADD_FOR_ACC
-			  , tmp_dev
+     , tmp_dev
 #endif//DPADD_FOR_ACC
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-			  , res_dev
+     , res_dev
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-			  );
+     );
 #endif//BLOCK_TIME_STEP
 
 #ifdef  COUNT_INTERACTIONS
   freeParticleInfoSoA_hst(Nj, Nbuf);
 #endif//COUNT_INTERACTIONS
-  freeParticleInfoSoA_dev(jtag_dev
+  freeParticleInfoSoA_dev
+    (jtag_dev
 #ifdef  COUNT_INTERACTIONS
-			  , Nj_dev, Nbuf_dev
+     , Nj_dev, Nbuf_dev
 #endif//COUNT_INTERACTIONS
-			  );
+     );
 
   freeParticleGroups(laneInfo_hst, laneInfo_dev, laneTime_dev, inum_hst, inum_dev);
 
-  freeTreeCell_dev(cell_dev, leaf_dev, node_dev, list_dev,
-		   hkey_dev, parent_dev, children_dev, bottomLev_dev, numCell_dev, numNode_dev, scanNum_dev
+  freeTreeCell_dev
+    (cell_dev, leaf_dev, node_dev, list_dev,
+     hkey_dev, parent_dev, children_dev, bottomLev_dev, numCell_dev, numNode_dev, scanNum_dev
 #ifdef  COUNT_INTERACTIONS
-                   , cell, leaf, node, list
+     , cell, leaf, node, list
 #endif//COUNT_INTERACTIONS
-		   );
+     );
 
-  freeTreeNode_dev(more_dev, pj_dev, mj_dev, bmax_dev, node2cell_dev, gsync0, gsync1,
+  freeTreeNode_dev
+    (more_dev, pj_dev, mj_dev, bmax_dev, node2cell_dev, gsync0, gsync1,
 #       ifdef  WS93_MAC
-		   mr2_dev,
+     mr2_dev,
 #       endif//WS93_MAC
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
-		   more, pj, mj,
+     more, pj, mj,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
-		   gmem_make_tree_dev, gsync0_make_tree_dev, gsync1_make_tree_dev, gsync2_make_tree_dev, gsync3_make_tree_dev,
-		   gmem_link_tree_dev, gsync0_link_tree_dev, gsync1_link_tree_dev,
+     gmem_make_tree_dev, gsync0_make_tree_dev, gsync1_make_tree_dev, gsync2_make_tree_dev, gsync3_make_tree_dev,
+     gmem_link_tree_dev, gsync0_link_tree_dev, gsync1_link_tree_dev,
 #ifdef  GADGET_MAC
-		   mac_dev,
+     mac_dev,
 #endif//GADGET_MAC
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-		   gmem_external_dev, gsync0_external_dev, gsync1_external_dev, diameter_dev, diameter_hst,
+     gmem_external_dev, gsync0_external_dev, gsync1_external_dev, diameter_dev, diameter_hst,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-		   more0Buf, more1Buf, rjmaxBuf, makeFail);
+     more0Buf, more1Buf, rjmaxBuf, makeFail);
 
-  freeTreeBuffer_dev(fail_dev, buffer, freeLst
+  freeTreeBuffer_dev
+    (fail_dev, buffer, freeLst
 #   if  !defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
-		     , freeNum, active
+     , freeNum, active
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
 #ifndef USE_CUDA_EVENT
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
-		     , cycles_hst, cycles_dev
+     , cycles_hst, cycles_dev
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
-		     , cycles_let_hst, cycles_let_dev
+     , cycles_let_hst, cycles_let_dev
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
 #endif//USE_CUDA_EVENT
-		     );
+     );
 
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
-  freeAccel_dev(direct_dev, direct
+  freeAccel_dev
+    (direct_dev, direct
 #ifdef  GADGET_MAC
-		, direct_old_dev
+     , direct_old_dev
 #endif//GADGET_MAC
-		);
+     );
 #endif//COMPARE_WITH_DIRECT_SOLVER
 
 #ifndef BLOCK_TIME_STEP
@@ -2594,42 +2721,48 @@ int main(int argc, char **argv)
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 #ifndef SERIALIZED_EXECUTION
-  releaseLETtopology(nodeInfo, ipos,
+  releaseLETtopology
+    (nodeInfo, ipos,
 #ifdef  GADGET_MAC
-		     amin,
+     amin,
 #endif//GADGET_MAC
-		     numSend_hst, numSend_dev, stream_let, Nstream_let);
+     numSend_hst, numSend_dev, stream_let, Nstream_let);
 
 #   if  defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
   freeApproxEnclosingBall_dev(appEncBall_dev, gsync0_EB, gsync1_EB);
 #endif//defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
 
-  releaseORMtopology(dxmin, dxmax, dymin, dymax, dzmin, dzmax, dmreq,
-		     sxmin, sxmax, symin, symax, szmin, szmax,
-		     iparticleSendBuf, iparticleRecvBuf, sampleRecvNum, sampleRecvDsp,
-		     ormCfg, repCfg, letcfg.rank);
-  releaseSamplePos(x0hst, x1hst, y0hst, y1hst, z0hst, z1hst, idhst,
-		   x0dev, x1dev, y0dev, y1dev, z0dev, z1dev, iddev);
-  releaseParticlePosition(xhst, yhst, zhst, xdev, ydev, zdev, rank_hst, rank_dev, idx_dev);
-  releaseDomainPos(xmin_dev, xmax_dev, ymin_dev, ymax_dev, zmin_dev, zmax_dev,
-		   xmin_hst, xmax_hst, ymin_hst, ymax_hst, zmin_hst, zmax_hst,
-		   domrank_dev, domrank_hst, numNew_dev, numNew_hst, gmem_dom, gsync0_dom, gsync1_dom);
+  releaseORMtopology
+    (dxmin, dxmax, dymin, dymax, dzmin, dzmax, dmreq,
+     sxmin, sxmax, symin, symax, szmin, szmax,
+     iparticleSendBuf, iparticleRecvBuf, sampleRecvNum, sampleRecvDsp,
+     ormCfg, repCfg, letcfg.rank);
+  releaseSamplePos
+    (x0hst, x1hst, y0hst, y1hst, z0hst, z1hst, idhst,
+     x0dev, x1dev, y0dev, y1dev, z0dev, z1dev, iddev);
+  releaseParticlePosition
+    (xhst, yhst, zhst, xdev, ydev, zdev, rank_hst, rank_dev, idx_dev);
+  releaseDomainPos
+    (xmin_dev, xmax_dev, ymin_dev, ymax_dev, zmin_dev, zmax_dev,
+     xmin_hst, xmax_hst, ymin_hst, ymax_hst, zmin_hst, zmax_hst,
+     domrank_dev, domrank_hst, numNew_dev, numNew_hst, gmem_dom, gsync0_dom, gsync1_dom);
 
   freeGeometricEnclosingBall_dev(r2geo_dev);
 #endif//SERIALIZED_EXECUTION
 
   /** destroy CUDA events */
 #   if  defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
-  releaseCUDAevents_dev(iniCalcAcc, finCalcAcc
+  releaseCUDAevents_dev
+    (iniCalcAcc, finCalcAcc
 #ifdef  MONITOR_LETGEN_TIME
-			, iniMakeLET, finMakeLET
+     , iniMakeLET, finMakeLET
 #endif//MONITOR_LETGEN_TIME
 #ifndef SERIALIZED_EXECUTION
-			, mpi.size
+     , mpi.size
 #else///SERIALIZED_EXECUTION
-			, 1
+     , 1
 #endif//SERIALIZED_EXECUTION
-			);
+     );
 #endif//defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
 
   /** destroy CUDA streams */
@@ -2719,7 +2852,7 @@ int main(int argc, char **argv)
 }
 
 
-#ifdef COUNT_INTERACTIONS
+#ifdef  COUNT_INTERACTIONS
 /**
  * @fn analyzeWalkStatistics
  *

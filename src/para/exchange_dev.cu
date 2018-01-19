@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/12/26 (Tue)
+ * @date 2018/01/19 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -743,6 +743,9 @@ __global__ void sortParticlesDDkey_kernel
 #ifdef  GADGET_MAC
  acceleration * RESTRICT dacc , READ_ONLY acceleration * RESTRICT sacc ,
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ acceleration * RESTRICT dext , READ_ONLY acceleration * RESTRICT sext ,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
  velocity     * RESTRICT dvel , READ_ONLY velocity     * RESTRICT svel ,
  ibody_time   * RESTRICT dtime, READ_ONLY ibody_time   * RESTRICT stime
@@ -765,6 +768,9 @@ __global__ void sortParticlesDDkey_kernel
 #ifdef  GADGET_MAC
     dacc [ii] = sacc [jj];
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    dext [ii] = sext [jj];
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
     dvel [ii] = svel [jj];
     dtime[ii] = stime[jj];
@@ -818,6 +824,9 @@ static inline void sortDomainDecomposeKey(const int num, domainDecomposeKey key,
 #ifdef  GADGET_MAC
        (*dst).acc , (*src).acc,
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+       (*dst).acc_ext, (*src).acc_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
        (*dst).vel , (*src).vel,
        (*dst).time, (*src).time
@@ -1625,6 +1634,9 @@ void exchangeParticles_dev
 #ifdef  GADGET_MAC
   chkMPIerr(MPI_Win_lock_all(0, (*src_dev).win_iacc));
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  chkMPIerr(MPI_Win_lock_all(0, (*src_dev).win_iext));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   chkMPIerr(MPI_Win_lock_all(0, (*src_dev).win_ivel));
   chkMPIerr(MPI_Win_lock_all(0, (*src_dev).win_time));
@@ -1639,6 +1651,9 @@ void exchangeParticles_dev
 #ifdef  GADGET_MAC
   chkMPIerr(MPI_Win_lock_all(0, (*src_hst).win_iacc));
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  chkMPIerr(MPI_Win_lock_all(0, (*src_hst).win_iext));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   chkMPIerr(MPI_Win_lock_all(0, (*src_hst).win_ivel));
   chkMPIerr(MPI_Win_lock_all(0, (*src_hst).win_time));
@@ -1665,6 +1680,9 @@ void exchangeParticles_dev
 #ifdef  GADGET_MAC
       chkMPIerr(MPI_Get(&((*dst_dev).acc[recvHead]), recvBuf[ii].body.num, mpi.iacc, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.iacc, (*src_dev).win_iacc));
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+      chkMPIerr(MPI_Get(&((*dst_dev).acc_ext[recvHead]), recvBuf[ii].body.num, mpi.iacc, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.iacc, (*src_dev).win_iext));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
       chkMPIerr(MPI_Get(&((*dst_dev).vel [recvHead]), recvBuf[ii].body.num, mpi.ivel, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.ivel, (*src_dev).win_ivel));
       chkMPIerr(MPI_Get(&((*dst_dev).time[recvHead]), recvBuf[ii].body.num, mpi.time, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.time, (*src_dev).win_time));
@@ -1679,6 +1697,9 @@ void exchangeParticles_dev
 #ifdef  GADGET_MAC
       chkMPIerr(MPI_Get(&((*dst_hst).acc[recvHead]), recvBuf[ii].body.num, mpi.iacc, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.iacc, (*src_hst).win_iacc));
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+      chkMPIerr(MPI_Get(&((*dst_hst).acc_ext[recvHead]), recvBuf[ii].body.num, mpi.iacc, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.iacc, (*src_hst).win_iext));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
       chkMPIerr(MPI_Get(&((*dst_hst).vel [recvHead]), recvBuf[ii].body.num, mpi.ivel, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.ivel, (*src_hst).win_ivel));
       chkMPIerr(MPI_Get(&((*dst_hst).time[recvHead]), recvBuf[ii].body.num, mpi.time, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.time, (*src_hst).win_time));
@@ -1701,6 +1722,9 @@ void exchangeParticles_dev
 #ifdef  GADGET_MAC
   chkMPIerr(MPI_Win_unlock_all((*src_dev).win_iacc));
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  chkMPIerr(MPI_Win_unlock_all((*src_dev).win_iext));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   chkMPIerr(MPI_Win_unlock_all((*src_dev).win_ivel));
   chkMPIerr(MPI_Win_unlock_all((*src_dev).win_time));
@@ -1715,6 +1739,9 @@ void exchangeParticles_dev
 #ifdef  GADGET_MAC
   chkMPIerr(MPI_Win_unlock_all((*src_hst).win_iacc));
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  chkMPIerr(MPI_Win_unlock_all((*src_hst).win_iext));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   chkMPIerr(MPI_Win_unlock_all((*src_hst).win_ivel));
   chkMPIerr(MPI_Win_unlock_all((*src_hst).win_time));
@@ -1737,6 +1764,9 @@ void exchangeParticles_dev
 #ifdef  GADGET_MAC
     chkMPIerr(MPI_Isend(&((*src_dev).acc [sendBuf[ii].head]), sendBuf[ii].num, mpi.iacc         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].acc)));
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    chkMPIerr(MPI_Isend(&((*src_dev).acc_ext[sendBuf[ii].head]), sendBuf[ii].num, mpi.iacc         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].ext)));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
     chkMPIerr(MPI_Isend(&((*src_dev).vel [sendBuf[ii].head]), sendBuf[ii].num, mpi.ivel         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].vel)));
     chkMPIerr(MPI_Isend(&((*src_dev).time[sendBuf[ii].head]), sendBuf[ii].num, mpi.time         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].time)));
@@ -1751,6 +1781,9 @@ void exchangeParticles_dev
 #ifdef  GADGET_MAC
     chkMPIerr(MPI_Isend(&((*src_hst).acc [sendBuf[ii].head]), sendBuf[ii].num, mpi.iacc         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].acc)));
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    chkMPIerr(MPI_Isend(&((*src_hst).acc_ext[sendBuf[ii].head]), sendBuf[ii].num, mpi.iacc         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].ext)));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
     chkMPIerr(MPI_Isend(&((*src_hst).vel [sendBuf[ii].head]), sendBuf[ii].num, mpi.ivel         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].vel)));
     chkMPIerr(MPI_Isend(&((*src_hst).time[sendBuf[ii].head]), sendBuf[ii].num, mpi.time         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].time)));
@@ -1780,6 +1813,9 @@ void exchangeParticles_dev
 #ifdef  GADGET_MAC
       chkMPIerr(MPI_Irecv(&((*dst_dev).acc [recvBuf[ii].head]), recvBuf[ii].num, mpi.iacc         , ii, ii, mpi.comm, &(recvBuf[ii].acc)));
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+      chkMPIerr(MPI_Irecv(&((*dst_dev).acc_ext[recvBuf[ii].head]), recvBuf[ii].num, mpi.iacc         , ii, ii, mpi.comm, &(recvBuf[ii].ext)));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
       chkMPIerr(MPI_Irecv(&((*dst_dev).vel [recvBuf[ii].head]), recvBuf[ii].num, mpi.ipos         , ii, ii, mpi.comm, &(recvBuf[ii].vel)));
       chkMPIerr(MPI_Irecv(&((*dst_dev).time[recvBuf[ii].head]), recvBuf[ii].num, mpi.ipos         , ii, ii, mpi.comm, &(recvBuf[ii].time)));
@@ -1794,6 +1830,9 @@ void exchangeParticles_dev
 #ifdef  GADGET_MAC
       chkMPIerr(MPI_Irecv(&((*dst_hst).acc [recvBuf[ii].head]), recvBuf[ii].num, mpi.iacc         , ii, ii, mpi.comm, &(recvBuf[ii].acc)));
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+      chkMPIerr(MPI_Irecv(&((*dst_hst).acc_ext[recvBuf[ii].head]), recvBuf[ii].num, mpi.iacc         , ii, ii, mpi.comm, &(recvBuf[ii].acc_ext)));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
       chkMPIerr(MPI_Irecv(&((*dst_hst).vel [recvBuf[ii].head]), recvBuf[ii].num, mpi.ipos         , ii, ii, mpi.comm, &(recvBuf[ii].vel)));
       chkMPIerr(MPI_Irecv(&((*dst_hst).time[recvBuf[ii].head]), recvBuf[ii].num, mpi.ipos         , ii, ii, mpi.comm, &(recvBuf[ii].time)));
@@ -1818,6 +1857,9 @@ void exchangeParticles_dev
 #ifdef  GADGET_MAC
     MPI_Status  acc;    chkMPIerr(MPI_Wait(&(sendBuf[ii]. acc), &acc));
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    MPI_Status  ext;    chkMPIerr(MPI_Wait(&(sendBuf[ii].acc_ext), &ext));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
     MPI_Status  vel;    chkMPIerr(MPI_Wait(&(sendBuf[ii]. vel), &vel));
     MPI_Status time;    chkMPIerr(MPI_Wait(&(sendBuf[ii].time), &time));
@@ -1835,6 +1877,9 @@ void exchangeParticles_dev
 #ifdef  GADGET_MAC
       MPI_Status  acc;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. acc), &acc));
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+      MPI_Status  ext;      chkMPIerr(MPI_Wait(&(recvBuf[ii].acc_ext), &ext));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
       MPI_Status  vel;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. vel), &vel));
       MPI_Status time;      chkMPIerr(MPI_Wait(&(recvBuf[ii].time), &time));

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/01/19 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -44,6 +44,9 @@ muse allocParticleDataSoA_dev
  , iparticle *body0, ulong **idx0, position **pos0, acceleration **acc0, real **vx0, real **vy0, real **vz0
  , iparticle *body1, ulong **idx1, position **pos1, acceleration **acc1, real **vx1, real **vy1, real **vz1
 #endif//BLOCK_TIME_STEP
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ , acceleration **acc_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
  , real **neighbor
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
  , position **encBall, position **encBall_hst
@@ -83,6 +86,11 @@ muse allocParticleDataSoA_dev
   alloc.device +=            size * sizeof(real) ;  alloc.device +=            size * sizeof(real) ;  alloc.device +=            size * sizeof(real) ;
 #endif//BLOCK_TIME_STEP
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  mycudaMalloc((void **)acc_ext, size * sizeof(acceleration));
+  alloc.device +=                size * sizeof(acceleration) ;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+
   /** commit arrays to the utility structure */
   body0->idx = *idx0;  body0->pos = *pos0;  body0->acc = *acc0;
   body1->idx = *idx1;  body1->pos = *pos1;  body1->acc = *acc1;
@@ -100,6 +108,11 @@ muse allocParticleDataSoA_dev
   body0->acc_old = *acc1;
   body1->acc_old = *acc0;
 #endif//GADGET_MAC
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  body0->acc_ext = *acc_ext;
+  body1->acc_ext = *acc_ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
   mycudaMalloc((void **)neighbor, size * sizeof(real));
   alloc.device +=                 size * sizeof(real) ;
@@ -146,6 +159,9 @@ muse allocParticleDataSoA_hst
 #else///BLOCK_TIME_STEP
  real **vx_hst, real **vy_hst, real **vz_hst
 #endif//BLOCK_TIME_STEP
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ , acceleration **acc_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
  )
 {
   __NOTE__("%s\n", "start");
@@ -171,6 +187,10 @@ muse allocParticleDataSoA_hst
   mycudaMallocHost((void **) vz_hst, size * sizeof(        real));  alloc.host += size * sizeof(        real);
 #endif//BLOCK_TIME_STEP
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  mycudaMallocHost((void **)acc_ext, size * sizeof(acceleration));  alloc.host += size * sizeof(acceleration);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+
   /** commit arrays to the utility structure */
   body_hst->pos  = *pos_hst;
   body_hst->acc  = *acc_hst;
@@ -184,6 +204,9 @@ muse allocParticleDataSoA_hst
 #endif//BLOCK_TIME_STEP
   body_hst->idx  = *idx_hst;
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  body_hst->acc_ext = *acc_ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
   __NOTE__("%s\n", "end");
   return (alloc);
@@ -205,6 +228,9 @@ void  freeParticleDataSoA_dev
  , real  *vx0, real  *vy0, real  *vz0
  , ulong  *idx1, position  *pos1, acceleration  *acc1, real  *vx1, real  *vy1, real  *vz1
 #endif//BLOCK_TIME_STEP
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ , acceleration  *acc_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
  , real  *neighbor
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
  , position  *encBall, position  *encBall_hst
@@ -229,6 +255,11 @@ void  freeParticleDataSoA_dev
   mycudaFree(vx0);  mycudaFree(vy0);  mycudaFree(vz0);
   mycudaFree(vx1);  mycudaFree(vy1);  mycudaFree(vz1);
 #endif//BLOCK_TIME_STEP
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  mycudaFree(acc_ext);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+
   mycudaFree(neighbor);
 
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
@@ -260,6 +291,9 @@ void  freeParticleDataSoA_hst
 #else///BLOCK_TIME_STEP
  real  *vx_hst, real  *vy_hst, real  *vz_hst
 #endif//BLOCK_TIME_STEP
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ , acceleration  *acc_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
  )
 {
   __NOTE__("%s\n", "start");
@@ -275,6 +309,10 @@ void  freeParticleDataSoA_hst
   mycudaFreeHost( vy_hst);
   mycudaFreeHost( vz_hst);
 #endif//BLOCK_TIME_STEP
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  mycudaFreeHost(acc_ext);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
   __NOTE__("%s\n", "end");
 }

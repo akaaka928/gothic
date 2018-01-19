@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/01/19 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -38,6 +38,9 @@ extern "C"
    , iparticle *body0, ulong **idx0, position **pos0, acceleration **acc0, real **vx0, real **vy0, real **vz0
    , iparticle *body1, ulong **idx1, position **pos1, acceleration **acc1, real **vx1, real **vy1, real **vz1
 #endif//BLOCK_TIME_STEP
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+   , acceleration **acc_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
    , real **neighbor
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
    , position **encBall, position **encBall_hst
@@ -57,6 +60,9 @@ extern "C"
 #else///BLOCK_TIME_STEP
    real **vx_hst, real **vy_hst, real **vz_hst
 #endif//BLOCK_TIME_STEP
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+   , acceleration **acc_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
    );
 
   void  freeParticleDataSoA_dev
@@ -68,6 +74,9 @@ extern "C"
    , real  *vx0, real  *vy0, real  *vz0
    , ulong  *idx1, position  *pos1, acceleration  *acc1, real  *vx1, real  *vy1, real  *vz1
 #endif//BLOCK_TIME_STEP
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+   , acceleration  *acc_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
    , real  *neighbor
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
    , position  *encBall, position  *encBall_hst
@@ -86,6 +95,9 @@ extern "C"
 #else///BLOCK_TIME_STEP
    real  *vx_hst, real  *vy_hst, real  *vz_hst
 #endif//BLOCK_TIME_STEP
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+   , acceleration  *acc_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
    );
 
   muse allocParticleInfoSoA_dev

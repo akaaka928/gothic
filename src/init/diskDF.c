@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/15 (Mon)
+ * @date 2018/01/19 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1167,6 +1167,9 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     body.pos[ii].m = mass;
 
     body.acc[ii].x = body.acc[ii].y = body.acc[ii].z = body.acc[ii].pot = ZERO;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    body.acc_ext[ii].x = body.acc_ext[ii].y = body.acc_ext[ii].z = body.acc_ext[ii].pot = ZERO;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 #ifdef  BLOCK_TIME_STEP
     body.vel[ii].x = CAST_D2R(vx);

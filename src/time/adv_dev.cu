@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/01/19 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -229,6 +229,9 @@ __global__ void setTimeStep_kernel
 (const int Ni,
  READ_ONLY real * RESTRICT vix, READ_ONLY real * RESTRICT viy, READ_ONLY real * RESTRICT viz,
  READ_ONLY acceleration * RESTRICT iacc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ READ_ONLY acceleration * RESTRICT iacc_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
  const real eta, const real eps,
  real * RESTRICT dt)
 {
@@ -244,7 +247,13 @@ __global__ void setTimeStep_kernel
       const real         vx = vix [ii];
       const real         vy = viy [ii];
       const real         vz = viz [ii];
+#ifndef SET_EXTERNAL_POTENTIAL_FIELD
       const acceleration ai = iacc[ii];
+#else///SET_EXTERNAL_POTENTIAL_FIELD
+      const acceleration slf = iacc    [ii];
+      const acceleration ext = iacc_ext[ii];
+      const acceleration ai = {slf.x + ext.x, slf.y + ext.y, slf.z + ext.z, slf.pot + ext.pot};
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
       const real v2 = FLT_MIN +	  vx *	 vx +	vy *   vy +   vz *   vz;
       const real a2 = FLT_MIN + ai.x * ai.x + ai.y * ai.y + ai.z * ai.z;
@@ -395,6 +404,9 @@ void setTimeStep_dev(const int Ni, iparticle ibody, const real eta, const real e
 __global__ void prediction_kernel
 (const int Nj, const double tnew,
  READ_ONLY position * RESTRICT ipos, READ_ONLY velocity * RESTRICT ivel, READ_ONLY ibody_time * RESTRICT time, READ_ONLY acceleration * RESTRICT iacc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ READ_ONLY acceleration * RESTRICT iacc_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
  position * RESTRICT jpos, velocity * RESTRICT jvel)
 {
   const int jj = GLOBALIDX_X1D;
@@ -405,7 +417,13 @@ __global__ void prediction_kernel
     /** load information of all i-particles */
     pj = ipos[jj];
     vj = ivel[jj];
+#ifndef SET_EXTERNAL_POTENTIAL_FIELD
     const acceleration aj = iacc[jj];
+#else///SET_EXTERNAL_POTENTIAL_FIELD
+    const acceleration slf = iacc    [jj];
+    const acceleration ext = iacc_ext[jj];
+    const acceleration aj = {slf.x + ext.x, slf.y + ext.y, slf.z + ext.z, slf.pot + ext.pot};
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
     const real dt = (real)(tnew - time[jj].t0);
     const real dt_2 = HALF * dt;
 
@@ -493,6 +511,9 @@ __device__ __forceinline__ real setParticleTime(const velocity vi, const acceler
 __global__ void correction_kernel
 (const int laneNum, READ_ONLY laneinfo * RESTRICT laneInfo, double * RESTRICT laneTime, const real eps, const real eta,
  position * RESTRICT ipos, velocity * RESTRICT ivel, ibody_time * RESTRICT time, READ_ONLY acceleration * RESTRICT iacc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ READ_ONLY acceleration * RESTRICT iacc_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
  READ_ONLY position * RESTRICT jpos, READ_ONLY velocity * RESTRICT jvel,
  const int reuseTree)
 {
@@ -515,7 +536,13 @@ __global__ void correction_kernel
     const int idx = info.head + lane;
 
     /** load pj, vj, ti, and ai */
+#ifndef SET_EXTERNAL_POTENTIAL_FIELD
     const acceleration ai = iacc[idx];
+#else///SET_EXTERNAL_POTENTIAL_FIELD
+    const acceleration slf = iacc    [idx];
+    const acceleration ext = iacc_ext[idx];
+    const acceleration ai = {slf.x + ext.x, slf.y + ext.y, slf.z + ext.z, slf.pot + ext.pot};
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
     velocity vi = jvel[idx];
     ti = time[idx];
     /** store pi */
@@ -560,7 +587,11 @@ __global__ void correction_kernel
  */
 __global__ void adjustParticleTime_kernel
 (const int laneNum, READ_ONLY laneinfo * RESTRICT laneInfo, double * RESTRICT laneTime, const real eps, const real eta,
- velocity * RESTRICT ivel, ibody_time * RESTRICT time, READ_ONLY acceleration * RESTRICT iacc)
+ velocity * RESTRICT ivel, ibody_time * RESTRICT time, READ_ONLY acceleration * RESTRICT iacc
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ , READ_ONLY acceleration * RESTRICT iacc_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+)
 {
   const int tidx = THREADIDX_X1D;
   const int lane    = tidx          & (DIV_NWARP(TSUB) - 1);
@@ -581,7 +612,13 @@ __global__ void adjustParticleTime_kernel
     const int idx = info.head + lane;
 
     /** load pj, vj, ti, and ai */
+#ifndef SET_EXTERNAL_POTENTIAL_FIELD
     const acceleration ai = iacc[idx];
+#else///SET_EXTERNAL_POTENTIAL_FIELD
+    const acceleration slf = iacc    [idx];
+    const acceleration ext = iacc_ext[idx];
+    const acceleration ai = {slf.x + ext.x, slf.y + ext.y, slf.z + ext.z, slf.pot + ext.pot};
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
     velocity vi = ivel[idx];
     ti = time[idx];
 
@@ -668,7 +705,12 @@ void prediction_dev(const int Nj, const double tnew, const iparticle pi
   int Nrem = BLOCKSIZE(Nj, NTHREADS_TIME);
 
   if( Nrem <= MAX_BLOCKS_PER_GRID )
-    prediction_kernel<<<Nrem, NTHREADS_TIME>>>(Nj, tnew, pi.pos, pi.vel, pi.time, pi.acc, pi.jpos, pi.jvel);
+    prediction_kernel<<<Nrem, NTHREADS_TIME>>>
+      (Nj, tnew, pi.pos, pi.vel, pi.time, pi.acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+       pi.acc_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+       pi.jpos, pi.jvel);
   else{
     const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
     int hidx = 0;
@@ -678,7 +720,12 @@ void prediction_dev(const int Nj, const double tnew, const iparticle pi
       if( Nblck > Nrem )	Nblck = Nrem;
 
       int Nsub = Nblck * NTHREADS_TIME;
-      prediction_kernel<<<Nblck, NTHREADS_TIME>>>(Nsub, tnew, &pi.pos[hidx], &pi.vel[hidx], &pi.time[hidx], &pi.acc[hidx], &pi.jpos[hidx], &pi.jvel[hidx]);
+      prediction_kernel<<<Nblck, NTHREADS_TIME>>>
+	(Nsub, tnew, &pi.pos[hidx], &pi.vel[hidx], &pi.time[hidx], &pi.acc[hidx],
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+	 &pi.acc_ext[hidx],
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+	 &pi.jpos[hidx], &pi.jvel[hidx]);
 
       hidx += Nsub;
       Nrem -= Nblck;
@@ -726,7 +773,11 @@ void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTR
 
       if( Nrem <= MAX_BLOCKS_PER_GRID )
 	correction_kernel<<<Nrem, NTHREADS>>>
-	  (BLOCKSIZE(Ngrp, NGROUPS) * NGROUPS, laneInfo, laneTime, eps, eta, pi.pos, pi.vel, pi.time, pi.acc, pi.jpos, pi.jvel, reuseTree);
+	  (BLOCKSIZE(Ngrp, NGROUPS) * NGROUPS, laneInfo, laneTime, eps, eta, pi.pos, pi.vel, pi.time, pi.acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+	   pi.acc_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+	   pi.jpos, pi.jvel, reuseTree);
       else{
 	const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
 	int hidx = 0;
@@ -737,7 +788,11 @@ void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTR
 
 	  int Nsub = Nblck * NWARP * NGROUPS;
 	  correction_kernel<<<Nblck, NTHREADS>>>
-	    (BLOCKSIZE(Nsub, NGROUPS) * NGROUPS, &laneInfo[hidx], &laneTime[hidx], eps, eta, pi.pos, pi.vel, pi.time, pi.acc, pi.jpos, pi.jvel, reuseTree);
+	    (BLOCKSIZE(Nsub, NGROUPS) * NGROUPS, &laneInfo[hidx], &laneTime[hidx], eps, eta, pi.pos, pi.vel, pi.time, pi.acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+	     pi.acc_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+	     pi.jpos, pi.jvel, reuseTree);
 
 	  hidx += Nsub;
 	  Nrem -= Nblck;
@@ -781,7 +836,11 @@ void adjustParticleTime_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double
 
   if( Nrem <= MAX_BLOCKS_PER_GRID )
     adjustParticleTime_kernel<<<Nrem, NTHREADS>>>
-      (BLOCKSIZE(Ngrp, NGROUPS) * NGROUPS, laneInfo, laneTime, eps, eta, pi.vel, pi.time, pi.acc);
+      (BLOCKSIZE(Ngrp, NGROUPS) * NGROUPS, laneInfo, laneTime, eps, eta, pi.vel, pi.time, pi.acc
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+       , pi.acc_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+       );
   else{
     const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
     int hidx = 0;
@@ -792,7 +851,11 @@ void adjustParticleTime_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double
 
       int Nsub = Nblck * NWARP * NGROUPS;
       adjustParticleTime_kernel<<<Nblck, NTHREADS>>>
-	(BLOCKSIZE(Nsub, NGROUPS) * NGROUPS, &laneInfo[hidx], &laneTime[hidx], eps, eta, pi.vel, pi.time, pi.acc);
+	(BLOCKSIZE(Nsub, NGROUPS) * NGROUPS, &laneInfo[hidx], &laneTime[hidx], eps, eta, pi.vel, pi.time, pi.acc
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+	 , pi.acc_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+	 );
 
       hidx += Nsub;
       Nrem -= Nblck;
@@ -893,13 +956,23 @@ __global__ void advPos_kernel
  * @brief Orbit integral for velocity.
  */
 __global__ void advVel_kernel
-(const int Ni, READ_ONLY acceleration * RESTRICT iacc, real * RESTRICT vx, real * RESTRICT vy, real * RESTRICT vz, const real dt)
+(const int Ni, READ_ONLY acceleration * RESTRICT iacc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ READ_ONLY acceleration * RESTRICT iacc_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+ real * RESTRICT vx, real * RESTRICT vy, real * RESTRICT vz, const real dt)
 {
   const int ii = GLOBALIDX_X1D;
 
   if( ii < Ni ){
     /** load acceleration of i-particle */
-    acceleration ai = iacc[ii];
+#ifndef SET_EXTERNAL_POTENTIAL_FIELD
+    const acceleration ai = iacc[ii];
+#else///SET_EXTERNAL_POTENTIAL_FIELD
+    const acceleration slf = iacc    [ii];
+    const acceleration ext = iacc_ext[ii];
+    const acceleration ai = {slf.x + ext.x, slf.y + ext.y, slf.z + ext.z, slf.pot + ext.pot};
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
     /** update velocity */
     vx[ii] += dt * ai.x;
@@ -985,7 +1058,12 @@ void advVel_dev(const int Ni, iparticle ibody, const real dt
   int Nrem = BLOCKSIZE(Ni, NTHREADS_TIME);
 
   if( Nrem <= MAX_BLOCKS_PER_GRID )
-    advVel_kernel<<<Nrem, NTHREADS_TIME>>>(Ni, ibody.acc, ibody.vx, ibody.vy, ibody.vz, dt);
+    advVel_kernel<<<Nrem, NTHREADS_TIME>>>
+      (Ni, ibody.acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+       ibody.acc_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+       ibody.vx, ibody.vy, ibody.vz, dt);
   else{
     const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
     int hidx = 0;
@@ -995,7 +1073,12 @@ void advVel_dev(const int Ni, iparticle ibody, const real dt
       if( Nblck > Nrem )	Nblck = Nrem;
 
       int Nsub = Nblck * NTHREADS_TIME;
-      advVel_kernel<<<Nblck, NTHREADS_TIME>>>(Nsub, &ibody.acc[hidx], &ibody.vx[hidx], &ibody.vy[hidx], &ibody.vz[hidx], dt);
+      advVel_kernel<<<Nblck, NTHREADS_TIME>>>
+	(Nsub, &ibody.acc[hidx],
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+	 &ibody.acc_ext[hidx],
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+	 &ibody.vx[hidx], &ibody.vy[hidx], &ibody.vz[hidx], dt);
 
       hidx += Nsub;
       Nrem -= Nblck;
@@ -1046,6 +1129,10 @@ void copyParticle_hst2dev(const int Ni, iparticle hst, iparticle dev
   checkCudaErrors(cudaMemcpy(dev.  vz, hst.  vz, sizeof(        real) * Ni, cudaMemcpyHostToDevice));
 #endif//BLOCK_TIME_STEP
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  checkCudaErrors(cudaMemcpy(dev.acc_ext, hst.acc_ext, sizeof(acceleration) * Ni, cudaMemcpyHostToDevice));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+
 #ifdef  EXEC_BENCHMARK
   stopStopwatch(&(elapsed->copyParticle_hst2dev));
 #endif//EXEC_BENCHMARK
@@ -1087,6 +1174,10 @@ void copyParticle_dev2hst(const int Ni, iparticle dev, iparticle hst
   checkCudaErrors(cudaMemcpy(hst.  vz, dev.  vz, sizeof(        real) * Ni, cudaMemcpyDeviceToHost));
 #endif//BLOCK_TIME_STEP
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  checkCudaErrors(cudaMemcpy(hst.acc_ext, dev.acc_ext, sizeof(acceleration) * Ni, cudaMemcpyDeviceToHost));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+
 #ifdef  EXEC_BENCHMARK
   stopStopwatch(&(elapsed->copyParticle_dev2hst));
 #endif//EXEC_BENCHMARK
@@ -1119,6 +1210,10 @@ void copyParticleAsync_hst2dev(const int Ni, iparticle hst, iparticle dev, cudaS
   checkCudaErrors(cudaMemcpyAsync(dev.  vz, hst.  vz, sizeof(        real) * Ni, cudaMemcpyHostToDevice, stream));
 #endif//BLOCK_TIME_STEP
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  checkCudaErrors(cudaMemcpyAsync(dev.acc_ext, hst.acc_ext, sizeof(acceleration) * Ni, cudaMemcpyHostToDevice, stream));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+
   __NOTE__("%s\n", "end");
 }
 
@@ -1145,6 +1240,10 @@ void copyParticleAsync_dev2hst(const int Ni, iparticle dev, iparticle hst, cudaS
   checkCudaErrors(cudaMemcpyAsync(hst.  vy, dev.  vy, sizeof(        real) * Ni, cudaMemcpyDeviceToHost, stream));
   checkCudaErrors(cudaMemcpyAsync(hst.  vz, dev.  vz, sizeof(        real) * Ni, cudaMemcpyDeviceToHost, stream));
 #endif//BLOCK_TIME_STEP
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  checkCudaErrors(cudaMemcpyAsync(hst.acc_ext, dev.acc_ext, sizeof(acceleration) * Ni, cudaMemcpyDeviceToHost, stream));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
   __NOTE__("%s\n", "end");
 }

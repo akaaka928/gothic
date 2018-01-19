@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/04 (Thu)
+ * @date 2018/01/19 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -31,6 +31,9 @@ extern "C"
   muse allocParticleData
   (const int num, iparticle *body,
    ulong **idx, position **pos, acceleration **acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+   acceleration **ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
    velocity **vel, ibody_time **ti
 #else///BLOCK_TIME_STEP
@@ -39,6 +42,9 @@ extern "C"
    );
   void  freeParticleData
   (ulong  *idx, position  *pos, acceleration  *acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+   acceleration  *ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
    velocity  *vel, ibody_time  *ti
 #else///BLOCK_TIME_STEP
@@ -47,8 +53,18 @@ extern "C"
    );
 
 #ifdef  USE_HDF5_FORMAT
-  muse allocSnapshotArray(real **pos, real **vel, real **acc, real **m, real **pot, ulong **idx, const int num, nbody_hdf5 *data);
-  void  freeSnapshotArray(real  *pos, real  *vel, real  *acc, real  *m, real  *pot, ulong  *idx);
+  muse allocSnapshotArray
+  (real **pos, real **vel, real **acc, real **m, real **pot, ulong **idx,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+   real **acc_ext, real **pot_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+   const int num, nbody_hdf5 *data);
+  void  freeSnapshotArray
+  (real  *pos, real  *vel, real  *acc, real  *m, real  *pot, ulong  *idx
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+   , real  *acc_ext, real  *pot_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+   );
 #endif//USE_HDF5_FORMAT
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/01/19 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -114,6 +114,9 @@ typedef struct
 #ifdef  GADGET_MAC
   MPI_Request acc;
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  MPI_Request ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   MPI_Request vel, time;
 #else///BLOCK_TIME_STEP
@@ -144,6 +147,9 @@ typedef struct
 #ifdef  GADGET_MAC
   MPI_Request acc;
 #endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  MPI_Request ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   MPI_Request vel, time;
 #else///BLOCK_TIME_STEP

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/04 (Thu)
+ * @date 2018/01/19 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -44,6 +44,9 @@
 muse allocParticleData
 (const int num, iparticle *body,
  ulong **idx, position **pos, acceleration **acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ acceleration **ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
  velocity **vel, ibody_time **ti
 #else///BLOCK_TIME_STEP
@@ -66,6 +69,10 @@ muse allocParticleData
   alloc.host +=                 size * sizeof(    position);
   *acc = (acceleration *)malloc(size * sizeof(acceleration));  if( *acc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate acc\n");  }
   alloc.host +=                 size * sizeof(acceleration);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  *ext = (acceleration *)malloc(size * sizeof(acceleration));  if( *ext == NULL ){    __KILL__(stderr, "ERROR: failure to allocate ext\n");  }
+  alloc.host +=                 size * sizeof(acceleration);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   *vel = (  velocity *)malloc(size * sizeof(  velocity));  if( *vel == NULL ){    __KILL__(stderr, "ERROR: failure to allocate vel\n");  }
   alloc.host +=               size * sizeof(  velocity);
@@ -83,6 +90,9 @@ muse allocParticleData
   /* commit arrays to the utility structure */
   body->pos  = *pos;
   body->acc  = *acc;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  body->acc_ext = *ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   body->vel  = *vel;
   body->time = * ti;
@@ -112,6 +122,9 @@ muse allocParticleData
  */
 void  freeParticleData
 (ulong  *idx, position  *pos, acceleration  *acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ acceleration  *ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
  velocity  *vel, ibody_time  *ti
 #else///BLOCK_TIME_STEP
@@ -124,6 +137,9 @@ void  freeParticleData
   free(idx);
   free(pos);
   free(acc);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  free(ext);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   free(vel);
   free( ti);
@@ -152,7 +168,12 @@ void  freeParticleData
  * @param (num) number of N-body particles
  * @return (data) structure contains N-body particle data (SoA)
  */
-muse allocSnapshotArray(real **pos, real **vel, real **acc, real **m, real **pot, ulong **idx, const int num, nbody_hdf5 *data)
+muse allocSnapshotArray
+(real **pos, real **vel, real **acc, real **m, real **pot, ulong **idx,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ real **acc_ext, real **pot_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+ const int num, nbody_hdf5 *data)
 {
   __NOTE__("%s\n", "start");
   muse alloc = {0, 0};
@@ -183,6 +204,15 @@ muse allocSnapshotArray(real **pos, real **vel, real **acc, real **m, real **pot
   data->pot = *pot;
   data->idx = *idx;
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  *acc_ext = (real  *)malloc(3 * size * sizeof(real) );  alloc.host += 3 * size * sizeof(real);
+  *pot_ext = (real  *)malloc(    size * sizeof(real) );  alloc.host +=     size * sizeof(real);
+  if( *acc_ext == NULL ){    __KILL__(stderr, "ERROR: failure to allocate acc_ext\n"  );  }
+  if( *pot_ext == NULL ){    __KILL__(stderr, "ERROR: failure to allocate pot_ext\n");  }
+  data->acc_ext = *acc_ext;
+  data->pot_ext = *pot_ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+
   __NOTE__("%s\n", "end");
   return (alloc);
 }
@@ -198,7 +228,12 @@ muse allocSnapshotArray(real **pos, real **vel, real **acc, real **m, real **pot
  * @param (pot) potential of N-body particles
  * @param (idx) index of N-body particles
  */
-void  freeSnapshotArray(real  *pos, real  *vel, real  *acc, real  *m, real  *pot, ulong  *idx)
+void  freeSnapshotArray
+(real  *pos, real  *vel, real  *acc, real  *m, real  *pot, ulong  *idx
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ , real  *acc_ext, real  *pot_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+)
 {
   __NOTE__("%s\n", "start");
 
@@ -208,6 +243,10 @@ void  freeSnapshotArray(real  *pos, real  *vel, real  *acc, real  *m, real  *pot
   free(m);
   free(pot);
   free(idx);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  free(acc_ext);
+  free(pot_ext);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
   __NOTE__("%s\n", "end");
 }
