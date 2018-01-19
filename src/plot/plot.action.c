@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/01/19 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -561,26 +561,41 @@ int main(int argc, char **argv)
   createHDF5DataType(&hdf5type);
   nbody_hdf5 hdf5;
   real *hdf5_pos, *hdf5_vel, *hdf5_acc, *hdf5_m, *hdf5_pot;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  real *hdf5_acc_ext, *hdf5_pot_ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
   ulong *hdf5_idx;
-  allocSnapshotArray(&hdf5_pos, &hdf5_vel, &hdf5_acc, &hdf5_m, &hdf5_pot, &hdf5_idx, (int)Ntot, &hdf5);
+  allocSnapshotArray
+    (&hdf5_pos, &hdf5_vel, &hdf5_acc, &hdf5_m, &hdf5_pot, &hdf5_idx,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     &hdf5_acc_ext, &hdf5_pot_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     (int)Ntot, &hdf5);
 #else///USE_HDF5_FORMAT
   iparticle ibody;
   ulong *idx;
   position *pos;
   acceleration *acc;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  acceleration *ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   velocity *vel;
   ibody_time *ti;
 #else///BLOCK_TIME_STEP
   real *vx, *vy, *vz;
 #endif//BLOCK_TIME_STEP
-  allocParticleData((int)Ntot, &ibody, &idx, &pos, &acc,
+  allocParticleData
+    ((int)Ntot, &ibody, &idx, &pos, &acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     &ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
-		    &vel, &ti
+     &vel, &ti
 #else///BLOCK_TIME_STEP
-		    &vx, &vy, &vz
+     &vx, &vy, &vz
 #endif//BLOCK_TIME_STEP
-		    );
+     );
 #endif//USE_HDF5_FORMAT
 
 
@@ -957,15 +972,24 @@ int main(int argc, char **argv)
 
 #ifdef  USE_HDF5_FORMAT
   removeHDF5DataType(hdf5type);
-  freeSnapshotArray(hdf5_pos, hdf5_vel, hdf5_acc, hdf5_m, hdf5_pot, hdf5_idx);
+  freeSnapshotArray
+    (hdf5_pos, hdf5_vel, hdf5_acc, hdf5_m, hdf5_pot, hdf5_idx
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , hdf5_acc_ext, hdf5_pot_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
 #else///USE_HDF5_FORMAT
-  freeParticleData(idx, pos, acc,
+  freeParticleData
+    (idx, pos, acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
-		    vel, ti
+     vel, ti
 #else///BLOCK_TIME_STEP
-		    vx, vy, vz
+     vx, vy, vz
 #endif//BLOCK_TIME_STEP
-		    );
+     );
 #endif//USE_HDF5_FORMAT
   free(body);
 

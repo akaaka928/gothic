@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/01/18 (Thu)
+ * @date 2018/01/19 (Fri)
  *
  * Copyright (C) 2018 Yohei Miki
  * All rights reserved.
@@ -303,19 +303,26 @@ static inline void addSystem(object obj, component *cmp, ulong *head, const ipar
   ulong *idx;
   position *pos;
   acceleration *acc;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  acceleration *ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   velocity *vel;
   ibody_time *ti;
 #else///BLOCK_TIME_STEP
   real *vx, *vy, *vz;
 #endif//BLOCK_TIME_STEP
-  allocParticleData((int)num, &tmp, &idx, &pos, &acc,
+  allocParticleData
+    ((int)num, &tmp, &idx, &pos, &acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     &ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
-		    &vel, &ti
+     &vel, &ti
 #else///BLOCK_TIME_STEP
-		    &vx, &vy, &vz
+     &vx, &vy, &vz
 #endif//BLOCK_TIME_STEP
-		    );
+     );
 
   /**< read distribution of N-body particles */
   double time, dt;
@@ -417,13 +424,17 @@ static inline void addSystem(object obj, component *cmp, ulong *head, const ipar
     }/* if( cmp[ii].skip != 1 ){ */
 
   /** memory deallocation for tentative space */
-  freeParticleData(idx, pos, acc,
+  freeParticleData
+    (idx, pos, acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
-		    vel, ti
+     vel, ti
 #else///BLOCK_TIME_STEP
-		    vx, vy, vz
+     vx, vy, vz
 #endif//BLOCK_TIME_STEP
-		    );
+     );
 
 
   __NOTE__("%s\n", "end");
@@ -481,19 +492,26 @@ int main(int argc, char **argv)
   ulong *idx;
   position *pos;
   acceleration *acc;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  acceleration *ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
   velocity *vel;
   ibody_time *ti;
 #else///BLOCK_TIME_STEP
   real *vx, *vy, *vz;
 #endif//BLOCK_TIME_STEP
-  allocParticleData((int)Ntot, &body, &idx, &pos, &acc,
+  allocParticleData
+    ((int)Ntot, &body, &idx, &pos, &acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     &ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
-		    &vel, &ti
+     &vel, &ti
 #else///BLOCK_TIME_STEP
-		    &vx, &vy, &vz
+     &vx, &vy, &vz
 #endif//BLOCK_TIME_STEP
-		    );
+     );
 
   /** read particle data and modify */
 #ifdef  USE_HDF5_FORMAT
@@ -515,6 +533,9 @@ int main(int argc, char **argv)
 #endif//BLOCK_TIME_STEP
   for(ulong ii = 0; ii < Ntot; ii++){
     body.acc[ii] = acc_zero;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    body.acc_ext[ii] = acc_zero;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
     body.time[ii] = time_zero;
 #endif//BLOCK_TIME_STEP
@@ -659,13 +680,17 @@ int main(int argc, char **argv)
   /** memory deallocation */
   free(obj);
   free(cmp);
-  freeParticleData(idx, pos, acc,
+  freeParticleData
+    (idx, pos, acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
-		    vel, ti
+     vel, ti
 #else///BLOCK_TIME_STEP
-		    vx, vy, vz
+     vx, vy, vz
 #endif//BLOCK_TIME_STEP
-		    );
+     );
 
 
   return (0);
