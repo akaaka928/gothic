@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/22 (Mon)
+ * @date 2018/01/24 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -29,6 +29,69 @@
 #include "external.h"
 
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+/**
+ * @fn genAdaptiveExtPotTbl1D
+ *
+ * @brief Generate table for cubic spline interpolation to represent external fixed potential field.
+ *
+ * @param (prf) radial profile of the component
+ * @return (pot) potential field for cubic spline interpolation
+ */
+static inline void genAdaptiveExtPotTbl1D(profile *prf, potential_field *pot)
+{
+  __NOTE__("%s\n", "start");
+
+  static double rr[N_EXT_POT_SPHE], yy[N_EXT_POT_SPHE];
+  static double bp[N_EXT_POT_SPHE], y2[N_EXT_POT_SPHE];
+
+  /** set sampling scale */
+  const double dy = (-prf[NRADBIN - 1].psi + prf[0].psi) / (double)(N_EXT_POT_SPHE - 1);
+
+  /** set innermost boundary */
+  int num = 0;
+  rr[num] =  prf[0].rad;
+  double yold = -prf[0].psi;
+  yy[num] = yold;
+  num++;
+
+  /** add sampling points */
+  for(int kk = 1; kk < NRADBIN; kk++){
+    double ynew = -prf[kk].psi;
+    if( (ynew - yold) >= dy ){
+      rr[num] = prf[kk].rad;
+      yy[num] = ynew;
+      yold = ynew;
+      num++;
+    }/* if( (ynew - yold) >= dy ){ */
+
+    if( num >= N_EXT_POT_SPHE ){
+      __KILL__(stderr, "ERROR: num (= %d) must be smaller than N_EXT_POT_SPHE (= %d)\n", num, N_EXT_POT_SPHE);
+    }/* if( num >= N_EXT_POT_SPHE ){ */
+  }/* for(int kk = 1; kk < NRADBIN; kk++){ */
+
+  /** set outermost boundary */
+  rr[num] =  prf[NRADBIN - 1].rad;
+  yy[num] = -prf[NRADBIN - 1].psi;
+  num++;
+
+  /** apply cubic spline interpolation */
+  pot->num = num;
+  genCubicSpline1D(num, rr, yy, bp, NATURAL_CUBIC_SPLINE, NATURAL_CUBIC_SPLINE, y2);
+
+  for(int jj = 0; jj < num; jj++){
+    pot->rad[jj]     = CAST_D2R(rr[jj]);
+    pot->Phi[jj].val = CAST_D2R(yy[jj]);
+    pot->Phi[jj].dr2 = CAST_D2R(y2[jj]);
+  }/* for(int jj = 0; jj < num; jj++){ */
+
+  __NOTE__("%s\n", "end");
+}
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+
+
 /**
  * @fn genExtPotTbl1D
  *
@@ -38,6 +101,17 @@
  * @param (prf) radial profile of component(s)
  * @return (pot) potential field for cubic spline interpolation
  */
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+void genExtPotTbl1D(const int kind, profile **prf, potential_field *pot)
+{
+  __NOTE__("%s\n", "start");
+
+  for(int ii = 0; ii < kind; ii++)
+    genAdaptiveExtPotTbl1D(prf[ii], &pot[ii]);
+
+  __NOTE__("%s\n", "end");
+}
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 void genExtPotTbl1D(const int kind, profile **prf, potential_field *pot)
 {
   __NOTE__("%s\n", "start");
@@ -78,7 +152,62 @@ void genExtPotTbl1D(const int kind, profile **prf, potential_field *pot)
 
   __NOTE__("%s\n", "end");
 }
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
+
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+
+/**
+ * @fn genSuperposedPotFld1D
+ *
+ * @brief Generate superposed external, fixed potential-fields of multiple components.
+ *
+ * @param (kind) number of components
+ * @param (skind) number of spherical symmetric components
+ * @param (prf) radial profile of component(s)
+ * @return (sphe) superposed potential field for cubic spline interpolation (only for spherical symmetric components)
+ * @return (disk) superposed potential field for cubic spline interpolation (only for spherical averaged disk components)
+ */
+void genSuperposedPotFld1D(const int kind, const int skind, profile **prf, potential_field * restrict sphe, potential_field * restrict disk)
+{
+  __NOTE__("%s\n", "start");
+
+  profile *tmp;
+  tmp = (profile  *)malloc(sizeof(profile) * NRADBIN);
+  if( tmp == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp\n");  }
+
+  /** generate superposed potential table for spherical component(s) */
+#pragma omp parallel for
+  for(int ii = 0; ii < NRADBIN; ii++){
+    tmp[ii].rad = prf[0][ii].rad;
+
+    double psi = 0.0;
+    for(int kk = 0; kk < skind; kk++)
+      psi += prf[kk][ii].psi;
+
+    tmp[ii].psi = psi;
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
+  genAdaptiveExtPotTbl1D(tmp, sphe);
+
+  /** generate superposed potential table for spherical averaged disk component(s) */
+  if( kind > skind ){
+#pragma omp parallel for
+    for(int ii = 0; ii < NRADBIN; ii++){
+      double psi = 0.0;
+      for(int kk = skind; kk < kind; kk++)
+	psi += prf[kk][ii].psi;
+
+      tmp[ii].psi = psi;
+    }/* for(int ii = 0; ii < NRADBIN; ii++){ */
+    genAdaptiveExtPotTbl1D(tmp, disk);
+  }/* if( kind > skind ){ */
+
+  free(tmp);
+
+  __NOTE__("%s\n", "end");
+}
+
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
 /**
  * @fn superposePotFld1D
@@ -134,3 +263,6 @@ void superposePotFld1D(const int kind, const int skind, potential_field * restri
 
   __NOTE__("%s\n", "end");
 }
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+
+#endif//SET_EXTERNAL_POTENTIAL_FIELD

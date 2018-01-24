@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/15 (Mon)
+ * @date 2018/01/24 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -33,8 +33,15 @@
 
 
 /* list of functions appeared in ``external.c'' */
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
 void genExtPotTbl1D(const int kind, profile **prf, potential_field *pot);
+
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+void genSuperposedPotFld1D(const int kind, const int skind, profile **prf, potential_field * restrict sphe, potential_field * restrict disk);
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 void superposePotFld1D(const int kind, const int skind, potential_field * restrict pot, potential_field * restrict sphe, potential_field * restrict disk);
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 
 #endif//EXTERNAL_H

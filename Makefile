@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/01/22 (Mon) 10:28:19
+# last updated on 2018/01/24 (Wed) 11:54:42
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -42,9 +42,10 @@ DUMPFILE_IN_TIPSY	:= 0
 DUMPFILE_AS_GALACTICS	:= 0
 USE_OFFICIAL_SFMT	:= 1
 USE_OFFICIAL_SFMT_JUMP	:= 1
-SET_EXTERNAL_FIELD	:= 0
-SET_EXTERNAL_FIELD_SPHE	:= 0
+SET_EXTERNAL_FIELD	:= 1
+SET_EXTERNAL_FIELD_SPHE	:= 1
 SET_EXTERNAL_FIELD_DISK	:= 0
+ADAPTIVE_EXTERNAL_FIELD	:= 1
 #################################################################################################
 # Debugging options
 EVALUATE_FORCE_ERROR	:= 0
@@ -250,6 +251,7 @@ CUARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD
 else
 SET_EXTERNAL_FIELD_SPHE	:= 0
 SET_EXTERNAL_FIELD_DISK	:= 0
+ADAPTIVE_EXTERNAL_FIELD	:= 0
 endif
 #################################################################################################
 ifeq ($(SET_EXTERNAL_FIELD_SPHE), 1)
@@ -260,6 +262,11 @@ endif
 ifeq ($(SET_EXTERNAL_FIELD_DISK), 1)
 CCARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD_DISK
 CUARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD_DISK
+endif
+#################################################################################################
+ifeq ($(ADAPTIVE_EXTERNAL_FIELD), 1)
+CCARG	+= -DADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+CUARG	+= -DADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 endif
 #################################################################################################
 NUM_NTHREADS	:= 512

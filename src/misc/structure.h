@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/19 (Fri)
+ * @date 2018/01/24 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -253,7 +253,9 @@ typedef struct
 {
   real *rad;
   pot2 *Phi;
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   real logrmin, logrbin, invlogrbin;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   int num;
 } potential_field;
 #endif//SET_EXTERNAL_POTENTIAL_FIELD

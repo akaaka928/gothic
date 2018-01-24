@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/19 (Fri)
+ * @date 2018/01/24 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1129,7 +1129,11 @@ int main(int argc, char **argv)
   allocPotentialField(&rad_pot, &Phi_pot, &pot_tbl, N_EXT_POT_SPHE, kind, &pot_tbl_sphe, skind, &pot_tbl_disk);
 
   genExtPotTbl1D(kind, prf, pot_tbl);
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  genSuperposedPotFld1D(kind, skind, prf, &pot_tbl_sphe, &pot_tbl_disk);
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   superposePotFld1D(kind, skind, pot_tbl, &pot_tbl_sphe, &pot_tbl_disk);
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   stopBenchmark_cpu(&execTime.external);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 

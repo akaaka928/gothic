@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/19 (Fri)
+ * @date 2018/01/24 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -133,16 +133,42 @@ void setSphericalPotentialTable_dev(real *rad_hst, pot2 *Phi_hst, real *rad_dev,
 }
 
 
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+/**
+ * @fn bisec
+ *
+ * @brief Execute bisection.
+ *
+ * @param (val) the target value
+ * @param (num) number of data points
+ * @param (tab) array contains data points
+ * @return (ratio) parameter for linear interpolation
+ * @return lower index of the corresponding data point
+ */
+__device__ __forceinline__
+int bisec(const real val, const int num, real * RESTRICT tab, real * RESTRICT ratio, real * RESTRICT dxinv)
+{
+  int ll =       0;
+  int rr = num - 1;
 
+  /** prohibit extraporation */
+  if( val < tab[ll] + EPSILON ){    *ratio =  ZERO;    *dxinv = UNITY / (tab[ll + 1] - tab[ll]);    return (ll    );  }
+  if( val > tab[rr] - EPSILON ){    *ratio = UNITY;    *dxinv = UNITY / (tab[rr + 1] - tab[rr]);    return (rr - 1);  }
 
+  while( true ){
+    const int cc = (ll + rr) >> 1;
 
+    if( (tab[cc] - val) * (tab[ll] - val) <= ZERO)      rr = cc;
+    else                                                ll = cc;
 
-
-
-
-
-
-
+    if( (1 + ll) == rr ){
+      *dxinv = UNITY / (tab[rr] - tab[ll]);
+      *ratio = (val - tab[ll]) * (*dxinv);
+      return (ll);
+    }/* if( (1 + ll) == rr ){ */
+  }/* while( true ){ */
+}
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
 
 /**
@@ -160,19 +186,32 @@ void setSphericalPotentialTable_dev(real *rad_hst, pot2 *Phi_hst, real *rad_dev,
  * @param (yy) value of data points and coefficients in cubic spline interpolation
  */
 __device__ __forceinline__
-void calcExternalForce_spherical(real * RESTRICT F_r, real * RESTRICT Phi, const real rr, const real logrmin, const real invlogrbin, const int num, real * RESTRICT xx, pot2 * RESTRICT yy)
+void calcExternalForce_spherical
+(real * RESTRICT F_r, real * RESTRICT Phi, const real rr, const int num,
+ real * RESTRICT xx, pot2 * RESTRICT yy
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ , const real logrmin, const real invlogrbin
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ )
 {
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  real aa, dxinv;
+  int ii = bisec(rr, num, xx, &aa, &dxinv);
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   int ii = (int)FLOOR((LOG10(rr) - logrmin) * invlogrbin);
   ii = (ii >=       0 ) ? ii :       0;
   ii = (ii < (num - 1)) ? ii : num - 2;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   const real xl = xx[ii];
   const real xr = xx[ii + 1];
 
   const real dx = xr - xl;
   const real dx2 = dx * dx;
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   const real dxinv = RSQRT(dx2);
   const real aa = (rr - xl) * dxinv;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   const pot2 yl = yy[ii];
   const pot2 yr = yy[ii + 1];
@@ -198,8 +237,19 @@ __global__ void calcExternalGravity_kernel
 #ifdef  BLOCK_TIME_STEP
  const int laneNum, READ_ONLY laneinfo * RESTRICT laneInfo,
 #endif//BLOCK_TIME_STEP
- const real logrmin, const real invlogrbin, const int num, real * RESTRICT xx, pot2 * RESTRICT yy)
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ const real logrmin, const real invlogrbin,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ const int num, real * RESTRICT xx, pot2 * RESTRICT yy)
 {
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  extern __shared__ real xx_sm[];
+  for(int ii = THREADIDX_X1D; ii < num; ii += NTHREADS)
+    if( ii < num )
+      xx_sm[ii] = xx[ii];
+  __syncthreads();
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+
 #ifdef  BLOCK_TIME_STEP
   const int lane    = THREADIDX_X1D & (DIV_NWARP(TSUB) - 1);
   const int laneIdx = GLOBALIDX_X1D /  DIV_NWARP(TSUB);
@@ -224,7 +274,14 @@ __global__ void calcExternalGravity_kernel
 
     /** evaluate gravitational field from the external potential field */
     real F_r, Phi;
-    calcExternalForce_spherical(&F_r, &Phi, rr, logrmin, invlogrbin, num, xx, yy);
+    calcExternalForce_spherical
+      (&F_r, &Phi, rr, num,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+       xx_sm, yy
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+       xx, yy, logrmin, invlogrbin
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+       );
     F_r *= rinv;
 
     /** accumulate the external force */
@@ -276,12 +333,20 @@ void calcExternalGravity_dev
 #   if  defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
     if( grpNum != 0 )
 #endif//defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
-      calcExternalGravity_kernel<<<Nrem, thrd>>>
+      calcExternalGravity_kernel
+	<<<Nrem, thrd
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	, sphe.num * sizeof(real)
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	>>>
 	(pi.acc_ext, pi.pos,
 #ifdef  BLOCK_TIME_STEP
 	 BLOCKSIZE(grpNum, NGROUPS) * NGROUPS, laneInfo,
 #endif//BLOCK_TIME_STEP
-	 sphe.logrmin, sphe.invlogrbin, sphe.num, sphe.rad, sphe.Phi);
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	 sphe.logrmin, sphe.invlogrbin,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	 sphe.num, sphe.rad, sphe.Phi);
   }/* if( Nrem <= MAX_BLOCKS_PER_GRID ){ */
   else{
     /** when grid splitting is required... */
@@ -298,14 +363,22 @@ void calcExternalGravity_dev
       int Nsub = Nblck * NTHREADS;
 #endif//BLOCK_TIME_STEP
 
-      calcExternalGravity_kernel<<<Nblck, thrd>>>
+      calcExternalGravity_kernel
+	<<<Nblck, thrd
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	, sphe.num * sizeof(real)
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	>>>
 	(
 #ifdef  BLOCK_TIME_STEP
 	 pi.acc_ext, pi.pos, BLOCKSIZE(Nsub, NGROUPS) * NGROUPS, &laneInfo[hidx],
 #else///BLOCK_TIME_STEP
 	 &pi.acc_ext[hidx], &pi.pos[hidx],
 #endif//BLOCK_TIME_STEP
-	 sphe.logrmin, sphe.invlogrbin, sphe.num, sphe.rad, sphe.Phi);
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	 sphe.logrmin, sphe.invlogrbin,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	 sphe.num, sphe.rad, sphe.Phi);
 
       hidx += Nsub;
       Nrem -= Nblck;
@@ -351,6 +424,12 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
   bool success_cfg = true;
   success_cfg &= (1 == fscanf(fp_cfg, "%d", &Nread));
 
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  if( Nread != 1 ){
+    __KILL__(stderr, "ERROR: Nread = %d; however, reading and superposing multiple potential tables in GOTHIC are not yet supported.\n", Nread);
+  }/* if( Nread != 1 ){ */
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+
   /* open an existing file with read only option */
   char filename[128];
 #ifdef  USE_HDF5_FORMAT
@@ -383,6 +462,7 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
     __KILL__(stderr, "ERROR: unit system of the potential field (%d) differs with that in the simulation run (%d)\n", unit_pot, unit);
   }/* if( unit_pot != unit ){ */
 
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   group = H5Gopen(target, "spherical", H5P_DEFAULT);
   /* read # of data points */
   attribute = H5Aopen(group, "num", H5P_DEFAULT);
@@ -397,16 +477,23 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
   chkHDF5err(H5Aread(attribute, type.real, &pot_tbl->logrbin));
   chkHDF5err(H5Aclose(attribute));
   chkHDF5err(H5Gclose(group));
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   const int num = pot_tbl->num;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   /* memory allocation on the accelerator device */
-  muse alloc_tbl = allocSphericalPotentialTable_dev(rad, Phi, num);
+  muse alloc_tbl;
   real *rad_hst;
   pot2 *Phi_hst;
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  alloc_tbl = allocSphericalPotentialTable_dev(rad, Phi, num);
   allocSphericalPotentialTable_hst(&rad_hst, &Phi_hst, num);
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   /* memory allocation on the host as a temporary buffer */
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   pot2 *Phi_tmp;
   if( Nread == 1 )
     Phi_tmp = Phi_hst;
@@ -417,7 +504,7 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
     for(int ii = 0; ii < num; ii++)
       Phi_hst[ii] = zero;
   }/* else{ */
-
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   for(int ii = 0; ii < Nread; ii++){
     hid_t dataset;
@@ -427,28 +514,54 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
     success_cfg &= (1 == fscanf(fp_cfg, "%s", list));
     group = H5Gopen(target, list, H5P_DEFAULT);
 
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+    /* read # of data points */
+    attribute = H5Aopen(group, "num", H5P_DEFAULT);
+    chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &pot_tbl->num));
+    chkHDF5err(H5Aclose(attribute));
+
+    const int num = pot_tbl->num;
+
+    alloc_tbl = allocSphericalPotentialTable_dev(rad, Phi, num);
+    allocSphericalPotentialTable_hst(&rad_hst, &Phi_hst, num);
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+
     /* read radius */
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+    dataset = H5Dopen(group, "r", H5P_DEFAULT);
+    chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, rad_hst));
+    chkHDF5err(H5Dclose(dataset));
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
     if( ii == 0 ){
       dataset = H5Dopen(group, "r", H5P_DEFAULT);
       chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, rad_hst));
       chkHDF5err(H5Dclose(dataset));
     }/* if( ii == 0 ){ */
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
     /* read potential */
     dataset = H5Dopen(group, "Phi(r)", H5P_DEFAULT);
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+    chkHDF5err(H5Dread(dataset, type.pot2, H5S_ALL, H5S_ALL, H5P_DEFAULT, Phi_hst));
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
     chkHDF5err(H5Dread(dataset, type.pot2, H5S_ALL, H5S_ALL, H5P_DEFAULT, Phi_tmp));
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
     chkHDF5err(H5Dclose(dataset));
 
     chkHDF5err(H5Gclose(group));
 
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
     if( Nread > 1 )
       for(int jj = 0; jj < num; jj++){
 	Phi_hst[jj].val += Phi_tmp[jj].val;
 	Phi_hst[jj].dr2 += Phi_tmp[jj].dr2;
       }/* for(int jj = 0; jj < num; jj++){ */
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   }/* for(int ii = 0; ii < Nread; ii++){ */
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   if( Nread != 1 )
     free(Phi_tmp);
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   /* close the file */
   chkHDF5err(H5Fclose(target));
@@ -462,35 +575,54 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
   if( fp == NULL ){    __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);  }
 
   int unit_pot, num;
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   real rmin, rbin;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   bool success = true;
   size_t tmp;
+
   tmp = 1;  if( tmp != fread(&unit_pot, sizeof(int), tmp, fp) )    success = false;
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   tmp = 1;  if( tmp != fread(&num, sizeof(int), tmp, fp) )    success = false;
   tmp = 1;  if( tmp != fread(&rmin, sizeof(real), tmp, fp) )    success = false;
   tmp = 1;  if( tmp != fread(&rbin, sizeof(real), tmp, fp) )    success = false;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   /* simple error check */
   if( unit_pot != unit ){
     __KILL__(stderr, "ERROR: unit system of the potential field (%d) differs with that in the simulation run (%d)\n", unit_pot, unit);
   }/* if( unit_pot != unit ){ */
 
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   pot_tbl->num = num;
   pot_tbl->logrmin = rmin;
   pot_tbl->logrbin = rbin;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   /* memory allocation on the accelerator device */
-  muse alloc_tbl = allocSphericalPotentialTable_dev(rad, Phi, num);
+  muse alloc_tbl;
   real *rad_hst;
   pot2 *Phi_hst;
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  alloc_tbl = allocSphericalPotentialTable_dev(rad, Phi, num);
   allocSphericalPotentialTable_hst(&rad_hst, &Phi_hst, num);
 
   tmp = num;  if( tmp != fread(rad_hst, sizeof(real), tmp, fp) )    success = false;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   int list;
   success_cfg &= (1 == fscanf(fp_cfg, "%d", &list));
   if( (Nread == 1) && (list == READ_SUPERPOSED_TABLE_SPHE) ){
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+    tmp = 1;    if( tmp != fread(&num, sizeof(int), tmp, fp) )      success = false;
+
+    pot_tbl->num = num;
+    alloc_tbl = allocSphericalPotentialTable_dev(rad, Phi, num);
+    allocSphericalPotentialTable_hst(&rad_hst, &Phi_hst, num);
+
+    tmp = num;    if( tmp != fread(rad_hst, sizeof(real), tmp, fp) )      success = false;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
     tmp = num;    if( tmp != fread(Phi_hst, sizeof(pot2), tmp, fp) )      success = false;
 
     if( success != true ){      __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);    }
@@ -501,17 +633,32 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
     if( success != true ){      __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);    }
     fclose(fp);
 
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
     pot2 *Phi_tmp;
     Phi_tmp = (pot2 *)malloc(num * sizeof(pot2));    if( Phi_tmp == NULL ){      __KILL__(stderr, "ERROR: failure to allocate Phi_tmp\n");    }
 
     const pot2 zero = {ZERO, ZERO};
     for(int ii = 0; ii < num; ii++)
       Phi_hst[ii] = zero;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
     /* open another file */
     for(int ii = 0; ii < Nread; ii++){
       sprintf(filename, "%s/%s.%s.%d", DATAFOLDER, file, "pot", list);
       fp = fopen(filename, "rb");
+
+      tmp = 1;      if( tmp != fread(&unit_pot, sizeof(int), tmp, fp) )	success = false;
+      tmp = 1;      if( tmp != fread(&num, sizeof(int), tmp, fp) )	success = false;
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+      pot_tbl->num = num;
+      alloc_tbl = allocSphericalPotentialTable_dev(rad, Phi, num);
+      allocSphericalPotentialTable_hst(&rad_hst, &Phi_hst, num);
+
+      tmp = num;      if( tmp != fread(rad_hst, sizeof(real), tmp, fp) )	success = false;
+      tmp = num;      if( tmp != fread(Phi_hst, sizeof(pot2), tmp, fp) )	success = false;
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+      tmp = 1;      if( tmp != fread(&rmin, sizeof(real), tmp, fp) )	success = false;
+      tmp = 1;      if( tmp != fread(&rbin, sizeof(real), tmp, fp) )	success = false;
 
       tmp = num;      if( tmp != fread(Phi_tmp, sizeof(pot2), tmp, fp) )	success = false;
 
@@ -519,6 +666,7 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
 	Phi_hst[jj].val += Phi_tmp[jj].val;
 	Phi_hst[jj].dr2 += Phi_tmp[jj].dr2;
       }/* for(int jj = 0; jj < *Nr; jj++){ */
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
       if( success != true ){	__KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);      }
       fclose(fp);
@@ -536,7 +684,9 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
 
   pot_tbl->rad = *rad;
   pot_tbl->Phi = *Phi;
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   pot_tbl->invlogrbin = UNITY / pot_tbl->logrbin;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   if( success_cfg != true ){    __KILL__(stderr, "ERROR: failure to read \"%s\"\n", cfgfile);  }
   fclose(fp_cfg);
