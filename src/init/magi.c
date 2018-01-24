@@ -1111,15 +1111,6 @@ int main(int argc, char **argv)
     freeRandNum(rand);
   }
 
-  if( skind == 0 )
-#pragma omp parallel for
-    for(int ii = 0; ii < NRADBIN; ii++){
-      prf[0][ii].enc_tot  = prf[ 0][ii].enc;
-      for(int jj = 1; jj < ndisk; jj++)
-      prf[0][ii].enc_tot += prf[jj][ii].enc;
-    }/* for(int ii = 0; ii < NRADBIN; ii++){ */
-
-
   /** generate tables for fixed potential field */
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   initBenchmark_cpu();
@@ -1137,6 +1128,14 @@ int main(int argc, char **argv)
   stopBenchmark_cpu(&execTime.external);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
+  if( skind == 0 )
+#pragma omp parallel for
+    for(int ii = 0; ii < NRADBIN; ii++){
+      prf[0][ii].enc_tot  = prf[ 0][ii].enc;
+      for(int jj = 1; jj < ndisk; jj++)
+      prf[0][ii].enc_tot += prf[jj][ii].enc;
+    }/* for(int ii = 0; ii < NRADBIN; ii++){ */
+
 
   /** evaluate observable quantities */
   initBenchmark_cpu();
@@ -1145,6 +1144,13 @@ int main(int argc, char **argv)
     getEffectiveRadius(ndisk, maxLev, disk_info);
   stopBenchmark_cpu(&execTime.observe);
 
+
+  /** output fundamental quantities of the disk component */
+  if( addDisk ){
+    initBenchmark_cpu();
+    writeDiskData(file, ndisk, maxLev, disk_info);
+    stopBenchmark_cpu(&execTime.diskInfo);
+  }/* if( addDisk ){ */
 
   /** write fundamental information */
   initBenchmark_cpu();
@@ -1159,13 +1165,6 @@ int main(int argc, char **argv)
   outputRepresentativeQuantities(kind, cfg, skind, prf, ndisk, maxLev, disk_info, file);
 #endif//USE_HDF5_FORMAT
   stopBenchmark_cpu(&execTime.spheInfo);
-
-  /** output fundamental quantities of the disk component */
-  if( addDisk ){
-    initBenchmark_cpu();
-    writeDiskData(file, ndisk, maxLev, disk_info);
-    stopBenchmark_cpu(&execTime.diskInfo);
-  }/* if( addDisk ){ */
 
   /** write particle data */
   double time = 0.0;
@@ -2726,6 +2725,10 @@ static void evaluateDiskProperties
     const double Sigma = disk_info[diskID].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
     const double toomre = sigmaR * kappa / (DBL_MIN + 3.36 * CAST_R2D(newton) * Sigma);
     const double lambda = 4.0 * M_PI * M_PI * CAST_R2D(newton) * Sigma / (DBL_MIN + kappa * kappa);
+#if 1
+    if( fabs(disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] - disk_info[diskID].cfg->rs) < 2.0e-2 )
+      fprintf(stderr, "Omega = %e, kappa = %e, Sigma = %e, sigma_R0 = %e, sigmaR = %e: R = %e, Q = %e\n", Omega, kappa, Sigma, disk_info[diskID].cfg->vdispR0, sigmaR, disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], toomre);
+#endif
 
     /** find the maximum circular speed */
     if( vcirc > disk_info[diskID].cfg->vcirc_max ){

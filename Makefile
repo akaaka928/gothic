@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/01/24 (Wed) 11:54:42
+# last updated on 2018/01/24 (Wed) 16:03:23
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -42,7 +42,7 @@ DUMPFILE_IN_TIPSY	:= 0
 DUMPFILE_AS_GALACTICS	:= 0
 USE_OFFICIAL_SFMT	:= 1
 USE_OFFICIAL_SFMT_JUMP	:= 1
-SET_EXTERNAL_FIELD	:= 1
+SET_EXTERNAL_FIELD	:= 0
 SET_EXTERNAL_FIELD_SPHE	:= 1
 SET_EXTERNAL_FIELD_DISK	:= 0
 ADAPTIVE_EXTERNAL_FIELD	:= 1

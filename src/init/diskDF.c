@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/19 (Fri)
+ * @date 2018/01/24 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -866,7 +866,13 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
       const double Omega0 = sqrt( dPhidR  / disk.cfg->rs);
       const double kappa0 = sqrt(d2PhidR2 + 3.0 * Omega0 * Omega0);
 
-      disk.cfg->vdispR0 = sqrt(M_E) * 3.36 * CAST_R2D(newton) * Sigma0 * disk.cfg->toomre / (DBL_MIN + kappa0);
+#pragma omp barrier
+      disk.cfg->vdispR0 = disk.cfg->toomre * sqrt(M_E) * 3.36 * CAST_R2D(newton) * Sigma0 / (DBL_MIN + kappa0);
+
+#if 1
+#pragma omp single nowait
+      fprintf(stderr, "Omega0 = %e, kappa0 = %e, Sigma0 = %e, sigma_R0 = %e: Q_Rs = %e\n", Omega0, kappa0, Sigma0, disk.cfg->vdispR0, DISK_RADIAL_VDISP(disk.cfg->vdispR0, disk.cfg->rs, 1.0 / disk.cfg->rs) * kappa0 / (3.36 * CAST_R2D(newton) * Sigma0));
+#endif
     }/* if( disk.cfg->toomre >= 0.0 ){ */
     else
       disk.cfg->vdispR0 = disk.cfg->vdispz0;

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/01/24 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -52,8 +52,8 @@
 #define DISK_PERP_VDISP(sigmaz, vcirc, frac) (fmin(sigmaz, (frac) * (vcirc)))
 #else///ENFORCE_EPICYCLIC_APPROXIMATION
 /** same method with GalactICS */
-#define DISK_RADIAL_VDISP2(sz0_2, RR, invRd) ((sz0_2) *      exp(-(RR) * (invRd)))
-#define DISK_RADIAL_VDISP( sz0  , RR, invRd) ((sz0  ) * sqrt(exp(-(RR) * (invRd))))
+#define DISK_RADIAL_VDISP2(sR0_2, RR, invRd) ((sR0_2) *      exp(-(RR) * (invRd)))
+#define DISK_RADIAL_VDISP( sR0  , RR, invRd) ((sR0  ) * sqrt(exp(-(RR) * (invRd))))
 #endif//ENFORCE_EPICYCLIC_APPROXIMATION
 
 

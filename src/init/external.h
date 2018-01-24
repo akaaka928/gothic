@@ -21,7 +21,7 @@
 #include "../misc/structure.h"
 #include "../init/profile.h"
 
-#define N_EXT_POT_SPHE (16384)
+#define N_EXT_POT_SPHE (1024)
 
 #   if  N_EXT_POT_SPHE > NRADBIN
 #undef  N_EXT_POT_SPHE

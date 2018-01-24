@@ -674,12 +674,14 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
       if( ii < (Nread - 1) )
 	success_cfg &= (1 == fscanf(fp_cfg, "%d", &list));
     }/* for(int ii = 0; ii < Nread; ii++){ */
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
     free(Phi_tmp);
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   }/* else{ */
 
 #endif//USE_HDF5_FORMAT
 
-  setSphericalPotentialTable_dev(rad_hst, Phi_hst, *rad, *Phi, num);
+  setSphericalPotentialTable_dev(rad_hst, Phi_hst, *rad, *Phi, pot_tbl->num);
   freeSphericalPotentialTable_hst(rad_hst, Phi_hst);
 
   pot_tbl->rad = *rad;
