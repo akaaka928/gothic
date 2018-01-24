@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/19 (Fri)
+ * @date 2018/01/23 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2218,8 +2218,7 @@ void writeFixedPotentialTable(const int unit, const int kind, potential_field *p
   fp_cfg = fopen(cfgfile, "w");
   if( fp_cfg == NULL ){    __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", cfgfile);  }
 
-  bool success_cfg = true;
-  success_cfg &= (1 == fprintf(fp_cfg, "%d\n", 1 + (kind > skind) + kind));
+  fprintf(fp_cfg, "%d\n", 1 + (kind > skind) + kind);
 
 
   char filename[256];
@@ -2257,7 +2256,7 @@ void writeFixedPotentialTable(const int unit, const int kind, potential_field *p
 
 
   /* write potential table for superposed spherical components */
-  success_cfg &= (1 == fprintf(fp_cfg, "%s\n", "spherical"));
+  fprintf(fp_cfg, "%s\n", "spherical");
   hid_t group = H5Gcreate(target, "spherical", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   /* write radius */
   dataset = H5Dcreate(group, "r", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
@@ -2288,7 +2287,7 @@ void writeFixedPotentialTable(const int unit, const int kind, potential_field *p
 
   /* write (spherical averaged) potential table for superposed disk components */
   if( kind > skind ){
-    success_cfg &= (1 == fprintf(fp_cfg, "%s\n", "disk"));
+    fprintf(fp_cfg, "%s\n", "disk");
     group = H5Gcreate(target, "disk", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     /* write radius */
     dataset = H5Dcreate(group, "r", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
@@ -2323,7 +2322,7 @@ void writeFixedPotentialTable(const int unit, const int kind, potential_field *p
     for(int ii = 0; ii < kind; ii++){
       char grp[16];
       sprintf(grp, "data%d", ii);
-      success_cfg &= (1 == fprintf(fp_cfg, "%s/%s\n", "individual", grp));
+      fprintf(fp_cfg, "%s/%s\n", "individual", grp);
       hid_t sub = H5Gcreate(group, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
       /* write radius */
@@ -2413,7 +2412,7 @@ void writeFixedPotentialTable(const int unit, const int kind, potential_field *p
     tmp = 1;    if( tmp != fwrite(&(pot_tbl_sphe.logrmin), sizeof(real), tmp, fp) )      success = false;
     tmp = 1;    if( tmp != fwrite(&(pot_tbl_sphe.logrbin), sizeof(real), tmp, fp) )      success = false;
 
-    success_cfg &= (1 == fprintf(fp_cfg, "%d\n", READ_SUPERPOSED_TABLE_SPHE));
+    fprintf(fp_cfg, "%d\n", READ_SUPERPOSED_TABLE_SPHE);
     tmp = Ndat;    if( tmp != fwrite(pot_tbl_sphe.rad, sizeof(real), tmp, fp) )      success = false;
     tmp = Ndat;    if( tmp != fwrite(pot_tbl_sphe.Phi, sizeof(pot2), tmp, fp) )      success = false;
 
@@ -2424,7 +2423,7 @@ void writeFixedPotentialTable(const int unit, const int kind, potential_field *p
     fprintf(fp, "%d\n", Ndat);
     fprintf(fp, "%e\t%e\n", pot_tbl_sphe.logrmin, pot_tbl_sphe.logrbin);
 
-    success_cfg &= (1 == fprintf(fp_cfg, "%d\n", READ_SUPERPOSED_TABLE_SPHE));
+    fprintf(fp_cfg, "%d\n", READ_SUPERPOSED_TABLE_SPHE);
     for(int ii = 0; ii < Ndat; ii++)
       fprintf(fp, "%e\t%e\t%e\n", pot_tbl_sphe.rad[ii], pot_tbl_sphe.Phi[ii].val, pot_tbl_sphe.Phi[ii].dr2);
   }/* else{ */
@@ -2440,7 +2439,7 @@ void writeFixedPotentialTable(const int unit, const int kind, potential_field *p
       bool success = true;
       size_t tmp;
 
-      success_cfg &= (1 == fprintf(fp_cfg, "%d\n", READ_SUPERPOSED_TABLE_DISK));
+      fprintf(fp_cfg, "%d\n", READ_SUPERPOSED_TABLE_DISK);
       tmp = Ndat;      if( tmp != fwrite(pot_tbl_disk.Phi, sizeof(pot2), tmp, fp) )	success = false;
       tmp = Ndat;      if( tmp != fwrite(pot_tbl_disk.rad, sizeof(real), tmp, fp) )	success = false;
 
@@ -2450,7 +2449,7 @@ void writeFixedPotentialTable(const int unit, const int kind, potential_field *p
       fprintf(fp, "%d\n", Ndat);
       fprintf(fp, "%e\t%e\n", pot_tbl_disk.logrmin, pot_tbl_disk.logrbin);
 
-      success_cfg &= (1 == fprintf(fp_cfg, "%d\n", READ_SUPERPOSED_TABLE_DISK));
+      fprintf(fp_cfg, "%d\n", READ_SUPERPOSED_TABLE_DISK);
       for(int ii = 0; ii < Ndat; ii++)
 	fprintf(fp, "%e\t%e\t%e\n", pot_tbl_disk.rad[ii], pot_tbl_disk.Phi[ii].val, pot_tbl_disk.Phi[ii].dr2);
     }/* else{ */
@@ -2461,7 +2460,7 @@ void writeFixedPotentialTable(const int unit, const int kind, potential_field *p
   /* write numeric table for each component */
   if( kind > 1 )
     for(int kk = 0; kk < kind; kk++){
-      success_cfg &= (1 == fprintf(fp_cfg, "%d\n", kk));
+      fprintf(fp_cfg, "%d\n", kk);
       sprintf(filename, "%s/%s.%s.%d", DATAFOLDER, file, "pot", kk);
       fp = fopen(filename, binary ? "wb" : "w");
       if( fp == NULL ){	__KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);      }
@@ -2485,7 +2484,6 @@ void writeFixedPotentialTable(const int unit, const int kind, potential_field *p
 
 #endif//USE_HDF5_FORMAT
 
-  if( success_cfg != true ){    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", cfgfile);  }
   fclose(fp_cfg);
 
 

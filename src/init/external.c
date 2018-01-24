@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/18 (Thu)
+ * @date 2018/01/22 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -64,10 +64,14 @@ void genExtPotTbl1D(const int kind, profile **prf, potential_field *pot)
     for(int jj = 0; jj < N_EXT_POT_SPHE; jj++)
       pot[ii].Phi[jj].dr2 = CAST_D2R(y2[jj]);
 
-    const real logrmin = LOG10(rr[                 0]);
-    const real logrmax = LOG10(rr[N_EXT_POT_SPHE - 1]);
-    pot[ii].logrmin = logrmin;
-    pot[ii].logrbin = (logrmax - logrmin) / (real)(N_EXT_POT_SPHE - 1);
+    /* const real logrmin = LOG10(rr[                 0]); */
+    /* const real logrmax = LOG10(rr[N_EXT_POT_SPHE - 1]); */
+    /* pot[ii].logrmin = logrmin; */
+    /* pot[ii].logrbin = (logrmax - logrmin) / (real)(N_EXT_POT_SPHE - 1); */
+    const double logrmin = log10(prf[ii][0].rad);
+    const double logrmax = log10(prf[ii][(N_EXT_POT_SPHE - 1) * skip].rad);
+    pot[ii].logrmin = CAST_D2R(logrmin);
+    pot[ii].logrbin = CAST_D2R((logrmax - logrmin) / (double)(N_EXT_POT_SPHE - 1));
     pot[ii].num = N_EXT_POT_SPHE;
   }/* for(int ii = 0; ii < kind; ii++){ */
 

@@ -1,14 +1,14 @@
 #!/bin/bash
 ###############################################################
 #SBATCH -J gothic             # name of job
-##SBATCH -t 24:00:00           # upper limit of elapsed time
-#SBATCH -t 00:10:00           # upper limit of elapsed time
+#SBATCH -t 24:00:00           # upper limit of elapsed time
+# #SBATCH -t 00:10:00           # upper limit of elapsed time
 #SBATCH -p normal             # partition name
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
-# #SBATCH --ntasks=1            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
-# #SBATCH --ntasks-per-socket=1 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
-#SBATCH --ntasks=2            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
-#SBATCH --ntasks-per-socket=2 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
+#SBATCH --ntasks=1            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
+#SBATCH --ntasks-per-socket=1 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
+# #SBATCH --ntasks=2            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
+# #SBATCH --ntasks-per-socket=2 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
 #SBATCH --get-user-env        # retrieve the login environment variables
 ###############################################################
 
@@ -20,10 +20,10 @@ EXEC=bin/gothic
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=2
+    # PROBLEM=2
     # PROBLEM=20
     # PROBLEM=26
-    # PROBLEM=28
+    PROBLEM=28
     # PROBLEM=80
     # PROBLEM=81
 fi

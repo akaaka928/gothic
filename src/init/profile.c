@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/16 (Tue)
+ * @date 2018/01/22 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -916,7 +916,7 @@ void integrateDensityProfile(profile *prf, profile_cfg *cfg
 #pragma omp parallel for
   for(int ii = 0; ii < NRADBIN; ii++){
     prf[ii].enc *= 4.0 * M_PI;
-    prf[ii].psi *= 4.0 * M_PI * (double)newton;
+    prf[ii].psi *= 4.0 * M_PI * CAST_R2D(newton);
   }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
 

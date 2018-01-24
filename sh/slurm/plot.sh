@@ -388,10 +388,6 @@ OPTMAP="-file=$FILE -problem=$PROBLEM -ncrit=$NCRIT -start=$START -end=$END -int
 # set number of MPI processes per node
 PROCS_PER_NODE=`expr $SLURM_NTASKS / $SLURM_JOB_NUM_NODES`
 ###############################################################
-# set stdout and stderr
-STDOUT=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.out
-STDERR=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.err
-###############################################################
 # start logging
 cd $SLURM_SUBMIT_DIR
 echo "use $SLURM_JOB_NUM_NODES nodes"
@@ -400,30 +396,15 @@ TIME=`date`
 echo "start: $TIME"
 ###############################################################
 # execute the job
-if [ `which numactl` ]; then
-    # mpiexec with numactl
-    echo "mpiexec -n $SLURM_NTASKS -l sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTENE $OPTENE 1>>$STDOUT 2>>$STDERR"
-    mpiexec -n $SLURM_NTASKS -l sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTENE $OPTENE 1>>$STDOUT 2>>$STDERR
+echo "mpiexec -n $SLURM_NTASKS sh/wrapper.sh $PLTENE log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTENE"
+mpiexec -n $SLURM_NTASKS sh/wrapper.sh $PLTENE log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTENE
 
-    echo "mpiexec -n $SLURM_NTASKS -l sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTMAP $OPTMAP 1>>$STDOUT 2>>$STDERR"
-    mpiexec -n $SLURM_NTASKS -l sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTMAP $OPTMAP 1>>$STDOUT 2>>$STDERR
+echo "mpiexec -n $SLURM_NTASKS sh/wrapper.sh $PLTMAP log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTMAP"
+mpiexec -n $SLURM_NTASKS sh/wrapper.sh $PLTMAP log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTMAP
 
-    if [ -e dat/$FILE.direct000.dat ]; then
-	echo "mpiexec -n $SLURM_NTASKS -l sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTCDF $OPTCDF 1>>$STDOUT 2>>$STDERR"
-	mpiexec -n $SLURM_NTASKS -l sh/slurm/numarun.sh $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $PLTCDF $OPTCDF 1>>$STDOUT 2>>$STDERR
-    fi
-else
-    # mpiexec without numactl
-    echo "mpiexec -n $SLURM_NTASKS -l $PLTENE $OPTENE 1>>$STDOUT 2>>$STDERR"
-    mpiexec -n $SLURM_NTASKS -l $PLTENE $OPTENE 1>>$STDOUT 2>>$STDERR
-
-    echo "mpiexec -n $SLURM_NTASKS -l $PLTMAP $OPTMAP 1>>$STDOUT 2>>$STDERR"
-    mpiexec -n $SLURM_NTASKS -l $PLTMAP $OPTMAP 1>>$STDOUT 2>>$STDERR
-
-    if [ -e dat/$FILE.direct000.dat ]; then
-	echo "mpiexec -n $SLURM_NTASKS -l $PLTCDF $OPTCDF 1>>$STDOUT 2>>$STDERR"
-	mpiexec -n $SLURM_NTASKS -l $PLTCDF $OPTCDF 1>>$STDOUT 2>>$STDERR
-    fi
+if [ -e dat/$FILE.direct000.dat ]; then
+    echo "mpiexec -n $SLURM_NTASKS sh/wrapper.sh $PLTCDF log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTCDF"
+    mpiexec -n $SLURM_NTASKS sh/wrapper.sh $PLTCDF log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTCDF
 fi
 ###############################################################
 # finish logging

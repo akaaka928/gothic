@@ -14,10 +14,10 @@ EXEC=bin/magi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=2
+    # PROBLEM=2
     # PROBLEM=20
     # PROBLEM=26
-    # PROBLEM=28
+    PROBLEM=28
     # PROBLEM=70
     # PROBLEM=71
     # PROBLEM=1
@@ -37,13 +37,13 @@ if [ -z "$NTOT" ]; then
     # NTOT=16384
     # NTOT=32768
     # NTOT=65536
-    NTOT=131072
+    # NTOT=131072
     # NTOT=262144
     # NTOT=524288
     # NTOT=1048576
     # NTOT=2097152
     # NTOT=4194304
-    # NTOT=8388608
+    NTOT=8388608
     # NTOT=16777216
     # NTOT=33554432
     # NTOT=67108864
