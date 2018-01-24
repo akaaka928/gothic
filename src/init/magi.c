@@ -2706,12 +2706,14 @@ static void evaluateDiskProperties
   for(int ii = ihead; ii < itail + 1; ii++){
     /** evaluate epicyclic quantities and circular speed */
 #ifndef USE_POTENTIAL_SCALING_SCHEME
-    const double Omega = sqrt(disk_info[diskID]. dPhidR [INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] / disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
-    const double kappa = sqrt(disk_info[diskID].d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] + 3.0 * Omega * Omega);
+    const double  dPhidR  = disk_info[diskID]. dPhidR [INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)];
+    const double d2PhidR2 = disk_info[diskID].d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)];
 #else///USE_POTENTIAL_SCALING_SCHEME
-    const double Omega = sqrt(disk_info[diskID]. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] / disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
-    const double kappa = sqrt(disk_info[diskID].d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + 3.0 * Omega * Omega);
+    const double  dPhidR  = disk_info[diskID]. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
+    const double d2PhidR2 = disk_info[diskID].d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
 #endif//USE_POTENTIAL_SCALING_SCHEME
+    const double Omega = sqrt( dPhidR  / disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
+    const double kappa = sqrt(d2PhidR2 + 3.0 * Omega * Omega);
     const double vcirc = disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] * Omega;
 
     /** evaluate Toomre's Q-value */
@@ -2727,7 +2729,7 @@ static void evaluateDiskProperties
     const double lambda = 4.0 * M_PI * M_PI * CAST_R2D(newton) * Sigma / (DBL_MIN + kappa * kappa);
 #if 1
     if( fabs(disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] - disk_info[diskID].cfg->rs) < 2.0e-2 )
-      fprintf(stderr, "Omega = %e, kappa = %e, Sigma = %e, sigma_R0 = %e, sigmaR = %e: R = %e, Q = %e\n", Omega, kappa, Sigma, disk_info[diskID].cfg->vdispR0, sigmaR, disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], toomre);
+      fprintf(stderr, "lev = %d, ii = %d, R = %e, Omega = %e, kappa = %e, Sigma = %e, sigma_R0 = %e, sigmaR = %e: Q = %e\n", lev, ii, disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], Omega, kappa, Sigma, disk_info[diskID].cfg->vdispR0, sigmaR, toomre);
 #endif
 
     /** find the maximum circular speed */

@@ -859,8 +859,8 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
       const double  dPhidR  = (1.0 - aR) * disk. dPhidR [INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] + aR * disk. dPhidR [INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, 1 + ii, 0)];
       const double d2PhidR2 = (1.0 - aR) * disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] + aR * disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, 1 + ii, 0)];
 #else///USE_POTENTIAL_SCALING_SCHEME
-      const double Omega0 = sqrt(disk. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] / disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
-      const double kappa0 = sqrt(disk.d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + 3.0 * Omega0 * Omega0);
+      const double  dPhidR  = (1.0 - aR) * disk. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + aR * disk. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + ii)];
+      const double d2PhidR2 = (1.0 - aR) * disk.d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + aR * disk.d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + ii)];
 #endif//USE_POTENTIAL_SCALING_SCHEME
 
       const double Omega0 = sqrt( dPhidR  / disk.cfg->rs);
@@ -871,7 +871,7 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
 
 #if 1
 #pragma omp single nowait
-      fprintf(stderr, "Omega0 = %e, kappa0 = %e, Sigma0 = %e, sigma_R0 = %e: Q_Rs = %e\n", Omega0, kappa0, Sigma0, disk.cfg->vdispR0, DISK_RADIAL_VDISP(disk.cfg->vdispR0, disk.cfg->rs, 1.0 / disk.cfg->rs) * kappa0 / (3.36 * CAST_R2D(newton) * Sigma0));
+      fprintf(stderr, "lev = %d, ii = %d, R = %e, Omega0 = %e, kappa0 = %e, Sigma0 = %e, sigma_R0 = %e: Q_Rs = %e\n", lev, ii, (1.0 - aR) * disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + aR * disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + ii)], Omega0, kappa0, Sigma0, disk.cfg->vdispR0, DISK_RADIAL_VDISP(disk.cfg->vdispR0, disk.cfg->rs, 1.0 / disk.cfg->rs) * kappa0 / (3.36 * CAST_R2D(newton) * Sigma0));
 #endif
     }/* if( disk.cfg->toomre >= 0.0 ){ */
     else
