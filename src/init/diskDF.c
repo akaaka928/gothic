@@ -826,6 +826,41 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
   double Wdisk = 0.0;
 #endif//CHECK_OSTRIKER_PEEBLES_CRITERION
 
+#ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
+  const double frac = disk.cfg->vdisp_frac;
+  if( disk.cfg->vdispR0 < 0.0 )
+    disk.cfg->vdispR0 = disk.cfg->vdispz0;
+#else///ENFORCE_EPICYCLIC_APPROXIMATION
+  if( disk.cfg->vdispR0 < 0.0 ){
+    if( disk.cfg->toomre >= 0.0 ){
+      /* get physical quantities @ R = Rs to obtain Toomre's Q-value */
+      const int lev = (int)floor(log2(disk.hh * ((double)NDISKBIN_HOR - 0.5) * disk.invRd));
+      const int ii = (int)floor(ldexp(disk.cfg->rs / disk.hh, lev) - 0.5);
+      const double aR = (disk.cfg->rs - disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]) / (disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + ii)] - disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
+
+      const double Sigma0 = (1.0 - aR) * disk.Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + aR * disk.Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + ii)];
+
+#ifndef USE_POTENTIAL_SCALING_SCHEME
+      const double  dPhidR  = (1.0 - aR) * disk. dPhidR [INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] + aR * disk. dPhidR [INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, 1 + ii, 0)];
+      const double d2PhidR2 = (1.0 - aR) * disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] + aR * disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, 1 + ii, 0)];
+#else///USE_POTENTIAL_SCALING_SCHEME
+      const double  dPhidR  = (1.0 - aR) * disk. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + aR * disk. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + ii)];
+      const double d2PhidR2 = (1.0 - aR) * disk.d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + aR * disk.d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + ii)];
+#endif//USE_POTENTIAL_SCALING_SCHEME
+
+      const double Omega0 = sqrt( dPhidR  * disk.invRd);
+      const double kappa0 = sqrt(d2PhidR2 + 3.0 * Omega0 * Omega0);
+
+#pragma omp barrier
+      disk.cfg->vdispR0 = disk.cfg->toomre * sqrt(M_E) * 3.36 * CAST_R2D(newton) * Sigma0 / (DBL_MIN + kappa0);
+
+    }/* if( disk.cfg->toomre >= 0.0 ){ */
+    else
+      disk.cfg->vdispR0 = disk.cfg->vdispz0;
+  }/* if( disk.cfg->vdispR0 < 0.0 ){ */
+  const double vdispR0_2 = disk.cfg->vdispR0 * disk.cfg->vdispR0;
+#endif//ENFORCE_EPICYCLIC_APPROXIMATION
+
   double *tab_lev;
   tab_lev = (double *)malloc(sizeof(double) * maxLev);
   if( tab_lev == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tab_lev\n");  }
@@ -839,46 +874,6 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
   for(int lev = 0; lev < maxLev; lev++)
     z_tab_lev[lev] = node_ver[INDEX2D(maxLev, NDISKBIN_VER + 1, lev, NDISKBIN_VER)];
 #endif//SWEEP_HIGH_ALTITUDE_COMPONENT
-
-#ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
-  const double frac = disk.cfg->vdisp_frac;
-  if( disk.cfg->vdispR0 < 0.0 )
-    disk.cfg->vdispR0 = disk.cfg->vdispz0;
-#else///ENFORCE_EPICYCLIC_APPROXIMATION
-  if( disk.cfg->vdispR0 < 0.0 ){
-    if( disk.cfg->toomre >= 0.0 ){
-      /* get physical quantities @ R = Rs to obtain Toomre's Q-value */
-      double aR;
-      int ii, lev;
-      ii = bisection4nestedGrid(disk.cfg->rs, NDISKBIN_HOR + 1, enc, false, 1.0, &aR, maxLev, &lev, tab_lev);
-      aR /= (enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, 1 + ii)] - enc[INDEX2D(maxLev, NDISKBIN_HOR + 1, lev, ii)]);
-
-      const double Sigma0 = (1.0 - aR) * disk.Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + aR * disk.Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + ii)];
-
-#ifndef USE_POTENTIAL_SCALING_SCHEME
-      const double  dPhidR  = (1.0 - aR) * disk. dPhidR [INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] + aR * disk. dPhidR [INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, 1 + ii, 0)];
-      const double d2PhidR2 = (1.0 - aR) * disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] + aR * disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, 1 + ii, 0)];
-#else///USE_POTENTIAL_SCALING_SCHEME
-      const double  dPhidR  = (1.0 - aR) * disk. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + aR * disk. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + ii)];
-      const double d2PhidR2 = (1.0 - aR) * disk.d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + aR * disk.d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + ii)];
-#endif//USE_POTENTIAL_SCALING_SCHEME
-
-      const double Omega0 = sqrt( dPhidR  / disk.cfg->rs);
-      const double kappa0 = sqrt(d2PhidR2 + 3.0 * Omega0 * Omega0);
-
-#pragma omp barrier
-      disk.cfg->vdispR0 = disk.cfg->toomre * sqrt(M_E) * 3.36 * CAST_R2D(newton) * Sigma0 / (DBL_MIN + kappa0);
-
-#if 1
-#pragma omp single nowait
-      fprintf(stderr, "lev = %d, ii = %d, R = %e, Omega0 = %e, kappa0 = %e, Sigma0 = %e, sigma_R0 = %e: Q_Rs = %e\n", lev, ii, (1.0 - aR) * disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] + aR * disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + ii)], Omega0, kappa0, Sigma0, disk.cfg->vdispR0, DISK_RADIAL_VDISP(disk.cfg->vdispR0, disk.cfg->rs, 1.0 / disk.cfg->rs) * kappa0 / (3.36 * CAST_R2D(newton) * Sigma0));
-#endif
-    }/* if( disk.cfg->toomre >= 0.0 ){ */
-    else
-      disk.cfg->vdispR0 = disk.cfg->vdispz0;
-  }/* if( disk.cfg->vdispR0 < 0.0 ){ */
-  const double vdispR0_2 = disk.cfg->vdispR0 * disk.cfg->vdispR0;
-#endif//ENFORCE_EPICYCLIC_APPROXIMATION
 
   /** distribute N-body particles */
 #ifdef  USE_SFMTJUMP

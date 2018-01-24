@@ -2727,10 +2727,6 @@ static void evaluateDiskProperties
     const double Sigma = disk_info[diskID].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
     const double toomre = sigmaR * kappa / (DBL_MIN + 3.36 * CAST_R2D(newton) * Sigma);
     const double lambda = 4.0 * M_PI * M_PI * CAST_R2D(newton) * Sigma / (DBL_MIN + kappa * kappa);
-#if 1
-    if( fabs(disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] - disk_info[diskID].cfg->rs) < 2.0e-2 )
-      fprintf(stderr, "lev = %d, ii = %d, R = %e, Omega = %e, kappa = %e, Sigma = %e, sigma_R0 = %e, sigmaR = %e: Q = %e\n", lev, ii, disk_info[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], Omega, kappa, Sigma, disk_info[diskID].cfg->vdispR0, sigmaR, toomre);
-#endif
 
     /** find the maximum circular speed */
     if( vcirc > disk_info[diskID].cfg->vcirc_max ){
