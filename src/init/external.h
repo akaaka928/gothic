@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/24 (Wed)
+ * @date 2018/01/25 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -21,7 +21,8 @@
 #include "../misc/structure.h"
 #include "../init/profile.h"
 
-#define N_EXT_POT_SPHE (1024)
+/* #define N_EXT_POT_SPHE (1024) */
+#define N_EXT_POT_SPHE (4096)
 
 #   if  N_EXT_POT_SPHE > NRADBIN
 #undef  N_EXT_POT_SPHE

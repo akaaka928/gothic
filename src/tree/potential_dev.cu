@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/24 (Wed)
+ * @date 2018/01/25 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -692,6 +692,12 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
 
   if( success_cfg != true ){    __KILL__(stderr, "ERROR: failure to read \"%s\"\n", cfgfile);  }
   fclose(fp_cfg);
+
+
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  if( (pot_tbl->num * sizeof(real)) > (SMEM_SIZE_L1_PREF >> 1) )
+    checkCudaErrors(cudaFuncSetCacheConfig(calcExternalGravity_kernel, cudaFuncCachePreferShared));
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
 
   __NOTE__("%s\n", "end");

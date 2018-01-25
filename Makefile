@@ -36,6 +36,7 @@ ADOPT_VECTOR_ACC_MAC	:= 0
 ADOPT_GADGET_TYPE_MAC	:= 1
 ADOPT_WS93_TYPE_MAC	:= 1
 IJ_PARALLELIZED_WALK	:= 1
+CLOCK_BASED_AUTO_TUNING	:= 0
 DATAFILE_FORMAT_HDF5	:= 1
 HDF5_FOR_ZINDAIJI	:= 0
 DUMPFILE_IN_TIPSY	:= 0
@@ -224,6 +225,11 @@ endif
 ifeq ($(IJ_PARALLELIZED_WALK), 1)
 CCARG	+= -DIJ_PARALLELIZATION
 CUARG	+= -DIJ_PARALLELIZATION
+endif
+#################################################################################################
+ifeq ($(CLOCK_BASED_AUTO_TUNING), 1)
+CCARG	+= -DUSE_CLOCK_CYCLES_FOR_BRENT_METHOD
+CUARG	+= -DUSE_CLOCK_CYCLES_FOR_BRENT_METHOD
 endif
 #################################################################################################
 ifeq ($(USEPAPI), 0)

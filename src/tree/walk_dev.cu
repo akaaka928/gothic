@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/17 (Wed)
+ * @date 2018/01/24 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2146,6 +2146,17 @@ void calcGravity_dev
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
  , const potential_field sphe
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  USE_CLOCK_CYCLES_FOR_BRENT_METHOD
+
+#   if  defined(SERIALIZED_EXECUTION) && !defined(PRINT_PSEUDO_PARTICLE_INFO) || defined(USE_CUDA_EVENT)
+ , unsigned long long int *cycles_hst, unsigned long long int *cycles_dev
+/* set cycles_hst to brentDistance.u.val for auto-tuning with Brent method */
+
+ /* perhaps, refactoring is the best way */
+
+#endif//defined(SERIALIZED_EXECUTION) && !defined(PRINT_PSEUDO_PARTICLE_INFO) || defined(USE_CUDA_EVENT)
+
+#endif//USE_CLOCK_CYCLES_FOR_BRENT_METHOD
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
  , char *file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
