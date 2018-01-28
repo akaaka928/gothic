@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/16 (Tue)
+ * @date 2018/01/25 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -500,48 +500,29 @@ extern "C"
 #endif//__CUDACC__
   muse setCUDAstreams_dev(cudaStream_t **stream, kernelStream *sinfo, deviceInfo *info);
 
-#   if  defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
-  muse allocateCUDAevents_dev
-  (cudaEvent_t **iniWalk, cudaEvent_t **finWalk
-#ifdef  MONITOR_LETGEN_TIME
-   , cudaEvent_t **iniMake, cudaEvent_t **finMake
-#endif//MONITOR_LETGEN_TIME
-   , const int Ngpu);
-  void  releaseCUDAevents_dev
-  (cudaEvent_t  *iniWalk, cudaEvent_t  *finWalk
-#ifdef  MONITOR_LETGEN_TIME
-   , cudaEvent_t  *iniMake, cudaEvent_t  *finMake
-#endif//MONITOR_LETGEN_TIME
-   , const int Ngpu);
-#endif//defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
-
   void  freeTreeBuffer_dev
   (int  *failure, uint  *buffer, uint  *freeLst
 #   if  !defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
    , uint  *freeNum, int  *active
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
-#ifndef USE_CUDA_EVENT
-#   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
    , unsigned long long int  *cycles_hst, unsigned long long int  *cycles_dev
-#endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
    , unsigned long long int  *cycles_let_hst, unsigned long long int  *cycles_let_dev
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
-#endif//USE_CUDA_EVENT
    );
   muse allocTreeBuffer_dev
   (int **failure, uint **buffer, uint **freeLst,
 #   if  !defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
    uint **freeNum, int **active,
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
-#ifndef USE_CUDA_EVENT
-#   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
    unsigned long long int **cycles_hst, unsigned long long int **cycles_dev,
-#endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
    unsigned long long int **cycles_let_hst, unsigned long long int **cycles_let_dev,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
-#endif//USE_CUDA_EVENT
    soaTreeWalkBuf *buf, const int num_max, const deviceProp gpu);
 
   void calcGravity_dev
@@ -560,13 +541,9 @@ extern "C"
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
    , char *file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
-#   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
-#ifdef  USE_CUDA_EVENT
-   , cudaEvent_t *iniCalcAcc, cudaEvent_t *finCalcAcc
-#else///USE_CUDA_EVENT
+#   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
    , unsigned long long int *cycles_hst, unsigned long long int *cycles_dev
-#endif//USE_CUDA_EVENT
-#endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 #ifndef SERIALIZED_EXECUTION
    , measuredTime *measured, const int pjNum
@@ -575,11 +552,7 @@ extern "C"
 #endif//MPI_VIA_HOST
    , const int Nlet, domainInfo *let, const int Nstream_let, cudaStream_t stream_let[], MPIcfg_tree mpi
 #ifdef  MONITOR_LETGEN_TIME
-#ifdef  USE_CUDA_EVENT
-   , cudaEvent_t *iniMakeLET, cudaEvent_t *finMakeLET
-#else///USE_CUDA_EVENT
    , unsigned long long int *cycles_let_hst, unsigned long long int *cycles_let_dev
-#endif//USE_CUDA_EVENT
 #endif//MONITOR_LETGEN_TIME
 #endif//SERIALIZED_EXECUTION
 #endif//defined(MPI_INCLUDED) || defined(OMPI_MPI_H)

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/01/25 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -146,11 +146,7 @@ extern "C"
    , const position src
 #endif//SKIP_LET_GENERATOR_FOR_NEARBY_NODE
 #ifdef  MONITOR_LETGEN_TIME
-#ifdef  USE_CUDA_EVENT
-   , const cudaEvent_t iniEvent, const cudaEvent_t finEvent
-#else///USE_CUDA_EVENT
    , unsigned long long int * RESTRICT cycles
-#endif//USE_CUDA_EVENT
 #endif//MONITOR_LETGEN_TIME
    );
 
@@ -158,7 +154,7 @@ extern "C"
   (
 #   if  !defined(GADGET_MAC) && !defined(WS93_MAC)
    const real theta2_hst
-#else///endif//!defined(GADGET_MAC) && !defined(WS93_MAC)
+#else///!defined(GADGET_MAC) && !defined(WS93_MAC)
    void
 #endif//!defined(GADGET_MAC) && !defined(WS93_MAC)
    );

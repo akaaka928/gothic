@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/01/24 (Wed) 16:03:23
+# last updated on 2018/01/26 (Fri) 19:18:14
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -29,23 +29,21 @@ ACC_ACCUMULATION_IN_DP	:= 0
 KAHAN_SUM_CORRECTION	:= 0
 MONITOR_ENERGY_ERROR	:= 1
 MONITOR_LETGEN_TIME	:= 1
-MEASURE_BY_CUDA_EVENT	:= 0
 DIVERT_GEOMETRIC_CENTER	:= 1
 ADOPT_BLOCK_TIME_STEP	:= 1
 ADOPT_VECTOR_ACC_MAC	:= 0
 ADOPT_GADGET_TYPE_MAC	:= 1
 ADOPT_WS93_TYPE_MAC	:= 1
 IJ_PARALLELIZED_WALK	:= 1
-CLOCK_BASED_AUTO_TUNING	:= 0
+CLOCK_BASED_AUTO_TUNING	:= 1
 DATAFILE_FORMAT_HDF5	:= 1
 HDF5_FOR_ZINDAIJI	:= 0
 DUMPFILE_IN_TIPSY	:= 0
 DUMPFILE_AS_GALACTICS	:= 0
 USE_OFFICIAL_SFMT	:= 1
 USE_OFFICIAL_SFMT_JUMP	:= 1
-SET_EXTERNAL_FIELD	:= 0
-SET_EXTERNAL_FIELD_SPHE	:= 1
-SET_EXTERNAL_FIELD_DISK	:= 0
+SET_EXTERNAL_FIELD	:= 1
+SET_EXTERNAL_FIELD_DISK	:= 1
 ADAPTIVE_EXTERNAL_FIELD	:= 1
 #################################################################################################
 # Debugging options
@@ -116,11 +114,6 @@ endif
 #################################################################################################
 ifeq ($(REPORT_ELAPSED_TIME), 1)
 CCARG	+= -DREPORT_TOTAL_ELAPSED_TIME
-endif
-#################################################################################################
-ifeq ($(MEASURE_BY_CUDA_EVENT), 1)
-CCARG	+= -DUSE_CUDA_EVENT
-CUARG	+= -DUSE_CUDA_EVENT
 endif
 #################################################################################################
 ifeq ($(CHECK_FUNCTION_CALLS), 1)
@@ -255,14 +248,8 @@ ifeq ($(SET_EXTERNAL_FIELD), 1)
 CCARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD
 CUARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD
 else
-SET_EXTERNAL_FIELD_SPHE	:= 0
 SET_EXTERNAL_FIELD_DISK	:= 0
 ADAPTIVE_EXTERNAL_FIELD	:= 0
-endif
-#################################################################################################
-ifeq ($(SET_EXTERNAL_FIELD_SPHE), 1)
-CCARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD_SPHERICAL
-CUARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD_SPHERICAL
 endif
 #################################################################################################
 ifeq ($(SET_EXTERNAL_FIELD_DISK), 1)
@@ -1158,7 +1145,11 @@ $(OBJDIR)/spline.omp.o:	$(COMMON_DEP)	$(INITDIR)/spline.h
 SPLINE_DEP	:=	$(COMMON_DEP)	$(INITDIR)/profile.h	$(INITDIR)/table.h	$(INITDIR)/spline.h
 $(OBJDIR)/abel.omp.o:	$(SPLINE_DEP)	$(MYINC)/name.h	$(INITDIR)/magi.h	$(INITDIR)/abel.h
 $(OBJDIR)/table.omp.o:	$(SPLINE_DEP)	$(MYINC)/name.h
+ifeq ($(SET_EXTERNAL_FIELD_DISK), 1)
+$(OBJDIR)/external.omp.o:	$(SPLINE_DEP)	$(INITDIR)/external.h	$(INITDIR)/potdens.h
+else
 $(OBJDIR)/external.omp.o:	$(SPLINE_DEP)	$(INITDIR)/external.h
+endif
 PROFILE_DEP	:=	$(COMMON_DEP)	$(MYINC)/constants.h	$(INITDIR)/profile.h	$(INITDIR)/magi.h
 $(OBJDIR)/eddington.omp.o:	$(PROFILE_DEP)	$(INITDIR)/eddington.h
 $(OBJDIR)/king.omp.o:		$(PROFILE_DEP)	$(INITDIR)/king.h

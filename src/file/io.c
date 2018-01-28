@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/24 (Wed)
+ * @date 2018/01/25 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2194,31 +2194,30 @@ void writeGalactICSFile(double time, int head, int num, iparticle body, char fil
  * @brief Write fixed potential field represented in cubic spline interpolation.
  *
  * @param (unit) unit system of the potential field
- * @param (kind) number of components in MAGI
- * @param (pot_tbl) potential field for cubic spline interpolation
- * @param (skind) number of spherical symmetric components in MAGI
  * @param (pot_tbl_sphe) superposed potential field for cubic spline interpolation (only for spherical symmetric components)
- * @param (pot_tbl_disk) superposed potential field for cubic spline interpolation (only for spherical averaged disk components)
+ * @param (skind) number of spherical symmetric components in MAGI
+ * @param (pot_tbl) potential field for cubic spline interpolation
  * @param (binary) write in binary format when binary is true; otherwise, write in ASCII format
  */
-void writeFixedPotentialTable(const int unit, const int kind, potential_field *pot_tbl, const int skind, potential_field pot_tbl_sphe, potential_field pot_tbl_disk
+void writeFixedPotentialTable
+(const int unit, potential_field pot_tbl_sphe, const int skind, potential_field *pot_tbl
 #ifdef  USE_HDF5_FORMAT
-			      , hdf5struct type
+ , hdf5struct type
 #else///USE_HDF5_FORMAT
-			      , const bool binary
+ , const bool binary
 #endif//USE_HDF5_FORMAT
-			      , char file[])
+ , char file[])
 {
   __NOTE__("%s\n", "start");
 
 
   char cfgfile[128];
-  sprintf(cfgfile, "%s/%s.%s.cfg", DOCUMENTFOLDER, file, "ext_pot_sphe");
+  sprintf(cfgfile, "%s/%s.%s.cfg", DATAFOLDER, file, "ext_pot_sphe");
   FILE *fp_cfg;
   fp_cfg = fopen(cfgfile, "w");
   if( fp_cfg == NULL ){    __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", cfgfile);  }
 
-  fprintf(fp_cfg, "%d\n", 1 + (kind > skind) + kind);
+  fprintf(fp_cfg, "%d\n", 1 + skind);
 
 
   char filename[256];
@@ -2287,63 +2286,10 @@ void writeFixedPotentialTable(const int unit, const int kind, potential_field *p
   chkHDF5err(H5Gclose(group));
 
 
-  /* write (spherical averaged) potential table for superposed disk components */
-  if( kind > skind ){
-    if( (hsize_t)pot_tbl_disk.num != dims ){
-#ifdef  USE_SZIP_COMPRESSION
-      chkHDF5err(H5Pclose(property));
-#endif//USE_SZIP_COMPRESSION
-      chkHDF5err(H5Sclose(dataspace));
-      dims = pot_tbl_disk.num;
-      dataspace = H5Screate_simple(1, &dims, NULL);
-
-#ifdef  USE_SZIP_COMPRESSION
-      property = H5Pcreate(H5P_DATASET_CREATE);
-      cdims_loc = cdims;
-      if( dims < cdims_loc )
-	cdims_loc = (hsize_t)1 << llog2((ulong)dims);
-      if( cdims_loc > cdims_max )
-	cdims_loc = cdims_max;
-      chkHDF5err(H5Pset_chunk(property, 1, &cdims_loc));
-      chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
-#endif//USE_SZIP_COMPRESSION
-    }/* if( (hsize_t)pot_tbl_disk.num != dims ){ */
-
-    fprintf(fp_cfg, "%s\n", "disk");
-    group = H5Gcreate(target, "disk", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    /* write radius */
-    dataset = H5Dcreate(group, "r", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, pot_tbl_disk.rad));
-    chkHDF5err(H5Dclose(dataset));
-    /* write potential */
-    dataset = H5Dcreate(group, "Phi(r)", type.pot2, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.pot2, H5S_ALL, H5S_ALL, H5P_DEFAULT, pot_tbl_disk.Phi));
-    chkHDF5err(H5Dclose(dataset));
-
-    /* write attribute data */
-    /* write # of data points */
-    attribute = H5Acreate(group, "num", H5T_NATIVE_INT, attrspace, H5P_DEFAULT, H5P_DEFAULT);
-    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &(pot_tbl_disk.num)));
-    chkHDF5err(H5Aclose(attribute));
-#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-    /* write log_10(r_min) */
-    attribute = H5Acreate(group, "logrmin", type.real, attrspace, H5P_DEFAULT, H5P_DEFAULT);
-    chkHDF5err(H5Awrite(attribute, type.real, &(pot_tbl_disk.logrmin)));
-    chkHDF5err(H5Aclose(attribute));
-    /* write logrbin */
-    attribute = H5Acreate(group, "logrbin", type.real, attrspace, H5P_DEFAULT, H5P_DEFAULT);
-    chkHDF5err(H5Awrite(attribute, type.real, &(pot_tbl_disk.logrbin)));
-    chkHDF5err(H5Aclose(attribute));
-#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-
-    chkHDF5err(H5Gclose(group));
-  }/* if( kind > skind ){ */
-
-
   /* write potential table for each component */
-  if( kind > 1 ){
+  if( skind > 1 ){
     group = H5Gcreate(target, "individual", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    for(int ii = 0; ii < kind; ii++){
+    for(int ii = 0; ii < skind; ii++){
       if( (hsize_t)pot_tbl[ii].num != dims ){
 #ifdef  USE_SZIP_COMPRESSION
 	chkHDF5err(H5Pclose(property));
@@ -2395,19 +2341,15 @@ void writeFixedPotentialTable(const int unit, const int kind, potential_field *p
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
       chkHDF5err(H5Gclose(sub));
-    }/* for(int ii = 0; ii < kind; ii++){ */
+    }/* for(int ii = 0; ii < skind; ii++){ */
     chkHDF5err(H5Gclose(group));
-  }/* if( kind > 1 ){ */
+  }/* if( skind > 1 ){ */
 
 #ifdef  USE_SZIP_COMPRESSION
   chkHDF5err(H5Pclose(property));
 #endif//USE_SZIP_COMPRESSION
 
   /* write attribute data */
-  /* write # of components */
-  attribute = H5Acreate(target, "kind", H5T_NATIVE_INT, attrspace, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &kind));
-  chkHDF5err(H5Aclose(attribute));
   /* write # of spherical components */
   attribute = H5Acreate(target, "skind", H5T_NATIVE_INT, attrspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &skind));
@@ -2484,45 +2426,9 @@ void writeFixedPotentialTable(const int unit, const int kind, potential_field *p
   fclose(fp);
 
 
-  /* write numeric table for superposed (spherical averaged) disk components */
-  if( kind > skind ){
-#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-    Ndat = pot_tbl_disk.num;
-#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-
-    sprintf(filename, "%s/%s.%s.%s", DATAFOLDER, file, "pot", "disk");
-    fp = fopen(filename, binary ? "wb" : "w");
-    if( fp == NULL ){      __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);    }
-    if( binary ){
-      bool success = true;
-      size_t tmp;
-
-      fprintf(fp_cfg, "%d\n", READ_SUPERPOSED_TABLE_DISK);
-      tmp =    1;      if( tmp != fwrite(&unit, sizeof(int), tmp, fp) )	success = false;
-      tmp =    1;      if( tmp != fwrite(&Ndat, sizeof(int), tmp, fp) )	success = false;
-      tmp = Ndat;      if( tmp != fwrite(pot_tbl_disk.Phi, sizeof(pot2), tmp, fp) )	success = false;
-      tmp = Ndat;      if( tmp != fwrite(pot_tbl_disk.rad, sizeof(real), tmp, fp) )	success = false;
-
-      if( success != true ){	__KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);      }
-    }/* if( binary ){ */
-    else{
-      fprintf(fp, "%d\n", unit);
-      fprintf(fp, "%d\n", Ndat);
-#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-      fprintf(fp, "%e\t%e\n", pot_tbl_disk.logrmin, pot_tbl_disk.logrbin);
-#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-
-      fprintf(fp_cfg, "%d\n", READ_SUPERPOSED_TABLE_DISK);
-      for(int ii = 0; ii < Ndat; ii++)
-	fprintf(fp, "%e\t%e\t%e\n", pot_tbl_disk.rad[ii], pot_tbl_disk.Phi[ii].val, pot_tbl_disk.Phi[ii].dr2);
-    }/* else{ */
-    fclose(fp);
-  }/* if( binary ){ */
-
-
   /* write numeric table for each component */
-  if( kind > 1 )
-    for(int kk = 0; kk < kind; kk++){
+  if( skind > 1 )
+    for(int kk = 0; kk < skind; kk++){
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
       Ndat = pot_tbl[kk].num;
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
@@ -2552,7 +2458,7 @@ void writeFixedPotentialTable(const int unit, const int kind, potential_field *p
 	  fprintf(fp, "%e\t%e\t%e\n", pot_tbl[kk].rad[ii], pot_tbl[kk].Phi[ii].val, pot_tbl[kk].Phi[ii].dr2);
       }/* else{ */
       fclose(fp);
-    }/* for(int kk = 0; kk < kind; kk++){ */
+    }/* for(int kk = 0; kk < skind; kk++){ */
 
 #endif//USE_HDF5_FORMAT
 
@@ -2561,6 +2467,265 @@ void writeFixedPotentialTable(const int unit, const int kind, potential_field *p
 
   __NOTE__("%s\n", "end");
 }
+
+
+/**
+ * @fn writeFixedDiskPotential
+ *
+ * @brief Write fixed potential field by disk components
+ *
+ * @param (unit) unit system of the potential field
+ * @param (disk) potential field by the disk components
+ * @param (binary) write in binary format when binary is true; otherwise, write in ASCII format
+ */
+void writeFixedDiskPotential
+(const int unit, const disk_potential disk
+#ifdef  USE_HDF5_FORMAT
+ , hdf5struct type
+#else///USE_HDF5_FORMAT
+ , const bool binary
+#endif//USE_HDF5_FORMAT
+ , char *file)
+{
+  __NOTE__("%s\n", "start");
+
+  char filename[128];
+#ifdef  USE_HDF5_FORMAT
+  sprintf(filename, "%s/%s.%s.h5", DATAFOLDER, file, "ext_disk");
+  hid_t target = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+  hsize_t dims = disk.maxLev * (disk.NR + 1) * (disk.Nz + 1);
+  hid_t dataspace = H5Screate_simple(1, &dims, NULL);
+
+  /* preparation for data compression */
+  hid_t dataset, property;
+#ifdef  USE_SZIP_COMPRESSION
+  /* compression using szip */
+  uint szip_options_mask = H5_SZIP_NN_OPTION_MASK;
+  uint szip_pixels_per_block = 8;
+  hsize_t cdims = 128 * szip_pixels_per_block;
+#else///USE_SZIP_COMPRESSION
+  property = H5P_DEFAULT;
+#endif//USE_SZIP_COMPRESSION
+
+#ifdef  USE_SZIP_COMPRESSION
+  property = H5Pcreate(H5P_DATASET_CREATE);
+  hsize_t cdims_loc = cdims;
+  if( dims < cdims_loc )
+    cdims_loc = (hsize_t)1 << llog2((ulong)dims);
+  hsize_t cdims_max = (MAXIMUM_CHUNK_SIZE_4BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_4BIT : MAXIMUM_CHUNK_SIZE;
+  if( cdims_loc > cdims_max )
+    cdims_loc = cdims_max;
+  chkHDF5err(H5Pset_chunk(property, 1, &cdims_loc));
+  chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+#endif//USE_SZIP_COMPRESSION
+
+
+  /* write potential table for superposed spherical components */
+  hid_t group = H5Gcreate(target, "2D", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  /* write \Phi(R, z) */
+  dataset = H5Dcreate(group, "Phi", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, disk.Phi));
+  chkHDF5err(H5Dclose(dataset));
+  /* write R */
+#ifdef  USE_SZIP_COMPRESSION
+  chkHDF5err(H5Pclose(property));
+#endif//USE_SZIP_COMPRESSION
+  chkHDF5err(H5Sclose(dataspace));
+  dims = disk.maxLev * disk.NR;
+  dataspace = H5Screate_simple(1, &dims, NULL);
+#ifdef  USE_SZIP_COMPRESSION
+  property = H5Pcreate(H5P_DATASET_CREATE);
+  cdims_loc = cdims;
+  if( dims < cdims_loc )
+    cdims_loc = (hsize_t)1 << llog2((ulong)dims);
+  if( cdims_loc > cdims_max )
+    cdims_loc = cdims_max;
+  chkHDF5err(H5Pset_chunk(property, 1, &cdims_loc));
+  chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+#endif//USE_SZIP_COMPRESSION
+  dataset = H5Dcreate(group, "R", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, disk.RR));
+  chkHDF5err(H5Dclose(dataset));
+  /* write z */
+#ifdef  USE_SZIP_COMPRESSION
+  chkHDF5err(H5Pclose(property));
+#endif//USE_SZIP_COMPRESSION
+  chkHDF5err(H5Sclose(dataspace));
+  dims = disk.maxLev * disk.Nz;
+  dataspace = H5Screate_simple(1, &dims, NULL);
+#ifdef  USE_SZIP_COMPRESSION
+  property = H5Pcreate(H5P_DATASET_CREATE);
+  cdims_loc = cdims;
+  if( dims < cdims_loc )
+    cdims_loc = (hsize_t)1 << llog2((ulong)dims);
+  if( cdims_loc > cdims_max )
+    cdims_loc = cdims_max;
+  chkHDF5err(H5Pset_chunk(property, 1, &cdims_loc));
+  chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+#endif//USE_SZIP_COMPRESSION
+  dataset = H5Dcreate(group, "z", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, disk.zz));
+  chkHDF5err(H5Dclose(dataset));
+
+  /* write attribute data */
+  hsize_t attr_dims = 1;
+  hid_t attrspace = H5Screate_simple(1, &attr_dims, NULL);
+  /* write # of nested levels */
+  hid_t attribute = H5Acreate(group, "maxLev", H5T_NATIVE_INT, attrspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &(disk.maxLev)));
+  chkHDF5err(H5Aclose(attribute));
+  /* write # of R grids */
+  attribute = H5Acreate(group, "NR", H5T_NATIVE_INT, attrspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &(disk.NR)));
+  chkHDF5err(H5Aclose(attribute));
+  /* write # of z grids */
+  attribute = H5Acreate(group, "Nz", H5T_NATIVE_INT, attrspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &(disk.Nz)));
+  chkHDF5err(H5Aclose(attribute));
+  /* write hh */
+  attribute = H5Acreate(group, "hh", type.real, attrspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, type.real, &(disk.hh)));
+  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Gclose(group));
+
+  /* write spherical averaged potential profile */
+  group = H5Gcreate(target, "spherical", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+#ifdef  USE_SZIP_COMPRESSION
+  chkHDF5err(H5Pclose(property));
+#endif//USE_SZIP_COMPRESSION
+  chkHDF5err(H5Sclose(dataspace));
+  dims = disk.sphe.num;
+  dataspace = H5Screate_simple(1, &dims, NULL);
+#ifdef  USE_SZIP_COMPRESSION
+  property = H5Pcreate(H5P_DATASET_CREATE);
+  cdims_loc = cdims;
+  if( dims < cdims_loc )
+    cdims_loc = (hsize_t)1 << llog2((ulong)dims);
+  if( cdims_loc > cdims_max )
+    cdims_loc = cdims_max;
+  chkHDF5err(H5Pset_chunk(property, 1, &cdims_loc));
+  chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+#endif//USE_SZIP_COMPRESSION
+  /* write radius */
+  dataset = H5Dcreate(group, "r", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, disk.sphe.rad));
+  chkHDF5err(H5Dclose(dataset));
+  /* write potential */
+  dataset = H5Dcreate(group, "Phi(r)", type.pot2, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, type.pot2, H5S_ALL, H5S_ALL, H5P_DEFAULT, disk.sphe.Phi));
+  chkHDF5err(H5Dclose(dataset));
+
+  /* write attribute data */
+  attr_dims = 1;
+  attrspace = H5Screate_simple(1, &attr_dims, NULL);
+  /* write # of data points */
+  attribute = H5Acreate(group, "num", H5T_NATIVE_INT, attrspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &(disk.sphe.num)));
+  chkHDF5err(H5Aclose(attribute));
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  /* write log_10(r_min) */
+  attribute = H5Acreate(group, "logrmin", type.real, attrspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, type.real, &(disk.sphe.logrmin)));
+  chkHDF5err(H5Aclose(attribute));
+  /* write logrbin */
+  attribute = H5Acreate(group, "logrbin", type.real, attrspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, type.real, &(disk.sphe.logrbin)));
+  chkHDF5err(H5Aclose(attribute));
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  chkHDF5err(H5Gclose(group));
+
+#ifdef  USE_SZIP_COMPRESSION
+  chkHDF5err(H5Pclose(property));
+#endif//USE_SZIP_COMPRESSION
+
+  /* write attribute data */
+  /* write flag about DOUBLE_PRECISION */
+#ifdef  DOUBLE_PRECISION
+  const int useDP = 1;
+#else///DOUBLE_PRECISION
+  const int useDP = 0;
+#endif//DOUBLE_PRECISION
+  attribute = H5Acreate(target, "useDP", H5T_NATIVE_INT, attrspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
+  chkHDF5err(H5Aclose(attribute));
+
+  /* write unit system */
+  group = H5Gcreate(target, "unit_system", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  /* write index of unit system */
+  attribute = H5Acreate(group, "unit", H5T_NATIVE_INT, attrspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &unit));
+  chkHDF5err(H5Aclose(attribute));
+  /* write gravitational constant G */
+  attribute = H5Acreate(group, "newton", type.real, attrspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, type.real, &newton));
+  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Gclose(group));
+
+  /* close the dataspace */
+  chkHDF5err(H5Sclose(dataspace));
+  chkHDF5err(H5Sclose(attrspace));
+
+  /* close the file */
+  chkHDF5err(H5Fclose(target));
+
+#else///USE_HDF5_FORMAT
+
+  sprintf(filename, "%s/%s.%s.dat", DATAFOLDER, file, "ext_disk");
+  FILE *fp;
+  fp = fopen(filename, binary ? "wb" : "w");
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);  }
+  if( binary ){
+    bool success = true;
+    size_t tmp;
+    tmp = 1;    if( tmp != fwrite(&unit, sizeof(int), tmp, fp) )      success = false;
+    tmp = 1;    if( tmp != fwrite(&disk.maxLev, sizeof(int), tmp, fp) )      success = false;
+    tmp = 1;    if( tmp != fwrite(&disk.NR, sizeof(int), tmp, fp) )      success = false;
+    tmp = 1;    if( tmp != fwrite(&disk.Nz, sizeof(int), tmp, fp) )      success = false;
+    tmp = 1;    if( tmp != fwrite(&disk.hh, sizeof(real), tmp, fp) )      success = false;
+
+    tmp = disk.maxLev *  disk.NR                     ;    if( tmp != fwrite(disk.RR , sizeof(real), tmp, fp) )      success = false;
+    tmp = disk.maxLev *                  disk.Nz     ;    if( tmp != fwrite(disk.zz , sizeof(real), tmp, fp) )      success = false;
+    tmp = disk.maxLev * (disk.NR + 1) * (disk.Nz + 1);    if( tmp != fwrite(disk.Phi, sizeof(real), tmp, fp) )      success = false;
+
+    tmp = 1;    if( tmp != fwrite(&(disk.sphe.num), sizeof(int), tmp, fp) )      success = false;
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+    tmp = 1;    if( tmp != fwrite(&(disk.sphe.logrmin), sizeof(real), tmp, fp) )      success = false;
+    tmp = 1;    if( tmp != fwrite(&(disk.sphe.logrbin), sizeof(real), tmp, fp) )      success = false;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+    tmp = disk.sphe.num;    if( tmp != fwrite(disk.sphe.rad, sizeof(real), tmp, fp) )      success = false;
+    tmp = disk.sphe.num;    if( tmp != fwrite(disk.sphe.Phi, sizeof(pot2), tmp, fp) )      success = false;
+
+    if( success != true ){      __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);    }
+  }/* if( binary ){ */
+  else{
+    fprintf(fp, "%d\n", unit);
+    fprintf(fp, "%d\t%d\t%d\n", disk.maxLev, disk.NR, disk.Nz);
+    fprintf(fp, "%e\n", disk.hh);
+
+    for(int ii = 0; ii < disk.maxLev * disk.NR; ii++)
+      fprintf(fp, "%e\n", disk.RR[ii]);
+    for(int ii = 0; ii < disk.maxLev * disk.Nz; ii++)
+      fprintf(fp, "%e\n", disk.zz[ii]);
+    for(int ii = 0; ii < disk.maxLev * (disk.NR + 1) * (disk.Nz + 1); ii++)
+      fprintf(fp, "%e\n", disk.Phi[ii]);
+
+    fprintf(fp, "%d\n", disk.sphe.num);
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+    fprintf(fp, "%e\t%e\n", disk.sphe.logrmin, disk.sphe.logrbin);
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+
+    for(int ii = 0; ii < disk.sphe.num; ii++)
+      fprintf(fp, "%e\t%e\t%e\n", disk.sphe.rad[ii], disk.sphe.Phi[ii].val, disk.sphe.Phi[ii].dr2);
+  }/* if( binary ){ */
+  fclose(fp);
+
+#endif//USE_HDF5_FORMAT
+
+  __NOTE__("%s\n", "end");
+}
+
+
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 

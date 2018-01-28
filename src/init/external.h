@@ -21,8 +21,8 @@
 #include "../misc/structure.h"
 #include "../init/profile.h"
 
-/* #define N_EXT_POT_SPHE (1024) */
-#define N_EXT_POT_SPHE (4096)
+#define N_EXT_POT_SPHE (1024)
+/* #define N_EXT_POT_SPHE (4096) */
 
 #   if  N_EXT_POT_SPHE > NRADBIN
 #undef  N_EXT_POT_SPHE
@@ -42,6 +42,8 @@ void genSuperposedPotFld1D(const int kind, const int skind, profile **prf, poten
 #else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 void superposePotFld1D(const int kind, const int skind, potential_field * restrict pot, potential_field * restrict sphe, potential_field * restrict disk);
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+
+void extractDiskPotential(const int maxLev, const disk_data data, const potential_field sphe, disk_potential *disk);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 

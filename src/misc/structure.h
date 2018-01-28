@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/24 (Wed)
+ * @date 2018/01/25 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -258,6 +258,22 @@ typedef struct
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   int num;
 } potential_field;
+
+/**
+ * @struct disk_potential
+ *
+ * @brief structure for information on fixed potential field of disk components (SoA)
+ */
+typedef struct
+{
+  potential_field sphe;
+  /* contents in disk_data disk: hor[maxLev][NR], ver[maxLev][Nz], pot[maxLev][NR][Nz] */
+  real *Phi;
+  real *RR, *zz;/**< never read by GOTHIC; however, write by MAGI */
+  real hh, hinv;
+  int maxLev, NR, Nz;
+} disk_potential;
+
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 

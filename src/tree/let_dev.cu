@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/01/25 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -413,15 +413,15 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
  const int freeNum,
 #endif//!defined(USE_SMID_TO_GET_BUFID) &&  defined(TRY_MODE_ABOUT_BUFFER)
  uint * RESTRICT freeLst, uint * RESTRICT buffer, const int bufSize, int * RESTRICT overflow
-#   if  !defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
+#ifdef  MONITOR_LETGEN_TIME
  , unsigned long long int * RESTRICT cycles
-#endif//!defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
+#endif//MONITOR_LETGEN_TIME
 )
 {
   /** start stop watch */
-#   if  !defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
+#ifdef  MONITOR_LETGEN_TIME
   const long long int initCycle = clock64();
-#endif//!defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
+#endif//MONITOR_LETGEN_TIME
 
   /** identify thread properties */
   const int tidx = THREADIDX_X1D;
@@ -634,13 +634,13 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
 #endif//TRY_MODE_ABOUT_BUFFER
 #endif//USE_SMID_TO_GET_BUFID
 
-#   if  !defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
+#ifdef  MONITOR_LETGEN_TIME
   long long int exitCycle = clock64();
   if( tidx == 0 ){
     unsigned long long int elapsed = (unsigned long long int)(exitCycle - initCycle);
     atomicAdd(cycles, elapsed);
   }/* if( tidx == 0 ){ */
-#endif//!defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
+#endif//MONITOR_LETGEN_TIME
 }
 
 
@@ -656,20 +656,11 @@ void callGenLET
    , const position src
 #endif//SKIP_LET_GENERATOR_FOR_NEARBY_NODE
 #ifdef  MONITOR_LETGEN_TIME
-#ifdef  USE_CUDA_EVENT
-   , const cudaEvent_t iniEvent, const cudaEvent_t finEvent
-#else///USE_CUDA_EVENT
    , unsigned long long int * RESTRICT cycles
-#endif//USE_CUDA_EVENT
 #endif//MONITOR_LETGEN_TIME
    )
 {
   __NOTE__("%s\n", "start");
-
-
-#   if  defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
-  checkCudaErrors(cudaEventRecord(iniEvent, 0));
-#endif//defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
 
 
 #ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
@@ -711,9 +702,9 @@ void callGenLET
 	 buf.freeNum,
 #endif//USE_SMID_TO_GET_BUFID
 	 buf.freeLst, buf.buffer, NGROUPS * buf.bufSize, buf.fail
-#   if  !defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
+#ifdef  MONITOR_LETGEN_TIME
 	 , cycles
-#endif//!defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
+#endif//MONITOR_LETGEN_TIME
 	 );
     }
 #ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
@@ -726,11 +717,6 @@ void callGenLET
     checkCudaErrors(cudaMemcpyAsync((*let).numSend_dev, &((*let).numFull), sizeof(int), cudaMemcpyHostToDevice, stream));
   }/* else{ */
 #endif//SKIP_LET_GENERATOR_FOR_NEARBY_NODE
-
-
-#   if  defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
-  checkCudaErrors(cudaEventRecord(finEvent, 0));
-#endif//defined(USE_CUDA_EVENT) && defined(MONITOR_LETGEN_TIME)
 
 
   __NOTE__("%s\n", "end");
@@ -747,7 +733,7 @@ void setGlobalConstants_let_dev_cu
 (
 #   if  !defined(GADGET_MAC) && !defined(WS93_MAC)
  const real theta2_hst
-#else///endif//!defined(GADGET_MAC) && !defined(WS93_MAC)
+#else///!defined(GADGET_MAC) && !defined(WS93_MAC)
  void
 #endif//!defined(GADGET_MAC) && !defined(WS93_MAC)
  )

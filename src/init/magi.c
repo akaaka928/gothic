@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/24 (Wed)
+ * @date 2018/01/25 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1119,12 +1119,21 @@ int main(int argc, char **argv)
   potential_field *pot_tbl, pot_tbl_sphe, pot_tbl_disk;
   allocPotentialField(&rad_pot, &Phi_pot, &pot_tbl, N_EXT_POT_SPHE, kind, &pot_tbl_sphe, skind, &pot_tbl_disk);
 
+  real *RR_diskpot, *zz_diskpot, *Phi_diskpot;
+  disk_potential diskpot;
+  if( addDisk )
+    allocDiskPotential(&RR_diskpot, &zz_diskpot, &Phi_diskpot, maxLev, NDISKBIN_HOR, NDISKBIN_VER, &diskpot);
+
   genExtPotTbl1D(kind, prf, pot_tbl);
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   genSuperposedPotFld1D(kind, skind, prf, &pot_tbl_sphe, &pot_tbl_disk);
 #else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   superposePotFld1D(kind, skind, pot_tbl, &pot_tbl_sphe, &pot_tbl_disk);
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+
+  if( addDisk )
+    extractDiskPotential(maxLev, disk_info[0], pot_tbl_disk, &diskpot);
+
   stopBenchmark_cpu(&execTime.external);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
@@ -1221,17 +1230,33 @@ int main(int argc, char **argv)
 #endif//!defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT)
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-  writeFixedPotentialTable(unit, kind, pot_tbl, skind, pot_tbl_sphe, pot_tbl_disk
+  writeFixedPotentialTable
+    (unit, pot_tbl_sphe, skind, pot_tbl
 #ifdef  USE_HDF5_FORMAT
-			   , hdf5type
+     , hdf5type
 #else///USE_HDF5_FORMAT
 #ifdef  WRITE_IN_GALACTICS_FORMAT
-			   , false
+     , false
 #else///WRITE_IN_GALACTICS_FORMAT
-			   , true
+     , true
 #endif//WRITE_IN_GALACTICS_FORMAT
 #endif//USE_HDF5_FORMAT
-			   , file);
+     , file);
+
+  if( addDisk )
+    writeFixedDiskPotential
+      (unit, diskpot
+#ifdef  USE_HDF5_FORMAT
+       , hdf5type
+#else///USE_HDF5_FORMAT
+#ifdef  WRITE_IN_GALACTICS_FORMAT
+       , false
+#else///WRITE_IN_GALACTICS_FORMAT
+       , true
+#endif//WRITE_IN_GALACTICS_FORMAT
+#endif//USE_HDF5_FORMAT
+       , file);
+
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 #ifdef  USE_HDF5_FORMAT
@@ -1386,6 +1411,11 @@ int main(int argc, char **argv)
        sph_rad, sph_rho, sph_enc,
        spline_xx, spline_ff, spline_f2, spline_bp);
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  freePotentialField(rad_pot, Phi_pot, pot_tbl);
+  if( addDisk )
+    freeDiskPotential(RR_diskpot, zz_diskpot, Phi_diskpot);
+#endif//SET_EXTERNAL_POTENTIAL_FIELDp
 
   return (0);
 }

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/19 (Fri)
+ * @date 2018/01/25 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -318,6 +318,40 @@ void  freePotentialField(real  *rad, pot2  *Phi, potential_field  *dat)
   free(rad);
   free(Phi);
   free(dat);
+
+  __NOTE__("%s\n", "end");
+}
+
+muse allocDiskPotential(real **RR, real **zz, real **Phi, const int maxLev, const int NR, const int Nz, disk_potential *disk)
+{
+  __NOTE__("%s\n", "start");
+
+  muse alloc = {0, 0};
+  size_t size;
+
+  /* allocate data array for external potential field */
+  size = maxLev *  NR                ;  *RR  = (real *)malloc(size * sizeof(real));  alloc.host += size * sizeof(real);
+  size = maxLev            *  Nz     ;  *zz  = (real *)malloc(size * sizeof(real));  alloc.host += size * sizeof(real);
+  size = maxLev * (NR + 1) * (Nz + 1);  *Phi = (real *)malloc(size * sizeof(real));  alloc.host += size * sizeof(real);
+  if( *RR  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate RR\n"  );  }
+  if( *zz  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate zz\n"  );  }
+  if( *Phi == NULL ){    __KILL__(stderr, "ERROR: failure to allocate Phi\n"  );  }
+
+  disk->RR  = *RR;
+  disk->zz  = *zz;
+  disk->Phi = *Phi;
+
+  __NOTE__("%s\n", "end");
+  return (alloc);
+}
+
+void  freeDiskPotential(real  *RR, real  *zz, real  *Phi)
+{
+  __NOTE__("%s\n", "start");
+
+  free(RR);
+  free(zz);
+  free(Phi);
 
   __NOTE__("%s\n", "end");
 }

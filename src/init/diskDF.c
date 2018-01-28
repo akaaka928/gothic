@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/24 (Wed)
+ * @date 2018/01/25 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -834,7 +834,7 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
   if( disk.cfg->vdispR0 < 0.0 ){
     if( disk.cfg->toomre >= 0.0 ){
       /* get physical quantities @ R = Rs to obtain Toomre's Q-value */
-      const int lev = (int)floor(log2(disk.hh * ((double)NDISKBIN_HOR - 0.5) * disk.invRd));
+      const int lev = (int)floor(log2(disk.hh * ((double)NDISKBIN_HOR - 1.5) * disk.invRd));
       const int ii = (int)floor(ldexp(disk.cfg->rs / disk.hh, lev) - 0.5);
       const double aR = (disk.cfg->rs - disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]) / (disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + ii)] - disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
 

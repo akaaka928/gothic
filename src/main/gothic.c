@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/24 (Wed)
+ * @date 2018/01/25 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -685,27 +685,6 @@ int main(int argc, char **argv)
   kernelStream sinfo;
   setCUDAstreams_dev(&stream, &sinfo, &devInfo);
 
-  /** set CUDA events */
-  /** maximum # of CUDA events = # of GPUs for tree traversal, # of GPUs - 1 for LET construction */
-  /** this code assumes that # of GPUs = # of MPI processes (1 GPU / 1 MPI process) */
-#   if  defined(USE_CUDA_EVENT) && !defined(SERIALIZED_EXECUTION)
-  cudaEvent_t *iniCalcAcc, *finCalcAcc;
-#ifdef  MONITOR_LETGEN_TIME
-  cudaEvent_t *iniMakeLET, *finMakeLET;
-#endif//MONITOR_LETGEN_TIME
-  allocateCUDAevents_dev(&iniCalcAcc, &finCalcAcc
-#ifdef  MONITOR_LETGEN_TIME
-			, &iniMakeLET, &finMakeLET
-#endif//MONITOR_LETGEN_TIME
-			 , mpi.size);
-#else///defined(USE_CUDA_EVENT) && !defined(SERIALIZED_EXECUTION)
-#   if  defined(USE_CUDA_EVENT) && defined(PRINT_PSEUDO_PARTICLE_INFO)
-  cudaEvent_t *iniCalcAcc, *finCalcAcc;
-  allocateCUDAevents_dev(&iniCalcAcc, &finCalcAcc, 1);
-#endif//defined(USE_CUDA_EVENT) && defined(PRINT_PSEUDO_PARTICLE_INFO)
-#endif//defined(USE_CUDA_EVENT) && !defined(SERIALIZED_EXECUTION)
-
-
   /** set the number of N-body particles */
   /** this procedure is obvious for this serial process execution, but useful for the future upgrade (parallelization) */
   /** assume num >= Ni */
@@ -1329,27 +1308,23 @@ int main(int argc, char **argv)
   uint *freeNum;
   int *active;
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
-#ifndef USE_CUDA_EVENT
-#   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
   unsigned long long int *cycles_hst, *cycles_dev;
-#endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
   unsigned long long int *cycles_let_hst, *cycles_let_dev;
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
-#endif//USE_CUDA_EVENT
   const muse alloc_buf_dev = allocTreeBuffer_dev
     (&fail_dev, &buffer, &freeLst,
 #   if  !defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
      &freeNum, &active,
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
-#ifndef USE_CUDA_EVENT
-#   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
      &cycles_hst, &cycles_dev,
-#endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
      &cycles_let_hst, &cycles_let_dev,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
-#endif//USE_CUDA_EVENT
      &soaWalk_dev, num_max, devProp);
   used_mem.host   += alloc_buf_dev.host;
   used_mem.device += alloc_buf_dev.device;
@@ -1604,13 +1579,9 @@ int main(int argc, char **argv)
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
        , file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
-#   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
-#ifdef  USE_CUDA_EVENT
-       , iniCalcAcc, finCalcAcc
-#else///USE_CUDA_EVENT
+#   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
        , cycles_hst, cycles_dev
-#endif//USE_CUDA_EVENT
-#endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
        , &elapsed, numNode
 #ifdef  MPI_VIA_HOST
@@ -1618,11 +1589,7 @@ int main(int argc, char **argv)
 #endif//MPI_VIA_HOST
        , letcfg.size, nodeInfo, Nstream_let, stream_let, letcfg
 #ifdef  MONITOR_LETGEN_TIME
-#ifdef  USE_CUDA_EVENT
-       , iniMakeLET, finMakeLET
-#else///USE_CUDA_EVENT
        , cycles_let_hst, cycles_let_dev
-#endif//USE_CUDA_EVENT
 #endif//MONITOR_LETGEN_TIME
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
@@ -1691,13 +1658,9 @@ int main(int argc, char **argv)
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
        , file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
-#   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
-#ifdef  USE_CUDA_EVENT
-       , iniCalcAcc, finCalcAcc
-#else///USE_CUDA_EVENT
+#   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
        , cycles_hst, cycles_dev
-#endif//USE_CUDA_EVENT
-#endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
        , &elapsed, numNode
 #ifdef  MPI_VIA_HOST
@@ -1705,11 +1668,7 @@ int main(int argc, char **argv)
 #endif//MPI_VIA_HOST
        , letcfg.size, nodeInfo, Nstream_let, stream_let, letcfg
 #ifdef  MONITOR_LETGEN_TIME
-#ifdef  USE_CUDA_EVENT
-       , iniMakeLET, finMakeLET
-#else///USE_CUDA_EVENT
        , cycles_let_hst, cycles_let_dev
-#endif//USE_CUDA_EVENT
 #endif//MONITOR_LETGEN_TIME
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
@@ -1726,7 +1685,11 @@ int main(int argc, char **argv)
 #endif//COMPARE_WITH_DIRECT_SOLVER
        );
 
+#ifdef  USE_CLOCK_CYCLES_FOR_BRENT_METHOD
+    brentDistance.u.val += (double)(*cycles_hst);
+#else///USE_CLOCK_CYCLES_FOR_BRENT_METHOD
     brentDistance.u.val += elapsed.walkTree[0];
+#endif//USE_CLOCK_CYCLES_FOR_BRENT_METHOD
     brentHistory.totNum += Ngrp;
     rebuild.interval += 1.0;
     linearModel(&(rebuildParam.linearGuess), &(rebuildParam.linearStats), rebuild.interval, elapsed.walkTree[0], 1.0);
@@ -2217,13 +2180,9 @@ int main(int argc, char **argv)
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
 	 , file
 #endif//PRINT_PSEUDO_PARTICLE_INFO
-#   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
-#ifdef  USE_CUDA_EVENT
-	 , iniCalcAcc, finCalcAcc
-#else///USE_CUDA_EVENT
+#   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 	 , cycles_hst, cycles_dev
-#endif//USE_CUDA_EVENT
-#endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
 	 , &elapsed, numNode
 #ifdef  MPI_VIA_HOST
@@ -2231,11 +2190,7 @@ int main(int argc, char **argv)
 #endif//MPI_VIA_HOST
 	 , letcfg.size, nodeInfo, Nstream_let, stream_let, letcfg
 #ifdef  MONITOR_LETGEN_TIME
-#ifdef  USE_CUDA_EVENT
-	 , iniMakeLET, finMakeLET
-#else///USE_CUDA_EVENT
 	 , cycles_let_hst, cycles_let_dev
-#endif//USE_CUDA_EVENT
 #endif//MONITOR_LETGEN_TIME
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
@@ -2252,7 +2207,11 @@ int main(int argc, char **argv)
 #endif//COMPARE_WITH_DIRECT_SOLVER
 	 );
 
+#ifdef  USE_CLOCK_CYCLES_FOR_BRENT_METHOD
+      brentDistance.u.val += (double)(*cycles_hst);
+#else///USE_CLOCK_CYCLES_FOR_BRENT_METHOD
       brentDistance.u.val += elapsed.walkTree[rebuild.reuse];
+#endif//USE_CLOCK_CYCLES_FOR_BRENT_METHOD
 #ifdef  BLOCK_TIME_STEP
       brentHistory.totNum += grpNum;
 #else///BLOCK_TIME_STEP
@@ -2698,14 +2657,12 @@ int main(int argc, char **argv)
 #   if  !defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
      , freeNum, active
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
-#ifndef USE_CUDA_EVENT
-#   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
      , cycles_hst, cycles_dev
-#endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
      , cycles_let_hst, cycles_let_dev
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
-#endif//USE_CUDA_EVENT
      );
 
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
@@ -2754,21 +2711,6 @@ int main(int argc, char **argv)
 
   freeGeometricEnclosingBall_dev(r2geo_dev);
 #endif//SERIALIZED_EXECUTION
-
-  /** destroy CUDA events */
-#   if  defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
-  releaseCUDAevents_dev
-    (iniCalcAcc, finCalcAcc
-#ifdef  MONITOR_LETGEN_TIME
-     , iniMakeLET, finMakeLET
-#endif//MONITOR_LETGEN_TIME
-#ifndef SERIALIZED_EXECUTION
-     , mpi.size
-#else///SERIALIZED_EXECUTION
-     , 1
-#endif//SERIALIZED_EXECUTION
-     );
-#endif//defined(USE_CUDA_EVENT) && (!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO))
 
   /** destroy CUDA streams */
   for(int ii = 0; ii < sinfo.num; ii++)

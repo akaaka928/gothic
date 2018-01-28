@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/19 (Fri)
+ * @date 2018/01/25 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -70,6 +70,9 @@ extern "C"
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   muse allocPotentialField(real **rad, pot2 **Phi, potential_field **dat, const int num, const int kind, potential_field *sphe, const int skind, potential_field *disk);
   void  freePotentialField(real  *rad, pot2  *Phi, potential_field  *dat);
+
+  muse allocDiskPotential(real **RR, real **zz, real **Phi, const int maxLev, const int NR, const int Nz, disk_potential *disk);
+  void  freeDiskPotential(real  *RR, real  *zz, real  *Phi);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 #ifdef  __CUDACC__

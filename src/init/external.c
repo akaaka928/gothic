@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/24 (Wed)
+ * @date 2018/01/25 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -25,6 +25,10 @@
 
 #include "profile.h"
 #include "spline.h"
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+#include "potdens.h"
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 
 #include "external.h"
 
@@ -265,4 +269,57 @@ void superposePotFld1D(const int kind, const int skind, potential_field * restri
 }
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
+/**
+ * @fn extractDiskPotential
+ *
+ * @brief Extract potential field by disk components.
+ *
+ * @param (maxLev) maximum level of nested grid
+ * @param (data) physical quantities of the disk component
+ * @param (sphe) superposed potential field for cubic spline interpolation (only for spherical averaged disk components)
+ * @return (disk) required set by GOTHIC
+ */
+void extractDiskPotential(const int maxLev, const disk_data data, const potential_field sphe, disk_potential *disk)
+{
+  __NOTE__("%s\n", "start");
+
+  /** copy spherically averaged potential profile for long-range force */
+  disk->sphe.rad = sphe.rad;
+  disk->sphe.Phi = sphe.Phi;
+  disk->sphe.num = sphe.num;
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  disk->sphe.logrmin = sphe.logrmin;
+  disk->sphe.logrbin = sphe.logrbin;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+
+  disk->maxLev = maxLev;
+  disk->hh = data.hh;
+
+#pragma omp parallel for
+  for(int ii = 0; ii < maxLev * NDISKBIN_HOR; ii++)
+    disk->RR[ii] = CAST_D2R(data.hor[ii]);
+
+#pragma omp parallel for
+  for(int ii = 0; ii < maxLev * NDISKBIN_VER; ii++)
+    disk->zz[ii] = CAST_D2R(data.ver[ii]);
+
+  /* ii = 0 or jj = 0 are reserved for expressing symmetry over R = 0 or z = 0, respectively */
+  for(int lev = 0; lev < maxLev; lev++){
+    /* ii = 0; jj = 0 */
+    disk->Phi[INDEX(maxLev, NDISKBIN_HOR + 1, NDISKBIN_VER + 1, lev, 0, 0)] = CAST_D2R(data.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, 0, 0)]);
+
+    /* ii = 0; jj >= 1 */
+    for(int jj = 0; jj < NDISKBIN_VER; jj++)
+      disk->Phi[INDEX(maxLev, NDISKBIN_HOR + 1, NDISKBIN_VER + 1, lev, 0, 1 + jj)] = CAST_D2R(data.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, 0, jj)]);
+
+    for(int ii = 0; ii < NDISKBIN_HOR; ii++){
+      disk->Phi[INDEX(maxLev, NDISKBIN_HOR + 1, NDISKBIN_VER + 1, lev, 1 + ii, 0)] = CAST_D2R(data.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)]);
+
+      for(int jj = 0; jj < NDISKBIN_VER; jj++)
+      disk->Phi[INDEX(maxLev, NDISKBIN_HOR + 1, NDISKBIN_VER + 1, lev, 1 + ii, 1 + jj)] = CAST_D2R(data.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)]);
+    }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
+  }/* for(int lev = 0; lev < maxLev; lev++){ */
+
+  __NOTE__("%s\n", "end");
+}
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
