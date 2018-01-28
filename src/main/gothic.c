@@ -384,6 +384,9 @@ static inline void dumpSnapshot
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
  , const potential_field sphe
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+ , const disk_potential disk
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
  , char *accfile
 #endif//COMPARE_WITH_DIRECT_SOLVER
@@ -456,6 +459,9 @@ static inline void dumpSnapshot
 #endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
 		    , pot_tbl_sphe
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+		    , pot_tbl_disk
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifndef SERIALIZED_EXECUTION
 		    , NULL, 0, 1, NULL, letcfg, NULL, NULL, 0, NULL, NULL, NULL
@@ -613,6 +619,9 @@ int main(int argc, char **argv)
 #endif//GADGET_MAC
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
     __FPRINTF__(stderr, "          -pot_file_sphe=<char *>\n");
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+    __FPRINTF__(stderr, "          -pot_file_disk=<char *>\n");
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
     __FPRINTF__(stderr, "          -dropPrevTune=<int> (optional)\n");
     __KILL__(stderr, "%s\n", "insufficient command line arguments");
@@ -631,6 +640,9 @@ int main(int argc, char **argv)
 #endif//GADGET_MAC
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   char *pot_file_sphe;  requiredCmdArg(getCmdArgStr(argc, (const char * const *)(void *)argv,  "pot_file_sphe", &pot_file_sphe));
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+  char *pot_file_disk;  requiredCmdArg(getCmdArgStr(argc, (const char * const *)(void *)argv,  "pot_file_disk", &pot_file_disk));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  EXEC_BENCHMARK
   static int jobID;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)(void *)argv, "jobID", &jobID));
@@ -1254,6 +1266,18 @@ int main(int argc, char **argv)
      , hdf5type
 #endif//USE_HDF5_FORMAT
      );
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+  disk_potential pot_tbl_disk;
+  real *pot_tbl_disk_RR, *pot_tbl_disk_zz, *pot_tbl_disk_Phi;
+  real *pot_tbl_disk_sphe_rad;
+  pot2 *pot_tbl_disk_sphe_Phi;
+  const muse alloc_ext_pot_disk = readFixedPotentialTableDisk
+    (unit, pot_file_disk, &pot_tbl_disk_RR, &pot_tbl_disk_zz, &pot_tbl_disk_Phi, &pot_tbl_disk_sphe_rad, &pot_tbl_disk_sphe_Phi, &pot_tbl_disk
+#ifdef  USE_HDF5_FORMAT
+   , hdf5type
+#endif//USE_HDF5_FORMAT
+     );
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 
@@ -1298,6 +1322,10 @@ int main(int argc, char **argv)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   used_mem.host   += alloc_ext_pot_sphe.host  ;
   used_mem.device += alloc_ext_pot_sphe.device;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+  used_mem.host   += alloc_ext_pot_disk.host  ;
+  used_mem.device += alloc_ext_pot_disk.device;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
   /** declarations of arrays to prevent for stack overflow */
@@ -1353,7 +1381,10 @@ int main(int argc, char **argv)
     fprintf(stdout, "\t%zu MiB for miscellaneous data\n", misc_mem.device >> 20);
     fprintf(stdout, "\t%zu MiB (%zu GiB) for tree walk buffer\n"  , alloc_buf_dev.device >> 20, alloc_buf_dev.device >> 30);
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-    fprintf(stdout, "\t%zu MiB (%zu KiB) for external potential field\n", alloc_ext_pot_sphe.device >> 20, alloc_ext_pot_sphe.device >> 10);
+    fprintf(stdout, "\t%zu MiB (%zu KiB) for external spherical potential-field\n", alloc_ext_pot_sphe.device >> 20, alloc_ext_pot_sphe.device >> 10);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+    fprintf(stdout, "\t%zu MiB (%zu KiB) for external disk potential-field\n", alloc_ext_pot_disk.device >> 20, alloc_ext_pot_disk.device >> 10);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifndef SERIALIZED_EXECUTION
     fprintf(stdout, "\t%zu MiB (%zu B) for LET related data\n"  ,  let_mem.device >> 20,  let_mem.device);
@@ -1373,7 +1404,10 @@ int main(int argc, char **argv)
     fprintf(stdout, "\t%zu MiB for miscellaneous data\n", misc_mem.host >> 20);
     fprintf(stdout, "\t%zu MiB (%zu B) for tree walk buffer\n", alloc_buf_dev.host >> 20, alloc_buf_dev.host);
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-    fprintf(stdout, "\t%zu MiB (%zu KiB) for external potential field\n", alloc_ext_pot_sphe.host >> 20, alloc_ext_pot_sphe.host >> 10);
+    fprintf(stdout, "\t%zu MiB (%zu KiB) for external spherical potential-field\n", alloc_ext_pot_sphe.host >> 20, alloc_ext_pot_sphe.host >> 10);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+    fprintf(stdout, "\t%zu MiB (%zu KiB) for external disk potential-field\n", alloc_ext_pot_disk.host >> 20, alloc_ext_pot_disk.host >> 10);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifndef SERIALIZED_EXECUTION
     fprintf(stdout, "\t%zu MiB (%zu B) for LET related data\n", let_mem.host >> 20, let_mem.host);
@@ -1575,6 +1609,9 @@ int main(int argc, char **argv)
 #endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
        , pot_tbl_sphe
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+       , pot_tbl_disk
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
        , file
@@ -1654,6 +1691,9 @@ int main(int argc, char **argv)
 #endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
        , pot_tbl_sphe
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+       , pot_tbl_disk
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
        , file
@@ -1750,6 +1790,9 @@ int main(int argc, char **argv)
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
        , pot_tbl_sphe
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+       , pot_tbl_disk
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
        , accfile
 #endif//COMPARE_WITH_DIRECT_SOLVER
@@ -2176,6 +2219,9 @@ int main(int argc, char **argv)
 #endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
 	 , pot_tbl_sphe
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+	 , pot_tbl_disk
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
 	 , file
@@ -2380,6 +2426,9 @@ int main(int argc, char **argv)
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
 	 , pot_tbl_sphe
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+	 , pot_tbl_disk
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 	 , accfile
 #endif//COMPARE_WITH_DIRECT_SOLVER
@@ -2680,6 +2729,10 @@ int main(int argc, char **argv)
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   freeSphericalPotentialTable_dev(pot_tbl_sphe_rad, pot_tbl_sphe_Phi);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+  freeDiskPotentialTable_dev(pot_tbl_disk_RR, pot_tbl_disk_zz, pot_tbl_disk_Phi);
+  freeSphericalPotentialTable_dev(pot_tbl_disk_sphe_rad, pot_tbl_disk_sphe_Phi);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 #ifndef SERIALIZED_EXECUTION

@@ -2033,6 +2033,9 @@ void calcGravity_dev
 #endif//!defined(BLOCK_TIME_STEP) || defined(COMPARE_WITH_DIRECT_SOLVER) || defined(COUNT_INTERACTIONS) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
  , const potential_field sphe
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+ , const disk_potential disk
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  PRINT_PSEUDO_PARTICLE_INFO
  , char *file
@@ -2820,6 +2823,9 @@ void calcGravity_dev
 #else///BLOCK_TIME_STEP
      , Ni
 #endif//BLOCK_TIME_STEP
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+     , disk
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
      );
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 

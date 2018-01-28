@@ -1016,11 +1016,11 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
  */
 extern "C"
 muse  readFixedPotentialTableDisk
-(char file[]
+(const int unit, char file[], real **RR_dev, real **zz_dev, real **Phi_dev, real **rad_sphe_dev, pot2 **Phi_sphe_dev, disk_potential *disk
 #ifdef  USE_HDF5_FORMAT
  , hdf5struct type
 #endif//USE_HDF5_FORMAT
- , real **RR_dev, real **zz_dev, real **Phi_dev, real **rad_sphe_dev, pot2 **Phi_sphe_dev, disk_potential *disk)
+)
 {
   __NOTE__("%s\n", "start");
 
