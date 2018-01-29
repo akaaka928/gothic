@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/25 (Thu)
+ * @date 2018/01/29 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2518,7 +2518,7 @@ void outputRepresentativeQuantities
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
       const double sigmaR = DISK_RADIAL_VDISP(disk[diskID].cfg->vdispR0, disk[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], 1.0 / disk[diskID].zd[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
 #else///ENABLE_VARIABLE_SCALE_HEIGHT
-      const double sigmaR = DISK_RADIAL_VDISP(disk[diskID].cfg->vdispR0, disk[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], invRd);
+      const double sigmaR = DISK_RADIAL_VDISP(disk[diskID].cfg->vdispR0, disk[diskID].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], disk[diskID].invRd);
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
 #endif//ENFORCE_EPICYCLIC_APPROXIMATION
 

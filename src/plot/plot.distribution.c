@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/01/19 (Fri)
+ * @date 2018/01/29 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -1553,7 +1553,7 @@ int main(int argc, char **argv)
 	free(group_num);
       }/* if( 0 != access(filename, F_OK) ){ */
       else{
-	fprintf(stderr, "# \"%s\" was not updated to decreased the elapsed time.\n", filename);
+	fprintf(stderr, "# \"%s\" was not updated for reducing the elapsed time.\n", filename);
 	fflush(stderr);
       }/* else{ */
     }/* if( multi_group ){ */

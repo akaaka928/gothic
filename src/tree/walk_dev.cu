@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/25 (Thu)
+ * @date 2018/01/29 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -70,7 +70,7 @@
 #include "potential_dev.h"
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
-#   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO) || defined(REPORT_GPU_CLOCK_FREQUENCY)
 #define USE_GPU_BASE_CLOCK_FREQ
 #   if  (__CUDACC_VER_MINOR__ + 10 * __CUDACC_VER_MAJOR__) >= 80
 #include <nvml.h>
@@ -78,7 +78,7 @@
 #define USE_MEASURED_CLOCK_FREQ
 nvmlDevice_t deviceHandler;
 #endif//(__CUDACC_VER_MINOR__ + 10 * __CUDACC_VER_MAJOR__) >= 80
-#endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO) || defined(REPORT_GPU_CLOCK_FREQUENCY)
 
 
 __constant__  real newton;
@@ -177,6 +177,187 @@ __global__ void initFreeLst
   }/* if( tidx < numLanes ){ */
 }
 #endif//USE_SMID_TO_GET_BUFID
+
+
+/**
+ * @fn allocParticleDataSoA_dev
+ *
+ * @brief Allocate memory for N-body particles as SoA on GPU.
+ */
+extern "C"
+muse allocParticleDataSoA_dev
+(const int num
+#ifdef  BLOCK_TIME_STEP
+ , iparticle *body0, ulong **idx0, position **pos0, acceleration **acc0, velocity **vel0, ibody_time **ti0
+ , iparticle *body1, ulong **idx1, position **pos1, acceleration **acc1, velocity **vel1, ibody_time **ti1
+#else///BLOCK_TIME_STEP
+ , iparticle *body0, ulong **idx0, position **pos0, acceleration **acc0, real **vx0, real **vy0, real **vz0
+ , iparticle *body1, ulong **idx1, position **pos1, acceleration **acc1, real **vx1, real **vy1, real **vz1
+#endif//BLOCK_TIME_STEP
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ , acceleration **acc_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+ , real **neighbor
+#ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
+ , position **encBall, position **encBall_hst
+#endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  DPADD_FOR_ACC
+ , DPacc **tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+ , acceleration **res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+ )
+{
+  __NOTE__("%s\n", "start");
+
+
+  muse alloc = {0, 0};
+
+  /** the size of the array is set to be a multiple of NTHREADS */
+  size_t size = (size_t)num;
+  if( (num % NTHREADS) != 0 )
+    size += (size_t)(NTHREADS - (num % NTHREADS));
+
+  /** memory allocation and simple confirmation */
+  mycudaMalloc((void **)idx0, size * sizeof(ulong));  mycudaMalloc((void **)pos0, size * sizeof(position));  mycudaMalloc((void **)acc0, size * sizeof(acceleration));
+  alloc.device +=             size * sizeof(ulong) ;  alloc.device +=             size * sizeof(position) ;  alloc.device +=             size * sizeof(acceleration) ;
+  mycudaMalloc((void **)idx1, size * sizeof(ulong));  mycudaMalloc((void **)pos1, size * sizeof(position));  mycudaMalloc((void **)acc1, size * sizeof(acceleration));
+  alloc.device +=             size * sizeof(ulong) ;  alloc.device +=             size * sizeof(position) ;  alloc.device +=             size * sizeof(acceleration) ;
+#ifdef  BLOCK_TIME_STEP
+  mycudaMalloc((void **)vel0, size * sizeof(velocity));  mycudaMalloc((void **)ti0, size * sizeof(ibody_time));
+  alloc.device +=             size * sizeof(velocity) ;  alloc.device +=            size * sizeof(ibody_time) ;
+  mycudaMalloc((void **)vel1, size * sizeof(velocity));  mycudaMalloc((void **)ti1, size * sizeof(ibody_time));
+  alloc.device +=             size * sizeof(velocity) ;  alloc.device +=            size * sizeof(ibody_time) ;
+#else///BLOCK_TIME_STEP
+  mycudaMalloc((void **)vx0, size * sizeof(real));  mycudaMalloc((void **)vy0, size * sizeof(real));  mycudaMalloc((void **)vz0, size * sizeof(real));
+  alloc.device +=            size * sizeof(real) ;  alloc.device +=            size * sizeof(real) ;  alloc.device +=            size * sizeof(real) ;
+  mycudaMalloc((void **)vx1, size * sizeof(real));  mycudaMalloc((void **)vy1, size * sizeof(real));  mycudaMalloc((void **)vz1, size * sizeof(real));
+  alloc.device +=            size * sizeof(real) ;  alloc.device +=            size * sizeof(real) ;  alloc.device +=            size * sizeof(real) ;
+#endif//BLOCK_TIME_STEP
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  mycudaMalloc((void **)acc_ext, size * sizeof(acceleration));
+  alloc.device +=                size * sizeof(acceleration) ;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+
+  /** commit arrays to the utility structure */
+  body0->idx = *idx0;  body0->pos = *pos0;  body0->acc = *acc0;
+  body1->idx = *idx1;  body1->pos = *pos1;  body1->acc = *acc1;
+#ifdef  BLOCK_TIME_STEP
+  body0->vel = *vel0;  body0->time = *ti0;
+  body1->vel = *vel1;  body1->time = *ti1;
+  body1->jpos = *pos0;  body1->jvel = *vel0;
+  body0->jpos = *pos1;  body0->jvel = *vel1;
+#else///BLOCK_TIME_STEP
+  body0->vx = *vx0;  body0->vy = *vy0;  body0->vz = *vz0;
+  body1->vx = *vx1;  body1->vy = *vy1;  body1->vz = *vz1;
+#endif//BLOCK_TIME_STEP
+
+#ifdef  GADGET_MAC
+  body0->acc_old = *acc1;
+  body1->acc_old = *acc0;
+#endif//GADGET_MAC
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  body0->acc_ext = *acc_ext;
+  body1->acc_ext = *acc_ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+
+  mycudaMalloc((void **)neighbor, size * sizeof(real));
+  alloc.device +=                 size * sizeof(real) ;
+  body0->neighbor = *neighbor;
+  body1->neighbor = *neighbor;
+
+#ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
+  mycudaMalloc    ((void **)encBall    , sizeof(position));  alloc.device +=                sizeof(position);
+  mycudaMallocHost((void **)encBall_hst, sizeof(position));  alloc.host   +=                sizeof(position);
+  body0->encBall = *encBall;  body0->encBall_hst = *encBall_hst;
+  body1->encBall = *encBall;  body1->encBall_hst = *encBall_hst;
+#endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+
+#ifdef  DPADD_FOR_ACC
+  mycudaMalloc((void **)tmp, size * sizeof(DPacc));
+  alloc.device +=            size * sizeof(DPacc) ;
+  body0->tmp = *tmp;
+  body1->tmp = *tmp;
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+  mycudaMalloc((void **)res, size * sizeof(acceleration));
+  alloc.device +=            size * sizeof(acceleration) ;
+  body0->res = *res;
+  body1->res = *res;
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+
+
+  __NOTE__("%s\n", "end");
+  return (alloc);
+}
+
+
+/**
+ * @fn freeParticleDataSoA_dev
+ *
+ * @brief Deallocate memory for N-body particles as SoA on GPU.
+ */
+extern "C"
+void  freeParticleDataSoA_dev
+(ulong  *idx0, position  *pos0, acceleration  *acc0
+#ifdef  BLOCK_TIME_STEP
+ , velocity  *vel0, ibody_time  *ti0
+ , ulong  *idx1, position  *pos1, acceleration  *acc1, velocity  *vel1, ibody_time  *ti1
+#else///BLOCK_TIME_STEP
+ , real  *vx0, real  *vy0, real  *vz0
+ , ulong  *idx1, position  *pos1, acceleration  *acc1, real  *vx1, real  *vy1, real  *vz1
+#endif//BLOCK_TIME_STEP
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ , acceleration  *acc_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+ , real  *neighbor
+#ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
+ , position  *encBall, position  *encBall_hst
+#endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  DPADD_FOR_ACC
+ , DPacc  *tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+ , acceleration  *res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+ )
+{
+  __NOTE__("%s\n", "start");
+
+
+  mycudaFree(idx0);  mycudaFree(pos0);  mycudaFree(acc0);
+  mycudaFree(idx1);  mycudaFree(pos1);  mycudaFree(acc1);
+#ifdef  BLOCK_TIME_STEP
+  mycudaFree(vel0);  mycudaFree(ti0);
+  mycudaFree(vel1);  mycudaFree(ti1);
+#else///BLOCK_TIME_STEP
+  mycudaFree(vx0);  mycudaFree(vy0);  mycudaFree(vz0);
+  mycudaFree(vx1);  mycudaFree(vy1);  mycudaFree(vz1);
+#endif//BLOCK_TIME_STEP
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  mycudaFree(acc_ext);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+
+  mycudaFree(neighbor);
+
+#ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
+  mycudaFree    (encBall);
+  mycudaFreeHost(encBall_hst);
+#endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  DPADD_FOR_ACC
+  mycudaFree(tmp);
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+  mycudaFree(res);
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+
+
+  __NOTE__("%s\n", "end");
+}
 
 
 /**
@@ -2059,6 +2240,9 @@ void calcGravity_dev
 #ifdef  EXEC_BENCHMARK
  , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+ , gpu_clock *clockInfo, *recordStep
+#endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
  , const bool approxGravity
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
@@ -2096,6 +2280,10 @@ void calcGravity_dev
 
 #ifdef  USE_MEASURED_CLOCK_FREQ
   uint clockWalk;/**< in units of MHz */
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+  uint temperature;/**< in units of degrees C */
+  uint power;/**< in units of milliwatts */
+#endif//REPORT_GPU_CLOCK_FREQUENCY
 #endif//USE_MEASURED_CLOCK_FREQ
 
 #   if  defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)
@@ -2224,6 +2412,11 @@ void calcGravity_dev
 #ifdef  USE_MEASURED_CLOCK_FREQ
       /** measure clock frequency as a reference value */
       nvmlDeviceGetClock(deviceHandler, NVML_CLOCK_SM, NVML_CLOCK_ID_CURRENT, &clockWalk);
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+      /** measure temperature and power usage */
+      nvmlDeviceGetTemperature(deviceHandler, NVML_TEMPERATURE_GPU, &temperature);
+      nvmlDeviceGetPowerUsage(deviceHandler, &power);
+#endif//REPORT_GPU_CLOCK_FREQUENCY
 #endif//USE_MEASURED_CLOCK_FREQ
 
 
@@ -2870,6 +3063,20 @@ void calcGravity_dev
 #endif//EXEC_BENCHMARK
 #endif//MONITOR_LETGEN_TIME
 #endif//SERIALIZED_EXECUTION
+
+
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+  /* report clock, Ngroup, elapsed */
+  const int dstIdx = *recordStep & (CLOCK_RECORD_STEPS - 1);
+  clockInfo[dstIdx].elapsed = *time;
+#ifdef  USE_MEASURED_CLOCK_FREQ
+  clockInfo[dstIdx].devClock = clockWalk;
+  clockInfo[dstIdx].temperature = temperature;
+  clockInfo[dstIdx].power = power;
+#endif//USE_MEASURED_CLOCK_FREQ
+  clockInfo[dstIdx].grpNum = grpNum;
+  *recordStep += 1;
+#endif//REPORT_GPU_CLOCK_FREQUENCY
 
 
   __NOTE__("%s\n", "end");

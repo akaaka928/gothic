@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/25 (Thu)
+ * @date 2018/01/29 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -377,6 +377,9 @@ static inline void dumpSnapshot
 #ifdef  EXEC_BENCHMARK
  , wall_clock_time *execTime
 #endif//EXEC_BENCHMARK
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+ , gpu_clock *deviceMonitors, int *monitor_step
+#endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
  , const int Ni, const iparticle ibody_direct_dev, const deviceProp devProp, acceleration *direct_hst, const int Ngrp, laneinfo *laneInfo_dev
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
@@ -415,29 +418,34 @@ static inline void dumpSnapshot
 
   /** output the snapshot file */
 #ifdef  SERIALIZED_EXECUTION
-  writeSnapshot        (unit, time, steps, num, file, present
+  writeSnapshot
+    (unit, time, steps, num, file, present
 #ifdef  USE_HDF5_FORMAT
-			, body, hdf5type
+     , body, hdf5type
 #ifdef  MONITOR_ENERGY_ERROR
-			, relEneErr
+     , relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #else///USE_HDF5_FORMAT
-			, ibody_hst
+     , ibody_hst
 #endif//USE_HDF5_FORMAT
-			);
+     );
 #else///SERIALIZED_EXECUTION
-  writeSnapshotParallel(unit, time, steps, num, file, present, iocfg, Ntot
+  writeSnapshotParallel
+    (unit, time, steps, num, file, present, iocfg, Ntot
 #ifdef  USE_HDF5_FORMAT
-			, body, hdf5type
+     , body, hdf5type
 #ifdef  MONITOR_ENERGY_ERROR
-			, relEneErr
+     , relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #else///USE_HDF5_FORMAT
-			, ibody_hst
+     , ibody_hst
 #endif//USE_HDF5_FORMAT
-			);
+     );
 #endif//SERIALIZED_EXECUTION
   *previous = present;
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+  *monitor_step = 0;
+#endif//REPORT_GPU_CLOCK_FREQUENCY
 
 
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
@@ -1438,6 +1446,14 @@ int main(int argc, char **argv)
   bench_begin = steps;
 #endif//EXEC_BENCHMARK
 
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+  /** preparation of the GPU monitoring */
+  /** declaration of counters */
+  static gpu_clock deviceMonitors[CLOCK_RECORD_STEPS];/**< zero-clear by static modifier */
+  static int monitor_step;
+  monitor_step = 0;
+#endif//REPORT_GPU_CLOCK_FREQUENCY
+
 
   /** set N-body particles on device */
   copyParticle_hst2dev(num, ibody0, ibody0_dev
@@ -1635,6 +1651,9 @@ int main(int argc, char **argv)
 #ifdef  EXEC_BENCHMARK
        , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+       , deviceMonitors, &monitor_step
+#endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
        , true
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
@@ -1717,6 +1736,9 @@ int main(int argc, char **argv)
 #ifdef  EXEC_BENCHMARK
        , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+       , deviceMonitors, &monitor_step
+#endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
        , true
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
@@ -1783,6 +1805,9 @@ int main(int argc, char **argv)
 #ifdef  EXEC_BENCHMARK
        , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+       , deviceMonitors, &monitor_step
+#endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
        , Ni, ibody_direct_dev, devProp, direct, Ngrp, laneInfo_dev
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
@@ -2245,6 +2270,9 @@ int main(int argc, char **argv)
 #ifdef  EXEC_BENCHMARK
 	 , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+	 , deviceMonitors, &monitor_step
+#endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
 	 , true
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
@@ -2419,6 +2447,9 @@ int main(int argc, char **argv)
 #ifdef  EXEC_BENCHMARK
 	 , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+	 , deviceMonitors, &monitor_step
+#endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
 	 , Ni, ibody_direct_dev, devProp, direct, Ngrp, laneInfo_dev
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING

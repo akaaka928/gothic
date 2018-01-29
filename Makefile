@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/01/26 (Fri) 19:18:14
+# last updated on 2018/01/29 (Mon) 14:16:36
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -51,6 +51,7 @@ EVALUATE_FORCE_ERROR	:= 0
 #################################################################################################
 # Benchmark options
 REPORT_ELAPSED_TIME	:= 1
+REPORT_CLOCK_FREQUENCY	:= 1
 MEASURE_ELAPSED_TIME	:= 0
 MEASURE_EXEC_METRICS	:= 0
 HUNT_OPTIMAL_WALK_TREE	:= 0
@@ -110,10 +111,16 @@ endif
 #################################################################################################
 ifeq ($(EVALUATE_FORCE_ERROR), 1)
 REPORT_ELAPSED_TIME	:= 0
+REPORT_CLOCK_FREQUENCY	:= 0
 endif
 #################################################################################################
 ifeq ($(REPORT_ELAPSED_TIME), 1)
 CCARG	+= -DREPORT_TOTAL_ELAPSED_TIME
+endif
+#################################################################################################
+ifeq ($(REPORT_CLOCK_FREQUENCY), 1)
+CCARG	+= -DREPORT_GPU_CLOCK_FREQUENCY
+CUARG	+= -DREPORT_GPU_CLOCK_FREQUENCY
 endif
 #################################################################################################
 ifeq ($(CHECK_FUNCTION_CALLS), 1)

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/25 (Thu)
+ * @date 2018/01/29 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -469,6 +469,15 @@ void createHDF5DataType(hdf5struct *type)
   chkHDF5err(H5Tinsert(type->pot2, "dr2", HOFFSET(pot2, dr2), type->real));
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
+  /* commit a data type of deviceMonitors */
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+  type->gpu_clock = H5Tcreate(H5T_COMPOUND, sizeof(gpu_clock));
+  chkHDF5err(H5Tinsert(type->gpu_clock, "elapsed", HOFFSET(gpu_clock, elapsed), H5T_NATIVE_DOUBLE));
+  chkHDF5err(H5Tinsert(type->gpu_clock, "devClock", HOFFSET(gpu_clock, devClock), H5T_NATIVE_UINT));
+  chkHDF5err(H5Tinsert(type->gpu_clock, "temperature", HOFFSET(gpu_clock, temperature), H5T_NATIVE_UINT));
+  chkHDF5err(H5Tinsert(type->gpu_clock, "power", HOFFSET(gpu_clock, power), H5T_NATIVE_UINT));
+  chkHDF5err(H5Tinsert(type->gpu_clock, "grpNum", HOFFSET(gpu_clock, grpNum), H5T_NATIVE_INT));
+#endif//REPORT_GPU_CLOCK_FREQUENCY
 
   __NOTE__("%s\n", "end");
 }
@@ -498,6 +507,10 @@ void removeHDF5DataType(hdf5struct  type)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   chkHDF5err(H5Tclose(type.pot2));
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+  chkHDF5err(H5Tclose(type.gpu_clock));
+#endif//REPORT_GPU_CLOCK_FREQUENCY
 
   __NOTE__("%s\n", "end");
 }
@@ -2902,16 +2915,20 @@ void  readSnapshot(int *unit, double *time, ulong *steps, int num, char file[], 
  * @param (body) the particle data
  * @param (type) data type for HDF5 (only for HDF5 enabled runs)
  */
-void writeSnapshot(int  unit, double  time, ulong  steps, int num, char file[], uint id
+void writeSnapshot
+(int  unit, double  time, ulong  steps, int num, char file[], uint id
 #ifdef  USE_HDF5_FORMAT
-		   , nbody_hdf5 *body, hdf5struct type
+ , nbody_hdf5 *body, hdf5struct type
 #ifdef  MONITOR_ENERGY_ERROR
-		   , energyError *relEneErr
+ , energyError *relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #else///USE_HDF5_FORMAT
-		   , iparticle body
+ , iparticle body
 #endif//USE_HDF5_FORMAT
-		   )
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+ , gpu_clock *deviceMonitors, const int monitor_step
+#endif//REPORT_GPU_CLOCK_FREQUENCY
+ )
 {
   __NOTE__("%s\n", "start");
 
@@ -2994,6 +3011,10 @@ void writeSnapshot(int  unit, double  time, ulong  steps, int num, char file[], 
   tmp = num;  if( tmp != fwrite(body.vz, sizeof(real), tmp, fp) )    success = false;
 #endif//BLOCK_TIME_STEP
   tmp = num;  if( tmp != fwrite(body.idx, sizeof(ulong), tmp, fp) )    success = false;
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+  tmp = (CLOCK_RECORD_STEPS < monitor_step) ? CLOCK_RECORD_STEPS : monitor_step;
+  if( tmp != fwrite(deviceMonitors, sizeof(gpu_clock), tmp, fp) )    success = false;
+#endif//REPORT_GPU_CLOCK_FREQUENCY
   if( success != true ){    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);  }
 
   fclose(fp);
@@ -3237,6 +3258,40 @@ void writeSnapshot(int  unit, double  time, ulong  steps, int num, char file[], 
   chkHDF5err(H5Gclose(group));
 #endif//MONITOR_ENERGY_ERROR
 
+  /* write GPU information */
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+  group = H5Gcreate(target, "GPUinfo", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+  const int monitor = (CLOCK_RECORD_STEPS < monitor_step) ? CLOCK_RECORD_STEPS : monitor_step;
+
+  /* write attribute */
+  attr_dims = 1;
+  dataspace = H5Screate_simple(1, &attr_dims, NULL);
+  attribute = H5Acreate(group, "steps", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &monitor));
+  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Sclose(dataspace));
+
+  /* data reordering */
+  static gpu_clock record[CLOCK_RECORD_STEPS];
+  const int origin = monitor_step & (CLOCK_RECORD_STEPS - 1);
+  const int turnaround = monitor - origin;
+  for(int ii = 0; ii < turnaround; ii++)
+    record[ii] = deviceMonitors[origin + ii];
+  for(int ii = turnaround; ii < monitor; ii++)
+    record[ii] = deviceMonitors[ii - turnaround];
+
+  /* write measured data */
+  hsize_t clock_dims = (hsize_t)monitor;
+  dataspace = H5Screate_simple(1, &clock_dims, NULL);
+  dataset = H5Dcreate(group, "record", type.gpu_clock, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, type.gpu_clock, H5S_ALL, H5S_ALL, H5P_DEFAULT, record));
+  chkHDF5err(H5Dclose(dataset));
+  chkHDF5err(H5Sclose(dataspace));
+
+  chkHDF5err(H5Gclose(group));
+#endif//REPORT_GPU_CLOCK_FREQUENCY
+
 
   /* close the file */
   chkHDF5err(H5Fclose(target));
@@ -3263,16 +3318,20 @@ void writeSnapshot(int  unit, double  time, ulong  steps, int num, char file[], 
  * @param (body) the particle data
  * @param (type) data type for HDF5 (only for HDF5 enabled runs)
  */
-void writeSnapshotParallel(int  unit, double  time, ulong  steps, int num, char file[], uint id, MPIcfg_dataio *mpi, ulong Ntot
+void writeSnapshotParallel
+(int  unit, double  time, ulong  steps, int num, char file[], uint id, MPIcfg_dataio *mpi, ulong Ntot
 #ifdef  USE_HDF5_FORMAT
-			   , nbody_hdf5 *body, hdf5struct type
+ , nbody_hdf5 *body, hdf5struct type
 #ifdef  MONITOR_ENERGY_ERROR
-			   , energyError *relEneErr
+ , energyError *relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #else///USE_HDF5_FORMAT
-			   , iparticle body
+ , iparticle body
 #endif//USE_HDF5_FORMAT
-			   )
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+ , gpu_clock *deviceMonitors, const int monitor_step
+#endif//REPORT_GPU_CLOCK_FREQUENCY
+ )
 {
   __NOTE__("%s\n", "start");
 
@@ -3659,8 +3718,8 @@ void writeSnapshotParallel(int  unit, double  time, ulong  steps, int num, char 
   chkHDF5err(H5Gclose(group));
 
 
-#ifdef  MONITOR_ENERGY_ERROR
   /* write energy conservation */
+#ifdef  MONITOR_ENERGY_ERROR
   group = H5Gcreate(target, "energy", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   /* create the data space for the attribute */
   attr_dims = 1;
@@ -3682,6 +3741,66 @@ void writeSnapshotParallel(int  unit, double  time, ulong  steps, int num, char 
   chkHDF5err(H5Sclose(dataspace));
   chkHDF5err(H5Gclose(group));
 #endif//MONITOR_ENERGY_ERROR
+
+  /* write GPU information */
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+  group = H5Gcreate(target, "GPUinfo", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+  const int monitor = (CLOCK_RECORD_STEPS < monitor_step) ? CLOCK_RECORD_STEPS : monitor_step;
+
+  /* write attribute */
+  attr_dims = 1;
+  dataspace = H5Screate_simple(1, &attr_dims, NULL);
+  attribute = H5Acreate(group, "steps", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &monitor));
+  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Sclose(dataspace));
+
+  /* data reordering */
+  static gpu_clock record[CLOCK_RECORD_STEPS];
+  const int origin = monitor_step & (CLOCK_RECORD_STEPS - 1);
+  const int turnaround = monitor - origin;
+  for(int ii = 0; ii < turnaround; ii++)
+    record[ii] = deviceMonitors[origin + ii];
+  for(int ii = turnaround; ii < monitor; ii++)
+    record[ii] = deviceMonitors[ii - turnaround];
+
+  w_property = H5Pcreate(H5P_DATASET_XFER);
+  chkHDF5err(H5Pset_dxpl_mpio(w_property, H5FD_MPIO_COLLECTIVE));
+
+  dims_ful[0] = (hsize_t)monitor * (hsize_t)mpi->size;
+  dims_mem[0] = (hsize_t)monitor;
+  dims_loc[0] = (hsize_t)monitor;
+  fulSpace = H5Screate_simple(1, dims_ful, NULL);
+  locSpace = H5Screate_simple(1, dims_loc, NULL);
+
+  data_create = H5Pcreate(H5P_DATASET_CREATE);
+  dims_max = (MAXIMUM_CHUNK_SIZE_8BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_8BIT : MAXIMUM_CHUNK_SIZE;
+  if( dims_mem[0] > dims_max )
+    dims_mem[0] = dims_max;
+  chkHDF5err(H5Pset_chunk(data_create, 1, dims_mem));
+
+  count[0] = 1;
+  stride[0] = 1;
+  block[0] = dims_loc[0];
+  offset[0] = mpi->rank;
+
+  /* write measured data */
+  dataset = H5Dcreate(group, "record", type.gpu_clock, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+  hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, offset, stride, count, block));
+  chkHDF5err(H5Dwrite(dataset, type.gpu_clock, locSpace, hyperslab, w_property, record));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+
+  chkHDF5err(H5Pclose(data_create));
+  chkHDF5err(H5Sclose(locSpace));
+  chkHDF5err(H5Sclose(fulSpace));
+  chkHDF5err(H5Pclose(w_property));
+
+  chkHDF5err(H5Gclose(group));
+#endif//REPORT_GPU_CLOCK_FREQUENCY
+
 
   /* close the file */
   chkHDF5err(H5Fclose(target));

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/12/27 (Wed)
+ * @date 2018/01/29 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -76,6 +76,9 @@
  * @brief determine the scale height of disk component(s) by iterations
  */
 #define ITERATE_VARIABLE_SCALE_HEIGHT
+#   if  defined(ITERATE_VARIABLE_SCALE_HEIGHT) && !defined(ENABLE_VARIABLE_SCALE_HEIGHT)
+#undef  ITERATE_VARIABLE_SCALE_HEIGHT
+#endif//defined(ITERATE_VARIABLE_SCALE_HEIGHT) && !defined(ENABLE_VARIABLE_SCALE_HEIGHT)
 
 /**
  * @def DISK_DIMMING_HEIGHT
@@ -84,6 +87,9 @@
  * @detail see Equation (8) in Miki & Umemura (arXiv:1712.08760)
  */
 #define DISK_DIMMING_HEIGHT (16.0)
+#   if  defined(DISK_DIMMING_HEIGHT) && !defined(ENABLE_VARIABLE_SCALE_HEIGHT)
+#undef  DISK_DIMMING_HEIGHT
+#endif//defined(DISK_DIMMING_HEIGHT) && !defined(ENABLE_VARIABLE_SCALE_HEIGHT)
 
 /**
  * @def DISK_DIMMING_HEIGHT_INV
@@ -91,6 +97,9 @@
  * @brief inverse of diskDimmingHeight
  */
 #define DISK_DIMMING_HEIGHT_INV (6.25e-2)
+#   if  defined(DISK_DIMMING_HEIGHT_INV) && !defined(DISK_DIMMING_HEIGHT)
+#undef  DISK_DIMMING_HEIGHT_INV
+#endif//defined(DISK_DIMMING_HEIGHT_INV) && !defined(DISK_DIMMING_HEIGHT)
 
 /**
  * @def ADDITIONAL_CONDITION_FOR_SCALE_HEIGHT
@@ -98,6 +107,9 @@
  * @brief enable to remove the needle-like structure
  */
 #define ADDITIONAL_CONDITION_FOR_SCALE_HEIGHT
+#   if  defined(ADDITIONAL_CONDITION_FOR_SCALE_HEIGHT) && !defined(ENABLE_VARIABLE_SCALE_HEIGHT)
+#undef  ADDITIONAL_CONDITION_FOR_SCALE_HEIGHT
+#endif//defined(ADDITIONAL_CONDITION_FOR_SCALE_HEIGHT) && !defined(ENABLE_VARIABLE_SCALE_HEIGHT)
 
 /**
  * @def DISK_DIMMING_SCALE
@@ -105,6 +117,9 @@
  * @brief parameter to remove the needle-like structure for very thick disk
  */
 #define DISK_DIMMING_SCALE (5.0)
+#   if  defined(DISK_DIMMING_SCALE) && !defined(ADDITIONAL_CONDITION_FOR_SCALE_HEIGHT)
+#undef  DISK_DIMMING_SCALE
+#endif//defined(DISK_DIMMING_SCALE) && !defined(ADDITIONAL_CONDITION_FOR_SCALE_HEIGHT)
 
 
 /**

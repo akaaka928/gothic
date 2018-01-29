@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/01/29 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -98,23 +98,8 @@ typedef struct
 #ifdef  USE_ENCLOSING_BALL_FOR_LET
   double encBall_dev;/**< execution time of getApproxEnclosingBall_dev() in src/tree/icom_dev.cu */
 #endif//USE_ENCLOSING_BALL_FOR_LET
-
   double calc_r2max_dev;/**< execution time of calc_r2max_dev() in src/tree/geo_dev.cu */
-
-
-
-
   double excgBody_dev;/**< execution time of exchangeParticles_dev() in src/para/exchange_dev.cu */
-
-
-#if 1
-  なるべく process ごとの値を生で保存しておいて，後から load balancing も取り出せるようにしたい;
-
-  HUNT_????_PARAMETER を設定して，各種パラメータを見つけるためのジョブも準備したい;
-
-  各関数の処理時間を正確に測定しようとすると，auto-tuning によって実行パラメータが変化していくので，breakdown を正確に測定する際には必要最低限の同期処理をつっこむだけにしておきたい;
-#endif
-
 #endif//SERIALIZED_EXECUTION
 } wall_clock_time;
 
@@ -190,4 +175,28 @@ static inline void stopStopwatch(double *result)
 
 
 #endif//EXEC_BENCHMARK
+
+
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+
+#include "macro.h"
+
+#define CLOCK_RECORD_STEPS (128)
+
+/**
+ * @struct gpu_clock
+ *
+ * @brief structure to store measured information on GPU
+ */
+typedef struct
+{
+  double elapsed;
+  uint devClock;/**< in units of MHz */
+  uint temperature;/**< in units of degrees C */
+  uint power;/**< in units of milliwatts */
+  int grpNum;
+} gpu_clock;
+#endif//REPORT_GPU_CLOCK_FREQUENCY
+
+
 #endif//BENCHMARK_H
