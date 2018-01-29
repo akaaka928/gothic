@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/26 (Fri)
+ * @date 2018/01/29 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -160,8 +160,6 @@ void  freeDiskPotentialTable_dev(real  *RR, real  *zz, real  *Phi)
 {
   __NOTE__("%s\n", "start");
 
-  muse alloc = {0, 0};
-
   mycudaFree(RR);
   mycudaFree(zz);
   mycudaFree(Phi);
@@ -198,8 +196,6 @@ static inline muse allocDiskPotentialTable_hst(real **RR, real **zz, real **Phi,
 static inline void  freeDiskPotentialTable_hst(real  *RR, real  *zz, real  *Phi)
 {
   __NOTE__("%s\n", "start");
-
-  muse alloc = {0, 0};
 
   mycudaFreeHost(RR);
   mycudaFreeHost(zz);
@@ -423,7 +419,7 @@ __global__ void calcExternalDiskGravity_kernel
 #ifdef  BLOCK_TIME_STEP
  const int laneNum, READ_ONLY laneinfo * RESTRICT laneInfo,
 #endif//BLOCK_TIME_STEP
- const real hh, const real hinv, READ_ONLY real * RESTRICT Phi,
+ const int NR, const int Nz, const real hh, const real hinv, READ_ONLY real * RESTRICT Phi,
 #ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
  const real logrmin, const real invlogrbin,
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
@@ -460,6 +456,7 @@ __global__ void calcExternalDiskGravity_kernel
     const real RR = R2 * Rinv;
     const real z2 = 1.0e-30f + pi.z * pi.z;
     const real zinv = RSQRT(z2);
+    const real zz = z2 * zinv;
 
     /** find appropriate grid level */
     const int levR = (int)FLOOR(LOG2(hh * ((real)NR - THREE_HALVES) * Rinv));
@@ -642,7 +639,7 @@ void calcExternalGravity_dev
 #ifdef  BLOCK_TIME_STEP
 	 BLOCKSIZE(grpNum, NGROUPS) * NGROUPS, laneInfo,
 #endif//BLOCK_TIME_STEP
-	 disk.hh, disk.hinv, disk.Phi,
+	 disk.NR, disk.Nz, disk.hh, disk.hinv, disk.Phi,
 #ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 	 disk.sphe.logrmin, disk.sphe.invlogrbin,
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
@@ -675,7 +672,7 @@ void calcExternalGravity_dev
 #else///BLOCK_TIME_STEP
 	 &pi.acc_ext[hidx], &pi.pos[hidx],
 #endif//BLOCK_TIME_STEP
-	 disk.hh, disk.hinv, disk.Phi,
+	 disk.NR, disk.Nz, disk.hh, disk.hinv, disk.Phi,
 #ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 	 disk.sphe.logrmin, disk.sphe.invlogrbin,
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
@@ -1062,7 +1059,7 @@ muse  readFixedPotentialTableDisk
 
 
   /* read potential table of superposed disk components */
-  grofup = H5Gopen(target, "2D", H5P_DEFAULT);
+  group = H5Gopen(target, "2D", H5P_DEFAULT);
   /* read # of nested levels */
   attribute = H5Aopen(group, "maxLev", H5P_DEFAULT);
   chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &disk->maxLev));
@@ -1084,6 +1081,7 @@ muse  readFixedPotentialTableDisk
   alloc_disk = allocDiskPotentialTable_dev(RR_dev, zz_dev, Phi_dev, *disk);
   allocDiskPotentialTable_hst(&RR_hst, &zz_hst, &Phi_hst, *disk);
 
+  hid_t dataset;
   /* read \Phi(R, z) */
   dataset = H5Dopen(group, "Phi", H5P_DEFAULT);
   chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, Phi_hst));
@@ -1191,11 +1189,11 @@ muse  readFixedPotentialTableDisk
   disk->Phi = *Phi_dev;
   disk->hinv = UNITY / disk->hh;
 
-  setSphericalPotentialTable_dev(rad_hst, Phi_hst, *rad, *Phi, pot_tbl->num);
-  freeSphericalPotentialTable_hst(rad_hst, Phi_hst);
+  setSphericalPotentialTable_dev(rad_sphe_hst, Phi_sphe_hst, *rad_sphe_dev, *Phi_sphe_dev, disk->sphe.num);
+  freeSphericalPotentialTable_hst(rad_sphe_hst, Phi_sphe_hst);
 
-  disk->sphe.rad = *rad;
-  disk->sphe.Phi = *Phi;
+  disk->sphe.rad = *rad_sphe_dev;
+  disk->sphe.Phi = *Phi_sphe_dev;
 #ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   disk->sphe.invlogrbin = UNITY / disk->sphe.logrbin;
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
@@ -1208,7 +1206,6 @@ muse  readFixedPotentialTableDisk
 
 
   __NOTE__("%s\n", "end");
-  muse alloc_disk, alloc_sphe;
   const muse alloc_tbl = {alloc_disk.host + alloc_sphe.host, alloc_disk.device + alloc_sphe.device};
 
   return (alloc_tbl);

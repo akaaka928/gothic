@@ -428,6 +428,9 @@ static inline void dumpSnapshot
 #else///USE_HDF5_FORMAT
      , ibody_hst
 #endif//USE_HDF5_FORMAT
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+     , deviceMonitors, *monitor_step
+#endif//REPORT_GPU_CLOCK_FREQUENCY
      );
 #else///SERIALIZED_EXECUTION
   writeSnapshotParallel
@@ -440,6 +443,9 @@ static inline void dumpSnapshot
 #else///USE_HDF5_FORMAT
      , ibody_hst
 #endif//USE_HDF5_FORMAT
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+     , deviceMonitors, *monitor_step
+#endif//REPORT_GPU_CLOCK_FREQUENCY
      );
 #endif//SERIALIZED_EXECUTION
   *previous = present;

@@ -2241,7 +2241,7 @@ void calcGravity_dev
  , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
 #ifdef  REPORT_GPU_CLOCK_FREQUENCY
- , gpu_clock *clockInfo, *recordStep
+ , gpu_clock *clockInfo, int *recordStep
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
  , const bool approxGravity
