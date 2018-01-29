@@ -3011,10 +3011,23 @@ void writeSnapshot
   tmp = num;  if( tmp != fwrite(body.vz, sizeof(real), tmp, fp) )    success = false;
 #endif//BLOCK_TIME_STEP
   tmp = num;  if( tmp != fwrite(body.idx, sizeof(ulong), tmp, fp) )    success = false;
+
 #ifdef  REPORT_GPU_CLOCK_FREQUENCY
-  tmp = (CLOCK_RECORD_STEPS < monitor_step) ? CLOCK_RECORD_STEPS : monitor_step;
-  if( tmp != fwrite(deviceMonitors, sizeof(gpu_clock), tmp, fp) )    success = false;
+  const int monitor = (CLOCK_RECORD_STEPS < monitor_step) ? CLOCK_RECORD_STEPS : monitor_step;
+  tmp = 1;  if( tmp != fwrite(&monitor, sizeof(int), tmp, fp) )    success = false;
+
+  /* data reordering */
+  static gpu_clock record[CLOCK_RECORD_STEPS];
+  const int origin = monitor_step & (CLOCK_RECORD_STEPS - 1);
+  const int turnaround = monitor - origin;
+  for(int ii = 0; ii < turnaround; ii++)
+    record[ii] = deviceMonitors[origin + ii];
+  for(int ii = turnaround; ii < monitor; ii++)
+    record[ii] = deviceMonitors[ii - turnaround];
+
+  tmp = monitor;  if( tmp != fwrite(record, sizeof(gpu_clock), tmp, fp) )    success = false;
 #endif//REPORT_GPU_CLOCK_FREQUENCY
+
   if( success != true ){    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);  }
 
   fclose(fp);
@@ -3478,6 +3491,32 @@ void writeSnapshotParallel
   chkMPIerr(MPI_File_sync(fh));
   disp += Ntot * (MPI_Offset)sizeof(ulong);
 
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+  const int monitor = (CLOCK_RECORD_STEPS < monitor_step) ? CLOCK_RECORD_STEPS : monitor_step;
+
+  /* data reordering */
+  static gpu_clock record[CLOCK_RECORD_STEPS];
+  const int origin = monitor_step & (CLOCK_RECORD_STEPS - 1);
+  const int turnaround = monitor - origin;
+  for(int ii = 0; ii < turnaround; ii++)
+    record[ii] = deviceMonitors[origin + ii];
+  for(int ii = turnaround; ii < monitor; ii++)
+    record[ii] = deviceMonitors[ii - turnaround];
+
+  /* the root process writes steps, an unsigned int value */
+  chkMPIerr(MPI_File_set_view(fh, disp, MPI_INT, MPI_INT, "native", MPI_INFO_NULL));
+  if( mpi->rank == 0 )
+    chkMPIerr(MPI_File_write(fh, &monitor, 1, MPI_INT, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  disp += 1 * (MPI_Offset)sizeof(int);
+
+  /* the whole processes write measured clock frequency of GPUs */
+  chkMPIerr(MPI_File_set_view(fh, disp + mpi->rank * (MPI_Offset)monitor * (MPI_Offset)sizeof(gpu_clock), MPI_BYTE, MPI_BYTE, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, record, monitor * sizeof(gpu_clock), MPI_BYTE, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  disp += mpi->size * (MPI_Offset)monitor * (MPI_Offset)sizeof(gpu_clock);
+#endif//REPORT_GPU_CLOCK_FREQUENCY
+
   /* close the target file */
   chkMPIerr(MPI_File_close(&fh));
 #else///USE_HDF5_FORMAT
@@ -3765,25 +3804,25 @@ void writeSnapshotParallel
   for(int ii = turnaround; ii < monitor; ii++)
     record[ii] = deviceMonitors[ii - turnaround];
 
-  w_property = H5Pcreate(H5P_DATASET_XFER);
-  chkHDF5err(H5Pset_dxpl_mpio(w_property, H5FD_MPIO_COLLECTIVE));
-
-  dims_ful[0] = (hsize_t)monitor * (hsize_t)mpi->size;
-  dims_mem[0] = (hsize_t)monitor;
-  dims_loc[0] = (hsize_t)monitor;
-  fulSpace = H5Screate_simple(1, dims_ful, NULL);
-  locSpace = H5Screate_simple(1, dims_loc, NULL);
+  dims_ful[0] = (hsize_t)mpi->size;  dims_ful[1] = (hsize_t)monitor;
+  dims_mem[0] = (hsize_t)        1;  dims_mem[1] = (hsize_t)monitor;
+  dims_loc[0] = (hsize_t)        1;  dims_loc[1] = (hsize_t)monitor;
+  fulSpace = H5Screate_simple(2, dims_ful, NULL);
+  locSpace = H5Screate_simple(2, dims_loc, NULL);
 
   data_create = H5Pcreate(H5P_DATASET_CREATE);
   dims_max = (MAXIMUM_CHUNK_SIZE_8BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_8BIT : MAXIMUM_CHUNK_SIZE;
-  if( dims_mem[0] > dims_max )
-    dims_mem[0] = dims_max;
-  chkHDF5err(H5Pset_chunk(data_create, 1, dims_mem));
+  if( dims_mem[0] * dims_mem[1] > dims_max )
+    dims_mem[0] = dims_max / dims_mem[1];
+  chkHDF5err(H5Pset_chunk(data_create, 2, dims_mem));
 
-  count[0] = 1;
-  stride[0] = 1;
-  block[0] = dims_loc[0];
-  offset[0] = mpi->rank;
+  count [0] =           1;  count [1] = 1;
+  stride[0] =           1;  stride[1] = 1;
+  block [0] = dims_loc[0];  block [1] = dims_loc[1];
+  offset[0] =   mpi->rank;  offset[1] = 0;
+
+  w_property = H5Pcreate(H5P_DATASET_XFER);
+  chkHDF5err(H5Pset_dxpl_mpio(w_property, H5FD_MPIO_COLLECTIVE));
 
   /* write measured data */
   dataset = H5Dcreate(group, "record", type.gpu_clock, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
@@ -3793,10 +3832,10 @@ void writeSnapshotParallel
   chkHDF5err(H5Sclose(hyperslab));
   chkHDF5err(H5Dclose(dataset));
 
+  chkHDF5err(H5Pclose(w_property));
   chkHDF5err(H5Pclose(data_create));
   chkHDF5err(H5Sclose(locSpace));
   chkHDF5err(H5Sclose(fulSpace));
-  chkHDF5err(H5Pclose(w_property));
 
   chkHDF5err(H5Gclose(group));
 #endif//REPORT_GPU_CLOCK_FREQUENCY
