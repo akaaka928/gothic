@@ -14,7 +14,9 @@ EXEC=bin/editor
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=0
+    # PROBLEM=0
+    # PROBLEM=1
+    PROBLEM=10
 fi
 ###############################################################
 # dump file generation interval (in units of minute)
@@ -39,8 +41,28 @@ if [ $PROBLEM -eq 0 ]; then
     INTERVAL=0.25
 fi
 ###############################################################
+# dynamical stability of two disks in a spherical potential field
+if [ $PROBLEM -eq 1 ]; then
+    FILE=ltg_disk
+    CFG=external/ltg_split.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1175.0
+    INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of M31 in the observed coordinate
+if [ $PROBLEM -eq 10 ]; then
+    FILE=m31_obs
+    CFG=gss/obs.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=3175.0
+    INTERVAL=25.0
+fi
+###############################################################
 # set input arguments
-OPTION="-file=$FILE -list=$CFG -config=$CONFIG -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE"
+OPTION="-file=$FILE -list=$CFG -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE"
 ###############################################################
 
 

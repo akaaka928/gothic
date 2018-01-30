@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/01/19 (Fri)
+ * @date 2018/01/30 (Tue)
  *
  * Copyright (C) 2018 Yohei Miki
  * All rights reserved.
@@ -161,7 +161,7 @@ static inline void readEditorCfg(char *cfg, int *unit, int *Nobj, object **obj, 
 
   /** read the number of input files */
   checker &= (1 == fscanf(fp, "%d", Nobj));
-  *obj = (object *)malloc(sizeof(object) * (*Nobj));  if( *obj == NULL ){    __KILL__(stderr, "ERROR: failure to allocate obj\n");  }
+  *obj = (object *)malloc(sizeof(object) * (*Nobj));  if( *obj == NULL ){    __KILL__(stderr, "ERROR: failure to allocate obj (cfg file is \"%s\", Nobj = %d)\n", filename, *Nobj);  }
 
   for(int ii = 0; ii < *Nobj; ii++)
     checker &= (2 == fscanf(fp, "%s %s", (*obj)[ii].file, (*obj)[ii].cfg));
@@ -444,15 +444,15 @@ static inline void addSystem(object obj, component *cmp, ulong *head, const ipar
 int main(int argc, char **argv)
 {
   /** read input arguments */
-  if( argc < 9 ){
-    __FPRINTF__(stderr, "insufficient number of input parameters of %d (at least %d inputs are required).\n", argc, 9);
+  if( argc < 8 ){
+    __FPRINTF__(stderr, "insufficient number of input parameters of %d (at least %d inputs are required).\n", argc, 8);
     __FPRINTF__(stderr, "Usage is: %s\n", argv[0]);
     __FPRINTF__(stderr, "          -list=<char *>\n");
     __FPRINTF__(stderr, "          -file=<char *>\n");
     __FPRINTF__(stderr, "          -eps=<real> -eta=<real>\n");
     __FPRINTF__(stderr, "          -ft=<real> -snapshotInterval=<real> -saveInterval=<real>\n");
     __KILL__(stderr, "%s\n", "insufficient command line arguments");
-  }/* if( argc < 9 ){ */
+  }/* if( argc < 8 ){ */
 
   /** read input arguments do not depend on the unit system adopted in the numerical simulation */
   char *file;  requiredCmdArg(getCmdArgStr(argc, (const char * const *)argv, "file", &file));

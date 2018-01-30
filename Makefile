@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/01/29 (Mon) 16:33:09
+# last updated on 2018/01/30 (Tue) 16:16:43
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -19,7 +19,7 @@ DEBUG	:= -DNDEBUG
 # PROFILE	:= -pg
 #################################################################################################
 # Execution options
-FORCE_SINGLE_GPU_RUN	:= 0
+FORCE_SINGLE_GPU_RUN	:= 1
 ENCLOSING_BALL_FOR_LET	:= 1
 COMMUNICATION_VIA_HOST	:= 1
 USE_MPI_PUT_FOR_LET	:= 0
@@ -36,13 +36,13 @@ ADOPT_GADGET_TYPE_MAC	:= 1
 ADOPT_WS93_TYPE_MAC	:= 1
 IJ_PARALLELIZED_WALK	:= 1
 CLOCK_BASED_AUTO_TUNING	:= 1
-DATAFILE_FORMAT_HDF5	:= 1
+DATAFILE_FORMAT_HDF5	:= 0
 HDF5_FOR_ZINDAIJI	:= 0
 DUMPFILE_IN_TIPSY	:= 0
-DUMPFILE_AS_GALACTICS	:= 0
+DUMPFILE_AS_GALACTICS	:= 1
 USE_OFFICIAL_SFMT	:= 1
 USE_OFFICIAL_SFMT_JUMP	:= 1
-SET_EXTERNAL_FIELD	:= 0
+SET_EXTERNAL_FIELD	:= 1
 SET_EXTERNAL_FIELD_DISK	:= 1
 ADAPTIVE_EXTERNAL_FIELD	:= 1
 #################################################################################################

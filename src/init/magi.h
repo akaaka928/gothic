@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/01/30 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -35,8 +35,6 @@
 #define NMAX_GAUSS_QD (51)
 #define NTBL_GAUSS_QD ((NMAX_GAUSS_QD >> 1) + (NMAX_GAUSS_QD & 1))
 #define NINTBIN NMAX_GAUSS_QD
-
-#define N_PRINT_LINES_ASCII (8192)
 
 
 #endif//MAGI_H

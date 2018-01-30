@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/29 (Mon)
+ * @date 2018/01/30 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1905,8 +1905,13 @@ void outputRadialProfiles
     hid_t group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 #else///USE_HDF5_FORMAT
     FILE *fp;
+#ifndef WRITE_IN_GALACTICS_FORMAT
     sprintf(filename, "%s/%s.profile.%d.dat", DATAFOLDER, file, kk);
     fp = fopen(filename, "wb");
+#else///WRITE_IN_GALACTICS_FORMAT
+    sprintf(filename, "%s/%s.profile.%d.txt", DATAFOLDER, file, kk);
+    fp = fopen(filename, "w");
+#endif//WRITE_IN_GALACTICS_FORMAT
     if( fp == NULL ){      __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);    }
 #endif//USE_HDF5_FORMAT
 
@@ -2004,6 +2009,7 @@ void outputRadialProfiles
     chkHDF5err(H5Sclose(dataspace));
     chkHDF5err(H5Gclose(group));
 #else///USE_HDF5_FORMAT
+#ifndef WRITE_IN_GALACTICS_FORMAT
     int nradbin = NRADBIN;
     bool success = true;
     success &= (fwrite(&nradbin, sizeof( int),       1, fp) ==       1);
@@ -2021,6 +2027,32 @@ void outputRadialProfiles
     success &= (fwrite( tmp_Sig, sizeof(real), NRADBIN, fp) == NRADBIN);
 #endif//MAKE_COLUMN_DENSITY_PROFILE
     if( !success ){      __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);    }
+#else///WRITE_IN_GALACTICS_FORMAT
+    fprintf(fp, "#r\trho(r)\tM(r)\tPsi(r)");
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+    fprintf(fp, "\tsigma_r");
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+    fprintf(fp, "\tsigma_los");
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+    fprintf(fp, "\tSigma");
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+    fprintf(fp, "\n");
+    for(int ii = 0; ii < NRADBIN; ii += (NRADBIN / 1024)){
+      fprintf(fp, "%e\t%e\t%e\t%e", tmp_rad[ii], tmp_rho[ii], tmp_enc[ii], tmp_psi[ii]);
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+      fprintf(fp, "\t%e", tmp_sig[ii]);
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+      fprintf(fp, "\t%e", tmp_los[ii]);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+      fprintf(fp, "\t%e", tmp_Sig[ii]);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+      fprintf(fp, "\n");
+    }/* for(int ii = 0; ii < NRADBIN; ii++){ */
+#endif//WRITE_IN_GALACTICS_FORMAT
     fclose(fp);
 #endif//USE_HDF5_FORMAT
   }/* for(int kk = 0; kk < kind; kk++){ */
