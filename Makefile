@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/01/30 (Tue) 16:16:43
+# last updated on 2018/02/01 (Thu) 10:04:33
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -36,10 +36,10 @@ ADOPT_GADGET_TYPE_MAC	:= 1
 ADOPT_WS93_TYPE_MAC	:= 1
 IJ_PARALLELIZED_WALK	:= 1
 CLOCK_BASED_AUTO_TUNING	:= 1
-DATAFILE_FORMAT_HDF5	:= 0
+DATAFILE_FORMAT_HDF5	:= 1
 HDF5_FOR_ZINDAIJI	:= 0
 DUMPFILE_IN_TIPSY	:= 0
-DUMPFILE_AS_GALACTICS	:= 1
+DUMPFILE_AS_GALACTICS	:= 0
 USE_OFFICIAL_SFMT	:= 1
 USE_OFFICIAL_SFMT_JUMP	:= 1
 SET_EXTERNAL_FIELD	:= 1

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/29 (Mon)
+ * @date 2018/02/01 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -130,6 +130,7 @@ static inline void setSphericalPotentialTable_dev(real *rad_hst, pot2 *Phi_hst, 
 }
 
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
 /**
  * @fn allocDiskPotentialTable_dev
  *
@@ -220,6 +221,7 @@ static inline void setDiskPotentialTable_dev(real *RR_hst, real *zz_hst, real *P
 
   __NOTE__("%s\n", "end");
 }
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 
 
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
@@ -463,23 +465,33 @@ __global__ void calcExternalDiskGravity_kernel
     const int levz = (int)FLOOR(LOG2(hh * ((real)Nz - THREE_HALVES) * zinv));
     const int lev = (levz < levR) ? levz : levR;
 
+#if 0
+    if( THREADIDX_X1D == 0 )
+      printf("lev = %d, levR = %d, levz = %d: RR = %e, zz = %e\n", lev, levR, levz, RR, zz);
+#endif
+
     acceleration ai;
     if( lev >= 0 ){
       /** find the corresponding grid location */
-      const int ii = 1 + (int)FLOOR(LDEXP(RR * hinv, lev) - HALF);
-      const int jj = 1 + (int)FLOOR(LDEXP(zz * hinv, lev) - HALF);
+      const int jj = 1 + (int)FLOOR(LDEXP(RR * hinv, lev) - HALF);
+      const int kk = 1 + (int)FLOOR(LDEXP(zz * hinv, lev) - HALF);
 
       /** load disk potential at 5 points */
-      const real mc = Phi[INDEX(maxLev, NR + 1, Nz + 1, lev, ii - 1, jj    )];
-      const real cm = Phi[INDEX(maxLev, NR + 1, Nz + 1, lev, ii    , jj - 1)];
-      const real cc = Phi[INDEX(maxLev, NR + 1, Nz + 1, lev, ii    , jj    )];
-      const real cp = Phi[INDEX(maxLev, NR + 1, Nz + 1, lev, ii    , jj + 1)];
-      const real pc = Phi[INDEX(maxLev, NR + 1, Nz + 1, lev, ii + 1, jj    )];
+      const real mc = Phi[INDEX(maxLev, NR + 1, Nz + 1, lev, jj - 1, kk    )];
+      const real cm = Phi[INDEX(maxLev, NR + 1, Nz + 1, lev, jj    , kk - 1)];
+      const real cc = Phi[INDEX(maxLev, NR + 1, Nz + 1, lev, jj    , kk    )];
+      const real cp = Phi[INDEX(maxLev, NR + 1, Nz + 1, lev, jj    , kk + 1)];
+      const real pc = Phi[INDEX(maxLev, NR + 1, Nz + 1, lev, jj + 1, kk    )];
 
       /** evaluate gravitational field from the external potential field */
       const real dlinv = LDEXP(hinv, lev - 1);/**< = 2^(lev - 1) / h = 1 / (2 h 2^-lev) = 1 / (2 dR) = 1 / (2 dz) */
       const real FR = Rinv * (pc - mc) * dlinv;
       const real Fz = zinv * (cp - cm) * dlinv;
+
+#if 0
+      if( THREADIDX_X1D == 0 )
+	printf("lev = %d, jj = %d, kk = %d, FR = %e, Fz = %e, pot = %e\n", lev, jj, kk, FR, Fz, cc);
+#endif
 
       /** calculate the external force by disk components */
       ai.x = FR * pi.x;
@@ -504,6 +516,11 @@ __global__ void calcExternalDiskGravity_kernel
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 	 );
       F_r *= rinv;
+
+#if 0
+      if( THREADIDX_X1D == 0 )
+	printf("rr = %e, F_r = %e, pot = %e\n", rr, F_r, pot);
+#endif
 
       /** calculate the external force by disk components */
       ai.x   = F_r * pi.x;
@@ -632,7 +649,7 @@ void calcExternalGravity_dev
       calcExternalDiskGravity_kernel
 	<<<Nrem, thrd
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-	, sphe.num * sizeof(real)
+	, disk.sphe.num * sizeof(real)
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 	>>>
 	(pi.acc_ext, pi.pos,
@@ -663,7 +680,7 @@ void calcExternalGravity_dev
       calcExternalDiskGravity_kernel
 	<<<Nblck, thrd
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-	, sphe.num * sizeof(real)
+	, disk.sphe.num * sizeof(real)
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 	>>>
 	(
@@ -682,6 +699,11 @@ void calcExternalGravity_dev
       Nrem -= Nblck;
     }/* for(int iter = 0; iter < Niter; iter++){ */
   }/* else{ */
+
+#if 0
+  cudaDeviceSynchronize();
+  exit(0);
+#endif
 
   getLastCudaError("calcExternalDiskGravity_kernel");
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
@@ -1182,7 +1204,6 @@ muse  readFixedPotentialTableDisk
 #endif//USE_HDF5_FORMAT
 
   setDiskPotentialTable_dev(RR_hst, zz_hst, Phi_hst, *RR_dev, *zz_dev, *Phi_dev, *disk);
-  freeDiskPotentialTable_hst(RR_hst, zz_hst, Phi_hst);
 
   disk->RR  = * RR_dev;
   disk->zz  = * zz_dev;
@@ -1190,7 +1211,6 @@ muse  readFixedPotentialTableDisk
   disk->hinv = UNITY / disk->hh;
 
   setSphericalPotentialTable_dev(rad_sphe_hst, Phi_sphe_hst, *rad_sphe_dev, *Phi_sphe_dev, disk->sphe.num);
-  freeSphericalPotentialTable_hst(rad_sphe_hst, Phi_sphe_hst);
 
   disk->sphe.rad = *rad_sphe_dev;
   disk->sphe.Phi = *Phi_sphe_dev;
@@ -1198,11 +1218,14 @@ muse  readFixedPotentialTableDisk
   disk->sphe.invlogrbin = UNITY / disk->sphe.logrbin;
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
-
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   if( (disk->sphe.num * sizeof(real)) > (SMEM_SIZE_L1_PREF >> 1) )
     checkCudaErrors(cudaFuncSetCacheConfig(calcExternalDiskGravity_kernel, cudaFuncCachePreferShared));
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+
+  __NOTE__("maxLev = %d, NR = %d, Nz = %d\n", disk->maxLev, disk->NR, disk->Nz);
+  freeDiskPotentialTable_hst(RR_hst, zz_hst, Phi_hst);
+  freeSphericalPotentialTable_hst(rad_sphe_hst, Phi_sphe_hst);
 
 
   __NOTE__("%s\n", "end");

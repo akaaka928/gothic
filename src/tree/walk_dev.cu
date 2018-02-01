@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/29 (Mon)
+ * @date 2018/02/01 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -644,6 +644,9 @@ __global__ void trimAcc_kernel(acceleration * RESTRICT acc, READ_ONLY position *
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 			       , READ_ONLY acceleration * RESTRICT res
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+			       , acceleration * RESTRICT ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 			       )
 {
   const int lane    = THREADIDX_X1D & (DIV_NWARP(TSUB) - 1);
@@ -688,6 +691,12 @@ __global__ void trimAcc_kernel(acceleration * RESTRICT acc, READ_ONLY position *
 
     /** store acceleration */
     acc[ii] = ai;
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+    const acceleration zero = {ZERO, ZERO, ZERO, ZERO};
+    ext[ii] = zero;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
+
   }/* if( lane < info.num ){ */
 }
 #else///BLOCK_TIME_STEP
@@ -703,6 +712,9 @@ __global__ void trimAcc_kernel(acceleration * RESTRICT acc, READ_ONLY position *
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 			       , READ_ONLY acceleration * RESTRICT res
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+			       , acceleration * RESTRICT ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 			       )
 {
   const int ii = GLOBALIDX_X1D;
@@ -739,6 +751,11 @@ __global__ void trimAcc_kernel(acceleration * RESTRICT acc, READ_ONLY position *
 
   /** store acceleration */
   acc[ii] = ai;
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+  const acceleration zero = {ZERO, ZERO, ZERO, ZERO};
+  ext[ii] = zero;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 }
 #endif//BLOCK_TIME_STEP
 
@@ -2955,6 +2972,9 @@ void calcGravity_dev
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 	 , pi.res
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+	 , pi.acc_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 	 );
 #else///BLOCK_TIME_STEP
     trimAcc_kernel<<<Nrem, NTHREADS>>>
@@ -2987,6 +3007,9 @@ void calcGravity_dev
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 	 , pi.res
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+	 , pi.acc_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 	 );
 #else///BLOCK_TIME_STEP
       int Nsub = Nblck * NTHREADS;
@@ -2998,6 +3021,9 @@ void calcGravity_dev
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 	 , &pi.res[hidx]
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+	 , pi.acc_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 	 );
 #endif//BLOCK_TIME_STEP
 

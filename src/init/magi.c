@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/30 (Tue)
+ * @date 2018/01/31 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1119,10 +1119,12 @@ int main(int argc, char **argv)
   potential_field *pot_tbl, pot_tbl_sphe, pot_tbl_disk;
   allocPotentialField(&rad_pot, &Phi_pot, &pot_tbl, N_EXT_POT_SPHE, kind, &pot_tbl_sphe, skind, &pot_tbl_disk);
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
   real *RR_diskpot, *zz_diskpot, *Phi_diskpot;
   disk_potential diskpot;
   if( addDisk )
     allocDiskPotential(&RR_diskpot, &zz_diskpot, &Phi_diskpot, maxLev, NDISKBIN_HOR, NDISKBIN_VER, &diskpot);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 
   genExtPotTbl1D(kind, prf, pot_tbl);
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
@@ -1131,8 +1133,10 @@ int main(int argc, char **argv)
   superposePotFld1D(kind, skind, pot_tbl, &pot_tbl_sphe, &pot_tbl_disk);
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
   if( addDisk )
     extractDiskPotential(maxLev, disk_info[0], pot_tbl_disk, &diskpot);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 
   stopBenchmark_cpu(&execTime.external);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
@@ -1243,6 +1247,7 @@ int main(int argc, char **argv)
 #endif//USE_HDF5_FORMAT
      , file);
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
   if( addDisk )
     writeFixedDiskPotential
       (unit, diskpot
@@ -1256,6 +1261,7 @@ int main(int argc, char **argv)
 #endif//WRITE_IN_GALACTICS_FORMAT
 #endif//USE_HDF5_FORMAT
        , file);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
@@ -1413,8 +1419,10 @@ int main(int argc, char **argv)
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   freePotentialField(rad_pot, Phi_pot, pot_tbl);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
   if( addDisk )
     freeDiskPotential(RR_diskpot, zz_diskpot, Phi_diskpot);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELDp
 
   return (0);

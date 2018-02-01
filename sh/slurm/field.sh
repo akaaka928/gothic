@@ -1,8 +1,8 @@
 #!/bin/bash
 ###############################################################
 #SBATCH -J gothic_ext         # name of job
-##SBATCH -t 24:00:00           # upper limit of elapsed time
-#SBATCH -t 00:10:00           # upper limit of elapsed time
+#SBATCH -t 24:00:00           # upper limit of elapsed time
+##SBATCH -t 00:10:00           # upper limit of elapsed time
 #SBATCH -p normal             # partition name
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
 #SBATCH --ntasks=1            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
@@ -20,7 +20,8 @@ EXEC=bin/gothic
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=0
+    # PROBLEM=0
+    PROBLEM=11
 fi
 ###############################################################
 # topology of MPI processes
@@ -51,8 +52,8 @@ if [ -z "$ABSERR" ]; then
     # ABSERR=3.125000000e-2
     # ABSERR=1.562500000e-2
     # ABSERR=7.812500000e-3
-    ABSERR=3.906250000e-3
-    # ABSERR=1.953125000e-3
+    # ABSERR=3.906250000e-3
+    ABSERR=1.953125000e-3
     # ABSERR=9.765625000e-4
     # ABSERR=4.882812500e-4
     # ABSERR=2.441406250e-4
@@ -93,8 +94,15 @@ if [ $PROBLEM -eq 0 ]; then
     SPHEPOT=va15
 fi
 ###############################################################
+# dynamical stability of a disk in a spherical potential field
+if [ $PROBLEM -eq 11 ]; then
+    FILE=m16disk
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
 # set input arguments
-OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -pot_file_sphe=$SPHEPOT -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$SLURM_JOB_ID"
+OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -pot_file_sphe=$SPHEPOT -pot_file_disk=$DISKPOT -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$SLURM_JOB_ID"
 ###############################################################
 
 

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/26 (Fri)
+ * @date 2018/01/31 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -40,7 +40,9 @@ extern "C"
 
   void  freeSphericalPotentialTable_dev(real  *rad, pot2  *Phi);
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
   void  freeDiskPotentialTable_dev(real  *RR, real  *zz, real  *Phi);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 
   void calcExternalGravity_dev
   (const iparticle pi, const potential_field sphe

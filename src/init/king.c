@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/12/27 (Wed)
+ * @date 2018/02/01 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -287,7 +287,7 @@ static inline void solvePoissonEqOfKingDF
 
   /** assumption is rcal := r / r0, r0 = 1.0, sigma = 1.0 */
   /** see Eq (4.106) in Galactic Dynamics, second edtion, page 305 */
-  /** rho0 = (real)2.25 * sigma * sigma / (pi * newton * r0 * r0); */
+  /** rho0 = CAST_D2R(2.25) * sigma * sigma / (pi * newton * r0 * r0); */
   const double rho0 = 2.25 * M_1_PI;
   const double rho0inv = 1.0 / rho0;
 
@@ -470,7 +470,7 @@ static void rescaleKingSphere(const double Mtot, const double r0, double *rt, co
   fprintf(stdout, "# King model:   lengthUnit is %le\n", lengthUnit);
   fprintf(stdout, "# King model:     massUnit is %le\n",   massUnit);
   fprintf(stdout, "# King model:      rhoUnit is %le\n",    rhoUnit);
-  fprintf(stdout, "# King model: velocityUnit is %le\n", lengthUnit * sqrt((double)newton * rhoUnit));
+  fprintf(stdout, "# King model: velocityUnit is %le\n", lengthUnit * sqrt(CAST_R2D(newton) * rhoUnit));
   fprintf(stdout, "#\n#\n");
   fflush(stdout);
 #endif//KING_PROGRESS_REPORT_ON

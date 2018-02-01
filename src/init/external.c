@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/25 (Thu)
+ * @date 2018/01/31 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -269,6 +269,7 @@ void superposePotFld1D(const int kind, const int skind, potential_field * restri
 }
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
 /**
  * @fn extractDiskPotential
  *
@@ -293,6 +294,8 @@ void extractDiskPotential(const int maxLev, const disk_data data, const potentia
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   disk->maxLev = maxLev;
+  disk->NR = NDISKBIN_HOR;
+  disk->Nz = NDISKBIN_VER;
   disk->hh = data.hh;
 
 #pragma omp parallel for
@@ -322,4 +325,6 @@ void extractDiskPotential(const int maxLev, const disk_data data, const potentia
 
   __NOTE__("%s\n", "end");
 }
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
+
 #endif//SET_EXTERNAL_POTENTIAL_FIELD

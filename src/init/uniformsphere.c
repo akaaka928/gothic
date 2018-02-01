@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/01/19 (Fri)
+ * @date 2018/02/01 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -117,7 +117,7 @@ void makeUniformSphere(ulong num, iparticle body, real mtot, real length, real s
   __NOTE__("%s\n", "start");
 
   real mass = mtot / (real)num;
-  const real sigma1D = sigma / (real)M_SQRT3;
+  const real sigma1D = sigma / CAST_D2R(M_SQRT3);
   for(ulong ii = 0; ii < num; ii++){
     isotropicDistribution(length * POW(UNIRAND(rand), ONE_THIRD), body, ii, rand);
     body.pos[ii].m = mass;
@@ -256,8 +256,8 @@ void outputFundamentalInformationOfColdSphere
 
   const real Ms = Mtot;
   const real Ns = (real)Ntot;
-  const real tff = (real)M_PI_2 * rad * SQRTRATIO(rad, TWO * newton * Ms);
-  const real t2r = tff * Ns / ((real)32.0 * LOG(rad / eps));
+  const real tff = CAST_R2D(M_PI_2) * rad * SQRTRATIO(rad, TWO * newton * Ms);
+  const real t2r = tff * Ns / (CAST_D2R(32.0) * LOG(rad / eps));
   fprintf(fp, "Number of N-body particles to represent the Cold sphere is  %zu (= 2^%u)\n", Ntot, ilog2((uint)Ntot));
   fprintf(fp, "Length of Plummer softening is                              %e\n", eps);
   fprintf(fp, "Number of particles within the scale length is              %e\n", Ns);
@@ -312,7 +312,7 @@ int main(int argc, char **argv)
 
 
   /**< calculate velocity dispersion to realize the given Virial ratio */
-  real sigma = SQRT((real)1.2 * newton * Mtot * virial / rad);
+  real sigma = SQRT(CAST_D2R(1.2) * newton * Mtot * virial / rad);
 
   /**< initialize pseudo random number generator */
   rand_state *rand;

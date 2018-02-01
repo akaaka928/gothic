@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/01/30 (Tue)
+ * @date 2018/01/31 (Wed)
  *
  * Copyright (C) 2018 Yohei Miki
  * All rights reserved.
@@ -43,9 +43,9 @@
 
 
 /* global constants to set unit system, defined in constants.c */
-extern const double length_astro2com,   length2astro;extern const char   length_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
-extern const double   time_astro2com,     time2astro;extern const char     time_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
-extern const double                   velocity2astro;extern const char velocity_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
+extern const double   length_astro2com,   length2astro;extern const char   length_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
+extern const double     time_astro2com,     time2astro;extern const char     time_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
+extern const double velocity_astro2com, velocity2astro;extern const char velocity_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
 
 
 /**
@@ -196,9 +196,10 @@ static inline void readEditorCfg(char *cfg, int *unit, int *Nobj, object **obj, 
       *unit = unit_tmp;
   }/* for(int ii = 0; ii < *Nobj; ii++){ */
 
+  setPhysicalConstantsAndUnitSystem(*unit, 1);
+
   *Ncmp = kind;
   *cmp = (component *)malloc(sizeof(component) * kind);  if( *cmp == NULL ){    __KILL__(stderr, "ERROR: failure to allocate cmp\n");  }
-
 
   /** read individual objects */
   for(int ii = 0; ii < *Nobj; ii++){
@@ -212,6 +213,18 @@ static inline void readEditorCfg(char *cfg, int *unit, int *Nobj, object **obj, 
     checker &= (3 == fscanf(fp, "%le %le %le", &(*obj)[ii].xx, &(*obj)[ii].yy, &(*obj)[ii].zz));
     checker &= (3 == fscanf(fp, "%le %le %le", &(*obj)[ii].vx, &(*obj)[ii].vy, &(*obj)[ii].vz));
 
+    (*obj)[ii].ax *= length_astro2com;
+    (*obj)[ii].ay *= length_astro2com;
+    (*obj)[ii].az *= length_astro2com;
+
+    (*obj)[ii].xx *= length_astro2com;
+    (*obj)[ii].yy *= length_astro2com;
+    (*obj)[ii].zz *= length_astro2com;
+
+    (*obj)[ii].vx *= velocity_astro2com;
+    (*obj)[ii].vy *= velocity_astro2com;
+    (*obj)[ii].vz *= velocity_astro2com;
+
     int skip = 0;
     checker &= (1 == fscanf(fp, "%d", &skip));
 
@@ -221,10 +234,10 @@ static inline void readEditorCfg(char *cfg, int *unit, int *Nobj, object **obj, 
     sfp = fopen(sfile, "r");
     if( sfp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", sfile);    }
     int success = 1;
-    int ndisk, skind;
+    int skind/* , ndisk */;
     success &= (0 == fscanf(sfp, "%*d"));
-    success &= (1 == fscanf(sfp, "%*d\t%d", &ndisk));
-    skind = (*obj)[ii].kind - ndisk;
+    success &= (1 == fscanf(sfp, "%*d\t%d", &skind));
+    /* ndisk = (*obj)[ii].kind - skind; */
 
     ulong head = 0;
     for(int jj = 0; jj < (*obj)[ii].kind; jj++){
@@ -327,6 +340,7 @@ static inline void addSystem(object obj, component *cmp, ulong *head, const ipar
   /**< read distribution of N-body particles */
   double time, dt;
   ulong steps;
+#ifdef  USE_HDF5_FORMAT
 #ifndef RUN_WITHOUT_GOTHIC
 #ifdef  MONITOR_ENERGY_ERROR
   static energyError relEneErr = {1.0, DBL_MIN};
@@ -338,6 +352,7 @@ static inline void addSystem(object obj, component *cmp, ulong *head, const ipar
   static brentStatus status;
   static brentMemory memory;
 #endif//RUN_WITHOUT_GOTHIC
+#endif//USE_HDF5_FORMAT
   readTentativeData(&time, &dt, &steps, (int)num, tmp, obj.file, 0
 #ifdef  USE_HDF5_FORMAT
 		    , hdf5type
@@ -468,7 +483,6 @@ int main(int argc, char **argv)
   object *obj;
   component *cmp;
   readEditorCfg(fcfg, &unit, &Nobj, &obj, &Ncmp, &cmp);
-  setPhysicalConstantsAndUnitSystem(unit, 1);
 
   /** read input arguments depend on the unit system adopted in the numerical simulation */
   requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "eps", &tmp));
@@ -583,11 +597,13 @@ int main(int argc, char **argv)
 #endif//WRITE_IN_TIPSY_FORMAT
 
 #ifdef  WRITE_IN_GALACTICS_FORMAT
-  int hidx = 0;
-  for(int kk = 0; kk < kind; kk++){
-    writeGalactICSFile(time, hidx, cfg[kk].num, body, file, kk);
-    hidx += cfg[kk].num;
-  }/* for(int kk = 0; kk < kind; kk++){ */
+  int kk = 0;
+  for(int ii = 0; ii < Nobj; ii++)
+    for(int jj = obj[ii].head; jj < obj[ii].head + obj[ii].kind; jj++)
+      if( cmp[jj].skip == 0 ){
+	writeGalactICSFile(time, cmp[jj].head, cmp[jj].num, body, file, kk);
+	kk++;
+      }
 #endif//WRITE_IN_GALACTICS_FORMAT
 
 #endif//!defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT)

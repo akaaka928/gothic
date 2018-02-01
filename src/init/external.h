@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/25 (Thu)
+ * @date 2018/01/31 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -43,7 +43,9 @@ void genSuperposedPotFld1D(const int kind, const int skind, profile **prf, poten
 void superposePotFld1D(const int kind, const int skind, potential_field * restrict pot, potential_field * restrict sphe, potential_field * restrict disk);
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
 void extractDiskPotential(const int maxLev, const disk_data data, const potential_field sphe, disk_potential *disk);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 

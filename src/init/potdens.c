@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/02/01 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1049,7 +1049,7 @@ static inline void initPotentialField(const int ndisk, const int maxLev, disk_da
 	  const double Rs = disk[kk].cfg->rs + sqrt(z2 + disk[kk].cfg->zd * disk[kk].cfg->zd);
 	  sum += disk[kk].cfg->Mtot / sqrt(R2 + Rs * Rs);
 	}/* for(int kk = 0; kk < ndisk; kk++){ */
-	Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)] -= (double)newton * sum;
+	Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)] -= CAST_R2D(newton) * sum;
       }/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
     }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
   }/* for(int lev = 0; lev < maxLev; lev++){ */

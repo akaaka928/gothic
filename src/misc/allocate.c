@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/25 (Thu)
+ * @date 2018/01/31 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -322,6 +322,7 @@ void  freePotentialField(real  *rad, pot2  *Phi, potential_field  *dat)
   __NOTE__("%s\n", "end");
 }
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
 muse allocDiskPotential(real **RR, real **zz, real **Phi, const int maxLev, const int NR, const int Nz, disk_potential *disk)
 {
   __NOTE__("%s\n", "start");
@@ -355,4 +356,5 @@ void  freeDiskPotential(real  *RR, real  *zz, real  *Phi)
 
   __NOTE__("%s\n", "end");
 }
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD

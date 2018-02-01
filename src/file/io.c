@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/29 (Mon)
+ * @date 2018/01/31 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2482,6 +2482,7 @@ void writeFixedPotentialTable
 }
 
 
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
 /**
  * @fn writeFixedDiskPotential
  *
@@ -2737,7 +2738,7 @@ void writeFixedDiskPotential
 
   __NOTE__("%s\n", "end");
 }
-
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
