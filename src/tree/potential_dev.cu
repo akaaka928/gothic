@@ -421,7 +421,7 @@ __global__ void calcExternalDiskGravity_kernel
 #ifdef  BLOCK_TIME_STEP
  const int laneNum, READ_ONLY laneinfo * RESTRICT laneInfo,
 #endif//BLOCK_TIME_STEP
- const int NR, const int Nz, const real hh, const real hinv, READ_ONLY real * RESTRICT Phi,
+ const int maxLev, const int NR, const int Nz, const real hh, const real hinv, READ_ONLY real * RESTRICT Phi,
 #ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
  const real logrmin, const real invlogrbin,
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
@@ -463,18 +463,14 @@ __global__ void calcExternalDiskGravity_kernel
     /** find appropriate grid level */
     const int levR = (int)FLOOR(LOG2(hh * ((real)NR - THREE_HALVES) * Rinv));
     const int levz = (int)FLOOR(LOG2(hh * ((real)Nz - THREE_HALVES) * zinv));
-    const int lev = (levz < levR) ? levz : levR;
-
-#if 0
-    if( THREADIDX_X1D == 0 )
-      printf("lev = %d, levR = %d, levz = %d: RR = %e, zz = %e\n", lev, levR, levz, RR, zz);
-#endif
+    int lev = (levz < levR) ? levz : levR;
+    lev = (lev < (maxLev - 1)) ? lev : (maxLev - 1);
 
     acceleration ai;
     if( lev >= 0 ){
       /** find the corresponding grid location */
-      const int jj = 1 + (int)FLOOR(LDEXP(RR * hinv, lev) - HALF);
-      const int kk = 1 + (int)FLOOR(LDEXP(zz * hinv, lev) - HALF);
+      const int jj = 1 + (int)FMAX(FLOOR(LDEXP(RR * hinv, lev) - HALF), ZERO);
+      const int kk = 1 + (int)FMAX(FLOOR(LDEXP(zz * hinv, lev) - HALF), ZERO);
 
       /** load disk potential at 5 points */
       const real mc = Phi[INDEX(maxLev, NR + 1, Nz + 1, lev, jj - 1, kk    )];
@@ -483,21 +479,29 @@ __global__ void calcExternalDiskGravity_kernel
       const real cp = Phi[INDEX(maxLev, NR + 1, Nz + 1, lev, jj    , kk + 1)];
       const real pc = Phi[INDEX(maxLev, NR + 1, Nz + 1, lev, jj + 1, kk    )];
 
-      /** evaluate gravitational field from the external potential field */
+      /** prepare for interpolation */
       const real dlinv = LDEXP(hinv, lev - 1);/**< = 2^(lev - 1) / h = 1 / (2 h 2^-lev) = 1 / (2 dR) = 1 / (2 dz) */
-      const real FR = Rinv * (pc - mc) * dlinv;
-      const real Fz = zinv * (cp - cm) * dlinv;
+      const real dPhidR = (pc - mc) * dlinv;
+      const real dPhidz = (cp - cm) * dlinv;
 
-#if 0
-      if( THREADIDX_X1D == 0 )
-	printf("lev = %d, jj = %d, kk = %d, FR = %e, Fz = %e, pot = %e\n", lev, jj, kk, FR, Fz, cc);
+#if 1
+      const real dl = LDEXP(hh, -lev);
+      const real R0 = dl * (HALF + (real)(jj - 1));
+      const real z0 = dl * (HALF + (real)(kk - 1));
+      const real pot = cc + dPhidR * (RR - R0) + dPhidz * (zz - z0);
+#else
+      const real pot = cc;
 #endif
+
+      /** evaluate gravitational field from the external potential field */
+      const real FR = Rinv * dPhidR;
+      const real Fz = zinv * dPhidz;
 
       /** calculate the external force by disk components */
       ai.x = FR * pi.x;
       ai.y = FR * pi.y;
       ai.z = Fz * pi.z;
-      ai.pot = cc;
+      ai.pot = pot;
     }/* if( lev >= 0 ){ */
     else{
       /** set current location */
@@ -656,7 +660,7 @@ void calcExternalGravity_dev
 #ifdef  BLOCK_TIME_STEP
 	 BLOCKSIZE(grpNum, NGROUPS) * NGROUPS, laneInfo,
 #endif//BLOCK_TIME_STEP
-	 disk.NR, disk.Nz, disk.hh, disk.hinv, disk.Phi,
+	 disk.maxLev, disk.NR, disk.Nz, disk.hh, disk.hinv, disk.Phi,
 #ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 	 disk.sphe.logrmin, disk.sphe.invlogrbin,
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
@@ -689,7 +693,7 @@ void calcExternalGravity_dev
 #else///BLOCK_TIME_STEP
 	 &pi.acc_ext[hidx], &pi.pos[hidx],
 #endif//BLOCK_TIME_STEP
-	 disk.NR, disk.Nz, disk.hh, disk.hinv, disk.Phi,
+	 disk.maxLev, disk.NR, disk.Nz, disk.hh, disk.hinv, disk.Phi,
 #ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 	 disk.sphe.logrmin, disk.sphe.invlogrbin,
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD

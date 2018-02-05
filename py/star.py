@@ -48,7 +48,7 @@ PSFinv = 1 / (math.sqrt(2) * sigma)
 Nsmooth = int(np.ceil(contain * smooth))
 
 
-def draw_figure(fileid, nxpanel, Nkind):
+def draw_figure(fileid, Nkind):
     fig = utils.set_figure(nxpanel, nypanel)
     ax = [0] * nxpanel * nypanel
     utils.locate_panels(fig, ax, nxpanel, nypanel, True, True)
@@ -268,6 +268,6 @@ if Nkind > Ndark:
     cores = mp.cpu_count()
     # cores = int(np.ceil(cores / 2))
     pool = mp.Pool(cores)
-    args = [(ii, nxpanel, Nkind) for ii in range(init, last + 1, 1)]
+    args = [(ii, Nkind) for ii in range(init, last + 1, 1)]
     pool.map(wrapper, args)
     pool.close()

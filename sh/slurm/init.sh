@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -J magi               # name of job
-#SBATCH -t 00:30:00           # upper limit of elapsed time
+#SBATCH -t 02:00:00           # upper limit of elapsed time
 #SBATCH -p normal             # partition name
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
 #SBATCH --get-user-env        # retrieve the login environment variables

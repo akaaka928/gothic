@@ -1,24 +1,27 @@
 import numpy as np
 
+import m31 as m31
+rot, inv = m31.Euler_angle()
+
 # orbit in Fardal et al. (2007)
 x0, y0, z0 = -34.75, 19.37, -13.99# unit is kpc
 vx0, vy0, vz0 = 67.34, -26.12, 13.50# unit is km/s
 
-# set Euler angle
-inc = (180.0 - 77.0) * np.pi / 180.0
-pa  =          37.0  * np.pi / 180.0
+# # set Euler angle
+# inc = (180.0 - 77.0) * np.pi / 180.0
+# pa  =          37.0  * np.pi / 180.0
 
-sini, sinp = np.sin(inc), np.sin(pa)
-cosi, cosp = np.cos(inc), np.cos(pa)
+# sini, sinp = np.sin(inc), np.sin(pa)
+# cosi, cosp = np.cos(inc), np.cos(pa)
 
-# reference is line 69-71 of dm:~/work/HA-PACS/130616survey/ml/src/m31/coordinate.c
-rot = np.array([[sinp, cosp, 0.0], [-cosi * cosp, cosi * sinp, sini], [sini * cosp, -sini * sinp, cosi]])
+# # reference is line 69-71 of dm:~/work/HA-PACS/130616survey/ml/src/m31/coordinate.c
+# rot = np.array([[sinp, cosp, 0.0], [-cosi * cosp, cosi * sinp, sini], [sini * cosp, -sini * sinp, cosi]])
 print("rotation matrix")
 print(rot)
 
-# rot: observed frame (x, y, z) ==>> disk orthogonal frame (X, Y, Z)
-# inv: disk orthogonal frame (X, Y, Z) ==>> observed frame (x, y, z)
-inv = np.linalg.inv(rot)
+# # rot: observed frame (x, y, z) ==>> disk orthogonal frame (X, Y, Z)
+# # inv: disk orthogonal frame (X, Y, Z) ==>> observed frame (x, y, z)
+# inv = np.linalg.inv(rot)
 
 pos = np.array([x0, y0, z0])
 vel = np.array([vx0, vy0, vz0])

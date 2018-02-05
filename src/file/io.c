@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/31 (Wed)
+ * @date 2018/02/02 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2230,8 +2230,11 @@ void writeFixedPotentialTable
   fp_cfg = fopen(cfgfile, "w");
   if( fp_cfg == NULL ){    __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", cfgfile);  }
 
+#if 1
+  fprintf(fp_cfg, "%d\n", 1);
+#else
   fprintf(fp_cfg, "%d\n", 1 + skind);
-
+#endif
 
   char filename[256];
 

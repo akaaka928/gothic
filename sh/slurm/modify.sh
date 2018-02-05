@@ -23,7 +23,8 @@ fi
 # dump file generation interval (in units of minute)
 if [ -z "$SAVE" ]; then
     # SAVE=2.0
-    SAVE=70.0
+    SAVE=35.0
+    # SAVE=70.0
     # SAVE=140.0
 fi
 ###############################################################
