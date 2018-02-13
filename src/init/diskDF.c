@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/25 (Thu)
+ * @date 2018/02/12 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -861,6 +861,11 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
   const double vdispR0_2 = disk.cfg->vdispR0 * disk.cfg->vdispR0;
 #endif//ENFORCE_EPICYCLIC_APPROXIMATION
 
+#ifdef  USE_ZANG_HOHL_1978_EQ5
+  const double Jstar_inv = disk.cfg->Jstar_inv;
+#endif//USE_ZANG_HOHL_1978_EQ5
+
+
   double *tab_lev;
   tab_lev = (double *)malloc(sizeof(double) * maxLev);
   if( tab_lev == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tab_lev\n");  }
@@ -1153,6 +1158,14 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
 #ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
     Tdisk += mass_2 * vcirc2;
 #endif//CHECK_OSTRIKER_PEEBLES_CRITERION
+
+#ifdef  USE_ZANG_HOHL_1978_EQ5
+    /** flip circular velocity for retrograding particles */
+    const double act = fmin(Rg * vcirc * Jstar_inv, 1.0);
+
+    if( (disk.cfg->retrogradeFrac > 0.0) && (UNIRAND_DBL(rand) < (0.5 * (1.0 - 0.5 * act * (3.0 - act * act)))) )
+      vcirc *= -1.0;
+#endif//USE_ZANG_HOHL_1978_EQ5
 
     /** uniform distribution in polar angle */
     vp += vcirc;

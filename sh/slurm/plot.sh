@@ -5,7 +5,8 @@
 #SBATCH -p normal             # partition name
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
 #SBATCH --ntasks=16           # number of total MPI processes, set to SLURM_NTASKS
-#SBATCH --ntasks-per-socket=8 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET
+##SBATCH --ntasks-per-socket=8 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET
+#SBATCH --ntasks-per-socket=16 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET
 #SBATCH --get-user-env        # retrieve the login environment variables
 ###############################################################
 
@@ -19,8 +20,9 @@ PLTCDF=bin/plot.cdf
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=2
+    # PROBLEM=2
     # PROBLEM=20
+    PROBLEM=27
     # PROBLEM=28
     # PROBLEM=80
     # PROBLEM=81
@@ -208,11 +210,12 @@ fi
 ###############################################################
 # dynamical stability of an M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk)
 if [ $PROBLEM -eq 27 ]; then
-    FILE=m31_mod
-    FINISH=75.0
-    INTERVAL=25.0
-    # FINISH=3175.0
+    FILE=m31
+    # FINISH=75.0
     # INTERVAL=25.0
+    FINISH=1175.0
+    # FINISH=3175.0
+    INTERVAL=25.0
 fi
 ###############################################################
 # dynamical stability of multi components galaxy model (NFW halo, King bulge, thick Sersic disk, and thin exponential disk)

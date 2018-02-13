@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/31 (Wed)
+ * @date 2018/02/13 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -38,10 +38,22 @@ extern "C"
 {
 #endif//__CUDACC__
 
-  void  freeSphericalPotentialTable_dev(real  *rad, pot2  *Phi);
+  void  freeSphericalPotentialTable_dev
+  (pot2  *Phi
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   , real  *rad
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   );
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
-  void  freeDiskPotentialTable_dev(real  *RR, real  *zz, real  *Phi);
+  void  freeDiskPotentialTable_dev
+  (real  *Phi,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   real  *RR, real  *zz
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   disk_grav *FRz
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   );
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 
   void calcExternalGravity_dev
@@ -58,7 +70,10 @@ extern "C"
 
   /* read fixed potential field */
   muse  readFixedPotentialTableSpherical
-  (const int unit, char file[], potential_field *pot_tbl, real **rad, pot2 **Phi
+  (const int unit, char file[], potential_field *pot_tbl, pot2 **Phi
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   , real **rad
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 #ifdef  USE_HDF5_FORMAT
    , hdf5struct type
 #endif//USE_HDF5_FORMAT
@@ -66,7 +81,13 @@ extern "C"
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
   muse  readFixedPotentialTableDisk
-  (const int unit, char file[], real **RR_dev, real **zz_dev, real **Phi_dev, real **rad_sphe_dev, pot2 **Phi_sphe_dev, disk_potential *disk
+  (const int unit, char file[], real **Phi_dev, pot2 **Phi_sphe_dev,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   real **RR_dev, real **zz_dev, real **rad_sphe_dev,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   disk_grav **FRz_dev,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   disk_potential *disk
 #ifdef  USE_HDF5_FORMAT
    , hdf5struct type
 #endif//USE_HDF5_FORMAT

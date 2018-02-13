@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/02/01 (Thu) 10:04:33
+# last updated on 2018/02/13 (Tue) 19:27:00
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -44,7 +44,8 @@ USE_OFFICIAL_SFMT	:= 1
 USE_OFFICIAL_SFMT_JUMP	:= 1
 SET_EXTERNAL_FIELD	:= 1
 SET_EXTERNAL_FIELD_DISK	:= 1
-ADAPTIVE_EXTERNAL_FIELD	:= 1
+ADAPTIVE_EXTERNAL_FIELD	:= 0
+USE_ZH78_RETROGRADING	:= 0
 #################################################################################################
 # Debugging options
 EVALUATE_FORCE_ERROR	:= 0
@@ -267,6 +268,10 @@ endif
 ifeq ($(ADAPTIVE_EXTERNAL_FIELD), 1)
 CCARG	+= -DADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 CUARG	+= -DADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+endif
+#################################################################################################
+ifeq ($(USE_ZH78_RETROGRADING), 1)
+CCARG	+= -DUSE_ZANG_HOHL_1978_EQ5
 endif
 #################################################################################################
 NUM_NTHREADS	:= 512

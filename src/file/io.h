@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/31 (Wed)
+ * @date 2018/02/13 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -90,6 +90,9 @@ typedef struct
 #endif//RUN_WITHOUT_GOTHIC
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   hid_t pot2;
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  hid_t disk_grav;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  REPORT_GPU_CLOCK_FREQUENCY
   hid_t gpu_clock;
@@ -183,13 +186,13 @@ extern "C"
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   /* write fixed potential field */
   void writeFixedPotentialTable
-  (const int unit, potential_field pot_tbl_sphe, const int skind, potential_field *pot_tbl
+  (const int unit, potential_field pot_tbl_sphe, const int skind, potential_field *pot_tbl,
 #ifdef  USE_HDF5_FORMAT
-   , hdf5struct type
+   hdf5struct type,
 #else///USE_HDF5_FORMAT
-   , const bool binary
+   const bool binary,
 #endif//USE_HDF5_FORMAT
-   , char file[]);
+   char file[]);
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
   void writeFixedDiskPotential

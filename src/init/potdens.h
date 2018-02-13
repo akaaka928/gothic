@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/01 (Thu)
+ * @date 2018/02/06 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -31,9 +31,9 @@
 #ifndef SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #define NDISKBIN_VER (64)
 #else///SET_EXTERNAL_POTENTIAL_FIELD_DISK
-#define NDISKBIN_VER (256)
+/* #define NDISKBIN_VER (256) */
 /* #define NDISKBIN_VER (512) */
-/* #define NDISKBIN_VER (1024) */
+#define NDISKBIN_VER (1024)
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 
 /**

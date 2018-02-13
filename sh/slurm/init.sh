@@ -17,9 +17,9 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=2
     # PROBLEM=20
     # PROBLEM=26
-    PROBLEM=27
+    # PROBLEM=27
     # PROBLEM=28
-    # PROBLEM=60
+    PROBLEM=60
     # PROBLEM=61
     # PROBLEM=71
     # PROBLEM=1
@@ -41,11 +41,11 @@ if [ -z "$NTOT" ]; then
     # NTOT=65536
     # NTOT=131072
     # NTOT=262144
-    NTOT=524288
+    # NTOT=524288
     # NTOT=1048576
     # NTOT=2097152
     # NTOT=4194304
-    # NTOT=8388608
+    NTOT=8388608
     # NTOT=16777216
     # NTOT=33554432
     # NTOT=67108864
@@ -306,11 +306,13 @@ fi
 if [ $PROBLEM -eq 27 ]; then
     FILE=m31
     CONFIG=galaxy/m31.cfg
-    EPS=1.5625e-2
+    # EPS=1.5625e-2
+    EPS=7.8125e-3
     ETA=0.5
     # FINISH=75.0
     # INTERVAL=25.0
-    FINISH=3175.0
+    FINISH=1175.0
+    # FINISH=3175.0
     INTERVAL=25.0
 fi
 ###############################################################

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/31 (Wed)
+ * @date 2018/02/13 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -241,7 +241,11 @@ typedef struct __align__(16)
 typedef struct __align__( 8)
 #endif//DOUBLE_PRECISION
 {
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   real val, dr2;/**< potential and its 2nd-derivative */
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  real Phi, Fr;/**< potential and its 1st-derivative */
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 } pot2;
 
 /**
@@ -251,15 +255,32 @@ typedef struct __align__( 8)
  */
 typedef struct
 {
-  real *rad;
   pot2 *Phi;
-#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  real *rad;
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   real logrmin, logrbin, invlogrbin;
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   int num;
 } potential_field;
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+/**
+ * @struct disk_grav
+ *
+ * @brief structure for fixed potential field
+ */
+#ifdef  DOUBLE_PRECISION
+typedef struct __align__(16)
+#else///DOUBLE_PRECISION
+typedef struct __align__( 8)
+#endif//DOUBLE_PRECISION
+{
+  real R, z;/**< F_R and F_z */
+} disk_grav;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+
 /**
  * @struct disk_potential
  *
@@ -268,11 +289,19 @@ typedef struct
 typedef struct
 {
   potential_field sphe;
-  /* contents in disk_data disk: hor[maxLev][NR], ver[maxLev][Nz], pot[maxLev][NR][Nz] */
+  /* contents in disk_data disk: hor[maxLev][NR], ver[maxLev][Nz], pot[maxLev][NR][Nz] in adaptive gridding mode */
+  /* contents in disk_data disk: Phi[NR + 1][Nz + 1] and FRz[NR + 1][Nz + 1] in adaptive gridding mode */
   real *Phi;
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   real *RR, *zz;/**< never read by GOTHIC; however, write by MAGI */
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  disk_grav *FRz;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   real hh, hinv;
-  int maxLev, NR, Nz;
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  int maxLev;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  int NR, Nz;
 } disk_potential;
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 

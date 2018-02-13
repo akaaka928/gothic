@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/22 (Mon)
+ * @date 2018/02/12 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1040,7 +1040,11 @@ static inline void writeProfileCfgFormat(char *filename, const profile_cfg cfg)
     fprintf(stderr, "\t\tif the inputted sigmaR0 is negative, then sigmaR0 is automatically determined to obtain the inputted Toomre's Q-value.\n");
     fprintf(stderr, "\t\tif the inputted sigmaR0 and param is both negative, then the default value (= sigma_z(R = 0)) is substituted.\n");
 #endif//ENFORCE_EPICYCLIC_APPROXIMATION
+#ifndef USE_ZANG_HOHL_1978_EQ5
     fprintf(stderr, "\t\tif the inputted retrogradeFrac<real> is not zero ([0., 1.]), then rotation axis of particles with the given fraction is anti-parallel with normal component.\n");
+#else///USE_ZANG_HOHL_1978_EQ5
+    fprintf(stderr, "\t\tif the inputted retrogradeParam<real> is not zero ([0., 1.]), then particles satisfying equation (5) of Zang & Hohl (1978) are picked upped as retrograding component.\n");
+#endif//USE_ZANG_HOHL_1978_EQ5
   }/* if( (cfg.kind == EXP_DISK) || (cfg.kind == SERSIC) || (cfg.kind == TBL_DISK) ){ */
 
   /** information about density cutoff */

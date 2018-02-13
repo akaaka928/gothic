@@ -14,12 +14,16 @@ EXEC=bin/magi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
+    # PROBLEM=2
+    # PROBLEM=20
     # PROBLEM=26
+    PROBLEM=27
     # PROBLEM=28
-    # PROBLEM=70
+    # PROBLEM=60
+    # PROBLEM=61
     # PROBLEM=71
     # PROBLEM=1
-    PROBLEM=80
+    # PROBLEM=80
     # PROBLEM=81
 fi
 ###############################################################
@@ -39,9 +43,9 @@ if [ -z "$NTOT" ]; then
     # NTOT=262144
     # NTOT=524288
     # NTOT=1048576
-    # NTOT=2097152
+    NTOT=2097152
     # NTOT=4194304
-    NTOT=8388608
+    # NTOT=8388608
     # NTOT=16777216
     # NTOT=33554432
     # NTOT=67108864
@@ -295,16 +299,21 @@ if [ $PROBLEM -eq 26 ]; then
     # INTERVAL=25.0
 fi
 ###############################################################
-# dynamical stability of an M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk)
+# dynamical stability of an M31 model (NFW halo, Hernquist bulge, and exponential disk)
+# basically, this is Fardal et al. (2007) model
+# stellar halo: Gilbert et al. (2012): \Sigma \propto R^-2.2; Rmin = 9kpc, Rmax = 176kpc; Ibata et al. (2014, ApJ, 780, 128): total stellar mass of the smooth halo is ~8e+9 Msun
+# disk: Toomre's Q-value is set to reproduce Tenjes et al. (2017): Q_min = 1.8 @ 12-13 kpc
 if [ $PROBLEM -eq 27 ]; then
-    FILE=m31_mod
+    FILE=m31
     CONFIG=galaxy/m31.cfg
-    EPS=1.5625e-2
+    # EPS=1.5625e-2
+    EPS=7.8125e-3
     ETA=0.5
-    FINISH=75.0
-    INTERVAL=25.0
-    # FINISH=3175.0
+    # FINISH=75.0
     # INTERVAL=25.0
+    FINISH=1175.0
+    # FINISH=3175.0
+    INTERVAL=25.0
 fi
 ###############################################################
 # dynamical stability of multi components galaxy model (NFW halo, King bulge, thick Sersic disk, and thin exponential disk)
@@ -525,8 +534,22 @@ fi
 ###############################################################
 # dynamical stability of a progenitor model for GSS determined by Kirihara et al. (2017)
 if [ $PROBLEM -eq 60 ]; then
-    FILE=satellite
-    CONFIG=galaxy/satellite.cfg
+    FILE=sat
+    CONFIG=gss/k17.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    # FINISH=75.0
+    # INTERVAL=25.0
+    FINISH=1575.0
+    INTERVAL=25.0
+    # FINISH=5175.0
+    # INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of a progenitor model for GSS determined by Miki et al. (2016)
+if [ $PROBLEM -eq 61 ]; then
+    FILE=sat
+    CONFIG=gss/m16.cfg
     EPS=1.5625e-2
     ETA=0.5
     # FINISH=75.0
@@ -612,8 +635,14 @@ TIME=`date`
 echo "start: $TIME"
 ###############################################################
 # execute the job
-/usr/bin/rm -rf dat doc
-make dir
+/usr/bin/rm -rf dat/$FILE.cfg.dat
+/usr/bin/rm -rf dat/$FILE.df.h5
+/usr/bin/rm -rf dat/$FILE.disk.h5
+/usr/bin/rm -rf dat/$FILE.profile.h5
+/usr/bin/rm -rf dat/$FILE.property.h5
+/usr/bin/rm -rf dat/$FILE.run.dat
+/usr/bin/rm -rf dat/$FILE.tmp?.h5
+/usr/bin/rm -rf doc/$FILE.*.txt
 if [ `which numactl` ]; then
     # run with numactl
     echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"

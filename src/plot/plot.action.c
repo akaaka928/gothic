@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/01/19 (Fri)
+ * @date 2018/02/12 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -80,8 +80,8 @@ int radAscendingOrder(const void *a, const void *b)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
-  if(          ((nbody_particle *)a)->rad > ((nbody_particle *)b)->rad ){    return ( 1);  }
-  else{    if( ((nbody_particle *)a)->rad < ((nbody_particle *)b)->rad ){    return (-1);  }
+  if(          ((const nbody_particle *)a)->rad > ((const nbody_particle *)b)->rad ){    return ( 1);  }
+  else{    if( ((const nbody_particle *)a)->rad < ((const nbody_particle *)b)->rad ){    return (-1);  }
     else{                                                                    return ( 0);  }  }
 #   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
@@ -95,8 +95,8 @@ int gidAscendingOrder(const void *a, const void *b)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
-  if(          ((nbody_particle *)a)->gid > ((nbody_particle *)b)->gid ){    return ( 1);  }
-  else{    if( ((nbody_particle *)a)->gid < ((nbody_particle *)b)->gid ){    return (-1);  }
+  if(          ((const nbody_particle *)a)->gid > ((const nbody_particle *)b)->gid ){    return ( 1);  }
+  else{    if( ((const nbody_particle *)a)->gid < ((const nbody_particle *)b)->gid ){    return (-1);  }
     else{                                                                    return ( 0);  }  }
 #   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop

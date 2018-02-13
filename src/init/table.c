@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/17 (Wed)
+ * @date 2018/02/09 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -106,8 +106,8 @@ void getInterpolatedDensityProfile(const int num, profile * restrict prf, double
 
   /** extrapolate for the innermost position by least squares method */
   double pp, bb;
-  const double rmin = 0.5 * (prf[          0].rad < xx[          NPUT]) ? (prf[          0].rad) : (xx[          NPUT]);
-  const double rmax = 2.0 * (prf[NRADBIN - 1].rad > xx[num - 1 - NPUT]) ? (prf[NRADBIN - 1].rad) : (xx[num - 1 - NPUT]);
+  const double rmin = 0.5 * ((prf[          0].rad < xx[          NPUT]) ? (prf[          0].rad) : (xx[          NPUT]));
+  const double rmax = 2.0 * ((prf[NRADBIN - 1].rad > xx[num - 1 - NPUT]) ? (prf[NRADBIN - 1].rad) : (xx[num - 1 - NPUT]));
   leastSquaresMethod(NFIT, &xx[                 NPUT], &ff[                 NPUT], &pp, &bb);
   const double logrmin = log10(rmin);
   double logrbin = (log10(xx[NPUT]) - logrmin) / (double)NPUT;

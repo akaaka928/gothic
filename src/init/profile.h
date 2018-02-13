@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/16 (Tue)
+ * @date 2018/02/12 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -168,7 +168,11 @@ typedef struct
   double n_sersic, b_sersic;/**< parameters for Sersic profile */
   double rhalf, Reff;/**< half-mass radius and effective radius */
   double vcirc_Rd, vcirc_max, vcirc_max_R, toomre, Qmin0, Qmin1, Qmin2, qminR0, qminR1, qminR2;/**< properties of disk component(s) */
-  double retrogradeFrac;/**< fraction of retrograding disk particles */
+  double retrogradeFrac;/**< fraction of retrograding disk particles (input parameter) */
+#ifdef  USE_ZANG_HOHL_1978_EQ5
+  double Jmax, Jstar_inv;/**< maximum of L_z and inverse of J_* (a proxy of Jmax of Zang & Hohl 1978) */
+#endif//USE_ZANG_HOHL_1978_EQ5
+  double retroFraction;/**< fraction of retrograding disk particles (output value) */
 #ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
   double Tdisk;/**< rotational kinetic energy of disk component */
   double Wdisk;/**< potential energy of disk component */

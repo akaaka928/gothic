@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/31 (Wed)
+ * @date 2018/02/13 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -192,6 +192,7 @@ bool isInnerParticle4disk     (const double x2, const double y2, const double z2
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 
 
+#ifndef USE_ZANG_HOHL_1978_EQ5
 /**
  * @fn pickRetrogradingParticles
  *
@@ -246,6 +247,7 @@ void retrograder(const ulong num, const ulong head, iparticle body, const double
 
   __NOTE__("%s\n", "end");
 }
+#endif//USE_ZANG_HOHL_1978_EQ5
 
 
 /**
@@ -653,6 +655,10 @@ void outputRepresentativeQuantities
 (const int kind, profile_cfg *cfg, const int skind, profile **prf, const int ndisk, const int maxLev, disk_data * disk, char file[]);
 #endif//USE_HDF5_FORMAT
 
+#ifdef  USE_ZANG_HOHL_1978_EQ5
+void findJmax(const int maxLev, const int ndisk, disk_data *disk);
+#endif//USE_ZANG_HOHL_1978_EQ5
+
 void evaluateObservables(const int kind, const int skind, profile_cfg *cfg, profile **prf);
 void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *disk);
 
@@ -958,6 +964,10 @@ int main(int argc, char **argv)
       cfg[ii].vdispz0 = disk_info[ii - skind].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, 0)];
 
     stopBenchmark_cpu(&execTime.diskVel);
+
+#ifdef  USE_ZANG_HOHL_1978_EQ5
+    findJmax(maxLev, ndisk, disk_info);
+#endif//USE_ZANG_HOHL_1978_EQ5
   }/* if( addDisk ){ */
 
 
@@ -1067,12 +1077,26 @@ int main(int argc, char **argv)
 	/** distribute disk particles */
 	distributeDiskParticles(&Nuse, body, CAST_D2R(disk_info[ii].cfg->Mtot / (double)disk_info[ii].cfg->num), maxLev, disk_info[ii], rand);
 
+#ifndef USE_ZANG_HOHL_1978_EQ5
 	/** flip velocity vector to generate retrograding particles */
 	if( disk_info[ii].cfg->retrogradeFrac > 0.0 )
 	  retrograder(disk_info[ii].cfg->num, Nuse - disk_info[ii].cfg->num, body, disk_info[ii].cfg->retrogradeFrac);
+#endif//USE_ZANG_HOHL_1978_EQ5
 
 	/** shift center-of-mass, remove bulk motion */
 	shiftCenter(disk_info[ii].cfg->num, Nuse - disk_info[ii].cfg->num, body, *disk_info[ii].cfg);
+
+	/** analyze retrograding fraction */
+	int Nret = 0;
+	for(ulong jj = Nuse - disk_info[ii].cfg->num; jj < Nuse; jj++){
+#ifdef  BLOCK_TIME_STEP
+	  const real lz = body.pos[jj].x * body.vel[jj].y - body.pos[jj].y * body.vel[jj].x;
+#else///BLOCK_TIME_STEP
+	  const real lz = body.pos[jj].x * body. vy[jj]   - body.pos[jj].y * body. vx[jj];
+#endif//BLOCK_TIME_STEP
+	  Nret += (lz < 0.0);
+	}/* for(ulong jj = Nuse - disk_info[ii].cfg->num; jj < Nuse; jj++){ */
+	disk_info[ii].cfg->retroFraction = (double)Nret / (double)disk_info[ii].cfg->num;
       }/* for(int ii = 0; ii < ndisk; ii++){ */
 
 #ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
@@ -1114,19 +1138,46 @@ int main(int argc, char **argv)
   /** generate tables for fixed potential field */
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   initBenchmark_cpu();
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   real *rad_pot;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   pot2 *Phi_pot;
   potential_field *pot_tbl, pot_tbl_sphe, pot_tbl_disk;
-  allocPotentialField(&rad_pot, &Phi_pot, &pot_tbl, N_EXT_POT_SPHE, kind, &pot_tbl_sphe, skind, &pot_tbl_disk);
+  allocPotentialField
+    (&Phi_pot,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     &rad_pot,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     &pot_tbl, N_EXT_POT_SPHE, kind, &pot_tbl_sphe, skind, &pot_tbl_disk);
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
-  real *RR_diskpot, *zz_diskpot, *Phi_diskpot;
+  real *Phi_diskpot;
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  real *RR_diskpot, *zz_diskpot;
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  disk_grav *FRz_diskpot;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   disk_potential diskpot;
   if( addDisk )
-    allocDiskPotential(&RR_diskpot, &zz_diskpot, &Phi_diskpot, maxLev, NDISKBIN_HOR, NDISKBIN_VER, &diskpot);
+    allocDiskPotential
+      (
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+       &RR_diskpot, &zz_diskpot,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+       &FRz_diskpot,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+       &Phi_diskpot,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+       maxLev,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+       NDISKBIN_HOR, NDISKBIN_VER, &diskpot);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 
-  genExtPotTbl1D(kind, prf, pot_tbl);
+  genExtPotTbl1D(kind, prf, pot_tbl
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+		 , invlogrbin
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+		 );
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   genSuperposedPotFld1D(kind, skind, prf, &pot_tbl_sphe, &pot_tbl_disk);
 #else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
@@ -1135,7 +1186,13 @@ int main(int argc, char **argv)
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
   if( addDisk )
-    extractDiskPotential(maxLev, disk_info[0], pot_tbl_disk, &diskpot);
+    extractDiskPotential(maxLev,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+			 disk_info[0],
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+			 ndisk, disk_info,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+			 pot_tbl_disk, &diskpot);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 
   stopBenchmark_cpu(&execTime.external);
@@ -1290,17 +1347,25 @@ int main(int argc, char **argv)
 
   FILE *fp;
   char filename[128];
-  sprintf(filename, "%s/%s.N%zu.%s.%s.txt", LOGFOLDER, file, Ntot, "magi", "breakdown");
+  sprintf(filename, "%s/%s.N%zu_%.2d.%s.%s.txt", LOGFOLDER, file, Ntot, CPUS_PER_PROCESS, "magi", "breakdown");
   if( 0 != access(filename, F_OK) ){
     fp = fopen(filename, "w");
     if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
-    fprintf(fp, "#%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+    fprintf(fp, "#%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
 	    "ttot", "bodyAlloc", "file",
 	    "spheAlloc", "spheProf", "spheDist", "spheInfo", "eddington",
 	    "diskAlloc", "diskProf", "diskDist", "diskInfo", "diskTbl", "diskVel",
-	    "observe",
-    "vdisp", "column",
-    "external");
+	    "observe");
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+    fprintf(fp, "\t%s", "vdisp");
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+    fprintf(fp, "\t%s", "column");
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    fprintf(fp, "\t%s", "external");
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+    fprintf(fp, "\n");
     fclose(fp);
   }/* if( 0 != access(filename, F_OK) ){ */
   fp = fopen(filename, "a");
@@ -1332,22 +1397,22 @@ int main(int argc, char **argv)
   fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.spheProf , execTime.spheProf  * ttot, "generating radial profile of spherical component(s)");
   if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskProf , execTime.diskProf  * ttot, "calculating spherical averaged profile of disk component(s)");
   if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskVel  , execTime.diskVel   * ttot, "calculating vertical velocity dispersion of disk component(s)");
-  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.file    , execTime.file     * ttot, "writing particle data");
-  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.spheInfo, execTime.spheInfo * ttot, "writing fundamental data of spherical component(s)");
-  if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskInfo, execTime.diskInfo * ttot, "writing fundamental data of disk component(s)");
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.observe, execTime.observe * ttot, "evaluating observables of spherical component(s)");
 #ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
   fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.vdisp , execTime.vdisp  * ttot, "calculating velocity dispersion profile of spherical component(s)");
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.column, execTime.column * ttot, "calculating column density profile of spherical component(s)");
 #endif//MAKE_COLUMN_DENSITY_PROFILE
-  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.observe, execTime.observe * ttot, "evaluating observables of spherical component(s)");
-  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.spheAlloc, execTime.spheAlloc * ttot, "memory allocation for spherical component(s)");
-  if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskAlloc, execTime.diskAlloc * ttot, "memory allocation for disk component(s)");
-  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.bodyAlloc, execTime.bodyAlloc * ttot, "memory allocation for N-body particles");
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.external, execTime.external * ttot, "execute cubic spline interpolation to generate external potential field");
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.file    , execTime.file     * ttot, "writing particle data");
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.spheInfo, execTime.spheInfo * ttot, "writing fundamental data of spherical component(s)");
+  if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskInfo, execTime.diskInfo * ttot, "writing fundamental data of disk component(s)");
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.spheAlloc, execTime.spheAlloc * ttot, "memory allocation for spherical component(s)");
+  if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskAlloc, execTime.diskAlloc * ttot, "memory allocation for disk component(s)");
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.bodyAlloc, execTime.bodyAlloc * ttot, "memory allocation for N-body particles");
 
 #ifdef  PRINT_OUT_ASCII_DATA_FOR_QUICK_CHECK
   /** print out particle distribution in ASCII format for quick check */
@@ -1418,10 +1483,22 @@ int main(int argc, char **argv)
        spline_xx, spline_ff, spline_f2, spline_bp);
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-  freePotentialField(rad_pot, Phi_pot, pot_tbl);
+  freePotentialField
+    (Phi_pot,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     rad_pot,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     pot_tbl);
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
   if( addDisk )
-    freeDiskPotential(RR_diskpot, zz_diskpot, Phi_diskpot);
+    freeDiskPotential
+      (
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+       RR_diskpot, zz_diskpot,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+       FRz_diskpot,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+       Phi_diskpot);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELDp
 
@@ -1559,12 +1636,14 @@ void outputFundamentalInformation
     fprintf(fp, "Total number of particles Ntot is %zu (about 2^%u)\n", cfg[ii].num, ilog2((int)cfg[ii].num));
     fprintf(fp, "Range of idx for the component is [%zu, %zu]\n", ihead, ihead + cfg[ii].num - 1);
     if( cfg[ii].kind < 0 )
+#ifndef USE_ZANG_HOHL_1978_EQ5
       if( cfg[ii].retrogradeFrac > 0.0 ){
 	ulong retroNum, retroHead;
 	pickRetrogradingParticles(cfg[ii].num, ihead, cfg[ii].retrogradeFrac, &retroNum, &retroHead);
 	fprintf(fp, "\tRange of idx for   prograding particles is [%zu, %zu]\n", ihead, ihead + cfg[ii].num - retroNum - 1);
 	fprintf(fp, "\tRange of idx for retrograding particles is [%zu, %zu]\n", retroHead, retroHead + retroNum - 1);
       }/* if( cfg[ii].retrogradeFrac > 0.0 ){ */
+#endif//USE_ZANG_HOHL_1978_EQ5
     ihead += cfg[ii].num;
     fprintf(fp, "Mass of each N-body particle m is %e (= %e %s)\n", cfg[ii].Mtot / (double)cfg[ii].num, cfg[ii].Mtot / (double)cfg[ii].num * mass2astro, mass_astro_unit_name);
     fprintf(fp, "#############################################################################\n");
@@ -1641,7 +1720,13 @@ void outputFundamentalInformation
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
       fprintf(fp, "Dimming height of the component is %f times zd\n", DISK_DIMMING_HEIGHT);
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
-      fprintf(fp, "Retrograding fraction            is %e\n", cfg[ii].retrogradeFrac);
+#ifndef USE_ZANG_HOHL_1978_EQ5
+      fprintf(fp, "Retrograding fraction (input)    is %e\n", cfg[ii].retrogradeFrac);
+#else///USE_ZANG_HOHL_1978_EQ5
+      fprintf(fp, "Retrograde parameter eta         is %e\n", cfg[ii].retrogradeFrac);
+      fprintf(fp, "Maximum of Lz                    is %e (= %e %s %s)\n", cfg[ii].Jmax, cfg[ii].Jmax * length2astro * velocity2astro, length_astro_unit_name, velocity_astro_unit_name);
+#endif//USE_ZANG_HOHL_1978_EQ5
+      fprintf(fp, "Retrograding fraction (output)   is %e\n", cfg[ii].retroFraction);
       fprintf(fp, "Central surface density   Sigma0 is %e (= %e %s)\n", cfg[ii].Sigma0, cfg[ii].Sigma0 * col_density2astro, col_density_astro_unit_name);
       fprintf(fp, "Circular speed at scale radius   is %e (= %e %s)\n", cfg[ii].vcirc_Rd   , cfg[ii].vcirc_Rd    * velocity2astro, velocity_astro_unit_name);
       fprintf(fp, "Maximum circular speed           is %e (= %e %s)\n", cfg[ii].vcirc_max  , cfg[ii].vcirc_max   * velocity2astro, velocity_astro_unit_name);
@@ -2741,6 +2826,43 @@ void evaluateObservables(const int kind, const int skind, profile_cfg *cfg, prof
 
   __NOTE__("%s\n", "end");
 }
+
+
+#ifdef  USE_ZANG_HOHL_1978_EQ5
+void findJmax(const int maxLev, const int ndisk, disk_data *disk)
+{
+  __NOTE__("%s\n", "start");
+
+  double Lz2max = -1.0;
+  int head = 0;
+  int tail = NDISKBIN_HOR - 1;
+  for(int lev = maxLev - 1; lev >= 0; lev--){
+    for(int ii = head; ii < tail + 1; ii++){
+#ifndef USE_POTENTIAL_SCALING_SCHEME
+      const double dPhidR = disk[0].dPhidR[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)];
+#else///USE_POTENTIAL_SCALING_SCHEME
+      const double dPhidR = disk[0].dPhidR[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
+#endif//USE_POTENTIAL_SCALING_SCHEME
+      const double RR = disk[0].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
+
+      Lz2max = fmax(Lz2max, RR * RR * RR * dPhidR);
+    }/* for(int ii = head; ii < tail + 1; ii++){ */
+
+    head = NDISKBIN_HOR >> 1;
+    tail = NDISKBIN_HOR - 1;
+  }/* for(int lev = maxLev - 1; lev >= 0; lev--){ */
+
+  const double Lzmax = sqrt(Lz2max);
+  const double Jstar_inv = 1.0 / Lzmax;
+
+  for(int ii = 0; ii < ndisk; ii++){
+    disk[ii].cfg->Jmax = Lzmax;
+    disk[ii].cfg->Jstar_inv = (disk[ii].cfg->retrogradeFrac > 0.0) ? (Jstar_inv / disk[ii].cfg->retrogradeFrac) : (0.0);
+  }/* for(int ii = 0; ii < ndisk; ii++){ */
+
+  __NOTE__("%s\n", "end");
+}
+#endif//USE_ZANG_HOHL_1978_EQ5
 
 
 /**

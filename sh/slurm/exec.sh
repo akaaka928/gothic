@@ -5,10 +5,10 @@
 # #SBATCH -t 00:10:00           # upper limit of elapsed time
 #SBATCH -p normal             # partition name
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
-# #SBATCH --ntasks=1            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
-# #SBATCH --ntasks-per-socket=1 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
-#SBATCH --ntasks=2            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
-#SBATCH --ntasks-per-socket=2 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
+#SBATCH --ntasks=1            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
+#SBATCH --ntasks-per-socket=1 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
+# #SBATCH --ntasks=2            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
+# #SBATCH --ntasks-per-socket=2 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
 #SBATCH --get-user-env        # retrieve the login environment variables
 ###############################################################
 
@@ -20,9 +20,10 @@ EXEC=bin/gothic
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=2
+    # PROBLEM=2
     # PROBLEM=20
     # PROBLEM=26
+    PROBLEM=27
     # PROBLEM=28
     # PROBLEM=80
     # PROBLEM=81
@@ -56,8 +57,8 @@ if [ -z "$ABSERR" ]; then
     # ABSERR=3.125000000e-2
     # ABSERR=1.562500000e-2
     # ABSERR=7.812500000e-3
-    ABSERR=3.906250000e-3
-    # ABSERR=1.953125000e-3
+    # ABSERR=3.906250000e-3
+    ABSERR=1.953125000e-3
     # ABSERR=9.765625000e-4
     # ABSERR=4.882812500e-4
     # ABSERR=2.441406250e-4
@@ -194,7 +195,7 @@ fi
 ###############################################################
 # dynamical stability of an M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk)
 if [ $PROBLEM -eq 27 ]; then
-    FILE=m31_mod
+    FILE=m31
 fi
 ###############################################################
 # dynamical stability of multi components galaxy model (NFW halo, King bulge, thick Sersic disk, and thin exponential disk)

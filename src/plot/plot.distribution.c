@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/01/29 (Mon)
+ * @date 2018/02/12 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -284,8 +284,8 @@ int idxAscendingOrder(const void *a, const void *b)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
-  if(          ((nbody_particle *)a)->idx > ((nbody_particle *)b)->idx ){    return ( 1);  }
-  else{    if( ((nbody_particle *)a)->idx < ((nbody_particle *)b)->idx ){    return (-1);  }
+  if(          ((const nbody_particle *)a)->idx > ((const nbody_particle *)b)->idx ){    return ( 1);  }
+  else{    if( ((const nbody_particle *)a)->idx < ((const nbody_particle *)b)->idx ){    return (-1);  }
     else{                                                                    return ( 0);  }  }
 #   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
@@ -299,8 +299,8 @@ int radAscendingOrder(const void *a, const void *b)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
-  if(          ((nbody_particle *)a)->ax > ((nbody_particle *)b)->ax ){    return ( 1);  }
-  else{    if( ((nbody_particle *)a)->ax < ((nbody_particle *)b)->ax ){    return (-1);  }
+  if(          ((const nbody_particle *)a)->ax > ((const nbody_particle *)b)->ax ){    return ( 1);  }
+  else{    if( ((const nbody_particle *)a)->ax < ((const nbody_particle *)b)->ax ){    return (-1);  }
     else{                                                                  return ( 0);  }  }
 #   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
@@ -314,8 +314,8 @@ int horAscendingOrder(const void *a, const void *b)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
-  if(          ((nbody_particle *)a)->ay > ((nbody_particle *)b)->ay ){    return ( 1);  }
-  else{    if( ((nbody_particle *)a)->ay < ((nbody_particle *)b)->ay ){    return (-1);  }
+  if(          ((const nbody_particle *)a)->ay > ((const nbody_particle *)b)->ay ){    return ( 1);  }
+  else{    if( ((const nbody_particle *)a)->ay < ((const nbody_particle *)b)->ay ){    return (-1);  }
     else{                                                                  return ( 0);  }  }
 #   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
@@ -329,8 +329,8 @@ int verAscendingOrder(const void *a, const void *b)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
-  if(          ((nbody_particle *)a)->az > ((nbody_particle *)b)->az ){    return ( 1);  }
-  else{    if( ((nbody_particle *)a)->az < ((nbody_particle *)b)->az ){    return (-1);  }
+  if(          ((const nbody_particle *)a)->az > ((const nbody_particle *)b)->az ){    return ( 1);  }
+  else{    if( ((const nbody_particle *)a)->az < ((const nbody_particle *)b)->az ){    return (-1);  }
     else{                                                                  return ( 0);  }  }
 #   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
@@ -652,8 +652,8 @@ int main(int argc, char **argv)
 
   /** set plot range */
   PLFLT radius;
-  double radmin, rhomin, encmin, Sigmamin;  double Rmin, zmin;
-  double radmax, rhomax, encmax, Sigmamax;  double Rmax, zmax;
+  double radmin, rhomin, encmin, Sigmamin;  double Rmin =  0.0, zmin = 0.0;
+  double radmax, rhomax, encmax, Sigmamax;  double Rmax = 10.0, zmax = 2.0;
 #ifdef  PLOT_VELOCITY_DISPERSION
   double velmin = 0.0;
   double velmax = 3.0e+2;
@@ -758,10 +758,10 @@ int main(int argc, char **argv)
     radmin = 1.0e-1;    rhomin = 1.0e-8;    encmin = 2.0e-1;    Sigmamin = 5.0e-6;    Rmin =  0.0;    zmin = 0.0;
     radmax = 1.0e+3;    rhomax = 2.0e+2;    encmax = 4.0e+4;    Sigmamax = 1.0e+2;    Rmax = 50.0;    zmax = 2.0;
     break;
-  case 27:    /* M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk) */
+  case 27:    /* M31 model determined by Fardal et al. (2007) with stellar halo */
     radius = 1.0e+1;
-    radmin = 1.0e-2;    rhomin = 1.0e-7;    encmin = 2.0e-0;    Sigmamin = 4.0e-6;    Rmin =  0.0;    zmin = 0.0;
-    radmax = 1.0e+3;    rhomax = 2.0e+3;    encmax = 2.0e+4;    Sigmamax = 5.0e+2;    Rmax = 50.0;    zmax = 1.0;
+    radmin = 1.0e-2;    rhomin = 1.0e-7;    encmin = 2.0e-1;    Sigmamin = 4.0e-6;    Rmin =  0.0;    zmin = 0.0;
+    radmax = 1.0e+3;    rhomax = 2.0e+4;    encmax = 2.0e+4;    Sigmamax = 5.0e+3;    Rmax = 50.0;    zmax = 1.0;
     break;
   case 28:    /* A trial multi components galaxy model (NFW halo, King bulge, thick Sersic disk, and thin exponential disk) */
     radius = 1.0e+1;
@@ -1850,7 +1850,7 @@ void plotDistributionMaps
   PLplotPointType *pt;  setDefaultPointType(pkind, &pt);
   for(PLINT ii = 0; ii < pkind; ii++){
     /* pt[ii].type  = (char *)PLplotSymbolType[smallDot]; */
-    sprintf(pt[ii].type, PLplotSymbolType[smallDot]);
+    sprintf(pt[ii].type, "%s", PLplotSymbolType[smallDot]);
     pt[ii].scale =       PLplotSymbolSize[smallDot];
   }
   if( pkind - 1 >= 1 )    pt[pkind - 1].color = RED;
@@ -3023,7 +3023,7 @@ void plotVerticalProfile
       const int kk = ii * num_horizontal_bin + jj;
       pt[kk].color =       PLplotColor     [(num_horizontal_bin - 1 - jj) % 15];
       pt[kk].scale =       PLplotSymbolSize[(num_horizontal_bin - 1 - jj) % 14] * 0.5;
-      sprintf(pt[kk].type, PLplotSymbolType[(num_horizontal_bin - 1 - jj) % 14]);
+      sprintf(pt[kk].type, "%s", PLplotSymbolType[(num_horizontal_bin - 1 - jj) % 14]);
       /* pt[kk].type  = (char *)PLplotSymbolType[(num_horizontal_bin - 1 - jj) % 14]; */
       if( overlay_initial ){
 	ls[kk].color = PLplotColor[(num_horizontal_bin - 1 - jj) % 15];

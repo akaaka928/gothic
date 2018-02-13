@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/31 (Wed)
+ * @date 2018/02/13 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -68,12 +68,40 @@ extern "C"
 #endif//USE_HDF5_FORMAT
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-  muse allocPotentialField(real **rad, pot2 **Phi, potential_field **dat, const int num, const int kind, potential_field *sphe, const int skind, potential_field *disk);
-  void  freePotentialField(real  *rad, pot2  *Phi, potential_field  *dat);
+  muse allocPotentialField
+  (pot2 **Phi,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   real **rad,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   potential_field **dat, const int num, const int kind, potential_field *sphe, const int skind, potential_field *disk);
+  void  freePotentialField
+  (pot2  *Phi,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   real  *rad,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   potential_field  *dat);
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
-  muse allocDiskPotential(real **RR, real **zz, real **Phi, const int maxLev, const int NR, const int Nz, disk_potential *disk);
-  void  freeDiskPotential(real  *RR, real  *zz, real  *Phi);
+  muse allocDiskPotential
+  (
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   real **RR, real **zz,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   disk_grav **FRz,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   real **Phi,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   const int maxLev,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   const int NR, const int Nz, disk_potential *disk);
+  void  freeDiskPotential
+  (
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   real  *RR, real  *zz,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   disk_grav  *FRz,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+   real  *Phi);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 

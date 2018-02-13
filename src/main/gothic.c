@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/29 (Mon)
+ * @date 2018/02/13 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1272,21 +1272,37 @@ int main(int argc, char **argv)
   /** read numeric table for fixed potential field */
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   potential_field pot_tbl_sphe;
-  real *pot_tbl_sphe_rad;
   pot2 *pot_tbl_sphe_Phi;
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  real *pot_tbl_sphe_rad;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   const muse alloc_ext_pot_sphe = readFixedPotentialTableSpherical
-    (unit, pot_file_sphe, &pot_tbl_sphe, &pot_tbl_sphe_rad, &pot_tbl_sphe_Phi
+    (unit, pot_file_sphe, &pot_tbl_sphe, &pot_tbl_sphe_Phi
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     , &pot_tbl_sphe_rad
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 #ifdef  USE_HDF5_FORMAT
      , hdf5type
 #endif//USE_HDF5_FORMAT
      );
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
   disk_potential pot_tbl_disk;
-  real *pot_tbl_disk_RR, *pot_tbl_disk_zz, *pot_tbl_disk_Phi;
-  real *pot_tbl_disk_sphe_rad;
+  real *pot_tbl_disk_Phi;
   pot2 *pot_tbl_disk_sphe_Phi;
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  real *pot_tbl_disk_RR, *pot_tbl_disk_zz;
+  real *pot_tbl_disk_sphe_rad;
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  disk_grav *pot_tbl_disk_FRz;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   const muse alloc_ext_pot_disk = readFixedPotentialTableDisk
-    (unit, pot_file_disk, &pot_tbl_disk_RR, &pot_tbl_disk_zz, &pot_tbl_disk_Phi, &pot_tbl_disk_sphe_rad, &pot_tbl_disk_sphe_Phi, &pot_tbl_disk
+    (unit, pot_file_disk, &pot_tbl_disk_Phi, &pot_tbl_disk_sphe_Phi,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     &pot_tbl_disk_RR, &pot_tbl_disk_zz, &pot_tbl_disk_sphe_rad,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     &pot_tbl_disk_FRz,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     &pot_tbl_disk
 #ifdef  USE_HDF5_FORMAT
    , hdf5type
 #endif//USE_HDF5_FORMAT
@@ -1381,6 +1397,8 @@ int main(int argc, char **argv)
   {
     size_t free_mem, used, total;
     queryFreeDeviceMemory(&free_mem, &total);      used = total - free_mem;
+
+    fprintf(stdout, "device ID: %d (%s on %s)\n\n", devIdx, devProp.name, devProp.host);
 
     fprintf(stdout, "Allocated memory on device per process: %zu B (%zu GiB, %zu MiB)\n", used_mem.device, used_mem.device >> 30, used_mem.device >> 20);
     fprintf(stdout, "    total memory on device per process: %zu B (%zu GiB, %zu MiB)\n"       , total, total >> 30, total >> 20);
@@ -2765,10 +2783,27 @@ int main(int argc, char **argv)
 #endif//BLOCK_TIME_STEP
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-  freeSphericalPotentialTable_dev(pot_tbl_sphe_rad, pot_tbl_sphe_Phi);
+  freeSphericalPotentialTable_dev
+    (pot_tbl_sphe_Phi
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     , pot_tbl_sphe_rad
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     );
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
-  freeDiskPotentialTable_dev(pot_tbl_disk_RR, pot_tbl_disk_zz, pot_tbl_disk_Phi);
-  freeSphericalPotentialTable_dev(pot_tbl_disk_sphe_rad, pot_tbl_disk_sphe_Phi);
+  freeDiskPotentialTable_dev
+    (pot_tbl_disk_Phi,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     pot_tbl_disk_RR, pot_tbl_disk_zz
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     pot_tbl_disk_FRz
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     );
+  freeSphericalPotentialTable_dev
+    (pot_tbl_disk_sphe_Phi
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     , pot_tbl_disk_sphe_rad
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     );
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 

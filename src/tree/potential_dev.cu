@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/01 (Thu)
+ * @date 2018/02/13 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -48,14 +48,21 @@
  *
  * @brief Memory allocation on the accelerator device for external fixed-potential field by spherical components.
  */
-static inline muse allocSphericalPotentialTable_dev(real **rad, pot2 **Phi, const int Nr)
+static inline muse allocSphericalPotentialTable_dev
+(pot2 **Phi,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ real **rad,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ const int Nr)
 {
   __NOTE__("%s\n", "start");
 
   muse alloc = {0, 0};
 
-  mycudaMalloc((void **)rad, Nr * sizeof(real));  alloc.device += Nr * sizeof(real);
   mycudaMalloc((void **)Phi, Nr * sizeof(pot2));  alloc.device += Nr * sizeof(pot2);
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  mycudaMalloc((void **)rad, Nr * sizeof(real));  alloc.device += Nr * sizeof(real);
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   __NOTE__("%s\n", "end");
   return (alloc);
@@ -68,12 +75,19 @@ static inline muse allocSphericalPotentialTable_dev(real **rad, pot2 **Phi, cons
  * @brief Memory deallocation on the accelerator device for external fixed-potential field by spherical components.
  */
 extern "C"
-void  freeSphericalPotentialTable_dev(real  *rad, pot2  *Phi)
+void  freeSphericalPotentialTable_dev
+(pot2  *Phi
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+, real  *rad
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ )
 {
   __NOTE__("%s\n", "start");
 
-  mycudaFree(rad);
   mycudaFree(Phi);
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  mycudaFree(rad);
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   __NOTE__("%s\n", "end");
 }
@@ -84,14 +98,21 @@ void  freeSphericalPotentialTable_dev(real  *rad, pot2  *Phi)
  *
  * @brief Memory allocation on the host for external fixed-potential field by spherical components.
  */
-static inline muse allocSphericalPotentialTable_hst(real **rad, pot2 **Phi, const int Nr)
+static inline muse allocSphericalPotentialTable_hst
+(pot2 **Phi,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ real **rad,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ const int Nr)
 {
   __NOTE__("%s\n", "start");
 
   muse alloc = {0, 0};
 
-  mycudaMallocHost((void **)rad, Nr * sizeof(real));  alloc.host += Nr * sizeof(real);
   mycudaMallocHost((void **)Phi, Nr * sizeof(pot2));  alloc.host += Nr * sizeof(pot2);
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  mycudaMallocHost((void **)rad, Nr * sizeof(real));  alloc.host += Nr * sizeof(real);
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   __NOTE__("%s\n", "end");
   return (alloc);
@@ -103,12 +124,19 @@ static inline muse allocSphericalPotentialTable_hst(real **rad, pot2 **Phi, cons
  *
  * @brief Memory deallocation on the host for external fixed-potential field by spherical components.
  */
-static inline void  freeSphericalPotentialTable_hst(real  *rad, pot2  *Phi)
+static inline void  freeSphericalPotentialTable_hst
+(pot2  *Phi
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ , real  *rad
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ )
 {
   __NOTE__("%s\n", "start");
 
-  mycudaFreeHost(rad);
   mycudaFreeHost(Phi);
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  mycudaFreeHost(rad);
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   __NOTE__("%s\n", "end");
 }
@@ -119,12 +147,19 @@ static inline void  freeSphericalPotentialTable_hst(real  *rad, pot2  *Phi)
  *
  * @brief Set external fixed-potential field by spherical components on the device.
  */
-static inline void setSphericalPotentialTable_dev(real *rad_hst, pot2 *Phi_hst, real *rad_dev, pot2 *Phi_dev, const int Nr)
+static inline void setSphericalPotentialTable_dev
+(pot2 *Phi_hst, pot2 *Phi_dev,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ real *rad_hst, real *rad_dev,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ const int Nr)
 {
   __NOTE__("%s\n", "start");
 
-  checkCudaErrors(cudaMemcpy(rad_dev, rad_hst, sizeof(real) * Nr, cudaMemcpyHostToDevice));
   checkCudaErrors(cudaMemcpy(Phi_dev, Phi_hst, sizeof(pot2) * Nr, cudaMemcpyHostToDevice));
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  checkCudaErrors(cudaMemcpy(rad_dev, rad_hst, sizeof(real) * Nr, cudaMemcpyHostToDevice));
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   __NOTE__("%s\n", "end");
 }
@@ -136,15 +171,27 @@ static inline void setSphericalPotentialTable_dev(real *rad_hst, pot2 *Phi_hst, 
  *
  * @brief Memory allocation on the accelerator device for external fixed-potential field by disk components.
  */
-static inline muse allocDiskPotentialTable_dev(real **RR, real **zz, real **Phi, const disk_potential disk)
+static inline muse allocDiskPotentialTable_dev
+(real **Phi,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ real **RR, real **zz,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ disk_grav **FRz,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ const disk_potential disk)
 {
   __NOTE__("%s\n", "start");
 
   muse alloc = {0, 0};
 
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   mycudaMalloc((void **)RR , disk.maxLev *  disk.NR                      * sizeof(real));  alloc.device += disk.maxLev *  disk.NR                      * sizeof(real);
   mycudaMalloc((void **)zz , disk.maxLev *                  disk.Nz      * sizeof(real));  alloc.device += disk.maxLev *                  disk.Nz      * sizeof(real);
   mycudaMalloc((void **)Phi, disk.maxLev * (disk.NR + 1) * (disk.Nz + 1) * sizeof(real));  alloc.device += disk.maxLev * (disk.NR + 1) * (disk.Nz + 1) * sizeof(real);
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  mycudaMalloc((void **)Phi, (disk.NR + 1) * (disk.Nz + 1) * sizeof(real));  alloc.device += (disk.NR + 1) * (disk.Nz + 1) * sizeof(real);
+  mycudaMalloc((void **)FRz, (disk.NR + 1) * (disk.Nz + 1) * sizeof(disk_grav));  alloc.device += (disk.NR + 1) * (disk.Nz + 1) * sizeof(disk_grav);
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   __NOTE__("%s\n", "end");
   return (alloc);
@@ -157,13 +204,24 @@ static inline muse allocDiskPotentialTable_dev(real **RR, real **zz, real **Phi,
  * @brief Memory deallocation on the accelerator device for external fixed-potential field by disk components.
  */
 extern "C"
-void  freeDiskPotentialTable_dev(real  *RR, real  *zz, real  *Phi)
+void  freeDiskPotentialTable_dev
+(real  *Phi,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ real  *RR, real  *zz
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ disk_grav *FRz
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ )
 {
   __NOTE__("%s\n", "start");
 
+  mycudaFree(Phi);
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   mycudaFree(RR);
   mycudaFree(zz);
-  mycudaFree(Phi);
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  mycudaFree(FRz);
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   __NOTE__("%s\n", "end");
 }
@@ -174,15 +232,27 @@ void  freeDiskPotentialTable_dev(real  *RR, real  *zz, real  *Phi)
  *
  * @brief Memory allocation on the host for external fixed-potential field by disk components.
  */
-static inline muse allocDiskPotentialTable_hst(real **RR, real **zz, real **Phi, const disk_potential disk)
+static inline muse allocDiskPotentialTable_hst
+(real **Phi,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ real **RR, real **zz,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ disk_grav **FRz,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ const disk_potential disk)
 {
   __NOTE__("%s\n", "start");
 
   muse alloc = {0, 0};
 
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   mycudaMallocHost((void **)RR , disk.maxLev *  disk.NR                      * sizeof(real));  alloc.device += disk.maxLev *  disk.NR                      * sizeof(real);
   mycudaMallocHost((void **)zz , disk.maxLev *                  disk.Nz      * sizeof(real));  alloc.device += disk.maxLev *                  disk.Nz      * sizeof(real);
   mycudaMallocHost((void **)Phi, disk.maxLev * (disk.NR + 1) * (disk.Nz + 1) * sizeof(real));  alloc.device += disk.maxLev * (disk.NR + 1) * (disk.Nz + 1) * sizeof(real);
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  mycudaMallocHost((void **)Phi, (disk.NR + 1) * (disk.Nz + 1) * sizeof(real));  alloc.device += (disk.NR + 1) * (disk.Nz + 1) * sizeof(real);
+  mycudaMallocHost((void **)FRz, (disk.NR + 1) * (disk.Nz + 1) * sizeof(disk_grav));  alloc.device += (disk.NR + 1) * (disk.Nz + 1) * sizeof(disk_grav);
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   __NOTE__("%s\n", "end");
   return (alloc);
@@ -194,30 +264,53 @@ static inline muse allocDiskPotentialTable_hst(real **RR, real **zz, real **Phi,
  *
  * @brief Memory deallocation on the host for external fixed-potential field by disk components.
  */
-static inline void  freeDiskPotentialTable_hst(real  *RR, real  *zz, real  *Phi)
+static inline void  freeDiskPotentialTable_hst
+(real  *Phi,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ real  *RR, real  *zz
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ disk_grav *FRz
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ )
 {
   __NOTE__("%s\n", "start");
 
+  mycudaFreeHost(Phi);
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   mycudaFreeHost(RR);
   mycudaFreeHost(zz);
-  mycudaFreeHost(Phi);
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  mycudaFreeHost(FRz);
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   __NOTE__("%s\n", "end");
 }
 
 
 /**
- * @fn setSphericalPotentialTable_dev
+ * @fn setDiskPotentialTable_dev
  *
- * @brief Set external fixed-potential field by spherical components on the device.
+ * @brief Set external fixed-potential field by disk components on the device.
  */
-static inline void setDiskPotentialTable_dev(real *RR_hst, real *zz_hst, real *Phi_hst, real *RR_dev, real *zz_dev, real *Phi_dev, const disk_potential disk)
+static inline void setDiskPotentialTable_dev
+(real *Phi_hst, real *Phi_dev,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ real *RR_hst, real *RR_dev, real *zz_hst, real *zz_dev,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ disk_grav *FRz_hst, disk_grav *FRz_dev,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ const disk_potential disk)
 {
   __NOTE__("%s\n", "start");
 
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  checkCudaErrors(cudaMemcpy(Phi_dev, Phi_hst, sizeof(real) * disk.maxLev * (disk.NR + 1) * (disk.Nz + 1), cudaMemcpyHostToDevice));
   checkCudaErrors(cudaMemcpy( RR_dev,  RR_hst, sizeof(real) * disk.maxLev *  disk.NR                     , cudaMemcpyHostToDevice));
   checkCudaErrors(cudaMemcpy( zz_dev,  zz_hst, sizeof(real) * disk.maxLev *                  disk.Nz     , cudaMemcpyHostToDevice));
-  checkCudaErrors(cudaMemcpy(Phi_dev, Phi_hst, sizeof(real) * disk.maxLev * (disk.NR + 1) * (disk.Nz + 1), cudaMemcpyHostToDevice));
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  checkCudaErrors(cudaMemcpy(Phi_dev, Phi_hst, sizeof(real) * (disk.NR + 1) * (disk.Nz + 1), cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(FRz_dev, FRz_hst, sizeof(disk_grav) * (disk.NR + 1) * (disk.Nz + 1), cudaMemcpyHostToDevice));
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   __NOTE__("%s\n", "end");
 }
@@ -279,36 +372,40 @@ int bisec(const real val, const int num, real * RESTRICT tab, real * RESTRICT ra
 __device__ __forceinline__
 void calcExternalForce_spherical
 (real * RESTRICT F_r, real * RESTRICT Phi, const real rr, const int num,
- real * RESTRICT xx, pot2 * RESTRICT yy
-#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
- , const real logrmin, const real invlogrbin
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ real * RESTRICT xx,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ const real logrmin, const real invlogrbin,
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
- )
+ pot2 * RESTRICT yy)
 {
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   real aa, dxinv;
   int ii = bisec(rr, num, xx, &aa, &dxinv);
-#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-  int ii = (int)FLOOR((LOG10(rr) - logrmin) * invlogrbin);
-  ii = (ii >=       0 ) ? ii :       0;
-  ii = (ii < (num - 1)) ? ii : num - 2;
-#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   const real xl = xx[ii];
   const real xr = xx[ii + 1];
+  const pot2 yl = yy[ii];
+  const pot2 yr = yy[ii + 1];
 
   const real dx = xr - xl;
   const real dx2 = dx * dx;
-#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-  const real dxinv = RSQRT(dx2);
-  const real aa = (rr - xl) * dxinv;
-#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+
+  *Phi =  ((UNITY - aa) * yl.val + aa * (yr.val + (aa - UNITY) * dx2 * ((aa + UNITY) * yr.dr2 - (aa - TWO) * yl.dr2) * ONE_SIXTH));
+  *F_r = -((yr.val - yl.val) * dxinv + dx * ((THREE * aa * aa - UNITY) * yr.dr2 - (TWO + THREE * aa * (aa - TWO)) * yl.dr2) * ONE_SIXTH);
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  const real logr = (LOG10(rr) - logrmin) * invlogrbin;
+  int ii = (int)FLOOR(logr);
+  ii = (ii >=       0 ) ? ii :       0;
+  ii = (ii < (num - 1)) ? ii : num - 2;
+  const real aa = logr - (real)ii;
 
   const pot2 yl = yy[ii];
   const pot2 yr = yy[ii + 1];
 
-  *Phi =  ((UNITY - aa) * yl.val + aa * (yr.val + (aa - UNITY) * dx2 * ((aa + UNITY) * yr.dr2 - (aa - TWO) * yl.dr2) * ONE_SIXTH));
-  *F_r = -((yr.val - yl.val) * dxinv + dx * ((THREE * aa * aa - UNITY) * yr.dr2 - (TWO + THREE * aa * (aa - TWO)) * yl.dr2) * ONE_SIXTH);
+  *Phi = (UNITY - aa) * yl.Phi + aa * yr.Phi;
+  *F_r = (UNITY - aa) * yl.Fr  + aa * yr.Fr;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 }
 
 
@@ -328,10 +425,13 @@ __global__ void calcExternalGravity_kernel
 #ifdef  BLOCK_TIME_STEP
  const int laneNum, READ_ONLY laneinfo * RESTRICT laneInfo,
 #endif//BLOCK_TIME_STEP
-#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ const int num,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ real * RESTRICT xx,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
  const real logrmin, const real invlogrbin,
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
- const int num, real * RESTRICT xx, pot2 * RESTRICT yy)
+ pot2 * RESTRICT yy)
 {
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   extern __shared__ real xx_sm[];
@@ -368,11 +468,11 @@ __global__ void calcExternalGravity_kernel
     calcExternalForce_spherical
       (&F_r, &pot, rr, num,
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-       xx_sm, yy
+       xx_sm,
 #else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-       xx, yy, logrmin, invlogrbin
+       logrmin, invlogrbin,
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-       );
+       yy);
     F_r *= rinv;
 
     /** calculate the external force by spherical components */
@@ -421,11 +521,20 @@ __global__ void calcExternalDiskGravity_kernel
 #ifdef  BLOCK_TIME_STEP
  const int laneNum, READ_ONLY laneinfo * RESTRICT laneInfo,
 #endif//BLOCK_TIME_STEP
- const int maxLev, const int NR, const int Nz, const real hh, const real hinv, READ_ONLY real * RESTRICT Phi,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ const int maxLev,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ const int NR, const int Nz, const real hh, const real hinv, READ_ONLY real * RESTRICT Phi,
 #ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ READ_ONLY disk_grav * RESTRICT FRz,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ const int num,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ real * RESTRICT xx,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
  const real logrmin, const real invlogrbin,
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
- const int num, real * RESTRICT xx, pot2 * RESTRICT yy)
+ pot2 * RESTRICT yy)
 {
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   extern __shared__ real xx_sm[];
@@ -460,13 +569,15 @@ __global__ void calcExternalDiskGravity_kernel
     const real zinv = RSQRT(z2);
     const real zz = z2 * zinv;
 
+    acceleration ai;
+
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
     /** find appropriate grid level */
     const int levR = (int)FLOOR(LOG2(hh * ((real)NR - THREE_HALVES) * Rinv));
     const int levz = (int)FLOOR(LOG2(hh * ((real)Nz - THREE_HALVES) * zinv));
     int lev = (levz < levR) ? levz : levR;
     lev = (lev < (maxLev - 1)) ? lev : (maxLev - 1);
 
-    acceleration ai;
     if( lev >= 0 ){
       /** find the corresponding grid location */
       const int jj = 1 + (int)FMAX(FLOOR(LDEXP(RR * hinv, lev) - HALF), ZERO);
@@ -484,14 +595,10 @@ __global__ void calcExternalDiskGravity_kernel
       const real dPhidR = (pc - mc) * dlinv;
       const real dPhidz = (cp - cm) * dlinv;
 
-#if 1
       const real dl = LDEXP(hh, -lev);
       const real R0 = dl * (HALF + (real)(jj - 1));
       const real z0 = dl * (HALF + (real)(kk - 1));
       const real pot = cc + dPhidR * (RR - R0) + dPhidz * (zz - z0);
-#else
-      const real pot = cc;
-#endif
 
       /** evaluate gravitational field from the external potential field */
       const real FR = Rinv * dPhidR;
@@ -511,20 +618,8 @@ __global__ void calcExternalDiskGravity_kernel
 
       /** evaluate gravitational field from the external potential field */
       real F_r, pot;
-      calcExternalForce_spherical
-	(&F_r, &pot, rr, num,
-#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-	 xx_sm, yy
-#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-	 xx, yy, logrmin, invlogrbin
-#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-	 );
+      calcExternalForce_spherical(&F_r, &pot, rr, num, xx_sm, yy);
       F_r *= rinv;
-
-#if 0
-      if( THREADIDX_X1D == 0 )
-	printf("rr = %e, F_r = %e, pot = %e\n", rr, F_r, pot);
-#endif
 
       /** calculate the external force by disk components */
       ai.x   = F_r * pi.x;
@@ -532,6 +627,53 @@ __global__ void calcExternalDiskGravity_kernel
       ai.z   = F_r * pi.z;
       ai.pot = pot;
     }/* else{ */
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+    const real Rref = RR * hinv;
+    const real zref = zz * hinv;
+    const int jj = (int)FLOOR(Rref);
+    const int kk = (int)FLOOR(zref);
+    if( (jj < NR) && (kk < Nz) ){
+      const real Phi_ll = Phi[INDEX2D(NR + 1, Nz + 1,     jj,     kk)];
+      const real Phi_lu = Phi[INDEX2D(NR + 1, Nz + 1,     jj, 1 + kk)];
+      const real Phi_ul = Phi[INDEX2D(NR + 1, Nz + 1, 1 + jj,     kk)];
+      const real Phi_uu = Phi[INDEX2D(NR + 1, Nz + 1, 1 + jj, 1 + kk)];
+
+      const disk_grav FRz_ll = FRz[INDEX2D(NR + 1, Nz + 1,     jj,     kk)];
+      const disk_grav FRz_lu = FRz[INDEX2D(NR + 1, Nz + 1,     jj, 1 + kk)];
+      const disk_grav FRz_ul = FRz[INDEX2D(NR + 1, Nz + 1, 1 + jj,     kk)];
+      const disk_grav FRz_uu = FRz[INDEX2D(NR + 1, Nz + 1, 1 + jj, 1 + kk)];
+
+      const real aa = Rref - (real)jj;
+      const real bb = zref - (real)kk;
+
+      const real pot =  ((UNITY - bb) * Phi_ll   + bb * Phi_lu  ) * (UNITY - aa) + ((UNITY - bb) * Phi_ul   + bb * Phi_uu  ) * aa;
+      const real FR  = (((UNITY - bb) * FRz_ll.R + bb * FRz_lu.R) * (UNITY - aa) + ((UNITY - bb) * FRz_ul.R + bb * FRz_uu.R) * aa) * Rinv;
+      const real Fz  = (((UNITY - bb) * FRz_ll.z + bb * FRz_lu.z) * (UNITY - aa) + ((UNITY - bb) * FRz_ul.z + bb * FRz_uu.z) * aa) * zinv;
+
+      /** calculate the external force by disk components */
+      ai.x = FR * pi.x;
+      ai.y = FR * pi.y;
+      ai.z = Fz * pi.z;
+      ai.pot = pot;
+    }/* if( (jj < NR) && (kk < Nz) ){ */
+    else{
+      /** set current location */
+      const real r2 = R2 + pi.z * pi.z;
+      const real rinv = RSQRT(r2);
+      const real rr = r2 * rinv;
+
+      /** evaluate gravitational field from the external potential field */
+      real F_r, pot;
+      calcExternalForce_spherical(&F_r, &pot, rr, num, logrmin, invlogrbin, yy);
+      F_r *= rinv;
+
+      /** calculate the external force by disk components */
+      ai.x   = F_r * pi.x;
+      ai.y   = F_r * pi.y;
+      ai.z   = F_r * pi.z;
+      ai.pot = pot;
+    }/* else{ */
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
     /** store acceleration */
     atomicAdd(&(acc[ii].x  ), ai.x  );
@@ -593,10 +735,13 @@ void calcExternalGravity_dev
 #ifdef  BLOCK_TIME_STEP
 	 BLOCKSIZE(grpNum, NGROUPS) * NGROUPS, laneInfo,
 #endif//BLOCK_TIME_STEP
-#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	 sphe.num,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	 sphe.rad,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 	 sphe.logrmin, sphe.invlogrbin,
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-	 sphe.num, sphe.rad, sphe.Phi);
+	 sphe.Phi);
   }/* if( Nrem <= MAX_BLOCKS_PER_GRID ){ */
   else{
     /** when grid splitting is required... */
@@ -625,10 +770,13 @@ void calcExternalGravity_dev
 #else///BLOCK_TIME_STEP
 	 &pi.acc_ext[hidx], &pi.pos[hidx],
 #endif//BLOCK_TIME_STEP
-#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	 sphe.num,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	 sphe.rad,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 	 sphe.logrmin, sphe.invlogrbin,
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-	 sphe.num, sphe.rad, sphe.Phi);
+	 sphe.Phi);
 
       hidx += Nsub;
       Nrem -= Nblck;
@@ -660,11 +808,20 @@ void calcExternalGravity_dev
 #ifdef  BLOCK_TIME_STEP
 	 BLOCKSIZE(grpNum, NGROUPS) * NGROUPS, laneInfo,
 #endif//BLOCK_TIME_STEP
-	 disk.maxLev, disk.NR, disk.Nz, disk.hh, disk.hinv, disk.Phi,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	 disk.maxLev,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	 disk.NR, disk.Nz, disk.hh, disk.hinv, disk.Phi,
 #ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	 disk.FRz,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	 disk.sphe.num,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	 disk.sphe.rad,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 	 disk.sphe.logrmin, disk.sphe.invlogrbin,
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-	 disk.sphe.num, disk.sphe.rad, disk.sphe.Phi);
+	 disk.sphe.Phi);
   }/* if( Nrem <= MAX_BLOCKS_PER_GRID ){ */
   else{
     /** when grid splitting is required... */
@@ -693,11 +850,20 @@ void calcExternalGravity_dev
 #else///BLOCK_TIME_STEP
 	 &pi.acc_ext[hidx], &pi.pos[hidx],
 #endif//BLOCK_TIME_STEP
-	 disk.maxLev, disk.NR, disk.Nz, disk.hh, disk.hinv, disk.Phi,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	 disk.maxLev,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	 disk.NR, disk.Nz, disk.hh, disk.hinv, disk.Phi,
 #ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	 disk.FRz,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	 disk.sphe.num,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+	 disk.sphe.rad,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 	 disk.sphe.logrmin, disk.sphe.invlogrbin,
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-	 disk.sphe.num, disk.sphe.rad, disk.sphe.Phi);
+	 disk.sphe.Phi);
 
       hidx += Nsub;
       Nrem -= Nblck;
@@ -729,11 +895,15 @@ void calcExternalGravity_dev
  * @return (Phi) potential field for cubic spline interpolation
  */
 extern "C"
-muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_field *pot_tbl, real **rad, pot2 **Phi
+muse  readFixedPotentialTableSpherical
+(const int unit, char file[], potential_field *pot_tbl, pot2 **Phi
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ , real **rad
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 #ifdef  USE_HDF5_FORMAT
-				       , hdf5struct type
+ , hdf5struct type
 #endif//USE_HDF5_FORMAT
-				       )
+ )
 {
   __NOTE__("%s\n", "start");
 
@@ -792,6 +962,7 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
   attribute = H5Aopen(group, "num", H5P_DEFAULT);
   chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &pot_tbl->num));
   chkHDF5err(H5Aclose(attribute));
+  const int num = pot_tbl->num;
   /* read log_10(r_min) */
   attribute = H5Aopen(group, "logrmin", H5P_DEFAULT);
   chkHDF5err(H5Aread(attribute, type.real, &pot_tbl->logrmin));
@@ -803,17 +974,14 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
   chkHDF5err(H5Gclose(group));
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
-#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-  const int num = pot_tbl->num;
-#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-
   /* memory allocation on the accelerator device */
   muse alloc_tbl;
-  real *rad_hst;
   pot2 *Phi_hst;
-#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-  alloc_tbl = allocSphericalPotentialTable_dev(rad, Phi, num);
-  allocSphericalPotentialTable_hst(&rad_hst, &Phi_hst, num);
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  real *rad_hst;
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  alloc_tbl = allocSphericalPotentialTable_dev(Phi, num);
+  allocSphericalPotentialTable_hst (&Phi_hst, num);
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   /* memory allocation on the host as a temporary buffer */
@@ -846,21 +1014,15 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
 
     const int num = pot_tbl->num;
 
-    alloc_tbl = allocSphericalPotentialTable_dev(rad, Phi, num);
-    allocSphericalPotentialTable_hst(&rad_hst, &Phi_hst, num);
+    alloc_tbl = allocSphericalPotentialTable_dev(Phi, rad, num);
+    allocSphericalPotentialTable_hst(&Phi_hst, &rad_hst, num);
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
-    /* read radius */
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+    /* read radius */
     dataset = H5Dopen(group, "r", H5P_DEFAULT);
     chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, rad_hst));
     chkHDF5err(H5Dclose(dataset));
-#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-    if( ii == 0 ){
-      dataset = H5Dopen(group, "r", H5P_DEFAULT);
-      chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, rad_hst));
-      chkHDF5err(H5Dclose(dataset));
-    }/* if( ii == 0 ){ */
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
     /* read potential */
@@ -877,8 +1039,8 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
 #ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
     if( Nread > 1 )
       for(int jj = 0; jj < num; jj++){
-	Phi_hst[jj].val += Phi_tmp[jj].val;
-	Phi_hst[jj].dr2 += Phi_tmp[jj].dr2;
+	Phi_hst[jj].Phi += Phi_tmp[jj].Phi;
+	Phi_hst[jj].Fr  += Phi_tmp[jj].Fr;
       }/* for(int jj = 0; jj < num; jj++){ */
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   }/* for(int ii = 0; ii < Nread; ii++){ */
@@ -926,9 +1088,10 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
 
   /* memory allocation on the accelerator device */
   muse alloc_tbl;
-  real *rad_hst;
   pot2 *Phi_hst;
-#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  real *rad_hst;
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   alloc_tbl = allocSphericalPotentialTable_dev(rad, Phi, num);
   allocSphericalPotentialTable_hst(&rad_hst, &Phi_hst, num);
 
@@ -1005,18 +1168,28 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
 
 #endif//USE_HDF5_FORMAT
 
-  setSphericalPotentialTable_dev(rad_hst, Phi_hst, *rad, *Phi, pot_tbl->num);
-  freeSphericalPotentialTable_hst(rad_hst, Phi_hst);
+  setSphericalPotentialTable_dev
+    (Phi_hst, *Phi,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     rad_hst, *rad,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     pot_tbl->num);
+  freeSphericalPotentialTable_hst
+    (Phi_hst
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     , rad_hst
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     );
 
-  pot_tbl->rad = *rad;
   pot_tbl->Phi = *Phi;
-#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  pot_tbl->rad = *rad;
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   pot_tbl->invlogrbin = UNITY / pot_tbl->logrbin;
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   if( success_cfg != true ){    __KILL__(stderr, "ERROR: failure to read \"%s\"\n", cfgfile);  }
   fclose(fp_cfg);
-
 
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   if( (pot_tbl->num * sizeof(real)) > (SMEM_SIZE_L1_PREF >> 1) )
@@ -1039,17 +1212,28 @@ muse  readFixedPotentialTableSpherical(const int unit, char file[], potential_fi
  */
 extern "C"
 muse  readFixedPotentialTableDisk
-(const int unit, char file[], real **RR_dev, real **zz_dev, real **Phi_dev, real **rad_sphe_dev, pot2 **Phi_sphe_dev, disk_potential *disk
+(const int unit, char file[], real **Phi_dev, pot2 **Phi_sphe_dev,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ real **RR_dev, real **zz_dev, real **rad_sphe_dev,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ disk_grav **FRz_dev,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+ disk_potential *disk
 #ifdef  USE_HDF5_FORMAT
  , hdf5struct type
 #endif//USE_HDF5_FORMAT
-)
+ )
 {
   __NOTE__("%s\n", "start");
 
   muse alloc_disk, alloc_sphe;
-  real *RR_hst, *zz_hst, *Phi_hst;
+  real *Phi_hst;
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  real *RR_hst, *zz_hst;
   real *rad_sphe_hst;
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  disk_grav *FRz_hst;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   pot2 *Phi_sphe_hst;
 
   /* open an existing file with read only option */
@@ -1086,10 +1270,12 @@ muse  readFixedPotentialTableDisk
 
   /* read potential table of superposed disk components */
   group = H5Gopen(target, "2D", H5P_DEFAULT);
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   /* read # of nested levels */
   attribute = H5Aopen(group, "maxLev", H5P_DEFAULT);
   chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &disk->maxLev));
   chkHDF5err(H5Aclose(attribute));
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   /* read # of R grids */
   attribute = H5Aopen(group, "NR", H5P_DEFAULT);
   chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &disk->NR));
@@ -1104,14 +1290,29 @@ muse  readFixedPotentialTableDisk
   chkHDF5err(H5Aclose(attribute));
 
   /* memory allocation on the accelerator device */
-  alloc_disk = allocDiskPotentialTable_dev(RR_dev, zz_dev, Phi_dev, *disk);
-  allocDiskPotentialTable_hst(&RR_hst, &zz_hst, &Phi_hst, *disk);
+  alloc_disk = allocDiskPotentialTable_dev
+    (Phi_dev,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     RR_dev, zz_dev,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     FRz_dev,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     *disk);
+  allocDiskPotentialTable_hst
+    (&Phi_hst,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     &RR_hst, &zz_hst,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     &FRz_hst,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     *disk);
 
   hid_t dataset;
   /* read \Phi(R, z) */
   dataset = H5Dopen(group, "Phi", H5P_DEFAULT);
   chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, Phi_hst));
   chkHDF5err(H5Dclose(dataset));
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   /* read R */
   dataset = H5Dopen(group, "R", H5P_DEFAULT);
   chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, RR_hst));
@@ -1120,6 +1321,12 @@ muse  readFixedPotentialTableDisk
   dataset = H5Dopen(group, "z", H5P_DEFAULT);
   chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, zz_hst));
   chkHDF5err(H5Dclose(dataset));
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  /* read F(R, z) */
+  dataset = H5Dopen(group, "FRz", H5P_DEFAULT);
+  chkHDF5err(H5Dread(dataset, type.disk_grav, H5S_ALL, H5S_ALL, H5P_DEFAULT, FRz_hst));
+  chkHDF5err(H5Dclose(dataset));
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   chkHDF5err(H5Gclose(group));
 
 
@@ -1140,8 +1347,18 @@ muse  readFixedPotentialTableDisk
   chkHDF5err(H5Aclose(attribute));
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
-  alloc_sphe = allocSphericalPotentialTable_dev(rad_sphe_dev, Phi_sphe_dev, disk->sphe.num);
-  allocSphericalPotentialTable_hst(&rad_sphe_hst, &Phi_sphe_hst, disk->sphe.num);
+  alloc_sphe = allocSphericalPotentialTable_dev
+    (Phi_sphe_dev,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     rad_sphe_dev,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     disk->sphe.num);
+  allocSphericalPotentialTable_hst
+    (&Phi_sphe_hst,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     &rad_sphe_hst,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     disk->sphe.num);
 
   /* read radius */
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
@@ -1172,7 +1389,9 @@ muse  readFixedPotentialTableDisk
   size_t tmp;
 
   tmp = 1;  if( tmp != fread(&unit_pot, sizeof(int), tmp, fp) )    success = false;
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   tmp = 1;  if( tmp != fread(&disk->maxLev, sizeof(int), tmp, fp) )    success = false;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   tmp = 1;  if( tmp != fread(&disk->NR, sizeof(int), tmp, fp) )    success = false;
   tmp = 1;  if( tmp != fread(&disk->Nz, sizeof(int), tmp, fp) )    success = false;
   tmp = 1;  if( tmp != fread(&disk->hh, sizeof(real), tmp, fp) )    success = false;
@@ -1183,12 +1402,31 @@ muse  readFixedPotentialTableDisk
   }/* if( unit_pot != unit ){ */
 
   /* memory allocation on the accelerator device */
-  alloc_disk = allocDiskPotentialTable_dev(RR_dev, zz_dev, Phi_dev, *disk);
-  allocDiskPotentialTable_hst(&RR_hst, &zz_hst, &Phi_hst, *disk);
+  alloc_disk = allocDiskPotentialTable_dev
+    (Phi_dev,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     RR_dev, zz_dev,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     FRz_dev,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     *disk);
+  allocDiskPotentialTable_hst
+    (&Phi_hst,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     &RR_hst, &zz_hst,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     FRz_hst,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     *disk);
 
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   tmp = disk->maxLev *  disk->NR                      ;  if( tmp != fread( RR_hst, sizeof(real), tmp, fp) )    success = false;
   tmp = disk->maxLev *                   disk->Nz     ;  if( tmp != fread( zz_hst, sizeof(real), tmp, fp) )    success = false;
   tmp = disk->maxLev * (disk->NR + 1) * (disk->Nz + 1);  if( tmp != fread(Phi_hst, sizeof(real), tmp, fp) )    success = false;
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  tmp = (disk->NR + 1) * (disk->Nz + 1);  if( tmp != fread(Phi_hst, sizeof(real), tmp, fp) )    success = false;
+  tmp = (disk->NR + 1) * (disk->Nz + 1);  if( tmp != fread(FRz_hst, sizeof(disk_grav), tmp, fp) )    success = false;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   tmp = 1;  if( tmp != fread(&(disk->sphe.num), sizeof(int), tmp, fp) )    success = false;
 #ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
@@ -1196,10 +1434,22 @@ muse  readFixedPotentialTableDisk
   tmp = 1;  if( tmp != fread(&(disk->sphe.logrbin), sizeof(real), tmp, fp) )    success = false;
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
-  alloc_sphe = allocSphericalPotentialTable_dev(rad_sphe_dev, Phi_sphe_dev, disk->sphe.num);
-  allocSphericalPotentialTable_hst(&rad_sphe_hst, &Phi_sphe_hst, disk->sphe.num);
+  alloc_sphe = allocSphericalPotentialTable_dev
+    (Phi_sphe_dev,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     rad_sphe_dev,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     disk->sphe.num);
+  allocSphericalPotentialTable_hst
+    (&Phi_sphe_hst,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     &rad_sphe_hst,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     disk->sphe.num);
 
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   tmp = disk->sphe.num;  if( tmp != fwrite(rad_sphe_hst, sizeof(real), tmp, fp) )    success = false;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   tmp = disk->sphe.num;  if( tmp != fwrite(Phi_sphe_hst, sizeof(pot2), tmp, fp) )    success = false;
 
   if( success != true ){    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);  }
@@ -1207,18 +1457,35 @@ muse  readFixedPotentialTableDisk
 
 #endif//USE_HDF5_FORMAT
 
-  setDiskPotentialTable_dev(RR_hst, zz_hst, Phi_hst, *RR_dev, *zz_dev, *Phi_dev, *disk);
+  setDiskPotentialTable_dev
+    (Phi_hst, *Phi_dev,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     RR_hst, *RR_dev, zz_hst, *zz_dev,
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     FRz_hst, *FRz_dev,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     *disk);
 
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   disk->RR  = * RR_dev;
   disk->zz  = * zz_dev;
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  disk->FRz = *FRz_dev;
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   disk->Phi = *Phi_dev;
   disk->hinv = UNITY / disk->hh;
 
-  setSphericalPotentialTable_dev(rad_sphe_hst, Phi_sphe_hst, *rad_sphe_dev, *Phi_sphe_dev, disk->sphe.num);
+  setSphericalPotentialTable_dev
+    (Phi_sphe_hst, *Phi_sphe_dev,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     rad_sphe_hst, *rad_sphe_dev,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     disk->sphe.num);
 
-  disk->sphe.rad = *rad_sphe_dev;
   disk->sphe.Phi = *Phi_sphe_dev;
-#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  disk->sphe.rad = *rad_sphe_dev;
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   disk->sphe.invlogrbin = UNITY / disk->sphe.logrbin;
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
@@ -1227,9 +1494,20 @@ muse  readFixedPotentialTableDisk
     checkCudaErrors(cudaFuncSetCacheConfig(calcExternalDiskGravity_kernel, cudaFuncCachePreferShared));
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
-  __NOTE__("maxLev = %d, NR = %d, Nz = %d\n", disk->maxLev, disk->NR, disk->Nz);
-  freeDiskPotentialTable_hst(RR_hst, zz_hst, Phi_hst);
-  freeSphericalPotentialTable_hst(rad_sphe_hst, Phi_sphe_hst);
+  freeDiskPotentialTable_hst
+    (Phi_hst,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     RR_hst, zz_hst
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     FRz_hst
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     );
+  freeSphericalPotentialTable_hst
+    (Phi_sphe_hst
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     , rad_sphe_hst
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+     );
 
 
   __NOTE__("%s\n", "end");

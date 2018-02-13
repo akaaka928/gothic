@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/01/31 (Wed)
+ * @date 2018/02/12 (Mon)
  *
  * Copyright (C) 2018 Yohei Miki
  * All rights reserved.
@@ -283,8 +283,8 @@ int idxAscendingOrder(const void *a, const void *b)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
-  if(          (ulong *)a > (ulong *)b ){    return ( 1);  }
-  else{    if( (ulong *)a < (ulong *)b ){    return (-1);  }
+  if(          (const ulong *)a > (const ulong *)b ){    return ( 1);  }
+  else{    if( (const ulong *)a < (const ulong *)b ){    return (-1);  }
     else{                                                                    return ( 0);  }  }
 #   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop

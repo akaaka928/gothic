@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/02/06 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -69,7 +69,7 @@
 #endif//GPUGEN >= 60
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
 
-#define REGISTERS_PER_THREAD_MAC (64)
+#define REGISTERS_PER_THREAD_MAC (80)
 /* calcMultipole_kernel uses 60 registers @ Tesla M2090 */
 #   if  GPUVER == 20
 #undef  REGISTERS_PER_THREAD_MAC
@@ -160,8 +160,8 @@
 /** SM usage is  4 * NTHREADS_LINK_TREE bytes */
 #define NBLOCKS_PER_SM_LINK_TREE   (SMEM_SIZE_L1_PREF / (4 * NTHREADS_LINK_TREE))
 
-#define REGISTERS_PER_THREAD_MAKE_TREE (64)
-#define REGISTERS_PER_THREAD_LINK_TREE (32)
+#define REGISTERS_PER_THREAD_MAKE_TREE (47)
+#define REGISTERS_PER_THREAD_LINK_TREE (25)
 /* makeTree_kernel and linkTree_kernel use 53 and 27 registers, respectively @ Tesla M2090 */
 #   if  GPUVER == 20
 #undef  REGISTERS_PER_THREAD_MAKE_TREE
