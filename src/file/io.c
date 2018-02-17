@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/13 (Tue)
+ * @date 2018/02/15 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2453,7 +2453,7 @@ void writeFixedPotentialTable
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
       fprintf(fp, "%e\t%e\t%e\n", pot_tbl_sphe.rad[ii], pot_tbl_sphe.Phi[ii].val, pot_tbl_sphe.Phi[ii].dr2);
 #else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-      fprintf(fp, "%e\t%e\n", pot_tbl_sphe.Phi[ii].val, pot_tbl_sphe.Phi[ii].dr2);
+      fprintf(fp, "%e\t%e\n", pot_tbl_sphe.Phi[ii].Phi, pot_tbl_sphe.Phi[ii].Fr);
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
     }/* for(int ii = 0; ii < Ndat; ii++){ */
   }/* else{ */
@@ -2497,7 +2497,7 @@ void writeFixedPotentialTable
 #else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 	          LOG10(pot_tbl[kk].logrmin + pot_tbl[kk].logrbin * (real)ii),
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-		  pot_tbl[kk].Phi[ii].val, pot_tbl[kk].Phi[ii].dr2);
+		  pot_tbl[kk].Phi[ii].Phi, pot_tbl[kk].Phi[ii].Fr);
       }/* else{ */
       fclose(fp);
     }/* for(int kk = 0; kk < skind; kk++){ */
@@ -2802,7 +2802,7 @@ void writeFixedDiskPotential
 #else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 	      LOG10(disk.sphe.logrmin + disk.sphe.logrbin * (real)ii),
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-	      disk.sphe.Phi[ii].val, disk.sphe.Phi[ii].dr2);
+	      disk.sphe.Phi[ii].Phi, disk.sphe.Phi[ii].Fr);
   }/* if( binary ){ */
   fclose(fp);
 

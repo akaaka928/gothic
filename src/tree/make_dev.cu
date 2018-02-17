@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/06 (Tue)
+ * @date 2018/02/16 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2452,12 +2452,12 @@ __global__ void __launch_bounds__(NTHREADS_OUTFLOW, NBLOCKS_PER_SM_OUTFLOW) chec
 	  pj[jhead + jj].w = CAST_F2R(fmac);
 #endif//USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES
 #else///defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
-	  /** in the worst case, 4 processes can share the same location */
-	  /** then, m_J approaches to m_J / 4 */
+	  /** in the worst case, 8 processes can share the same location */
+	  /** then, m_J approaches to m_J / 8 */
 #ifdef  GADGET_MAC
 	  /** diJ^4 is \propto \propto m_J */
-	  /** pj[jhead + jj].w *= 4.0f; */
-	  pj[jhead + jj].w *= 32.0f;/* 32 = 2^5 */
+	  pj[jhead + jj].w *= 8.0f;
+	  /* pj[jhead + jj].w *= 32.0f;/\* 32 = 2^5 *\/ */
 #else///GADGET_MAC
 	  /** in limit of b_J is 0, diJ^2 is \propto m_J^1/2 */
 	  /** pj[jhead + jj].w *= 2.0f; */

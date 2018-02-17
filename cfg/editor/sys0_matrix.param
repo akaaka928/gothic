@@ -1,5 +1,7 @@
-<rotation angle in radian>
-<x-component of rotation axis> <y-component of rotation axis> <z-component of rotation axis>
+0
+<(1,1)-component of rotation matrix> <(1,2)-component of rotation matrix> <(1,3)-component of rotation matrix>
+<(2,1)-component of rotation matrix> <(2,2)-component of rotation matrix> <(2,3)-component of rotation matrix>
+<(3,1)-component of rotation matrix> <(3,2)-component of rotation matrix> <(3,3)-component of rotation matrix>
 <x-component of initial position> <y-component of initial position> <z-component of initial position>
 <x-component of initial velocity> <y-component of initial velocity> <z-component of initial velocity>
 <number of components to be removed>

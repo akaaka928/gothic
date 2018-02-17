@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/01 (Thu)
+ * @date 2018/02/15 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -269,7 +269,7 @@ static inline void rungeKutta4thForKing(const double rr, double *uu, double *yy,
  * @sa enlargeArray
  * @sa kingFunc0
  */
-static inline void solvePoissonEqOfKingDF
+static inline double solvePoissonEqOfKingDF
 (const double W0,
 #ifdef  KING_CENTRAL_CUSP
  const double dWdx_0,
@@ -415,6 +415,8 @@ static inline void solvePoissonEqOfKingDF
 
 
   __NOTE__("%s\n", "end");
+
+  return (rho0);
 }
 
 
@@ -433,7 +435,7 @@ static inline void solvePoissonEqOfKingDF
  * @return (dr2) d^2rho/dr^2
  * @return (enc) M(r)
  */
-static void rescaleKingSphere(const double Mtot, const double r0, double *rt, const int num, double *rad, double *rho, double *dr1, double *dr2, double *enc)
+static double rescaleKingSphere(const double Mtot, const double r0, double *rt, const int num, double *rad, double *rho, double *dr1, double *dr2, double *enc)
 {
   __NOTE__("%s\n", "start");
 
@@ -477,6 +479,8 @@ static void rescaleKingSphere(const double Mtot, const double r0, double *rt, co
 
 
   __NOTE__("%s\n", "end");
+
+  return rhoUnit;
 }
 
 
@@ -633,14 +637,16 @@ void setDensityProfileKing(profile *prf, profile_cfg *cfg)
 
 
   /** derive density profile of the King sphere */
-  solvePoissonEqOfKingDF(W0,
+  const double rho0 = solvePoissonEqOfKingDF
+    (W0,
 #ifdef  KING_CENTRAL_CUSP
-			 cfg->king_dWdx_0,
+     cfg->king_dWdx_0,
 #endif//KING_CENTRAL_CUSP
-			 &rad, &psi, &rho, &dr1, &dr2, &num, &rem);
+     &rad, &psi, &rho, &dr1, &dr2, &num, &rem);
   double *enc;  enc = (double *)malloc(sizeof(double) * num);  if( enc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate enc\n");  }
-  rescaleKingSphere(Mtot, r0, &cfg->king_rt, num, rad, rho, dr1, dr2, enc);
+  const double rhoUnit = rescaleKingSphere(Mtot, r0, &cfg->king_rt, num, rad, rho, dr1, dr2, enc);
 
+  cfg->rho0 = rho0 * rhoUnit;
   cfg->king_c = log10(cfg->king_rt / cfg->rs);
 
   /** return the derived density profile */

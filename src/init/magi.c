@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/13 (Tue)
+ * @date 2018/02/15 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -532,6 +532,9 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 #pragma omp for
 #endif//USE_SFMTJUMP
   for(ulong ii = *Nuse; ii < *Nuse + num; ii++){
+#if 0
+    __FPRINTF__(stderr, "ii = %zu\n", ii);
+#endif
     /** set spatial distribution by table search */
     const double tmp = Mmin + (Mmax - Mmin) * UNIRAND_DBL(rand);
     int ll = 0;
@@ -551,8 +554,7 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
     isotropicDistribution(CAST_D2R(rad), &(body.pos[ii].x), &(body.pos[ii].y), &(body.pos[ii].z), rand);
 
 #if 0
-    fprintf(stderr, "ii = %zu, rad = %e\n", ii, rad);
-    fflush(NULL);
+    __FPRINTF__(stderr, "ii = %zu, rad = %e\n", ii, rad);
 #endif
 
     /** determine velocity distribution by rejection method */
@@ -561,10 +563,8 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 
 #if 0
     if( fpclassify(vesc) != FP_NORMAL ){
-      fprintf(stderr, "rad = %e, psi = %e, Ecut = %e, Emin = %e, rout = %e, vesc = %e\n", rad, psi, Ecut, Emin, cfg.rmax, vesc);
-      fflush(NULL);
-      exit(0);
-    }
+      __KILL__(stderr, "rad = %e, psi = %e, Ecut = %e, Emin = %e, rout = %e, vesc = %e\n", rad, psi, Ecut, Emin, cfg.rmax, vesc);
+    }/* if( fpclassify(vesc) != FP_NORMAL ){ */
 #endif
 
     const double v2Fmax = vesc * vesc * getDF(psi, df, Emin, invEbin);
@@ -576,19 +576,11 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
       const double val = vel * vel * getDF(ene, df, Emin, invEbin);
       const double try = v2Fmax * UNIRAND_DBL(rand);
 
-#if 0
-      if( ii == 655364 ){
-	fprintf(stderr, "vesc = %e, vel = %e, rad = %e, psi = %e, ene = %e, v2Fmax = %e, val = %e, try = %e\n", vesc, vel, rad, psi, ene, v2Fmax, val, try);
-	fflush(stderr);
-      }
-#endif
-
       if( val > try )	break;
     }/* while( true ){ */
 
 #if 0
-    fprintf(stderr, "ii = %zu, vel = %e\n", ii, vel);
-    fflush(NULL);
+    __FPRINTF__(stderr, "ii = %zu, vel = %e\n", ii, vel);
 #endif
 
 
@@ -1170,7 +1162,7 @@ int main(int argc, char **argv)
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
        maxLev,
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-       NDISKBIN_HOR, NDISKBIN_VER, &diskpot);
+       NR_EXT_POT_DISK, NZ_EXT_POT_DISK, &diskpot);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 
   genExtPotTbl1D(kind, prf, pot_tbl
@@ -1185,14 +1177,20 @@ int main(int argc, char **argv)
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
-  if( addDisk )
-    extractDiskPotential(maxLev,
-#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-			 disk_info[0],
-#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-			 ndisk, disk_info,
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  int have_ext_disk_pot_field = EXT_DISK_POT_FIELD_ABANDANED;
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-			 pot_tbl_disk, &diskpot);
+  if( addDisk )
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+    have_ext_disk_pot_field =
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+      extractDiskPotential(maxLev,
+#ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+    disk_info[0],
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+    ndisk, disk_info,
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+    pot_tbl_disk, &diskpot);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 
   stopBenchmark_cpu(&execTime.external);
@@ -1306,18 +1304,21 @@ int main(int argc, char **argv)
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
   if( addDisk )
-    writeFixedDiskPotential
-      (unit, diskpot
+#ifndef ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+    if( have_ext_disk_pot_field == EXT_DISK_POT_FIELD_AVAILABLE )
+#endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+      writeFixedDiskPotential
+	(unit, diskpot
 #ifdef  USE_HDF5_FORMAT
-       , hdf5type
+	 , hdf5type
 #else///USE_HDF5_FORMAT
 #ifdef  WRITE_IN_GALACTICS_FORMAT
-       , false
+	 , false
 #else///WRITE_IN_GALACTICS_FORMAT
-       , true
+	 , true
 #endif//WRITE_IN_GALACTICS_FORMAT
 #endif//USE_HDF5_FORMAT
-       , file);
+	 , file);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 
 #endif//SET_EXTERNAL_POTENTIAL_FIELD

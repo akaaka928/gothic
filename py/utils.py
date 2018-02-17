@@ -40,6 +40,7 @@ def locate_panels(fig, ax, nx, ny, share_xaxis, share_yaxis):
             yl = ymin + jj * ybin + ymargin
             kk = ii * ny + jj
             ax[kk] = fig.add_axes((xl, yl, xbin - 2 * xmargin, ybin - 2 * ymargin))
+            ax[kk].tick_params(axis = "both", direction = "in", bottom = "on", top = "on", left = "on", right = "on")
 
             if share_xaxis == True:
                 ax[kk].tick_params(labelbottom = "off")

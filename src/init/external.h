@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/13 (Tue)
+ * @date 2018/02/15 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -41,10 +41,15 @@
 /* #define NZ_EXT_POT_DISK (2048) */
 #define NZ_EXT_POT_DISK (4096)
 #define NR_EXT_POT_DISK (NZ_EXT_POT_DISK << 2)
-/* 1/64 = 1.5625e-2; h = zd / 64 */
+/* 1/64  = 1.5625e-2; h = zd / 64 */
 #define EXT_POT_DISK_MIN_LENGTH (1.5625e-2)
+/* 1/128 = 7.8125e-3; h = zd / 128 */
+/* #define EXT_POT_DISK_MIN_LENGTH (7.8125e-3) */
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
+
+#define EXT_DISK_POT_FIELD_AVAILABLE (1)
+#define EXT_DISK_POT_FIELD_ABANDANED (0)
 
 /* list of functions appeared in ``external.c'' */
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
@@ -64,7 +69,7 @@ void superposePotFld1D(const int kind, const int skind, potential_field * restri
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 void extractDiskPotential(const int maxLev, const disk_data data, const potential_field sphe, disk_potential *disk);
 #else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-void extractDiskPotential(const int maxLev, const int ndisk, disk_data *data, const potential_field sphe, disk_potential *disk);
+int extractDiskPotential(const int maxLev, const int ndisk, disk_data *data, const potential_field sphe, disk_potential *disk);
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD

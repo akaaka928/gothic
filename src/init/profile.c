@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/12 (Mon)
+ * @date 2018/02/15 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -922,7 +922,7 @@ void integrateDensityProfile(profile *prf, profile_cfg *cfg
 
   /** set appropriate unit system */
   const double Mscale = Mtot / prf[NRADBIN - 1].enc;
-  cfg->rho0 = Mscale;
+  cfg->rho0 = (cfg->kind != KING) ? (Mscale) : (cfg->rho0 * Mscale);
 #if 0
   if( isnan(Mscale) )
     for(int ii = 0; ii < NRADBIN; ii += 32)

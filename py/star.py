@@ -264,7 +264,6 @@ nxpanel += Nkind - Ndark
 
 if Nkind > Ndark:
     my_cmap = utils.generate_cmap(["darkblue", "deepskyblue", "lime", "yellow", "red", "magenta", "white"])
-    # my_cmap = utils.generate_cmap(["blue", "green", "yellow", "red", "magenta"])
     cores = mp.cpu_count()
     # cores = int(np.ceil(cores / 2))
     pool = mp.Pool(cores)

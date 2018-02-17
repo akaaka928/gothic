@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/02/13 (Tue) 19:27:00
+# last updated on 2018/02/16 (Fri) 19:03:27
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -19,7 +19,7 @@ DEBUG	:= -DNDEBUG
 # PROFILE	:= -pg
 #################################################################################################
 # Execution options
-FORCE_SINGLE_GPU_RUN	:= 1
+FORCE_SINGLE_GPU_RUN	:= 0
 ENCLOSING_BALL_FOR_LET	:= 1
 COMMUNICATION_VIA_HOST	:= 1
 USE_MPI_PUT_FOR_LET	:= 0
@@ -42,7 +42,7 @@ DUMPFILE_IN_TIPSY	:= 0
 DUMPFILE_AS_GALACTICS	:= 0
 USE_OFFICIAL_SFMT	:= 1
 USE_OFFICIAL_SFMT_JUMP	:= 1
-SET_EXTERNAL_FIELD	:= 1
+SET_EXTERNAL_FIELD	:= 0
 SET_EXTERNAL_FIELD_DISK	:= 1
 ADAPTIVE_EXTERNAL_FIELD	:= 0
 USE_ZH78_RETROGRADING	:= 0
@@ -922,28 +922,13 @@ clean:
 	$(VERBOSE)rm -f $(ASMDIR)/*.s
 	$(VERBOSE)rm -f $(BINDIR)/*.log
 	$(VERBOSE)rm -f $(OBJDIR)/*.log
-	$(VERBOSE)rm -f $(GOTHIC) $(OBJMPGT) $(GOTHIC).sass
-	$(VERBOSE)rm -f $(MKCOLD) $(OBJCOLD)
-	$(VERBOSE)rm -f $(MAGI)   $(OBJMAGI)
-	$(VERBOSE)rm -f $(EDITOR) $(OBJEDIT)
-	$(VERBOSE)rm -f $(PLTENE) $(OBJPENE)
-	$(VERBOSE)rm -f $(PLTACT) $(OBJPACT)
-	$(VERBOSE)rm -f $(PLTDST) $(OBJDIST)
-	$(VERBOSE)rm -f $(PLTCDF) $(OBJPCDF)
-	$(VERBOSE)rm -f $(PLTMUL) $(OBJPMUL)
-	$(VERBOSE)rm -f $(PLTELP) $(OBJPELP)
-	$(VERBOSE)rm -f $(PLTDEP) $(OBJPDEP)
-	$(VERBOSE)rm -f $(PLTBRK) $(OBJPBRK)
-	$(VERBOSE)rm -f $(PLTCMP) $(OBJPCMP)
-	$(VERBOSE)rm -f $(PLTFLP) $(OBJPFLP)
-	$(VERBOSE)rm -f $(PLTRAD) $(OBJPRAD)
-	$(VERBOSE)rm -f $(PLTJET) $(OBJPJET)
-	$(VERBOSE)rm -f $(OPTCFG) $(OBJFIND)
-	$(VERBOSE)rm -f $(SAMPLE) $(OBJSMPL)
-	$(VERBOSE)rm -f $(PLTDF)  $(OBJPDF)
-	$(VERBOSE)rm -f $(PLTDISK) $(OBJPDSK)
-	$(VERBOSE)rm -f $(ANALERR) $(OBJAERR)
 	$(VERBOSE)rm -f $(OBJDIR)/*.o
+	$(VERBOSE)rm -f $(GOTHIC) $(OBJMPGT) $(GOTHIC).sass
+	$(VERBOSE)rm -f $(MKCOLD) $(MAGI) $(EDITOR)
+	$(VERBOSE)rm -f $(PLTENE) $(PLTACT) $(PLTDST) $(PLTCDF) $(PLTMUL)
+	$(VERBOSE)rm -f $(PLTELP) $(PLTDEP) $(PLTBRK) $(PLTCMP) $(PLTFLP)
+	$(VERBOSE)rm -f $(PLTRAD) $(PLTJET) $(OPTCFG) $(PLTDF) $(ANALERR) $(PLTDISK)
+	$(VERBOSE)rm -f $(SAMPLE)
 #################################################################################################
 visit:	$(DIRBODY)/Makefile $(DIRSNAP)/Makefile $(DIRAERR)/Makefile $(DIRDUMP)/Makefile $(DIRDISK)/Makefile $(DIRDIST)/Makefile $(DIRPROF)/Makefile
 #################################################################################################

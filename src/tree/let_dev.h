@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/25 (Thu)
+ * @date 2018/02/17 (Sat)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -45,7 +45,8 @@
  *
  * @brief a parameter to discriminate between nearby and distant nodes
  */
-#define THRESHOLD_TO_SKIP_LET_GENERATOR (0.125f)
+/* #define THRESHOLD_TO_SKIP_LET_GENERATOR (0.125f) */
+#define THRESHOLD_TO_SKIP_LET_GENERATOR (6.25e-2f)
 #endif//SKIP_LET_GENERATOR_FOR_NEARBY_NODE
 
 

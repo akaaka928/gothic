@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/02/12 (Mon)
+ * @date 2018/02/16 (Fri)
  *
  * Copyright (C) 2018 Yohei Miki
  * All rights reserved.
@@ -71,10 +71,9 @@ typedef struct
 {
   char file[128];/**< file name of particle distribution */
   char cfg[128];/**< file name of configuration */
-  double angle;/**< rotation angle of the system (in radian) */
-  double ax, ay, az;/**< rotation axis of the system */
-  double xx, yy, zz;/**< position of center-of-mass */
-  double vx, vy, vz;/**< bulk velocity of the system */
+  real rot[3][3];/**< rotation matrix */
+  real xx, yy, zz;/**< position of center-of-mass */
+  real vx, vy, vz;/**< bulk velocity of the system */
   int kind;/**< number of components */
   int head;/**< head index of components */
 } object;
@@ -93,8 +92,14 @@ static inline void writeSystemCfgFormat(char *filename)
 
   fprintf(stderr, "ERROR: information written in \"%s\" does not match with the expected format\n", filename);
   fprintf(stderr, "Expected format is below:\n");
-  fprintf(stderr, "\tangle<real>: rotation angle in units of radian\n");
-  fprintf(stderr, "\tax<real> ay<real> az<real>: rotation axis of the system\n");
+  fprintf(stderr, "\trot<int>: option about rotation (0: specify rotation matrix, 1: generate Rodrigues' rotation matrix)\n");
+  fprintf(stderr, "\t\tif rot == 0 (specify rotation matrix):\n");
+  fprintf(stderr, "\t\t\tR11<real> R12<real> R13<real>\n");
+  fprintf(stderr, "\t\t\tR21<real> R22<real> R23<real>\n");
+  fprintf(stderr, "\t\t\tR31<real> R32<real> R33<real>\n");
+  fprintf(stderr, "\t\tif rot == 1 (generate Rodrigues' rotation matrix):\n");
+  fprintf(stderr, "\t\t\tax<real> ay<real> az<real>: rotation axis of the system\n");
+  fprintf(stderr, "\t\t\tsintheta<real> costheta<real>: sine and cosine of rotation angle\n");
   fprintf(stderr, "\tx<real> y<real> z<real>: initial position of the system\n");
   fprintf(stderr, "\tvx<real> vy<real> vz<real>: initial velocity of the system\n");
   fprintf(stderr, "\tskip<int>: number of components to be removed\n");
@@ -208,22 +213,42 @@ static inline void readEditorCfg(char *cfg, int *unit, int *Nobj, object **obj, 
     if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
     checker = 1;
 
-    checker &= (1 == fscanf(fp, "%le", &(*obj)[ii].angle));
-    checker &= (3 == fscanf(fp, "%le %le %le", &(*obj)[ii].ax, &(*obj)[ii].ay, &(*obj)[ii].az));
-    checker &= (3 == fscanf(fp, "%le %le %le", &(*obj)[ii].xx, &(*obj)[ii].yy, &(*obj)[ii].zz));
-    checker &= (3 == fscanf(fp, "%le %le %le", &(*obj)[ii].vx, &(*obj)[ii].vy, &(*obj)[ii].vz));
+    int rot;
+    static real axis[3], inv[3][3];
+    checker &= (1 == fscanf(fp, "%d", &rot));
+    switch( rot ){
+    case 0:
+      checker &= (3 == fscanf(fp, "%e %e %e", &(*obj)[ii].rot[0][0], &(*obj)[ii].rot[0][1], &(*obj)[ii].rot[0][2]));
+      checker &= (3 == fscanf(fp, "%e %e %e", &(*obj)[ii].rot[1][0], &(*obj)[ii].rot[1][1], &(*obj)[ii].rot[1][2]));
+      checker &= (3 == fscanf(fp, "%e %e %e", &(*obj)[ii].rot[2][0], &(*obj)[ii].rot[2][1], &(*obj)[ii].rot[2][2]));
+      break;
+    case 1:
+      checker &= (3 == fscanf(fp, "%e %e %e", &axis[0], &axis[1], &axis[2]));
+      real sine, cosine;
+      checker &= (2 == fscanf(fp, "%e %e", &sine, &cosine));
 
-    (*obj)[ii].ax *= length_astro2com;
-    (*obj)[ii].ay *= length_astro2com;
-    (*obj)[ii].az *= length_astro2com;
+      /** set rotation matrix */
+      real invnorm = RSQRT(CAST_D2R(1.0e-20) + axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]);
+      for(int jj = 0; jj < 3; jj++)
+	axis[jj] *= invnorm;
+      setRodriguesRotationMatrix(axis, sine, cosine, (*obj)[ii].rot, inv);
+      break;
+    default:
+      __KILL__(stderr, "ERROR: option about rotation are 0 (specify rotation matrix) or 1 (generate Rodrigues' rotation matrix) while specified indicater is %d\n", rot);
+    }/* switch( rot ){ */
 
-    (*obj)[ii].xx *= length_astro2com;
-    (*obj)[ii].yy *= length_astro2com;
-    (*obj)[ii].zz *= length_astro2com;
+    double xx, yy, zz;
+    checker &= (3 == fscanf(fp, "%le %le %le", &xx, &yy, &zz));
+    double vx, vy, vz;
+    checker &= (3 == fscanf(fp, "%le %le %le", &vx, &vy, &vz));
 
-    (*obj)[ii].vx *= velocity_astro2com;
-    (*obj)[ii].vy *= velocity_astro2com;
-    (*obj)[ii].vz *= velocity_astro2com;
+    (*obj)[ii].xx = CAST_D2R(xx * length_astro2com);
+    (*obj)[ii].yy = CAST_D2R(yy * length_astro2com);
+    (*obj)[ii].zz = CAST_D2R(zz * length_astro2com);
+
+    (*obj)[ii].vx = CAST_D2R(vx * velocity_astro2com);
+    (*obj)[ii].vy = CAST_D2R(vy * velocity_astro2com);
+    (*obj)[ii].vz = CAST_D2R(vz * velocity_astro2com);
 
     int skip = 0;
     checker &= (1 == fscanf(fp, "%d", &skip));
@@ -365,28 +390,22 @@ static inline void addSystem(object obj, component *cmp, ulong *head, const ipar
 #endif//USE_HDF5_FORMAT
 		    );
 
-  /**< set rotation matrix */
-  static real axis[3];
-  axis[0] = CAST_D2R(obj.ax);
-  axis[1] = CAST_D2R(obj.ay);
-  axis[2] = CAST_D2R(obj.az);
-  real invnorm = RSQRT(CAST_D2R(1.0e-20) + axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]);
+  static real rot[3][3];
   for(int ii = 0; ii < 3; ii++)
-    axis[ii] *= invnorm;
-  static real rot[3][3], inv[3][3];
-  setRodriguesRotationMatrix(axis, CAST_D2R(sin(obj.angle)), CAST_D2R(cos(obj.angle)), rot, inv);
+    for(int jj = 0; jj < 3; jj++)
+      rot[ii][jj] = obj.rot[ii][jj];
 
-  /**< set shift vector */
+  /** set shift vector */
   static real shift[3];
-  shift[0] = CAST_D2R(obj.xx);
-  shift[1] = CAST_D2R(obj.yy);
-  shift[2] = CAST_D2R(obj.zz);
+  shift[0] = obj.xx;
+  shift[1] = obj.yy;
+  shift[2] = obj.zz;
 
-  /**< set drift vector */
+  /** set drift vector */
   static real drift[3];
-  drift[0] = CAST_D2R(obj.vx);
-  drift[1] = CAST_D2R(obj.vy);
-  drift[2] = CAST_D2R(obj.vz);
+  drift[0] = obj.vx;
+  drift[1] = obj.vy;
+  drift[2] = obj.vz;
 
 #pragma omp parallel for
   for(ulong ii = 0; ii < num; ii++){
@@ -674,8 +693,10 @@ int main(int argc, char **argv)
     fprintf(fp, "#############################################################################\n");
     fprintf(fp, "%d-th object: %s (%d components)\n", ii, obj[ii].file, obj[ii].kind);
     fprintf(fp, "#############################################################################\n");
-    fprintf(fp, "rotation angle is %e radian\n", obj[ii].angle);
-    fprintf(fp, "rotation axis is (%e, %e, %e)\n", obj[ii].ax, obj[ii].ay, obj[ii].az);
+    fprintf(fp, "rotation matrix is\n");
+    fprintf(fp, "\t%e %e %e\n", obj[ii].rot[0][0], obj[ii].rot[0][1], obj[ii].rot[0][2]);
+    fprintf(fp, "\t%e %e %e\n", obj[ii].rot[1][0], obj[ii].rot[1][1], obj[ii].rot[1][2]);
+    fprintf(fp, "\t%e %e %e\n", obj[ii].rot[2][0], obj[ii].rot[2][1], obj[ii].rot[2][2]);
     fprintf(fp, "initial position is (%e, %e, %e) = (%e %s, %e %s, %e %s)\n", obj[ii].xx, obj[ii].yy, obj[ii].zz, obj[ii].xx * length2astro, length_astro_unit_name, obj[ii].yy * length2astro, length_astro_unit_name, obj[ii].zz * length2astro, length_astro_unit_name);
     fprintf(fp, "initial velocity is (%e, %e, %e) = (%e %s, %e %s, %e %s)\n", obj[ii].vx, obj[ii].vy, obj[ii].vz, obj[ii].vx * velocity2astro, velocity_astro_unit_name, obj[ii].vy * velocity2astro, velocity_astro_unit_name, obj[ii].vz * velocity2astro, velocity_astro_unit_name);
     fprintf(fp, "#############################################################################\n");

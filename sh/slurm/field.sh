@@ -21,7 +21,8 @@ EXEC=bin/gothic
 # problem ID
 if [ -z "$PROBLEM" ]; then
     # PROBLEM=0
-    PROBLEM=11
+    # PROBLEM=11
+    PROBLEM=12
 fi
 ###############################################################
 # topology of MPI processes
@@ -94,9 +95,16 @@ if [ $PROBLEM -eq 0 ]; then
     SPHEPOT=va15
 fi
 ###############################################################
-# dynamical stability of a disk in a spherical potential field
+# reproduction of Miki et al. (2016) in the disk coordinate system
 if [ $PROBLEM -eq 11 ]; then
-    FILE=m16disk
+    FILE=m16king
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# reproduction of Kirihara et al. (2017) in the disk coordinate system
+if [ $PROBLEM -eq 12 ]; then
+    FILE=k17disk
     SPHEPOT=m31
     DISKPOT=m31
 fi

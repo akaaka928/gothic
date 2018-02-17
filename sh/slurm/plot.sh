@@ -20,12 +20,10 @@ PLTCDF=bin/plot.cdf
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    # PROBLEM=2
-    # PROBLEM=20
-    PROBLEM=27
-    # PROBLEM=28
-    # PROBLEM=80
-    # PROBLEM=81
+    PROBLEM=2
+    # PROBLEM=27
+    # PROBLEM=111
+    # PROBLEM=112
 fi
 ###############################################################
 # file extension of figures
@@ -365,6 +363,20 @@ if [ $PROBLEM -eq 81 ]; then
     FINISH=1175.0
     INTERVAL=25.0
     PROBLEM=80
+fi
+###############################################################
+# reproduction of Miki et al. (2016) in the disk coordinate system
+if [ $PROBLEM -eq 111 ]; then
+    FILE=m16king
+    FINISH=1246.875
+    INTERVAL=3.125
+fi
+###############################################################
+# reproduction of Kirihara et al. (2017) in the disk coordinate system
+if [ $PROBLEM -eq 112 ]; then
+    FILE=k17disk
+    FINISH=1246.875
+    INTERVAL=3.125
 fi
 ###############################################################
 # count up number of snapshot files

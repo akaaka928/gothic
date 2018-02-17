@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/19 (Fri)
+ * @date 2018/02/17 (Sat)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -378,6 +378,17 @@ static inline void sort_ypos_dev(const int num, samplePos src)
 
   /** sort using thrust */
   thrust::stable_sort_by_key((thrust::device_ptr<float>)(src.y_dev), (thrust::device_ptr<float>)((src.y_dev) + num), (thrust::device_ptr<float>)(src.z_dev));
+
+#ifndef NDEBUG
+#if 0
+  checkCudaErrors(cudaMemcpy(src.y_hst, src.y_dev, sizeof(float) * num, cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaMemcpy(src.z_hst, src.z_dev, sizeof(float) * num, cudaMemcpyDeviceToHost));
+  for(int ii = 0; ii < num; ii++)
+    __PRINTF__("%d: y = %e, z = %e\n", ii, src.y_hst[ii], src.z_hst[ii]);
+  MPI_Abort(MPI_COMM_WORLD, 0);
+  exit(0);
+#endif
+#endif//NDEBUG
 
   __NOTE__("%s\n", "end");
 }
@@ -1221,7 +1232,7 @@ void exchangeParticles_dev
   max.x = soa.max_hst->x;
   max.y = soa.max_hst->y;
   max.z = soa.max_hst->z;
-#if 1
+#if 0
   cudaDeviceSynchronize();
   MPI_Barrier(MPI_COMM_WORLD);
 #endif
@@ -1315,12 +1326,10 @@ void exchangeParticles_dev
 
     /** MPI_Bcast in orm[0].comm */
     if( (mpi.dim[1] != 1) || (mpi.dim[2] != 1) ){
-      /**# ここの処理って必要なんですか? というのをチェックする。 */
       chkMPIerr(MPI_Bcast(&local_xmin, 1, MPI_FLOAT, 0, orm[0].comm));
       chkMPIerr(MPI_Bcast(&local_xmax, 1, MPI_FLOAT, 0, orm[0].comm));
     }/* if( (mpi.dim[1] != 1) || (mpi.dim[2] != 1) ){ */
   }/* if( mpi.dim[0] != 1 ){ */
-
 
   /** domain decomposition in y-direction */
   if( mpi.dim[1] != 1 ){
@@ -1329,12 +1338,12 @@ void exchangeParticles_dev
       sendNum = recvNum;
       /** the root process determine the partition */
       if( rep[1].rank == 0 ){
-	sort_ypos(recvNum, &ful, host);/**< ful で正しいかを確認すること。というか、ポインタを送るのってなんだかおかしくないか? */
+	sort_ypos(recvNum, &ful, host);
 	sample.ymin[0] = -0.5f * FLT_MAX;
 	for(int ii = 0; ii < rep[1].size; ii++){
 	  int Nini = (sendNum * (    ii)) / rep[1].size;
 	  int Nfin = (sendNum * (1 + ii)) / rep[1].size;
-	  sample.rnum[ii] = Nfin - Nini;/**< sample.rnum って、各方向別配列を設置しなくても大丈夫? */
+	  sample.rnum[ii] = Nfin - Nini;
 	  if( ii != (rep[1].size - 1) ){
 	    const float middle = cutting(ful.y_hst[Nfin], ful.y_hst[Nfin + 1]
 #ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
@@ -1354,7 +1363,7 @@ void exchangeParticles_dev
       if( mpi.dim[2] != 1 ){
 	/** set send displacements (root process only) */
 	if( rep[1].rank == 0 ){
-	  sample.disp[0] = 0;/**< sample.disp って、各方向別配列を設置しなくても大丈夫? */
+	  sample.disp[0] = 0;
 	  for(int ii = 1; ii < rep[1].size; ii++)
 	    sample.disp[ii] = sample.disp[ii - 1] + sample.rnum[ii - 1];
 	}/* if( rep[1].rank == 0 ){ */
@@ -1371,12 +1380,10 @@ void exchangeParticles_dev
 
     /** MPI_Bcast in orm[1].comm */
     if( mpi.dim[2] != 1 ){
-      /**# ここの処理って必要なんですか? というのをチェックする。 */
       chkMPIerr(MPI_Bcast(&local_ymin, 1, MPI_FLOAT, 0, orm[1].comm));
       chkMPIerr(MPI_Bcast(&local_ymax, 1, MPI_FLOAT, 0, orm[1].comm));
     }/* if( mpi.dim[2] != 1 ){ */
   }/* if( mpi.dim[1] != 1 ){ */
-
 
   /** domain decomposition in z-direction */
   if( mpi.dim[2] != 1 ){
@@ -1385,12 +1392,12 @@ void exchangeParticles_dev
       sendNum = recvNum;
       /** the root process determine the partition */
       if( rep[2].rank == 0 ){
-	sort_zpos(recvNum, &ful, host);/**< ful で正しいかを確認すること。というか、ポインタを送るのってなんだかおかしくないか? */
+	sort_zpos(recvNum, &ful, host);
 	sample.zmin[0] = -0.5f * FLT_MAX;
 	for(int ii = 0; ii < rep[2].size; ii++){
 	  int Nini = (sendNum * (    ii)) / rep[2].size;
 	  int Nfin = (sendNum * (1 + ii)) / rep[2].size;
-	  sample.rnum[ii] = Nfin - Nini;/**< sample.rnum って、各方向別配列を設置しなくても大丈夫? */
+	  sample.rnum[ii] = Nfin - Nini;
 
 	  if( ii != (rep[2].size - 1) ){
 	    const float middle = cutting(ful.z_hst[Nfin], ful.z_hst[Nfin + 1]
@@ -1408,6 +1415,14 @@ void exchangeParticles_dev
       chkMPIerr(MPI_Scatter(sample.zmax, 1, MPI_FLOAT, &local_zmax, 1, MPI_FLOAT, 0, rep[2].comm));
     }/* if( orm[2].rank == 0 ){ */
   }/* if( mpi.dim[2] != 1 ){ */
+
+#if 0
+  __PRINTF__("local_xmin = %e, local_xmax = %e\n", local_xmin, local_xmax);
+  __PRINTF__("local_ymin = %e, local_ymax = %e\n", local_ymin, local_ymax);
+  __PRINTF__("local_zmin = %e, local_zmax = %e\n", local_zmin, local_zmax);
+  MPI_Finalize();
+  exit(0);
+#endif
 
 
   /** share the decomposed domain */

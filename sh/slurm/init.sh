@@ -14,17 +14,10 @@ EXEC=bin/magi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    # PROBLEM=2
-    # PROBLEM=20
-    # PROBLEM=26
+    PROBLEM=2
     # PROBLEM=27
-    # PROBLEM=28
-    PROBLEM=60
+    # PROBLEM=60
     # PROBLEM=61
-    # PROBLEM=71
-    # PROBLEM=1
-    # PROBLEM=80
-    # PROBLEM=81
 fi
 ###############################################################
 # number of N-body particles
@@ -38,14 +31,14 @@ if [ -z "$NTOT" ]; then
     # NTOT=8192
     # NTOT=16384
     # NTOT=32768
-    # NTOT=65536
+    NTOT=65536
     # NTOT=131072
     # NTOT=262144
     # NTOT=524288
     # NTOT=1048576
     # NTOT=2097152
     # NTOT=4194304
-    NTOT=8388608
+    # NTOT=8388608
     # NTOT=16777216
     # NTOT=33554432
     # NTOT=67108864
@@ -532,10 +525,10 @@ if [ $PROBLEM -eq 51 ]; then
     INTERVAL=25.0
 fi
 ###############################################################
-# dynamical stability of a progenitor model for GSS determined by Kirihara et al. (2017)
+# dynamical stability of a progenitor model for GSS determined by Miki et al. (2016)
 if [ $PROBLEM -eq 60 ]; then
     FILE=sat
-    CONFIG=gss/k17.cfg
+    CONFIG=gss/m16.cfg
     EPS=1.5625e-2
     ETA=0.5
     # FINISH=75.0
@@ -546,10 +539,10 @@ if [ $PROBLEM -eq 60 ]; then
     # INTERVAL=25.0
 fi
 ###############################################################
-# dynamical stability of a progenitor model for GSS determined by Miki et al. (2016)
+# dynamical stability of a progenitor model for GSS determined by Kirihara et al. (2017)
 if [ $PROBLEM -eq 61 ]; then
     FILE=sat
-    CONFIG=gss/m16.cfg
+    CONFIG=gss/k17.cfg
     EPS=1.5625e-2
     ETA=0.5
     # FINISH=75.0

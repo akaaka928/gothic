@@ -17,7 +17,8 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=0
     # PROBLEM=1
     # PROBLEM=10
-    PROBLEM=11
+    # PROBLEM=11
+    PROBLEM=12
 fi
 ###############################################################
 # dump file generation interval (in units of minute)
@@ -65,7 +66,21 @@ fi
 ###############################################################
 # reproduction of Miki et al. (2016) in the disk coordinate system
 if [ $PROBLEM -eq 11 ]; then
-    FILE=m16disk
+    FILE=m16king
+    CFG=gss/satellite.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    # FINISH=12.5
+    # FINISH=100.0
+    # FINISH=1050.0
+    # INTERVAL=1.5625
+    FINISH=1246.875
+    INTERVAL=3.125
+fi
+###############################################################
+# reproduction of Kirihara et al. (2017) in the disk coordinate system
+if [ $PROBLEM -eq 12 ]; then
+    FILE=k17disk
     CFG=gss/satellite.cfg
     EPS=1.5625e-2
     ETA=0.5
