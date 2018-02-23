@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/02/23 (Fri) 13:23:33
+# last updated on 2018/02/23 (Fri) 19:17:50
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -22,7 +22,7 @@ DEBUG	:= -DNDEBUG
 FORCE_SINGLE_GPU_RUN	:= 0
 ENCLOSING_BALL_FOR_LET	:= 1
 COMMUNICATION_VIA_HOST	:= 1
-USE_MPI_PUT_FOR_LET	:= 0
+USE_MPI_PUT_FOR_LET	:= 1
 USE_MPI_PUT_FOR_EXCG	:= 0
 CARE_EXTERNAL_PARTICLES	:= 0
 ACC_ACCUMULATION_IN_DP	:= 0

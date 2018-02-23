@@ -1127,10 +1127,6 @@ void exchangeParticles_dev
   const bool device = true;
   const bool   host = false;
 
-  /* /\** copy particle position from device to host *\/ */
-  /* copyParticlePositionAsync_dev2hst(numOld, (*src_dev).pos, pos_dev, pos_hst, devInfo.stream[0]); */
-
-
   /** pick up sample particles */
   /** weight is determined using elapsed time by each process */
   __NOTE__("rank %d: tloc = %e, numOld = %d\n", mpi.rank, tloc, numOld);
@@ -1183,14 +1179,6 @@ void exchangeParticles_dev
   }/* if( mpi.rank == 0 ){ */
   __NOTE__("rank %d: recvNum = %d\n", mpi.rank, recvNum);
 
-#if 0
-#ifndef NDEBUG
-  __NOTE__("before MPI communication\n");
-  for(int ii = 0; ii < sendNum; ii++)
-    fprintf(stdout, "loc.x[%d] = %e, ful.x[%d] = %e\n", ii, loc.x_hst[ii], ii, ful.x_hst[ii]);
-  MPI_Barrier(MPI_COMM_WORLD);
-#endif//NDEBUG
-#endif
 
   /** gather particle data to the root process */
 #ifdef  MPI_ONE_SIDED_FOR_EXCG
@@ -1234,19 +1222,6 @@ void exchangeParticles_dev
 
 #endif//MPI_ONE_SIDED_FOR_EXCG
 
-#if 0
-#ifndef NDEBUG
-  if( mpi.rank == 0 ){
-    __NOTE__("after MPI communication\n");
-    for(int ii = 0; ii < recvNum; ii++)
-      fprintf(stdout, "loc.x[%d] = %e, ful.x[%d] = %e\n", ii, loc.x_hst[ii], ii, ful.x_hst[ii]);
-  }
-  MPI_Barrier(MPI_COMM_WORLD);
-  MPI_Finalize();
-  exit(0);
-#endif//NDEBUG
-#endif
-
 
   /** set current (local) distribution */
   /** get (current) box size for the local distribution of N-body particles */
@@ -1258,10 +1233,6 @@ void exchangeParticles_dev
   max.x = soa.max_hst->x;
   max.y = soa.max_hst->y;
   max.z = soa.max_hst->z;
-#if 0
-  cudaDeviceSynchronize();
-  MPI_Barrier(MPI_COMM_WORLD);
-#endif
   __NOTE__("xmin = %e, xmax = %e, ymin = %e, ymax = %e, zmin = %e, zmax = %e\n", min.x, max.x, min.y, max.y, min.z, max.z);
 
 #ifdef  SHARE_PH_BOX_BOUNDARY
@@ -1298,15 +1269,6 @@ void exchangeParticles_dev
       /** the root process determine the partition */
       if( rep[0].rank == 0 ){
 	sort_xpos(recvNum, &ful, &loc, host);
-/* #ifndef NDEBUG */
-/* 	for(int ii = 0; ii < recvNum; ii++) */
-/* 	  fprintf(stderr, "ful.x_hst[%d] = %e, loc.x_hst[%d] = %e, cutted = %e\n", ii, ful.x_hst[ii], ii, loc.x_hst[ii], cutting(ful.x_hst[ii], ful.x_hst[ii] */
-/* #ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX */
-/* 					 , soa.min_hst->x, dL, dLinv */
-/* #endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX */
-/* 					 ) */
-/* 		  ); */
-/* #endif//NDEBUG */
 	sample.xmin[0] = -0.5f * FLT_MAX;
 	for(int ii = 0; ii < rep[0].size; ii++){
 	  int Nini = (sendNum * (    ii)) / rep[0].size;
@@ -1442,14 +1404,6 @@ void exchangeParticles_dev
     }/* if( orm[2].rank == 0 ){ */
   }/* if( mpi.dim[2] != 1 ){ */
 
-#if 0
-  __PRINTF__("local_xmin = %e, local_xmax = %e\n", local_xmin, local_xmax);
-  __PRINTF__("local_ymin = %e, local_ymax = %e\n", local_ymin, local_ymax);
-  __PRINTF__("local_zmin = %e, local_zmax = %e\n", local_zmin, local_zmax);
-  MPI_Finalize();
-  exit(0);
-#endif
-
 
   /** share the decomposed domain */
   chkMPIerr(MPI_Allgather(&local_xmin, 1, MPI_FLOAT, domain.xmin, 1, MPI_FLOAT, mpi.comm));
@@ -1504,11 +1458,6 @@ void exchangeParticles_dev
       /** if spatial overlap is detected, ... */
       sendBuf[overlapNum].rank = ii;
       domBoundary.rank_hst[overlapNum] = ii;
-/* #ifdef  MPI_ONE_SIDED_FOR_EXCG */
-/*       sendBuf[overlapNum].body.num = 0; */
-/* #else///MPI_ONE_SIDED_FOR_EXCG */
-/*       sendBuf[overlapNum].     num = 0; */
-/* #endif//MPI_ONE_SIDED_FOR_EXCG */
 
 #if 1
       domBoundary.xmin_hst[overlapNum] = (domain.xmin[ii] < -0.25f * FLT_MAX) ? (domain.xmin[ii]) : ((min.x > domain.xmin[ii]) ? (min.x) : (domain.xmin[ii]));
@@ -1714,8 +1663,8 @@ void exchangeParticles_dev
     MPI_Status status;
     chkMPIerr(MPI_Wait(&(recvBuf[ii].req), &status));
 
-    /** if recvNum != 0, then set receive buffer */
-    if( recvBuf[ii].body.num != 0 ){
+    /** if recvNum > 0, then set receive buffer */
+    if( recvBuf[ii].body.num > 0 ){
 #ifndef MPI_VIA_HOST
       chkMPIerr(MPI_Get(&((*dst_dev).pos[recvHead]), recvBuf[ii].body.num, mpi.ipos, ii, recvBuf[ii].body.head, recvBuf[ii].body.num, mpi.ipos, (*src_dev).win_ipos));
 #ifdef  GADGET_MAC
@@ -1754,7 +1703,7 @@ void exchangeParticles_dev
 
       *numNew  += recvBuf[ii].body.num;
       recvHead += recvBuf[ii].body.num;
-    }/* if( recvBuf[ii].body.num != 0 ){ */
+    }/* if( recvBuf[ii].body.num > 0 ){ */
   }/* for(int ii = 0; ii < numProcs; ii++){ */
 
 
@@ -1800,8 +1749,6 @@ void exchangeParticles_dev
 
   /** receive particle data */
   *numNew = 0;
-  /* for(int ii = 0; ii < numProcs; ii++) */
-  /*   recvBuf[ii].head = 0; */
   int recvHead = 0;
   for(int ii = 0; ii < numProcs; ii++){
     /** receive recvNum */
@@ -1911,7 +1858,7 @@ void exchangeParticles_dev
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 #ifndef NDEBUG
-#ifndef MPI_VIA_HOST
+#ifdef  MPI_VIA_HOST
       for(int jj = 0; jj < sendBuf[ii].num; jj++){
 	const int kk = sendBuf[ii].head + jj;
 	if( (*src_hst).pos[kk].m < EPSILON )
@@ -1919,7 +1866,6 @@ void exchangeParticles_dev
       }
 #endif//MPI_VIA_HOST
 #endif//NDEBUG
-
     }/* if( sendBuf[ii].num > 0 ){ */
   }/* for(int ii = 0; ii < overlapNum; ii++){ */
 
