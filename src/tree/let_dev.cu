@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/25 (Thu)
+ * @date 2018/02/21 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -706,6 +706,9 @@ void callGenLET
 	 , cycles
 #endif//MONITOR_LETGEN_TIME
 	 );
+#ifndef NDEBUG
+      getLastCudaError("makeLET_kernel");
+#endif//NDEBUG
     }
 #ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
   else{

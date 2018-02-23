@@ -144,28 +144,98 @@ def Fardal2007_shell():
     return Neast, Eshell_xi, Eshell_eta, Nwest, Wshell_xi, Wshell_eta
 
 
-def GSS_obs_field():
-    # Table 1 in Font et al. (2006)
-    Nfield = 11
-    field_xi  = [0] * Nfield
-    field_eta = [0] * Nfield
+# convert pixeld ID to (xi, eta)
+def Conn2016_coord(xx, yy):
+    # x = -15: xi = 6 degree
+    # x = 403: xi = 0 degree
+    # y = 131: eta = -6 degree
+    # y = 689: eta =  2 degree
+    # y = 550: eta = 0 degree
+    xi0 = 403
+    eta0 = 550
+    pix2xi  = -0.014354066# (0 - 6) / (403 - (-15))
+    pix2eta =  0.014336917# (2 - (-6)) / (689 - 131)
 
-    field_xi[ 0] =  1.077;    field_eta[ 0] = -2.021# a3
-    field_xi[ 1] =  2.015;    field_eta[ 1] = -3.965# 1
-    field_xi[ 2] =  1.745;    field_eta[ 2] = -3.525# 2
-    field_xi[ 3] =  1.483;    field_eta[ 3] = -3.087# 3
-    field_xi[ 4] =  1.226;    field_eta[ 4] = -2.653# 4
-    field_xi[ 5] =  0.969;    field_eta[ 5] = -2.264# 5
-    field_xi[ 6] =  0.717;    field_eta[ 6] = -1.768# 6
-    field_xi[ 7] =  0.467;    field_eta[ 7] = -1.327# 7
-    field_xi[ 8] =  0.219;    field_eta[ 8] = -0.886# 8
-    field_xi[ 9] = -0.731;    field_eta[ 9] =  0.891# 12
-    field_xi[10] = -0.963;    field_eta[10] =  1.342# 13
+    xi  = (xx -  xi0) * pix2xi
+    eta = (yy - eta0) * pix2eta
+
+    return xi, eta
+
+
+def GSS_obs_field():
+    # # Table 1 in Font et al. (2006)
+    # Nfield = 11
+    # field_xi  = [0] * Nfield
+    # field_eta = [0] * Nfield
+
+    # field_xi[ 0] =  1.077;    field_eta[ 0] = -2.021# a3
+    # field_xi[ 1] =  2.015;    field_eta[ 1] = -3.965# 1
+    # field_xi[ 2] =  1.745;    field_eta[ 2] = -3.525# 2
+    # field_xi[ 3] =  1.483;    field_eta[ 3] = -3.087# 3
+    # field_xi[ 4] =  1.226;    field_eta[ 4] = -2.653# 4
+    # field_xi[ 5] =  0.969;    field_eta[ 5] = -2.264# 5
+    # field_xi[ 6] =  0.717;    field_eta[ 6] = -1.768# 6
+    # field_xi[ 7] =  0.467;    field_eta[ 7] = -1.327# 7
+    # field_xi[ 8] =  0.219;    field_eta[ 8] = -0.886# 8
+    # field_xi[ 9] = -0.731;    field_eta[ 9] =  0.891# 12
+    # field_xi[10] = -0.963;    field_eta[10] =  1.342# 13
+
+    # read from Figure 3 of Conn et al. (2016)
+    Nfield = 8
+    field_xi  = np.zeros((Nfield, 4 + 1))
+    field_eta = np.zeros((Nfield, 4 + 1))
+    # M1
+    field_xi[0][0], field_eta[0][0] = Conn2016_coord(286, 289)
+    field_xi[0][1], field_eta[0][1] = Conn2016_coord(286, 257)
+    field_xi[0][2], field_eta[0][2] = Conn2016_coord(238, 257)
+    field_xi[0][3], field_eta[0][3] = Conn2016_coord(238, 289)
+    # M2
+    field_xi[1][0], field_eta[1][0] = Conn2016_coord(305, 320)
+    field_xi[1][1], field_eta[1][1] = Conn2016_coord(305, 287)
+    field_xi[1][2], field_eta[1][2] = Conn2016_coord(257, 287)
+    field_xi[1][3], field_eta[1][3] = Conn2016_coord(257, 320)
+    # M3
+    field_xi[2][0], field_eta[2][0] = Conn2016_coord(324, 350)
+    field_xi[2][1], field_eta[2][1] = Conn2016_coord(324, 318)
+    field_xi[2][2], field_eta[2][2] = Conn2016_coord(275, 318)
+    field_xi[2][3], field_eta[2][3] = Conn2016_coord(275, 350)
+    # M4
+    field_xi[3][0], field_eta[3][0] = Conn2016_coord(342, 381)
+    field_xi[3][1], field_eta[3][1] = Conn2016_coord(342, 348)
+    field_xi[3][2], field_eta[3][2] = Conn2016_coord(293, 348)
+    field_xi[3][3], field_eta[3][3] = Conn2016_coord(293, 381)
+    # M5
+    field_xi[4][0], field_eta[4][0] = Conn2016_coord(359, 408)
+    field_xi[4][1], field_eta[4][1] = Conn2016_coord(359, 375)
+    field_xi[4][2], field_eta[4][2] = Conn2016_coord(311, 375)
+    field_xi[4][3], field_eta[4][3] = Conn2016_coord(311, 408)
+    # M6
+    field_xi[5][0], field_eta[5][0] = Conn2016_coord(377, 442)
+    field_xi[5][1], field_eta[5][1] = Conn2016_coord(377, 410)
+    field_xi[5][2], field_eta[5][2] = Conn2016_coord(328, 410)
+    field_xi[5][3], field_eta[5][3] = Conn2016_coord(328, 442)
+    # M7
+    field_xi[6][0], field_eta[6][0] = Conn2016_coord(395, 473)
+    field_xi[6][1], field_eta[6][1] = Conn2016_coord(395, 441)
+    field_xi[6][2], field_eta[6][2] = Conn2016_coord(346, 441)
+    field_xi[6][3], field_eta[6][3] = Conn2016_coord(346, 473)
+    # M8
+    field_xi[7][0], field_eta[7][0] = Conn2016_coord(412, 504)
+    field_xi[7][1], field_eta[7][1] = Conn2016_coord(412, 472)
+    field_xi[7][2], field_eta[7][2] = Conn2016_coord(363, 472)
+    field_xi[7][3], field_eta[7][3] = Conn2016_coord(363, 504)
+    for ii in range(Nfield):
+        field_xi[ii][4]  = field_xi[ii][0]
+        field_eta[ii][4] = field_eta[ii][0]
 
     return Nfield, field_xi, field_eta
 
 
 def GSS_distance():
+    # NOTE
+    # subfields GSSx.5 are skipped
+    # GSS1 is skipped to remove overlap with M31 disk
+
     # Table 1 in Conn et al. (2016)
     Ngss = 9
     gss_xi  = [0] * Ngss
@@ -187,11 +257,59 @@ def GSS_distance():
     for ii in range(Ngss):
         gss_D[ii] -= zm31
 
-    # NOTE
-    # subfields GSSx.5 are skipped
-    # GSS1 is skipped to remove overlap with M31 disk
+    gss_field_xi  = np.zeros((Ngss, 4 + 1))
+    gss_field_eta = np.zeros((Ngss, 4 + 1))
+    # GSS2
+    gss_field_xi[0][0], gss_field_eta[0][0] = Conn2016_coord(479, 388)
+    gss_field_xi[0][1], gss_field_eta[0][1] = Conn2016_coord(455, 358)
+    gss_field_xi[0][2], gss_field_eta[0][2] = Conn2016_coord(333, 462)
+    gss_field_xi[0][3], gss_field_eta[0][3] = Conn2016_coord(357, 493)
+    # GSS3
+    gss_field_xi[1][0], gss_field_eta[1][0] = Conn2016_coord(455, 358)
+    gss_field_xi[1][1], gss_field_eta[1][1] = Conn2016_coord(431, 327)
+    gss_field_xi[1][2], gss_field_eta[1][2] = Conn2016_coord(309, 432)
+    gss_field_xi[1][3], gss_field_eta[1][3] = Conn2016_coord(333, 462)
+    # GSS4
+    gss_field_xi[2][0], gss_field_eta[2][0] = Conn2016_coord(431, 327)
+    gss_field_xi[2][1], gss_field_eta[2][1] = Conn2016_coord(407, 297)
+    gss_field_xi[2][2], gss_field_eta[2][2] = Conn2016_coord(285, 401)
+    gss_field_xi[2][3], gss_field_eta[2][3] = Conn2016_coord(309, 432)
+    # GSS5
+    gss_field_xi[3][0], gss_field_eta[3][0] = Conn2016_coord(407, 297)
+    gss_field_xi[3][1], gss_field_eta[3][1] = Conn2016_coord(383, 266)
+    gss_field_xi[3][2], gss_field_eta[3][2] = Conn2016_coord(261, 371)
+    gss_field_xi[3][3], gss_field_eta[3][3] = Conn2016_coord(285, 401)
+    # GSS6
+    gss_field_xi[4][0], gss_field_eta[4][0] = Conn2016_coord(383, 266)
+    gss_field_xi[4][1], gss_field_eta[4][1] = Conn2016_coord(359, 236)
+    gss_field_xi[4][2], gss_field_eta[4][2] = Conn2016_coord(237, 340)
+    gss_field_xi[4][3], gss_field_eta[4][3] = Conn2016_coord(261, 371)
+    # GSS7
+    gss_field_xi[5][0], gss_field_eta[5][0] = Conn2016_coord(359, 236)
+    gss_field_xi[5][1], gss_field_eta[5][1] = Conn2016_coord(335, 205)
+    gss_field_xi[5][2], gss_field_eta[5][2] = Conn2016_coord(213, 310)
+    gss_field_xi[5][3], gss_field_eta[5][3] = Conn2016_coord(237, 340)
+    # GSS8
+    gss_field_xi[6][0], gss_field_eta[6][0] = Conn2016_coord(335, 205)
+    gss_field_xi[6][1], gss_field_eta[6][1] = Conn2016_coord(311, 175)
+    gss_field_xi[6][2], gss_field_eta[6][2] = Conn2016_coord(189, 279)
+    gss_field_xi[6][3], gss_field_eta[6][3] = Conn2016_coord(213, 310)
+    # GSS9
+    gss_field_xi[7][0], gss_field_eta[7][0] = Conn2016_coord(311, 175)
+    gss_field_xi[7][1], gss_field_eta[7][1] = Conn2016_coord(287, 144)
+    gss_field_xi[7][2], gss_field_eta[7][2] = Conn2016_coord(165, 249)
+    gss_field_xi[7][3], gss_field_eta[7][3] = Conn2016_coord(189, 279)
+    # GSS10
+    gss_field_xi[8][0], gss_field_eta[8][0] = Conn2016_coord(287, 144)
+    gss_field_xi[8][1], gss_field_eta[8][1] = Conn2016_coord(263, 114)
+    gss_field_xi[8][2], gss_field_eta[8][2] = Conn2016_coord(141, 218)
+    gss_field_xi[8][3], gss_field_eta[8][3] = Conn2016_coord(165, 249)
+    for ii in range(Ngss):
+        gss_field_xi[ii][4]  = gss_field_xi[ii][0]
+        gss_field_eta[ii][4] = gss_field_eta[ii][0]
 
-    return Ngss, gss_xi, gss_eta, gss_D, gss_Dep, gss_Dem
+    return Ngss, gss_xi, gss_eta, gss_D, gss_Dep, gss_Dem, gss_field_xi, gss_field_eta
+
 
 def StreamC_distance():
     # Table 2 in Conn et al. (2016)
@@ -210,7 +328,33 @@ def StreamC_distance():
     for ii in range(NstreamC):
         streamC_D[ii] -= zm31
 
-    return NstreamC, streamC_xi, streamC_eta, streamC_D, streamC_Dep, streamC_Dem
+    streamC_field_xi  = np.zeros((NstreamC, 4 + 1))
+    streamC_field_eta = np.zeros((NstreamC, 4 + 1))
+    # C1
+    streamC_field_xi[0][0], streamC_field_eta[0][0] = Conn2016_coord(251, 316)
+    streamC_field_xi[0][1], streamC_field_eta[0][1] = Conn2016_coord(235, 254)
+    streamC_field_xi[0][2], streamC_field_eta[0][2] = Conn2016_coord(174, 285)
+    streamC_field_xi[0][3], streamC_field_eta[0][3] = Conn2016_coord(224, 331)
+    # C2
+    streamC_field_xi[1][0], streamC_field_eta[1][0] = Conn2016_coord(224, 331)
+    streamC_field_xi[1][1], streamC_field_eta[1][1] = Conn2016_coord(174, 285)
+    streamC_field_xi[1][2], streamC_field_eta[1][2] = Conn2016_coord(138, 369)
+    streamC_field_xi[1][3], streamC_field_eta[1][3] = Conn2016_coord(187, 391)
+    # C3
+    streamC_field_xi[2][0], streamC_field_eta[2][0] = Conn2016_coord(187, 391)
+    streamC_field_xi[2][1], streamC_field_eta[2][1] = Conn2016_coord(138, 369)
+    streamC_field_xi[2][2], streamC_field_eta[2][2] = Conn2016_coord(120, 472)
+    streamC_field_xi[2][3], streamC_field_eta[2][3] = Conn2016_coord(167, 466)
+    # C4
+    streamC_field_xi[3][0], streamC_field_eta[3][0] = Conn2016_coord(167, 466)
+    streamC_field_xi[3][1], streamC_field_eta[3][1] = Conn2016_coord(120, 472)
+    streamC_field_xi[3][2], streamC_field_eta[3][2] = Conn2016_coord(122, 555)
+    streamC_field_xi[3][3], streamC_field_eta[3][3] = Conn2016_coord(160, 625)
+    for ii in range(NstreamC):
+        streamC_field_xi[ii][4]  = streamC_field_xi[ii][0]
+        streamC_field_eta[ii][4] = streamC_field_eta[ii][0]
+
+    return NstreamC, streamC_xi, streamC_eta, streamC_D, streamC_Dep, streamC_Dem, streamC_field_xi, streamC_field_eta
 
 
 def StreamD_distance():
@@ -231,4 +375,35 @@ def StreamD_distance():
     for ii in range(NstreamD):
         streamD_D[ii] -= zm31
 
-    return NstreamD, streamD_xi, streamD_eta, streamD_D, streamD_Dep, streamD_Dem
+    streamD_field_xi  = np.zeros((NstreamD, 4 + 1))
+    streamD_field_eta = np.zeros((NstreamD, 4 + 1))
+    # D1
+    streamD_field_xi[0][0], streamD_field_eta[0][0] = Conn2016_coord(290, 402)
+    streamD_field_xi[0][1], streamD_field_eta[0][1] = Conn2016_coord(248, 360)
+    streamD_field_xi[0][2], streamD_field_eta[0][2] = Conn2016_coord(202, 414)
+    streamD_field_xi[0][3], streamD_field_eta[0][3] = Conn2016_coord(253, 440)
+    # D2
+    streamD_field_xi[1][0], streamD_field_eta[1][0] = Conn2016_coord(253, 440)
+    streamD_field_xi[1][1], streamD_field_eta[1][1] = Conn2016_coord(202, 414)
+    streamD_field_xi[1][2], streamD_field_eta[1][2] = Conn2016_coord(171, 478)
+    streamD_field_xi[1][3], streamD_field_eta[1][3] = Conn2016_coord(233, 486)
+    # D3
+    streamD_field_xi[2][0], streamD_field_eta[2][0] = Conn2016_coord(233, 486)
+    streamD_field_xi[2][1], streamD_field_eta[2][1] = Conn2016_coord(171, 478)
+    streamD_field_xi[2][2], streamD_field_eta[2][2] = Conn2016_coord(160, 545)
+    streamD_field_xi[2][3], streamD_field_eta[2][3] = Conn2016_coord(223, 541)
+    # D4
+    streamD_field_xi[3][0], streamD_field_eta[3][0] = Conn2016_coord(223, 541)
+    streamD_field_xi[3][1], streamD_field_eta[3][1] = Conn2016_coord(160, 545)
+    streamD_field_xi[3][2], streamD_field_eta[3][2] = Conn2016_coord(158, 624)
+    streamD_field_xi[3][3], streamD_field_eta[3][3] = Conn2016_coord(213, 584)
+    # D5
+    streamD_field_xi[4][0], streamD_field_eta[4][0] = Conn2016_coord(213, 584)
+    streamD_field_xi[4][1], streamD_field_eta[4][1] = Conn2016_coord(158, 624)
+    streamD_field_xi[4][2], streamD_field_eta[4][2] = Conn2016_coord(224, 682)
+    streamD_field_xi[4][3], streamD_field_eta[4][3] = Conn2016_coord(237, 612)
+    for ii in range(NstreamD):
+        streamD_field_xi[ii][4]  = streamD_field_xi[ii][0]
+        streamD_field_eta[ii][4] = streamD_field_eta[ii][0]
+
+    return NstreamD, streamD_xi, streamD_eta, streamD_D, streamD_Dep, streamD_Dem, streamD_field_xi, streamD_field_eta

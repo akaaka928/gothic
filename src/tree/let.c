@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/02/22 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -33,6 +33,9 @@
 
 
 #ifndef SERIALIZED_EXECUTION
+
+
+#define MPI_TAG_LET(rank, size) ((rank) + ((size) * 20))
 
 
 /**
@@ -106,8 +109,8 @@ void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, c
     info[ii].overEstimateRecv = 0;
     info[ii].numFull = numNode;
 
-    chkMPIerr(MPI_Isend(&          numMax  , 1, MPI_INT, info[ii].rank,      mpi.rank, mpi.comm, &(info[ii].reqSendInfo)));
-    chkMPIerr(MPI_Irecv(&(info[ii].numNode), 1, MPI_INT, info[ii].rank, info[ii].rank, mpi.comm, &(info[ii].reqRecvInfo)));
+    chkMPIerr(MPI_Isend(&          numMax  , 1, MPI_INT, info[ii].rank, MPI_TAG_LET(     mpi.rank, mpi.size), mpi.comm, &(info[ii].reqSendInfo)));
+    chkMPIerr(MPI_Irecv(&(info[ii].numNode), 1, MPI_INT, info[ii].rank, MPI_TAG_LET(info[ii].rank, mpi.size), mpi.comm, &(info[ii].reqRecvInfo)));
   }/* for(int ii = 0; ii < Ndomain - 1; ii++){ */
 
   for(int ii = 0; ii < Ndomain - 1; ii++){

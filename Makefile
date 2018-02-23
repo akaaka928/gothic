@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/02/16 (Fri) 19:03:27
+# last updated on 2018/02/23 (Fri) 13:23:33
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -78,10 +78,10 @@ MYDIR	:= $(HOME)
 MYINC	:= $(MYDIR)/inc
 MYLIB	:= $(MYDIR)/lib
 #################################################################################################
-ifeq ($(findstring hapacs, $(HOSTNAME)), hapacs)
-MYDIR	:= /work/GALAXY/$(USER)
-MYINC	:= $(MYDIR)/inc.tca
-MYLIB	:= $(MYDIR)/lib.tca
+ifeq ($(findstring reedbush, $(HOSTNAME)), reedbush)
+MYDIR	:= /lustre/gx31/z30118
+MYINC	:= $(MYDIR)/inc
+MYLIB	:= $(MYDIR)/lib
 endif
 #################################################################################################
 include	$(MYINC)/common.mk
@@ -913,7 +913,7 @@ zip:
 	$(VERBOSE)mkdir pub; \
 	fi
 	$(VERBOSE)tar cvJf $(DATE)tree.tar.xz \
-	README.txt LICENSE.txt Makefile $(SRCDIR) sh cfg host plt py plugins/README \
+	README.txt LICENSE.txt Makefile $(SRCDIR) sh cfg plt py plugins/README \
 	$(XMLBODY) $(SRCBODY) $(XMLSNAP) $(SRCSNAP) $(XMLAERR) $(SRCAERR) $(XMLDUMP) $(SRCDUMP) $(XMLDISK) $(SRCDISK) $(XMLDIST) $(SRCDIST) $(XMLPROF) $(SRCPROF)
 	$(VERBOSE)mv       $(DATE)tree.tar.xz pub/
 #################################################################################################

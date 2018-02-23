@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/13 (Tue)
+ * @date 2018/02/21 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -242,6 +242,9 @@ static inline void buildTreeStructure
 #ifdef  CUB_AVAILABLE
  const soaPHsort soaPH_pre,
 #endif//CUB_AVAILABLE
+#ifndef SERIALIZED_EXECUTION
+ int *numOld,
+#endif//SERIALIZED_EXECUTION
  int *leafLev, int *numCell, int *numNode, int *leafLev_dev, int *scanNum_dev, int *numCell_dev, int *numNode_dev, const soaMakeTreeBuf buf, const soaTreeCell cell_dev, const soaTreeNode node_dev
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
    , domainLocation *location
@@ -275,11 +278,22 @@ static inline void buildTreeStructure
 
   /** build a breadth-first octree structure */
   makeTreeStructure_dev(num, soaPH_dev.key, leafLev, leafLev_dev, scanNum_dev, numCell, numCell_dev, cell_dev, numNode, numNode_dev, node_dev, buf, devProp
+#ifndef SERIALIZED_EXECUTION
+			, *numOld
+#endif//SERIALIZED_EXECUTION
 #ifdef  EXEC_BENCHMARK
 			, execTime
 #endif//EXEC_BENCHMARK
 			);
+#ifndef SERIALIZED_EXECUTION
+  __NOTE__("num = %d, numOld = %d\n", num, *numOld);
+  *numOld = num;
+#endif//SERIALIZED_EXECUTION
 
+#ifndef NDEBUG
+  if( *leafLev == MAXIMUM_PHKEY_LEVEL )
+    printPHkey_location(num, soaPH_dev.key, *ibody0_dev);
+#endif//NDEBUG
 
   __NOTE__("%s\n", "end");
 }
@@ -1526,11 +1540,17 @@ int main(int argc, char **argv)
   int numNode = NUM_ALLOC_TREE_NODE;
 
   int bottomLev;
+#ifndef SERIALIZED_EXECUTION
+  int numOld = num;
+#endif//SERIALIZED_EXECUTION
   buildTreeStructure
     (num, &ibody0_dev, &ibody1_dev, soaPH_dev, devProp,
 #ifdef  CUB_AVAILABLE
      soaPH_pre,
 #endif//CUB_AVAILABLE
+#ifndef SERIALIZED_EXECUTION
+     &numOld,
+#endif//SERIALIZED_EXECUTION
      &bottomLev, &numCell, &numNode, bottomLev_dev, scanNum_dev, numCell_dev, numNode_dev, soaMakeBuf, soaCell_dev, soaNode_dev
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
      , &location
@@ -1930,6 +1950,8 @@ int main(int argc, char **argv)
     /** rebuild tree structure if required */
 #ifndef SERIALIZED_EXECUTION
     /** detect slow down */
+    /* chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.enable), 1, MPI_BOOL, MPI_LAND, letcfg.comm)); */
+    /* chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(rebuild.reuse), 1, MPI_BOOL, MPI_LAND, letcfg.comm)); */
     if( !rebuild.reuse ){
       exchangeInterval += 1.0;
       linearModel(&(exchangeParam.linearGuess), &(exchangeParam.linearStats), exchangeInterval, elapsed.sum_rebuild, 1.0);
@@ -1957,9 +1979,9 @@ int main(int argc, char **argv)
 	  balancer.execute = true;
       }/* if( balancer.enable ){ */
     }/* if( !rebuild.reuse ){ */
-    chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.execute), 1, MPI_BOOL, MPI_LOR, letcfg.comm));
 
     /** detect load imbalance */
+    chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.execute), 1, MPI_BOOL, MPI_LOR , letcfg.comm));
     if( balancer.enable & !balancer.execute ){
       balancer.tmin = balancer.tmax = elapsed.sum_excg;
       chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.tmin), 1, MPI_DOUBLE, MPI_MIN, letcfg.comm));
@@ -1992,6 +2014,9 @@ int main(int argc, char **argv)
 
 
     /** rebuild the tree structure */
+#if 0
+    chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(rebuild.reuse), 1, MPI_BOOL, MPI_LOR, letcfg.comm));
+#endif
     if( !rebuild.reuse ){
 #ifndef SERIALIZED_EXECUTION
       elapsed.sum_rebuild = 0.0;
@@ -2030,6 +2055,9 @@ int main(int argc, char **argv)
 #ifdef  CUB_AVAILABLE
 	 soaPH_pre,
 #endif//CUB_AVAILABLE
+#ifndef SERIALIZED_EXECUTION
+	 &numOld,
+#endif//SERIALIZED_EXECUTION
 	 &bottomLev, &numCell, &numNode, bottomLev_dev, scanNum_dev, numCell_dev, numNode_dev, soaMakeBuf, soaCell_dev, soaNode_dev
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 	 , &location
@@ -2107,7 +2135,7 @@ int main(int argc, char **argv)
     /** share information on domain decomposition in the next time step */
 #ifndef SERIALIZED_EXECUTION
     chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.enable), 1, MPI_BOOL, MPI_LOR, letcfg.comm));
-    __NOTE__("balancer.enable = %d @ rank %d\n", balancer.enable, letcfg.rank);
+    __NOTE__("balancer.enable = %d\n", balancer.enable);
     chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &existNewTree, 1, MPI_BOOL, MPI_LOR, letcfg.comm));
 #endif//SERIALIZED_EXECUTION
 

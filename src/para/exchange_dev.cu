@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/17 (Sat)
+ * @date 2018/02/23 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -15,7 +15,7 @@
  *
  */
 
-/* #define OMIT_INPLACE_IN_SCATTERV */
+#define OMIT_INPLACE_IN_SCATTERV
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,6 +46,20 @@
 #include "mpicfg.h"
 #include "exchange.h"
 #include "exchange_dev.h"
+
+
+#ifndef SERIALIZED_EXECUTION
+#define MPI_TAG_BODY(rank, size) ((rank) + ((size) * 10))
+#define MPI_TAG_IPOS(rank, size) ((rank) + ((size) * 11))
+#define MPI_TAG_IIDX(rank, size) ((rank) + ((size) * 12))
+#define MPI_TAG_IVEL(rank, size) ((rank) + ((size) * 13))
+#define MPI_TAG_TIME(rank, size) ((rank) + ((size) * 14))
+#define MPI_TAG_VELX(rank, size) ((rank) + ((size) * 15))
+#define MPI_TAG_VELY(rank, size) ((rank) + ((size) * 16))
+#define MPI_TAG_VELZ(rank, size) ((rank) + ((size) * 17))
+#define MPI_TAG_IACC(rank, size) ((rank) + ((size) * 18))
+#define MPI_TAG_IEXT(rank, size) ((rank) + ((size) * 19))
+#endif//SERIALIZED_EXECUTION
 
 
 /** tentative treatment for GTX TITAN X: (# of SM = 24) * (# of blocks per SM = 8) = 192 exceeds NTHREADS_ASSIGN */
@@ -143,7 +157,7 @@ __global__ void __launch_bounds__(NTHREADS_BOX, NBLOCKS_PER_SM_BOX) getBoxSize_k
   float4 max = {-FLT_MAX, -FLT_MAX, -FLT_MAX, -FLT_MAX};
   for(int ih = ihead; ih < itail; ih += NTHREADS_BOX){
     const int ii = ih + tidx;
-    if( ii < itail ){
+    if( ii < num ){
       const position pi = ipos[ii];
       const float xi = CAST_R2F(pi.x);
       const float yi = CAST_R2F(pi.y);
@@ -152,7 +166,7 @@ __global__ void __launch_bounds__(NTHREADS_BOX, NBLOCKS_PER_SM_BOX) getBoxSize_k
       min.x = fminf(min.x, xi);      max.x = fmaxf(max.x, xi);
       min.y = fminf(min.y, yi);      max.y = fmaxf(max.y, yi);
       min.z = fminf(min.z, zi);      max.z = fmaxf(max.z, zi);
-    }/* if( ii < itail ){ */
+    }/* if( ii < num ){ */
   }/* for(int ih = ihead; ih < itail; ih += NTHREADS_BOX){ */
 
 
@@ -599,6 +613,14 @@ static inline void copyParticlePositionAsync_dev2hst(const int Ni, position * RE
 #endif
 
 
+#define UNKNOWN_DST_RANK (-1)
+__global__ void initDstRank(const int num, int * dstRank)
+{
+  const int ii = GLOBALIDX_X1D;
+  if( ii < num )
+    dstRank[ii] = UNKNOWN_DST_RANK;
+}
+
 /**
  * @struct union_i4_f4
  *
@@ -699,7 +721,7 @@ __global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assign
   int4 numNew = {0, 0, 0, 0};
   for(int ih = ihead; ih < itail; ih += NTHREADS_ASSIGN){
     const int ii = ih + tidx;
-    if( ii < itail ){
+    if( (ii < itail) && (dstRank[ii] == UNKNOWN_DST_RANK) ){
       const position pi = ipos[ii];
       const float xi = CAST_R2F(pi.x);
       const float yi = CAST_R2F(pi.y);
@@ -723,7 +745,7 @@ __global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assign
 	  break;
 	}
       }/* for(int jj = 0; jj < domNum; jj++){ */
-    }/* if( ii < itail ){ */
+    }/* if( (ii < itail) && (dstRank[ii] == UNKNOWN_DST_RANK) ){ */
   }/* for(int ih = ihead; ih < itail; ih += NTHREADS_ASSIGN){ */
   __syncthreads();/* additional synchronization to use union */
 
@@ -734,10 +756,10 @@ __global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assign
 
   /** upload number of N-body particles to be assigned to new computational domain */
   if( (bidx + tidx) == 0 ){
-    numNew_gm[0] = numNew.x;
-    numNew_gm[1] = numNew.y;
-    numNew_gm[2] = numNew.z;
-    numNew_gm[3] = numNew.w;
+    numNew_gm[domHead    ] = numNew.x;
+    numNew_gm[domHead + 1] = numNew.y;
+    numNew_gm[domHead + 2] = numNew.z;
+    numNew_gm[domHead + 3] = numNew.w;
   }/* if( (bidx + tidx) == 0 ){ */
 }
 
@@ -765,8 +787,7 @@ __global__ void sortParticlesDDkey_kernel
  real         * RESTRICT dvy  , READ_ONLY real         * RESTRICT svy  ,
  real         * RESTRICT dvz  , READ_ONLY real         * RESTRICT svz
 #endif//BLOCK_TIME_STEP
- , const int offset
-)
+ , const int offset)
 {
   const int ii = offset + GLOBALIDX_X1D;
 
@@ -790,6 +811,11 @@ __global__ void sortParticlesDDkey_kernel
     dvy  [ii] = svy  [jj];
     dvz  [ii] = svz  [jj];
 #endif//BLOCK_TIME_STEP
+
+#ifndef NDEBUG
+    if( spos[jj].m < EPSILON )
+      printf("src = %d, dst = %d: massless (%e)\n", jj, ii, spos[jj].m);
+#endif//NDEBUG
   }/* if( ii < num ){ */
 }
 
@@ -1272,15 +1298,15 @@ void exchangeParticles_dev
       /** the root process determine the partition */
       if( rep[0].rank == 0 ){
 	sort_xpos(recvNum, &ful, &loc, host);
-#ifndef NDEBUG
-	for(int ii = 0; ii < recvNum; ii++)
-	  fprintf(stderr, "ful.x_hst[%d] = %e, loc.x_hst[%d] = %e, cutted = %e\n", ii, ful.x_hst[ii], ii, loc.x_hst[ii], cutting(ful.x_hst[ii], ful.x_hst[ii]
-#ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
-					 , soa.min_hst->x, dL, dLinv
-#endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX
-					 )
-		  );
-#endif//NDEBUG
+/* #ifndef NDEBUG */
+/* 	for(int ii = 0; ii < recvNum; ii++) */
+/* 	  fprintf(stderr, "ful.x_hst[%d] = %e, loc.x_hst[%d] = %e, cutted = %e\n", ii, ful.x_hst[ii], ii, loc.x_hst[ii], cutting(ful.x_hst[ii], ful.x_hst[ii] */
+/* #ifdef  ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX */
+/* 					 , soa.min_hst->x, dL, dLinv */
+/* #endif//ALIGN_DOMAIN_BOUNDARY_TO_PH_BOX */
+/* 					 ) */
+/* 		  ); */
+/* #endif//NDEBUG */
 	sample.xmin[0] = -0.5f * FLT_MAX;
 	for(int ii = 0; ii < rep[0].size; ii++){
 	  int Nini = (sendNum * (    ii)) / rep[0].size;
@@ -1318,8 +1344,8 @@ void exchangeParticles_dev
 	chkMPIerr(MPI_Scatterv(ful.y_hst, sample.rnum, sample.disp, MPI_FLOAT, MPI_IN_PLACE, recvNum, MPI_FLOAT, 0, rep[0].comm));
 	chkMPIerr(MPI_Scatterv(ful.z_hst, sample.rnum, sample.disp, MPI_FLOAT, MPI_IN_PLACE, recvNum, MPI_FLOAT, 0, rep[0].comm));
 #else///OMIT_INPLACE_IN_SCATTERV
-	chkMPIerr(MPI_Scatterv(ful.y_hst, sample.rnum, sample.disp, MPI_FLOAT, ful.y_hst, recvNum, MPI_FLOAT, 0, rep[0].comm));
-	chkMPIerr(MPI_Scatterv(ful.z_hst, sample.rnum, sample.disp, MPI_FLOAT, ful.z_hst, recvNum, MPI_FLOAT, 0, rep[0].comm));
+	chkMPIerr(MPI_Scatterv(ful.y_hst, sample.rnum, sample.disp, MPI_FLOAT, (rep[0].rank != 0) ? ful.y_hst : loc.y_hst, recvNum, MPI_FLOAT, 0, rep[0].comm));
+	chkMPIerr(MPI_Scatterv(ful.z_hst, sample.rnum, sample.disp, MPI_FLOAT, (rep[0].rank != 0) ? ful.z_hst : loc.z_hst, recvNum, MPI_FLOAT, 0, rep[0].comm));
 #endif//OMIT_INPLACE_IN_SCATTERV
       }/* if( (mpi.dim[1] != 1) || (mpi.dim[2] != 1) ){ */
     }/* if( orm[0].rank == 0 ){ */
@@ -1373,7 +1399,7 @@ void exchangeParticles_dev
 #ifndef OMIT_INPLACE_IN_SCATTERV
 	chkMPIerr(MPI_Scatterv(ful.z_hst, sample.rnum, sample.disp, MPI_FLOAT, MPI_IN_PLACE, recvNum, MPI_FLOAT, 0, rep[1].comm));
 #else///OMIT_INPLACE_IN_SCATTERV
-	chkMPIerr(MPI_Scatterv(ful.z_hst, sample.rnum, sample.disp, MPI_FLOAT, ful.z_hst, recvNum, MPI_FLOAT, 0, rep[1].comm));
+	chkMPIerr(MPI_Scatterv(ful.z_hst, sample.rnum, sample.disp, MPI_FLOAT, (rep[1].rank != 0) ? ful.z_hst : loc.z_hst, recvNum, MPI_FLOAT, 0, rep[1].comm));
 #endif//OMIT_INPLACE_IN_SCATTERV
       }/* if( mpi.dim[2] != 1 ){ */
     }/* if( orm[1].rank == 0 ){ */
@@ -1458,18 +1484,18 @@ void exchangeParticles_dev
   const int numProcs = mpi.size;
   for(int ii = 0; ii < numProcs; ii++){
 #ifdef  MPI_ONE_SIDED_FOR_EXCG
-    chkMPIerr(MPI_Irecv(&(recvBuf[ii].body), 1, mpi.send, ii, ii, mpi.comm, &(recvBuf[ii].req)));
+    chkMPIerr(MPI_Irecv(&(recvBuf[ii].body), 1, mpi.send, ii, MPI_TAG_BODY(ii, mpi.size), mpi.comm, &(recvBuf[ii].req)));
 #else///MPI_ONE_SIDED_FOR_EXCG
-    chkMPIerr(MPI_Irecv(&(recvBuf[ii].num ), 1, MPI_INT , ii, ii, mpi.comm, &(recvBuf[ii].req)));
+    chkMPIerr(MPI_Irecv(&(recvBuf[ii].num ), 1, MPI_INT , ii, MPI_TAG_BODY(ii, mpi.size), mpi.comm, &(recvBuf[ii].req)));
 #endif//MPI_ONE_SIDED_FOR_EXCG
   }/* for(int ii = 0; ii < numProcs; ii++){ */
 
+  int overlapNum = 0;
 #ifdef  MPI_ONE_SIDED_FOR_EXCG
   const sendBody nullSend = {0};
 #else///MPI_ONE_SIDED_FOR_EXCG
   const int nullSend = 0;
 #endif//MPI_ONE_SIDED_FOR_EXCG
-  int overlapNum = 0;
   /* this function should be performed on host, use pinned memory */
   for(int ii = 0; ii < numProcs; ii++){
     if( (min.x <= domain.xmax[ii]) && (max.x >= domain.xmin[ii]) &&
@@ -1504,16 +1530,14 @@ void exchangeParticles_dev
 
       overlapNum++;
     }
-    else{
-      /* if covered areas do not overlap, ... */
+    else{      /* if covered areas do not overlap, ... */
+      __NOTE__("nullSend for rank %d from rank %d\n", ii, mpi.rank);
 #ifdef  MPI_ONE_SIDED_FOR_EXCG
-      chkMPIerr(MPI_Isend(&nullSend, 1, mpi.send, ii, mpi.rank, mpi.comm, &(domain.req[ii])));
+      chkMPIerr(MPI_Isend(&nullSend, 1, mpi.send, ii, MPI_TAG_BODY(mpi.rank, mpi.size), mpi.comm, &(domain.req[ii])));
 #else///MPI_ONE_SIDED_FOR_EXCG
-      chkMPIerr(MPI_Isend(&nullSend, 1, MPI_INT , ii, mpi.rank, mpi.comm, &(domain.req[ii])));
+      chkMPIerr(MPI_Isend(&nullSend, 1, MPI_INT , ii, MPI_TAG_BODY(mpi.rank, mpi.size), mpi.comm, &(domain.req[ii])));
 #endif//MPI_ONE_SIDED_FOR_EXCG
     }/* else{ */
-
-    __NOTE__("rank %d, dst = %d\n", mpi.rank, ii);
   }/* for(int ii = 0; ii < numProcs; ii++){ */
 
 
@@ -1529,9 +1553,11 @@ void exchangeParticles_dev
 
   /** determine process rank for each particle to belong */
 #if 1
-  for(int ii = 0; ii < overlapNum; ii += 4){
+  /* initialize key.dstRank_dev */
+  initDstRank<<<BLOCKSIZE(numOld, 1024), 1024>>>(numOld, key.dstRank_dev);
+
+  for(int ii = 0; ii < overlapNum; ii += 4)
     assignNewDomain_kernel<<<devProp.numSM * NBLOCKS_PER_SM_ASSIGN, NTHREADS_ASSIGN>>>(numOld, domBoundary.numNew, (*src_dev).pos, ii, overlapNum - ii, domBoundary.rank, key.dstRank_dev, domBoundary.xmin_dev, domBoundary.xmax_dev, domBoundary.ymin_dev, domBoundary.ymax_dev, domBoundary.zmin_dev, domBoundary.zmax_dev, domBoundary.gmem, domBoundary.gsync0, domBoundary.gsync1);
-  }/* for(int ii = 0; ii < overlapNum; ii += 4){ */
   getLastCudaError("assignNewDomain_kernel");
 
 #else
@@ -1606,9 +1632,9 @@ void exchangeParticles_dev
     }/* if( ii > 0 ){ */
 
 #ifdef  MPI_ONE_SIDED_FOR_EXCG
-    chkMPIerr(MPI_Isend(&(sendBuf[ii].body), 1, mpi.send, sendBuf[ii].rank, mpi.rank, mpi.comm, &(domain.req[sendBuf[ii].rank])));
+    chkMPIerr(MPI_Isend(&(sendBuf[ii].body), 1, mpi.send, sendBuf[ii].rank, MPI_TAG_BODY(mpi.rank, mpi.size), mpi.comm, &(domain.req[sendBuf[ii].rank])));
 #else///MPI_ONE_SIDED_FOR_EXCG
-    chkMPIerr(MPI_Isend(&(sendBuf[ii].num ), 1, MPI_INT , sendBuf[ii].rank, mpi.rank, mpi.comm, &(domain.req[sendBuf[ii].rank])));
+    chkMPIerr(MPI_Isend(&(sendBuf[ii].num ), 1, MPI_INT , sendBuf[ii].rank, MPI_TAG_BODY(mpi.rank, mpi.size), mpi.comm, &(domain.req[sendBuf[ii].rank])));
 #endif//MPI_ONE_SIDED_FOR_EXCG
   }/* for(int ii = 0; ii < overlapNum; ii++){ */
 
@@ -1772,139 +1798,175 @@ void exchangeParticles_dev
 #else///MPI_ONE_SIDED_FOR_EXCG
 
 
-  /** send particle data */
-  for(int ii = 0; ii < overlapNum; ii++){
-#ifndef MPI_VIA_HOST
-    chkMPIerr(MPI_Isend(&((*src_dev).pos [sendBuf[ii].head]), sendBuf[ii].num, mpi.ipos         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].pos)));
-#ifdef  GADGET_MAC
-    chkMPIerr(MPI_Isend(&((*src_dev).acc [sendBuf[ii].head]), sendBuf[ii].num, mpi.iacc         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].acc)));
-#endif//GADGET_MAC
-#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-    chkMPIerr(MPI_Isend(&((*src_dev).acc_ext[sendBuf[ii].head]), sendBuf[ii].num, mpi.iacc         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].ext)));
-#endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  BLOCK_TIME_STEP
-    chkMPIerr(MPI_Isend(&((*src_dev).vel [sendBuf[ii].head]), sendBuf[ii].num, mpi.ivel         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].vel)));
-    chkMPIerr(MPI_Isend(&((*src_dev).time[sendBuf[ii].head]), sendBuf[ii].num, mpi.time         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].time)));
-#else///BLOCK_TIME_STEP
-    chkMPIerr(MPI_Isend(&((*src_dev).vx  [sendBuf[ii].head]), sendBuf[ii].num, MPI_REALDAT      , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].vx )));
-    chkMPIerr(MPI_Isend(&((*src_dev).vy  [sendBuf[ii].head]), sendBuf[ii].num, MPI_REALDAT      , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].vy )));
-    chkMPIerr(MPI_Isend(&((*src_dev).vz  [sendBuf[ii].head]), sendBuf[ii].num, MPI_REALDAT      , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].vz )));
-#endif//BLOCK_TIME_STEP
-    chkMPIerr(MPI_Isend(&((*src_dev).idx [sendBuf[ii].head]), sendBuf[ii].num, MPI_UNSIGNED_LONG, sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].idx)));
-#else///MPI_VIA_HOST
-    chkMPIerr(MPI_Isend(&((*src_hst).pos [sendBuf[ii].head]), sendBuf[ii].num, mpi.ipos         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].pos)));
-#ifdef  GADGET_MAC
-    chkMPIerr(MPI_Isend(&((*src_hst).acc [sendBuf[ii].head]), sendBuf[ii].num, mpi.iacc         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].acc)));
-#endif//GADGET_MAC
-#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-    chkMPIerr(MPI_Isend(&((*src_hst).acc_ext[sendBuf[ii].head]), sendBuf[ii].num, mpi.iacc         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].ext)));
-#endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  BLOCK_TIME_STEP
-    chkMPIerr(MPI_Isend(&((*src_hst).vel [sendBuf[ii].head]), sendBuf[ii].num, mpi.ivel         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].vel)));
-    chkMPIerr(MPI_Isend(&((*src_hst).time[sendBuf[ii].head]), sendBuf[ii].num, mpi.time         , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].time)));
-#else///BLOCK_TIME_STEP
-    chkMPIerr(MPI_Isend(&((*src_hst).vx  [sendBuf[ii].head]), sendBuf[ii].num, MPI_REALDAT      , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].vx )));
-    chkMPIerr(MPI_Isend(&((*src_hst).vy  [sendBuf[ii].head]), sendBuf[ii].num, MPI_REALDAT      , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].vy )));
-    chkMPIerr(MPI_Isend(&((*src_hst).vz  [sendBuf[ii].head]), sendBuf[ii].num, MPI_REALDAT      , sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].vz )));
-#endif//BLOCK_TIME_STEP
-    chkMPIerr(MPI_Isend(&((*src_hst).idx [sendBuf[ii].head]), sendBuf[ii].num, MPI_UNSIGNED_LONG, sendBuf[ii].rank, mpi.rank, mpi.comm, &(sendBuf[ii].idx)));
-#endif//MPI_VIA_HOST
-  }/* for(int ii = 0; ii < overlapNum; ii++){ */
-
-
   /** receive particle data */
   *numNew = 0;
-  for(int ii = 0; ii < numProcs; ii++)
-    recvBuf[ii].head = 0;
+  /* for(int ii = 0; ii < numProcs; ii++) */
+  /*   recvBuf[ii].head = 0; */
+  int recvHead = 0;
   for(int ii = 0; ii < numProcs; ii++){
     /** receive recvNum */
     MPI_Status status;
     chkMPIerr(MPI_Wait(&(recvBuf[ii].req), &status));
+    __NOTE__("recvBuf[%d].req: head = %d, num = %d, src = rank %d\n", ii, recvHead, recvBuf[ii].num, ii);
 
-    /** if recvNum != 0, then set receive buffer */
-    if( recvBuf[ii].num != 0 ){
+    /** if recvNum > 0, then set receive buffer */
+    if( recvBuf[ii].num > 0 ){
 #ifndef MPI_VIA_HOST
-      chkMPIerr(MPI_Irecv(&((*dst_dev).pos [recvBuf[ii].head]), recvBuf[ii].num, mpi.ipos         , ii, ii, mpi.comm, &(recvBuf[ii].pos)));
-#ifdef  GADGET_MAC
-      chkMPIerr(MPI_Irecv(&((*dst_dev).acc [recvBuf[ii].head]), recvBuf[ii].num, mpi.iacc         , ii, ii, mpi.comm, &(recvBuf[ii].acc)));
-#endif//GADGET_MAC
-#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-      chkMPIerr(MPI_Irecv(&((*dst_dev).acc_ext[recvBuf[ii].head]), recvBuf[ii].num, mpi.iacc         , ii, ii, mpi.comm, &(recvBuf[ii].ext)));
-#endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  BLOCK_TIME_STEP
-      chkMPIerr(MPI_Irecv(&((*dst_dev).vel [recvBuf[ii].head]), recvBuf[ii].num, mpi.ipos         , ii, ii, mpi.comm, &(recvBuf[ii].vel)));
-      chkMPIerr(MPI_Irecv(&((*dst_dev).time[recvBuf[ii].head]), recvBuf[ii].num, mpi.ipos         , ii, ii, mpi.comm, &(recvBuf[ii].time)));
-#else///BLOCK_TIME_STEP
-      chkMPIerr(MPI_Irecv(&((*dst_dev).vx  [recvBuf[ii].head]), recvBuf[ii].num, MPI_REALDAT      , ii, ii, mpi.comm, &(recvBuf[ii].vx )));
-      chkMPIerr(MPI_Irecv(&((*dst_dev).vy  [recvBuf[ii].head]), recvBuf[ii].num, MPI_REALDAT      , ii, ii, mpi.comm, &(recvBuf[ii].vy )));
-      chkMPIerr(MPI_Irecv(&((*dst_dev).vz  [recvBuf[ii].head]), recvBuf[ii].num, MPI_REALDAT      , ii, ii, mpi.comm, &(recvBuf[ii].vz )));
-#endif//BLOCK_TIME_STEP
-      chkMPIerr(MPI_Irecv(&((*dst_dev).idx [recvBuf[ii].head]), recvBuf[ii].num, MPI_UNSIGNED_LONG, ii, ii, mpi.comm, &(recvBuf[ii].idx)));
+      chkMPIerr(MPI_Irecv(&((*dst_dev).pos[recvHead]), recvBuf[ii].num,          mpi.ipos, ii, MPI_TAG_IPOS(ii, mpi.size), mpi.comm, &(recvBuf[ii].pos)));
+      chkMPIerr(MPI_Irecv(&((*dst_dev).idx[recvHead]), recvBuf[ii].num, MPI_UNSIGNED_LONG, ii, MPI_TAG_IIDX(ii, mpi.size), mpi.comm, &(recvBuf[ii].idx)));
 #else///MPI_VIA_HOST
-      chkMPIerr(MPI_Irecv(&((*dst_hst).pos [recvBuf[ii].head]), recvBuf[ii].num, mpi.ipos         , ii, ii, mpi.comm, &(recvBuf[ii].pos)));
-#ifdef  GADGET_MAC
-      chkMPIerr(MPI_Irecv(&((*dst_hst).acc [recvBuf[ii].head]), recvBuf[ii].num, mpi.iacc         , ii, ii, mpi.comm, &(recvBuf[ii].acc)));
-#endif//GADGET_MAC
-#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-      chkMPIerr(MPI_Irecv(&((*dst_hst).acc_ext[recvBuf[ii].head]), recvBuf[ii].num, mpi.iacc         , ii, ii, mpi.comm, &(recvBuf[ii].acc_ext)));
-#endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  BLOCK_TIME_STEP
-      chkMPIerr(MPI_Irecv(&((*dst_hst).vel [recvBuf[ii].head]), recvBuf[ii].num, mpi.ipos         , ii, ii, mpi.comm, &(recvBuf[ii].vel)));
-      chkMPIerr(MPI_Irecv(&((*dst_hst).time[recvBuf[ii].head]), recvBuf[ii].num, mpi.ipos         , ii, ii, mpi.comm, &(recvBuf[ii].time)));
-#else///BLOCK_TIME_STEP
-      chkMPIerr(MPI_Irecv(&((*dst_hst).vx  [recvBuf[ii].head]), recvBuf[ii].num, MPI_REALDAT      , ii, ii, mpi.comm, &(recvBuf[ii].vx )));
-      chkMPIerr(MPI_Irecv(&((*dst_hst).vy  [recvBuf[ii].head]), recvBuf[ii].num, MPI_REALDAT      , ii, ii, mpi.comm, &(recvBuf[ii].vy )));
-      chkMPIerr(MPI_Irecv(&((*dst_hst).vz  [recvBuf[ii].head]), recvBuf[ii].num, MPI_REALDAT      , ii, ii, mpi.comm, &(recvBuf[ii].vz )));
-#endif//BLOCK_TIME_STEP
-      chkMPIerr(MPI_Irecv(&((*dst_hst).idx [recvBuf[ii].head]), recvBuf[ii].num, MPI_UNSIGNED_LONG, ii, ii, mpi.comm, &(recvBuf[ii].idx)));
+      chkMPIerr(MPI_Irecv(&((*dst_hst).pos[recvHead]), recvBuf[ii].num,          mpi.ipos, ii, MPI_TAG_IPOS(ii, mpi.size), mpi.comm, &(recvBuf[ii].pos)));
+      chkMPIerr(MPI_Irecv(&((*dst_hst).idx[recvHead]), recvBuf[ii].num, MPI_UNSIGNED_LONG, ii, MPI_TAG_IIDX(ii, mpi.size), mpi.comm, &(recvBuf[ii].idx)));
 #endif//MPI_VIA_HOST
 
-      *numNew += recvBuf[ii].num;
+#ifdef  BLOCK_TIME_STEP
+#ifndef MPI_VIA_HOST
+      chkMPIerr(MPI_Irecv(&((*dst_dev).vel [recvHead]), recvBuf[ii].num, mpi.ivel, ii, MPI_TAG_IVEL(ii, mpi.size), mpi.comm, &(recvBuf[ii].vel)));
+      chkMPIerr(MPI_Irecv(&((*dst_dev).time[recvHead]), recvBuf[ii].num, mpi.time, ii, MPI_TAG_TIME(ii, mpi.size), mpi.comm, &(recvBuf[ii].time)));
+#else///MPI_VIA_HOST
+      chkMPIerr(MPI_Irecv(&((*dst_hst).vel [recvHead]), recvBuf[ii].num, mpi.ivel, ii, MPI_TAG_IVEL(ii, mpi.size), mpi.comm, &(recvBuf[ii].vel)));
+      chkMPIerr(MPI_Irecv(&((*dst_hst).time[recvHead]), recvBuf[ii].num, mpi.time, ii, MPI_TAG_TIME(ii, mpi.size), mpi.comm, &(recvBuf[ii].time)));
+#endif//MPI_VIA_HOST
+#else///BLOCK_TIME_STEP
+#ifndef MPI_VIA_HOST
+      chkMPIerr(MPI_Irecv(&((*dst_dev).vx[recvHead]), recvBuf[ii].num, MPI_REALDAT, ii, MPI_TAG_VELX(ii, mpi.size), mpi.comm, &(recvBuf[ii].vx )));
+      chkMPIerr(MPI_Irecv(&((*dst_dev).vy[recvHead]), recvBuf[ii].num, MPI_REALDAT, ii, MPI_TAG_VELY(ii, mpi.size), mpi.comm, &(recvBuf[ii].vy )));
+      chkMPIerr(MPI_Irecv(&((*dst_dev).vz[recvHead]), recvBuf[ii].num, MPI_REALDAT, ii, MPI_TAG_VELZ(ii, mpi.size), mpi.comm, &(recvBuf[ii].vz )));
+#else///MPI_VIA_HOST
+      chkMPIerr(MPI_Irecv(&((*dst_hst).vx[recvHead]), recvBuf[ii].num, MPI_REALDAT, ii, MPI_TAG_VELX(ii, mpi.size), mpi.comm, &(recvBuf[ii].vx)));
+      chkMPIerr(MPI_Irecv(&((*dst_hst).vy[recvHead]), recvBuf[ii].num, MPI_REALDAT, ii, MPI_TAG_VELY(ii, mpi.size), mpi.comm, &(recvBuf[ii].vy)));
+      chkMPIerr(MPI_Irecv(&((*dst_hst).vz[recvHead]), recvBuf[ii].num, MPI_REALDAT, ii, MPI_TAG_VELZ(ii, mpi.size), mpi.comm, &(recvBuf[ii].vz)));
+#endif//MPI_VIA_HOST
+#endif//BLOCK_TIME_STEP
 
-      if( ii + 1 < numProcs )
-	recvBuf[ii + 1].head = recvBuf[ii].head + recvBuf[ii].num;
-    }/* if( recvBuf[ii].num != 0 ){ */
+#ifdef  GADGET_MAC
+#ifndef MPI_VIA_HOST
+      chkMPIerr(MPI_Irecv(&((*dst_dev).acc[recvHead]), recvBuf[ii].num, mpi.iacc, ii, MPI_TAG_IACC(ii, mpi.size), mpi.comm, &(recvBuf[ii].acc)));
+#else///MPI_VIA_HOST
+      chkMPIerr(MPI_Irecv(&((*dst_hst).acc[recvHead]), recvBuf[ii].num, mpi.iacc, ii, MPI_TAG_IACC(ii, mpi.size), mpi.comm, &(recvBuf[ii].acc)));
+#endif//MPI_VIA_HOST
+#endif//GADGET_MAC
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+#ifndef MPI_VIA_HOST
+      chkMPIerr(MPI_Irecv(&((*dst_dev).acc_ext[recvHead]), recvBuf[ii].num, mpi.iacc, ii, MPI_TAG_IEXT(ii, mpi.size), mpi.comm, &(recvBuf[ii].ext)));
+#else///MPI_VIA_HOST
+      chkMPIerr(MPI_Irecv(&((*dst_hst).acc_ext[recvHead]), recvBuf[ii].num, mpi.iacc, ii, MPI_TAG_IEXT(ii, mpi.size), mpi.comm, &(recvBuf[ii].ext)));
+#endif//MPI_VIA_HOST
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+
+      *numNew  += recvBuf[ii].num;
+      recvHead += recvBuf[ii].num;
+    }/* if( recvBuf[ii].num > 0 ){ */
   }/* for(int ii = 0; ii < numProcs; ii++){ */
+
+  /** send particle data */
+  for(int ii = 0; ii < overlapNum; ii++){
+    /** if sendBuf[ii].Num > 0, then send N-body particles */
+    if( sendBuf[ii].num > 0 ){
+      __NOTE__("sendBuf[%d]: head = %d, num = %d, dst = rank %d\n", ii, sendBuf[ii].head, sendBuf[ii].num, sendBuf[ii].rank);
+
+#ifndef MPI_VIA_HOST
+      chkMPIerr(MPI_Isend(&((*src_dev).pos[sendBuf[ii].head]), sendBuf[ii].num,          mpi.ipos, sendBuf[ii].rank, MPI_TAG_IPOS(mpi.rank, mpi.size), mpi.comm, &(sendBuf[ii].pos)));
+      chkMPIerr(MPI_Isend(&((*src_dev).idx[sendBuf[ii].head]), sendBuf[ii].num, MPI_UNSIGNED_LONG, sendBuf[ii].rank, MPI_TAG_IIDX(mpi.rank, mpi.size), mpi.comm, &(sendBuf[ii].idx)));
+#else///MPI_VIA_HOST
+      chkMPIerr(MPI_Isend(&((*src_hst).pos[sendBuf[ii].head]), sendBuf[ii].num,          mpi.ipos, sendBuf[ii].rank, MPI_TAG_IPOS(mpi.rank, mpi.size), mpi.comm, &(sendBuf[ii].pos)));
+      chkMPIerr(MPI_Isend(&((*src_hst).idx[sendBuf[ii].head]), sendBuf[ii].num, MPI_UNSIGNED_LONG, sendBuf[ii].rank, MPI_TAG_IIDX(mpi.rank, mpi.size), mpi.comm, &(sendBuf[ii].idx)));
+#endif//MPI_VIA_HOST
+
+#ifdef  BLOCK_TIME_STEP
+#ifndef MPI_VIA_HOST
+      chkMPIerr(MPI_Isend(&((*src_dev).vel [sendBuf[ii].head]), sendBuf[ii].num, mpi.ivel, sendBuf[ii].rank, MPI_TAG_IVEL(mpi.rank, mpi.size), mpi.comm, &(sendBuf[ii].vel)));
+      chkMPIerr(MPI_Isend(&((*src_dev).time[sendBuf[ii].head]), sendBuf[ii].num, mpi.time, sendBuf[ii].rank, MPI_TAG_TIME(mpi.rank, mpi.size), mpi.comm, &(sendBuf[ii].time)));
+#else///MPI_VIA_HOST
+      chkMPIerr(MPI_Isend(&((*src_hst).vel [sendBuf[ii].head]), sendBuf[ii].num, mpi.ivel, sendBuf[ii].rank, MPI_TAG_IVEL(mpi.rank, mpi.size), mpi.comm, &(sendBuf[ii].vel)));
+      chkMPIerr(MPI_Isend(&((*src_hst).time[sendBuf[ii].head]), sendBuf[ii].num, mpi.time, sendBuf[ii].rank, MPI_TAG_TIME(mpi.rank, mpi.size), mpi.comm, &(sendBuf[ii].time)));
+#endif//MPI_VIA_HOST
+#else///BLOCK_TIME_STEP
+#ifndef MPI_VIA_HOST
+      chkMPIerr(MPI_Isend(&((*src_dev).vx[sendBuf[ii].head]), sendBuf[ii].num, MPI_REALDAT, sendBuf[ii].rank, MPI_TAG_VELX(mpi.rank, mpi.size), mpi.comm, &(sendBuf[ii].vx)));
+      chkMPIerr(MPI_Isend(&((*src_dev).vy[sendBuf[ii].head]), sendBuf[ii].num, MPI_REALDAT, sendBuf[ii].rank, MPI_TAG_VELY(mpi.rank, mpi.size), mpi.comm, &(sendBuf[ii].vy)));
+      chkMPIerr(MPI_Isend(&((*src_dev).vz[sendBuf[ii].head]), sendBuf[ii].num, MPI_REALDAT, sendBuf[ii].rank, MPI_TAG_VELZ(mpi.rank, mpi.size), mpi.comm, &(sendBuf[ii].vz)));
+#else///MPI_VIA_HOST
+      chkMPIerr(MPI_Isend(&((*src_hst).vx[sendBuf[ii].head]), sendBuf[ii].num, MPI_REALDAT, sendBuf[ii].rank, MPI_TAG_VELX(mpi.rank, mpi.size), mpi.comm, &(sendBuf[ii].vx)));
+      chkMPIerr(MPI_Isend(&((*src_hst).vy[sendBuf[ii].head]), sendBuf[ii].num, MPI_REALDAT, sendBuf[ii].rank, MPI_TAG_VELY(mpi.rank, mpi.size), mpi.comm, &(sendBuf[ii].vy)));
+      chkMPIerr(MPI_Isend(&((*src_hst).vz[sendBuf[ii].head]), sendBuf[ii].num, MPI_REALDAT, sendBuf[ii].rank, MPI_TAG_VELZ(mpi.rank, mpi.size), mpi.comm, &(sendBuf[ii].vz)));
+#endif//MPI_VIA_HOST
+#endif//BLOCK_TIME_STEP
+
+#ifdef  GADGET_MAC
+#ifndef MPI_VIA_HOST
+      chkMPIerr(MPI_Isend(&((*src_dev).acc[sendBuf[ii].head]), sendBuf[ii].num, mpi.iacc, sendBuf[ii].rank, MPI_TAG_IACC(mpi.rank, mpi.size), mpi.comm, &(sendBuf[ii].acc)));
+#else///MPI_VIA_HOST
+      chkMPIerr(MPI_Isend(&((*src_hst).acc[sendBuf[ii].head]), sendBuf[ii].num, mpi.iacc, sendBuf[ii].rank, MPI_TAG_IACC(mpi.rank, mpi.size), mpi.comm, &(sendBuf[ii].acc)));
+#endif//MPI_VIA_HOST
+#endif//GADGET_MAC
+
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+#ifndef MPI_VIA_HOST
+      chkMPIerr(MPI_Isend(&((*src_dev).acc_ext[sendBuf[ii].head]), sendBuf[ii].num, mpi.iacc, sendBuf[ii].rank, MPI_TAG_IEXT(mpi.rank, mpi.size), mpi.comm, &(sendBuf[ii].ext)));
+#else///MPI_VIA_HOST
+      chkMPIerr(MPI_Isend(&((*src_hst).acc_ext[sendBuf[ii].head]), sendBuf[ii].num, mpi.iacc, sendBuf[ii].rank, MPI_TAG_IEXT(mpi.rank, mpi.size), mpi.comm, &(sendBuf[ii].ext)));
+#endif//MPI_VIA_HOST
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+
+#ifndef NDEBUG
+#ifndef MPI_VIA_HOST
+      for(int jj = 0; jj < sendBuf[ii].num; jj++){
+	const int kk = sendBuf[ii].head + jj;
+	if( (*src_hst).pos[kk].m < EPSILON )
+	  __NOTE__("pi[%d]: sendmass = %e, x = %e, y = %e, z = %e\n", kk, (*src_hst).pos[kk].m, (*src_hst).pos[kk].x, (*src_hst).pos[kk].y, (*src_hst).pos[kk].z);
+      }
+#endif//MPI_VIA_HOST
+#endif//NDEBUG
+
+    }/* if( sendBuf[ii].num > 0 ){ */
+  }/* for(int ii = 0; ii < overlapNum; ii++){ */
+
 
   /** complete MPI communications */
   for(int ii = 0; ii < overlapNum; ii++){
-    MPI_Status  pos;    chkMPIerr(MPI_Wait(&(sendBuf[ii]. pos), &pos));
+    if( sendBuf[ii].num > 0 ){
+      __NOTE__("send %d bodies from rank %d to rank %d (%d/%d)\n", sendBuf[ii].num, mpi.rank, sendBuf[ii].rank, ii, overlapNum);
+      MPI_Status  pos;    chkMPIerr(MPI_Wait(&(sendBuf[ii]. pos), &pos));    __NOTE__("sendBuf[%d].pos\n", ii);
+      MPI_Status  idx;    chkMPIerr(MPI_Wait(&(sendBuf[ii]. idx), &idx));    __NOTE__("sendBuf[%d].idx\n", ii);
+#ifdef  BLOCK_TIME_STEP
+      MPI_Status  vel;    chkMPIerr(MPI_Wait(&(sendBuf[ii]. vel), &vel));    __NOTE__("sendBuf[%d].vel\n", ii);
+      MPI_Status time;    chkMPIerr(MPI_Wait(&(sendBuf[ii].time), &time));    __NOTE__("sendBuf[%d].time\n", ii);
+#else///BLOCK_TIME_STEP
+      MPI_Status   vx;    chkMPIerr(MPI_Wait(&(sendBuf[ii].  vx), & vx));    __NOTE__("sendBuf[%d].vx\n", ii);
+      MPI_Status   vy;    chkMPIerr(MPI_Wait(&(sendBuf[ii].  vy), & vy));    __NOTE__("sendBuf[%d].vy\n", ii);
+      MPI_Status   vz;    chkMPIerr(MPI_Wait(&(sendBuf[ii].  vz), & vz));    __NOTE__("sendBuf[%d].vz\n", ii);
+#endif//BLOCK_TIME_STEP
 #ifdef  GADGET_MAC
-    MPI_Status  acc;    chkMPIerr(MPI_Wait(&(sendBuf[ii]. acc), &acc));
+      MPI_Status  acc;    chkMPIerr(MPI_Wait(&(sendBuf[ii]. acc), &acc));    __NOTE__("sendBuf[%d].acc\n", ii);
 #endif//GADGET_MAC
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-    MPI_Status  ext;    chkMPIerr(MPI_Wait(&(sendBuf[ii].acc_ext), &ext));
+      MPI_Status  ext;    chkMPIerr(MPI_Wait(&(sendBuf[ii].acc_ext), &ext));    __NOTE__("sendBuf[%d].ext\n", ii);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  BLOCK_TIME_STEP
-    MPI_Status  vel;    chkMPIerr(MPI_Wait(&(sendBuf[ii]. vel), &vel));
-    MPI_Status time;    chkMPIerr(MPI_Wait(&(sendBuf[ii].time), &time));
-#else///BLOCK_TIME_STEP
-    MPI_Status   vx;    chkMPIerr(MPI_Wait(&(sendBuf[ii].  vx), & vx));
-    MPI_Status   vy;    chkMPIerr(MPI_Wait(&(sendBuf[ii].  vy), & vy));
-    MPI_Status   vz;    chkMPIerr(MPI_Wait(&(sendBuf[ii].  vz), & vz));
-#endif//BLOCK_TIME_STEP
-    MPI_Status  idx;    chkMPIerr(MPI_Wait(&(sendBuf[ii]. idx), &idx));
+    }/* if( sendBuf[ii].num > 0 ){ */
   }/* for(int ii = 0; ii < overlapNum; ii++){ */
 
   for(int ii = 0; ii < numProcs; ii++)
-    if( recvBuf[ii].num != 0 ){
-      MPI_Status  pos;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. pos), &pos));
+    if( recvBuf[ii].num > 0 ){
+      __NOTE__("recv %d bodies from rank %d to rank %d\n", recvBuf[ii].num, ii, mpi.rank);
+      MPI_Status  pos;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. pos), &pos));      __NOTE__("recvBuf[%d].pos\n", ii);
+      MPI_Status  idx;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. idx), &idx));      __NOTE__("recvBuf[%d].idx\n", ii);
+#ifdef  BLOCK_TIME_STEP
+      MPI_Status  vel;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. vel), &vel));      __NOTE__("recvBuf[%d].vel\n", ii);
+      MPI_Status time;      chkMPIerr(MPI_Wait(&(recvBuf[ii].time), &time));      __NOTE__("recvBuf[%d].time\n", ii);
+#else///BLOCK_TIME_STEP
+      MPI_Status   vx;      chkMPIerr(MPI_Wait(&(recvBuf[ii].  vx), & vx));      __NOTE__("recvBuf[%d].vx\n", ii);
+      MPI_Status   vy;      chkMPIerr(MPI_Wait(&(recvBuf[ii].  vy), & vy));      __NOTE__("recvBuf[%d].vy\n", ii);
+      MPI_Status   vz;      chkMPIerr(MPI_Wait(&(recvBuf[ii].  vz), & vz));      __NOTE__("recvBuf[%d].vz\n", ii);
+#endif//BLOCK_TIME_STEP
 #ifdef  GADGET_MAC
-      MPI_Status  acc;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. acc), &acc));
+      MPI_Status  acc;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. acc), &acc));      __NOTE__("recvBuf[%d].acc\n", ii);
 #endif//GADGET_MAC
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-      MPI_Status  ext;      chkMPIerr(MPI_Wait(&(recvBuf[ii].acc_ext), &ext));
+      MPI_Status  ext;      chkMPIerr(MPI_Wait(&(recvBuf[ii].acc_ext), &ext));      __NOTE__("recvBuf[%d].ext\n", ii);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  BLOCK_TIME_STEP
-      MPI_Status  vel;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. vel), &vel));
-      MPI_Status time;      chkMPIerr(MPI_Wait(&(recvBuf[ii].time), &time));
-#else///BLOCK_TIME_STEP
-      MPI_Status   vx;      chkMPIerr(MPI_Wait(&(recvBuf[ii].  vx), & vx));
-      MPI_Status   vy;      chkMPIerr(MPI_Wait(&(recvBuf[ii].  vy), & vy));
-      MPI_Status   vz;      chkMPIerr(MPI_Wait(&(recvBuf[ii].  vz), & vz));
-#endif//BLOCK_TIME_STEP
-      MPI_Status  idx;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. idx), &idx));
-    }/* if( recvBuf[ii].num != 0 ){ */
+    }/* if( recvBuf[ii].num > 0 ){ */
 
 #endif//MPI_ONE_SIDED_FOR_EXCG
 
@@ -1930,8 +1992,15 @@ void exchangeParticles_dev
 		       , elapsed
 #endif//EXEC_BENCHMARK
 		       );
+
+#ifndef NDEBUG
+  for(int ii = 0; ii < *numNew; ii++)
+    if( (*dst_hst).pos[ii].m < EPSILON )
+      __NOTE__("pi[%d]: recvmass = %e, x = %e, y = %e, z = %e\n", ii, (*dst_hst).pos[ii].m, (*dst_hst).pos[ii].x, (*dst_hst).pos[ii].y, (*dst_hst).pos[ii].z);
+#endif//NDEBUG
+
 #endif//MPI_VIA_HOST
-  __NOTE__("numOld = %d, numNew = %d @ rank %d\n", numOld, *numNew, mpi.rank);
+  __NOTE__("numOld = %d, numNew = %d\n", numOld, *numNew);
 
   iparticle _tmp_hst;
   _tmp_hst = *src_hst;

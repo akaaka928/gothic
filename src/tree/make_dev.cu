@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/16 (Fri)
+ * @date 2018/02/21 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -399,37 +399,37 @@ __global__ void initPHhierarchy_kernel(PHinfo *level)
 }
 
 
-/**
- * @fn initTreeCell_kernel
- *
- * @brief Initialize information on tree cells.
- */
-__global__ void initTreeCell_kernel
-(const int cellNum, treecell * RESTRICT cell, PHint * RESTRICT hkey, uint * RESTRICT parent, uint * RESTRICT children, bool * RESTRICT leaf, uint * RESTRICT ptag, const int piNum)
-{
-  const int ii = GLOBALIDX_X1D;
+/* /\** */
+/*  * @fn initTreeCell_kernel */
+/*  * */
+/*  * @brief Initialize information on tree cells. */
+/*  *\/ */
+/* __global__ void initTreeCell_kernel */
+/* (const int cellNum, treecell * RESTRICT cell, PHint * RESTRICT hkey, uint * RESTRICT parent, uint * RESTRICT children, bool * RESTRICT leaf, uint * RESTRICT ptag, const int piNum) */
+/* { */
+/*   const int ii = GLOBALIDX_X1D; */
 
-  if( ii < cellNum ){
-    /** initialize tree-cell information */
-    treecell tmp_null_cell = {0, NULL_CELL};
-    int tmp_hkey = -1;
+/*   if( ii < cellNum ){ */
+/*     /\** initialize tree-cell information *\/ */
+/*     treecell tmp_null_cell = {0, NULL_CELL}; */
+/*     int tmp_hkey = -1; */
 
-    /** set a root cell */
-    if( ii == 0 ){
-      tmp_null_cell.head = 0;
-      tmp_null_cell.num  = piNum;
-      tmp_hkey           = 0;
-    }/* if( ii == 0 ){ */
+/*     /\** set a root cell *\/ */
+/*     if( ii == 0 ){ */
+/*       tmp_null_cell.head = 0; */
+/*       tmp_null_cell.num  = piNum; */
+/*       tmp_hkey           = 0; */
+/*     }/\* if( ii == 0 ){ *\/ */
 
-    /** store initialized information on tree-cell */
-    cell    [ii] = tmp_null_cell;
-    hkey    [ii] = tmp_hkey;
-    parent  [ii] = NULL_CELL;
-    children[ii] = NULL_CELL;
-    leaf    [ii] = true;
-    ptag    [ii] = NULL_NODE;
-  }/* if( ii < cellNum ){ */
-}
+/*     /\** store initialized information on tree-cell *\/ */
+/*     cell    [ii] = tmp_null_cell; */
+/*     hkey    [ii] = tmp_hkey; */
+/*     parent  [ii] = NULL_CELL; */
+/*     children[ii] = NULL_CELL; */
+/*     leaf    [ii] = true; */
+/*     ptag    [ii] = NULL_NODE; */
+/*   }/\* if( ii < cellNum ){ *\/ */
+/* } */
 
 
 /**
@@ -470,14 +470,16 @@ __global__ void initTreeCellOffset_kernel
  *
  * @brief Initialize information on pseudo particles.
  */
-__global__ void initTreeNode_kernel(const int pjNum, uint * RESTRICT more, int * RESTRICT node2cell)
+/* __global__ void initTreeNode_kernel(const int pjNum, uint * RESTRICT more, int * RESTRICT node2cell) */
+__global__ void initTreeNode_kernel(uint * RESTRICT more, int * RESTRICT node2cell)
 {
   const int jj = GLOBALIDX_X1D;
-
-  if( jj < pjNum ){
-    more     [jj] = NULL_NODE;
-    node2cell[jj] = NULL_CELL;
-  }/* if( jj < pjNum ){ */
+  /* if( jj < pjNum ){ */
+  /*   more     [jj] = NULL_NODE; */
+  /*   node2cell[jj] = NULL_CELL; */
+  /* }/\* if( jj < pjNum ){ *\/ */
+  more     [jj] = NULL_NODE;
+  node2cell[jj] = NULL_CELL;
 }
 
 
@@ -486,12 +488,13 @@ __global__ void initTreeNode_kernel(const int pjNum, uint * RESTRICT more, int *
  *
  * @brief Initialize information on relation between i-particle and real j-particle.
  */
-__global__ void initTreeLink_kernel(const int piNum, int *jtag)
+/* __global__ void initTreeLink_kernel(const int piNum, int *jtag) */
+__global__ void initTreeLink_kernel(int *jtag)
 {
-  const int ii = GLOBALIDX_X1D;
-
-  if( ii < piNum )
-    jtag[ii] = NULL_NODE;
+  /* const int ii = GLOBALIDX_X1D; */
+  /* if( ii < piNum ) */
+  /*   jtag[ii] = NULL_NODE; */
+  jtag[GLOBALIDX_X1D] = NULL_NODE;
 }
 
 
@@ -585,7 +588,10 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
 	const PHint keyHead = (cidx < cellTail) ? (hkey_sm[idx]) : ((PHint)(-1));
 
 	const bool node = (root.num > NCRIT) ? (true) : (false);
-
+/* #ifndef NDEBUG */
+/* 	if( (bidx + tidx == 0) && (levelIdx > 12) ) */
+/* 	  printf("lev = %d, cidx = %d, root.head = %d, root.num = %d (%lu <= key <= %lu, leafScale = %lu)\n", levelIdx, cidx, root.head, root.num, peano[root.head], peano[root.head + root.num - 1], leafScale); */
+/* #endif//NDEBUG */
 
 	/** divide the responsible tree cell if the cell is not a leaf cell */
 	__syncthreads();
@@ -693,10 +699,10 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
       const  int addCellNum = smem[0];
       tail    += addCellNum;
       numCell += addCellNum;
-#if 0
-      if( bidx + tidx == 0 )
-	printf("%d\n", *scanNum_gm);
-#endif
+/* #ifndef NDEBUG */
+/*       if( bidx + tidx == 0 ) */
+/* 	printf("scanNum = %d, bnum = %d, bnumSub = %d\n", *scanNum_gm, bnum, bnumSub); */
+/* #endif//NDEBUG */
     }/* for(int iter = 0; iter < Niter; iter++){ */
 
     daughter.head =        cellTail;
@@ -704,14 +710,14 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
     if( tidx == 0 )
       lev_sm[levelIdx + 1] = daughter;
 
+/* #ifndef NDEBUG */
+/*     if( bidx + tidx == 0 ) */
+/*       printf("level %d: numCell = %d, daughter.num = %d\n", levelIdx, numCell, daughter.num); */
+/* #endif//NDEBUG */
     if( daughter.num == 0 )
       break;
 
     globalSync(tidx, bidx, bnum, gsync0Ful, gsync1Ful);
-#if 0
-if( bidx + tidx == 0 )
-printf("level %d: numCell = %d\n", levelIdx, numCell);
-#endif
   }/* for(int levelIdx = 0; levelIdx < MAXIMUM_PHKEY_LEVEL; levelIdx++){ */
 
 
@@ -883,6 +889,9 @@ void makeTreeStructure_dev
  int * RESTRICT cellNum, int * RESTRICT cellNum_dev, const soaTreeCell cell,
  int * RESTRICT nodeNum, int * RESTRICT nodeNum_dev, const soaTreeNode node,
  const soaMakeTreeBuf buf, deviceProp devProp
+#ifndef SERIALIZED_EXECUTION
+ , const int piNum_prev
+#endif//SERIALIZED_EXECUTION
 #ifdef  EXEC_BENCHMARK
  , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
@@ -897,9 +906,14 @@ void makeTreeStructure_dev
 #endif//EXEC_BENCHMARK
 
   /** initialize tree structure */
-  int Nrem = BLOCKSIZE(piNum, NTHREADS_INIT_LINK);
-  if( Nrem <= MAX_BLOCKS_PER_GRID )
-    initTreeLink_kernel<<<Nrem, NTHREADS_INIT_LINK>>>(piNum, node.jtag);
+#ifdef  SERIALIZED_EXECUTION
+  const int piNum_prev = piNum;
+#endif//SERIALIZED_EXECUTION
+  int Nrem = BLOCKSIZE(piNum_prev, NTHREADS_INIT_LINK);
+  if( Nrem <= MAX_BLOCKS_PER_GRID ){
+    /* initTreeLink_kernel<<<Nrem, NTHREADS_INIT_LINK>>>(piNum_prev, node.jtag); */
+    initTreeLink_kernel<<<Nrem, NTHREADS_INIT_LINK>>>(node.jtag);
+  }/* if( Nrem <= MAX_BLOCKS_PER_GRID ){ */
   else{
     const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
     int hidx = 0;
@@ -909,7 +923,8 @@ void makeTreeStructure_dev
       if( Nblck > Nrem )	Nblck = Nrem;
 
       int Nsub = Nblck * NTHREADS_INIT_LINK;
-      initTreeLink_kernel<<<Nblck, NTHREADS_INIT_LINK>>>(Nsub, &node.jtag[hidx]);
+      /* initTreeLink_kernel<<<Nblck, NTHREADS_INIT_LINK>>>(Nsub, &node.jtag[hidx]); */
+      initTreeLink_kernel<<<Nblck, NTHREADS_INIT_LINK>>>(&node.jtag[hidx]);
 
       hidx += Nsub;
       Nrem -= Nblck;
@@ -922,8 +937,9 @@ void makeTreeStructure_dev
 #endif//HUNT_MAKE_PARAMETER
 
   Nrem = BLOCKSIZE(*cellNum, NTHREADS_INIT_CELL);
+  __NOTE__("cellNum in the previous step: %d\n", *cellNum);
   if( Nrem <= MAX_BLOCKS_PER_GRID )
-    initTreeCell_kernel<<<Nrem, NTHREADS_INIT_CELL>>>(*cellNum, cell.cell, cell.hkey, cell.parent, cell.children, cell.leaf, cell.ptag, piNum);
+    initTreeCellOffset_kernel<<<Nrem, NTHREADS_INIT_CELL>>>(0, *cellNum, cell.cell, cell.hkey, cell.parent, cell.children, cell.leaf, cell.ptag, piNum);
   else{
     const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
     int hidx = 0;
@@ -946,8 +962,10 @@ void makeTreeStructure_dev
 #endif//HUNT_MAKE_PARAMETER
 
   Nrem = BLOCKSIZE(*nodeNum, NTHREADS_INIT_NODE);
-  if( Nrem <= MAX_BLOCKS_PER_GRID )
-    initTreeNode_kernel<<<Nrem, NTHREADS_INIT_NODE>>>(*nodeNum, node.more, node.node2cell);
+  if( Nrem <= MAX_BLOCKS_PER_GRID ){
+    /* initTreeNode_kernel<<<Nrem, NTHREADS_INIT_NODE>>>(*nodeNum, node.more, node.node2cell); */
+    initTreeNode_kernel<<<Nrem, NTHREADS_INIT_NODE>>>(node.more, node.node2cell);
+  }/* if( Nrem <= MAX_BLOCKS_PER_GRID ){ */
   else{
     const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
     int hidx = 0;
@@ -957,7 +975,8 @@ void makeTreeStructure_dev
       if( Nblck > Nrem )	Nblck = Nrem;
 
       int Nsub = Nblck * NTHREADS_INIT_NODE;
-      initTreeNode_kernel<<<Nblck, NTHREADS_INIT_NODE>>>(Nsub, &node.more[hidx], &node.node2cell[hidx]);
+      /* initTreeNode_kernel<<<Nblck, NTHREADS_INIT_NODE>>>(Nsub, &node.more[hidx], &node.node2cell[hidx]); */
+      initTreeNode_kernel<<<Nblck, NTHREADS_INIT_NODE>>>(&node.more[hidx], &node.node2cell[hidx]);
 
       hidx += Nsub;
       Nrem -= Nblck;
@@ -993,6 +1012,8 @@ void makeTreeStructure_dev
   fflush(NULL);
   exit(0);
 #endif
+  __NOTE__("leafLev = %d\n", *leafLev);
+  __NOTE__("cellNum in the current step: %d\n", *cellNum);
 
 #ifdef  HUNT_MAKE_PARAMETER
   stopStopwatch(&(elapsed->makeTree_kernel));
@@ -2554,6 +2575,7 @@ void calcMultipole_dev
 
   /** initialize position and mass of pseudo j-particles */
   int Nrem = BLOCKSIZE(pjNum, NTHREADS_INIT_BODY);
+  __NOTE__("initTreeBody_kernel for Nrem = %d (pjNum = %d)\n", Nrem, pjNum);
   if( Nrem <= MAX_BLOCKS_PER_GRID )
     initTreeBody_kernel<<<Nrem, NTHREADS_INIT_BODY>>>(node.jpos, node.mj, node.bmax
 #ifdef  WS93_MAC
@@ -2590,6 +2612,7 @@ void calcMultipole_dev
 
   /** set position and mass of j-particles */
   Nrem = BLOCKSIZE(piNum, NTHREADS_COPY_BODY);
+  __NOTE__("copyRealBody_kernel for Nrem = %d (piNum = %d)\n", Nrem, piNum);
   if( Nrem <= MAX_BLOCKS_PER_GRID )
     copyRealBody_kernel<<<Nrem, NTHREADS_COPY_BODY>>>(piNum, node.jtag,
 #ifdef  BLOCK_TIME_STEP
@@ -2643,6 +2666,7 @@ void calcMultipole_dev
 
 
   /** set pseudo j-particles */
+  __NOTE__("calcMultipole_kernel; bottomLev = %d\n", bottomLev);
   calcMultipole_kernel<<<devProp.numSM * NBLOCKS_PER_SM_MAC, NTHREADS_MAC>>>
     (bottomLev - 1, cell.level, cell.cell, cell.leaf,
 #ifdef  BLOCK_TIME_STEP
@@ -2702,6 +2726,7 @@ void calcMultipole_dev
   }/* if( location->step > 0.5f ){ */
 #endif//TIME_BASED_MODIFICATION
 
+  __NOTE__("checkOutflow_kernel\n");
   checkOutflow_kernel<<<devProp.numSM * NBLOCKS_PER_SM_OUTFLOW, NTHREADS_OUTFLOW>>>
     (topLev, cell.level, cell.ptag, node.more, node.jpos, node.bmax, boxmin, boxmax,
 #   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
@@ -2908,3 +2933,43 @@ void setGlobalConstants_make_dev_cu
 
   __NOTE__("%s\n", "end");
 }
+
+
+#ifndef NDEBUG
+/**
+ * @fn setGlobalConstants_make_dev_cu
+ *
+ * @brief Set global constants for make_dev.cu and initialize kernel functions.
+ */
+extern "C"
+void printPHkey_location(const int piNum, PHint * RESTRICT peano, const iparticle pi)
+{
+  __NOTE__("%s\n", "start");
+
+  PHint *key_hst;
+  mycudaMallocHost((void **)&key_hst, sizeof(PHint) * piNum);
+  checkCudaErrors(cudaMemcpy(key_hst, peano, sizeof(PHint) * piNum, cudaMemcpyDeviceToHost));
+
+  position *pos_hst;
+  mycudaMallocHost((void **)&pos_hst, sizeof(position) * piNum);
+  checkCudaErrors(cudaMemcpy(pos_hst, pi.pos, sizeof(position) * piNum, cudaMemcpyDeviceToHost));
+
+  ulong *idx_hst;
+  mycudaMallocHost((void **)&idx_hst, sizeof(ulong) * piNum);
+  checkCudaErrors(cudaMemcpy(idx_hst, pi.idx, sizeof(ulong) * piNum, cudaMemcpyDeviceToHost));
+
+  PHint old = key_hst[0];
+  for(int ii = 1; ii < piNum; ii++){
+    PHint key = key_hst[ii];
+    if( key == old )
+      fprintf(stderr, "%d\t%zu\t%e\t%e\t%e\t%e\t%zu\n", ii, key, pos_hst[ii].x, pos_hst[ii].y, pos_hst[ii].z, pos_hst[ii].m, idx_hst[ii]);
+    old = key;
+  }/* for(int ii = 1; ii < piNum; ii++){ */
+
+  mycudaFreeHost(key_hst);
+  mycudaFreeHost(pos_hst);
+  mycudaFreeHost(idx_hst);
+
+  __NOTE__("%s\n", "end");
+}
+#endif//NDEBUG

@@ -26,7 +26,7 @@ Nmbh = 1
 fmin, fmax = 1.0e+4, 1.0e+9
 
 init = 0
-# last = 7
+# last = 0
 last = 399
 
 xmin, xmax = -5.0, 7.0
@@ -40,11 +40,9 @@ dx, dy, dz = (xmax - xmin) / nx, (ymax - ymin) / ny, (zmax - zmin) / nz
 
 # settings for point spread function with gaussian
 smooth = 1
-# smooth = 1.5
 # smooth = 2
-contain = 1
-# contain = 2
-# contain = 3
+# contain = 1
+contain = 3
 Nsmooth = int(np.ceil(contain * smooth))
 # sigma = smooth * (dx + dy) / 2
 # PSFinv = 1 / (math.sqrt(2) * sigma)
@@ -52,7 +50,20 @@ PSFinv_x = 1 / (math.sqrt(2) * smooth * dx)
 PSFinv_y = 1 / (math.sqrt(2) * smooth * dy)
 PSFinv_z = 1 / (math.sqrt(2) * smooth * dz)
 
-def draw_figure(fileid, Nkind, Nsphe, rot, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi, Eshell_eta, Nwest, Wshell_xi, Wshell_eta, Nfield, field_xi, field_eta, Ngss, gss_xi, gss_eta, gss_D, gss_Derr, NstreamC, streamC_xi, streamC_eta, streamC_D, streamC_Derr):
+col_M31disk = "white"
+lw_M31disk = 0.5
+
+col_shell = "white"
+ms_shell = 3
+
+col_field, col_gss, col_sc, col_sd = "white", "red", "magenta", "yellow"
+lw_field, lw_gss, lw_sc, lw_sd = 0.5, 0.5, 0.5, 0.5
+ms_gss, ms_sc, ms_sd = 3, 3, 3
+
+col_wmbh = "black"
+ms_wmbh = 3
+
+def draw_figure(fileid, Nkind, Nsphe, rot, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi, Eshell_eta, Nwest, Wshell_xi, Wshell_eta, Nfield, field_xi, field_eta, Ngss, gss_xi, gss_eta, gss_D, gss_Derr, gss_field_xi, gss_field_eta, NstreamC, streamC_xi, streamC_eta, streamC_D, streamC_Derr, streamC_field_xi, streamC_field_eta, NstreamD, streamD_xi, streamD_eta, streamD_D, streamD_Derr, streamD_field_xi, streamD_field_eta):
     fig = utils.set_figure(nxpanel, nypanel)
     ax = [0] * nxpanel * nypanel
     utils.locate_panels(fig, ax, nxpanel, nypanel, True, True)
@@ -82,6 +93,8 @@ def draw_figure(fileid, Nkind, Nsphe, rot, Ndisk, disk_xi, disk_eta, disk_D, Nea
 
     xy_sum = np.zeros((nx, ny))
     xz_sum = np.zeros((nx, nz))
+
+    mbh_obs = [0] * 3
 
     mm = 0
     for ii in range(Ndark, Nkind):
@@ -175,6 +188,15 @@ def draw_figure(fileid, Nkind, Nsphe, rot, Ndisk, disk_xi, disk_eta, disk_D, Nea
 
                 mm += 1
 
+        if (ii == (Nsphe - 1)) and (Nmbh == 1):
+            # read particle position and mass
+            folder = "data" + str(ii) + "/"
+            position = h5file[folder + "position"].value
+            mbh_xyz = np.dot(rot, np.array([position[0][0], position[0][1], position[0][2]]))
+
+            mbh_obs[0], mbh_obs[1], mbh_obs[2] = m31.standard_coordinate(mbh_xyz[0], mbh_xyz[1], mbh_xyz[2])
+            mbh_obs[2] -= zm31
+
     # close the HDF5 file
     h5file.close()
 
@@ -194,9 +216,6 @@ def draw_figure(fileid, Nkind, Nsphe, rot, Ndisk, disk_xi, disk_eta, disk_D, Nea
     ax[1].spines[ "right"].set_color("white")
     ax[0].spines[ "right"].set_color("white")
 
-    # ax[0].set_xlabel(r"$x$ ({:<})".format(length_unit[0].decode('UTF-8')))
-    # ax[0].set_ylabel(r"$y$ ({:<})".format(length_unit[0].decode('UTF-8')))
-    # ax[1].set_ylabel(r"$z$ ({:<})".format(length_unit[0].decode('UTF-8')))
     ax[0].set_xlabel(r"$\xi$ (deg.)")
     ax[0].set_ylabel(r"$\eta$ (deg.)")
     ax[1].set_ylabel(r"$D$ ({:<})".format(length_unit[0].decode('UTF-8')))
@@ -204,26 +223,42 @@ def draw_figure(fileid, Nkind, Nsphe, rot, Ndisk, disk_xi, disk_eta, disk_D, Nea
     for ii in range(nxpanel):
         idx = ii * nypanel
         # reference ellipse of the M31 disk
-        ax[idx    ].plot(disk_xi[                    ::int((Ndisk - 1) / 2)], disk_eta[                    ::int((Ndisk - 1) / 2)], "-", color = "white", linewidth = 1)# minor axis
-        ax[idx    ].plot(disk_xi[int((Ndisk - 1) / 4)::int((Ndisk - 1) / 2)], disk_eta[int((Ndisk - 1) / 4)::int((Ndisk - 1) / 2)], "-", color = "white", linewidth = 1)# major axis
-        ax[idx    ].plot(disk_xi                                            , disk_eta                                            , "-", color = "white", linewidth = 1)
-        ax[idx + 1].plot(disk_xi[                    ::int((Ndisk - 1) / 2)], disk_D  [                    ::int((Ndisk - 1) / 2)], "-", color = "white", linewidth = 1)# minor axis
-        ax[idx + 1].plot(disk_xi[int((Ndisk - 1) / 4)::int((Ndisk - 1) / 2)], disk_D  [int((Ndisk - 1) / 4)::int((Ndisk - 1) / 2)], "-", color = "white", linewidth = 1)# major axis
-        ax[idx + 1].plot(disk_xi                                            , disk_D                                              , "-", color = "white", linewidth = 1)
+        ax[idx    ].plot(disk_xi[                    ::int((Ndisk - 1) / 2)], disk_eta[                    ::int((Ndisk - 1) / 2)], "-", color = col_M31disk, linewidth = lw_M31disk)# minor axis
+        ax[idx    ].plot(disk_xi[int((Ndisk - 1) / 4)::int((Ndisk - 1) / 2)], disk_eta[int((Ndisk - 1) / 4)::int((Ndisk - 1) / 2)], "-", color = col_M31disk, linewidth = lw_M31disk)# major axis
+        ax[idx    ].plot(disk_xi                                            , disk_eta                                            , "-", color = col_M31disk, linewidth = lw_M31disk)
+        ax[idx + 1].plot(disk_xi[                    ::int((Ndisk - 1) / 2)], disk_D  [                    ::int((Ndisk - 1) / 2)], "-", color = col_M31disk, linewidth = lw_M31disk)# minor axis
+        ax[idx + 1].plot(disk_xi[int((Ndisk - 1) / 4)::int((Ndisk - 1) / 2)], disk_D  [int((Ndisk - 1) / 4)::int((Ndisk - 1) / 2)], "-", color = col_M31disk, linewidth = lw_M31disk)# major axis
+        ax[idx + 1].plot(disk_xi                                            , disk_D                                              , "-", color = col_M31disk, linewidth = lw_M31disk)
 
 
         # reference points of shells and GSS
-        ax[idx].plot(Eshell_xi, Eshell_eta, "o", color = "white", markerfacecolor = "none", markersize = 3)
-        ax[idx].plot(Wshell_xi, Wshell_eta, "o", color = "white", markerfacecolor = "none", markersize = 3)
-        ax[idx].plot( field_xi,  field_eta, "s", color = "white", markerfacecolor = "none", markersize = 3)
+        ax[idx].plot(Eshell_xi, Eshell_eta, "o", color = col_shell, markerfacecolor = "none", markersize = ms_shell)
+        ax[idx].plot(Wshell_xi, Wshell_eta, "o", color = col_shell, markerfacecolor = "none", markersize = ms_shell)
+        for jj in range(Nfield):
+            ax[idx].plot(field_xi[jj], field_eta[jj], "-", color = col_field, linewidth = lw_field)
 
         # distance measurements to GSS
-        ax[idx + 1].plot(gss_xi, gss_D, "s", color = "red", markerfacecolor = "none", markersize = 3)
-        ax[idx + 1].errorbar(gss_xi, gss_D, yerr = gss_Derr, ls = "none", ecolor = "red", elinewidth = 1)
+        for jj in range(Ngss):
+            ax[idx].plot(gss_field_xi[jj], gss_field_eta[jj], "-", color = col_gss, linewidth = lw_gss)
+        ax[idx + 1].plot(gss_xi, gss_D, "s", color = col_gss, markerfacecolor = "none", markersize = ms_gss)
+        ax[idx + 1].errorbar(gss_xi, gss_D, yerr = gss_Derr, ls = "none", ecolor = col_gss, elinewidth = lw_gss)
 
         # distance measurements to Stream C
-        ax[idx + 1].plot(streamC_xi, streamC_D, "s", color = "magenta", markerfacecolor = "none", markersize = 3)
-        ax[idx + 1].errorbar(streamC_xi, streamC_D, yerr = streamC_Derr, ls = "none", ecolor = "magenta", elinewidth = 1)
+        for jj in range(NstreamC):
+            ax[idx].plot(streamC_field_xi[jj], streamC_field_eta[jj], "-", color = col_sc, linewidth = lw_sc)
+        ax[idx + 1].plot(streamC_xi, streamC_D, "s", color = col_sc, markerfacecolor = "none", markersize = ms_sc)
+        ax[idx + 1].errorbar(streamC_xi, streamC_D, yerr = streamC_Derr, ls = "none", ecolor = col_sc, elinewidth = lw_sc)
+
+        # distance measurements to Stream D
+        for jj in range(NstreamD):
+            ax[idx].plot(streamD_field_xi[jj], streamD_field_eta[jj], "-", color = col_sd, linewidth = lw_sd)
+        ax[idx + 1].plot(streamD_xi, streamD_D, "s", color = col_sd, markerfacecolor = "none", markersize = ms_sd)
+        ax[idx + 1].errorbar(streamD_xi, streamD_D, yerr = streamD_Derr, ls = "none", ecolor = col_sd, elinewidth = lw_sd)
+
+    # incidate wandering MBH location
+    if Nmbh == 1:
+        ax[0].plot(mbh_obs[0], mbh_obs[1], "+", color = col_wmbh, markersize = ms_wmbh)
+        ax[1].plot(mbh_obs[0], mbh_obs[2], "+", color = col_wmbh, markersize = ms_wmbh)
 
 
     for idx in range(nxpanel * nypanel):
@@ -309,11 +344,12 @@ Ndisk, disk_xi, disk_eta, disk_D = m31.disk_ellipse()
 
 # set reference points of shells and GSS
 Neast, Eshell_xi, Eshell_eta, Nwest, Wshell_xi, Wshell_eta = m31.Fardal2007_shell()
-Nfield, field_xi, field_eta = m31.GSS_obs_field()
 
 # set reference points of distance measurements by Conn et al. (2016)
-Ngss, gss_xi, gss_eta, gss_D, gss_Dep, gss_Dem = m31.GSS_distance()
-NstreamC, streamC_xi, streamC_eta, streamC_D, streamC_Dep, streamC_Dem = m31.StreamC_distance()
+Nfield, field_xi, field_eta = m31.GSS_obs_field()
+Ngss, gss_xi, gss_eta, gss_D, gss_Dep, gss_Dem, gss_field_xi, gss_field_eta = m31.GSS_distance()
+NstreamC, streamC_xi, streamC_eta, streamC_D, streamC_Dep, streamC_Dem, streamC_field_xi, streamC_field_eta = m31.StreamC_distance()
+NstreamD, streamD_xi, streamD_eta, streamD_D, streamD_Dep, streamD_Dem, streamD_field_xi, streamD_field_eta = m31.StreamD_distance()
 gss_Derr = np.zeros((2, Ngss))
 for ii in range(Ngss):
     gss_Derr[0][ii] = gss_Dem[ii]
@@ -322,6 +358,10 @@ streamC_Derr = np.zeros((2, NstreamC))
 for ii in range(NstreamC):
     streamC_Derr[0][ii] = streamC_Dem[ii]
     streamC_Derr[1][ii] = streamC_Dep[ii]
+streamD_Derr = np.zeros((2, NstreamD))
+for ii in range(NstreamD):
+    streamD_Derr[0][ii] = streamD_Dem[ii]
+    streamD_Derr[1][ii] = streamD_Dep[ii]
 
 
 # read number of all component(s)
@@ -332,8 +372,8 @@ Nkind = int(tmp[0])
 Nsphe = int(tmp[2])
 txtfile.close()
 
-if contain != 3:
-    print("NOTE: contain is {:<} instead of 3".format(contain))
+if contain < 3:
+    print("NOTE: contain is {:<}; smaller than 3".format(contain))
 
 if Nkind > Ndark:
     if (Nkind - Ndark - Nmbh) > 1:
@@ -342,6 +382,6 @@ if Nkind > Ndark:
 
     cores = mp.cpu_count()
     pool = mp.Pool(cores)
-    args = [(ii, Nkind, Nsphe, inv, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi, Eshell_eta, Nwest, Wshell_xi, Wshell_eta, Nfield, field_xi, field_eta, Ngss, gss_xi, gss_eta, gss_D, gss_Derr, NstreamC, streamC_xi, streamC_eta, streamC_D, streamC_Derr) for ii in range(init, last + 1, 1)]
+    args = [(ii, Nkind, Nsphe, inv, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi, Eshell_eta, Nwest, Wshell_xi, Wshell_eta, Nfield, field_xi, field_eta, Ngss, gss_xi, gss_eta, gss_D, gss_Derr, gss_field_xi, gss_field_eta, NstreamC, streamC_xi, streamC_eta, streamC_D, streamC_Derr, streamC_field_xi, streamC_field_eta, NstreamD, streamD_xi, streamD_eta, streamD_D, streamD_Derr, streamD_field_xi, streamD_field_eta) for ii in range(init, last + 1, 1)]
     pool.map(wrapper, args)
     pool.close()

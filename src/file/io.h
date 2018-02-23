@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/13 (Tue)
+ * @date 2018/02/21 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -107,7 +107,7 @@ extern "C"
 {
 #endif//__CUDACC__
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
-  void createMPIcfg_dataio(MPIcfg_dataio *cfg, MPIinfo mpi);
+  void createMPIcfg_dataio(MPIcfg_dataio *cfg, const MPIinfo mpi);
 #endif//defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 
   void updateConfigFile        (int  last, char file[]);

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/15 (Thu)
+ * @date 2018/02/21 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -107,7 +107,7 @@ extern const double       accel2astro;extern const char       accel_astro_unit_n
  * @return (cfg) MPI communicator for data I/O
  * @param (mpi) current MPI communicator
  */
-void createMPIcfg_dataio(MPIcfg_dataio *cfg, MPIinfo mpi)
+void createMPIcfg_dataio(MPIcfg_dataio *cfg, const MPIinfo mpi)
 {
   __NOTE__("%s\n", "start");
 
@@ -128,7 +128,7 @@ void createMPIcfg_dataio(MPIcfg_dataio *cfg, MPIinfo mpi)
  *
  * @detail The partition of particles' array is updated using MPI_Scan.
  */
-static inline void updateMPIcfg_dataio(MPIcfg_dataio *cfg, int num)
+static inline void updateMPIcfg_dataio(MPIcfg_dataio *cfg, const int num)
 {
   __NOTE__("%s\n", "start");
 

@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/02/12 (Mon)
+ * @date 2018/02/22 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -38,6 +38,7 @@
 
 #ifdef  DUMP_SPLITTED_SNAPSHOT
 #include <unistd.h>
+#include <sys/stat.h>
 #endif//DUMP_SPLITTED_SNAPSHOT
 
 #ifdef  USE_HDF5_FORMAT
@@ -1526,7 +1527,18 @@ int main(int argc, char **argv)
     if( multi_group ){
       char filename[128];
       sprintf(filename, "%s/%s.%s%.3u.h5", DATAFOLDER, file, "split", filenum);
-      if( 0 != access(filename, F_OK) ){
+      bool dump_splitted_snapshot = (0 != access(filename, F_OK));
+      if( !dump_splitted_snapshot ){
+	struct stat stat_split;
+	stat(filename, &stat_split);
+	char tmpname[128];
+	sprintf(tmpname, "%s/%s.%s%.3u.h5", DATAFOLDER, file, SNAPSHOT, filenum);
+	struct stat stat_snap;
+	stat(tmpname, &stat_snap);
+	if( stat_snap.st_ctime > stat_split.st_ctime )
+	  dump_splitted_snapshot = true;
+      }/* if( !dump_splitted_snapshot ){ */
+      if( dump_splitted_snapshot ){
 	for(int ii = 0; ii < (int)Ntot; ii++){
 	  hdf5.idx[ii    ] = body[ii].idx;	hdf5.  m[ii        ] = body[ii]. m;	hdf5.pot[ii        ] = body[ii].pot;
 	  hdf5.pos[ii * 3] = body[ii]. x ;	hdf5.pos[ii * 3 + 1] = body[ii]. y;	hdf5.pos[ii * 3 + 2] = body[ii]. z ;
@@ -1551,7 +1563,7 @@ int main(int argc, char **argv)
 	writeSnapshotMultiGroups(time, steps, &hdf5, file, filenum, hdf5type, kind, group_head, group_num);
 	free(group_head);
 	free(group_num);
-      }/* if( 0 != access(filename, F_OK) ){ */
+      }/* if( dump_splitted_snapshot ){ */
       else{
 	fprintf(stderr, "# \"%s\" was not updated for reducing the elapsed time.\n", filename);
 	fflush(stderr);

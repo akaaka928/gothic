@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/12/18 (Mon)
+ * @date 2018/02/21 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -35,7 +35,7 @@
  *
  * @brief Commit structures for MPI.
  */
-static inline void createMPIcfg_tree(MPIcfg_tree *let, MPIinfo mpi)
+static inline void createMPIcfg_tree(MPIcfg_tree *let, const MPIinfo mpi)
 {
   __NOTE__("%s\n", "start");
 
@@ -144,7 +144,7 @@ static inline void createMPIcfg_tree(MPIcfg_tree *let, MPIinfo mpi)
  *
  * @sa createMPIcfg_tree
  */
-void setNodeConfig(ulong Ntot, int *Nnode, int *Ni, MPIinfo mpi, MPIcfg_tree *let, const int devID)
+void setNodeConfig(const ulong Ntot, int *Nnode, int *Ni, const MPIinfo mpi, MPIcfg_tree *let, const int devID)
 {
   __NOTE__("%s\n", "start");
 

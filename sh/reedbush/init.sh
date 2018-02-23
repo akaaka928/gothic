@@ -1,9 +1,10 @@
 #!/bin/bash
-#SBATCH -J magi               # name of job
-#SBATCH -t 02:00:00           # upper limit of elapsed time
-#SBATCH -p normal             # partition name
-#SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
-#SBATCH --get-user-env        # retrieve the login environment variables
+###############################################################
+#PBS -q u-regular
+#PBS -l select=1:ncpus=36:mpiprocs=1:ompthreads=36
+#PBS -W group_list=gx31
+#PBS -l walltime=00:10:00
+#PBS -N magi
 ###############################################################
 
 
@@ -14,10 +15,10 @@ EXEC=bin/magi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=2
+    # PROBLEM=2
     # PROBLEM=27
     # PROBLEM=60
-    # PROBLEM=61
+    PROBLEM=61
 fi
 ###############################################################
 # number of N-body particles
@@ -31,14 +32,14 @@ if [ -z "$NTOT" ]; then
     # NTOT=8192
     # NTOT=16384
     # NTOT=32768
-    # NTOT=65536
+    NTOT=65536
     # NTOT=131072
     # NTOT=262144
     # NTOT=524288
     # NTOT=1048576
     # NTOT=2097152
     # NTOT=4194304
-    NTOT=8388608
+    # NTOT=8388608
     # NTOT=16777216
     # NTOT=33554432
     # NTOT=67108864
@@ -615,17 +616,23 @@ fi
 
 
 ###############################################################
-# job execution via SLURM
+# job execution via PBS
 ###############################################################
 # set stdout and stderr
-STDOUT=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.out
-STDERR=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.err
+STDOUT=log/$PBS_JOBNAME.$PBS_JOBID.out
+STDERR=log/$PBS_JOBNAME.$PBS_JOBID.err
 ###############################################################
 # start logging
-cd $SLURM_SUBMIT_DIR
-echo "use $SLURM_JOB_CPUS_PER_NODE CPUs"
+cd $PBS_O_WORKDIR
+# echo "use $SLURM_JOB_CPUS_PER_NODE CPUs"
 TIME=`date`
 echo "start: $TIME"
+###############################################################
+export MODULEPATH=$MODULEPATH:/lustre/gx31/z30118/opt/Modules
+. /etc/profile.d/modules.sh
+module load intel mvapich2-gdr/2.2/intel
+module load hdf5
+module load gsl/2.4
 ###############################################################
 # execute the job
 if [ `which numactl` ]; then

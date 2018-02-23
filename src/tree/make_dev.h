@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/02/20 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -470,6 +470,9 @@ extern "C"
    int * RESTRICT cellNum, int * RESTRICT cellNum_dev, const soaTreeCell cell,
    int * RESTRICT nodeNum, int * RESTRICT nodeNum_dev, const soaTreeNode node,
    const soaMakeTreeBuf buf, deviceProp devProp
+#ifndef SERIALIZED_EXECUTION
+   , const int piNum_prev
+#endif//SERIALIZED_EXECUTION
 #ifdef  EXEC_BENCHMARK
    , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
@@ -568,6 +571,11 @@ extern "C"
 #endif//WS93_MAC
 #endif//GADGET_MAC
    );
+
+#ifndef NDEBUG
+  void printPHkey_location(const int piNum, PHint * RESTRICT peano, const iparticle pi);
+#endif//NDEBUG
+
 #ifdef  __CUDACC__
 }
 #endif//__CUDACC__

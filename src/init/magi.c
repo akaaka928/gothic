@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/15 (Thu)
+ * @date 2018/02/21 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1636,8 +1636,8 @@ void outputFundamentalInformation
     fprintf(fp, "#############################################################################\n");
     fprintf(fp, "Total number of particles Ntot is %zu (about 2^%u)\n", cfg[ii].num, ilog2((int)cfg[ii].num));
     fprintf(fp, "Range of idx for the component is [%zu, %zu]\n", ihead, ihead + cfg[ii].num - 1);
-    if( cfg[ii].kind < 0 )
 #ifndef USE_ZANG_HOHL_1978_EQ5
+    if( cfg[ii].kind < 0 )
       if( cfg[ii].retrogradeFrac > 0.0 ){
 	ulong retroNum, retroHead;
 	pickRetrogradingParticles(cfg[ii].num, ihead, cfg[ii].retrogradeFrac, &retroNum, &retroHead);

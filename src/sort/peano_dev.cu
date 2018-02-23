@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/02/21 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -167,7 +167,8 @@ __global__ void __launch_bounds__(NTHREADS_PH, NBLOCKS_PER_SM_PH) calcPHkey_kern
 
   for(int ih = ihead; ih < itail; ih += NTHREADS_PH){
     const int ii = ih + tidx;
-    if( ii < itail ){
+    /* if( ii < itail ){ */
+    if( ii < num ){
       const position pi = ipos[ii];
       const float px = CAST_R2F(pi.x);
       const float py = CAST_R2F(pi.y);
@@ -197,6 +198,12 @@ __global__ void __launch_bounds__(NTHREADS_PH, NBLOCKS_PER_SM_PH) calcPHkey_kern
   }/* if( (tidx + bidx) == 0 ){ */
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
 
+/* #ifndef NDEBUG */
+/*   if( (tidx + bidx) == 0 ){ */
+/*     printf("local: min.x = %e, min.y = %e, min.z = %e\n", min.x, min.y, min.z); */
+/*     printf("local: max.x = %e, max.y = %e, max.z = %e\n", max.x, max.y, max.z); */
+/*   }/\* if( (tidx + bidx) == 0 ){ *\/ */
+/* #endif//NDEBUG */
 
 #ifdef  SHARE_PH_BOX_BOUNDARY
   float4 tmp;
@@ -222,6 +229,13 @@ __global__ void __launch_bounds__(NTHREADS_PH, NBLOCKS_PER_SM_PH) calcPHkey_kern
   min.y = 0.5f * (min.y + max.y - diameter);
   min.z = 0.5f * (min.z + max.z - diameter);
 
+/* #ifndef NDEBUG */
+/*   if( (tidx + bidx) == 0 ){ */
+/*     printf("min.x = %e, min.y = %e, min.z = %e\n", min.x, min.y, min.z); */
+/*     printf("max.x = %e, max.y = %e, max.z = %e\n", max.x, max.y, max.z); */
+/*     printf("diameter = %e\n", diameter); */
+/*   }/\* if( (tidx + bidx) == 0 ){ *\/ */
+/* #endif//NDEBUG */
 
   /** calculate Peano--Hilbert key */
   const PHint keymax = (PHint)1 << nlevel;
@@ -229,7 +243,7 @@ __global__ void __launch_bounds__(NTHREADS_PH, NBLOCKS_PER_SM_PH) calcPHkey_kern
 
   for(int ih = ihead; ih < itail; ih += NTHREADS_PH){
     const int ii = ih + tidx;
-    if( ii < itail ){
+    if( ii < num ){
       const position pi = ipos[ii];
       PHint px = (PHint)(dscale * (CAST_R2F(pi.x) - min.x));
       PHint py = (PHint)(dscale * (CAST_R2F(pi.y) - min.y));
@@ -260,7 +274,12 @@ __global__ void __launch_bounds__(NTHREADS_PH, NBLOCKS_PER_SM_PH) calcPHkey_kern
 
       idx[ii] = ii;
       key[ii] = tkey;
-    }/* if( ii < itail ){ */
+
+/* #ifndef NDEBUG */
+/*       if( pi.m < EPSILON ) */
+/* 	printf("pi[%d]: x = %e, y = %e, z = %e, m = %e\n", ii, pi.x, pi.y, pi.z, pi.m); */
+/* #endif//NDEBUG */
+    }/* if( ii < num ){ */
   }/* for(int ih = ihead; ih < itail; ih += bnum * NTHREADS_PH){ */
 }
 
@@ -422,45 +441,51 @@ void  freePeanoHilbertKey_dev
 }
 
 
-/**
- * @fn sortParticlesPHcurve_kernel
- *
- * @brief Sort N-body particles by PH-key.
- */
-__global__ void sortParticlesPHcurve_kernel
-(const int num, READ_ONLY int * RESTRICT old,
- ulong        * RESTRICT didx , READ_ONLY ulong        * RESTRICT sidx ,
- position     * RESTRICT dpos , READ_ONLY position     * RESTRICT spos ,
- acceleration * RESTRICT dacc , READ_ONLY acceleration * RESTRICT sacc ,
-#ifdef  BLOCK_TIME_STEP
- velocity     * RESTRICT dvel , READ_ONLY velocity     * RESTRICT svel ,
- ibody_time   * RESTRICT dtime, READ_ONLY ibody_time   * RESTRICT stime
-#else///BLOCK_TIME_STEP
- real         * RESTRICT dvx  , READ_ONLY real         * RESTRICT svx  ,
- real         * RESTRICT dvy  , READ_ONLY real         * RESTRICT svy  ,
- real         * RESTRICT dvz  , READ_ONLY real         * RESTRICT svz
-#endif//BLOCK_TIME_STEP
-)
-{
-  const int ii = GLOBALIDX_X1D;
+/* /\** */
+/*  * @fn sortParticlesPHcurve_kernel */
+/*  * */
+/*  * @brief Sort N-body particles by PH-key. */
+/*  *\/ */
+/* __global__ void sortParticlesPHcurve_kernel */
+/* (const int num, READ_ONLY int * RESTRICT old, */
+/*  ulong        * RESTRICT didx , READ_ONLY ulong        * RESTRICT sidx , */
+/*  position     * RESTRICT dpos , READ_ONLY position     * RESTRICT spos , */
+/*  acceleration * RESTRICT dacc , READ_ONLY acceleration * RESTRICT sacc , */
+/* #ifdef  SET_EXTERNAL_POTENTIAL_FIELD */
+/*  acceleration * RESTRICT dext , READ_ONLY acceleration * RESTRICT sext , */
+/* #endif//SET_EXTERNAL_POTENTIAL_FIELD */
+/* #ifdef  BLOCK_TIME_STEP */
+/*  velocity     * RESTRICT dvel , READ_ONLY velocity     * RESTRICT svel , */
+/*  ibody_time   * RESTRICT dtime, READ_ONLY ibody_time   * RESTRICT stime */
+/* #else///BLOCK_TIME_STEP */
+/*  real         * RESTRICT dvx  , READ_ONLY real         * RESTRICT svx  , */
+/*  real         * RESTRICT dvy  , READ_ONLY real         * RESTRICT svy  , */
+/*  real         * RESTRICT dvz  , READ_ONLY real         * RESTRICT svz */
+/* #endif//BLOCK_TIME_STEP */
+/* ) */
+/* { */
+/*   const int ii = GLOBALIDX_X1D; */
 
-  if( ii < num ){
-    /** load old tag */
-    const int jj = old[ii];
+/*   if( ii < num ){ */
+/*     /\** load old tag *\/ */
+/*     const int jj = old[ii]; */
 
-    didx [ii] = sidx [jj];
-    dpos [ii] = spos [jj];
-    dacc [ii] = sacc [jj];
-#ifdef  BLOCK_TIME_STEP
-    dvel [ii] = svel [jj];
-    dtime[ii] = stime[jj];
-#else///BLOCK_TIME_STEP
-    dvx  [ii] = svx  [jj];
-    dvy  [ii] = svy  [jj];
-    dvz  [ii] = svz  [jj];
-#endif//BLOCK_TIME_STEP
-  }/* if( ii < num ){ */
-}
+/*     didx [ii] = sidx [jj]; */
+/*     dpos [ii] = spos [jj]; */
+/*     dacc [ii] = sacc [jj]; */
+/* #ifdef  SET_EXTERNAL_POTENTIAL_FIELD */
+/*     dext [ii] = sext [jj]; */
+/* #endif//SET_EXTERNAL_POTENTIAL_FIELD */
+/* #ifdef  BLOCK_TIME_STEP */
+/*     dvel [ii] = svel [jj]; */
+/*     dtime[ii] = stime[jj]; */
+/* #else///BLOCK_TIME_STEP */
+/*     dvx  [ii] = svx  [jj]; */
+/*     dvy  [ii] = svy  [jj]; */
+/*     dvz  [ii] = svz  [jj]; */
+/* #endif//BLOCK_TIME_STEP */
+/*   }/\* if( ii < num ){ *\/ */
+/* } */
 
 /**
  * @fn sortParticlesPHcurve_kernel_offset
@@ -472,6 +497,9 @@ __global__ void sortParticlesPHcurve_kernel_offset
  ulong        * RESTRICT didx , READ_ONLY ulong        * RESTRICT sidx ,
  position     * RESTRICT dpos , READ_ONLY position     * RESTRICT spos ,
  acceleration * RESTRICT dacc , READ_ONLY acceleration * RESTRICT sacc ,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ acceleration * RESTRICT dext , READ_ONLY acceleration * RESTRICT sext ,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
  velocity     * RESTRICT dvel , READ_ONLY velocity     * RESTRICT svel ,
  ibody_time   * RESTRICT dtime, READ_ONLY ibody_time   * RESTRICT stime
@@ -492,6 +520,9 @@ __global__ void sortParticlesPHcurve_kernel_offset
     didx [ii] = sidx [jj];
     dpos [ii] = spos [jj];
     dacc [ii] = sacc [jj];
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    dext [ii] = sext [jj];
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
     dvel [ii] = svel [jj];
     dtime[ii] = stime[jj];
@@ -602,20 +633,23 @@ void sortParticlesPHcurve_dev(const int num, iparticle * RESTRICT src, iparticle
   /** sort N-body particles using Peano--Hilbert key */
   int Nrem = BLOCKSIZE(num, NTHREADS_PHSORT);
   if( Nrem <= MAX_BLOCKS_PER_GRID )
-    sortParticlesPHcurve_kernel<<<Nrem, NTHREADS_PHSORT>>>
+    sortParticlesPHcurve_kernel_offset<<<Nrem, NTHREADS_PHSORT>>>
       (num, dev.idx,
        (*dst).idx , (*src).idx,
        (*dst).pos , (*src).pos,
        (*dst).acc , (*src).acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+       (*dst).acc_ext, (*src).acc_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
        (*dst).vel , (*src).vel,
-       (*dst).time, (*src).time
+       (*dst).time, (*src).time,
 #else///BLOCK_TIME_STEP
        (*dst).vx  , (*src).vx,
        (*dst).vy  , (*src).vy,
-       (*dst).vz  , (*src).vz
+       (*dst).vz  , (*src).vz,
 #endif//BLOCK_TIME_STEP
-       );
+       0);
   else{
     const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
     int hidx = 0;
@@ -629,16 +663,18 @@ void sortParticlesPHcurve_dev(const int num, iparticle * RESTRICT src, iparticle
 	 (*dst).idx , (*src).idx,
 	 (*dst).pos , (*src).pos,
 	 (*dst).acc , (*src).acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+	 (*dst).acc_ext, (*src).acc_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  BLOCK_TIME_STEP
 	 (*dst).vel , (*src).vel,
-	 (*dst).time, (*src).time
+	 (*dst).time, (*src).time,
 #else///BLOCK_TIME_STEP
 	 (*dst).vx  , (*src).vx,
 	 (*dst).vy  , (*src).vy,
-	 (*dst).vz  , (*src).vz
+	 (*dst).vz  , (*src).vz,
 #endif//BLOCK_TIME_STEP
-	 , hidx
-	 );
+	 hidx);
 
       hidx += Nsub;
       Nrem -= Nblck;

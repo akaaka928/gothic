@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/19 (Fri)
+ * @date 2018/02/21 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -103,7 +103,7 @@ typedef struct
 extern "C"
 {
 #endif//__CUDACC__
-  void setNodeConfig(ulong Ntot, int *Nnode, int *Ni, MPIinfo mpi, MPIcfg_tree *let, const int devID);
+  void setNodeConfig(const ulong Ntot, int *Nnode, int *Ni, const MPIinfo mpi, MPIcfg_tree *let, const int devID);
 #ifdef  __CUDACC__
 }
 #endif//__CUDACC__
