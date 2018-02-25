@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/21 (Wed)
+ * @date 2018/02/25 (Sun)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -3001,6 +3001,9 @@ void writeSnapshot
 #ifdef  REPORT_GPU_CLOCK_FREQUENCY
  , gpu_clock *deviceMonitors, const int monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
+#ifdef  REPORT_COMPUTE_RATE
+ , const double speed, const double speed_run, const double guess
+#endif//REPORT_COMPUTE_RATE
  )
 {
   __NOTE__("%s\n", "start");
@@ -3058,6 +3061,22 @@ void writeSnapshot
   fclose(fp);
 #endif//defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR)
 
+#ifdef  REPORT_COMPUTE_RATE
+  FILE *fprate;
+  sprintf(filename, "%s/%s.%s.log", LOGFOLDER, file, "speed");
+  if( id == 0 ){
+    fprate = fopen(filename, "w");
+    if( fprate == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
+    fprintf(fprate, "#time(%s)\tsteps\tfile\trate(s/step)\tspeed(%s/s)\tremain(s)\tremain(min)\tremain(hour)\tremain(day)\n", time_astro_unit_name, time_astro_unit_name);
+  }/* if( id == 0 ){ */
+  else{
+    fprate = fopen(filename, "a");
+    if( fprate == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
+  }/* else{ */
+
+  fprintf(fprate, "%e\t%zu\t%u\t%e\t%e\t%e\t%e\t%e\t%e\n", time * time2astro, steps, id, speed, speed_run, guess, guess * 1.66666666667e-2, guess * 2.77777777778e-4, guess * 1.15740740740e-5);
+  fclose(fprate);
+#endif//REPORT_COMPUTE_RATE
 
   /* create a new file (if the file already exists, the file is opened with read-write access, new data will overwrite any existing data) */
 #ifndef USE_HDF5_FORMAT
@@ -3417,6 +3436,9 @@ void writeSnapshotParallel
 #ifdef  REPORT_GPU_CLOCK_FREQUENCY
  , gpu_clock *deviceMonitors, const int monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
+#ifdef  REPORT_COMPUTE_RATE
+ , const double speed, const double speed_run, const double guess
+#endif//REPORT_COMPUTE_RATE
  )
 {
   __NOTE__("%s\n", "start");
@@ -3485,6 +3507,25 @@ void writeSnapshotParallel
     fclose(fp);
   }/* if( mpi->rank == 0 ){ */
 #endif//defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR)
+
+#ifdef  REPORT_COMPUTE_RATE
+  if( mpi->rank == 0 ){
+    FILE *fprate;
+    sprintf(filename, "%s/%s.%s.log", LOGFOLDER, file, "speed");
+    if( id == 0 ){
+      fprate = fopen(filename, "w");
+      if( fprate == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
+      fprintf(fprate, "#time(%s)\tsteps\tfile\trate(s/step)\tspeed(%s/s)\tremain(s)\tremain(min)\tremain(hour)\tremain(day)\n", time_astro_unit_name, time_astro_unit_name);
+    }/* if( id == 0 ){ */
+    else{
+      fprate = fopen(filename, "a");
+      if( fprate == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
+    }/* else{ */
+
+    fprintf(fprate, "%e\t%zu\t%u\t%e\t%e\t%e\t%e\t%e\t%e\n", time * time2astro, steps, id, speed, speed_run, guess, guess * 1.66666666667e-2, guess * 2.77777777778e-4, guess * 1.15740740740e-5);
+    fclose(fprate);
+  }/* if( mpi->rank == 0 ){ */
+#endif//REPORT_COMPUTE_RATE
 
 
   /* create a new file (if the file already exists, the file is opened with read-write access, new data will overwrite any existing data) */

@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/21 (Wed)
+ * @date 2018/02/25 (Sun)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -394,6 +394,9 @@ static inline void dumpSnapshot
 #ifdef  REPORT_GPU_CLOCK_FREQUENCY
  , gpu_clock *deviceMonitors, int *monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
+#ifdef  REPORT_COMPUTE_RATE
+ , struct timespec *clock_prev, double *time_prev, ulong *step_prev, const double ft
+#endif//REPORT_COMPUTE_RATE
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
  , const int Ni, const iparticle ibody_direct_dev, const deviceProp devProp, acceleration *direct_hst, const int Ngrp, laneinfo *laneInfo_dev
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
@@ -430,6 +433,20 @@ static inline void dumpSnapshot
 #       endif//LEAP_FROG_INTEGRATOR
 #endif//USE_HDF5_FORMAT
 
+  /** report speed of N-body simulation */
+#ifdef  REPORT_COMPUTE_RATE
+  static struct timespec clock;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &clock);
+  const double elapsed = calcElapsedTimeInSec(*clock_prev, clock);
+  const double proceed = time - (*time_prev);
+  const double speed = elapsed / ((present > 0) ? ((double)(steps - (*step_prev))) : (1.0));
+  const double speed_run = proceed / elapsed;
+  const double guess = (ft - time) / speed_run;
+  *clock_prev = clock;
+  *time_prev = time;
+  *step_prev = steps;
+#endif//REPORT_COMPUTE_RATE
+
   /** output the snapshot file */
 #ifdef  SERIALIZED_EXECUTION
   writeSnapshot
@@ -445,6 +462,9 @@ static inline void dumpSnapshot
 #ifdef  REPORT_GPU_CLOCK_FREQUENCY
      , deviceMonitors, *monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
+#ifdef  REPORT_COMPUTE_RATE
+     , speed, speed_run, guess
+#endif//REPORT_COMPUTE_RATE
      );
 #else///SERIALIZED_EXECUTION
   writeSnapshotParallel
@@ -460,6 +480,9 @@ static inline void dumpSnapshot
 #ifdef  REPORT_GPU_CLOCK_FREQUENCY
      , deviceMonitors, *monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
+#ifdef  REPORT_COMPUTE_RATE
+     , speed, speed_run, guess
+#endif//REPORT_COMPUTE_RATE
      );
 #endif//SERIALIZED_EXECUTION
   *previous = present;
@@ -1224,7 +1247,6 @@ int main(int argc, char **argv)
   static brentStatus brentDistance;  brentDistance.initialized = false;
   static brentMemory brentHistory = {0.0, 0.0, 0, 0};
 
-
   /** read initial condition */
 #   if  defined(MONITOR_ENERGY_ERROR) && defined(USE_HDF5_FORMAT)
   static energyError relEneErr;
@@ -1264,7 +1286,12 @@ int main(int argc, char **argv)
   static ulong stepsInit;
   stepsInit = steps;
 #endif//REPORT_TOTAL_ELAPSED_TIME
-
+#ifdef  REPORT_COMPUTE_RATE
+  static struct timespec clock_prev;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &clock_prev);
+  static double time_prev;  time_prev = time;
+  static ulong  step_prev;  step_prev = steps;
+#endif//REPORT_COMPUTE_RATE
 
   /** set up for output files */
   static double formerTime;
@@ -1852,6 +1879,9 @@ int main(int argc, char **argv)
 #ifdef  REPORT_GPU_CLOCK_FREQUENCY
        , deviceMonitors, &monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
+#ifdef  REPORT_COMPUTE_RATE
+       , &clock_prev, &time_prev, &step_prev, ft
+#endif//REPORT_COMPUTE_RATE
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
        , Ni, ibody_direct_dev, devProp, direct, Ngrp, laneInfo_dev
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
@@ -2502,6 +2532,9 @@ int main(int argc, char **argv)
 #ifdef  REPORT_GPU_CLOCK_FREQUENCY
 	 , deviceMonitors, &monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
+#ifdef  REPORT_COMPUTE_RATE
+	 , &clock_prev, &time_prev, &step_prev, ft
+#endif//REPORT_COMPUTE_RATE
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
 	 , Ni, ibody_direct_dev, devProp, direct, Ngrp, laneInfo_dev
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING

@@ -19,11 +19,12 @@ DEBUG	:= -DNDEBUG
 # PROFILE	:= -pg
 #################################################################################################
 # Execution options
-FORCE_SINGLE_GPU_RUN	:= 0
+FORCE_SINGLE_GPU_RUN	:= 1
+RECTANGULAR_BOX_FOR_LET	:= 0
 ENCLOSING_BALL_FOR_LET	:= 1
 COMMUNICATION_VIA_HOST	:= 1
-USE_MPI_PUT_FOR_LET	:= 1
-USE_MPI_PUT_FOR_EXCG	:= 0
+USE_MPI_GET_FOR_LET	:= 1
+USE_MPI_GET_FOR_EXCG	:= 0
 CARE_EXTERNAL_PARTICLES	:= 0
 ACC_ACCUMULATION_IN_DP	:= 0
 KAHAN_SUM_CORRECTION	:= 0
@@ -49,6 +50,8 @@ USE_ZH78_RETROGRADING	:= 0
 #################################################################################################
 # Debugging options
 EVALUATE_FORCE_ERROR	:= 0
+#################################################################################################
+REPORT_COMPUTE_RATE	:= 1
 #################################################################################################
 # Benchmark options
 REPORT_ELAPSED_TIME	:= 1
@@ -175,13 +178,19 @@ ifeq ($(COMMUNICATION_VIA_HOST), 1)
 CCARG	+= -DMPI_VIA_HOST
 CUARG	+= -DMPI_VIA_HOST
 endif
-ifeq ($(USE_MPI_PUT_FOR_LET), 1)
+ifeq ($(USE_MPI_GET_FOR_LET), 1)
 CCARG	+= -DMPI_ONE_SIDED_FOR_LET
 CUARG	+= -DMPI_ONE_SIDED_FOR_LET
 endif
-ifeq ($(USE_MPI_PUT_FOR_EXCG), 1)
+ifeq ($(USE_MPI_GET_FOR_EXCG), 1)
 CCARG	+= -DMPI_ONE_SIDED_FOR_EXCG
 CUARG	+= -DMPI_ONE_SIDED_FOR_EXCG
+endif
+ifeq ($(RECTANGULAR_BOX_FOR_LET), 1)
+CCARG	+= -DUSE_RECTANGULAR_BOX_FOR_LET
+CUARG	+= -DUSE_RECTANGULAR_BOX_FOR_LET
+ENCLOSING_BALL_FOR_LET	:= 0
+DIVERT_GEOMETRIC_CENTER	:= 0
 endif
 ifeq ($(ENCLOSING_BALL_FOR_LET), 1)
 CCARG	+= -DUSE_ENCLOSING_BALL_FOR_LET
@@ -231,6 +240,10 @@ endif
 ifeq ($(CLOCK_BASED_AUTO_TUNING), 1)
 CCARG	+= -DUSE_CLOCK_CYCLES_FOR_BRENT_METHOD
 CUARG	+= -DUSE_CLOCK_CYCLES_FOR_BRENT_METHOD
+endif
+#################################################################################################
+ifeq ($(REPORT_COMPUTE_RATE), 1)
+CCARG	+= -DREPORT_COMPUTE_RATE
 endif
 #################################################################################################
 ifeq ($(USEPAPI), 0)

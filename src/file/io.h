@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/21 (Wed)
+ * @date 2018/02/25 (Sun)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -99,7 +99,6 @@ typedef struct
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 } hdf5struct;
 #endif//USE_HDF5_FORMAT
-
 
 /* list of functions appeared in ``io.c'' */
 #ifdef  __CUDACC__
@@ -228,6 +227,9 @@ extern "C"
 #ifdef  REPORT_GPU_CLOCK_FREQUENCY
    , gpu_clock *deviceMonitors, const int monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
+#ifdef  REPORT_COMPUTE_RATE
+   , const double speed, const double speed_run, const double guess
+#endif//REPORT_COMPUTE_RATE
    );
 
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
@@ -244,6 +246,9 @@ extern "C"
 #ifdef  REPORT_GPU_CLOCK_FREQUENCY
    , gpu_clock *deviceMonitors, const int monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
+#ifdef  REPORT_COMPUTE_RATE
+   , const double speed, const double speed_run, const double guess
+#endif//REPORT_COMPUTE_RATE
    );
 
 #ifdef  USE_HDF5_FORMAT
