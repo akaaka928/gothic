@@ -1082,14 +1082,23 @@ int main(int argc, char **argv)
   const muse alloc_r2geo = allocGeometricEnclosingBall_dev(&r2geo_dev, &soaGEO_dev, num_max);
   int *numSend_hst, *numSend_dev;
   static domainInfo *nodeInfo;
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+  static position *min, *max;
+#else///USE_RECTANGULAR_BOX_FOR_LET
   static position   *ipos;
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
   static real *amin;
 #endif//GADGET_MAC
   int Nstream_let;
   cudaStream_t *stream_let;
   const muse alloc_LETtopology = configLETtopology
-    (&nodeInfo, &ipos,
+    (&nodeInfo,
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+     &min, &max,
+#else///USE_RECTANGULAR_BOX_FOR_LET
+     &ipos,
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
      &amin,
 #endif//GADGET_MAC
@@ -1662,6 +1671,10 @@ int main(int argc, char **argv)
 #endif//EXEC_BENCHMARK
      );
 #endif//USE_ENCLOSING_BALL_FOR_LET
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+  set edge_[x y z], mac and icom (reuse getBoxSize_kernel in para/exchange_dev.cu);
+  hoge;
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 
   /** preparation to construct LET */
   calc_r2max_dev
@@ -1671,12 +1684,24 @@ int main(int argc, char **argv)
 #endif//EXEC_BENCHMARK
      );
   shareNodePosition
-    (letcfg.size, nodeInfo, ipos, *(ibody0_dev.encBall_hst),
+    (letcfg.size, nodeInfo,
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+     min, *(ibody0_dev.min_hst),
+     max, *(ibody0_dev.max_hst),
+#else///USE_RECTANGULAR_BOX_FOR_LET
+     ipos, *(ibody0_dev.encBall_hst),
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
      amin, ibody0_dev.amin,
 #endif//GADGET_MAC
      letcfg);
-  guessLETpartition(letcfg.size, nodeInfo, numNode, *(ibody0_dev.encBall_hst), letcfg);
+  guessLETpartition(letcfg.size, nodeInfo, numNode,
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+		    *(ibody0_dev.icom_hst),
+#else///USE_RECTANGULAR_BOX_FOR_LET
+		    *(ibody0_dev.encBall_hst),
+#endif//USE_RECTANGULAR_BOX_FOR_LET
+		    letcfg);
 #endif//SERIALIZED_EXECUTION
 
 
@@ -1752,6 +1777,10 @@ int main(int argc, char **argv)
 #endif//EXEC_BENCHMARK
        );
 #endif//USE_ENCLOSING_BALL_FOR_LET
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+    set edge_[x y z], mac and icom;
+    fuga;
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 
     calc_r2max_dev
       (Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev
@@ -1760,7 +1789,13 @@ int main(int argc, char **argv)
 #endif//EXEC_BENCHMARK
        );
     shareNodePosition
-      (letcfg.size, nodeInfo,    ipos, *(ibody0_dev.encBall_hst),
+      (letcfg.size, nodeInfo,
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+       min, *(ibody0_dev.min_hst),
+       max, *(ibody0_dev.max_hst),
+#else///USE_RECTANGULAR_BOX_FOR_LET
+       ipos, *(ibody0_dev.encBall_hst),
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
        amin, ibody0_dev.amin,
 #endif//GADGET_MAC
@@ -2288,6 +2323,10 @@ int main(int argc, char **argv)
 #endif//EXEC_BENCHMARK
        );
 #endif//USE_ENCLOSING_BALL_FOR_LET
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+    set edge_[x y z], mac and icom;
+    piyo;
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 
     calc_r2max_dev
       (Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev
@@ -2296,14 +2335,26 @@ int main(int argc, char **argv)
 #endif//EXEC_BENCHMARK
        );
     shareNodePosition
-      (letcfg.size, nodeInfo, ipos, *(ibody0_dev.encBall_hst),
+      (letcfg.size, nodeInfo,
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+       min, *(ibody0_dev.min_hst),
+       max, *(ibody0_dev.max_hst),
+#else///USE_RECTANGULAR_BOX_FOR_LET
+       ipos, *(ibody0_dev.encBall_hst),
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
        amin, ibody0_dev.amin,
 #endif//GADGET_MAC
        letcfg);
-    /** this function must be called when tree structure is rebuild */
+       /** this function must be called when tree structure is rebuild */
     if( existNewTree )
-      guessLETpartition(letcfg.size, nodeInfo, numNode, *(ibody0_dev.encBall_hst), letcfg);
+      guessLETpartition(letcfg.size, nodeInfo, numNode,
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+			*(ibody0_dev.icom_hst),
+#else///USE_RECTANGULAR_BOX_FOR_LET
+			*(ibody0_dev.encBall_hst),
+#endif//USE_RECTANGULAR_BOX_FOR_LET
+			letcfg);
     existNewTree = false;
 #endif//SERIALIZED_EXECUTION
 
@@ -2870,7 +2921,12 @@ int main(int argc, char **argv)
 
 #ifndef SERIALIZED_EXECUTION
   releaseLETtopology
-    (nodeInfo, ipos,
+    (nodeInfo,
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+     min, max,
+#else///USE_RECTANGULAR_BOX_FOR_LET
+     ipos,
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
      amin,
 #endif//GADGET_MAC

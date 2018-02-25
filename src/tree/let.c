@@ -44,22 +44,39 @@
  * @brief Exchange position and size of the root cell.
  * @detail position contains (x, y, z, and bmax2)
  */
-void shareNodePosition(const int Ndomain, domainInfo *info, position *pos_ful, const position pos_loc,
+void shareNodePosition
+(const int Ndomain, domainInfo *info,
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+ position *min_ful, const position min_loc,
+ position *max_ful, const position max_loc,
+#else///USE_RECTANGULAR_BOX_FOR_LET
+ position *pos_ful, const position pos_loc,
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
-		       real *acc_ful, const real acc_loc,
+ real *acc_ful, const real acc_loc,
 #endif//GADGET_MAC
-		       MPIcfg_tree mpi)
+ MPIcfg_tree mpi)
 {
   __NOTE__("%s\n", "start");
 
 
-  chkMPIerr(MPI_Allgather(&pos_loc, 1,    mpi.ipos, pos_ful, 1,    mpi.ipos, mpi.comm));
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+  chkMPIerr(MPI_Allgather(&min_loc, 1, mpi.ipos, min_ful, 1, mpi.ipos, mpi.comm));
+  chkMPIerr(MPI_Allgather(&max_loc, 1, mpi.ipos, max_ful, 1, mpi.ipos, mpi.comm));
+#else///USE_RECTANGULAR_BOX_FOR_LET
+  chkMPIerr(MPI_Allgather(&pos_loc, 1, mpi.ipos, pos_ful, 1, mpi.ipos, mpi.comm));
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
   chkMPIerr(MPI_Allgather(&acc_loc, 1, MPI_REALDAT, acc_ful, 1, MPI_REALDAT, mpi.comm));
 #endif//GADGET_MAC
 
   for(int ii = 0; ii < Ndomain - 1; ii++){
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+    info[ii].min = min_ful[info[ii].rank];
+    info[ii].max = max_ful[info[ii].rank];
+#else///USE_RECTANGULAR_BOX_FOR_LET
     info[ii].icom = pos_ful[info[ii].rank];
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
     info[ii].amin = acc_ful[info[ii].rank];
 #endif//GADGET_MAC
@@ -121,12 +138,22 @@ void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, c
 
   /** guess required depth to get enough accuracy */
   for(int ii = 0; ii < Ndomain - 1; ii++){
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+    const real rx = icom.x - FMIN(FMAX(icom.x, info[ii].min.x), info[ii].max.x);
+    const real ry = icom.y - FMIN(FMAX(icom.y, info[ii].min.y), info[ii].max.y);
+    const real rz = icom.z - FMIN(FMAX(icom.z, info[ii].min.z), info[ii].max.z);
+#else///USE_RECTANGULAR_BOX_FOR_LET
     const real rx = icom.x - info[ii].icom.x;
     const real ry = icom.y - info[ii].icom.y;
     const real rz = icom.z - info[ii].icom.z;
+#endif//USE_RECTANGULAR_BOX_FOR_LET
     const real r2 = FLT_MIN + rx * rx + ry * ry + rz * rz;
 
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+    const real lambda = FMAX(UNITY - SQRTRATIO(info[ii]. min.m, r2), ZERO);
+#else///USE_RECTANGULAR_BOX_FOR_LET
     const real lambda = FMAX(UNITY - SQRTRATIO(info[ii].icom.m, r2), ZERO);
+#endif//USE_RECTANGULAR_BOX_FOR_LET
     /* const real theta = SQRTRATIO(icom.m, EPSILON + (lambda * lambda) * r2);/\**< rough estimated value of theta *\/ */
 
     /** assumption: LET corresponds to full tree in theta <= thetamin */

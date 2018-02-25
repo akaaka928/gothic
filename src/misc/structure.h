@@ -186,6 +186,11 @@ typedef struct
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
   position *encBall, *encBall_hst;/**< center and squared radius of enclosing ball which contains all i-particles */
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+  position *min_hst;/**< m contains the value of MAC */
+  position *max_hst;
+  position *icom, *icom_hst;
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  DPADD_FOR_ACC
   DPacc *tmp;
 #endif//DPADD_FOR_ACC

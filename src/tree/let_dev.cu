@@ -51,11 +51,17 @@ __constant__  real theta2;
  *
  * @brief Memory allocation to configure MPI topology for exchanging LETs.
  */
-muse configLETtopology(domainInfo **info, position **ipos,
+muse configLETtopology
+(domainInfo **info,
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+ position **min, position **max,
+#else///USE_RECTANGULAR_BOX_FOR_LET
+ position **ipos,
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
-		       real **amin,
+ real **amin,
 #endif//GADGET_MAC
-		       int **numSend_hst, int **numSend_dev, cudaStream_t **stream, int *Nstream, const deviceProp gpu, MPIcfg_tree mpi)
+ int **numSend_hst, int **numSend_dev, cudaStream_t **stream, int *Nstream, const deviceProp gpu, MPIcfg_tree mpi)
 {
   __NOTE__("%s\n", "start");
 
@@ -64,8 +70,15 @@ muse configLETtopology(domainInfo **info, position **ipos,
 
   *info = (domainInfo *)malloc(mpi.size * sizeof(domainInfo));  if( *info == NULL ){    __KILL__(stderr, "ERROR: failure to allocate info\n");  }
   alloc.host                += mpi.size * sizeof(domainInfo);
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+  *min = (position *)malloc(mpi.size * sizeof(position));  if( *min == NULL ){    __KILL__(stderr, "ERROR: failure to allocate min\n");  }
+  alloc.host             += mpi.size * sizeof(position);
+  *max = (position *)malloc(mpi.size * sizeof(position));  if( *max == NULL ){    __KILL__(stderr, "ERROR: failure to allocate max\n");  }
+  alloc.host             += mpi.size * sizeof(position);
+#else///USE_RECTANGULAR_BOX_FOR_LET
   *ipos = (position   *)malloc(mpi.size * sizeof(position  ));  if( *ipos == NULL ){    __KILL__(stderr, "ERROR: failure to allocate ipos\n");  }
   alloc.host                += mpi.size * sizeof(position  );
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
   *amin = (real       *)malloc(mpi.size * sizeof(real      ));  if( *amin == NULL ){    __KILL__(stderr, "ERROR: failure to allocate amin\n");  }
   alloc.host                += mpi.size * sizeof(real      );
@@ -108,16 +121,26 @@ muse configLETtopology(domainInfo **info, position **ipos,
  *
  * @brief Memory deallocation to configure MPI topology for exchanging LETs.
  */
-void releaseLETtopology(domainInfo  *info, position  *ipos,
+void releaseLETtopology
+(domainInfo  *info,
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+ position  *min, position  *max,
+#else///USE_RECTANGULAR_BOX_FOR_LET
+ position  *ipos,
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
-			real  *amin,
+ real  *amin,
 #endif//GADGET_MAC
-			int  *numSend_hst, int  *numSend_dev, cudaStream_t  *stream, int  Nstream)
+ int  *numSend_hst, int  *numSend_dev, cudaStream_t  *stream, int  Nstream)
 {
   __NOTE__("%s\n", "start");
 
   free(info);
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+  free(min);  free(max);
+#else///USE_RECTANGULAR_BOX_FOR_LET
   free(ipos);
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
   free(amin);
 #endif//GADGET_MAC
@@ -399,13 +422,17 @@ __device__ __forceinline__ void enqueueChildNodes
  * @return (overflow) a variable to detect buffer overflow
  */
 __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_kernel
-(READ_ONLY position icom,
+(int * RESTRICT numLETnode,
+ READ_ONLY uint * RESTRICT more_org, READ_ONLY jparticle * RESTRICT jpos_org, READ_ONLY real * RESTRICT mj_org,
+           uint * RESTRICT more_let,           jparticle * RESTRICT jpos_let,           real * RESTRICT mj_let,
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+ const position min, const position max,
+#else///USE_RECTANGULAR_BOX_FOR_LET
+ READ_ONLY position icom,
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
  READ_ONLY real amin,
 #endif//GADGET_MAC
- int * RESTRICT numLETnode,
- READ_ONLY uint * RESTRICT more_org, READ_ONLY jparticle * RESTRICT jpos_org, READ_ONLY real * RESTRICT mj_org,
-           uint * RESTRICT more_let,           jparticle * RESTRICT jpos_let,           real * RESTRICT mj_let,
 #   if  !defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
  int * RESTRICT active, uint * RESTRICT freeNum,
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
@@ -543,11 +570,20 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
       mj_let[hidx] =   mj_org[target];      /**< send mj of an LET node */
 
       /** set a pseudo i-particle */
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+      /* edge_? contains min in x and max in y */
+      const real rx = jpos_tmp.x - FMIN(FMAX(jpos_tmp.x, min.x), max.x);
+      const real ry = jpos_tmp.y - FMIN(FMAX(jpos_tmp.y, min.y), max.y);
+      const real rz = jpos_tmp.z - FMIN(FMAX(jpos_tmp.z, min.z), max.z);
+      const real r2 = FLT_MIN + rx * rx + ry * ry + rz * rz;
+      real lambda = FMAX(UNITY - SQRTRATIO( min.m, r2), ZERO);
+#else///USE_RECTANGULAR_BOX_FOR_LET
       const real rx = jpos_tmp.x - icom.x;
       const real ry = jpos_tmp.y - icom.y;
       const real rz = jpos_tmp.z - icom.z;
       const real r2 = FLT_MIN + rx * rx + ry * ry + rz * rz;
       real lambda = FMAX(UNITY - SQRTRATIO(icom.m, r2), ZERO);
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 
       /** calculate distance between the pseudo i-particle and the candidate j-particle */
       lambda *= lambda * r2;
@@ -684,17 +720,18 @@ void callGenLET
   if( vol < (THRESHOLD_TO_SKIP_LET_GENERATOR * loc) )
 #endif//SKIP_LET_GENERATOR_FOR_NEARBY_NODE
     {
-#if 0
-      __FPRINTF__(stdout, "generate LET for rank %d\n", (*let).rank);
-#endif
       makeLET_kernel<<<1, NTHREADS_MAKE_LET, SMEM_SIZE, stream>>>
-	((*let).icom,
+	((*let).numSend_dev,
+	 tree.more, tree.jpos, tree.mj,
+	 &(tree.more[(*let).headSend]), &(tree.jpos[(*let).headSend]), &(tree.mj[(*let).headSend]),
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+	 (*let).min, (*let).max,
+#else///USE_RECTANGULAR_BOX_FOR_LET
+	 (*let).icom,
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
 	 (*let).amin,
 #endif//GADGET_MAC
-	 (*let).numSend_dev,
-	 tree.more, tree.jpos, tree.mj,
-	 &(tree.more[(*let).headSend]), &(tree.jpos[(*let).headSend]), &(tree.mj[(*let).headSend]),
 #ifndef USE_SMID_TO_GET_BUFID
 #ifndef TRY_MODE_ABOUT_BUFFER
 	 buf.active,
@@ -712,9 +749,7 @@ void callGenLET
     }
 #ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
   else{
-#if 0
-    __FPRINTF__(stdout, "skip LET generation for rank %d; overlapping fraction is %e\n", (*let).rank, vol / loc);
-#endif
+    __NOTE__("skip LET generation for rank %d; overlapping fraction is %e\n", (*let).rank, vol / loc);
     /* send full tree instead of LET */
     (*let).headSend = 0;
     checkCudaErrors(cudaMemcpyAsync((*let).numSend_dev, &((*let).numFull), sizeof(int), cudaMemcpyHostToDevice, stream));

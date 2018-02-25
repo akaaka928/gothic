@@ -2974,6 +2974,37 @@ void  readSnapshot(int *unit, double *time, ulong *steps, int num, char file[], 
 
   __NOTE__("%s\n", "end");
 }
+
+
+#ifdef  REPORT_COMPUTE_RATE
+static inline void writeComputeRate(char file[], const uint id, const double time, const ulong steps, const double speed, const double speed_run, double guess)
+{
+  char filename[128];
+  sprintf(filename, "%s/%s.%s.log", LOGFOLDER, file, "speed");
+  FILE *fp;
+  if( id == 0 ){
+    fp = fopen(filename, "w");
+    if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
+    fprintf(fp, "#time(%s)\tsteps\tfile\trate(s/step)\tspeed(%s/s)\tremain\n", time_astro_unit_name, time_astro_unit_name);
+  }/* if( id == 0 ){ */
+  else{
+    fp = fopen(filename, "a");
+    if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
+  }/* else{ */
+
+  const int day = (int)floor(guess * 1.15740740740e-5);
+  guess -= (double)day * 86400.0;/**< 1 day = 24h * 3600s = 84600s */
+  const int hour = (int)floor(guess * 2.77777777778e-4);
+  guess -= (double)hour * 3600.0;
+  const int minute = (int)floor(guess * 1.66666666667e-2);
+  guess -= (double)minute * 60.0;
+
+  fprintf(fp, "%e\t%zu\t%u\t%e\t%e\t%dd%.2dh%.2dm%lfs\n", time * time2astro, steps, id, speed, speed_run, day, hour, minute, guess);
+  fclose(fp);
+}
+#endif//REPORT_COMPUTE_RATE
+
+
 /**
  * @fn writeSnapshot
  *
@@ -3062,20 +3093,7 @@ void writeSnapshot
 #endif//defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR)
 
 #ifdef  REPORT_COMPUTE_RATE
-  FILE *fprate;
-  sprintf(filename, "%s/%s.%s.log", LOGFOLDER, file, "speed");
-  if( id == 0 ){
-    fprate = fopen(filename, "w");
-    if( fprate == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
-    fprintf(fprate, "#time(%s)\tsteps\tfile\trate(s/step)\tspeed(%s/s)\tremain(s)\tremain(min)\tremain(hour)\tremain(day)\n", time_astro_unit_name, time_astro_unit_name);
-  }/* if( id == 0 ){ */
-  else{
-    fprate = fopen(filename, "a");
-    if( fprate == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
-  }/* else{ */
-
-  fprintf(fprate, "%e\t%zu\t%u\t%e\t%e\t%e\t%e\t%e\t%e\n", time * time2astro, steps, id, speed, speed_run, guess, guess * 1.66666666667e-2, guess * 2.77777777778e-4, guess * 1.15740740740e-5);
-  fclose(fprate);
+  writeComputeRate(file, id, time, steps, speed, speed_run, guess);
 #endif//REPORT_COMPUTE_RATE
 
   /* create a new file (if the file already exists, the file is opened with read-write access, new data will overwrite any existing data) */
@@ -3509,22 +3527,8 @@ void writeSnapshotParallel
 #endif//defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR)
 
 #ifdef  REPORT_COMPUTE_RATE
-  if( mpi->rank == 0 ){
-    FILE *fprate;
-    sprintf(filename, "%s/%s.%s.log", LOGFOLDER, file, "speed");
-    if( id == 0 ){
-      fprate = fopen(filename, "w");
-      if( fprate == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
-      fprintf(fprate, "#time(%s)\tsteps\tfile\trate(s/step)\tspeed(%s/s)\tremain(s)\tremain(min)\tremain(hour)\tremain(day)\n", time_astro_unit_name, time_astro_unit_name);
-    }/* if( id == 0 ){ */
-    else{
-      fprate = fopen(filename, "a");
-      if( fprate == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
-    }/* else{ */
-
-    fprintf(fprate, "%e\t%zu\t%u\t%e\t%e\t%e\t%e\t%e\t%e\n", time * time2astro, steps, id, speed, speed_run, guess, guess * 1.66666666667e-2, guess * 2.77777777778e-4, guess * 1.15740740740e-5);
-    fclose(fprate);
-  }/* if( mpi->rank == 0 ){ */
+  if( mpi->rank == 0 )
+    writeComputeRate(file, id, time, steps, speed, speed_run, guess);
 #endif//REPORT_COMPUTE_RATE
 
 

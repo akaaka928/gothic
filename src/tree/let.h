@@ -92,7 +92,11 @@
  */
 typedef struct
 {
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+  position min, max;
+#else///USE_RECTANGULAR_BOX_FOR_LET
   position icom;
+#endif//USE_RECTANGULAR_BOX_FOR_LET
   int *numSend_hst, *numSend_dev;
   MPI_Request reqSendInfo, reqRecvInfo;
 #ifdef  MPI_ONE_SIDED_FOR_LET
@@ -118,13 +122,18 @@ typedef struct
 extern "C"
 {
 #endif//__CUDACC__
-  void initMask(const int numNode, int2 *list, uint *mask);
-
-  void shareNodePosition(const int Ndomain, domainInfo *info, position *pos_ful, const position pos_loc,
+  void shareNodePosition
+  (const int Ndomain, domainInfo *info,
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+   position *min_ful, const position min_loc,
+   position *max_ful, const position max_loc,
+#else///USE_RECTANGULAR_BOX_FOR_LET
+   position *pos_ful, const position pos_loc,
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
-			 real *acc_ful, const real acc_loc,
+   real *acc_ful, const real acc_loc,
 #endif//GADGET_MAC
-			 MPIcfg_tree mpi);
+   MPIcfg_tree mpi);
 
   void   setLETpartition(const int Ndomain, domainInfo *info);
   void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, const position icom, MPIcfg_tree mpi);

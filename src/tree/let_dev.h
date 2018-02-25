@@ -31,12 +31,14 @@
 #include "../tree/walk_dev.h"
 
 
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
 /**
  * @def SKIP_LET_GENERATOR_FOR_NEARBY_NODE
  *
  * @brief disable LET generator (only) for nearby node
  */
 #define SKIP_LET_GENERATOR_FOR_NEARBY_NODE
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 
 
 #ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
@@ -129,17 +131,28 @@
 extern "C"
 {
 #endif//__CUDACC__
-  muse  configLETtopology(domainInfo **info, position **ipos,
+  muse configLETtopology
+  (domainInfo **info,
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+   position **min, position **max,
+#else///USE_RECTANGULAR_BOX_FOR_LET
+   position **ipos,
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
-			  real **amin,
+   real **amin,
 #endif//GADGET_MAC
-			  int **numSend_hst, int **numSend_dev,
-			  cudaStream_t **stream, int *Nstream, const deviceProp gpu, MPIcfg_tree mpi);
-  void releaseLETtopology(domainInfo  *info, position  *ipos,
+   int **numSend_hst, int **numSend_dev, cudaStream_t **stream, int *Nstream, const deviceProp gpu, MPIcfg_tree mpi);
+  void releaseLETtopology
+  (domainInfo  *info,
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+   position  *min, position  *max,
+#else///USE_RECTANGULAR_BOX_FOR_LET
+   position  *ipos,
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
-			  real  *amin,
+   real  *amin,
 #endif//GADGET_MAC
-			  int  *numSend_hst, int  *numSend_dev, cudaStream_t  *stream, int  Nstream);
+   int  *numSend_hst, int  *numSend_dev, cudaStream_t  *stream, int  Nstream);
 
   void callGenLET
   (const cudaStream_t stream, domainInfo *let, const soaTreeNode tree, const soaTreeWalkBuf buf
