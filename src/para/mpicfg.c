@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/21 (Wed)
+ * @date 2018/02/26 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -144,7 +144,11 @@ static inline void createMPIcfg_tree(MPIcfg_tree *let, const MPIinfo mpi)
  *
  * @sa createMPIcfg_tree
  */
-void setNodeConfig(const ulong Ntot, int *Nnode, int *Ni, const MPIinfo mpi, MPIcfg_tree *let, const int devID)
+void setNodeConfig(const ulong Ntot, int *Nnode, int *Ni, const MPIinfo mpi, MPIcfg_tree *let
+#   if  !defined(NDEBUG) || defined(REPORT_GPU_MPI_BINDING)
+		   , const int devID
+#endif//!defined(NDEBUG) || defined(REPORT_GPU_MPI_BINDING)
+		   )
 {
   __NOTE__("%s\n", "start");
 
@@ -171,14 +175,15 @@ void setNodeConfig(const ulong Ntot, int *Nnode, int *Ni, const MPIinfo mpi, MPI
 
 
   /** make a simple log of MPI */
+#   if  !defined(NDEBUG) || defined(REPORT_GPU_MPI_BINDING)
   static char name[MPI_MAX_PROCESSOR_NAME];
   int tmp;
   chkMPIerr(MPI_Get_processor_name(name, &tmp));
   fprintf(stdout, "host name: %s\n", name);
   fprintf(stdout, "MPI info: rank %d out of %d processes\n", mpi.rank, mpi.size);
   fprintf(stdout, "GPU info: device ID is %d\n", devID);
-
   fflush(NULL);
+#endif//!defined(NDEBUG) || defined(REPORT_GPU_MPI_BINDING)
 
 
   __NOTE__("%s\n", "end");

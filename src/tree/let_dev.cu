@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/21 (Wed)
+ * @date 2018/03/01 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -55,9 +55,8 @@ muse configLETtopology
 (domainInfo **info,
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
  position **min, position **max,
-#else///USE_RECTANGULAR_BOX_FOR_LET
- position **ipos,
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+ position **ipos,
 #ifdef  GADGET_MAC
  real **amin,
 #endif//GADGET_MAC
@@ -75,17 +74,25 @@ muse configLETtopology
   alloc.host             += mpi.size * sizeof(position);
   *max = (position *)malloc(mpi.size * sizeof(position));  if( *max == NULL ){    __KILL__(stderr, "ERROR: failure to allocate max\n");  }
   alloc.host             += mpi.size * sizeof(position);
-#else///USE_RECTANGULAR_BOX_FOR_LET
+#endif//USE_RECTANGULAR_BOX_FOR_LET
   *ipos = (position   *)malloc(mpi.size * sizeof(position  ));  if( *ipos == NULL ){    __KILL__(stderr, "ERROR: failure to allocate ipos\n");  }
   alloc.host                += mpi.size * sizeof(position  );
-#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  GADGET_MAC
   *amin = (real       *)malloc(mpi.size * sizeof(real      ));  if( *amin == NULL ){    __KILL__(stderr, "ERROR: failure to allocate amin\n");  }
   alloc.host                += mpi.size * sizeof(real      );
 #endif//GADGET_MAC
 
-  for(int ii = 0; ii < mpi.size - 1; ii++)
-    (*info)[ii].rank = mpi.rank ^ (1 + ii);
+
+  /* /\* this works only for mpi.size = 2^n *\/ */
+  /* for(int ii = 0; ii < mpi.size - 1; ii++) */
+  /*   (*info)[ii].rank = (mpi.rank ^ (1 + ii)) % mpi.size; */
+
+  for(int ii = 0; ii < mpi.size - 1; ii++){
+    (*info)[ii].send = (           mpi.rank + (ii + 1)) % mpi.size;
+    (*info)[ii].recv = (mpi.size + mpi.rank - (ii + 1)) % mpi.size;
+  }/* for(int ii = 0; ii < mpi.size - 1; ii++){ */
+
+
 
   mycudaMalloc    ((void **)numSend_dev, mpi.size * sizeof(int));  alloc.device += mpi.size * sizeof(int);
   mycudaMallocHost((void **)numSend_hst, mpi.size * sizeof(int));  alloc.host   += mpi.size * sizeof(int);
@@ -125,9 +132,8 @@ void releaseLETtopology
 (domainInfo  *info,
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
  position  *min, position  *max,
-#else///USE_RECTANGULAR_BOX_FOR_LET
- position  *ipos,
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+ position  *ipos,
 #ifdef  GADGET_MAC
  real  *amin,
 #endif//GADGET_MAC
@@ -138,9 +144,8 @@ void releaseLETtopology
   free(info);
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
   free(min);  free(max);
-#else///USE_RECTANGULAR_BOX_FOR_LET
-  free(ipos);
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+  free(ipos);
 #ifdef  GADGET_MAC
   free(amin);
 #endif//GADGET_MAC
@@ -425,11 +430,15 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
 (int * RESTRICT numLETnode,
  READ_ONLY uint * RESTRICT more_org, READ_ONLY jparticle * RESTRICT jpos_org, READ_ONLY real * RESTRICT mj_org,
            uint * RESTRICT more_let,           jparticle * RESTRICT jpos_let,           real * RESTRICT mj_let,
+#   if  defined(USE_RECTANGULAR_BOX_FOR_LET) && defined(USE_ENCLOSING_BALL_FOR_LET)
+ const bool useRect,
+#endif//defined(USE_RECTANGULAR_BOX_FOR_LET) && defined(USE_ENCLOSING_BALL_FOR_LET)
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
  const position min, const position max,
-#else///USE_RECTANGULAR_BOX_FOR_LET
- READ_ONLY position icom,
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
+ READ_ONLY position icom,
+#endif//USE_ENCLOSING_BALL_FOR_LET
 #ifdef  GADGET_MAC
  READ_ONLY real amin,
 #endif//GADGET_MAC
@@ -570,20 +579,32 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
       mj_let[hidx] =   mj_org[target];      /**< send mj of an LET node */
 
       /** set a pseudo i-particle */
+      real r2, lambda;
+#   if  defined(USE_RECTANGULAR_BOX_FOR_LET) && defined(USE_ENCLOSING_BALL_FOR_LET)
+      if( useRect )
+#endif//defined(USE_RECTANGULAR_BOX_FOR_LET) && defined(USE_ENCLOSING_BALL_FOR_LET)
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
-      /* edge_? contains min in x and max in y */
-      const real rx = jpos_tmp.x - FMIN(FMAX(jpos_tmp.x, min.x), max.x);
-      const real ry = jpos_tmp.y - FMIN(FMAX(jpos_tmp.y, min.y), max.y);
-      const real rz = jpos_tmp.z - FMIN(FMAX(jpos_tmp.z, min.z), max.z);
-      const real r2 = FLT_MIN + rx * rx + ry * ry + rz * rz;
-      real lambda = FMAX(UNITY - SQRTRATIO( min.m, r2), ZERO);
-#else///USE_RECTANGULAR_BOX_FOR_LET
-      const real rx = jpos_tmp.x - icom.x;
-      const real ry = jpos_tmp.y - icom.y;
-      const real rz = jpos_tmp.z - icom.z;
-      const real r2 = FLT_MIN + rx * rx + ry * ry + rz * rz;
-      real lambda = FMAX(UNITY - SQRTRATIO(icom.m, r2), ZERO);
+	{
+	  /* edge_? contains min in x and max in y */
+	  const real rx = jpos_tmp.x - FMIN(FMAX(jpos_tmp.x, min.x), max.x);
+	  const real ry = jpos_tmp.y - FMIN(FMAX(jpos_tmp.y, min.y), max.y);
+	  const real rz = jpos_tmp.z - FMIN(FMAX(jpos_tmp.z, min.z), max.z);
+	  r2 = FLT_MIN + rx * rx + ry * ry + rz * rz;
+	  lambda = FMAX(UNITY - SQRTRATIO( min.m, r2), ZERO);
+	}
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+#   if  defined(USE_RECTANGULAR_BOX_FOR_LET) && defined(USE_ENCLOSING_BALL_FOR_LET)
+      else
+#endif//defined(USE_RECTANGULAR_BOX_FOR_LET) && defined(USE_ENCLOSING_BALL_FOR_LET)
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
+	{
+	  const real rx = jpos_tmp.x - icom.x;
+	  const real ry = jpos_tmp.y - icom.y;
+	  const real rz = jpos_tmp.z - icom.z;
+	  r2 = FLT_MIN + rx * rx + ry * ry + rz * rz;
+	  lambda = FMAX(UNITY - SQRTRATIO(icom.m, r2), ZERO);
+	}
+#endif//USE_ENCLOSING_BALL_FOR_LET
 
       /** calculate distance between the pseudo i-particle and the candidate j-particle */
       lambda *= lambda * r2;
@@ -699,6 +720,13 @@ void callGenLET
   __NOTE__("%s\n", "start");
 
 
+#   if  defined(USE_RECTANGULAR_BOX_FOR_LET) && defined(USE_ENCLOSING_BALL_FOR_LET)
+  const real rect = ((*let).max.x - (*let).min.x) * ((*let).max.y - (*let).min.y) * ((*let).max.z - (*let).min.z);
+  const real sphe = FOUR * CAST_D2R(M_PI) * ONE_THIRD * (*let).icom.m * SQRT((*let).icom.m);
+  __NOTE__("rect = %e, sphe = %e\n", rect, sphe);
+#endif//defined(USE_RECTANGULAR_BOX_FOR_LET) && defined(USE_ENCLOSING_BALL_FOR_LET)
+
+
 #ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
   /* src = iparticle.encBall_hst; */
   const position dst = (*let).icom;
@@ -724,11 +752,15 @@ void callGenLET
 	((*let).numSend_dev,
 	 tree.more, tree.jpos, tree.mj,
 	 &(tree.more[(*let).headSend]), &(tree.jpos[(*let).headSend]), &(tree.mj[(*let).headSend]),
+#   if  defined(USE_RECTANGULAR_BOX_FOR_LET) && defined(USE_ENCLOSING_BALL_FOR_LET)
+	 rect < sphe,
+#endif//defined(USE_RECTANGULAR_BOX_FOR_LET) && defined(USE_ENCLOSING_BALL_FOR_LET)
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
 	 (*let).min, (*let).max,
-#else///USE_RECTANGULAR_BOX_FOR_LET
-	 (*let).icom,
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
+	 (*let).icom,
+#endif//USE_ENCLOSING_BALL_FOR_LET
 #ifdef  GADGET_MAC
 	 (*let).amin,
 #endif//GADGET_MAC
@@ -749,7 +781,8 @@ void callGenLET
     }
 #ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
   else{
-    __NOTE__("skip LET generation for rank %d; overlapping fraction is %e\n", (*let).rank, vol / loc);
+    /* __NOTE__("skip LET generation for rank %d; overlapping fraction is %e\n", (*let).rank, vol / loc); */
+    __NOTE__("skip LET generation for rank %d; overlapping fraction is %e\n", (*let).send, vol / loc);
     /* send full tree instead of LET */
     (*let).headSend = 0;
     checkCudaErrors(cudaMemcpyAsync((*let).numSend_dev, &((*let).numFull), sizeof(int), cudaMemcpyHostToDevice, stream));

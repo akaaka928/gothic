@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/25 (Sun)
+ * @date 2018/03/01 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -18,6 +18,7 @@
 #define IO_H
 
 
+#include <stdbool.h>
 #include "macro.h"
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 #include <mpilib.h>
@@ -138,17 +139,21 @@ extern "C"
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
 			  );
-  void writeTentativeData(double  time, double  dt, ulong  steps, ulong num, iparticle body, char file[], int *last
+  void writeTentativeData
+  (double  time, double  dt, ulong  steps, ulong num, iparticle body, char file[], int *last
 #ifdef  USE_HDF5_FORMAT
-			  , hdf5struct type
+   , hdf5struct type
 #ifndef RUN_WITHOUT_GOTHIC
-			  , rebuildTree rebuild, measuredTime measured, autoTuningParam rebuildParam, brentStatus status, brentMemory memory
+   , rebuildTree rebuild, measuredTime measured, autoTuningParam rebuildParam, brentStatus status, brentMemory memory
 #ifdef  MONITOR_ENERGY_ERROR
-			  , energyError relEneErr
+   , energyError relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
-			  );
+#   if  defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+   , const bool dumpGPUclock, gpu_clock *deviceMonitors, const int monitor_step
+#endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+   );
 
   /* read/write particle data with MPI-IO */
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
@@ -163,17 +168,21 @@ extern "C"
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
 				  );
-  void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num, iparticle body, char file[], int *last, MPIcfg_dataio *mpi, ulong Ntot
+  void writeTentativeDataParallel
+  (double  time, double  dt, ulong  steps, int num, iparticle body, char file[], int *last, MPIcfg_dataio *mpi, ulong Ntot
 #ifdef  USE_HDF5_FORMAT
-				  , hdf5struct type
+   , hdf5struct type
 #ifndef RUN_WITHOUT_GOTHIC
-				  , rebuildTree rebuild, measuredTime measured, autoTuningParam rebuildParam, brentStatus status, brentMemory memory
+   , rebuildTree rebuild, measuredTime measured, autoTuningParam rebuildParam, brentStatus status, brentMemory memory
 #ifdef  MONITOR_ENERGY_ERROR
-				  , energyError  relEneErr
+   , energyError relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
-				  );
+#   if  defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+   , const bool dumpGPUclock, gpu_clock *deviceMonitors, const int monitor_step
+#endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+   );
 #endif//defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 
   /* write particle data in TIPSY format */
@@ -228,7 +237,7 @@ extern "C"
    , gpu_clock *deviceMonitors, const int monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  REPORT_COMPUTE_RATE
-   , const double speed, const double speed_run, const double guess
+   , const double speed, const double speed_run, const double complete, const double guess
 #endif//REPORT_COMPUTE_RATE
    );
 
@@ -247,7 +256,7 @@ extern "C"
    , gpu_clock *deviceMonitors, const int monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  REPORT_COMPUTE_RATE
-   , const double speed, const double speed_run, const double guess
+   , const double speed, const double speed_run, const double complete, const double guess
 #endif//REPORT_COMPUTE_RATE
    );
 

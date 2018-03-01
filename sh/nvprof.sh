@@ -17,6 +17,8 @@ STDERR=${LOGNAME}.e${JOB_ID}_${RANK}
 PROCS_PER_NODE=$4
 PROCS_PER_SOCKET=$5
 
+export TMPDIR=.
+
 # execute job with numactl --localalloc
 EXEC=$1
 OPTION="`echo $@ | sed -e "s|$EXEC||" -e "s|$LOGNAME||" -e "s/$JOB_ID//" -e "s/$PROCS_PER_NODE//" -e "s/$PROCS_PER_SOCKET//"`"
@@ -24,7 +26,7 @@ if [ `which numactl` ]; then
     TEMPID=`expr $RANK % $PROCS_PER_NODE`
     SOCKET=`expr $TEMPID / $PROCS_PER_SOCKET`
     # echo "numactl --cpunodebind=$SOCKET --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
-    numactl --cpunodebind=$SOCKET --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    numactl --cpunodebind=$SOCKET --localalloc nvprof --timeout 25 --force-overwrite -o ${LOGNAME}.${JOB_ID}.${RANK}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 else
     # echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
     $EXEC $OPTION 1>>$STDOUT 2>>$STDERR

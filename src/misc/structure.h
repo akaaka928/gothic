@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/13 (Tue)
+ * @date 2018/02/26 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -187,9 +187,9 @@ typedef struct
   position *encBall, *encBall_hst;/**< center and squared radius of enclosing ball which contains all i-particles */
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
-  position *min_hst;/**< m contains the value of MAC */
-  position *max_hst;
-  position *icom, *icom_hst;
+  position *min_hst;/**< m contains squared radius of enclosing ball which contains all i-particles */
+  position *max_hst;/**< m contains squared radius of enclosing ball which contains all i-particles */
+  position *icom_hst;/**< center and squared radius of enclosing ball which contains all i-particles */
 #endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  DPADD_FOR_ACC
   DPacc *tmp;

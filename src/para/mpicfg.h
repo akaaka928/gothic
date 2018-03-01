@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/21 (Wed)
+ * @date 2018/03/01 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -24,6 +24,9 @@
 #include "mpilib.h"
 
 
+#define REPORT_GPU_MPI_BINDING
+
+
 /**
  * @def GPUS_PER_PROCESS
  *
@@ -39,16 +42,18 @@
  *
  * @brief A parameter to control maximum deviation from equidistribution
  */
-#define MAX_FACTOR_INCREASE (1.3f)
+/* #define MAX_FACTOR_INCREASE (1.3f) */
 /* #define MAX_FACTOR_INCREASE (1.5f) */
+#define MAX_FACTOR_INCREASE (2.0f)
+/* #define MAX_FACTOR_INCREASE (4.0f) */
 
 /**
  * @def MAX_FACTOR_SAFETY
  *
  * @brief A safety parameter to control maximum deviation from equidistribution
  */
-#define MAX_FACTOR_SAFETY (1.05f)
-/* #define MAX_FACTOR_SAFETY (1.1f) */
+/* #define MAX_FACTOR_SAFETY (1.05f) */
+#define MAX_FACTOR_SAFETY (1.1f)
 
 /**
  * @def MAX_FACTOR_FROM_EQUIPARTITION
@@ -103,7 +108,11 @@ typedef struct
 extern "C"
 {
 #endif//__CUDACC__
-  void setNodeConfig(const ulong Ntot, int *Nnode, int *Ni, const MPIinfo mpi, MPIcfg_tree *let, const int devID);
+  void setNodeConfig(const ulong Ntot, int *Nnode, int *Ni, const MPIinfo mpi, MPIcfg_tree *let
+#   if  !defined(NDEBUG) || defined(REPORT_GPU_MPI_BINDING)
+		     , const int devID
+#endif//!defined(NDEBUG) || defined(REPORT_GPU_MPI_BINDING)
+		     );
 #ifdef  __CUDACC__
 }
 #endif//__CUDACC__

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/02/26 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -43,7 +43,8 @@
 static const laneinfo nullInfo = {NUM_BODY_MAX, 0};
 
 
-#define NEIGHBOR_NUM_LANE (TSUB / NWARP)
+/* #define NEIGHBOR_NUM_LANE (TSUB / NWARP) */
+#define NEIGHBOR_NUM_LANE (DIV_NWARP(TSUB))
 
 
 /**

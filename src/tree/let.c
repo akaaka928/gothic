@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/22 (Thu)
+ * @date 2018/03/01 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -49,9 +49,10 @@ void shareNodePosition
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
  position *min_ful, const position min_loc,
  position *max_ful, const position max_loc,
-#else///USE_RECTANGULAR_BOX_FOR_LET
- position *pos_ful, const position pos_loc,
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
+ position *pos_ful, const position pos_loc,
+#endif//USE_ENCLOSING_BALL_FOR_LET
 #ifdef  GADGET_MAC
  real *acc_ful, const real acc_loc,
 #endif//GADGET_MAC
@@ -63,22 +64,26 @@ void shareNodePosition
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
   chkMPIerr(MPI_Allgather(&min_loc, 1, mpi.ipos, min_ful, 1, mpi.ipos, mpi.comm));
   chkMPIerr(MPI_Allgather(&max_loc, 1, mpi.ipos, max_ful, 1, mpi.ipos, mpi.comm));
-#else///USE_RECTANGULAR_BOX_FOR_LET
-  chkMPIerr(MPI_Allgather(&pos_loc, 1, mpi.ipos, pos_ful, 1, mpi.ipos, mpi.comm));
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
+  chkMPIerr(MPI_Allgather(&pos_loc, 1, mpi.ipos, pos_ful, 1, mpi.ipos, mpi.comm));
+#endif//USE_ENCLOSING_BALL_FOR_LET
 #ifdef  GADGET_MAC
   chkMPIerr(MPI_Allgather(&acc_loc, 1, MPI_REALDAT, acc_ful, 1, MPI_REALDAT, mpi.comm));
 #endif//GADGET_MAC
 
   for(int ii = 0; ii < Ndomain - 1; ii++){
+    /* const int rank = info[ii].rank; */
+    const int rank = info[ii].send;
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
-    info[ii].min = min_ful[info[ii].rank];
-    info[ii].max = max_ful[info[ii].rank];
-#else///USE_RECTANGULAR_BOX_FOR_LET
-    info[ii].icom = pos_ful[info[ii].rank];
+    info[ii].min = min_ful[rank];
+    info[ii].max = max_ful[rank];
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
+    info[ii].icom = pos_ful[rank];
+#endif//USE_ENCLOSING_BALL_FOR_LET
 #ifdef  GADGET_MAC
-    info[ii].amin = acc_ful[info[ii].rank];
+    info[ii].amin = acc_ful[rank];
 #endif//GADGET_MAC
   }/* for(int ii = 0; ii < Ndomain - 1; ii++){ */
 
@@ -126,8 +131,8 @@ void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, c
     info[ii].overEstimateRecv = 0;
     info[ii].numFull = numNode;
 
-    chkMPIerr(MPI_Isend(&          numMax  , 1, MPI_INT, info[ii].rank, MPI_TAG_LET(     mpi.rank, mpi.size), mpi.comm, &(info[ii].reqSendInfo)));
-    chkMPIerr(MPI_Irecv(&(info[ii].numNode), 1, MPI_INT, info[ii].rank, MPI_TAG_LET(info[ii].rank, mpi.size), mpi.comm, &(info[ii].reqRecvInfo)));
+    chkMPIerr(MPI_Isend(&          numMax  , 1, MPI_INT, info[ii].send, MPI_TAG_LET(     mpi.rank, mpi.size), mpi.comm, &(info[ii].reqSendInfo)));
+    chkMPIerr(MPI_Irecv(&(info[ii].numNode), 1, MPI_INT, info[ii].recv, MPI_TAG_LET(info[ii].recv, mpi.size), mpi.comm, &(info[ii].reqRecvInfo)));
   }/* for(int ii = 0; ii < Ndomain - 1; ii++){ */
 
   for(int ii = 0; ii < Ndomain - 1; ii++){
@@ -138,22 +143,22 @@ void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, c
 
   /** guess required depth to get enough accuracy */
   for(int ii = 0; ii < Ndomain - 1; ii++){
-#ifdef  USE_RECTANGULAR_BOX_FOR_LET
-    const real rx = icom.x - FMIN(FMAX(icom.x, info[ii].min.x), info[ii].max.x);
-    const real ry = icom.y - FMIN(FMAX(icom.y, info[ii].min.y), info[ii].max.y);
-    const real rz = icom.z - FMIN(FMAX(icom.z, info[ii].min.z), info[ii].max.z);
-#else///USE_RECTANGULAR_BOX_FOR_LET
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
     const real rx = icom.x - info[ii].icom.x;
     const real ry = icom.y - info[ii].icom.y;
     const real rz = icom.z - info[ii].icom.z;
-#endif//USE_RECTANGULAR_BOX_FOR_LET
+#else///USE_ENCLOSING_BALL_FOR_LET
+    const real rx = icom.x - FMIN(FMAX(icom.x, info[ii].min.x), info[ii].max.x);
+    const real ry = icom.y - FMIN(FMAX(icom.y, info[ii].min.y), info[ii].max.y);
+    const real rz = icom.z - FMIN(FMAX(icom.z, info[ii].min.z), info[ii].max.z);
+#endif//USE_ENCLOSING_BALL_FOR_LET
     const real r2 = FLT_MIN + rx * rx + ry * ry + rz * rz;
 
-#ifdef  USE_RECTANGULAR_BOX_FOR_LET
-    const real lambda = FMAX(UNITY - SQRTRATIO(info[ii]. min.m, r2), ZERO);
-#else///USE_RECTANGULAR_BOX_FOR_LET
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
     const real lambda = FMAX(UNITY - SQRTRATIO(info[ii].icom.m, r2), ZERO);
-#endif//USE_RECTANGULAR_BOX_FOR_LET
+#else///USE_ENCLOSING_BALL_FOR_LET
+    const real lambda = FMAX(UNITY - SQRTRATIO(info[ii]. min.m, r2), ZERO);
+#endif//USE_ENCLOSING_BALL_FOR_LET
     /* const real theta = SQRTRATIO(icom.m, EPSILON + (lambda * lambda) * r2);/\**< rough estimated value of theta *\/ */
 
     /** assumption: LET corresponds to full tree in theta <= thetamin */
@@ -165,16 +170,21 @@ void guessLETpartition(const int Ndomain, domainInfo *info, const int numNode, c
     real factor = LDEXP(UNITY, FMIN(CEIL(LOG2((real)256.0 * icom.m / (EPSILON + (lambda * lambda) * r2))), ZERO));
     factor *= LETSIZE_OVERESTIMATION_FACTOR;
     const int numLET = ALIGN_BUF_FOR_LET((int)CEIL((real)numNode * factor));
+    /* a condition (domain does not overlap) must be added */
     info[ii].maxSend = (numLET < numMax) ? numLET : numMax;
+    info[ii].overEstimateSend = 0;
+    info[ii].overEstimateRecv = 0;
 
-    chkMPIerr(MPI_Isend(&(info[ii].maxSend), 1, MPI_INT, info[ii].rank,      mpi.rank, mpi.comm, &(info[ii].reqSendInfo)));
-    chkMPIerr(MPI_Irecv(&(info[ii].maxRecv), 1, MPI_INT, info[ii].rank, info[ii].rank, mpi.comm, &(info[ii].reqRecvInfo)));
+    chkMPIerr(MPI_Isend(&(info[ii].maxSend), 1, MPI_INT, info[ii].send, MPI_TAG_LET(     mpi.rank, mpi.size), mpi.comm, &(info[ii].reqSendInfo)));
+    chkMPIerr(MPI_Irecv(&(info[ii].maxRecv), 1, MPI_INT, info[ii].recv, MPI_TAG_LET(info[ii].recv, mpi.size), mpi.comm, &(info[ii].reqRecvInfo)));
   }/* for(int ii = 0; ii < Ndomain - 1; ii++){ */
+  __NOTE__("Isend/Irecv launched.\n");
 
   for(int ii = 0; ii < Ndomain - 1; ii++){
     MPI_Status statusSend;    chkMPIerr(MPI_Wait(&(info[ii].reqSendInfo), &statusSend));
     MPI_Status statusRecv;    chkMPIerr(MPI_Wait(&(info[ii].reqRecvInfo), &statusRecv));
   }/* for(int ii = 0; ii < Ndomain - 1; ii++){ */
+  __NOTE__("Isend/Irecv finished.\n");
 
   setLETpartition(Ndomain, info);
 

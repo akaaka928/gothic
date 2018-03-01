@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/02/26 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -192,20 +192,23 @@ void calc_r2max_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, iparticle *pi,
   initStopwatch();
 #endif//EXEC_BENCHMARK
 
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
   (*pi).encBall_hst->m = ZERO;
+#endif//USE_ENCLOSING_BALL_FOR_LET
 #ifdef  GADGET_MAC
   pi->amin = REAL_MAX;
 #endif//GADGET_MAC
 
   /** thread-block structure must be identical to tree traversal */
 #ifndef SERIALIZED_EXECUTION
-  if( Ngrp != 0 )
+  if( Ngrp > 0 )
 #endif//SERIALIZED_EXECUTION
     {
       int Nrem = BLOCKSIZE(Ngrp, NWARP * NGROUPS);
 
       /** NOTE: pi.jpos contains position of i-particle on the time of the gravity calculation */
       if( Nrem <= dev.Nblock ){
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
 	calc_r2max_kernel<<<Nrem, NTHREADS>>>(BLOCKSIZE(Ngrp, NGROUPS) * NGROUPS, laneInfo, (*pi).encBall,
 #ifdef  BLOCK_TIME_STEP
 					      (*pi).jpos,
@@ -216,6 +219,7 @@ void calc_r2max_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, iparticle *pi,
 
 	/** reduction using library */
 	(*pi).encBall_hst->m = thrust::reduce((thrust::device_ptr<real>)dev.r2, (thrust::device_ptr<real>)(dev.r2 + Nrem), ZERO, thrust::maximum<real>());
+#endif//USE_ENCLOSING_BALL_FOR_LET
 
 #ifdef  GADGET_MAC
 	calc_amin_kernel<<<Nrem, NTHREADS>>>(BLOCKSIZE(Ngrp, NGROUPS) * NGROUPS, laneInfo, (*pi).acc, dev.r2, true);
@@ -225,6 +229,7 @@ void calc_r2max_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, iparticle *pi,
       else{
 	const int Niter = BLOCKSIZE(Nrem, dev.Nblock);
 	int hidx = 0;
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
 	init_r2max_kernel<<<BLOCKSIZE(dev.Nblock, 1024), 1024>>>(dev.Nblock, dev.r2);
 
 	for(int iter = 0; iter < Niter; iter++){
@@ -246,6 +251,7 @@ void calc_r2max_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, iparticle *pi,
 
 	/** reduction using library */
 	(*pi).encBall_hst->m = thrust::reduce((thrust::device_ptr<real>)dev.r2, (thrust::device_ptr<real>)(dev.r2 + dev.Nblock), ZERO, thrust::maximum<real>());
+#endif//USE_ENCLOSING_BALL_FOR_LET
 
 #ifdef  GADGET_MAC
 	/** initialization */

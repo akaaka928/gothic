@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/21 (Wed)
+ * @date 2018/02/26 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -31,14 +31,14 @@
 #include "../tree/walk_dev.h"
 
 
-#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
 /**
  * @def SKIP_LET_GENERATOR_FOR_NEARBY_NODE
  *
  * @brief disable LET generator (only) for nearby node
  */
 #define SKIP_LET_GENERATOR_FOR_NEARBY_NODE
-#endif//USE_RECTANGULAR_BOX_FOR_LET
+#endif//USE_ENCLOSING_BALL_FOR_LET
 
 
 #ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
@@ -135,9 +135,8 @@ extern "C"
   (domainInfo **info,
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
    position **min, position **max,
-#else///USE_RECTANGULAR_BOX_FOR_LET
-   position **ipos,
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+   position **ipos,
 #ifdef  GADGET_MAC
    real **amin,
 #endif//GADGET_MAC
@@ -146,9 +145,8 @@ extern "C"
   (domainInfo  *info,
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
    position  *min, position  *max,
-#else///USE_RECTANGULAR_BOX_FOR_LET
-   position  *ipos,
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+   position  *ipos,
 #ifdef  GADGET_MAC
    real  *amin,
 #endif//GADGET_MAC

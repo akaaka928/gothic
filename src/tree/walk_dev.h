@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/29 (Mon)
+ * @date 2018/02/26 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -516,6 +516,9 @@ extern "C"
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
    , position **encBall, position **encBall_hst
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+   , position **box_min_hst, position **box_max_hst, position **icom_hst
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  DPADD_FOR_ACC
    , DPacc **tmp
 #endif//DPADD_FOR_ACC
@@ -539,6 +542,9 @@ extern "C"
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
    , position  *encBall, position  *encBall_hst
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+   , position  *box_min_hst, position  *box_max_hst, position  *icom_hst
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  DPADD_FOR_ACC
    , DPacc  *tmp
 #endif//DPADD_FOR_ACC

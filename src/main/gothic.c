@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/25 (Sun)
+ * @date 2018/03/01 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -18,6 +18,8 @@
 
 #ifdef  SERIALIZED_EXECUTION
 #define OUTPUT_MEMORY_USAGE
+#else///SERIALIZED_EXECUTION
+#define MONITOR_SIMULATION_STATUS
 #endif//SERIALIZED_EXECUTION
 
 #include <stdio.h>
@@ -442,6 +444,7 @@ static inline void dumpSnapshot
   const double speed = elapsed / ((present > 0) ? ((double)(steps - (*step_prev))) : (1.0));
   const double speed_run = proceed / elapsed;
   const double guess = (ft - time) / speed_run;
+  const double complete = (time / ft) * 100.0;
   *clock_prev = clock;
   *time_prev = time;
   *step_prev = steps;
@@ -463,7 +466,7 @@ static inline void dumpSnapshot
      , deviceMonitors, *monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  REPORT_COMPUTE_RATE
-     , speed, speed_run, guess
+     , speed, speed_run, complete, guess
 #endif//REPORT_COMPUTE_RATE
      );
 #else///SERIALIZED_EXECUTION
@@ -481,7 +484,7 @@ static inline void dumpSnapshot
      , deviceMonitors, *monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  REPORT_COMPUTE_RATE
-     , speed, speed_run, guess
+     , speed, speed_run, complete, guess
 #endif//REPORT_COMPUTE_RATE
      );
 #endif//SERIALIZED_EXECUTION
@@ -578,6 +581,9 @@ static inline void dumpRestarter
 #ifdef  EXEC_BENCHMARK
  , wall_clock_time *execTime
 #endif//EXEC_BENCHMARK
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+ , gpu_clock *deviceMonitors, int *monitor_step
+#endif//REPORT_GPU_CLOCK_FREQUENCY
  )
 {
   __NOTE__("%s\n", "start");
@@ -603,6 +609,9 @@ static inline void dumpRestarter
 			     , relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #endif//USE_HDF5_FORMAT
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+			     , true, deviceMonitors, *monitor_step
+#endif//REPORT_GPU_CLOCK_FREQUENCY
 			     );
 #else///SERIALIZED_EXECUTION
   writeTentativeDataParallel(time, dt, steps, num, ibody_hst, file, last, iocfg, Ntot
@@ -612,6 +621,9 @@ static inline void dumpRestarter
 			     , relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #endif//USE_HDF5_FORMAT
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+			     , true, deviceMonitors, *monitor_step
+#endif//REPORT_GPU_CLOCK_FREQUENCY
 			     );
   if( mpi.rank == 0 )
 #endif//SERIALIZED_EXECUTION
@@ -723,6 +735,10 @@ int main(int argc, char **argv)
   readSettingsParallel(&unit, &Ntot, &eps, &eta, &ft, &snapshotInterval, &saveInterval, file, mpi);
 #endif//SERIALIZED_EXECUTION
 
+#if 0
+  saveInterval = 10.0;
+#endif
+
   /** read setting to dump tentative results of the simulation */
   static int last;
 #ifdef  SERIALIZED_EXECUTION
@@ -758,7 +774,11 @@ int main(int argc, char **argv)
   const int num_max = num;
 #else///SERIALIZED_EXECUTION
   static MPIcfg_tree letcfg;
-  setNodeConfig(Ntot, &num, &Ni, mpi, &letcfg, devIdx);
+  setNodeConfig(Ntot, &num, &Ni, mpi, &letcfg
+#   if  !defined(NDEBUG) || defined(REPORT_GPU_MPI_BINDING)
+		, devIdx
+#endif//!defined(NDEBUG) || defined(REPORT_GPU_MPI_BINDING)
+		);
   const int num_max = (int)ceilf((float)num * MAX_FACTOR_FROM_EQUIPARTITION);
 #endif//SERIALIZED_EXECUTION
 
@@ -851,6 +871,9 @@ int main(int argc, char **argv)
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
   position *encBall_dev, *encBall_hst;
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+  position *box_min_hst, *box_max_hst, *icom_hst;
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  DPADD_FOR_ACC
   DPacc *tmp_dev;
 #endif//DPADD_FOR_ACC
@@ -883,6 +906,9 @@ int main(int argc, char **argv)
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
      , &encBall_dev, &encBall_hst
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+     , &box_min_hst, &box_max_hst, &icom_hst
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  DPADD_FOR_ACC
      , &tmp_dev
 #endif//DPADD_FOR_ACC
@@ -917,6 +943,9 @@ int main(int argc, char **argv)
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
      , &encBall_dev, &encBall_hst
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+     , &box_min_hst, &box_max_hst, &icom_hst
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  DPADD_FOR_ACC
      , &tmp_dev
 #endif//DPADD_FOR_ACC
@@ -1062,7 +1091,7 @@ int main(int argc, char **argv)
   int *rank_hst, *rank_dev, *idx_dev;
   domainDecomposeKey domDecKey;
   const muse alloc_pos = allocateParticlePosition
-    (&xhst, &yhst, &zhst, &particlePos_hst, &xdev, &ydev, &zdev, &particlePos_dev, &rank_hst, &rank_dev, &idx_dev, &domDecKey, Ntot);
+    (&xhst, &yhst, &zhst, &particlePos_hst, &xdev, &ydev, &zdev, &particlePos_dev, &rank_hst, &rank_dev, &idx_dev, &domDecKey, Ntot / mpi.size);
 
   float *xmin_dev, *xmax_dev, *ymin_dev, *ymax_dev, *zmin_dev, *zmax_dev;
   float *xmin_hst, *xmax_hst, *ymin_hst, *ymax_hst, *zmin_hst, *zmax_hst;
@@ -1084,9 +1113,8 @@ int main(int argc, char **argv)
   static domainInfo *nodeInfo;
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
   static position *min, *max;
-#else///USE_RECTANGULAR_BOX_FOR_LET
-  static position   *ipos;
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+  static position   *ipos;
 #ifdef  GADGET_MAC
   static real *amin;
 #endif//GADGET_MAC
@@ -1096,9 +1124,8 @@ int main(int argc, char **argv)
     (&nodeInfo,
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
      &min, &max,
-#else///USE_RECTANGULAR_BOX_FOR_LET
-     &ipos,
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+     &ipos,
 #ifdef  GADGET_MAC
      &amin,
 #endif//GADGET_MAC
@@ -1657,6 +1684,9 @@ int main(int argc, char **argv)
 
 #ifndef SERIALIZED_EXECUTION
   /** find center of enclosing ball */
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+  getEnclosingBox_dev(Ngrp, Ngrp, laneInfo_hst, ibody0_dev, soaPH_dev, devProp);
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  USE_ENCLOSING_BALL_FOR_LET
   getApproxEnclosingBall_dev
     (num, ibody0_dev
@@ -1671,10 +1701,6 @@ int main(int argc, char **argv)
 #endif//EXEC_BENCHMARK
      );
 #endif//USE_ENCLOSING_BALL_FOR_LET
-#ifdef  USE_RECTANGULAR_BOX_FOR_LET
-  set edge_[x y z], mac and icom (reuse getBoxSize_kernel in para/exchange_dev.cu);
-  hoge;
-#endif//USE_RECTANGULAR_BOX_FOR_LET
 
   /** preparation to construct LET */
   calc_r2max_dev
@@ -1688,9 +1714,10 @@ int main(int argc, char **argv)
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
      min, *(ibody0_dev.min_hst),
      max, *(ibody0_dev.max_hst),
-#else///USE_RECTANGULAR_BOX_FOR_LET
-     ipos, *(ibody0_dev.encBall_hst),
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
+     ipos, *(ibody0_dev.encBall_hst),
+#endif//USE_ENCLOSING_BALL_FOR_LET
 #ifdef  GADGET_MAC
      amin, ibody0_dev.amin,
 #endif//GADGET_MAC
@@ -1778,8 +1805,7 @@ int main(int argc, char **argv)
        );
 #endif//USE_ENCLOSING_BALL_FOR_LET
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
-    set edge_[x y z], mac and icom;
-    fuga;
+    getEnclosingBox_dev(Ngrp, Ngrp, laneInfo_hst, ibody0_dev, soaPH_dev, devProp);
 #endif//USE_RECTANGULAR_BOX_FOR_LET
 
     calc_r2max_dev
@@ -1793,9 +1819,10 @@ int main(int argc, char **argv)
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
        min, *(ibody0_dev.min_hst),
        max, *(ibody0_dev.max_hst),
-#else///USE_RECTANGULAR_BOX_FOR_LET
-       ipos, *(ibody0_dev.encBall_hst),
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
+       ipos, *(ibody0_dev.encBall_hst),
+#endif//USE_ENCLOSING_BALL_FOR_LET
 #ifdef  GADGET_MAC
        amin, ibody0_dev.amin,
 #endif//GADGET_MAC
@@ -1979,6 +2006,13 @@ int main(int argc, char **argv)
   bool existNewTree = false;
 #endif//SERIALIZED_EXECUTION
   while( time < ft ){
+#ifdef  MONITOR_SIMULATION_STATUS
+    if( mpi.rank == 0 ){
+      static char date[64];
+      getPresentDateInStrings(date);
+      __FPRINTF__(stdout, "t = %e(%zu step(s)) on %s", time, steps, date);
+    }/* if( mpi.rank == 0 ){ */
+#endif//MONITOR_SIMULATION_STATUS
     __NOTE__("t = %e(%zu step(s)), ft = %e\n", time, steps, ft);
 
 
@@ -2324,12 +2358,17 @@ int main(int argc, char **argv)
        );
 #endif//USE_ENCLOSING_BALL_FOR_LET
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
-    set edge_[x y z], mac and icom;
-    piyo;
+    getEnclosingBox_dev(grpNum, Ngrp, laneInfo_hst, ibody0_dev, soaPH_dev, devProp);
 #endif//USE_RECTANGULAR_BOX_FOR_LET
 
+/*     calc_r2max_dev */
+/*       (Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev */
+/* #ifdef  EXEC_BENCHMARK */
+/*        , &execTime[steps - bench_begin] */
+/* #endif//EXEC_BENCHMARK */
+/*        ); */
     calc_r2max_dev
-      (Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev
+      (grpNum, laneInfo_dev, &ibody0_dev, soaGEO_dev
 #ifdef  EXEC_BENCHMARK
        , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
@@ -2339,9 +2378,10 @@ int main(int argc, char **argv)
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
        min, *(ibody0_dev.min_hst),
        max, *(ibody0_dev.max_hst),
-#else///USE_RECTANGULAR_BOX_FOR_LET
-       ipos, *(ibody0_dev.encBall_hst),
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
+       ipos, *(ibody0_dev.encBall_hst),
+#endif//USE_ENCLOSING_BALL_FOR_LET
 #ifdef  GADGET_MAC
        amin, ibody0_dev.amin,
 #endif//GADGET_MAC
@@ -2544,6 +2584,9 @@ int main(int argc, char **argv)
 #ifdef  EXEC_BENCHMARK
 	 , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+	 , deviceMonitors, &monitor_step
+#endif//REPORT_GPU_CLOCK_FREQUENCY
 	 );
 #endif//COMPARE_WITH_DIRECT_SOLVER
       rebuild.reuse = 0;
@@ -2676,6 +2719,9 @@ int main(int argc, char **argv)
 #ifdef  EXEC_BENCHMARK
      , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+     , deviceMonitors, &monitor_step
+#endif//REPORT_GPU_CLOCK_FREQUENCY
      );
 #endif//!defined(EXEC_BENCHMARK) && !defined(COMPARE_WITH_DIRECT_SOLVER)
 
@@ -2791,6 +2837,9 @@ int main(int argc, char **argv)
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
      , encBall_dev, encBall_hst
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+     , box_min_hst, box_max_hst, icom_hst
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  DPADD_FOR_ACC
      , tmp_dev
 #endif//DPADD_FOR_ACC
@@ -2821,6 +2870,9 @@ int main(int argc, char **argv)
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
      , encBall_dev, encBall_hst
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+     , box_min_hst, box_max_hst, icom_hst
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  DPADD_FOR_ACC
      , tmp_dev
 #endif//DPADD_FOR_ACC
@@ -2924,9 +2976,8 @@ int main(int argc, char **argv)
     (nodeInfo,
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
      min, max,
-#else///USE_RECTANGULAR_BOX_FOR_LET
-     ipos,
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+     ipos,
 #ifdef  GADGET_MAC
      amin,
 #endif//GADGET_MAC

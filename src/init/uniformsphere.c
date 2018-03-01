@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/02/01 (Thu)
+ * @date 2018/03/01 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -376,6 +376,9 @@ int main(int argc, char **argv)
 #ifdef  MONITOR_ENERGY_ERROR
      , relEneErr
 #endif//MONITOR_ENERGY_ERROR
+#   if  defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+     , false, NULL, 0
+#endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
      );
   removeHDF5DataType(hdf5type);
 #else///USE_HDF5_FORMAT

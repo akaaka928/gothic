@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/02/25(Sun) 17:39:52
+# last updated on 2018/03/01 (Thu) 14:52:10
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -24,7 +24,7 @@ RECTANGULAR_BOX_FOR_LET	:= 1
 ENCLOSING_BALL_FOR_LET	:= 1
 COMMUNICATION_VIA_HOST	:= 1
 USE_MPI_GET_FOR_LET	:= 1
-USE_MPI_GET_FOR_EXCG	:= 0
+USE_MPI_GET_FOR_EXCG	:= 1
 CARE_EXTERNAL_PARTICLES	:= 0
 ACC_ACCUMULATION_IN_DP	:= 0
 KAHAN_SUM_CORRECTION	:= 0
@@ -186,20 +186,23 @@ ifeq ($(USE_MPI_GET_FOR_EXCG), 1)
 CCARG	+= -DMPI_ONE_SIDED_FOR_EXCG
 CUARG	+= -DMPI_ONE_SIDED_FOR_EXCG
 endif
-ifeq ($(RECTANGULAR_BOX_FOR_LET), 1)
-CCARG	+= -DUSE_RECTANGULAR_BOX_FOR_LET
-CUARG	+= -DUSE_RECTANGULAR_BOX_FOR_LET
-ENCLOSING_BALL_FOR_LET	:= 0
-DIVERT_GEOMETRIC_CENTER	:= 0
-endif
 ifeq ($(ENCLOSING_BALL_FOR_LET), 1)
 CCARG	+= -DUSE_ENCLOSING_BALL_FOR_LET
 CUARG	+= -DUSE_ENCLOSING_BALL_FOR_LET
 DIVERT_GEOMETRIC_CENTER	:= 1
+else
+RECTANGULAR_BOX_FOR_LET	:= 1
+DIVERT_GEOMETRIC_CENTER	:= 0
 endif
 ifeq ($(DIVERT_GEOMETRIC_CENTER), 1)
 CCARG	+= -DRETURN_CENTER_BY_PHKEY_GENERATOR
 CUARG	+= -DRETURN_CENTER_BY_PHKEY_GENERATOR
+endif
+ifeq ($(RECTANGULAR_BOX_FOR_LET), 1)
+CCARG	+= -DUSE_RECTANGULAR_BOX_FOR_LET
+CUARG	+= -DUSE_RECTANGULAR_BOX_FOR_LET
+# ENCLOSING_BALL_FOR_LET	:= 0
+# DIVERT_GEOMETRIC_CENTER	:= 0
 endif
 endif
 #################################################################################################

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/23 (Fri)
+ * @date 2018/02/26 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -47,6 +47,9 @@
 #include "exchange.h"
 #include "exchange_dev.h"
 
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+#include "../tree/make.h"/**< to read laneinfo */
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 
 #ifndef SERIALIZED_EXECUTION
 #define MPI_TAG_BODY(rank, size) ((rank) + ((size) * 10))
@@ -193,7 +196,6 @@ void checkBoxSize_dev(const deviceProp devProp)
 {
   __NOTE__("%s\n", "start");
 
-
   struct cudaFuncAttributes funcAttr;
   checkCudaErrors(cudaFuncGetAttributes(&funcAttr, getBoxSize_kernel));
   if( funcAttr.numRegs != REGISTERS_PER_THREAD_BOX ){
@@ -219,7 +221,6 @@ void checkBoxSize_dev(const deviceProp devProp)
   if( (devProp.numSM * NBLOCKS_PER_SM_BOX) > NTHREADS_BOX ){
     __KILL__(stderr, "ERROR: product (%d) of devProp.numSM(%d) * NBLOCKS_PER_SM_BOX(%d) must be smaller than NTHREADS_BOX(%d) to use shared memory.\n", devProp.numSM * NBLOCKS_PER_SM_BOX, devProp.numSM, NBLOCKS_PER_SM_BOX, NTHREADS_BOX);
   }/* if( (devProp.numSM * NBLOCKS_PER_SM_BOX) > NTHREADS_BOX ){ */
-
 
   __NOTE__("%s\n", "end");
 }
@@ -247,6 +248,40 @@ void getBoxSize_dev(const int num, position * RESTRICT ipos, soaPHsort soa, cons
 
   __NOTE__("%s\n", "end");
 }
+
+
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+extern "C"
+void getEnclosingBox_dev(const int grpNum, const int Ngrp, laneinfo *laneInfo_hst, iparticle pi, soaPHsort soa, const deviceProp devProp)
+{
+  __NOTE__("%s\n", "start");
+  __NOTE__("grpNum = %d, Ngrp = %d\n", grpNum, Ngrp);
+
+  getBoxSize_kernel<<<devProp.numSM * NBLOCKS_PER_SM_BOX, NTHREADS_BOX>>>(laneInfo_hst[(grpNum < Ngrp) ? ((grpNum > 1) ? (grpNum) : (2)) : (Ngrp - 1)].head, pi.pos, soa.min, soa.max, soa.gsync0, soa.gsync1);
+  getLastCudaError("getBoxSize_kernel");
+
+  checkCudaErrors(cudaMemcpy(soa.min_hst, soa.min, sizeof(float4), cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaMemcpy(soa.max_hst, soa.max, sizeof(float4), cudaMemcpyDeviceToHost));
+
+  pi.min_hst->x = CAST_F2R(soa.min_hst->x);    pi.min_hst->y = CAST_F2R(soa.min_hst->y);    pi.min_hst->z = CAST_F2R(soa.min_hst->z);
+  pi.max_hst->x = CAST_F2R(soa.max_hst->x);    pi.max_hst->y = CAST_F2R(soa.max_hst->y);    pi.max_hst->z = CAST_F2R(soa.max_hst->z);
+
+  pi.icom_hst->x = HALF * (pi.min_hst->x + pi.max_hst->x);
+  pi.icom_hst->y = HALF * (pi.min_hst->y + pi.max_hst->y);
+  pi.icom_hst->z = HALF * (pi.min_hst->z + pi.max_hst->z);
+
+  const real dx = HALF * (pi.max_hst->x - pi.min_hst->x);
+  const real dy = HALF * (pi.max_hst->y - pi.min_hst->y);
+  const real dz = HALF * (pi.max_hst->z - pi.min_hst->z);
+  const real r2 = 1.0e-30f + dx * dx + dy * dy + dz * dz;
+  pi.icom_hst->m = pi.min_hst->m = pi.max_hst->m = r2;
+  __NOTE__("xl = %e, yl = %e, zl = %e, r2 = %e\n", pi. min_hst->x, pi. min_hst->y, pi. min_hst->z, pi. min_hst->m);
+  __NOTE__("x0 = %e, y0 = %e, z0 = %e, r2 = %e\n", pi.icom_hst->x, pi.icom_hst->y, pi.icom_hst->z, pi.icom_hst->m);
+  __NOTE__("xu = %e, yu = %e, zu = %e, r2 = %e\n", pi. max_hst->x, pi. max_hst->y, pi. max_hst->z, pi. max_hst->m);
+
+  __NOTE__("%s\n", "end");
+}
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 
 
 /**

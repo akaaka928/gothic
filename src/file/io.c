@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/25 (Sun)
+ * @date 2018/03/01 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -84,6 +84,7 @@
 
 
 /* global constants to set unit system, defined in constants.c */
+extern const double        time2astro;extern const char        time_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
 #ifdef  USE_HDF5_FORMAT
 extern const real newton;
 extern const double      length2astro;extern const char      length_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
@@ -529,6 +530,157 @@ void removeHDF5DataType(hdf5struct  type)
 #endif//USE_HDF5_FORMAT
 
 
+#   if  defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+static inline void appendGPUclockInfo
+(const int monitor_step, gpu_clock *deviceMonitors,
+#ifdef  USE_HDF5_FORMAT
+ const hid_t target, const hdf5struct type
+#else///USE_HDF5_FORMAT
+ char *filename, FILE *fp
+#endif//USE_HDF5_FORMAT
+ )
+{
+  __NOTE__("%s\n", "start");
+
+
+  const int monitor = (CLOCK_RECORD_STEPS < monitor_step) ? CLOCK_RECORD_STEPS : monitor_step;
+
+  /* data reordering */
+  static gpu_clock record[CLOCK_RECORD_STEPS];
+  const int origin = monitor_step & (CLOCK_RECORD_STEPS - 1);
+  const int turnaround = monitor - origin;
+  for(int ii = 0; ii < turnaround; ii++)
+    record[ii] = deviceMonitors[origin + ii];
+  for(int ii = turnaround; ii < monitor; ii++)
+    record[ii] = deviceMonitors[ii - turnaround];
+
+#ifdef  USE_HDF5_FORMAT
+  hid_t group = H5Gcreate(target, "GPUinfo", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+  /* write attribute */
+  hsize_t attr_dims = 1;
+  hid_t dataspace = H5Screate_simple(1, &attr_dims, NULL);
+  hid_t attribute = H5Acreate(group, "steps", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &monitor));
+  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Sclose(dataspace));
+
+  /* write measured data */
+  hsize_t clock_dims = (hsize_t)monitor;
+  dataspace = H5Screate_simple(1, &clock_dims, NULL);
+  hid_t dataset = H5Dcreate(group, "record", type.gpu_clock, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, type.gpu_clock, H5S_ALL, H5S_ALL, H5P_DEFAULT, record));
+  chkHDF5err(H5Dclose(dataset));
+  chkHDF5err(H5Sclose(dataspace));
+
+  chkHDF5err(H5Gclose(group));
+#else///USE_HDF5_FORMAT
+  size_t tmp;
+  bool success = true;
+  tmp = 1;  if( tmp != fwrite(&monitor, sizeof(int), tmp, fp) )    success = false;
+  tmp = monitor;  if( tmp != fwrite(record, sizeof(gpu_clock), tmp, fp) )    success = false;
+  if( success != true ){    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);  }
+#endif//USE_HDF5_FORMAT
+
+
+  __NOTE__("%s\n", "end");
+}
+
+#   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
+static inline void appendGPUclockInfoParallel
+(const int monitor_step, gpu_clock *deviceMonitors, MPIcfg_dataio mpi,
+#ifdef  USE_HDF5_FORMAT
+ const hid_t target, const hdf5struct type
+#else///USE_HDF5_FORMAT
+ MPI_File fh, MPI_Offset *disp
+#endif//USE_HDF5_FORMAT
+ )
+{
+  __NOTE__("%s\n", "start");
+
+
+  const int monitor = (CLOCK_RECORD_STEPS < monitor_step) ? CLOCK_RECORD_STEPS : monitor_step;
+
+  /* data reordering */
+  static gpu_clock record[CLOCK_RECORD_STEPS];
+  const int origin = monitor_step & (CLOCK_RECORD_STEPS - 1);
+  const int turnaround = monitor - origin;
+  for(int ii = 0; ii < turnaround; ii++)
+    record[ii] = deviceMonitors[origin + ii];
+  for(int ii = turnaround; ii < monitor; ii++)
+    record[ii] = deviceMonitors[ii - turnaround];
+
+#ifdef  USE_HDF5_FORMAT
+  hid_t group = H5Gcreate(target, "GPUinfo", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+  /* write attribute */
+  hsize_t attr_dims = 1;
+  hid_t dataspace = H5Screate_simple(1, &attr_dims, NULL);
+  hid_t attribute = H5Acreate(group, "steps", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &monitor));
+  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Sclose(dataspace));
+
+  /* create (distributed) dataset */
+  /* create dataspace */
+  hsize_t dims_ful[2] = {mpi.size, monitor};  hid_t fulSpace = H5Screate_simple(2, dims_ful, NULL);
+  hsize_t dims_mem[2] = {       1, monitor};
+  hsize_t dims_loc[2] = {       1, monitor};  hid_t locSpace = H5Screate_simple(2, dims_loc, NULL);
+  /* create chunked dataset */
+  hid_t data_create = H5Pcreate(H5P_DATASET_CREATE);
+  hsize_t dims_max = (MAXIMUM_CHUNK_SIZE_8BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_8BIT : MAXIMUM_CHUNK_SIZE;
+  if( dims_mem[0] * dims_mem[1] > dims_max )
+    dims_mem[0] = dims_max / dims_mem[1];
+  chkHDF5err(H5Pset_chunk(data_create, 2, dims_mem));
+
+  /* configuration about distributed dataset */
+  hsize_t  count[2] = {1, 1};
+  hsize_t stride[2] = {1, 1};
+  hsize_t  block[2] = {dims_loc[0], dims_loc[1]};
+  hsize_t offset[2] = {mpi.rank, 0};
+
+  /* set up the collective transfer properties function */
+  hid_t w_property = H5Pcreate(H5P_DATASET_XFER);
+  chkHDF5err(H5Pset_dxpl_mpio(w_property, H5FD_MPIO_COLLECTIVE));
+
+  /* write measured data */
+  hid_t dataset = H5Dcreate(group, "record", type.gpu_clock, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+  hid_t hyperslab = H5Dget_space(dataset);
+  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, offset, stride, count, block));
+  chkHDF5err(H5Dwrite(dataset, type.gpu_clock, locSpace, hyperslab, w_property, record));
+  chkHDF5err(H5Sclose(hyperslab));
+  chkHDF5err(H5Dclose(dataset));
+
+  chkHDF5err(H5Pclose(w_property));
+  chkHDF5err(H5Pclose(data_create));
+  chkHDF5err(H5Sclose(locSpace));
+  chkHDF5err(H5Sclose(fulSpace));
+
+  chkHDF5err(H5Gclose(group));
+#else///USE_HDF5_FORMAT
+  MPI_Status status;
+
+  /* the root process writes steps, an unsigned int value */
+  chkMPIerr(MPI_File_set_view(fh, *disp, MPI_INT, MPI_INT, "native", MPI_INFO_NULL));
+  if( mpi.rank == 0 )
+    chkMPIerr(MPI_File_write(fh, &monitor, 1, MPI_INT, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  (*disp) += 1 * (MPI_Offset)sizeof(int);
+
+  /* the whole processes write measured clock frequency of GPUs */
+  chkMPIerr(MPI_File_set_view(fh, (*disp) + mpi.rank * (MPI_Offset)monitor * (MPI_Offset)sizeof(gpu_clock), MPI_BYTE, MPI_BYTE, "native", MPI_INFO_NULL));
+  chkMPIerr(MPI_File_write(fh, record, monitor * sizeof(gpu_clock), MPI_BYTE, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  (*disp) += mpi.size * (MPI_Offset)monitor * (MPI_Offset)sizeof(gpu_clock);
+#endif//USE_HDF5_FORMAT
+
+
+  __NOTE__("%s\n", "end");
+}
+#endif//defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
+#endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+
+
 /**
  * @fn readTentativeData
  *
@@ -811,17 +963,21 @@ void  readTentativeData(double *time, double *dt, ulong *steps, int num, ipartic
  * @param (memory) parameters for auto-tuning based on Brent method in the previous run (only for GOTHIC with HDF5)
  * @param (relEneErr) energy error in the previous run (only for GOTHIC with HDF5)
  */
-void writeTentativeData(double  time, double  dt, ulong  steps, ulong num, iparticle body, char file[], int *last
+void writeTentativeData
+(double  time, double  dt, ulong  steps, ulong num, iparticle body, char file[], int *last
 #ifdef  USE_HDF5_FORMAT
-			, hdf5struct type
+ , hdf5struct type
 #ifndef RUN_WITHOUT_GOTHIC
-			, rebuildTree rebuild, measuredTime measured, autoTuningParam rebuildParam, brentStatus status, brentMemory memory
+ , rebuildTree rebuild, measuredTime measured, autoTuningParam rebuildParam, brentStatus status, brentMemory memory
 #ifdef  MONITOR_ENERGY_ERROR
-			, energyError relEneErr
+ , energyError relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
-			)
+#   if  defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+ , const bool dumpGPUclock, gpu_clock *deviceMonitors, const int monitor_step
+#endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+ )
 {
   __NOTE__("%s\n", "start");
 
@@ -853,7 +1009,11 @@ void writeTentativeData(double  time, double  dt, ulong  steps, ulong num, ipart
   tmp = num;  if( tmp != fwrite(body.vz, sizeof(real), tmp, fp) )    success = false;
 #endif//BLOCK_TIME_STEP
   tmp = num;  if( tmp != fwrite(body.idx, sizeof(ulong), tmp, fp) )    success = false;
-  if( success != true ){    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);  }
+
+#   if  defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+  if( dumpGPUclock )
+    appendGPUclockInfo(monitor_step, deviceMonitors, filename, fp);
+#endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
 
   if( success != true ){    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);  }
   fclose(fp);
@@ -1112,6 +1272,11 @@ void writeTentativeData(double  time, double  dt, ulong  steps, ulong num, ipart
   }/* if( steps != 0 ){ */
 #endif//RUN_WITHOUT_GOTHIC
 
+#   if  defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+  if( dumpGPUclock )
+    appendGPUclockInfo(monitor_step, deviceMonitors, target, type);
+#endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+
   /* close the file */
   chkHDF5err(H5Fclose(target));
   *last ^= 1;
@@ -1327,7 +1492,8 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int *num
 
 #ifndef  RUN_WITHOUT_GOTHIC
   /* read parameters for auto-tuning in GOTHIC */
-  if( (*steps != 0) && (*dropPrevTune == 0) ){
+  /* if( (*steps != 0) && (*dropPrevTune == 0) ){ */
+  if( (*steps != 0) && (*dropPrevTune == 0) && (*steps != 926) ){
     chkHDF5err(H5Gclose(group));
     group = H5Gopen(target, "parameters in auto-tuning", H5P_DEFAULT);
 
@@ -1622,17 +1788,21 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int *num
  * @param (memory) parameters for auto-tuning based on Brent method in the previous run (only for GOTHIC with HDF5)
  * @param (relEneErr) energy error in the previous run (only for GOTHIC with HDF5)
  */
-void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num, iparticle body, char file[], int *last, MPIcfg_dataio *mpi, ulong Ntot
+void writeTentativeDataParallel
+(double  time, double  dt, ulong  steps, int num, iparticle body, char file[], int *last, MPIcfg_dataio *mpi, ulong Ntot
 #ifdef  USE_HDF5_FORMAT
-				, hdf5struct type
+ , hdf5struct type
 #ifndef RUN_WITHOUT_GOTHIC
-				, rebuildTree rebuild, measuredTime measured, autoTuningParam rebuildParam, brentStatus status, brentMemory memory
+ , rebuildTree rebuild, measuredTime measured, autoTuningParam rebuildParam, brentStatus status, brentMemory memory
 #ifdef  MONITOR_ENERGY_ERROR
-				, energyError relEneErr
+ , energyError relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
-				)
+#   if  defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+ , const bool dumpGPUclock, gpu_clock *deviceMonitors, const int monitor_step
+#endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+ )
 {
   __NOTE__("%s\n", "start");
 
@@ -1717,6 +1887,11 @@ void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num,
   chkMPIerr(MPI_File_write(fh, body.idx, num, MPI_UNSIGNED_LONG, &status));
   chkMPIerr(MPI_File_sync(fh));
   disp += Ntot * (MPI_Offset)sizeof(ulong);
+
+#   if  defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+  if( dumpGPUclock )
+    appendGPUclockInfoParallel(monitor_step, deviceMonitors, *mpi, fh, &disp);
+#endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
 
   /* close the output file */
   chkMPIerr(MPI_File_close(&fh));
@@ -2079,11 +2254,16 @@ void writeTentativeDataParallel(double  time, double  dt, ulong  steps, int num,
     chkHDF5err(H5Gclose(group));
   }/* if( steps != 0 ){ */
 #endif//RUN_WITHOUT_GOTHIC
+  chkHDF5err(H5Pclose(w_property));
 
+  /* write GPU information */
+#   if  defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+  if( dumpGPUclock )
+    appendGPUclockInfoParallel(monitor_step, deviceMonitors, *mpi, target, type);
+#endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
 
   /* close the file */
   /* finish collective dataset write */
-  chkHDF5err(H5Pclose(w_property));
   chkHDF5err(H5Fclose(target));
   *last ^= 1;
 #endif//USE_HDF5_FORMAT
@@ -2977,7 +3157,7 @@ void  readSnapshot(int *unit, double *time, ulong *steps, int num, char file[], 
 
 
 #ifdef  REPORT_COMPUTE_RATE
-static inline void writeComputeRate(char file[], const uint id, const double time, const ulong steps, const double speed, const double speed_run, double guess)
+static inline void writeComputeRate(char file[], const uint id, const double time, const ulong steps, const double speed, const double speed_run, const double complete, double guess)
 {
   char filename[128];
   sprintf(filename, "%s/%s.%s.log", LOGFOLDER, file, "speed");
@@ -2985,13 +3165,15 @@ static inline void writeComputeRate(char file[], const uint id, const double tim
   if( id == 0 ){
     fp = fopen(filename, "w");
     if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
-    fprintf(fp, "#time(%s)\tsteps\tfile\trate(s/step)\tspeed(%s/s)\tremain\n", time_astro_unit_name, time_astro_unit_name);
+    fprintf(fp, "#time(%s)\tsteps\tfile\trate(s/step)\tspeed(%s/s)\tcomplete\tremain\n", time_astro_unit_name, time_astro_unit_name);
   }/* if( id == 0 ){ */
   else{
     fp = fopen(filename, "a");
     if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
   }/* else{ */
 
+  if( steps == 0 )
+    guess = 0.0;
   const int day = (int)floor(guess * 1.15740740740e-5);
   guess -= (double)day * 86400.0;/**< 1 day = 24h * 3600s = 84600s */
   const int hour = (int)floor(guess * 2.77777777778e-4);
@@ -2999,7 +3181,7 @@ static inline void writeComputeRate(char file[], const uint id, const double tim
   const int minute = (int)floor(guess * 1.66666666667e-2);
   guess -= (double)minute * 60.0;
 
-  fprintf(fp, "%e\t%zu\t%u\t%e\t%e\t%dd%.2dh%.2dm%lfs\n", time * time2astro, steps, id, speed, speed_run, day, hour, minute, guess);
+  fprintf(fp, "%e\t%zu\t%u\t%e\t%e\t%7.3lf%%\t%dd %2dh %2dm %6.3lfs\n", time * time2astro, steps, id, speed, speed_run, complete, day, hour, minute, guess);
   fclose(fp);
 }
 #endif//REPORT_COMPUTE_RATE
@@ -3033,7 +3215,7 @@ void writeSnapshot
  , gpu_clock *deviceMonitors, const int monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  REPORT_COMPUTE_RATE
- , const double speed, const double speed_run, const double guess
+ , const double speed, const double speed_run, const double complete, const double guess
 #endif//REPORT_COMPUTE_RATE
  )
 {
@@ -3093,7 +3275,7 @@ void writeSnapshot
 #endif//defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR)
 
 #ifdef  REPORT_COMPUTE_RATE
-  writeComputeRate(file, id, time, steps, speed, speed_run, guess);
+  writeComputeRate(file, id, time, steps, speed, speed_run, complete, guess);
 #endif//REPORT_COMPUTE_RATE
 
   /* create a new file (if the file already exists, the file is opened with read-write access, new data will overwrite any existing data) */
@@ -3122,21 +3304,9 @@ void writeSnapshot
 #endif//BLOCK_TIME_STEP
   tmp = num;  if( tmp != fwrite(body.idx, sizeof(ulong), tmp, fp) )    success = false;
 
-#ifdef  REPORT_GPU_CLOCK_FREQUENCY
-  const int monitor = (CLOCK_RECORD_STEPS < monitor_step) ? CLOCK_RECORD_STEPS : monitor_step;
-  tmp = 1;  if( tmp != fwrite(&monitor, sizeof(int), tmp, fp) )    success = false;
-
-  /* data reordering */
-  static gpu_clock record[CLOCK_RECORD_STEPS];
-  const int origin = monitor_step & (CLOCK_RECORD_STEPS - 1);
-  const int turnaround = monitor - origin;
-  for(int ii = 0; ii < turnaround; ii++)
-    record[ii] = deviceMonitors[origin + ii];
-  for(int ii = turnaround; ii < monitor; ii++)
-    record[ii] = deviceMonitors[ii - turnaround];
-
-  tmp = monitor;  if( tmp != fwrite(record, sizeof(gpu_clock), tmp, fp) )    success = false;
-#endif//REPORT_GPU_CLOCK_FREQUENCY
+#   if  defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+  appendGPUclockInfo(monitor_step, deviceMonitors, filename, fp);
+#endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
 
   if( success != true ){    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);  }
 
@@ -3382,38 +3552,9 @@ void writeSnapshot
 #endif//MONITOR_ENERGY_ERROR
 
   /* write GPU information */
-#ifdef  REPORT_GPU_CLOCK_FREQUENCY
-  group = H5Gcreate(target, "GPUinfo", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-  const int monitor = (CLOCK_RECORD_STEPS < monitor_step) ? CLOCK_RECORD_STEPS : monitor_step;
-
-  /* write attribute */
-  attr_dims = 1;
-  dataspace = H5Screate_simple(1, &attr_dims, NULL);
-  attribute = H5Acreate(group, "steps", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &monitor));
-  chkHDF5err(H5Aclose(attribute));
-  chkHDF5err(H5Sclose(dataspace));
-
-  /* data reordering */
-  static gpu_clock record[CLOCK_RECORD_STEPS];
-  const int origin = monitor_step & (CLOCK_RECORD_STEPS - 1);
-  const int turnaround = monitor - origin;
-  for(int ii = 0; ii < turnaround; ii++)
-    record[ii] = deviceMonitors[origin + ii];
-  for(int ii = turnaround; ii < monitor; ii++)
-    record[ii] = deviceMonitors[ii - turnaround];
-
-  /* write measured data */
-  hsize_t clock_dims = (hsize_t)monitor;
-  dataspace = H5Screate_simple(1, &clock_dims, NULL);
-  dataset = H5Dcreate(group, "record", type.gpu_clock, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Dwrite(dataset, type.gpu_clock, H5S_ALL, H5S_ALL, H5P_DEFAULT, record));
-  chkHDF5err(H5Dclose(dataset));
-  chkHDF5err(H5Sclose(dataspace));
-
-  chkHDF5err(H5Gclose(group));
-#endif//REPORT_GPU_CLOCK_FREQUENCY
+#   if  defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+  appendGPUclockInfo(monitor_step, deviceMonitors, target, type);
+#endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
 
 
   /* close the file */
@@ -3455,7 +3596,7 @@ void writeSnapshotParallel
  , gpu_clock *deviceMonitors, const int monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  REPORT_COMPUTE_RATE
- , const double speed, const double speed_run, const double guess
+ , const double speed, const double speed_run, const double complete, const double guess
 #endif//REPORT_COMPUTE_RATE
  )
 {
@@ -3528,7 +3669,7 @@ void writeSnapshotParallel
 
 #ifdef  REPORT_COMPUTE_RATE
   if( mpi->rank == 0 )
-    writeComputeRate(file, id, time, steps, speed, speed_run, guess);
+    writeComputeRate(file, id, time, steps, speed, speed_run, complete, guess);
 #endif//REPORT_COMPUTE_RATE
 
 
@@ -3609,31 +3750,9 @@ void writeSnapshotParallel
   chkMPIerr(MPI_File_sync(fh));
   disp += Ntot * (MPI_Offset)sizeof(ulong);
 
-#ifdef  REPORT_GPU_CLOCK_FREQUENCY
-  const int monitor = (CLOCK_RECORD_STEPS < monitor_step) ? CLOCK_RECORD_STEPS : monitor_step;
-
-  /* data reordering */
-  static gpu_clock record[CLOCK_RECORD_STEPS];
-  const int origin = monitor_step & (CLOCK_RECORD_STEPS - 1);
-  const int turnaround = monitor - origin;
-  for(int ii = 0; ii < turnaround; ii++)
-    record[ii] = deviceMonitors[origin + ii];
-  for(int ii = turnaround; ii < monitor; ii++)
-    record[ii] = deviceMonitors[ii - turnaround];
-
-  /* the root process writes steps, an unsigned int value */
-  chkMPIerr(MPI_File_set_view(fh, disp, MPI_INT, MPI_INT, "native", MPI_INFO_NULL));
-  if( mpi->rank == 0 )
-    chkMPIerr(MPI_File_write(fh, &monitor, 1, MPI_INT, &status));
-  chkMPIerr(MPI_File_sync(fh));
-  disp += 1 * (MPI_Offset)sizeof(int);
-
-  /* the whole processes write measured clock frequency of GPUs */
-  chkMPIerr(MPI_File_set_view(fh, disp + mpi->rank * (MPI_Offset)monitor * (MPI_Offset)sizeof(gpu_clock), MPI_BYTE, MPI_BYTE, "native", MPI_INFO_NULL));
-  chkMPIerr(MPI_File_write(fh, record, monitor * sizeof(gpu_clock), MPI_BYTE, &status));
-  chkMPIerr(MPI_File_sync(fh));
-  disp += mpi->size * (MPI_Offset)monitor * (MPI_Offset)sizeof(gpu_clock);
-#endif//REPORT_GPU_CLOCK_FREQUENCY
+#   if  defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+  appendGPUclockInfoParallel(monitor_step, deviceMonitors, *mpi, fh, &disp);
+#endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
 
   /* close the target file */
   chkMPIerr(MPI_File_close(&fh));
@@ -3900,63 +4019,9 @@ void writeSnapshotParallel
 #endif//MONITOR_ENERGY_ERROR
 
   /* write GPU information */
-#ifdef  REPORT_GPU_CLOCK_FREQUENCY
-  group = H5Gcreate(target, "GPUinfo", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-  const int monitor = (CLOCK_RECORD_STEPS < monitor_step) ? CLOCK_RECORD_STEPS : monitor_step;
-
-  /* write attribute */
-  attr_dims = 1;
-  dataspace = H5Screate_simple(1, &attr_dims, NULL);
-  attribute = H5Acreate(group, "steps", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &monitor));
-  chkHDF5err(H5Aclose(attribute));
-  chkHDF5err(H5Sclose(dataspace));
-
-  /* data reordering */
-  static gpu_clock record[CLOCK_RECORD_STEPS];
-  const int origin = monitor_step & (CLOCK_RECORD_STEPS - 1);
-  const int turnaround = monitor - origin;
-  for(int ii = 0; ii < turnaround; ii++)
-    record[ii] = deviceMonitors[origin + ii];
-  for(int ii = turnaround; ii < monitor; ii++)
-    record[ii] = deviceMonitors[ii - turnaround];
-
-  dims_ful[0] = (hsize_t)mpi->size;  dims_ful[1] = (hsize_t)monitor;
-  dims_mem[0] = (hsize_t)        1;  dims_mem[1] = (hsize_t)monitor;
-  dims_loc[0] = (hsize_t)        1;  dims_loc[1] = (hsize_t)monitor;
-  fulSpace = H5Screate_simple(2, dims_ful, NULL);
-  locSpace = H5Screate_simple(2, dims_loc, NULL);
-
-  data_create = H5Pcreate(H5P_DATASET_CREATE);
-  dims_max = (MAXIMUM_CHUNK_SIZE_8BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_8BIT : MAXIMUM_CHUNK_SIZE;
-  if( dims_mem[0] * dims_mem[1] > dims_max )
-    dims_mem[0] = dims_max / dims_mem[1];
-  chkHDF5err(H5Pset_chunk(data_create, 2, dims_mem));
-
-  count [0] =           1;  count [1] = 1;
-  stride[0] =           1;  stride[1] = 1;
-  block [0] = dims_loc[0];  block [1] = dims_loc[1];
-  offset[0] =   mpi->rank;  offset[1] = 0;
-
-  w_property = H5Pcreate(H5P_DATASET_XFER);
-  chkHDF5err(H5Pset_dxpl_mpio(w_property, H5FD_MPIO_COLLECTIVE));
-
-  /* write measured data */
-  dataset = H5Dcreate(group, "record", type.gpu_clock, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
-  hyperslab = H5Dget_space(dataset);
-  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, offset, stride, count, block));
-  chkHDF5err(H5Dwrite(dataset, type.gpu_clock, locSpace, hyperslab, w_property, record));
-  chkHDF5err(H5Sclose(hyperslab));
-  chkHDF5err(H5Dclose(dataset));
-
-  chkHDF5err(H5Pclose(w_property));
-  chkHDF5err(H5Pclose(data_create));
-  chkHDF5err(H5Sclose(locSpace));
-  chkHDF5err(H5Sclose(fulSpace));
-
-  chkHDF5err(H5Gclose(group));
-#endif//REPORT_GPU_CLOCK_FREQUENCY
+#   if  defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+  appendGPUclockInfoParallel(monitor_step, deviceMonitors, *mpi, target, type);
+#endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
 
 
   /* close the file */

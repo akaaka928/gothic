@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/12/18 (Mon)
+ * @date 2018/02/26 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -160,6 +160,10 @@
 #include "../sort/peano_dev.h"
 #include "../para/exchange.h"
 
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+#include "../tree/make.h"/**< to read laneinfo */
+#endif//USE_RECTANGULAR_BOX_FOR_LET
+
 
 /**
  * @struct sendDom
@@ -184,6 +188,9 @@ extern "C"
   void checkBoxSize_dev(const deviceProp devProp);
 
   void getBoxSize_dev(const int num, position * RESTRICT ipos, soaPHsort soa, const deviceProp devProp, cudaStream_t stream);
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+  void getEnclosingBox_dev(const int grpNum, const int Ngrp, laneinfo *laneInfo_hst, iparticle pi, soaPHsort soa, const deviceProp devProp);
+#endif//USE_RECTANGULAR_BOX_FOR_LET
 
   muse allocateSamplePos
   (float **x0hst, float **x1hst, float **y0hst, float **y1hst, float **z0hst, float **z1hst, int **idhst,

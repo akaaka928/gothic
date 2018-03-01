@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/03/01 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -39,7 +39,8 @@
  *
  * @brief extend number of arrays for tree node
  */
-#define EXTEND_NUM_TREE_NODE (2.0f)
+/* #define EXTEND_NUM_TREE_NODE (2.0f) */
+#define EXTEND_NUM_TREE_NODE (4.0f)
 
 
 #ifdef  SERIALIZED_EXECUTION
@@ -53,21 +54,22 @@
  *
  * @brief a parameter to shrink size of LET buffer
  */
-#define LETSIZE_OVERESTIMATION_STEPS (4)
+/* #define LETSIZE_OVERESTIMATION_STEPS (4) */
+#define LETSIZE_OVERESTIMATION_STEPS (8)
 
 /**
  * @def LETSIZE_REDUCE_CRITERION
  *
  * @brief a parameter to shrink size of LET buffer
  */
-#define LETSIZE_REDUCE_CRITERION (0.25f)
+#define LETSIZE_REDUCE_CRITERION (0.5f)
 
 /**
  * @def LETSIZE_REDUCE_FACTOR
  *
  * @brief a parameter to shrink size of LET buffer
  */
-#define LETSIZE_REDUCE_FACTOR (0.75f)
+#define LETSIZE_REDUCE_FACTOR (0.8f)
 
 
 /**
@@ -75,9 +77,9 @@
  *
  * @brief a parameter to predict size of LET buffer
  */
-/* #define LETSIZE_OVERESTIMATION_FACTOR (2.0f) */
+#define LETSIZE_OVERESTIMATION_FACTOR (2.0f)
 /* #define LETSIZE_OVERESTIMATION_FACTOR (1.5f) */
-#define LETSIZE_OVERESTIMATION_FACTOR (1.25f)
+/* #define LETSIZE_OVERESTIMATION_FACTOR (1.25f) */
 /* #define LETSIZE_OVERESTIMATION_FACTOR (1.125f) */
 
 
@@ -94,9 +96,8 @@ typedef struct
 {
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
   position min, max;
-#else///USE_RECTANGULAR_BOX_FOR_LET
-  position icom;
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+  position icom;
   int *numSend_hst, *numSend_dev;
   MPI_Request reqSendInfo, reqRecvInfo;
 #ifdef  MPI_ONE_SIDED_FOR_LET
@@ -110,7 +111,7 @@ typedef struct
   int headSend, headRecv, numSend, numRecv, numRecvGuess;
   int maxSend, maxRecv, numFull, numNode;/**< numFull is # of nodes in local full tree, numNode is # of nodes in distant full tree */
   int overEstimateSend, overEstimateRecv;
-  int rank;
+  int send, recv;/**< destination rank and source rank in i-th step */
 #ifdef  GADGET_MAC
   real amin;
 #endif//GADGET_MAC
@@ -127,9 +128,10 @@ extern "C"
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
    position *min_ful, const position min_loc,
    position *max_ful, const position max_loc,
-#else///USE_RECTANGULAR_BOX_FOR_LET
-   position *pos_ful, const position pos_loc,
 #endif//USE_RECTANGULAR_BOX_FOR_LET
+#ifdef  USE_ENCLOSING_BALL_FOR_LET
+   position *pos_ful, const position pos_loc,
+#endif//USE_ENCLOSING_BALL_FOR_LET
 #ifdef  GADGET_MAC
    real *acc_ful, const real acc_loc,
 #endif//GADGET_MAC
