@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/01 (Thu)
+ * @date 2018/03/02 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -73,7 +73,6 @@ void shareNodePosition
 #endif//GADGET_MAC
 
   for(int ii = 0; ii < Ndomain - 1; ii++){
-    /* const int rank = info[ii].rank; */
     const int rank = info[ii].send;
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
     info[ii].min = min_ful[rank];

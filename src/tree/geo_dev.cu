@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/26 (Mon)
+ * @date 2018/03/02 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -279,6 +279,7 @@ void calc_r2max_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, iparticle *pi,
       getLastCudaError("calc_r2max_kernel");
 
     }
+
 
 #ifdef  EXEC_BENCHMARK
   stopStopwatch(&(elapsed->calc_r2max_dev));

@@ -257,24 +257,34 @@ void getEnclosingBox_dev(const int grpNum, const int Ngrp, laneinfo *laneInfo_hs
   __NOTE__("%s\n", "start");
   __NOTE__("grpNum = %d, Ngrp = %d\n", grpNum, Ngrp);
 
-  getBoxSize_kernel<<<devProp.numSM * NBLOCKS_PER_SM_BOX, NTHREADS_BOX>>>(laneInfo_hst[(grpNum < Ngrp) ? ((grpNum > 1) ? (grpNum) : (2)) : (Ngrp - 1)].head, pi.pos, soa.min, soa.max, soa.gsync0, soa.gsync1);
-  getLastCudaError("getBoxSize_kernel");
+  if( grpNum > 0 ){
+    getBoxSize_kernel<<<devProp.numSM * NBLOCKS_PER_SM_BOX, NTHREADS_BOX>>>(laneInfo_hst[(grpNum < Ngrp) ? (grpNum) : (Ngrp - 1)].head, pi.pos, soa.min, soa.max, soa.gsync0, soa.gsync1);
+    getLastCudaError("getBoxSize_kernel");
 
-  checkCudaErrors(cudaMemcpy(soa.min_hst, soa.min, sizeof(float4), cudaMemcpyDeviceToHost));
-  checkCudaErrors(cudaMemcpy(soa.max_hst, soa.max, sizeof(float4), cudaMemcpyDeviceToHost));
+    checkCudaErrors(cudaMemcpy(soa.min_hst, soa.min, sizeof(float4), cudaMemcpyDeviceToHost));
+    checkCudaErrors(cudaMemcpy(soa.max_hst, soa.max, sizeof(float4), cudaMemcpyDeviceToHost));
 
-  pi.min_hst->x = CAST_F2R(soa.min_hst->x);    pi.min_hst->y = CAST_F2R(soa.min_hst->y);    pi.min_hst->z = CAST_F2R(soa.min_hst->z);
-  pi.max_hst->x = CAST_F2R(soa.max_hst->x);    pi.max_hst->y = CAST_F2R(soa.max_hst->y);    pi.max_hst->z = CAST_F2R(soa.max_hst->z);
+    pi.min_hst->x = CAST_F2R(soa.min_hst->x);    pi.min_hst->y = CAST_F2R(soa.min_hst->y);    pi.min_hst->z = CAST_F2R(soa.min_hst->z);
+    pi.max_hst->x = CAST_F2R(soa.max_hst->x);    pi.max_hst->y = CAST_F2R(soa.max_hst->y);    pi.max_hst->z = CAST_F2R(soa.max_hst->z);
 
-  pi.icom_hst->x = HALF * (pi.min_hst->x + pi.max_hst->x);
-  pi.icom_hst->y = HALF * (pi.min_hst->y + pi.max_hst->y);
-  pi.icom_hst->z = HALF * (pi.min_hst->z + pi.max_hst->z);
+    pi.icom_hst->x = HALF * (pi.min_hst->x + pi.max_hst->x);
+    pi.icom_hst->y = HALF * (pi.min_hst->y + pi.max_hst->y);
+    pi.icom_hst->z = HALF * (pi.min_hst->z + pi.max_hst->z);
 
-  const real dx = HALF * (pi.max_hst->x - pi.min_hst->x);
-  const real dy = HALF * (pi.max_hst->y - pi.min_hst->y);
-  const real dz = HALF * (pi.max_hst->z - pi.min_hst->z);
-  const real r2 = 1.0e-30f + dx * dx + dy * dy + dz * dz;
-  pi.icom_hst->m = pi.min_hst->m = pi.max_hst->m = r2;
+    const real dx = HALF * (pi.max_hst->x - pi.min_hst->x);
+    const real dy = HALF * (pi.max_hst->y - pi.min_hst->y);
+    const real dz = HALF * (pi.max_hst->z - pi.min_hst->z);
+    const real r2 = 1.0e-30f + dx * dx + dy * dy + dz * dz;
+    pi.icom_hst->m = pi.min_hst->m = pi.max_hst->m = r2;
+  }/* if( grpNum > 0 ){ */
+  else{
+#ifdef  SKIP_UNUSED_LET_GENERATION
+    pi.icom_hst->m = pi.min_hst->m = pi.max_hst->m = -UNITY;
+#else///SKIP_UNUSED_LET_GENERATION
+    pi.icom_hst->m = pi.min_hst->m = pi.max_hst->m = ZERO;
+#endif//SKIP_UNUSED_LET_GENERATION
+  }/* else{ */
+
   __NOTE__("xl = %e, yl = %e, zl = %e, r2 = %e\n", pi. min_hst->x, pi. min_hst->y, pi. min_hst->z, pi. min_hst->m);
   __NOTE__("x0 = %e, y0 = %e, z0 = %e, r2 = %e\n", pi.icom_hst->x, pi.icom_hst->y, pi.icom_hst->z, pi.icom_hst->m);
   __NOTE__("xu = %e, yu = %e, zu = %e, r2 = %e\n", pi. max_hst->x, pi. max_hst->y, pi. max_hst->z, pi. max_hst->m);

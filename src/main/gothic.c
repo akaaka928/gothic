@@ -2358,7 +2358,7 @@ int main(int argc, char **argv)
        );
 #endif//USE_ENCLOSING_BALL_FOR_LET
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
-    getEnclosingBox_dev(grpNum, Ngrp, laneInfo_hst, ibody0_dev, soaPH_dev, devProp);
+    getEnclosingBox_dev(existNewTree ? Ngrp : grpNum, Ngrp, laneInfo_hst, ibody0_dev, soaPH_dev, devProp);
 #endif//USE_RECTANGULAR_BOX_FOR_LET
 
 /*     calc_r2max_dev */
@@ -2368,7 +2368,7 @@ int main(int argc, char **argv)
 /* #endif//EXEC_BENCHMARK */
 /*        ); */
     calc_r2max_dev
-      (grpNum, laneInfo_dev, &ibody0_dev, soaGEO_dev
+      (existNewTree ? Ngrp : grpNum, laneInfo_dev, &ibody0_dev, soaGEO_dev
 #ifdef  EXEC_BENCHMARK
        , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK

@@ -2264,38 +2264,40 @@ static inline void callCalcGravityFunc_parallel
   for(int ii = idxProcsPrev; ii < idxProcsPrev + numProcsPrev; ii++){
     /** complete LET communications in the previous stage */
     if( grav_by_LET ){
-      /** receive position of j-particles */
+      if( let[ii].numRecv > 0 ){
+	/** receive position of j-particles */
 #ifdef  MPI_ONE_SIDED_FOR_LET
-      chkMPIerr(MPI_Win_flush_local(let[ii].recv, mpi.win_jpos));
+	chkMPIerr(MPI_Win_flush_local(let[ii].recv, mpi.win_jpos));
 #else///MPI_ONE_SIDED_FOR_LET
-      MPI_Status statusJpos;
-      chkMPIerr(MPI_Wait(&(let[ii].reqRecvJpos), &statusJpos));
+	MPI_Status statusJpos;
+	chkMPIerr(MPI_Wait(&(let[ii].reqRecvJpos), &statusJpos));
 #endif//MPI_ONE_SIDED_FOR_LET
 #ifdef  MPI_VIA_HOST
-      checkCudaErrors(cudaMemcpyAsync(&(tree.jpos[let[ii].headRecv]), &(tree_hst.jpos[let[ii].headRecv]), sizeof(jparticle) * let[ii].numRecv, cudaMemcpyHostToDevice, sinfo->stream[*sidx]));
+	checkCudaErrors(cudaMemcpyAsync(&(tree.jpos[let[ii].headRecv]), &(tree_hst.jpos[let[ii].headRecv]), sizeof(jparticle) * let[ii].numRecv, cudaMemcpyHostToDevice, sinfo->stream[*sidx]));
 #endif//MPI_VIA_HOST
 
       /** receive more pointers */
 #ifdef  MPI_ONE_SIDED_FOR_LET
-      chkMPIerr(MPI_Win_flush_local(let[ii].recv, mpi.win_more));
+	chkMPIerr(MPI_Win_flush_local(let[ii].recv, mpi.win_more));
 #else///MPI_ONE_SIDED_FOR_LET
-      MPI_Status statusMore;
-      chkMPIerr(MPI_Wait(&(let[ii].reqRecvMore), &statusMore));
+	MPI_Status statusMore;
+	chkMPIerr(MPI_Wait(&(let[ii].reqRecvMore), &statusMore));
 #endif//MPI_ONE_SIDED_FOR_LET
 #ifdef  MPI_VIA_HOST
-      checkCudaErrors(cudaMemcpyAsync(&(tree.more[let[ii].headRecv]), &(tree_hst.more[let[ii].headRecv]), sizeof(     uint) * let[ii].numRecv, cudaMemcpyHostToDevice, sinfo->stream[*sidx]));
+	checkCudaErrors(cudaMemcpyAsync(&(tree.more[let[ii].headRecv]), &(tree_hst.more[let[ii].headRecv]), sizeof(     uint) * let[ii].numRecv, cudaMemcpyHostToDevice, sinfo->stream[*sidx]));
 #endif//MPI_VIA_HOST
 
       /** receive mass of j-particles */
 #ifdef  MPI_ONE_SIDED_FOR_LET
-      chkMPIerr(MPI_Win_flush_local(let[ii].recv, mpi.win_mass));
+	chkMPIerr(MPI_Win_flush_local(let[ii].recv, mpi.win_mass));
 #else///MPI_ONE_SIDED_FOR_LET
-      MPI_Status statusMass;
-      chkMPIerr(MPI_Wait(&(let[ii].reqRecvMass), &statusMass));
+	MPI_Status statusMass;
+	chkMPIerr(MPI_Wait(&(let[ii].reqRecvMass), &statusMass));
 #endif//MPI_ONE_SIDED_FOR_LET
 #ifdef  MPI_VIA_HOST
-      checkCudaErrors(cudaMemcpyAsync(&(tree.mj  [let[ii].headRecv]), &(tree_hst.mj  [let[ii].headRecv]), sizeof(    jmass) * let[ii].numRecv, cudaMemcpyHostToDevice, sinfo->stream[*sidx]));
+	checkCudaErrors(cudaMemcpyAsync(&(tree.mj  [let[ii].headRecv]), &(tree_hst.mj  [let[ii].headRecv]), sizeof(    jmass) * let[ii].numRecv, cudaMemcpyHostToDevice, sinfo->stream[*sidx]));
 #endif//MPI_VIA_HOST
+      }/* if( let[ii].numRecv > 0 ){ */
     }/* if( grav_by_LET ){ */
 
 
@@ -2311,11 +2313,12 @@ static inline void callCalcGravityFunc_parallel
   /** complete MPI communications in the previous stage */
 #ifndef MPI_ONE_SIDED_FOR_LET
   if( grav_by_LET )
-    for(int ii = idxProcsPrev; ii < idxProcsPrev + numProcsPrev; ii++){
-      MPI_Status statusJpos;      chkMPIerr(MPI_Wait(&(let[ii].reqSendJpos), &statusJpos));
-      MPI_Status statusMore;      chkMPIerr(MPI_Wait(&(let[ii].reqSendMore), &statusMore));
-      MPI_Status statusMass;      chkMPIerr(MPI_Wait(&(let[ii].reqSendMass), &statusMass));
-    }/* for(int ii = idxProcsPrev; ii < idxProcsPrev + numProcsPrev; ii++){ */
+    for(int ii = idxProcsPrev; ii < idxProcsPrev + numProcsPrev; ii++)
+      if( let[ii].numSend > 0 ){
+	MPI_Status statusJpos;	chkMPIerr(MPI_Wait(&(let[ii].reqSendJpos), &statusJpos));
+	MPI_Status statusMore;	chkMPIerr(MPI_Wait(&(let[ii].reqSendMore), &statusMore));
+	MPI_Status statusMass;	chkMPIerr(MPI_Wait(&(let[ii].reqSendMass), &statusMass));
+      }/* if( let[ii].numSend > 0 ){ */
 #endif//MPI_ONE_SIDED_FOR_LET
 
 
@@ -2629,21 +2632,39 @@ void calcGravity_dev
 	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
 	  const int streamIdxLET = ii % Nstream_let;
 
-	  callGenLET(stream_let[streamIdxLET], &let[ii], tree, buf
+#ifdef  SKIP_UNUSED_LET_GENERATION
+	  if( let[ii].icom.m >= ZERO ){
+#endif//SKIP_UNUSED_LET_GENERATION
+
+	    callGenLET(stream_let[streamIdxLET], &let[ii], tree, buf
 #ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
-		     , *(pi.encBall_hst)
+		       , *(pi.encBall_hst)
 #endif//SKIP_LET_GENERATOR_FOR_NEARBY_NODE
 #ifdef  MONITOR_LETGEN_TIME
-		     , cycles_let_dev
+		       , cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
-		     );
+		       );
 
 #   if  defined(MPI_ONE_SIDED_FOR_LET) && defined(SKIP_LET_GENERATOR_FOR_NEARBY_NODE)
-	  /** send head index of send buffer */
-	  chkMPIerr(MPI_Isend(&(let[ii].headSend), 1, MPI_INT, let[ii].send, MPI_TAG_HEAD(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendHead)));
+	    /** send head index of send buffer */
+	    chkMPIerr(MPI_Isend(&(let[ii].headSend), 1, MPI_INT, let[ii].send, MPI_TAG_HEAD(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendHead)));
 #endif//defined(MPI_ONE_SIDED_FOR_LET) && defined(SKIP_LET_GENERATOR_FOR_NEARBY_NODE)
 
-	  checkCudaErrors(cudaMemcpyAsync(let[ii].numSend_hst, let[ii].numSend_dev, sizeof(int), cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
+	    checkCudaErrors(cudaMemcpyAsync(let[ii].numSend_hst, let[ii].numSend_dev, sizeof(int), cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
+
+#ifdef  SKIP_UNUSED_LET_GENERATION
+	  }/* if( let[ii].icom.m >= ZERO ){ */
+	  else{
+	    let[ii].headSend = headLETsend[1] + sizeLETbuf[1] + 1;/**< if this location is accessed, then segmentation fault would occur */
+	    let[ii].numSend_hst = 0;
+
+#   if  defined(MPI_ONE_SIDED_FOR_LET) && defined(SKIP_LET_GENERATOR_FOR_NEARBY_NODE)
+	    /** send head index of send buffer */
+	    chkMPIerr(MPI_Isend(&(let[ii].headSend), 1, MPI_INT, let[ii].send, MPI_TAG_HEAD(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendHead)));
+#endif//defined(MPI_ONE_SIDED_FOR_LET) && defined(SKIP_LET_GENERATOR_FOR_NEARBY_NODE)
+	  }/* else{ */
+#endif//SKIP_UNUSED_LET_GENERATION
+
 	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 
 
@@ -2658,13 +2679,14 @@ void calcGravity_dev
 	  }/* if( let[ii].numSend > let[ii].maxSend ){ */
 	  __NOTE__("numSend = %d, numFull = %d toward rank %d from rank %d\n", let[ii].numSend, let[ii].numFull, let[ii].send, mpi.rank);
 
-#ifdef  MPI_VIA_HOST
 	  /** copy LET nodes from device to host */
-	  checkCudaErrors(cudaMemcpyAsync(&(tree_hst.jpos[let[ii].headSend]), &(tree.jpos[let[ii].headSend]), sizeof(jparticle) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
-	  checkCudaErrors(cudaMemcpyAsync(&(tree_hst.more[let[ii].headSend]), &(tree.more[let[ii].headSend]), sizeof(     uint) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
-	  checkCudaErrors(cudaMemcpyAsync(&(tree_hst.mj  [let[ii].headSend]), &(tree.mj  [let[ii].headSend]), sizeof(    jmass) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
+#ifdef  MPI_VIA_HOST
+	  if( let[ii].numSend > 0 ){
+	    checkCudaErrors(cudaMemcpyAsync(&(tree_hst.jpos[let[ii].headSend]), &(tree.jpos[let[ii].headSend]), sizeof(jparticle) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
+	    checkCudaErrors(cudaMemcpyAsync(&(tree_hst.more[let[ii].headSend]), &(tree.more[let[ii].headSend]), sizeof(     uint) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
+	    checkCudaErrors(cudaMemcpyAsync(&(tree_hst.mj  [let[ii].headSend]), &(tree.mj  [let[ii].headSend]), sizeof(    jmass) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
+	  }/* if( let[ii].numSend > 0 ){ */
 #endif//MPI_VIA_HOST
-
 
 	  /** below procedure is to certify LET was set before calling MPI_Get() */
 #   if  defined(MPI_ONE_SIDED_FOR_LET) && defined(MPI_VIA_HOST)
@@ -2717,32 +2739,36 @@ void calcGravity_dev
 	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvInfo), &status));
 	  __NOTE__("numRecv = %d from rank %d\n", let[ii].numRecv, let[ii].recv);
 
+	  if( let[ii].numRecv > 0 ){
 #ifdef  MPI_VIA_HOST
-	  chkMPIerr(MPI_Irecv(&(tree_hst.jpos[let[ii].headRecv]), let[ii].numRecv, mpi.jpos, let[ii].recv, MPI_TAG_JPOS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvJpos)));
-	  chkMPIerr(MPI_Irecv(&(tree_hst.more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, MPI_TAG_MORE(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMore)));
-	  chkMPIerr(MPI_Irecv(&(tree_hst.mj  [let[ii].headRecv]), let[ii].numRecv, mpi.mass, let[ii].recv, MPI_TAG_MASS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMass)));
+	    chkMPIerr(MPI_Irecv(&(tree_hst.jpos[let[ii].headRecv]), let[ii].numRecv, mpi.jpos, let[ii].recv, MPI_TAG_JPOS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvJpos)));
+	    chkMPIerr(MPI_Irecv(&(tree_hst.more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, MPI_TAG_MORE(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMore)));
+	    chkMPIerr(MPI_Irecv(&(tree_hst.mj  [let[ii].headRecv]), let[ii].numRecv, mpi.mass, let[ii].recv, MPI_TAG_MASS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMass)));
 #else///MPI_VIA_HOST
-	  chkMPIerr(MPI_Irecv(&(tree	.jpos[let[ii].headRecv]), let[ii].numRecv, mpi.jpos, let[ii].recv, MPI_TAG_JPOS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvJpos)));
-	  chkMPIerr(MPI_Irecv(&(tree    .more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, MPI_TAG_MORE(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMore)));
-	  chkMPIerr(MPI_Irecv(&(tree	.mj  [let[ii].headRecv]), let[ii].numRecv, mpi.mass, let[ii].recv, MPI_TAG_MASS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMass)));
+	    chkMPIerr(MPI_Irecv(&(tree	.jpos[let[ii].headRecv]), let[ii].numRecv, mpi.jpos, let[ii].recv, MPI_TAG_JPOS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvJpos)));
+	    chkMPIerr(MPI_Irecv(&(tree    .more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, MPI_TAG_MORE(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMore)));
+	    chkMPIerr(MPI_Irecv(&(tree	.mj  [let[ii].headRecv]), let[ii].numRecv, mpi.mass, let[ii].recv, MPI_TAG_MASS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMass)));
 #endif//MPI_VIA_HOST
+	  }/* if( let[ii].numRecv > 0 ){ */
 	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 
 	/** send numProcs LET(s) to other process(es) */
 	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
 	  /** send LET nodes using MPI_Isend */
+	  if( let[ii].numSend > 0 ){
 #ifdef  MPI_VIA_HOST
-	  const int streamIdxLET = ii % Nstream_let;
-	  checkCudaErrors(cudaStreamSynchronize(stream_let[streamIdxLET]));
-	  __NOTE__("send %d-th LET from %d to %d (head = %d, num = %d)\n", ii, mpi.rank, let[ii].send, let[ii].headSend, let[ii].numSend);
-	  chkMPIerr(MPI_Isend(&(tree_hst.jpos[let[ii].headSend]), let[ii].numSend, mpi.jpos, let[ii].send, MPI_TAG_JPOS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendJpos)));
-	  chkMPIerr(MPI_Isend(&(tree_hst.more[let[ii].headSend]), let[ii].numSend, mpi.more, let[ii].send, MPI_TAG_MORE(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMore)));
-	  chkMPIerr(MPI_Isend(&(tree_hst.mj  [let[ii].headSend]), let[ii].numSend, mpi.mass, let[ii].send, MPI_TAG_MASS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMass)));
+	    const int streamIdxLET = ii % Nstream_let;
+	    checkCudaErrors(cudaStreamSynchronize(stream_let[streamIdxLET]));
+	    __NOTE__("send %d-th LET from %d to %d (head = %d, num = %d)\n", ii, mpi.rank, let[ii].send, let[ii].headSend, let[ii].numSend);
+	    chkMPIerr(MPI_Isend(&(tree_hst.jpos[let[ii].headSend]), let[ii].numSend, mpi.jpos, let[ii].send, MPI_TAG_JPOS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendJpos)));
+	    chkMPIerr(MPI_Isend(&(tree_hst.more[let[ii].headSend]), let[ii].numSend, mpi.more, let[ii].send, MPI_TAG_MORE(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMore)));
+	    chkMPIerr(MPI_Isend(&(tree_hst.mj  [let[ii].headSend]), let[ii].numSend, mpi.mass, let[ii].send, MPI_TAG_MASS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMass)));
 #else///MPI_VIA_HOST
-	  chkMPIerr(MPI_Isend(&(tree	.jpos[let[ii].headSend]), let[ii].numSend, mpi.jpos, let[ii].send, MPI_TAG_JPOS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendJpos)));
-	  chkMPIerr(MPI_Isend(&(tree    .more[let[ii].headSend]), let[ii].numSend, mpi.more, let[ii].send, MPI_TAG_MORE(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMore)));
-	  chkMPIerr(MPI_Isend(&(tree	.mj  [let[ii].headSend]), let[ii].numSend, mpi.mass, let[ii].send, MPI_TAG_MASS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMass)));
+	    chkMPIerr(MPI_Isend(&(tree	  .jpos[let[ii].headSend]), let[ii].numSend, mpi.jpos, let[ii].send, MPI_TAG_JPOS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendJpos)));
+	    chkMPIerr(MPI_Isend(&(tree    .more[let[ii].headSend]), let[ii].numSend, mpi.more, let[ii].send, MPI_TAG_MORE(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMore)));
+	    chkMPIerr(MPI_Isend(&(tree	  .mj  [let[ii].headSend]), let[ii].numSend, mpi.mass, let[ii].send, MPI_TAG_MASS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMass)));
 #endif//MPI_VIA_HOST
+	  }/* if( let[ii].numSend > 0 ){ */
 	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 
 #endif//MPI_ONE_SIDED_FOR_LET

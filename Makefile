@@ -20,6 +20,7 @@ DEBUG	:= -DNDEBUG
 #################################################################################################
 # Execution options
 FORCE_SINGLE_GPU_RUN	:= 0
+SKIP_UNUSED_LET_BUILD	:= 1
 RECTANGULAR_BOX_FOR_LET	:= 1
 ENCLOSING_BALL_FOR_LET	:= 0
 COMMUNICATION_VIA_HOST	:= 1
@@ -185,6 +186,10 @@ endif
 ifeq ($(USE_MPI_GET_FOR_EXCG), 1)
 CCARG	+= -DMPI_ONE_SIDED_FOR_EXCG
 CUARG	+= -DMPI_ONE_SIDED_FOR_EXCG
+endif
+ifeq ($(SKIP_UNUSED_LET_BUILD), 1)
+CCARG	+= -DSKIP_UNUSED_LET_GENERATION
+CUARG	+= -DSKIP_UNUSED_LET_GENERATION
 endif
 ifeq ($(ENCLOSING_BALL_FOR_LET), 1)
 CCARG	+= -DUSE_ENCLOSING_BALL_FOR_LET

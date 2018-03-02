@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/01 (Thu)
+ * @date 2018/03/02 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -781,7 +781,6 @@ void callGenLET
     }
 #ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
   else{
-    /* __NOTE__("skip LET generation for rank %d; overlapping fraction is %e\n", (*let).rank, vol / loc); */
     __NOTE__("skip LET generation for rank %d; overlapping fraction is %e\n", (*let).send, vol / loc);
     /* send full tree instead of LET */
     (*let).headSend = 0;
