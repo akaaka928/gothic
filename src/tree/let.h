@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/01 (Thu)
+ * @date 2018/03/02 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -39,8 +39,12 @@
  *
  * @brief extend number of arrays for tree node
  */
-/* #define EXTEND_NUM_TREE_NODE (2.0f) */
+#ifndef USE_GPU_FOR_MONITOR
+/* #define EXTEND_NUM_TREE_NODE (3.0f) */
 #define EXTEND_NUM_TREE_NODE (4.0f)
+#else///USE_GPU_FOR_MONITOR
+#define EXTEND_NUM_TREE_NODE (2.0f)
+#endif//USE_GPU_FOR_MONITOR
 
 
 #ifdef  SERIALIZED_EXECUTION
@@ -108,7 +112,7 @@ typedef struct
   MPI_Request reqSendJpos, reqRecvJpos;
   MPI_Request reqSendMass, reqRecvMass;
 #endif//MPI_ONE_SIDED_FOR_LET
-  int headSend, headRecv, numSend, numRecv, numRecvGuess;
+  int headSend, headRecv, numSend, numRecv;
   int maxSend, maxRecv, numFull, numNode;/**< numFull is # of nodes in local full tree, numNode is # of nodes in distant full tree */
   int overEstimateSend, overEstimateRecv;
   int send, recv;/**< destination rank and source rank in i-th step */

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/01 (Thu)
+ * @date 2018/03/02 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2239,6 +2239,91 @@ static inline void callCalcGravityFunc
 }
 
 
+#ifndef SERIALIZED_EXECUTION
+/**
+ * @fn callCalcGravityFunc_parallel
+ *
+ * @brief Calculate gravitational acceleration based on the width-first tree traversal.
+ */
+static inline void callCalcGravityFunc_parallel
+(const int idxProcsPrev, const int numProcsPrev, const bool grav_by_LET, domainInfo *let, MPIcfg_tree mpi,
+#ifdef  MPI_VIA_HOST
+ const soaTreeNode tree_hst,
+#endif//MPI_VIA_HOST
+ const int blck, const int thrd, kernelStream *sinfo, int *sidx,
+ laneinfo * RESTRICT laneInfo, const iparticle pi, const int rootIdx, const soaTreeNode tree,
+ const int grpNum, unsigned long long int * RESTRICT cycles, const soaTreeWalkBuf buf
+#ifdef  COUNT_INTERACTIONS
+ , iparticle_treeinfo treeInfo
+#endif//COUNT_INTERACTIONS
+ )
+{
+  __NOTE__("%s\n", "start");
+
+
+  for(int ii = idxProcsPrev; ii < idxProcsPrev + numProcsPrev; ii++){
+    /** complete LET communications in the previous stage */
+    if( grav_by_LET ){
+      /** receive position of j-particles */
+#ifdef  MPI_ONE_SIDED_FOR_LET
+      chkMPIerr(MPI_Win_flush_local(let[ii].recv, mpi.win_jpos));
+#else///MPI_ONE_SIDED_FOR_LET
+      MPI_Status statusJpos;
+      chkMPIerr(MPI_Wait(&(let[ii].reqRecvJpos), &statusJpos));
+#endif//MPI_ONE_SIDED_FOR_LET
+#ifdef  MPI_VIA_HOST
+      checkCudaErrors(cudaMemcpyAsync(&(tree.jpos[let[ii].headRecv]), &(tree_hst.jpos[let[ii].headRecv]), sizeof(jparticle) * let[ii].numRecv, cudaMemcpyHostToDevice, sinfo->stream[*sidx]));
+#endif//MPI_VIA_HOST
+
+      /** receive more pointers */
+#ifdef  MPI_ONE_SIDED_FOR_LET
+      chkMPIerr(MPI_Win_flush_local(let[ii].recv, mpi.win_more));
+#else///MPI_ONE_SIDED_FOR_LET
+      MPI_Status statusMore;
+      chkMPIerr(MPI_Wait(&(let[ii].reqRecvMore), &statusMore));
+#endif//MPI_ONE_SIDED_FOR_LET
+#ifdef  MPI_VIA_HOST
+      checkCudaErrors(cudaMemcpyAsync(&(tree.more[let[ii].headRecv]), &(tree_hst.more[let[ii].headRecv]), sizeof(     uint) * let[ii].numRecv, cudaMemcpyHostToDevice, sinfo->stream[*sidx]));
+#endif//MPI_VIA_HOST
+
+      /** receive mass of j-particles */
+#ifdef  MPI_ONE_SIDED_FOR_LET
+      chkMPIerr(MPI_Win_flush_local(let[ii].recv, mpi.win_mass));
+#else///MPI_ONE_SIDED_FOR_LET
+      MPI_Status statusMass;
+      chkMPIerr(MPI_Wait(&(let[ii].reqRecvMass), &statusMass));
+#endif//MPI_ONE_SIDED_FOR_LET
+#ifdef  MPI_VIA_HOST
+      checkCudaErrors(cudaMemcpyAsync(&(tree.mj  [let[ii].headRecv]), &(tree_hst.mj  [let[ii].headRecv]), sizeof(    jmass) * let[ii].numRecv, cudaMemcpyHostToDevice, sinfo->stream[*sidx]));
+#endif//MPI_VIA_HOST
+    }/* if( grav_by_LET ){ */
+
+
+    /** calculate gravity by LETs in the previous stage */
+    callCalcGravityFunc(blck, thrd, sinfo, sidx, laneInfo, pi, 0, tree, grpNum, grav_by_LET ? let[ii].headRecv : 0, cycles, buf
+#ifdef  COUNT_INTERACTIONS
+			, treeInfo
+#endif//COUNT_INTERACTIONS
+			);
+  }/* for(int ii = idxProcsPrev; ii < idxProcsPrev + numProcsPrev; ii++){ */
+
+
+  /** complete MPI communications in the previous stage */
+#ifndef MPI_ONE_SIDED_FOR_LET
+  if( grav_by_LET )
+    for(int ii = idxProcsPrev; ii < idxProcsPrev + numProcsPrev; ii++){
+      MPI_Status statusJpos;      chkMPIerr(MPI_Wait(&(let[ii].reqSendJpos), &statusJpos));
+      MPI_Status statusMore;      chkMPIerr(MPI_Wait(&(let[ii].reqSendMore), &statusMore));
+      MPI_Status statusMass;      chkMPIerr(MPI_Wait(&(let[ii].reqSendMass), &statusMass));
+    }/* for(int ii = idxProcsPrev; ii < idxProcsPrev + numProcsPrev; ii++){ */
+#endif//MPI_ONE_SIDED_FOR_LET
+
+
+  __NOTE__("%s\n", "end");
+}
+#endif//SERIALIZED_EXECUTION
+
+
 /**
  * @fn calcGravity_dev
  *
@@ -2419,7 +2504,6 @@ void calcGravity_dev
       Nrem -= Nblck;
     }/* for(int iter = 0; iter < Niter; iter++){ */
   }/* else{ */
-
   getLastCudaError("initAcc_kernel");
 
 
@@ -2439,40 +2523,28 @@ void calcGravity_dev
       /** set CUDA streams */
       int sidx = sinfo->idx;
 
+#ifdef  SERIALIZED_EXECUTION
+
       callCalcGravityFunc(blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree
-#ifndef SERIALIZED_EXECUTION
-			  , grpNum, 0
-#endif//SERIALIZED_EXECUTION
-#   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 			  , cycles_dev
-#endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
+#endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 			  , buf
 #ifdef  COUNT_INTERACTIONS
 			  , treeInfo
 #endif//COUNT_INTERACTIONS
 			  );
 
-#ifdef  USE_MEASURED_CLOCK_FREQ
-      /** measure clock frequency as a reference value */
-      nvmlDeviceGetClock(deviceHandler, NVML_CLOCK_SM, NVML_CLOCK_ID_CURRENT, &clockWalk);
-#ifdef  REPORT_GPU_CLOCK_FREQUENCY
-      /** measure temperature and power usage */
-      nvmlDeviceGetTemperature(deviceHandler, NVML_TEMPERATURE_GPU, &temperature);
-      nvmlDeviceGetPowerUsage(deviceHandler, &power);
-#endif//REPORT_GPU_CLOCK_FREQUENCY
-#endif//USE_MEASURED_CLOCK_FREQ
-
-#ifndef SERIALIZED_EXECUTION
+#else///SERIALIZED_EXECUTION
 
 #ifdef  MPI_ONE_SIDED_FOR_LET
       __NOTE__("MPI_Win_lock_all before MPI communications\n");
-      chkMPIerr(MPI_Win_lock_all(0, mpi.win_more));
       chkMPIerr(MPI_Win_lock_all(0, mpi.win_jpos));
+      chkMPIerr(MPI_Win_lock_all(0, mpi.win_more));
       chkMPIerr(MPI_Win_lock_all(0, mpi.win_mass));
 #endif//MPI_ONE_SIDED_FOR_LET
 
       /** gravity from j-particles within other process(es) */
-      /** # rewrite from MPI_Isend/MPI_Irecv to MPI_Put may accelerate the simulation */
       int idxProcs = 0;
       int remProcs = Nlet - 1;
       static int headLETsend[2], headLETrecv[2], sizeLETbuf[2], sizeLETsend[2], sizeLETrecv[2];
@@ -2489,10 +2561,15 @@ void calcGravity_dev
       sizeLETsend[1] = headLETrecv[1] - headLETsend[1];
       sizeLETrecv[1] = sizeLETbuf [1] - sizeLETsend[1];
 
-      while( true ){
+      int numProcsPrev = 1;
+      int idxProcsPrev = 0;
+      bool grav_by_LET = false;
+      int stage = 0;
+
+      while( remProcs > 0 ){
 	/** get maximum number of processes which possible to communicate by limitation of memory capacity */
-	int remSend = sizeLETsend[sidx];
-	int remRecv = sizeLETrecv[sidx];
+	int remSend = sizeLETsend[stage];
+	int remRecv = sizeLETrecv[stage];
 	int numProcs = remProcs;
 
 	for(int ii = 0; ii < remProcs; ii++){
@@ -2506,62 +2583,69 @@ void calcGravity_dev
 	}/* for(int ii = 0; ii < remProcs; ii++){ */
 
 	if( (numProcs < 1) && (mpi.size > 1) ){
-	  __KILL__(stderr, "ERROR: numProcs is %d, due to lack of sizeLETsend(%d) or sizeLETrecv(%d) while 0-th target requires numSend(%d) and numRecv(%d).\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", numProcs, sizeLETsend[sidx], sizeLETrecv[sidx], let[idxProcs].maxSend, let[idxProcs].maxRecv, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
+	  __KILL__(stderr, "ERROR: numProcs is %d, due to lack of sizeLETsend(%d) or sizeLETrecv(%d) while 0-th target requires numSend(%d) and numRecv(%d).\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", numProcs, sizeLETsend[stage], sizeLETrecv[stage], let[idxProcs].maxSend, let[idxProcs].maxRecv, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
 	}/* if( (numProcs < 1) && (mpi.size > 1) ){ */
 	chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &numProcs, 1, MPI_INT, MPI_MIN, mpi.comm));
 
 	/** set send buffer for LET on device */
-	let[idxProcs].headSend = headLETsend[sidx];
-	for(int ii = 0; ii < numProcs - 1; ii++)
-	  let[idxProcs + ii + 1].headSend = let[idxProcs + ii].headSend + ALIGN_BUF_FOR_LET(let[idxProcs + ii].maxSend);
+	let[idxProcs].headSend = headLETsend[stage];
+	for(int ii = 1; ii < numProcs; ii++)
+	  let[idxProcs + ii].headSend = let[idxProcs + ii - 1].headSend + ALIGN_BUF_FOR_LET(let[idxProcs + ii - 1].maxSend);
 
-	/** receive head index of send buffer */
-	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++)
-	  chkMPIerr(MPI_Irecv(&(let[ii].headDisp), 1, MPI_INT, let[ii].recv, MPI_TAG_HEAD(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvHead)));
 
 	/** set receive buffer for LET on device */
-#ifdef  MPI_ONE_SIDED_FOR_LET
-	let[idxProcs].headRecv = headLETrecv[sidx];
+	let[idxProcs].headRecv = headLETrecv[stage];
 	int numRecv = 0;
 	for(int ii = idxProcs; ii < idxProcs + numProcs - 1; ii++){
 	  const int numRecvBuf = ALIGN_BUF_FOR_LET(let[ii].maxRecv);
 	  let[ii + 1].headRecv = numRecvBuf + let[ii].headRecv;
-	  numRecv                        += numRecvBuf;
+	  numRecv             += numRecvBuf;
 	}/* for(int ii = 0; ii < numProcs - 1; ii++){ */
 	numRecv += ALIGN_BUF_FOR_LET(let[idxProcs + numProcs - 1].numRecv);
 
-	if( numRecv > sizeLETrecv[sidx] ){
-	    __KILL__(stderr, "ERROR: lack of remLETrecv(%d) to store numRecv(%d) LET nodes.\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", sizeLETrecv[sidx], numRecv, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
-	}/* if( numRecv > sizeLETrecv[sidx] ){ */
+	if( numRecv > sizeLETrecv[stage] ){
+	    __KILL__(stderr, "ERROR: lack of remLETrecv(%d) to store numRecv(%d) LET nodes.\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", sizeLETrecv[stage], numRecv, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
+	}/* if( numRecv > sizeLETrecv[stage] ){ */
+
+
+	/** receive number of LET nodes */
+	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++)
+	  chkMPIerr(MPI_Irecv(&(let[ii].numRecv), 1, MPI_INT, let[ii].recv, MPI_TAG_NUM(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvInfo)));
+
+
+#ifdef  MPI_ONE_SIDED_FOR_LET
+	/** receive head index of send buffer */
+	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
+	  chkMPIerr(MPI_Irecv(&(let[ii].headDisp), 1, MPI_INT, let[ii].recv, MPI_TAG_HEAD(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvHead)));
+#ifndef SKIP_LET_GENERATOR_FOR_NEARBY_NODE
+	  chkMPIerr(MPI_Isend(&(let[ii].headSend), 1, MPI_INT, let[ii].send, MPI_TAG_HEAD(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendHead)));
+#endif//SKIP_LET_GENERATOR_FOR_NEARBY_NODE
+	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 #endif//MPI_ONE_SIDED_FOR_LET
 
 
-	/** # FUTURE UPDATE: divide below procedure to overlap communication and calculation */
+
 	/** generate numProcs LET(s) */
 	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
 	  const int streamIdxLET = ii % Nstream_let;
 
 	  callGenLET(stream_let[streamIdxLET], &let[ii], tree, buf
 #ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
-	  , *(pi.encBall_hst)
+		     , *(pi.encBall_hst)
 #endif//SKIP_LET_GENERATOR_FOR_NEARBY_NODE
 #ifdef  MONITOR_LETGEN_TIME
 		     , cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
 		     );
 
-#ifdef  MPI_ONE_SIDED_FOR_LET
+#   if  defined(MPI_ONE_SIDED_FOR_LET) && defined(SKIP_LET_GENERATOR_FOR_NEARBY_NODE)
 	  /** send head index of send buffer */
 	  chkMPIerr(MPI_Isend(&(let[ii].headSend), 1, MPI_INT, let[ii].send, MPI_TAG_HEAD(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendHead)));
-#endif//MPI_ONE_SIDED_FOR_LET
+#endif//defined(MPI_ONE_SIDED_FOR_LET) && defined(SKIP_LET_GENERATOR_FOR_NEARBY_NODE)
 
 	  checkCudaErrors(cudaMemcpyAsync(let[ii].numSend_hst, let[ii].numSend_dev, sizeof(int), cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
 	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 
-#ifdef  EXEC_BENCHMARK
-	static struct timespec start_mpi;
-	clock_gettime(CLOCK_MONOTONIC_RAW, &start_mpi);
-#endif//EXEC_BENCHMARK
 
 	/** share number of LET nodes */
 	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
@@ -2576,51 +2660,50 @@ void calcGravity_dev
 
 #ifdef  MPI_VIA_HOST
 	  /** copy LET nodes from device to host */
-	  checkCudaErrors(cudaMemcpyAsync(&(tree_hst.more[let[ii].headSend]), &(tree.more[let[ii].headSend]), sizeof(     uint) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
 	  checkCudaErrors(cudaMemcpyAsync(&(tree_hst.jpos[let[ii].headSend]), &(tree.jpos[let[ii].headSend]), sizeof(jparticle) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
+	  checkCudaErrors(cudaMemcpyAsync(&(tree_hst.more[let[ii].headSend]), &(tree.more[let[ii].headSend]), sizeof(     uint) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
 	  checkCudaErrors(cudaMemcpyAsync(&(tree_hst.mj  [let[ii].headSend]), &(tree.mj  [let[ii].headSend]), sizeof(    jmass) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
 #endif//MPI_VIA_HOST
 
-	  /** send and receive number of LET nodes */
-	  chkMPIerr(MPI_Irecv(&(let[ii].numRecv), 1, MPI_INT, let[ii].recv, MPI_TAG_NUM(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvInfo)));
-	  let[ii].numRecvGuess = let[ii].maxRecv;
 
-#ifdef  MPI_VIA_HOST
+	  /** below procedure is to certify LET was set before calling MPI_Get() */
+#   if  defined(MPI_ONE_SIDED_FOR_LET) && defined(MPI_VIA_HOST)
 	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 
 	/* complete copy (LET nodes) from device to host */
-	for(int ii = 0; ii < ((Nstream_let < numProcs) ? Nstream_let : numProcs); ii++)
-	  checkCudaErrors(cudaStreamSynchronize(stream_let[ii]));
+	for(int ii = idxProcs; ii < idxProcs + ((Nstream_let < numProcs) ? Nstream_let : numProcs); ii++)
+	  checkCudaErrors(cudaStreamSynchronize(stream_let[ii % Nstream_let]));
 
 	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
-#endif//MPI_VIA_HOST
+#endif//defined(MPI_ONE_SIDED_FOR_LET) && defined(MPI_VIA_HOST)
 
+	  /** send number of LET nodes */
 	  chkMPIerr(MPI_Isend(&(let[ii].numSend), 1, MPI_INT, let[ii].send, MPI_TAG_NUM(    mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendInfo)));
 	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 
 
+	/** launch LET communications in the current stage */
 #ifdef  MPI_ONE_SIDED_FOR_LET
 
 	/** receive LET nodes */
-	/** before sending LET nodes, gravity calculation using LET nodes stored in the receive buffer in the previous loop must be finished */
 	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
 	  MPI_Status status;
 	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvHead), &status));
 	  __NOTE__("let[%d].headDisp = %d\n", ii, let[ii].headDisp);
 
 	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvInfo), &status));
-	  __NOTE__("numRecv = %d from rank %d; headRecv = %d\n", let[ii].numRecv, let[ii].recv, let[ii].headRecv);
+	  __NOTE__("numRecv = %d from rank %d\n", let[ii].numRecv, let[ii].recv);
 #ifdef  BLOCK_TIME_STEP
 	  if( grpNum > 0 )
 #endif//BLOCK_TIME_STEP
 	    {
 #ifndef MPI_VIA_HOST
-	      chkMPIerr(MPI_Get(&(tree    .more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.more, mpi.win_more));
 	      chkMPIerr(MPI_Get(&(tree    .jpos[let[ii].headRecv]), let[ii].numRecv, mpi.jpos, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.jpos, mpi.win_jpos));
+	      chkMPIerr(MPI_Get(&(tree    .more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.more, mpi.win_more));
 	      chkMPIerr(MPI_Get(&(tree    .mj  [let[ii].headRecv]), let[ii].numRecv, mpi.mass, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.mass, mpi.win_mass));
 #else///MPI_VIA_HOST
-	      chkMPIerr(MPI_Get(&(tree_hst.more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.more, mpi.win_more));
 	      chkMPIerr(MPI_Get(&(tree_hst.jpos[let[ii].headRecv]), let[ii].numRecv, mpi.jpos, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.jpos, mpi.win_jpos));
+	      chkMPIerr(MPI_Get(&(tree_hst.more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.more, mpi.win_more));
 	      chkMPIerr(MPI_Get(&(tree_hst.mj  [let[ii].headRecv]), let[ii].numRecv, mpi.mass, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.mass, mpi.win_mass));
 #endif//MPI_VIA_HOST
 	    }
@@ -2628,39 +2711,19 @@ void calcGravity_dev
 
 #else///MPI_ONE_SIDED_FOR_LET
 
-	/** receive number of LET nodes */
+	/** receive LET nodes using MPI_Irecv */
 	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
 	  MPI_Status status;
 	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvInfo), &status));
-	  __NOTE__("numRecv = %d from rank %d toward %d\n", let[ii].numRecv, let[ii].recv, mpi.rank);
-	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
+	  __NOTE__("numRecv = %d from rank %d\n", let[ii].numRecv, let[ii].recv);
 
-	/** set receive buffer for LET on device */
-	let[idxProcs].headRecv = headLETrecv[sidx];
-	int numRecv = 0;
-	for(int ii = 0; ii < numProcs - 1; ii++){
-	  const int numRecvBuf = ALIGN_BUF_FOR_LET(let[idxProcs + ii].numRecv);
-	  let[idxProcs + ii + 1].headRecv = numRecvBuf + let[idxProcs + ii].headRecv;
-	  numRecv                        += numRecvBuf;
-	}/* for(int ii = 0; ii < numProcs - 1; ii++){ */
-	numRecv += ALIGN_BUF_FOR_LET(let[idxProcs + numProcs - 1].numRecv);
-
-	if( numRecv > sizeLETrecv[sidx] ){
-	  __KILL__(stderr, "ERROR: lack of remLETrecv(%d) to store numRecv(%d) LET nodes.\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", sizeLETrecv[sidx], numRecv, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
-	}/* if( numRecv > sizeLETrecv[sidx] ){ */
-
-	/** receive LET nodes */
-	/** before receiving LET nodes, gravity calculation using LET nodes stored in the receive buffer in the previous loop must be finished */
-	/** receive LET nodes using MPI_Irecv */
-	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
-	  __NOTE__("recv %d-th LET from %d to %d (head = %d, num = %d)\n", ii, let[ii].recv, mpi.rank, let[ii].headRecv, let[ii].numRecv);
 #ifdef  MPI_VIA_HOST
-	  chkMPIerr(MPI_Irecv(&(tree_hst.more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, MPI_TAG_MORE(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMore)));
 	  chkMPIerr(MPI_Irecv(&(tree_hst.jpos[let[ii].headRecv]), let[ii].numRecv, mpi.jpos, let[ii].recv, MPI_TAG_JPOS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvJpos)));
+	  chkMPIerr(MPI_Irecv(&(tree_hst.more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, MPI_TAG_MORE(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMore)));
 	  chkMPIerr(MPI_Irecv(&(tree_hst.mj  [let[ii].headRecv]), let[ii].numRecv, mpi.mass, let[ii].recv, MPI_TAG_MASS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMass)));
 #else///MPI_VIA_HOST
-	  chkMPIerr(MPI_Irecv(&(tree    .more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, MPI_TAG_MORE(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMore)));
 	  chkMPIerr(MPI_Irecv(&(tree	.jpos[let[ii].headRecv]), let[ii].numRecv, mpi.jpos, let[ii].recv, MPI_TAG_JPOS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvJpos)));
+	  chkMPIerr(MPI_Irecv(&(tree    .more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, MPI_TAG_MORE(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMore)));
 	  chkMPIerr(MPI_Irecv(&(tree	.mj  [let[ii].headRecv]), let[ii].numRecv, mpi.mass, let[ii].recv, MPI_TAG_MASS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMass)));
 #endif//MPI_VIA_HOST
 	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
@@ -2672,97 +2735,65 @@ void calcGravity_dev
 	  const int streamIdxLET = ii % Nstream_let;
 	  checkCudaErrors(cudaStreamSynchronize(stream_let[streamIdxLET]));
 	  __NOTE__("send %d-th LET from %d to %d (head = %d, num = %d)\n", ii, mpi.rank, let[ii].send, let[ii].headSend, let[ii].numSend);
-	  chkMPIerr(MPI_Isend(&(tree_hst.more[let[ii].headSend]), let[ii].numSend, mpi.more, let[ii].send, MPI_TAG_MORE(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMore)));
 	  chkMPIerr(MPI_Isend(&(tree_hst.jpos[let[ii].headSend]), let[ii].numSend, mpi.jpos, let[ii].send, MPI_TAG_JPOS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendJpos)));
+	  chkMPIerr(MPI_Isend(&(tree_hst.more[let[ii].headSend]), let[ii].numSend, mpi.more, let[ii].send, MPI_TAG_MORE(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMore)));
 	  chkMPIerr(MPI_Isend(&(tree_hst.mj  [let[ii].headSend]), let[ii].numSend, mpi.mass, let[ii].send, MPI_TAG_MASS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMass)));
 #else///MPI_VIA_HOST
-	  chkMPIerr(MPI_Isend(&(tree    .more[let[ii].headSend]), let[ii].numSend, mpi.more, let[ii].send, MPI_TAG_MORE(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMore)));
 	  chkMPIerr(MPI_Isend(&(tree	.jpos[let[ii].headSend]), let[ii].numSend, mpi.jpos, let[ii].send, MPI_TAG_JPOS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendJpos)));
+	  chkMPIerr(MPI_Isend(&(tree    .more[let[ii].headSend]), let[ii].numSend, mpi.more, let[ii].send, MPI_TAG_MORE(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMore)));
 	  chkMPIerr(MPI_Isend(&(tree	.mj  [let[ii].headSend]), let[ii].numSend, mpi.mass, let[ii].send, MPI_TAG_MASS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMass)));
 #endif//MPI_VIA_HOST
 	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 
 #endif//MPI_ONE_SIDED_FOR_LET
 
-	/** receive numProcs LET(s) and calculate gravity from them */
-	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
-#ifdef  MPI_ONE_SIDED_FOR_LET
-	  __NOTE__("MPI_Win_flush_local before LET traverse (%d-th LET from rank %d)\n", ii, let[ii].recv);
-	  chkMPIerr(MPI_Win_flush_local(let[ii].recv, mpi.win_more));
-	  chkMPIerr(MPI_Win_flush_local(let[ii].recv, mpi.win_jpos));
-	  chkMPIerr(MPI_Win_flush_local(let[ii].recv, mpi.win_mass));
-#endif//MPI_ONE_SIDED_FOR_LET
 
-	  /** copy LET nodes from host to device */
-#ifndef MPI_ONE_SIDED_FOR_LET
-	  MPI_Status statusMore;	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvJpos), &statusMore));
-#endif//MPI_ONE_SIDED_FOR_LET
+	/** calculate gravity */
+	callCalcGravityFunc_parallel
+	  (idxProcsPrev, numProcsPrev, grav_by_LET, let, mpi,
 #ifdef  MPI_VIA_HOST
-	  checkCudaErrors(cudaMemcpyAsync(&(tree.jpos[let[ii].headRecv]), &(tree_hst.jpos[let[ii].headRecv]), sizeof(jparticle) * let[ii].numRecv, cudaMemcpyHostToDevice, sinfo->stream[sidx]));
+	   tree_hst,
 #endif//MPI_VIA_HOST
-
-#ifndef MPI_ONE_SIDED_FOR_LET
-	  MPI_Status statusMass;	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvMass), &statusMass));
-#endif//MPI_ONE_SIDED_FOR_LET
-#ifdef  MPI_VIA_HOST
-	  checkCudaErrors(cudaMemcpyAsync(&(tree.mj  [let[ii].headRecv]), &(tree_hst.mj  [let[ii].headRecv]), sizeof(    jmass) * let[ii].numRecv, cudaMemcpyHostToDevice, sinfo->stream[sidx]));
-#endif//MPI_VIA_HOST
-
-#ifndef MPI_ONE_SIDED_FOR_LET
-	  MPI_Status statusJpos;	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvMore), &statusJpos));
-#endif//MPI_ONE_SIDED_FOR_LET
-#ifdef  MPI_VIA_HOST
-	  checkCudaErrors(cudaMemcpyAsync(&(tree.more[let[ii].headRecv]), &(tree_hst.more[let[ii].headRecv]), sizeof(     uint) * let[ii].numRecv, cudaMemcpyHostToDevice, sinfo->stream[sidx]));
-#endif//MPI_VIA_HOST
-
-
-#ifdef  EXEC_BENCHMARK
-	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
-
-#ifdef  MPI_VIA_HOST
-	checkCudaErrors(cudaStreamSynchronize(sinfo->stream[sidx]));
-#endif//MPI_VIA_HOST
-
-	static struct timespec finish_mpi;
-	clock_gettime(CLOCK_MONOTONIC_RAW, &finish_mpi);
-	elapsed->exchangeLET += calcElapsedTimeInSec(start_mpi, finish_mpi);
-
-	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
-#endif//EXEC_BENCHMARK
-
-
-	  /** calculate gravity from LET */
-	  callCalcGravityFunc(blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree, grpNum, let[ii].headRecv
-			      , cycles_dev
-			      , buf
+	   blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree, grpNum, cycles_dev, buf
 #ifdef  COUNT_INTERACTIONS
-			      , treeInfo
+	   , treeInfo
 #endif//COUNT_INTERACTIONS
-			      );
-	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
+	   );
 
-	__NOTE__("MPI_Status check start\n");
+
+	/** complete MPI communications in the current stage */
 	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
 	  MPI_Status statusInfo;	  chkMPIerr(MPI_Wait(&(let[ii].reqSendInfo), &statusInfo));
-	  __NOTE__("let[%d].reqSendInfo\n", ii);
 #ifdef  MPI_ONE_SIDED_FOR_LET
 	  MPI_Status statusHead;	  chkMPIerr(MPI_Wait(&(let[ii].reqSendHead), &statusHead));
-	  __NOTE__("let[%d].reqSendHead\n", ii);
-#else///MPI_ONE_SIDED_FOR_LET
-	  MPI_Status statusMore;	  chkMPIerr(MPI_Wait(&(let[ii].reqSendMore), &statusMore));
-	  __NOTE__("let[%d].reqSendMore\n", ii);
-	  MPI_Status statusJpos;	  chkMPIerr(MPI_Wait(&(let[ii].reqSendJpos), &statusJpos));
-	  __NOTE__("let[%d].reqSendJpos\n", ii);
-	  MPI_Status statusMass;	  chkMPIerr(MPI_Wait(&(let[ii].reqSendMass), &statusMass));
-	  __NOTE__("let[%d].reqSendMass\n", ii);
 #endif//MPI_ONE_SIDED_FOR_LET
 	}/* for(int ii = 0; ii < numProcs; ii++){ */
-	__NOTE__("MPI_Status check finish\n");
+
+
+	/** preparation for the next stage */
+	grav_by_LET = true;
+	stage ^= 1;
+
+	idxProcsPrev = idxProcs;
+	numProcsPrev = numProcs;
 
 	idxProcs += numProcs;
 	remProcs -= numProcs;
-	if( remProcs <= 0 )	  break;
-      }/* while( true ){ */
+      }/* while( remProcs > 0 ){ */
+
+
+      /** calculate gravity from the last tree */
+      callCalcGravityFunc_parallel
+	(idxProcsPrev, numProcsPrev, grav_by_LET, let, mpi,
+#ifdef  MPI_VIA_HOST
+	 tree_hst,
+#endif//MPI_VIA_HOST
+	 blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree, grpNum, cycles_dev, buf
+#ifdef  COUNT_INTERACTIONS
+	 , treeInfo
+#endif//COUNT_INTERACTIONS
+	 );
+
 
       /** preparation for communication in the next time step */
 #ifdef  BLOCK_TIME_STEP
@@ -2797,23 +2828,18 @@ void calcGravity_dev
       chkMPIerr(MPI_Win_unlock_all(mpi.win_mass));
 #endif//MPI_ONE_SIDED_FOR_LET
 
-#else///SERIALIZED_EXECUTION
-
-      callCalcGravityFunc(blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree
-#ifndef SERIALIZED_EXECUTION
-			  , grpNum, 0
-#endif//SERIALIZED_EXECUTION
-#   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
-			  , cycles_dev
-#endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
-			  , buf
-#ifdef  COUNT_INTERACTIONS
-			  , treeInfo
-#endif//COUNT_INTERACTIONS
-			  );
-
 #endif//SERIALIZED_EXECUTION
 
+
+#ifdef  USE_MEASURED_CLOCK_FREQ
+      /** measure clock frequency as a reference value */
+      nvmlDeviceGetClock(deviceHandler, NVML_CLOCK_SM, NVML_CLOCK_ID_CURRENT, &clockWalk);
+#ifdef  REPORT_GPU_CLOCK_FREQUENCY
+      /** measure temperature and power usage */
+      nvmlDeviceGetTemperature(deviceHandler, NVML_TEMPERATURE_GPU, &temperature);
+      nvmlDeviceGetPowerUsage(deviceHandler, &power);
+#endif//REPORT_GPU_CLOCK_FREQUENCY
+#endif//USE_MEASURED_CLOCK_FREQ
 
       sinfo->idx = sidx;
 

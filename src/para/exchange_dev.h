@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/26 (Mon)
+ * @date 2018/03/02 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -201,7 +201,7 @@ extern "C"
    float  *x0dev, float  *x1dev, float  *y0dev, float  *y1dev, float  *z0dev, float  *z1dev, int  *iddev);
 
   muse allocateParticlePosition(float **xhst, float **yhst, float **zhst, particlePos *hst,
-				float **xdev, float **ydev, float **zdev, particlePos *dev, int **rank_hst, int **rank_dev, int **idx_dev, domainDecomposeKey *key, const ulong Ntot);
+				float **xdev, float **ydev, float **zdev, particlePos *dev, int **rank_hst, int **rank_dev, int **idx_dev, domainDecomposeKey *key, const size_t num);
   void  releaseParticlePosition(float  *xhst, float  *yhst, float  *zhst,
 				float  *xdev, float  *ydev, float  *zdev,	            int  *rank_hst, int  *rank_dev, int  *idx_dev);
 

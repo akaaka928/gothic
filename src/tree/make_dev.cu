@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/21 (Wed)
+ * @date 2018/03/02 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1116,8 +1116,11 @@ muse allocTreeNode_dev
   mycudaMalloc    ((void **)  n2c_dev, num * sizeof(int      ));  alloc.device += num * sizeof(int      );  dev->node2cell = *  n2c_dev;
 
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
+  __NOTE__("%zu MiB for more_hst\n", num * sizeof(uint) >> 20);
   mycudaMallocHost((void **) more_hst, num * sizeof(uint     ));  alloc.host += num * sizeof(uint     );  hst->more      = * more_hst;
+  __NOTE__("%zu MiB for pj_hst\n", num * sizeof(jparticle) >> 20);
   mycudaMallocHost((void **)   pj_hst, num * sizeof(jparticle));  alloc.host += num * sizeof(jparticle);  hst->jpos      = *   pj_hst;
+  __NOTE__("%zu MiB for mj_hst\n", num * sizeof(jmass) >> 20);
   mycudaMallocHost((void **)   mj_hst, num * sizeof(jmass    ));  alloc.host += num * sizeof(jmass    );  hst->mj        = *   mj_hst;
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
 

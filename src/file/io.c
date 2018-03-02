@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/01 (Thu)
+ * @date 2018/03/02 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -601,79 +601,82 @@ static inline void appendGPUclockInfoParallel
 
   const int monitor = (CLOCK_RECORD_STEPS < monitor_step) ? CLOCK_RECORD_STEPS : monitor_step;
 
-  /* data reordering */
-  static gpu_clock record[CLOCK_RECORD_STEPS];
-  const int origin = monitor_step & (CLOCK_RECORD_STEPS - 1);
-  const int turnaround = monitor - origin;
-  for(int ii = 0; ii < turnaround; ii++)
-    record[ii] = deviceMonitors[origin + ii];
-  for(int ii = turnaround; ii < monitor; ii++)
-    record[ii] = deviceMonitors[ii - turnaround];
+  if( monitor > 0 ){
+
+    /* data reordering */
+    static gpu_clock record[CLOCK_RECORD_STEPS];
+    const int origin = monitor_step & (CLOCK_RECORD_STEPS - 1);
+    const int turnaround = monitor - origin;
+    for(int ii = 0; ii < turnaround; ii++)
+      record[ii] = deviceMonitors[origin + ii];
+    for(int ii = turnaround; ii < monitor; ii++)
+      record[ii] = deviceMonitors[ii - turnaround];
 
 #ifdef  USE_HDF5_FORMAT
-  hid_t group = H5Gcreate(target, "GPUinfo", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    hid_t group = H5Gcreate(target, "GPUinfo", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-  /* write attribute */
-  hsize_t attr_dims = 1;
-  hid_t dataspace = H5Screate_simple(1, &attr_dims, NULL);
-  hid_t attribute = H5Acreate(group, "steps", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &monitor));
-  chkHDF5err(H5Aclose(attribute));
-  chkHDF5err(H5Sclose(dataspace));
+    /* write attribute */
+    hsize_t attr_dims = 1;
+    hid_t dataspace = H5Screate_simple(1, &attr_dims, NULL);
+    hid_t attribute = H5Acreate(group, "steps", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &monitor));
+    chkHDF5err(H5Aclose(attribute));
+    chkHDF5err(H5Sclose(dataspace));
 
-  /* create (distributed) dataset */
-  /* create dataspace */
-  hsize_t dims_ful[2] = {mpi.size, monitor};  hid_t fulSpace = H5Screate_simple(2, dims_ful, NULL);
-  hsize_t dims_mem[2] = {       1, monitor};
-  hsize_t dims_loc[2] = {       1, monitor};  hid_t locSpace = H5Screate_simple(2, dims_loc, NULL);
-  /* create chunked dataset */
-  hid_t data_create = H5Pcreate(H5P_DATASET_CREATE);
-  hsize_t dims_max = (MAXIMUM_CHUNK_SIZE_8BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_8BIT : MAXIMUM_CHUNK_SIZE;
-  if( dims_mem[0] * dims_mem[1] > dims_max )
-    dims_mem[0] = dims_max / dims_mem[1];
-  chkHDF5err(H5Pset_chunk(data_create, 2, dims_mem));
+    /* create (distributed) dataset */
+    /* create dataspace */
+    hsize_t dims_ful[2] = {mpi.size, monitor};  hid_t fulSpace = H5Screate_simple(2, dims_ful, NULL);
+    hsize_t dims_mem[2] = {       1, monitor};
+    hsize_t dims_loc[2] = {       1, monitor};  hid_t locSpace = H5Screate_simple(2, dims_loc, NULL);
+    /* create chunked dataset */
+    hid_t data_create = H5Pcreate(H5P_DATASET_CREATE);
+    hsize_t dims_max = (MAXIMUM_CHUNK_SIZE_8BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_8BIT : MAXIMUM_CHUNK_SIZE;
+    if( dims_mem[0] * dims_mem[1] > dims_max )
+      dims_mem[0] = dims_max / dims_mem[1];
+    chkHDF5err(H5Pset_chunk(data_create, 2, dims_mem));
 
-  /* configuration about distributed dataset */
-  hsize_t  count[2] = {1, 1};
-  hsize_t stride[2] = {1, 1};
-  hsize_t  block[2] = {dims_loc[0], dims_loc[1]};
-  hsize_t offset[2] = {mpi.rank, 0};
+    /* configuration about distributed dataset */
+    hsize_t  count[2] = {1, 1};
+    hsize_t stride[2] = {1, 1};
+    hsize_t  block[2] = {dims_loc[0], dims_loc[1]};
+    hsize_t offset[2] = {mpi.rank, 0};
 
-  /* set up the collective transfer properties function */
-  hid_t w_property = H5Pcreate(H5P_DATASET_XFER);
-  chkHDF5err(H5Pset_dxpl_mpio(w_property, H5FD_MPIO_COLLECTIVE));
+    /* set up the collective transfer properties function */
+    hid_t w_property = H5Pcreate(H5P_DATASET_XFER);
+    chkHDF5err(H5Pset_dxpl_mpio(w_property, H5FD_MPIO_COLLECTIVE));
 
-  /* write measured data */
-  hid_t dataset = H5Dcreate(group, "record", type.gpu_clock, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
-  hid_t hyperslab = H5Dget_space(dataset);
-  chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, offset, stride, count, block));
-  chkHDF5err(H5Dwrite(dataset, type.gpu_clock, locSpace, hyperslab, w_property, record));
-  chkHDF5err(H5Sclose(hyperslab));
-  chkHDF5err(H5Dclose(dataset));
+    /* write measured data */
+    hid_t dataset = H5Dcreate(group, "record", type.gpu_clock, fulSpace, H5P_DEFAULT, data_create, H5P_DEFAULT);
+    hid_t hyperslab = H5Dget_space(dataset);
+    chkHDF5err(H5Sselect_hyperslab(hyperslab, H5S_SELECT_SET, offset, stride, count, block));
+    chkHDF5err(H5Dwrite(dataset, type.gpu_clock, locSpace, hyperslab, w_property, record));
+    chkHDF5err(H5Sclose(hyperslab));
+    chkHDF5err(H5Dclose(dataset));
 
-  chkHDF5err(H5Pclose(w_property));
-  chkHDF5err(H5Pclose(data_create));
-  chkHDF5err(H5Sclose(locSpace));
-  chkHDF5err(H5Sclose(fulSpace));
+    chkHDF5err(H5Pclose(w_property));
+    chkHDF5err(H5Pclose(data_create));
+    chkHDF5err(H5Sclose(locSpace));
+    chkHDF5err(H5Sclose(fulSpace));
 
-  chkHDF5err(H5Gclose(group));
+    chkHDF5err(H5Gclose(group));
 #else///USE_HDF5_FORMAT
-  MPI_Status status;
+    MPI_Status status;
 
-  /* the root process writes steps, an unsigned int value */
-  chkMPIerr(MPI_File_set_view(fh, *disp, MPI_INT, MPI_INT, "native", MPI_INFO_NULL));
-  if( mpi.rank == 0 )
-    chkMPIerr(MPI_File_write(fh, &monitor, 1, MPI_INT, &status));
-  chkMPIerr(MPI_File_sync(fh));
-  (*disp) += 1 * (MPI_Offset)sizeof(int);
+    /* the root process writes steps, an unsigned int value */
+    chkMPIerr(MPI_File_set_view(fh, *disp, MPI_INT, MPI_INT, "native", MPI_INFO_NULL));
+    if( mpi.rank == 0 )
+      chkMPIerr(MPI_File_write(fh, &monitor, 1, MPI_INT, &status));
+    chkMPIerr(MPI_File_sync(fh));
+    (*disp) += 1 * (MPI_Offset)sizeof(int);
 
-  /* the whole processes write measured clock frequency of GPUs */
-  chkMPIerr(MPI_File_set_view(fh, (*disp) + mpi.rank * (MPI_Offset)monitor * (MPI_Offset)sizeof(gpu_clock), MPI_BYTE, MPI_BYTE, "native", MPI_INFO_NULL));
-  chkMPIerr(MPI_File_write(fh, record, monitor * sizeof(gpu_clock), MPI_BYTE, &status));
-  chkMPIerr(MPI_File_sync(fh));
-  (*disp) += mpi.size * (MPI_Offset)monitor * (MPI_Offset)sizeof(gpu_clock);
+    /* the whole processes write measured clock frequency of GPUs */
+    chkMPIerr(MPI_File_set_view(fh, (*disp) + mpi.rank * (MPI_Offset)monitor * (MPI_Offset)sizeof(gpu_clock), MPI_BYTE, MPI_BYTE, "native", MPI_INFO_NULL));
+    chkMPIerr(MPI_File_write(fh, record, monitor * sizeof(gpu_clock), MPI_BYTE, &status));
+    chkMPIerr(MPI_File_sync(fh));
+    (*disp) += mpi.size * (MPI_Offset)monitor * (MPI_Offset)sizeof(gpu_clock);
 #endif//USE_HDF5_FORMAT
 
+  }/* if( monitor > 0 ){ */
 
   __NOTE__("%s\n", "end");
 }

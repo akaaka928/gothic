@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/01 (Thu)
+ * @date 2018/03/02 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1091,7 +1091,7 @@ int main(int argc, char **argv)
   int *rank_hst, *rank_dev, *idx_dev;
   domainDecomposeKey domDecKey;
   const muse alloc_pos = allocateParticlePosition
-    (&xhst, &yhst, &zhst, &particlePos_hst, &xdev, &ydev, &zdev, &particlePos_dev, &rank_hst, &rank_dev, &idx_dev, &domDecKey, Ntot / mpi.size);
+    (&xhst, &yhst, &zhst, &particlePos_hst, &xdev, &ydev, &zdev, &particlePos_dev, &rank_hst, &rank_dev, &idx_dev, &domDecKey, num_max);
 
   float *xmin_dev, *xmax_dev, *ymin_dev, *ymax_dev, *zmin_dev, *zmax_dev;
   float *xmin_hst, *xmax_hst, *ymin_hst, *ymax_hst, *zmin_hst, *zmax_hst;
