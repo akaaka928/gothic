@@ -1,11 +1,11 @@
 /**
- * @file plot.action.c
+ * @file action.c
  *
- * @brief Plot code for angle-action variables of multiple components
+ * @brief Analyzer for angle-action variables of multiple components
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/02/12 (Mon)
+ * @date 2018/03/08 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -33,7 +33,6 @@
 #include "name.h"
 #include "constants.h"
 #include "mpilib.h"
-#include "plplotlib.h"
 
 #include "../misc/structure.h"
 #include "../misc/allocate.h"
@@ -541,8 +540,6 @@ int main(int argc, char **argv)
   int      end;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv,      "end", &end));
   int interval;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv, "interval", &interval));
   int    ncrit;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv, "ncrit", &ncrit));
-
-  modifyArgcArgv4PLplot(&argc, argv, 6);
 
 
   /** load global settings of particle distribution */

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/19 (Fri)
+ * @date 2018/03/06 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -169,7 +169,7 @@ void setTimeStep_dev
     *grpNum = Ngrp;
 
 #ifndef SERIALIZED_EXECUTION
-  if( *grpNum != 0 )
+  if( *grpNum > 0 )
 #endif//SERIALIZED_EXECUTION
     {
       int Nrem = BLOCKSIZE(*grpNum, NWARP * NGROUPS);

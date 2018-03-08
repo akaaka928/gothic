@@ -18,9 +18,9 @@ NCRIT=2048
 ###############################################################
 EXTENSION=png
 ###############################################################
-PLTENE=bin/plot.energy
-PLTMAP=bin/plot.distribution
-PLTCDF=bin/plot.cdf
+PLTENE=bin/energy
+PLTMAP=bin/distribution
+PLTCDF=bin/cdf
 ###############################################################
 PROBLEM=0
 TARGET=0

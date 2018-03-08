@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/02 (Fri)
+ * @date 2018/03/06 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -880,6 +880,13 @@ int main(int argc, char **argv)
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
   acceleration *res_dev;
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  position *ipos_ext_dev, *ipos_ext0, *ipos_ext1;
+  acceleration *iacc_ext_dev, *iacc_ext0, *iacc_ext1;
+#ifdef  GADGET_MAC
+  acceleration *iacc_ext_old_dev, *iacc_ext_old0, *iacc_ext_old1;
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
 #ifdef  BLOCK_TIME_STEP
   velocity     * vel0, * vel1, * vel0_dev, * vel1_dev;
   ibody_time   *time0, *time1, *time0_dev, *time1_dev;
@@ -888,12 +895,24 @@ int main(int argc, char **argv)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
      , &acc_ext0
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+     , &ipos_ext0, &iacc_ext0
+#ifdef  GADGET_MAC
+     , &iacc_ext_old0
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
      );
   const muse alloc_ibody1    = allocParticleDataSoA_hst
     (num_max, &ibody1, &idx1, &pos1, &acc1, &vel1, &time1
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
      , &acc_ext1
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+     , &ipos_ext1, &iacc_ext1
+#ifdef  GADGET_MAC
+     , &iacc_ext_old1
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
      );
   const muse alloc_ibody_dev = allocParticleDataSoA_dev
     (num_max
@@ -915,6 +934,12 @@ int main(int argc, char **argv)
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
      , &res_dev
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+     , &ipos_ext_dev, &iacc_ext_dev
+#ifdef  GADGET_MAC
+     , &iacc_ext_old_dev
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
      );
 #else///BLOCK_TIME_STEP
   real *vx0, *vx1, *vx0_dev, *vx1_dev;
@@ -925,12 +950,24 @@ int main(int argc, char **argv)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
      , &acc_ext0
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+     , &ipos_ext0, &iacc_ext0
+#ifdef  GADGET_MAC
+     , &iacc_ext_old0
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
      );
   const muse alloc_ibody1    = allocParticleDataSoA_hst
     (num_max, &ibody1, &idx1, &pos1, &acc1, &vx1, &vy1, &vz1
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
      , &acc_ext1
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+     , &ipos_ext1, &iacc_ext1
+#ifdef  GADGET_MAC
+     , &iacc_ext_old1
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
      );
   const muse alloc_ibody_dev = allocParticleDataSoA_dev
     (num_max
@@ -952,6 +989,12 @@ int main(int argc, char **argv)
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
      , &res_dev
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+     , &ipos_ext_dev, &iacc_ext_dev
+#ifdef  GADGET_MAC
+     , &iacc_ext_old_dev
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
      );
 #endif//BLOCK_TIME_STEP
 
@@ -979,7 +1022,18 @@ int main(int argc, char **argv)
   double *laneTime_dev;
   int inumPerLane, maxNgrp;
   int *inum_hst, *inum_dev;
-  const muse alloc_lane_dev = allocParticleGroups(&laneInfo_hst, &laneInfo_dev, &laneTime_dev, &inum_hst, &inum_dev, &inumPerLane, &maxNgrp, num_max);
+  const muse alloc_lane_dev =
+    allocParticleGroups(&laneInfo_hst, &laneInfo_dev, &laneTime_dev, &inum_hst, &inum_dev,
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+			true,
+#endif//SWITCH_WITH_J_PARALLELIZATION
+			&inumPerLane, &maxNgrp, num_max);
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  int inumPerLane_ext, maxNgrp_ext;
+  laneinfo *laneInfo_ext_hst, *laneInfo_ext_dev;
+  const muse alloc_lane_ext_dev =
+    allocParticleGroups(&laneInfo_ext_hst, &laneInfo_ext_dev, NULL, NULL, NULL, false, &inumPerLane_ext, &maxNgrp_ext, NMAX_J_PARALLELIZATION);
+#endif//SWITCH_WITH_J_PARALLELIZATION
 
   /** declarations of arrays to contain information of tree-cells */
   PHint    *hkey_dev;
@@ -1398,6 +1452,10 @@ int main(int argc, char **argv)
   body_mem.host   += alloc_snap.host;
   body_mem.device += alloc_snap.device;
 #endif//USE_HDF5_FORMAT
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  misc_mem.host   += alloc_lane_ext_dev.host;
+  misc_mem.device += alloc_lane_ext_dev.device;
+#endif//SWITCH_WITH_J_PARALLELIZATION
   static muse used_mem;
   used_mem.host   = body_mem.host   + tree_mem.host   + misc_mem.host  ;
   used_mem.device = body_mem.device + tree_mem.device + misc_mem.device;
@@ -1767,6 +1825,9 @@ int main(int argc, char **argv)
 #ifdef  MONITOR_LETGEN_TIME
        , cycles_let_hst, cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+       , maxNgrp_ext, laneInfo_ext_hst, laneInfo_ext_dev
+#endif//SWITCH_WITH_J_PARALLELIZATION
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
        , treeinfo_dev
@@ -1862,6 +1923,9 @@ int main(int argc, char **argv)
 #ifdef  MONITOR_LETGEN_TIME
        , cycles_let_hst, cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+       , maxNgrp_ext, laneInfo_ext_hst, laneInfo_ext_dev
+#endif//SWITCH_WITH_J_PARALLELIZATION
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
        , treeinfo_dev
@@ -2436,6 +2500,9 @@ int main(int argc, char **argv)
 #ifdef  MONITOR_LETGEN_TIME
 	 , cycles_let_hst, cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+	 , maxNgrp_ext, laneInfo_ext_hst, laneInfo_ext_dev
+#endif//SWITCH_WITH_J_PARALLELIZATION
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
 	 , treeinfo_dev
@@ -2820,12 +2887,24 @@ int main(int argc, char **argv)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
      , acc_ext0
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+     , ipos_ext0, iacc_ext0
+#ifdef  GADGET_MAC
+     , iacc_ext_old0
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
      );
   freeParticleDataSoA_hst
     (idx1, pos1, acc1, vel1, time1
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
      , acc_ext1
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+     , ipos_ext1, iacc_ext1
+#ifdef  GADGET_MAC
+     , iacc_ext_old1
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
      );
   freeParticleDataSoA_dev
     (idx0_dev, pos0_dev, acc0_dev, vel0_dev, time0_dev,
@@ -2846,6 +2925,12 @@ int main(int argc, char **argv)
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
      , res_dev
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+     , ipos_ext_dev, iacc_ext_dev
+#ifdef  GADGET_MAC
+     , iacc_ext_old_dev
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
      );
 #else///BLOCK_TIME_STEP
   freeParticleDataSoA_hst
@@ -2853,12 +2938,24 @@ int main(int argc, char **argv)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
      , acc_ext0
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+     , ipos_ext0, iacc_ext0
+#ifdef  GADGET_MAC
+     , iacc_ext_old0
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
      );
   freeParticleDataSoA_hst
     (idx1, pos1, acc1, vx1, vy1, vz1
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
      , acc_ext1
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+     , ipos_ext1, iacc_ext1
+#ifdef  GADGET_MAC
+     , iacc_ext_old1
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
      );
   freeParticleDataSoA_dev
     (idx0_dev, pos0_dev, acc0_dev, vx0_dev, vy0_dev, vz0_dev
@@ -2879,6 +2976,12 @@ int main(int argc, char **argv)
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
      , res_dev
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+     , ipos_ext_dev, iacc_ext_dev
+#ifdef  GADGET_MAC
+     , iacc_ext_old_dev
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
      );
 #endif//BLOCK_TIME_STEP
 
@@ -2892,7 +2995,14 @@ int main(int argc, char **argv)
 #endif//COUNT_INTERACTIONS
      );
 
-  freeParticleGroups(laneInfo_hst, laneInfo_dev, laneTime_dev, inum_hst, inum_dev);
+  freeParticleGroups(laneInfo_hst, laneInfo_dev, laneTime_dev, inum_hst, inum_dev
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+		     , true
+#endif//SWITCH_WITH_J_PARALLELIZATION
+		     );
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  freeParticleGroups(laneInfo_ext_hst, laneInfo_ext_dev, NULL, NULL, NULL, false);
+#endif//SWITCH_WITH_J_PARALLELIZATION
 
   freeTreeCell_dev
     (cell_dev, leaf_dev, node_dev, list_dev,

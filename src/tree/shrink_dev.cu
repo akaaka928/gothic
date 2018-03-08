@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/26 (Mon)
+ * @date 2018/03/06 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -68,15 +68,25 @@ __global__ void initLaneTime_kernel(const int num, double *laneTime)
  */
 extern "C"
 void freeParticleGroups
-(laneinfo  *laneInfo_hst, laneinfo  *laneInfo_dev, double  *laneTime_dev, int  *inum_hst, int  *inum_dev)
+(laneinfo  *laneInfo_hst, laneinfo  *laneInfo_dev, double  *laneTime_dev, int  *inum_hst, int  *inum_dev
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+ , const bool forLocal
+#endif//SWITCH_WITH_J_PARALLELIZATION
+)
 {
   __NOTE__("%s\n", "start");
 
   mycudaFreeHost(laneInfo_hst);
   mycudaFree    (laneInfo_dev);
-  mycudaFree    (laneTime_dev);
-  mycudaFreeHost(    inum_hst);
-  mycudaFree    (    inum_dev);
+
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  if( forLocal )
+#endif//SWITCH_WITH_J_PARALLELIZATION
+    {
+      mycudaFree    (laneTime_dev);
+      mycudaFreeHost(    inum_hst);
+      mycudaFree    (    inum_dev);
+    }
 
   __NOTE__("%s\n", "end");
 }
@@ -92,6 +102,9 @@ void freeParticleGroups
 extern "C"
 muse allocParticleGroups
 (laneinfo **laneInfo_hst, laneinfo **laneInfo_dev, double **laneTime_dev, int **inum_hst, int **inum_dev,
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+ const bool forLocal,
+#endif//SWITCH_WITH_J_PARALLELIZATION
  int *inumPerLane, int *maxNgrp, const int num_max)
 {
   __NOTE__("%s\n", "start");
@@ -106,37 +119,44 @@ muse allocParticleGroups
   /** memory allocation for laneInfo */
   mycudaMallocHost((void **)laneInfo_hst, (size_t)(*maxNgrp) * sizeof(laneinfo));  alloc.host   += (size_t)(*maxNgrp) * sizeof(laneinfo);
   mycudaMalloc    ((void **)laneInfo_dev, (size_t)(*maxNgrp) * sizeof(laneinfo));  alloc.device += (size_t)(*maxNgrp) * sizeof(laneinfo);
-  mycudaMalloc    ((void **)laneTime_dev, (size_t)(*maxNgrp) * sizeof(  double));  alloc.device += (size_t)(*maxNgrp) * sizeof(  double);
-
-  /** memory allocation to estimate number of i-particle within a group */
-  mycudaMallocHost((void **)inum_hst, (size_t)num_max * sizeof(int));  alloc.host   += (size_t)num_max * sizeof(int);
-  mycudaMalloc    ((void **)inum_dev, (size_t)num_max * sizeof(int));  alloc.device += (size_t)num_max * sizeof(int);
 
   /** initialize laneInfo */
   for(int ii = 0; ii < *maxNgrp; ii++)
     (*laneInfo_hst)[ii] = nullInfo;
   checkCudaErrors(cudaMemcpy(*laneInfo_dev, *laneInfo_hst, (*maxNgrp) * sizeof(laneinfo), cudaMemcpyHostToDevice));
 
-  /** initialize laneTime */
-  int Nrem = BLOCKSIZE(*maxNgrp, 1024);
-  if( Nrem <= MAX_BLOCKS_PER_GRID )
-    initLaneTime_kernel<<<Nrem, 1024>>>(*maxNgrp, *laneTime_dev);
-  else{
-    const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
-    int hidx = 0;
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  if( forLocal )
+#endif//SWITCH_WITH_J_PARALLELIZATION
+    {
+      /** memory allocation to estimate number of i-particle within a group */
+      mycudaMallocHost((void **)inum_hst, (size_t)num_max * sizeof(int));      alloc.host   += (size_t)num_max * sizeof(int);
+      mycudaMalloc    ((void **)inum_dev, (size_t)num_max * sizeof(int));      alloc.device += (size_t)num_max * sizeof(int);
 
-    for(int iter = 0; iter < Niter; iter++){
-      int Nblck = MAX_BLOCKS_PER_GRID;
-      if( Nblck > Nrem )	Nblck = Nrem;
+      /** memory allocation for laneTime */
+      mycudaMalloc    ((void **)laneTime_dev, (size_t)(*maxNgrp) * sizeof(double));
+      alloc.device +=                         (size_t)(*maxNgrp) * sizeof(double);
 
-      int Nsub = Nblck * 1024;
-      initLaneTime_kernel<<<Nblck, 1024>>>(Nsub, &((*laneTime_dev)[hidx]));
+      /** initialize laneTime */
+      int Nrem = BLOCKSIZE(*maxNgrp, 1024);
+      if( Nrem <= MAX_BLOCKS_PER_GRID )
+	initLaneTime_kernel<<<Nrem, 1024>>>(*maxNgrp, *laneTime_dev);
+      else{
+	const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
+	int hidx = 0;
 
-      hidx += Nsub;
-      Nrem -= Nblck;
-    }/* for(int iter = 0; iter < Niter; iter++){ */
-  }/* else{ */
+	for(int iter = 0; iter < Niter; iter++){
+	  int Nblck = MAX_BLOCKS_PER_GRID;
+	  if( Nblck > Nrem )	Nblck = Nrem;
 
+	  int Nsub = Nblck * 1024;
+	  initLaneTime_kernel<<<Nblck, 1024>>>(Nsub, &((*laneTime_dev)[hidx]));
+
+	  hidx += Nsub;
+	  Nrem -= Nblck;
+	}/* for(int iter = 0; iter < Niter; iter++){ */
+      }/* else{ */
+    }
 
   __NOTE__("%s\n", "end");
   return (alloc);

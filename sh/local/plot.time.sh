@@ -36,8 +36,8 @@ NTOT=8388608
 # NTOT=4294967296
 # NTOT=8589934592
 ###############################################################
-PLTEXE=bin/plot.time
-BRKDWN=bin/plot.breakdown
+PLTEXE=bin/elapsed
+BRKDWN=bin/breakdown
 ###############################################################
 PLTSH=sh/local/plplot.sh
 EXTENSION=$2

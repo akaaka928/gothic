@@ -1,11 +1,11 @@
 /**
- * @file plot.breakdown.c
+ * @file breakdown.c
  *
  * @brief Plot code of breakdown of tree code
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/03/08 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.

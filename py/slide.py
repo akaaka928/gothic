@@ -7,7 +7,7 @@ import multiprocessing as mp
 # import threading
 
 import matplotlib
-matplotlib.use("tkagg")
+matplotlib.use("agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm # for logarithmic plot in imshow
 

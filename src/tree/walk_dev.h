@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/26 (Mon)
+ * @date 2018/03/07 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -17,6 +17,10 @@
 #ifndef WALK_DEV_H
 #define WALK_DEV_H
 
+
+#ifdef  COMPARE_WITH_DIRECT_SOLVER
+#include <stdbool.h>
+#endif//COMPARE_WITH_DIRECT_SOLVER
 
 #include "macro.h"
 #include "cudalib.h"
@@ -34,12 +38,35 @@
 #include "../misc/tune.h"
 #include "../para/mpicfg.h"
 #include "../tree/let.h"
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+
+/**
+ * @def NMAX_J_PARALLELIZATION
+ *
+ * @brief maximum number of activated i-particles to employ j-parallelization
+ */
+#define NMAX_J_PARALLELIZATION NUM_BODY_MAX
+
+/**
+ * @def FCRIT_J_PARALLELIZATION
+ *
+ * @brief consider to exploit j-parallelization when grpNum < FCRIT_J_PARALLELIZATION * totNum
+ */
+/* #define FCRIT_J_PARALLELIZATION (2.5e-1f) */
+/* #define FCRIT_J_PARALLELIZATION (1.25e-1f) */
+#define FCRIT_J_PARALLELIZATION (6.25e-2f)
+/* #define FCRIT_J_PARALLELIZATION (3.125e-2f) */
+
+/**
+ * @def FSIZE_J_PARALLELIZATION
+ *
+ * @brief consider to exploit j-parallelization when more than FSIZE_J_PARALLELIZATION * mpi.size processes prefer to exploit j-parallelization
+ */
+#define FSIZE_J_PARALLELIZATION (0.5f)
+
+#endif//SWITCH_WITH_J_PARALLELIZATION
 #endif//SERIALIZED_EXECUTION
 #endif//defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
-
-#ifdef  COMPARE_WITH_DIRECT_SOLVER
-#include <stdbool.h>
-#endif//COMPARE_WITH_DIRECT_SOLVER
 
 
 /**
@@ -525,6 +552,12 @@ extern "C"
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
    , acceleration **res
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+   , position **pos_iext, acceleration **acc_iext
+#ifdef  GADGET_MAC
+   , acceleration **acc_iext_old
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
    );
   void  freeParticleDataSoA_dev
   (ulong  *idx0, position  *pos0, acceleration  *acc0
@@ -551,6 +584,12 @@ extern "C"
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
    , acceleration  *res
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+   , position  *pos_iext, acceleration  *acc_iext
+#ifdef  GADGET_MAC
+   , acceleration  *acc_iext_old
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
    );
 
   void  freeTreeBuffer_dev
@@ -610,6 +649,9 @@ extern "C"
 #ifdef  MONITOR_LETGEN_TIME
    , unsigned long long int *cycles_let_hst, unsigned long long int *cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+   , const int maxNgrp_ext, laneinfo * RESTRICT laneInfo_ext_hst, laneinfo * RESTRICT laneInfo_ext_dev
+#endif//SWITCH_WITH_J_PARALLELIZATION
 #endif//SERIALIZED_EXECUTION
 #endif//defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 #ifdef  COUNT_INTERACTIONS

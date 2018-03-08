@@ -1,11 +1,11 @@
 /**
- * @file plot.multipole.c
+ * @file multipole.c
  *
  * @brief Plot code of multipole moments
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/03/08 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.

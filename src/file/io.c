@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/02 (Fri)
+ * @date 2018/03/08 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -88,7 +88,6 @@ extern const double        time2astro;extern const char        time_astro_unit_n
 #ifdef  USE_HDF5_FORMAT
 extern const real newton;
 extern const double      length2astro;extern const char      length_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
-extern const double        time2astro;extern const char        time_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
 extern const double        mass2astro;extern const char        mass_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
 extern const double     density2astro;extern const char     density_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
 extern const double col_density2astro;extern const char col_density_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
@@ -4053,6 +4052,10 @@ void writeSnapshotParallel
  * @return (head) index of the head particle in each group
  * @return (num) number of N-body particles in each group
  */
+#ifndef USE_SZIP_COMPRESSION
+#define USE_SZIP_COMPRESSION
+#define SZIP_ONLY_FOR_SPLITTER
+#endif//USE_SZIP_COMPRESSION
 void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char file[], uint id, hdf5struct type, int kind, int *head, int *num)
 {
   __NOTE__("%s\n", "start");
@@ -4313,6 +4316,10 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
 
   __NOTE__("%s\n", "end");
 }
+#   if  defined(USE_SZIP_COMPRESSION) && defined(SZIP_ONLY_FOR_SPLITTER)
+#undef USE_SZIP_COMPRESSION
+#undef SZIP_ONLY_FOR_SPLITTER
+#endif//defined(USE_SZIP_COMPRESSION) && defined(SZIP_ONLY_FOR_SPLITTER)
 #endif//USE_HDF5_FORMAT
 
 

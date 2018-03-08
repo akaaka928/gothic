@@ -1,11 +1,11 @@
 /**
- * @file plot.distribution.c
+ * @file distribution.c
  *
  * @brief Plot code for radial profiles of multiple components
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/02/22 (Thu)
+ * @date 2018/03/08 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -849,6 +849,11 @@ int main(int argc, char **argv)
     radmin = 1.0e-2;    rhomin = 1.0e-6;    encmin = 2.0e-1;    Sigmamin = 5.0e-5;    Rmin =  0.0;    zmin = 0.0;
     radmax = 1.0e+3;    rhomax = 2.0e+3;    encmax = 8.0e+4;    Sigmamax = 1.0e+2;    Rmax = 25.0;    zmax = 1.5;
     break;
+  case 124:    /* Eridanus II simulations */
+    radius = 1.0e+1;
+    radmin = 1.0e-3;    rhomin = 1.0e-6;    encmin = 2.0e-4;    Sigmamin = 5.0e-5;    Rmin =  0.0;    zmin = 0.0;
+    radmax = 3.0e+1;    rhomax = 2.0e+3;    encmax = 8.0e+1;    Sigmamax = 1.0e+2;    Rmax = 25.0;    zmax = 1.5;
+    break;
   default:
     radius = 3.0;
     radmin = 1.0e-2;    rhomin = 1.0e-6;    encmin = 3.2e-6;    Sigmamin = 1.0e-6;
@@ -995,7 +1000,7 @@ int main(int argc, char **argv)
   /** load initial profile */
   bool overlay_initial = false;
 #ifndef SET_EXTERNAL_POTENTIAL_FIELD
-  if( problem >= 1 ){
+  if( (problem >= 1) && (problem < 100) ){
     overlay_initial = true;
 
     for(int ii = 0; ii < kind; ii++){
@@ -1436,7 +1441,7 @@ int main(int argc, char **argv)
 
       }/* for(int ii = 0; ii < NUM_HORIZONTAL_BIN; ii++){ */
     }/* for(int kk = 0; kk < skind; kk++){ */
-  }/* if( problem >= 1 ){ */
+  }/* if( (problem >= 1) && (problem < 100) ){ */
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
 
@@ -2757,138 +2762,98 @@ void plotHorizontalProfile
   char *_figname;  allocChar4PLplot        (&_figname, nxpanel * nypanel);
   char **figname;  allocPointer4Char4PLplot(& figname, nxpanel * nypanel);
   assignChar4PLplot(nxpanel * nypanel, figname, _figname);
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
   /* configuration about radial profile of particle distribution  */
-  //-----------------------------------------------------------------------
   /* common setting(s) */
   for(PLINT ii = 0; ii < nxpanel; ii++){
     for(PLINT jj = 0; jj < nypanel; jj++){
-      //-------------------------------------------------------------------
       const PLINT idx = INDEX2D(nxpanel, nypanel, ii, jj);
-      //-------------------------------------------------------------------
       /* global setting(s) */
       plot[idx] = true;
-      //-------------------------------------------------------------------
       /* point setting(s) */
       point [idx] = pt;
-      //-------------------------------------------------------------------
       /* errorbar setting(s) */
       errbar[idx] = 0;
-      //-------------------------------------------------------------------
       /* legend(s) */
       uni[idx] = unify;
-      //-------------------------------------------------------------------
       /* label setting(s) */
       xlabel[idx] = radlab;
-      //-------------------------------------------------------------------
     }
   }
-  //-----------------------------------------------------------------------
   /* setting(s) for column density profile */
   for(PLINT ii = 0; ii < nxpanel; ii++){
-    //---------------------------------------------------------------------
     const PLINT idx = INDEX2D(nxpanel, nypanel, ii, 0);
-    //---------------------------------------------------------------------
     /* line setting(s) */
     nlkind[idx] = lkind;
     lnum  [idx] = nln;
     line  [idx] = ls;
     lx    [idx] = rad_l;
     ly    [idx] = rho_l;
-    //---------------------------------------------------------------------
     /* point setting(s) */
     npkind[idx] = pkind;
     pnum  [idx] = npt;
     px    [idx] = rad_p;
     py    [idx] = rho_p;
-    //---------------------------------------------------------------------
     /* plot area */
     range[idx] = rhobox;
-    //---------------------------------------------------------------------
     /* label setting(s) */
     ylabel[idx] = rholab;
-    //---------------------------------------------------------------------
     /* miscs */
     cap[idx] = rhocap;
     leg[idx] = rholeg;
-    //---------------------------------------------------------------------
     /* file name */
     sprintf(figname[idx], "%s_%s_%.3d", file, "horizontal", filenum);
-    //---------------------------------------------------------------------
   }
-  //-----------------------------------------------------------------------
   /* setting(s) for scale height profile */
   if( disk ){
     for(PLINT ii = 0; ii < nxpanel; ii++){
-      //-------------------------------------------------------------------
       const PLINT idx = INDEX2D(nxpanel, nypanel, ii, 1);
-      //-------------------------------------------------------------------
       /* line setting(s) */
       nlkind[idx] = 0;
-      //-------------------------------------------------------------------
       /* point setting(s) */
       npkind[idx] = ndisk;
       pnum  [idx] = &npt[nspheroids - skip];
       px    [idx] = hor_p;
       py    [idx] = ver_p;
-      //-------------------------------------------------------------------
       /* plot area */
       range[idx] = zbox;
-      //-------------------------------------------------------------------
       /* label setting(s) */
       ylabel[idx] = verlab;
-      //-------------------------------------------------------------------
       /* miscs */
       cap[idx] = vercap;
       leg[idx] = verleg;
-      //-------------------------------------------------------------------
       /* file name */
       sprintf(figname[idx], "%s_%s_%.3d", file, "diskheight", filenum);
-      //-------------------------------------------------------------------
     }
 #ifdef  OVERPLOT_INITIAL_DISKHEIGHT
     for(PLINT ii = 0; ii < nxpanel; ii++){
-      //-------------------------------------------------------------------
       const PLINT idx = INDEX2D(nxpanel, nypanel, ii, 2);
-      //-------------------------------------------------------------------
       /* point setting(s) */
       npkind[idx] = 0;
-      //-------------------------------------------------------------------
       /* line setting(s) */
       nlkind[idx] = ndisk * 2;
       line  [idx] = ls_t0;
       lnum  [idx] = nln_t0;
       lx    [idx] = hor_l;
       ly    [idx] = ver_l;
-      //-------------------------------------------------------------------
       /* plot area */
       range[idx] = zbox;
-      //-------------------------------------------------------------------
       /* label setting(s) */
       ylabel[idx] = verlab;
-      //-------------------------------------------------------------------
       /* miscs */
       cap[idx] = vercap;
       leg[idx] = zt0leg;
-      //-------------------------------------------------------------------
       /* file name */
       sprintf(figname[idx], "%s_%s_%.3d", file, "diskheight_l", filenum);
-      //-------------------------------------------------------------------
     }
 #endif//OVERPLOT_INITIAL_DISKHEIGHT
   }/* if( disk ){ */
-  //-----------------------------------------------------------------------
   /* individual file names */
   /* sprintf(figfile                                 , "%s.%s.%.3d", file, "profile", filenum); */
   /* sprintf(figname[INDEX2D(nxpanel, nypanel, 0, 0)], "%s.%s.%.3d", file, "encmass", filenum); */
   /* sprintf(figname[INDEX2D(nxpanel, nypanel, 0, 1)], "%s.%s.%.3d", file, "density", filenum); */
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
   /* create figure(s) */
-  //-----------------------------------------------------------------------
   for(PLINT idx = 0; idx < nxpanel * nypanel; idx++)
     plotData(1, 1, &plot[idx], false, false,
   	     &nlkind[idx], & line[idx], &lnum[idx], &lx[idx], &ly[idx],
@@ -2902,12 +2867,9 @@ void plotHorizontalProfile
   /* 	   errbar, NULL, NULL, NULL, NULL, NULL, NULL, */
   /* 	   cap, leg, uni, range, */
   /* 	   xlabel, ylabel, "", figfile, argc, argv); */
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
   /* memory deallocation */
-  //-----------------------------------------------------------------------
   free(plot);
   free(nlkind);  free(lnum);  free(lx);  free(ly);  free( line);
   free(npkind);  free(pnum);  free(px);  free(py);  free(point);
@@ -2915,58 +2877,41 @@ void plotHorizontalProfile
   free(cap);  free(leg);  free(uni);
   free(range);
   free(xlabel);  free(ylabel);
-  //-----------------------------------------------------------------------
   free(_rad_p);  free(rad_p);  free(_rad_l);  free(rad_l);
   free(_rho_p);  free(rho_p);  free(_rho_l);  free(rho_l);
   free(pt);  free(ls);
-  //-----------------------------------------------------------------------
   free(_hor_p);  free(hor_p);
   free(_ver_p);  free(ver_p);
-  //-----------------------------------------------------------------------
   free(rholegTxt);
   free(verlegTxt);
-  //-----------------------------------------------------------------------
   free(grpIdx);
-  //-----------------------------------------------------------------------
 #ifdef  OVERPLOT_INITIAL_DISKHEIGHT
   free(nln_t0);  free(_hor_l);  free(hor_l);  free(_ver_l);  free(ver_l);
   free(ls_t0);
   free(zt0legTxt);
 #endif//OVERPLOT_INITIAL_DISKHEIGHT
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
-  //-----------------------------------------------------------------------
 }
-//-------------------------------------------------------------------------
 
 
-//-------------------------------------------------------------------------
 void plotVerticalProfile
 (const int ntot, const int ngroup, const bool overlay_initial, model *group, PLFLT time,
  real *rad, real *rho, PLplotPltRange rhobox,
  char *file, const int filenum, int argc, char **argv)
 {
-  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "start");
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
   /* global setting(s) */
-  //-----------------------------------------------------------------------
   const PLINT num_horizontal_bin = NUM_HORIZONTAL_BIN - 3;
-  //-----------------------------------------------------------------------
   int skip = 0;
   for(int ii = 0; ii < ngroup; ii++)
     if( group[ii].num == 1 )
       skip++;
-  //-----------------------------------------------------------------------
   /* maximum number of data kinds */
   const PLINT  pkind = (ngroup - skip) * num_horizontal_bin;
   const PLINT  lkind = overlay_initial ? ((ngroup - skip) * num_horizontal_bin) : 0;
   const PLBOOL unify = false;
-  //-----------------------------------------------------------------------
   PLINT *grpIdx;  allocPLINT(&grpIdx, pkind);
   {
     int jj = 0;
@@ -2976,22 +2921,17 @@ void plotVerticalProfile
 	jj++;
       }/* if( group[ii].num > 1 ){ */
   }
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
   /* preparation for dataset */
-  //-----------------------------------------------------------------------
   /* memory allocation for index */
   PLINT *npt;  allocPLINT(&npt, pkind);
   PLINT *nln;  allocPLINT(&nln, lkind);
-  //-----------------------------------------------------------------------
   /* set number of data points */
   for(int ii = 0; ii < ngroup - skip; ii++)
     for(int jj = 0; jj < num_horizontal_bin; jj++)
       npt[ii * num_horizontal_bin + jj] = (PLINT)group[grpIdx[ii]].prf_ver_num[num_horizontal_bin - 1 - jj];
       /* npt[ii * num_horizontal_bin + jj] = (PLINT)group[ii].prf_ver_num[jj]; */
   for(PLINT ii = 0; ii < lkind; ii++)    nln[ii] = (PLINT)NUM_ANALYTIC;
-  //-----------------------------------------------------------------------
   /* memory allocation for data */
   PLFLT *_rad_p;  allocPLFLT(&_rad_p,                 ntot);  PLFLT **rad_p;  allocPointer4PLFLT(&rad_p, pkind);
   PLFLT *_rho_p;  allocPLFLT(&_rho_p,                 ntot);  PLFLT **rho_p;  allocPointer4PLFLT(&rho_p, pkind);
@@ -3026,7 +2966,7 @@ void plotVerticalProfile
 	  rho_l[kk][ll] = (PLFLT)log10((double)group[grpIdx[ii]].ver_rho[nn][ll]);
 	}/* for(PLINT ll = 0; ll < nln[kk]; ll++){ */
     }/* for(int jj = 0; jj < num_horizontal_bin; jj++){ */
-  //-----------------------------------------------------------------------
+
   /* set symbol style */
   PLplotPointType *pt;  setDefaultPointType(pkind, &pt);
   PLplotLineStyle *ls;  setDefaultLineStyle(lkind, &ls);
@@ -3043,16 +2983,14 @@ void plotVerticalProfile
 	ls[kk].width = THIN_LINE;
       }/* if( overlay_initial ){ */
     }/* for(int jj = 0; jj < num_horizontal_bin; jj++){ */
-  //-----------------------------------------------------------------------
+
   /* set labels */
   char radlab[PLplotCharWords];  sprintf(radlab, "#fiz #fr(%s)", length_astro_unit_name4plot);
   char rholab[PLplotCharWords];  sprintf(rholab, "#fi#gr #fr(%s)", density_astro_unit_name4plot);
-  //-----------------------------------------------------------------------
   /* set caption(s) */
   PLplotCaption rhocap;  setDefaultCaption(&rhocap);  rhocap.write = false;
   sprintf(rhocap.side, "%s", "t");
   sprintf(rhocap.text, "%s = %e (%s)", "#fit#fr", (double)time * time2astro, time_astro_unit_name4plot);
-  //-----------------------------------------------------------------------
   /* set legends */
   PLplotLegend rholeg;  setDefaultLegend(&rholeg, false);  rholeg.write = false;
   char *rholegTxt;
@@ -3063,19 +3001,14 @@ void plotVerticalProfile
   /* sprintf(rholeg.text[0], "%s", "halo"); */
   /* sprintf(rholeg.text[1], "%s", "bulge"); */
   /* sprintf(rholeg.text[2], "%s", "disk"); */
-  //-----------------------------------------------------------------------
   char title[PLplotCharWords];
   sprintf(title, "#fit#fr = %6.2f (%s)", (PLFLT)((double)time * time2astro), time_astro_unit_name4plot);
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
   /* memory allocation to exploit multiple-plot function */
-  //-----------------------------------------------------------------------
   /* maximum number of panels in each direction */
   const PLINT nxpanel = 1;
   const PLINT nypanel = ngroup - skip;
-  //-----------------------------------------------------------------------
   /* specify plot or skip panel */
   PLBOOL *plot;
   allocPLBOOL(&plot, nxpanel * nypanel);
@@ -3107,61 +3040,44 @@ void plotVerticalProfile
   char *_figname;  allocChar4PLplot        (&_figname, nxpanel * nypanel);
   char **figname;  allocPointer4Char4PLplot(& figname, nxpanel * nypanel);
   assignChar4PLplot(nxpanel * nypanel, figname, _figname);
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
   /* configuration about radial profile of particle distribution  */
-  //-----------------------------------------------------------------------
   /* common setting(s) */
   for(PLINT ii = 0; ii < nxpanel; ii++){
     for(PLINT jj = 0; jj < nypanel; jj++){
-      //-------------------------------------------------------------------
       const PLINT idx = INDEX2D(nxpanel, nypanel, ii, jj);
-      //-------------------------------------------------------------------
       /* global setting(s) */
       plot[idx] = true;
-      //-------------------------------------------------------------------
       /* line setting(s) */
       nlkind[idx] = overlay_initial ? num_horizontal_bin : 0;
       lnum  [idx] = &nln  [overlay_initial ? (idx * num_horizontal_bin) : 0];
       line  [idx] = &ls   [overlay_initial ? (idx * num_horizontal_bin) : 0];
       lx    [idx] = &rad_l[overlay_initial ? (idx * num_horizontal_bin) : 0];
       ly    [idx] = &rho_l[overlay_initial ? (idx * num_horizontal_bin) : 0];
-      //-------------------------------------------------------------------
       /* point setting(s) */
       npkind[idx] = num_horizontal_bin;
       pnum  [idx] = &npt  [idx * num_horizontal_bin];
       point [idx] = &pt   [idx * num_horizontal_bin];
       px    [idx] = &rad_p[idx * num_horizontal_bin];
       py    [idx] = &rho_p[idx * num_horizontal_bin];
-      //-------------------------------------------------------------------
       /* errorbar setting(s) */
       errbar[idx] = 0;
-      //-------------------------------------------------------------------
       /* plot area */
       range[idx] = rhobox;
-      //-------------------------------------------------------------------
       /* legend(s) */
       uni[idx] = unify;
-      //-------------------------------------------------------------------
       /* label setting(s) */
       xlabel[idx] = radlab;
       ylabel[idx] = rholab;
-      //-------------------------------------------------------------------
       /* miscs */
       cap[idx] = rhocap;
       leg[idx] = rholeg;
-      //-------------------------------------------------------------------
       /* file name */
       sprintf(figname[idx], "%s_%s_%s%d_%.3d", file, "vertical", "series", idx, filenum);
-      //-------------------------------------------------------------------
     }
   }
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
   /* create figure(s) */
-  //-----------------------------------------------------------------------
   for(PLINT idx = 0; idx < nxpanel * nypanel; idx++)
     plotData(1, 1, &plot[idx], false, false,
   	     &nlkind[idx], & line[idx], &lnum[idx], &lx[idx], &ly[idx],
@@ -3169,12 +3085,9 @@ void plotVerticalProfile
   	     &errbar[idx], NULL, NULL, NULL, NULL, NULL, NULL,
   	     &cap[idx], &leg[idx], &uni[idx], &range[idx],
   	     &xlabel[idx], &ylabel[idx], "", figname[idx], argc, argv);
-  //-----------------------------------------------------------------------
 
 
-  //-----------------------------------------------------------------------
   /* memory deallocation */
-  //-----------------------------------------------------------------------
   free(plot);
   free(nlkind);  free(lnum);  free(lx);  free(ly);  free( line);
   free(npkind);  free(pnum);  free(px);  free(py);  free(point);
@@ -3182,21 +3095,14 @@ void plotVerticalProfile
   free(cap);  free(leg);  free(uni);
   free(range);
   free(xlabel);  free(ylabel);
-  //-----------------------------------------------------------------------
   free(_rad_p);  free(rad_p);  free(_rad_l);  free(rad_l);
   free(_rho_p);  free(rho_p);  free(_rho_l);  free(rho_l);
   free(pt);  free(ls);
-  //-----------------------------------------------------------------------
   free(rholegTxt);
-  //-----------------------------------------------------------------------
   free(grpIdx);
-  //-----------------------------------------------------------------------
 
-  //-----------------------------------------------------------------------
   __NOTE__("%s\n", "end");
-  //-----------------------------------------------------------------------
 }
-//-------------------------------------------------------------------------
 
 
 void analyzeRadialProfile

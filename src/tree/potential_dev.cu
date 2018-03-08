@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/13 (Tue)
+ * @date 2018/03/06 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -723,7 +723,7 @@ void calcExternalGravity_dev
   if( Nrem <= MAX_BLOCKS_PER_GRID ){
     /** when grid splitting is not required... */
 #   if  defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
-    if( grpNum != 0 )
+    if( grpNum > 0 )
 #endif//defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
       calcExternalGravity_kernel
 	<<<Nrem, thrd
@@ -796,7 +796,7 @@ void calcExternalGravity_dev
   if( Nrem <= MAX_BLOCKS_PER_GRID ){
     /** when grid splitting is not required... */
 #   if  defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
-    if( grpNum != 0 )
+    if( grpNum > 0 )
 #endif//defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
       calcExternalDiskGravity_kernel
 	<<<Nrem, thrd

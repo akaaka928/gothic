@@ -3,7 +3,7 @@ import math
 import h5py
 
 import matplotlib
-matplotlib.use("tkagg")
+matplotlib.use("agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm # for logarithmic plot in imshow
 
@@ -15,23 +15,31 @@ import utils as utils
 
 nxpanel, nypanel = 1, 2
 
-# filename = "cb17"
-filename = "m31"
+# filename = "m31"
+# Ndark = 1
+# init = 0
+# last = 47
+# fmin, fmax = 1.0e+7, 1.0e+10
+# xmin, xmax = -15.0, 15.0
+# ymin, ymax = -15.0, 15.0
+# zmin, zmax = -15.0, 15.0
+# xtics = [-10, -5, 0, 5, 10]
+# ytics = [-10, -5, 0, 5, 10]
+
+filename = "halocusp_run"
 Ndark = 1
 init = 0
-last = 47
 # last = 0
-# xmin, xmax = -10.0, 10.0
-# ymin, ymax = -10.0, 10.0
-# zmin, zmax = -10.0, 10.0
-xmin, xmax = -15.0, 15.0
-ymin, ymax = -15.0, 15.0
-zmin, zmax = -15.0, 15.0
-# fmin, fmax = 1.0e+7, 3.1e+9
-fmin, fmax = 1.0e+7, 1.0e+10
+last = 140
+fmin, fmax = 1.0e+2, 1.0e+8
+xmin, xmax = -2.0, 2.0
+ymin, ymax = -2.0, 2.0
+zmin, zmax = -2.0, 2.0
+xtics = [-1.0, 0.0, 1.0]
+ytics = [-1.0, 0.0, 1.0]
 
-# nx, ny, nz = 128, 128, 128
-nx, ny, nz = 256, 256, 256
+nx, ny, nz = 128, 128, 128
+# nx, ny, nz = 256, 256, 256
 # nx, ny, nz = 512, 512, 512
 
 dx, dy, dz = (xmax - xmin) / nx, (ymax - ymin) / ny, (zmax - zmin) / nz
@@ -40,9 +48,9 @@ dx, dy, dz = (xmax - xmin) / nx, (ymax - ymin) / ny, (zmax - zmin) / nz
 smooth = 1
 # smooth = 1.5
 # smooth = 2
-# contain = 1
+contain = 1
 # contain = 2
-contain = 3
+# contain = 3
 sigma = smooth * (dx + dz) / 2
 PSFinv = 1 / (math.sqrt(2) * sigma)
 Nsmooth = int(np.ceil(contain * smooth))
@@ -188,10 +196,8 @@ def draw_figure(fileid, Nkind):
     for idx in range(nxpanel * nypanel):
         ax[idx].set_xlim([xmin, xmax])
 
-        # ax[idx].set_xticks([-9, -6, -3, 0, 3, 6, 9])
-        # ax[idx].set_yticks([-9, -6, -3, 0, 3, 6, 9])
-        ax[idx].set_xticks([-10, -5, 0, 5, 10])
-        ax[idx].set_yticks([-10, -5, 0, 5, 10])
+        ax[idx].set_xticks(xtics)
+        ax[idx].set_yticks(ytics)
         # ax[idx].grid()
         ax[idx].tick_params(axis = "both", direction = "in", color = "white", bottom = "on", top = "on", left = "on", right = "on")
 
@@ -235,9 +241,8 @@ def draw_figure(fileid, Nkind):
 
 
     # plt.show()
-    figname = "fig/" + "star" + snapshot
-    plt.savefig(figname + ".png", format = "png", dpi = 300, bbox_inches = "tight")
-    plt.savefig(figname + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
+    figname = "fig/" + filename + "_star" + snapshot
+    plt.savefig(figname + ".png", format = "png", dpi = 150, bbox_inches = "tight")
 
 
 def wrapper(argv):
@@ -253,19 +258,23 @@ plt.rcParams['text.usetex'] = True
 # plt.rcParams['font.size'] = 16
 plt.rcParams['font.size'] = 14
 
+if contain < 3:
+    print("NOTE: contain is {:<}; smaller than 3".format(contain))
 
 # read number of all component(s)
-target = "dat/" + filename + ".profile.h5"
-data_file = h5py.File(target, "r")
-Nkind = data_file["/"].attrs["kinds"][0]
-data_file.close()
-
-nxpanel += Nkind - Ndark
+txtfile = open("doc/" + filename + ".summary.txt", "r")
+unit = txtfile.readline()
+tmp = txtfile.readline()
+Nkind = int(tmp[0])
+# Nsphe = int(tmp[2])
+txtfile.close()
 
 if Nkind > Ndark:
+    nxpanel += Nkind - Ndark
+
     my_cmap = utils.generate_cmap(["darkblue", "deepskyblue", "lime", "yellow", "red", "magenta", "white"])
-    cores = mp.cpu_count()
-    # cores = int(np.ceil(cores / 2))
+    # cores = mp.cpu_count()
+    cores = int(np.ceil(mp.cpu_count() / 2))
     pool = mp.Pool(cores)
     args = [(ii, Nkind) for ii in range(init, last + 1, 1)]
     pool.map(wrapper, args)

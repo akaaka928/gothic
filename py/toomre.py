@@ -2,7 +2,7 @@ import numpy as np
 import h5py
 
 import matplotlib
-matplotlib.use("tkagg")
+matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
 import utils as utils

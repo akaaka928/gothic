@@ -5,7 +5,7 @@ import math
 import multiprocessing as mp
 
 import matplotlib
-matplotlib.use("tkagg")
+matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
 import utils as utils

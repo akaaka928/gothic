@@ -1,11 +1,11 @@
 /**
- * @file plot.needle.c
+ * @file needle.c
  *
  * @brief Plot code of needle-like structure
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/03/08 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/29 (Mon)
+ * @date 2018/03/06 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -39,6 +39,12 @@ extern "C"
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
    , acceleration **acc_ext
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+   , position **ipos_ext, acceleration **iacc_ext
+#ifdef  GADGET_MAC
+   , acceleration **iacc_ext_old
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
    );
 
   void  freeParticleDataSoA_hst
@@ -51,6 +57,12 @@ extern "C"
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
    , acceleration  *acc_ext
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+   , position  *ipos_ext, acceleration  *iacc_ext
+#ifdef  GADGET_MAC
+   , acceleration  *iacc_ext_old
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
    );
 
   muse allocParticleInfoSoA_dev

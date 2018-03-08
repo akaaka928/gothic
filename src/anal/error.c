@@ -1,12 +1,12 @@
 /**
- * @file anal.error.c
+ * @file error.c
  *
  * @brief Source code for analyzing error of force calculation
  *
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/03/08 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -131,20 +131,20 @@ int main(int argc, char **argv)
     ulong steps;
     int unit_read;
 #ifdef  USE_HDF5_FORMAT
-    readSnapshot(&unit_read, &time, &steps, Ntot, &body1, file1, (uint)filenum, hdf5type);
+    readSnapshot(&unit_read, &time, &steps, Ntot, file1, (uint)filenum, &body1, hdf5type);
     if( unit_read != unit ){
       __KILL__(stderr, "ERROR: conflict about unit system detected (unit = %d, unit_read = %d)\n", unit, unit_read);
     }/* if( unit_read != unit ){ */
-    readSnapshot(&unit_read, &time, &steps, Ntot, &body0, file0, (uint)filenum, hdf5type);
+    readSnapshot(&unit_read, &time, &steps, Ntot, file0, (uint)filenum, &body0, hdf5type);
     if( unit_read != unit ){
       __KILL__(stderr, "ERROR: conflict about unit system detected (unit = %d, unit_read = %d)\n", unit, unit_read);
     }/* if( unit_read != unit ){ */
 #else///USE_HDF5_FORMAT
-    readSnapshot(&unit_read, &time, &steps, Ntot, body1, file1, (uint)filenum);
+    readSnapshot(&unit_read, &time, &steps, Ntot, file1, (uint)filenum, body1);
     if( unit_read != unit ){
       __KILL__(stderr, "ERROR: conflict about unit system detected (unit = %d, unit_read = %d)\n", unit, unit_read);
     }/* if( unit_read != unit ){ */
-    readSnapshot(&unit_read, &time, &steps, Ntot, body0, file0, (uint)filenum);
+    readSnapshot(&unit_read, &time, &steps, Ntot, file0, (uint)filenum, body0);
     if( unit_read != unit ){
       __KILL__(stderr, "ERROR: conflict about unit system detected (unit = %d, unit_read = %d)\n", unit, unit_read);
     }/* if( unit_read != unit ){ */

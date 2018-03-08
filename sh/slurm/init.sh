@@ -14,10 +14,15 @@ EXEC=bin/magi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=2
+    # PROBLEM=2
     # PROBLEM=27
     # PROBLEM=60
     # PROBLEM=61
+    # PROBLEM=90
+    # PROBLEM=91
+    # PROBLEM=92
+    # PROBLEM=93
+    PROBLEM=94
 fi
 ###############################################################
 # number of N-body particles
@@ -603,6 +608,61 @@ if [ $PROBLEM -eq 81 ]; then
     INTERVAL=25.0
     # FINISH=3175.0
     # INTERVAL=25.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 90 ]; then
+    FILE=gc
+    CONFIG=pbh/gc.cfg
+    NTOT=100000
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 91 ]; then
+    FILE=halocore1
+    CONFIG=pbh/halocore1.cfg
+    NTOT=11000000
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 92 ]; then
+    FILE=halocore2
+    CONFIG=pbh/halocore2.cfg
+    NTOT=11000000
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 93 ]; then
+    FILE=halocore3
+    CONFIG=pbh/halocore3.cfg
+    NTOT=11000000
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 94 ]; then
+    FILE=halocusp
+    CONFIG=pbh/halocusp.cfg
+    NTOT=11000000
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
 fi
 ###############################################################
 # set input arguments

@@ -22,7 +22,7 @@ fi
 ###############################################################
 # topology of MPI processes
 if [ -z "$NX" ]; then
-    NX=2
+    NX=1
 fi
 if [ -z "$NY" ]; then
     NY=1
@@ -30,16 +30,16 @@ fi
 if [ -z "$NZ" ]; then
     NZ=1
 fi
-if [ $SLURM_NTASKS -eq 1 ]; then
-    NX=1
-    NY=1
-    NZ=1
-fi
+# if [ $SLURM_NTASKS -eq 1 ]; then
+#     NX=1
+#     NY=1
+#     NZ=1
+# fi
 PROCS=`expr $NX \* $NY \* $NZ`
-if [ $PROCS -ne $SLURM_NTASKS ]; then
-    echo "product of $NX, $NY, and $NZ must be equal to the number of total MPI processes ($SLURM_NTASKS)"
-    exit 1
-fi
+# if [ $PROCS -ne $SLURM_NTASKS ]; then
+#     echo "product of $NX, $NY, and $NZ must be equal to the number of total MPI processes ($SLURM_NTASKS)"
+#     exit 1
+# fi
 ###############################################################
 # value of accuracy controling parameter: GADGET MAC by Springel (2005)
 if [ -z "$ABSERR" ]; then

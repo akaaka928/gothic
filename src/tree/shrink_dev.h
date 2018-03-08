@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/03/06 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -70,9 +70,16 @@ extern "C"
 {
 #endif//__CUDACC__
   void freeParticleGroups
-  (laneinfo  *laneInfo_hst, laneinfo  *laneInfo_dev, double  *laneTime_dev, int  *inum_hst, int  *inum_dev);
+  (laneinfo  *laneInfo_hst, laneinfo  *laneInfo_dev, double  *laneTime_dev, int  *inum_hst, int  *inum_dev
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+   , const bool forLocal
+#endif//SWITCH_WITH_J_PARALLELIZATION
+   );
   muse allocParticleGroups
   (laneinfo **laneInfo_hst, laneinfo **laneInfo_dev, double **laneTime_dev, int **inum_hst, int **inum_dev,
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+   const bool forLocal,
+#endif//SWITCH_WITH_J_PARALLELIZATION
    int *inumPerLane, int *maxNgrp, const int num_max);
 
   void examineParticleSeparation(const int Ni, iparticle body_dev, brentStatus *brent

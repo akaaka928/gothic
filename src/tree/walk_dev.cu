@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/02 (Fri)
+ * @date 2018/03/07 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -208,6 +208,12 @@ muse allocParticleDataSoA_dev
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
  , acceleration **res
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+ , position **pos_iext, acceleration **acc_iext
+#ifdef  GADGET_MAC
+ , acceleration **acc_iext_old
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
  )
 {
   __NOTE__("%s\n", "start");
@@ -241,6 +247,18 @@ muse allocParticleDataSoA_dev
   mycudaMalloc((void **)acc_ext, size * sizeof(acceleration));
   alloc.device +=                size * sizeof(acceleration) ;
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  mycudaMalloc((void **)pos_iext, NMAX_J_PARALLELIZATION * sizeof(position));
+  alloc.device +=                 NMAX_J_PARALLELIZATION * sizeof(position) ;
+  mycudaMalloc((void **)acc_iext, NMAX_J_PARALLELIZATION * sizeof(acceleration));
+  alloc.device +=                 NMAX_J_PARALLELIZATION * sizeof(acceleration) ;
+#ifdef  GADGET_MAC
+  mycudaMalloc((void **)acc_iext_old, NMAX_J_PARALLELIZATION * sizeof(acceleration));
+  alloc.device +=                     NMAX_J_PARALLELIZATION * sizeof(acceleration) ;
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
+
 
   /** commit arrays to the utility structure */
   body0->idx = *idx0;  body0->pos = *pos0;  body0->acc = *acc0;
@@ -298,6 +316,15 @@ muse allocParticleDataSoA_dev
   body1->res = *res;
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  body0->pos_iext = *pos_iext;  body0->acc_iext = *acc_iext;
+  body1->pos_iext = *pos_iext;  body1->acc_iext = *acc_iext;
+#ifdef  GADGET_MAC
+  body0->acc_old_iext = *acc_iext_old;
+  body1->acc_old_iext = *acc_iext_old;
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
+
 
   __NOTE__("%s\n", "end");
   return (alloc);
@@ -335,6 +362,12 @@ void  freeParticleDataSoA_dev
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
  , acceleration  *res
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+ , position  *pos_iext, acceleration  *acc_iext
+#ifdef  GADGET_MAC
+ , acceleration  *acc_iext_old
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
  )
 {
   __NOTE__("%s\n", "start");
@@ -371,6 +404,14 @@ void  freeParticleDataSoA_dev
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
   mycudaFree(res);
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  mycudaFree(pos_iext);
+  mycudaFree(acc_iext);
+#ifdef  GADGET_MAC
+  mycudaFree(acc_iext_old);
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
 
 
   __NOTE__("%s\n", "end");
@@ -2364,6 +2405,9 @@ void calcGravity_dev
 #ifdef  MONITOR_LETGEN_TIME
  , unsigned long long int *cycles_let_hst, unsigned long long int *cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+ , const int maxNgrp_ext, laneinfo * RESTRICT laneInfo_ext_hst, laneinfo * RESTRICT laneInfo_ext_dev
+#endif//SWITCH_WITH_J_PARALLELIZATION
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
  , iparticle_treeinfo treeInfo
@@ -2540,319 +2584,348 @@ void calcGravity_dev
 
 #else///SERIALIZED_EXECUTION
 
+
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+
+      /** consider which mode is faster: LET communications or i-particle transfer */
+      int transfer = ((float)grpNum < (FCRIT_J_PARALLELIZATION * (float)totNum)) ? 1 : 0;
+      chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &transfer, 1, MPI_INT, MPI_SUM, mpi.comm));
+
+      if( (float)transfer > (FSIZE_J_PARALLELIZATION * (float)mpi.size) ){
+	choose_transfer_mode;
+
+
+
+
+
+
+
+
+
+
+
+      }/* if( (float)transfer > (FSIZE_J_PARALLELIZATION * (float)mpi.size) ){ */
+      else
+
+#endif//SWITCH_WITH_J_PARALLELIZATION
+
+	{
+
 #ifdef  MPI_ONE_SIDED_FOR_LET
-      __NOTE__("MPI_Win_lock_all before MPI communications\n");
-      chkMPIerr(MPI_Win_lock_all(0, mpi.win_jpos));
-      chkMPIerr(MPI_Win_lock_all(0, mpi.win_more));
-      chkMPIerr(MPI_Win_lock_all(0, mpi.win_mass));
+	  __NOTE__("MPI_Win_lock_all before MPI communications\n");
+	  chkMPIerr(MPI_Win_lock_all(0, mpi.win_jpos));
+	  chkMPIerr(MPI_Win_lock_all(0, mpi.win_more));
+	  chkMPIerr(MPI_Win_lock_all(0, mpi.win_mass));
 #endif//MPI_ONE_SIDED_FOR_LET
 
       /** gravity from j-particles within other process(es) */
-      int idxProcs = 0;
-      int remProcs = Nlet - 1;
-      static int headLETsend[2], headLETrecv[2], sizeLETbuf[2], sizeLETsend[2], sizeLETrecv[2];
-      /** 1st half */
-      headLETsend[0] = ALIGN_BUF_FOR_LET(pjNum);
-      sizeLETbuf [0] = ((int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - headLETsend[0]) >> 1;
-      headLETrecv[0] = ALIGN_BUF_FOR_LET(headLETsend[0] + (sizeLETbuf[0] >> 1));
-      sizeLETsend[0] = headLETrecv[0] - headLETsend[0];
-      sizeLETrecv[0] = sizeLETbuf [0] - sizeLETsend[0];
-      /** 2nd half */
-      headLETsend[1] = ALIGN_BUF_FOR_LET(headLETrecv[0] + sizeLETrecv[0]);
-      sizeLETbuf [1] = (int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - headLETsend[1];
-      headLETrecv[1] = ALIGN_BUF_FOR_LET(headLETsend[1] + (sizeLETbuf[1] >> 1));
-      sizeLETsend[1] = headLETrecv[1] - headLETsend[1];
-      sizeLETrecv[1] = sizeLETbuf [1] - sizeLETsend[1];
+	  int idxProcs = 0;
+	  int remProcs = Nlet - 1;
+	  static int headLETsend[2], headLETrecv[2], sizeLETbuf[2], sizeLETsend[2], sizeLETrecv[2];
+	  /** 1st half */
+	  headLETsend[0] = ALIGN_BUF_FOR_LET(pjNum);
+	  sizeLETbuf [0] = ((int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - headLETsend[0]) >> 1;
+	  headLETrecv[0] = ALIGN_BUF_FOR_LET(headLETsend[0] + (sizeLETbuf[0] >> 1));
+	  sizeLETsend[0] = headLETrecv[0] - headLETsend[0];
+	  sizeLETrecv[0] = sizeLETbuf [0] - sizeLETsend[0];
+	  /** 2nd half */
+	  headLETsend[1] = ALIGN_BUF_FOR_LET(headLETrecv[0] + sizeLETrecv[0]);
+	  sizeLETbuf [1] = (int)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE) - headLETsend[1];
+	  headLETrecv[1] = ALIGN_BUF_FOR_LET(headLETsend[1] + (sizeLETbuf[1] >> 1));
+	  sizeLETsend[1] = headLETrecv[1] - headLETsend[1];
+	  sizeLETrecv[1] = sizeLETbuf [1] - sizeLETsend[1];
 
-      int numProcsPrev = 1;
-      int idxProcsPrev = 0;
-      bool grav_by_LET = false;
-      int stage = 0;
+	  int numProcsPrev = 1;
+	  int idxProcsPrev = 0;
+	  bool grav_by_LET = false;
+	  int stage = 0;
 
-      while( remProcs > 0 ){
-	/** get maximum number of processes which possible to communicate by limitation of memory capacity */
-	int remSend = sizeLETsend[stage];
-	int remRecv = sizeLETrecv[stage];
-	int numProcs = remProcs;
+	  while( remProcs > 0 ){
+	    /** get maximum number of processes which possible to communicate by limitation of memory capacity */
+	    int remSend = sizeLETsend[stage];
+	    int remRecv = sizeLETrecv[stage];
+	    int numProcs = remProcs;
 
-	for(int ii = 0; ii < remProcs; ii++){
-	  remSend -= let[idxProcs + ii].maxSend;
-	  remRecv -= let[idxProcs + ii].maxRecv;
+	    for(int ii = 0; ii < remProcs; ii++){
+	      remSend -= let[idxProcs + ii].maxSend;
+	      remRecv -= let[idxProcs + ii].maxRecv;
 
-	  if( (remSend < 0) || (remRecv < 0) ){
-	    numProcs = ii - 1;
-	    break;
-	  }/* if( (remSend < 0) || (remRecv < 0) ){ */
-	}/* for(int ii = 0; ii < remProcs; ii++){ */
+	      if( (remSend < 0) || (remRecv < 0) ){
+		numProcs = ii - 1;
+		break;
+	      }/* if( (remSend < 0) || (remRecv < 0) ){ */
+	    }/* for(int ii = 0; ii < remProcs; ii++){ */
 
-	if( (numProcs < 1) && (mpi.size > 1) ){
-	  __KILL__(stderr, "ERROR: numProcs is %d, due to lack of sizeLETsend(%d) or sizeLETrecv(%d) while 0-th target requires numSend(%d) and numRecv(%d).\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", numProcs, sizeLETsend[stage], sizeLETrecv[stage], let[idxProcs].maxSend, let[idxProcs].maxRecv, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
-	}/* if( (numProcs < 1) && (mpi.size > 1) ){ */
-	chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &numProcs, 1, MPI_INT, MPI_MIN, mpi.comm));
+	    if( (numProcs < 1) && (mpi.size > 1) ){
+	      __KILL__(stderr, "ERROR: numProcs is %d, due to lack of sizeLETsend(%d) or sizeLETrecv(%d) while 0-th target requires numSend(%d) and numRecv(%d).\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", numProcs, sizeLETsend[stage], sizeLETrecv[stage], let[idxProcs].maxSend, let[idxProcs].maxRecv, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
+	    }/* if( (numProcs < 1) && (mpi.size > 1) ){ */
+	    chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &numProcs, 1, MPI_INT, MPI_MIN, mpi.comm));
 
-	/** set send buffer for LET on device */
-	let[idxProcs].headSend = headLETsend[stage];
-	for(int ii = 1; ii < numProcs; ii++)
-	  let[idxProcs + ii].headSend = let[idxProcs + ii - 1].headSend + ALIGN_BUF_FOR_LET(let[idxProcs + ii - 1].maxSend);
-
-
-	/** set receive buffer for LET on device */
-	let[idxProcs].headRecv = headLETrecv[stage];
-	int numRecv = 0;
-	for(int ii = idxProcs; ii < idxProcs + numProcs - 1; ii++){
-	  const int numRecvBuf = ALIGN_BUF_FOR_LET(let[ii].maxRecv);
-	  let[ii + 1].headRecv = numRecvBuf + let[ii].headRecv;
-	  numRecv             += numRecvBuf;
-	}/* for(int ii = 0; ii < numProcs - 1; ii++){ */
-	numRecv += ALIGN_BUF_FOR_LET(let[idxProcs + numProcs - 1].numRecv);
-
-	if( numRecv > sizeLETrecv[stage] ){
-	    __KILL__(stderr, "ERROR: lack of remLETrecv(%d) to store numRecv(%d) LET nodes.\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", sizeLETrecv[stage], numRecv, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
-	}/* if( numRecv > sizeLETrecv[stage] ){ */
+	    /** set send buffer for LET on device */
+	    let[idxProcs].headSend = headLETsend[stage];
+	    for(int ii = 1; ii < numProcs; ii++)
+	      let[idxProcs + ii].headSend = let[idxProcs + ii - 1].headSend + ALIGN_BUF_FOR_LET(let[idxProcs + ii - 1].maxSend);
 
 
-	/** receive number of LET nodes */
-	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++)
-	  chkMPIerr(MPI_Irecv(&(let[ii].numRecv), 1, MPI_INT, let[ii].recv, MPI_TAG_NUM(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvInfo)));
+	    /** set receive buffer for LET on device */
+	    let[idxProcs].headRecv = headLETrecv[stage];
+	    int numRecv = 0;
+	    for(int ii = idxProcs; ii < idxProcs + numProcs - 1; ii++){
+	      const int numRecvBuf = ALIGN_BUF_FOR_LET(let[ii].maxRecv);
+	      let[ii + 1].headRecv = numRecvBuf + let[ii].headRecv;
+	      numRecv             += numRecvBuf;
+	    }/* for(int ii = 0; ii < numProcs - 1; ii++){ */
+	    numRecv += ALIGN_BUF_FOR_LET(let[idxProcs + numProcs - 1].numRecv);
+
+	    if( numRecv > sizeLETrecv[stage] ){
+	      __KILL__(stderr, "ERROR: lack of remLETrecv(%d) to store numRecv(%d) LET nodes.\n\tIncrease EXTEND_NUM_TREE_NODE(%f) defined in src/tree/let.h and/or TREE_SAFETY_VAL(%f) defined in src/tree/make.h.\n", sizeLETrecv[stage], numRecv, EXTEND_NUM_TREE_NODE, TREE_SAFETY_VAL);
+	    }/* if( numRecv > sizeLETrecv[stage] ){ */
+
+
+	    /** receive number of LET nodes */
+	    for(int ii = idxProcs; ii < idxProcs + numProcs; ii++)
+	      chkMPIerr(MPI_Irecv(&(let[ii].numRecv), 1, MPI_INT, let[ii].recv, MPI_TAG_NUM(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvInfo)));
 
 
 #ifdef  MPI_ONE_SIDED_FOR_LET
-	/** receive head index of send buffer */
-	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
-	  chkMPIerr(MPI_Irecv(&(let[ii].headDisp), 1, MPI_INT, let[ii].recv, MPI_TAG_HEAD(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvHead)));
+	    /** receive head index of send buffer */
+	    for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
+	      chkMPIerr(MPI_Irecv(&(let[ii].headDisp), 1, MPI_INT, let[ii].recv, MPI_TAG_HEAD(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvHead)));
 #ifndef SKIP_LET_GENERATOR_FOR_NEARBY_NODE
-	  chkMPIerr(MPI_Isend(&(let[ii].headSend), 1, MPI_INT, let[ii].send, MPI_TAG_HEAD(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendHead)));
+	      chkMPIerr(MPI_Isend(&(let[ii].headSend), 1, MPI_INT, let[ii].send, MPI_TAG_HEAD(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendHead)));
 #endif//SKIP_LET_GENERATOR_FOR_NEARBY_NODE
-	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
+	    }/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 #endif//MPI_ONE_SIDED_FOR_LET
 
 
 
-	/** generate numProcs LET(s) */
-	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
-	  const int streamIdxLET = ii % Nstream_let;
+	    /** generate numProcs LET(s) */
+	    for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
+	      const int streamIdxLET = ii % Nstream_let;
 
 #ifdef  SKIP_UNUSED_LET_GENERATION
-	  if( let[ii].icom.m >= ZERO ){
+	      if( let[ii].icom.m >= ZERO ){
 #endif//SKIP_UNUSED_LET_GENERATION
 
-	    callGenLET(stream_let[streamIdxLET], &let[ii], tree, buf
+		callGenLET(stream_let[streamIdxLET], &let[ii], tree, buf
 #ifdef  SKIP_LET_GENERATOR_FOR_NEARBY_NODE
-		       , *(pi.encBall_hst)
+			   , *(pi.encBall_hst)
 #endif//SKIP_LET_GENERATOR_FOR_NEARBY_NODE
 #ifdef  MONITOR_LETGEN_TIME
-		       , cycles_let_dev
+			   , cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
-		       );
+			   );
 
 #   if  defined(MPI_ONE_SIDED_FOR_LET) && defined(SKIP_LET_GENERATOR_FOR_NEARBY_NODE)
-	    /** send head index of send buffer */
-	    chkMPIerr(MPI_Isend(&(let[ii].headSend), 1, MPI_INT, let[ii].send, MPI_TAG_HEAD(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendHead)));
+		/** send head index of send buffer */
+		chkMPIerr(MPI_Isend(&(let[ii].headSend), 1, MPI_INT, let[ii].send, MPI_TAG_HEAD(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendHead)));
 #endif//defined(MPI_ONE_SIDED_FOR_LET) && defined(SKIP_LET_GENERATOR_FOR_NEARBY_NODE)
 
-	    checkCudaErrors(cudaMemcpyAsync(let[ii].numSend_hst, let[ii].numSend_dev, sizeof(int), cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
+		checkCudaErrors(cudaMemcpyAsync(let[ii].numSend_hst, let[ii].numSend_dev, sizeof(int), cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
 
 #ifdef  SKIP_UNUSED_LET_GENERATION
-	  }/* if( let[ii].icom.m >= ZERO ){ */
-	  else{
-	    let[ii].headSend = headLETsend[1] + sizeLETbuf[1] + 1;/**< if this location is accessed, then segmentation fault would occur */
-	    let[ii].numSend_hst = 0;
+	      }/* if( let[ii].icom.m >= ZERO ){ */
+	      else{
+		let[ii].headSend = headLETsend[1] + sizeLETbuf[1] + 1;/**< if this location is accessed, then segmentation fault would occur */
+		let[ii].numSend_hst = 0;
 
 #   if  defined(MPI_ONE_SIDED_FOR_LET) && defined(SKIP_LET_GENERATOR_FOR_NEARBY_NODE)
-	    /** send head index of send buffer */
-	    chkMPIerr(MPI_Isend(&(let[ii].headSend), 1, MPI_INT, let[ii].send, MPI_TAG_HEAD(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendHead)));
+		/** send head index of send buffer */
+		chkMPIerr(MPI_Isend(&(let[ii].headSend), 1, MPI_INT, let[ii].send, MPI_TAG_HEAD(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendHead)));
 #endif//defined(MPI_ONE_SIDED_FOR_LET) && defined(SKIP_LET_GENERATOR_FOR_NEARBY_NODE)
-	  }/* else{ */
+	      }/* else{ */
 #endif//SKIP_UNUSED_LET_GENERATION
 
-	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
+	    }/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 
 
-	/** share number of LET nodes */
-	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
-	  const int streamIdxLET = ii % Nstream_let;
+	    /** share number of LET nodes */
+	    for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
+	      const int streamIdxLET = ii % Nstream_let;
 
-	  checkCudaErrors(cudaStreamSynchronize(stream_let[streamIdxLET]));
-	  let[ii].numSend = *(let[ii].numSend_hst);
-	  if( let[ii].numSend > let[ii].maxSend ){
-	    __KILL__(stderr, "ERROR: predicted size of send buffer (%d) is not sufficient for true size of that (%d) for rand %d.\n\tsuggestion: consider increasing \"LETSIZE_REDUCE_FACTOR\" defined in src/tree/let.h (current value is %f) to at least %f.\n", let[ii].maxSend, let[ii].numSend, let[ii].send, LETSIZE_REDUCE_FACTOR, LETSIZE_REDUCE_FACTOR * (float)let[ii].numSend / (float)let[ii].maxSend);
-	  }/* if( let[ii].numSend > let[ii].maxSend ){ */
-	  __NOTE__("numSend = %d, numFull = %d toward rank %d from rank %d\n", let[ii].numSend, let[ii].numFull, let[ii].send, mpi.rank);
+	      checkCudaErrors(cudaStreamSynchronize(stream_let[streamIdxLET]));
+	      let[ii].numSend = *(let[ii].numSend_hst);
+	      if( let[ii].numSend > let[ii].maxSend ){
+		__KILL__(stderr, "ERROR: predicted size of send buffer (%d) is not sufficient for true size of that (%d) for rand %d.\n\tsuggestion: consider increasing \"LETSIZE_REDUCE_FACTOR\" defined in src/tree/let.h (current value is %f) to at least %f.\n", let[ii].maxSend, let[ii].numSend, let[ii].send, LETSIZE_REDUCE_FACTOR, LETSIZE_REDUCE_FACTOR * (float)let[ii].numSend / (float)let[ii].maxSend);
+	      }/* if( let[ii].numSend > let[ii].maxSend ){ */
+	      __NOTE__("numSend = %d, numFull = %d toward rank %d from rank %d\n", let[ii].numSend, let[ii].numFull, let[ii].send, mpi.rank);
 
-	  /** copy LET nodes from device to host */
+	      /** copy LET nodes from device to host */
 #ifdef  MPI_VIA_HOST
-	  if( let[ii].numSend > 0 ){
-	    checkCudaErrors(cudaMemcpyAsync(&(tree_hst.jpos[let[ii].headSend]), &(tree.jpos[let[ii].headSend]), sizeof(jparticle) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
-	    checkCudaErrors(cudaMemcpyAsync(&(tree_hst.more[let[ii].headSend]), &(tree.more[let[ii].headSend]), sizeof(     uint) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
-	    checkCudaErrors(cudaMemcpyAsync(&(tree_hst.mj  [let[ii].headSend]), &(tree.mj  [let[ii].headSend]), sizeof(    jmass) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
-	  }/* if( let[ii].numSend > 0 ){ */
+	      if( let[ii].numSend > 0 ){
+		checkCudaErrors(cudaMemcpyAsync(&(tree_hst.jpos[let[ii].headSend]), &(tree.jpos[let[ii].headSend]), sizeof(jparticle) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
+		checkCudaErrors(cudaMemcpyAsync(&(tree_hst.more[let[ii].headSend]), &(tree.more[let[ii].headSend]), sizeof(     uint) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
+		checkCudaErrors(cudaMemcpyAsync(&(tree_hst.mj  [let[ii].headSend]), &(tree.mj  [let[ii].headSend]), sizeof(    jmass) * let[ii].numSend, cudaMemcpyDeviceToHost, stream_let[streamIdxLET]));
+	      }/* if( let[ii].numSend > 0 ){ */
 #endif//MPI_VIA_HOST
 
-	  /** below procedure is to certify LET was set before calling MPI_Get() */
+	      /** below procedure is to certify LET was set before calling MPI_Get() */
 #   if  defined(MPI_ONE_SIDED_FOR_LET) && defined(MPI_VIA_HOST)
-	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
+	    }/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 
-	/* complete copy (LET nodes) from device to host */
-	for(int ii = idxProcs; ii < idxProcs + ((Nstream_let < numProcs) ? Nstream_let : numProcs); ii++)
-	  checkCudaErrors(cudaStreamSynchronize(stream_let[ii % Nstream_let]));
+	    /* complete copy (LET nodes) from device to host */
+	    for(int ii = idxProcs; ii < idxProcs + ((Nstream_let < numProcs) ? Nstream_let : numProcs); ii++)
+	      checkCudaErrors(cudaStreamSynchronize(stream_let[ii % Nstream_let]));
 
-	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
+	    for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
 #endif//defined(MPI_ONE_SIDED_FOR_LET) && defined(MPI_VIA_HOST)
 
-	  /** send number of LET nodes */
-	  chkMPIerr(MPI_Isend(&(let[ii].numSend), 1, MPI_INT, let[ii].send, MPI_TAG_NUM(    mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendInfo)));
-	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
+	      /** send number of LET nodes */
+	      chkMPIerr(MPI_Isend(&(let[ii].numSend), 1, MPI_INT, let[ii].send, MPI_TAG_NUM(    mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendInfo)));
+	    }/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 
 
-	/** launch LET communications in the current stage */
+	    /** launch LET communications in the current stage */
 #ifdef  MPI_ONE_SIDED_FOR_LET
 
-	/** receive LET nodes */
-	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
-	  MPI_Status status;
-	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvHead), &status));
-	  __NOTE__("let[%d].headDisp = %d\n", ii, let[ii].headDisp);
+	    /** receive LET nodes */
+	    for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
+	      MPI_Status status;
+	      chkMPIerr(MPI_Wait(&(let[ii].reqRecvHead), &status));
+	      __NOTE__("let[%d].headDisp = %d\n", ii, let[ii].headDisp);
 
-	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvInfo), &status));
-	  __NOTE__("numRecv = %d from rank %d\n", let[ii].numRecv, let[ii].recv);
+	      chkMPIerr(MPI_Wait(&(let[ii].reqRecvInfo), &status));
+	      __NOTE__("numRecv = %d from rank %d\n", let[ii].numRecv, let[ii].recv);
 #ifdef  BLOCK_TIME_STEP
-	  if( grpNum > 0 )
+	      if( grpNum > 0 )
 #endif//BLOCK_TIME_STEP
-	    {
+		{
 #ifndef MPI_VIA_HOST
-	      chkMPIerr(MPI_Get(&(tree    .jpos[let[ii].headRecv]), let[ii].numRecv, mpi.jpos, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.jpos, mpi.win_jpos));
-	      chkMPIerr(MPI_Get(&(tree    .more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.more, mpi.win_more));
-	      chkMPIerr(MPI_Get(&(tree    .mj  [let[ii].headRecv]), let[ii].numRecv, mpi.mass, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.mass, mpi.win_mass));
+		  chkMPIerr(MPI_Get(&(tree    .jpos[let[ii].headRecv]), let[ii].numRecv, mpi.jpos, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.jpos, mpi.win_jpos));
+		  chkMPIerr(MPI_Get(&(tree    .more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.more, mpi.win_more));
+		  chkMPIerr(MPI_Get(&(tree    .mj  [let[ii].headRecv]), let[ii].numRecv, mpi.mass, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.mass, mpi.win_mass));
 #else///MPI_VIA_HOST
-	      chkMPIerr(MPI_Get(&(tree_hst.jpos[let[ii].headRecv]), let[ii].numRecv, mpi.jpos, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.jpos, mpi.win_jpos));
-	      chkMPIerr(MPI_Get(&(tree_hst.more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.more, mpi.win_more));
-	      chkMPIerr(MPI_Get(&(tree_hst.mj  [let[ii].headRecv]), let[ii].numRecv, mpi.mass, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.mass, mpi.win_mass));
+		  chkMPIerr(MPI_Get(&(tree_hst.jpos[let[ii].headRecv]), let[ii].numRecv, mpi.jpos, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.jpos, mpi.win_jpos));
+		  chkMPIerr(MPI_Get(&(tree_hst.more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.more, mpi.win_more));
+		  chkMPIerr(MPI_Get(&(tree_hst.mj  [let[ii].headRecv]), let[ii].numRecv, mpi.mass, let[ii].recv, let[ii].headDisp, let[ii].numRecv, mpi.mass, mpi.win_mass));
 #endif//MPI_VIA_HOST
-	    }
-	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
+		}
+	    }/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 
 #else///MPI_ONE_SIDED_FOR_LET
 
-	/** receive LET nodes using MPI_Irecv */
-	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
-	  MPI_Status status;
-	  chkMPIerr(MPI_Wait(&(let[ii].reqRecvInfo), &status));
-	  __NOTE__("numRecv = %d from rank %d\n", let[ii].numRecv, let[ii].recv);
+	    /** receive LET nodes using MPI_Irecv */
+	    for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
+	      MPI_Status status;
+	      chkMPIerr(MPI_Wait(&(let[ii].reqRecvInfo), &status));
+	      __NOTE__("numRecv = %d from rank %d\n", let[ii].numRecv, let[ii].recv);
 
-	  if( let[ii].numRecv > 0 ){
+	      if( let[ii].numRecv > 0 ){
 #ifdef  MPI_VIA_HOST
-	    chkMPIerr(MPI_Irecv(&(tree_hst.jpos[let[ii].headRecv]), let[ii].numRecv, mpi.jpos, let[ii].recv, MPI_TAG_JPOS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvJpos)));
-	    chkMPIerr(MPI_Irecv(&(tree_hst.more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, MPI_TAG_MORE(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMore)));
-	    chkMPIerr(MPI_Irecv(&(tree_hst.mj  [let[ii].headRecv]), let[ii].numRecv, mpi.mass, let[ii].recv, MPI_TAG_MASS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMass)));
+		chkMPIerr(MPI_Irecv(&(tree_hst.jpos[let[ii].headRecv]), let[ii].numRecv, mpi.jpos, let[ii].recv, MPI_TAG_JPOS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvJpos)));
+		chkMPIerr(MPI_Irecv(&(tree_hst.more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, MPI_TAG_MORE(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMore)));
+		chkMPIerr(MPI_Irecv(&(tree_hst.mj  [let[ii].headRecv]), let[ii].numRecv, mpi.mass, let[ii].recv, MPI_TAG_MASS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMass)));
 #else///MPI_VIA_HOST
-	    chkMPIerr(MPI_Irecv(&(tree	.jpos[let[ii].headRecv]), let[ii].numRecv, mpi.jpos, let[ii].recv, MPI_TAG_JPOS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvJpos)));
-	    chkMPIerr(MPI_Irecv(&(tree    .more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, MPI_TAG_MORE(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMore)));
-	    chkMPIerr(MPI_Irecv(&(tree	.mj  [let[ii].headRecv]), let[ii].numRecv, mpi.mass, let[ii].recv, MPI_TAG_MASS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMass)));
+		chkMPIerr(MPI_Irecv(&(tree	.jpos[let[ii].headRecv]), let[ii].numRecv, mpi.jpos, let[ii].recv, MPI_TAG_JPOS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvJpos)));
+		chkMPIerr(MPI_Irecv(&(tree    .more[let[ii].headRecv]), let[ii].numRecv, mpi.more, let[ii].recv, MPI_TAG_MORE(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMore)));
+		chkMPIerr(MPI_Irecv(&(tree	.mj  [let[ii].headRecv]), let[ii].numRecv, mpi.mass, let[ii].recv, MPI_TAG_MASS(let[ii].recv, mpi.size), mpi.comm, &(let[ii].reqRecvMass)));
 #endif//MPI_VIA_HOST
-	  }/* if( let[ii].numRecv > 0 ){ */
-	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
+	      }/* if( let[ii].numRecv > 0 ){ */
+	    }/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 
-	/** send numProcs LET(s) to other process(es) */
-	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
-	  /** send LET nodes using MPI_Isend */
-	  if( let[ii].numSend > 0 ){
+	    /** send numProcs LET(s) to other process(es) */
+	    for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
+	      /** send LET nodes using MPI_Isend */
+	      if( let[ii].numSend > 0 ){
 #ifdef  MPI_VIA_HOST
-	    const int streamIdxLET = ii % Nstream_let;
-	    checkCudaErrors(cudaStreamSynchronize(stream_let[streamIdxLET]));
-	    __NOTE__("send %d-th LET from %d to %d (head = %d, num = %d)\n", ii, mpi.rank, let[ii].send, let[ii].headSend, let[ii].numSend);
-	    chkMPIerr(MPI_Isend(&(tree_hst.jpos[let[ii].headSend]), let[ii].numSend, mpi.jpos, let[ii].send, MPI_TAG_JPOS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendJpos)));
-	    chkMPIerr(MPI_Isend(&(tree_hst.more[let[ii].headSend]), let[ii].numSend, mpi.more, let[ii].send, MPI_TAG_MORE(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMore)));
-	    chkMPIerr(MPI_Isend(&(tree_hst.mj  [let[ii].headSend]), let[ii].numSend, mpi.mass, let[ii].send, MPI_TAG_MASS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMass)));
+		const int streamIdxLET = ii % Nstream_let;
+		checkCudaErrors(cudaStreamSynchronize(stream_let[streamIdxLET]));
+		__NOTE__("send %d-th LET from %d to %d (head = %d, num = %d)\n", ii, mpi.rank, let[ii].send, let[ii].headSend, let[ii].numSend);
+		chkMPIerr(MPI_Isend(&(tree_hst.jpos[let[ii].headSend]), let[ii].numSend, mpi.jpos, let[ii].send, MPI_TAG_JPOS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendJpos)));
+		chkMPIerr(MPI_Isend(&(tree_hst.more[let[ii].headSend]), let[ii].numSend, mpi.more, let[ii].send, MPI_TAG_MORE(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMore)));
+		chkMPIerr(MPI_Isend(&(tree_hst.mj  [let[ii].headSend]), let[ii].numSend, mpi.mass, let[ii].send, MPI_TAG_MASS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMass)));
 #else///MPI_VIA_HOST
-	    chkMPIerr(MPI_Isend(&(tree	  .jpos[let[ii].headSend]), let[ii].numSend, mpi.jpos, let[ii].send, MPI_TAG_JPOS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendJpos)));
-	    chkMPIerr(MPI_Isend(&(tree    .more[let[ii].headSend]), let[ii].numSend, mpi.more, let[ii].send, MPI_TAG_MORE(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMore)));
-	    chkMPIerr(MPI_Isend(&(tree	  .mj  [let[ii].headSend]), let[ii].numSend, mpi.mass, let[ii].send, MPI_TAG_MASS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMass)));
+		chkMPIerr(MPI_Isend(&(tree	  .jpos[let[ii].headSend]), let[ii].numSend, mpi.jpos, let[ii].send, MPI_TAG_JPOS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendJpos)));
+		chkMPIerr(MPI_Isend(&(tree    .more[let[ii].headSend]), let[ii].numSend, mpi.more, let[ii].send, MPI_TAG_MORE(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMore)));
+		chkMPIerr(MPI_Isend(&(tree	  .mj  [let[ii].headSend]), let[ii].numSend, mpi.mass, let[ii].send, MPI_TAG_MASS(mpi.rank, mpi.size), mpi.comm, &(let[ii].reqSendMass)));
 #endif//MPI_VIA_HOST
-	  }/* if( let[ii].numSend > 0 ){ */
-	}/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
+	      }/* if( let[ii].numSend > 0 ){ */
+	    }/* for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){ */
 
 #endif//MPI_ONE_SIDED_FOR_LET
 
 
-	/** calculate gravity */
-	callCalcGravityFunc_parallel
-	  (idxProcsPrev, numProcsPrev, grav_by_LET, let, mpi,
+	    /** calculate gravity */
+	    callCalcGravityFunc_parallel
+	      (idxProcsPrev, numProcsPrev, grav_by_LET, let, mpi,
 #ifdef  MPI_VIA_HOST
-	   tree_hst,
+	       tree_hst,
 #endif//MPI_VIA_HOST
-	   blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree, grpNum, cycles_dev, buf
+	       blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree, grpNum, cycles_dev, buf
 #ifdef  COUNT_INTERACTIONS
-	   , treeInfo
+	       , treeInfo
 #endif//COUNT_INTERACTIONS
-	   );
+	       );
 
 
-	/** complete MPI communications in the current stage */
-	for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
-	  MPI_Status statusInfo;	  chkMPIerr(MPI_Wait(&(let[ii].reqSendInfo), &statusInfo));
+	    /** complete MPI communications in the current stage */
+	    for(int ii = idxProcs; ii < idxProcs + numProcs; ii++){
+	      MPI_Status statusInfo;	  chkMPIerr(MPI_Wait(&(let[ii].reqSendInfo), &statusInfo));
 #ifdef  MPI_ONE_SIDED_FOR_LET
-	  MPI_Status statusHead;	  chkMPIerr(MPI_Wait(&(let[ii].reqSendHead), &statusHead));
+	      MPI_Status statusHead;	  chkMPIerr(MPI_Wait(&(let[ii].reqSendHead), &statusHead));
 #endif//MPI_ONE_SIDED_FOR_LET
-	}/* for(int ii = 0; ii < numProcs; ii++){ */
+	    }/* for(int ii = 0; ii < numProcs; ii++){ */
 
 
-	/** preparation for the next stage */
-	grav_by_LET = true;
-	stage ^= 1;
+	    /** preparation for the next stage */
+	    grav_by_LET = true;
+	    stage ^= 1;
 
-	idxProcsPrev = idxProcs;
-	numProcsPrev = numProcs;
+	    idxProcsPrev = idxProcs;
+	    numProcsPrev = numProcs;
 
-	idxProcs += numProcs;
-	remProcs -= numProcs;
-      }/* while( remProcs > 0 ){ */
+	    idxProcs += numProcs;
+	    remProcs -= numProcs;
+	  }/* while( remProcs > 0 ){ */
 
 
-      /** calculate gravity from the last tree */
-      callCalcGravityFunc_parallel
-	(idxProcsPrev, numProcsPrev, grav_by_LET, let, mpi,
+	  /** calculate gravity from the last tree */
+	  callCalcGravityFunc_parallel
+	    (idxProcsPrev, numProcsPrev, grav_by_LET, let, mpi,
 #ifdef  MPI_VIA_HOST
-	 tree_hst,
+	     tree_hst,
 #endif//MPI_VIA_HOST
-	 blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree, grpNum, cycles_dev, buf
+	     blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree, grpNum, cycles_dev, buf
 #ifdef  COUNT_INTERACTIONS
-	 , treeInfo
+	     , treeInfo
 #endif//COUNT_INTERACTIONS
-	 );
+	     );
 
 
-      /** preparation for communication in the next time step */
+	  /** preparation for communication in the next time step */
 #ifdef  BLOCK_TIME_STEP
-      const float letsize_scaler = (float)(share / block);
+	  const float letsize_scaler = (float)(share / block);
 #else///BLOCK_TIME_STEP
-      const float letsize_scaler = UNITY;
+	  const float letsize_scaler = UNITY;
 #endif//BLOCK_TIME_STEP
-      for(int ii = 0; ii < Nlet - 1; ii++){
-	if( ceilf(letsize_scaler * (float)let[ii].numSend) < (LETSIZE_REDUCE_CRITERION * (float)let[ii].maxSend) )	  let[ii].overEstimateSend++;
-	else	  let[ii].overEstimateSend = 0;
-	if( ceilf(letsize_scaler * (float)let[ii].numRecv) < (LETSIZE_REDUCE_CRITERION * (float)let[ii].maxRecv) )	  let[ii].overEstimateRecv++;
-	else	  let[ii].overEstimateRecv = 0;
+	  for(int ii = 0; ii < Nlet - 1; ii++){
+	    if( ceilf(letsize_scaler * (float)let[ii].numSend) < (LETSIZE_REDUCE_CRITERION * (float)let[ii].maxSend) )	  let[ii].overEstimateSend++;
+	    else	  let[ii].overEstimateSend = 0;
+	    if( ceilf(letsize_scaler * (float)let[ii].numRecv) < (LETSIZE_REDUCE_CRITERION * (float)let[ii].maxRecv) )	  let[ii].overEstimateRecv++;
+	    else	  let[ii].overEstimateRecv = 0;
 
-	if( let[ii].overEstimateSend >= LETSIZE_OVERESTIMATION_STEPS ){
-	  let[ii].maxSend = (int)ceilf(LETSIZE_REDUCE_FACTOR * (float)let[ii].maxSend);	  let[ii].maxSend += 32 - (let[ii].maxSend & 31);
-	  let[ii].overEstimateSend = 0;
-	  __NOTE__("let[%d].maxSend is reduced\n", ii);
-	}/* if( let[ii].overEstimateSend >= LETSIZE_OVERESTIMATION_STEPS ){ */
+	    if( let[ii].overEstimateSend >= LETSIZE_OVERESTIMATION_STEPS ){
+	      let[ii].maxSend = (int)ceilf(LETSIZE_REDUCE_FACTOR * (float)let[ii].maxSend);	  let[ii].maxSend += 32 - (let[ii].maxSend & 31);
+	      let[ii].overEstimateSend = 0;
+	      __NOTE__("let[%d].maxSend is reduced\n", ii);
+	    }/* if( let[ii].overEstimateSend >= LETSIZE_OVERESTIMATION_STEPS ){ */
 
-	if( let[ii].overEstimateRecv >= LETSIZE_OVERESTIMATION_STEPS ){
-	  let[ii].maxRecv = (int)ceilf(LETSIZE_REDUCE_FACTOR * (float)let[ii].maxRecv);	  let[ii].maxRecv += 32 - (let[ii].maxRecv & 31);
-	  let[ii].overEstimateRecv = 0;
-	  __NOTE__("let[%d].maxRecv is reduced\n", ii);
-	}/* if( let[ii].overEstimateRecv >= LETSIZE_OVERESTIMATION_STEPS ){ */
-      }/* for(int ii = 0; ii < Nlet - 1; ii++){ */
-      setLETpartition(Nlet, let);
+	    if( let[ii].overEstimateRecv >= LETSIZE_OVERESTIMATION_STEPS ){
+	      let[ii].maxRecv = (int)ceilf(LETSIZE_REDUCE_FACTOR * (float)let[ii].maxRecv);	  let[ii].maxRecv += 32 - (let[ii].maxRecv & 31);
+	      let[ii].overEstimateRecv = 0;
+	      __NOTE__("let[%d].maxRecv is reduced\n", ii);
+	    }/* if( let[ii].overEstimateRecv >= LETSIZE_OVERESTIMATION_STEPS ){ */
+	  }/* for(int ii = 0; ii < Nlet - 1; ii++){ */
+	  setLETpartition(Nlet, let);
 
 #ifdef  MPI_ONE_SIDED_FOR_LET
-      __NOTE__("MPI_Win_unlock_all after MPI communications\n");
-      chkMPIerr(MPI_Win_unlock_all(mpi.win_more));
-      chkMPIerr(MPI_Win_unlock_all(mpi.win_jpos));
-      chkMPIerr(MPI_Win_unlock_all(mpi.win_mass));
+	  __NOTE__("MPI_Win_unlock_all after MPI communications\n");
+	  chkMPIerr(MPI_Win_unlock_all(mpi.win_more));
+	  chkMPIerr(MPI_Win_unlock_all(mpi.win_jpos));
+	  chkMPIerr(MPI_Win_unlock_all(mpi.win_mass));
 #endif//MPI_ONE_SIDED_FOR_LET
+
+	}
 
 #endif//SERIALIZED_EXECUTION
 

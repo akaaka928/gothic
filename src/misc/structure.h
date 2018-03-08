@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/26 (Mon)
+ * @date 2018/03/06 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -47,11 +47,10 @@
 
 
 #ifdef  RUN_ON_PC
-/* 131072 (= 128K) is maximum value can ben executed on augustus (GTX 750 Ti) */
-#   if  NUM_BODY_MAX > 131072
+#   if  NUM_BODY_MAX > 8388608
 #undef  NUM_BODY_MAX
-#define NUM_BODY_MAX  (131072)
-#endif//NUM_BODY_MAX > 131072
+#define NUM_BODY_MAX  (8388608)
+#endif//NUM_BODY_MAX > 8388608
 #endif//RUN_ON_PC
 
 
@@ -216,6 +215,13 @@ typedef struct
 #endif//BLOCK_TIME_STEP
   MPI_Win win_idx;
 #endif//defined(MPI_ONE_SIDED_FOR_EXCG) && !defined(SERIALIZED_EXECUTION)
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  position *pos_iext;
+  acceleration *acc_iext;
+#ifdef  GADGET_MAC
+  acceleration *acc_old_iext;
+#endif//GADGET_MAC
+#endif//SWITCH_WITH_J_PARALLELIZATION
 } iparticle;
 
 

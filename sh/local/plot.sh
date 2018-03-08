@@ -9,10 +9,10 @@ JOB_ID=$$
 ###############################################################
 # global configurations
 ###############################################################
-PLTENE=bin/plot.energy
-PLTMAP=bin/plot.distribution
-PLTMUL=bin/plot.multipole
-PLTCDF=bin/plot.cdf
+PLTENE=bin/energy
+PLTMAP=bin/distribution
+PLTMUL=bin/multipole
+PLTCDF=bin/cdf
 ###############################################################
 PLTSH=sh/local/plplot.sh
 EXTENSION=$2

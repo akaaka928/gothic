@@ -1,11 +1,11 @@
 /**
- * @file plot.energy.c
+ * @file energy.c
  *
  * @brief Plot code of time evolution of energies (total energy, kinetic energy and potential energy)
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/01/19 (Fri)
+ * @date 2018/03/08 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -478,6 +478,11 @@ int main(int argc, char **argv)
       evolve.ymin = -5.0e+6;      evolve.ymax = 3.0e+6;      evolve.ylog = LINEAR_PLOT;
       virial.ymin =  0.4951;      virial.ymax = 0.5049;      virial.ylog = LINEAR_PLOT;
       momerr.ymin = -1.0e-4;      momerr.ymax = 1.0e-4;      momerr.ylog = LINEAR_PLOT;
+      break;
+    case 124:      /**< Eridanus II simulations */
+      evolve.ymin = -5.0e+2;      evolve.ymax = 3.0e+2;      evolve.ylog = LINEAR_PLOT;
+      virial.ymin =  0.4951;      virial.ymax = 0.5049;      virial.ylog = LINEAR_PLOT;
+      momerr.ymin = -1.0e-3;      momerr.ymax = 1.0e-3;      momerr.ylog = LINEAR_PLOT;
       break;
     default:
       evolve.ymin = -2.50  ;      evolve.ymax = 2.00  ;      evolve.ylog = LINEAR_PLOT;

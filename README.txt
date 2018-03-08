@@ -1,7 +1,7 @@
 #################################################################################################
 #################################################################################################
 README file for tree code with block time step on GPU(s) written by Yohei MIKI
-                                                         last updated on 2017/12/15 (Fri) 13:20:19
+                                                         last updated on 2018/03/06 (Tue) 14:28:31
 #################################################################################################
 #################################################################################################
 
@@ -207,19 +207,13 @@ MAGI:
 
 
 
-parallelized GOTHIC のデバッグ方針
-	     1. MPI_Isend/MPI_Irecv version, via host communication のデバッグ
-	     2. MPI_Isend/MPI_Irecv version, via GPUDirect RDMA communication のデバッグ
-	     3. MPI_Put/MPI_Get version, via host communication のデバッグ
-	     4. MPI_Put/MPI_Get version, via GPUDirect RDMA communication のデバッグ
-
-auto-tuning for pseudo i-particle:
-	    clock64() base で実装したら、clock freqnency が動的に変化する問題の影響をうけないと予想される。
-	    演算量を最小化するためのしかけだったので、実行時間そのものが欲しいわけではないと思えば、結構有望だと思う。
-
-
-
-
-
-
 enclosing ball のうち，どれを選ぶかというフラグがかなりややこしいので，整理するべき．
+
+
+
+
+j-parallelized version
+grouping of N=8M with dubble buffer or single N=16M run
+use MPI_Reduce_scatter
+
+for GADGET MAC, we need acceleration in the previous time step

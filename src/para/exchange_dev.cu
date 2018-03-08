@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/02 (Fri)
+ * @date 2018/03/06 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -258,7 +258,8 @@ void getEnclosingBox_dev(const int grpNum, const int Ngrp, laneinfo *laneInfo_hs
   __NOTE__("grpNum = %d, Ngrp = %d\n", grpNum, Ngrp);
 
   if( grpNum > 0 ){
-    getBoxSize_kernel<<<devProp.numSM * NBLOCKS_PER_SM_BOX, NTHREADS_BOX>>>(laneInfo_hst[(grpNum < Ngrp) ? (grpNum) : (Ngrp - 1)].head, pi.pos, soa.min, soa.max, soa.gsync0, soa.gsync1);
+    /* getBoxSize_kernel<<<devProp.numSM * NBLOCKS_PER_SM_BOX, NTHREADS_BOX>>>(laneInfo_hst[(grpNum < Ngrp) ? (grpNum) : (Ngrp - 1)].head, pi.pos, soa.min, soa.max, soa.gsync0, soa.gsync1); */
+    getBoxSize_kernel<<<devProp.numSM * NBLOCKS_PER_SM_BOX, NTHREADS_BOX>>>(laneInfo_hst[grpNum - 1].head + laneInfo_hst[grpNum - 1].num, pi.pos, soa.min, soa.max, soa.gsync0, soa.gsync1);
     getLastCudaError("getBoxSize_kernel");
 
     checkCudaErrors(cudaMemcpy(soa.min_hst, soa.min, sizeof(float4), cudaMemcpyDeviceToHost));

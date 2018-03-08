@@ -2,15 +2,18 @@ import numpy as np
 import h5py
 
 import matplotlib
-matplotlib.use("tkagg")
+matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
 import utils as utils
 
 
 # specify plot target
-# filename = "cb17"
 filename = "m31"
+# filename = "halocore1"
+# filename = "halocore2"
+# filename = "halocore3"
+# filename = "halocusp"
 
 # conversion factors of unit system (taken from doc/unit.txt)
 newton_com = 4.498466e+00
@@ -20,11 +23,16 @@ velocity2astro = 9.777922e+00
 
 
 # set plot range
-# rmin, rmax = 1.0e-1, 2.0e+2
-# vmin, vmax = 0.0, 200.0
-rmin, rmax = 1.0e-1, 4.0e+2
-vmin, vmax = 0.0, 300.0
+# rmin, rmax = 1.0e-1, 4.0e+2
+# vmin, vmax = 0.0, 300.0
+rmin, rmax = 1.0e-3, 5.0e+1
+vmin, vmax = 0.0, 100.0
 
+
+# report circular velocity @ specified radius
+r_rep = 1.0# kpc
+r_rep_inv = 1.0 / r_rep
+r_err = 3.1e-5
 
 # set number of panels
 nxpanel, nypanel = 1, 1
@@ -32,8 +40,8 @@ nxpanel, nypanel = 1, 1
 
 col = ["black", "blue", "magenta", "green"]
 ls  = ["-", "-.", ":", "--"]
-# lab = ["dark matter halo", "bulge", "thick disc", "thin disc"]
-lab = ["dark matter halo", "bulge", "disk"]
+# lab = ["dark matter halo", "bulge", "disk"]
+lab = ["halo", "cluster"]
 
 
 # embed fonts
@@ -79,6 +87,10 @@ for ii in range(Ndata):
     for kk in range(Nkind):
         mm += enc[kk * Ndata + ii]
     vcirc[ii] = np.sqrt(mm / radius[ii]) * conversion
+
+    # report circular velocity @ the specified radius
+    if (np.abs(1.0 - radius[ii] * r_rep_inv) <= r_err):
+        print(r"v_c = {:.10f} ({:<}) @ r = {:.10f} ({:<})".format(vcirc[ii], velocity_unit.decode('UTF-8'), radius[ii], length_unit.decode('UTF-8')))
 
 
 fig = utils.set_figure(nxpanel, nypanel)

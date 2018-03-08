@@ -6,7 +6,7 @@ import time # for performance measurement
 import multiprocessing as mp
 
 import matplotlib
-matplotlib.use("tkagg")
+matplotlib.use("agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm # for logarithmic plot in imshow
 

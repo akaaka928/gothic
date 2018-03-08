@@ -14,16 +14,17 @@
 ###############################################################
 # global configurations
 ###############################################################
-PLTENE=bin/plot.energy
-PLTMAP=bin/plot.distribution
-PLTCDF=bin/plot.cdf
+PLTENE=bin/energy
+PLTMAP=bin/distribution
+PLTCDF=bin/cdf
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=2
+    # PROBLEM=2
     # PROBLEM=27
     # PROBLEM=111
     # PROBLEM=112
+    PROBLEM=124
 fi
 ###############################################################
 # file extension of figures
@@ -377,6 +378,34 @@ if [ $PROBLEM -eq 112 ]; then
     FILE=k17disk
     FINISH=1246.875
     INTERVAL=3.125
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 121 ]; then
+    FILE=halocore1_run
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 122 ]; then
+    FILE=halocore2_run
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 123 ]; then
+    FILE=halocore3_run
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 124 ]; then
+    FILE=halocusp_run
+    FINISH=14000.0
+    INTERVAL=100.0
 fi
 ###############################################################
 # count up number of snapshot files

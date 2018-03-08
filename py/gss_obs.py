@@ -380,7 +380,8 @@ if Nkind > Ndark:
         nxpanel += Nkind - Ndark - Nmbh
     my_cmap = utils.generate_cmap(["darkblue", "deepskyblue", "lime", "yellow", "red", "magenta", "white"])
 
-    cores = mp.cpu_count()
+    # cores = mp.cpu_count()
+    cores = int(np.ceil(mp.cpu_count() / 2))
     pool = mp.Pool(cores)
     args = [(ii, Nkind, Nsphe, inv, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi, Eshell_eta, Nwest, Wshell_xi, Wshell_eta, Nfield, field_xi, field_eta, Ngss, gss_xi, gss_eta, gss_D, gss_Derr, gss_field_xi, gss_field_eta, NstreamC, streamC_xi, streamC_eta, streamC_D, streamC_Derr, streamC_field_xi, streamC_field_eta, NstreamD, streamD_xi, streamD_eta, streamD_D, streamD_Derr, streamD_field_xi, streamD_field_eta) for ii in range(init, last + 1, 1)]
     pool.map(wrapper, args)
