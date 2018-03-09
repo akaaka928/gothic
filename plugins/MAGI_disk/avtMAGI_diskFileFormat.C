@@ -549,7 +549,7 @@ avtMAGI_diskFileFormat::GetMesh(int domain, const char *meshname)
 	// read the Y coordinates from the file
 	coords[1] = vtkFloatArray::New();
 	coords[1]->SetNumberOfTuples(dims[1]);
-	float *ver = (float *)coords[1]->GetVoidPointer(1);
+	float *ver = (float *)coords[1]->GetVoidPointer(0);
 	// dataset = H5Dopen(group, "height", H5P_DEFAULT);
 	dataset = H5Dopen(group, "node_zz", H5P_DEFAULT);
 	chkHDF5err(H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, ver));
@@ -591,7 +591,7 @@ avtMAGI_diskFileFormat::GetMesh(int domain, const char *meshname)
 	// read the Y coordinates from the file
 	coords[1] = vtkDoubleArray::New();
 	coords[1]->SetNumberOfTuples(dims[1]);
-	double *ver = (double *)coords[1]->GetVoidPointer(1);
+	double *ver = (double *)coords[1]->GetVoidPointer(0);
 	// dataset = H5Dopen(group, "height", H5P_DEFAULT);
 	dataset = H5Dopen(group, "node_zz", H5P_DEFAULT);
 	chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, ver));

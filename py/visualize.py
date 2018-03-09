@@ -30,8 +30,7 @@ filename = "halocusp_run"
 Ndark = 1
 init = 0
 # last = 0
-last = 44
-# last = 140
+last = 140
 fmin, fmax = 1.0e+2, 1.0e+8
 xmin, xmax = -2.0, 2.0
 ymin, ymax = -2.0, 2.0
@@ -45,16 +44,6 @@ nx, ny, nz = 128, 128, 128
 
 dx, dy, dz = (xmax - xmin) / nx, (ymax - ymin) / ny, (zmax - zmin) / nz
 
-# settings for point spread function with gaussian
-smooth = 1
-# smooth = 1.5
-# smooth = 2
-contain = 1
-# contain = 2
-# contain = 3
-sigma = smooth * (dx + dz) / 2
-PSFinv = 1 / (math.sqrt(2) * sigma)
-Nsmooth = int(np.ceil(contain * smooth))
 
 
 def draw_figure(fileid, Nkind):
@@ -63,7 +52,7 @@ def draw_figure(fileid, Nkind):
     utils.locate_panels(fig, ax, nxpanel, nypanel, True, True)
 
     snapshot = "{:03d}".format(fileid)
-    input_file = "dat/" + filename + ".split" + snapshot + ".h5"
+    input_file = "dat/" + filename + ".plot" + snapshot + ".h5"
 
     # read snapshot
     h5file = h5py.File(input_file, "r")

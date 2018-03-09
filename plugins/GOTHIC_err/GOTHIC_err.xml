@@ -10,7 +10,7 @@
       ${HDF5_LIB}
     </LIBS>
     <FilePatterns>
-      *.accerr*.h5
+      *.accerr???.h5
     </FilePatterns>
     <Attribute name="" purpose="" persistent="true" keyframe="true" exportAPI="" exportInclude="">
     </Attribute>

@@ -404,7 +404,8 @@ fi
 # Fornax simulation
 if [ $PROBLEM -eq 124 ]; then
     FILE=halocusp_run
-    FINISH=14000.0
+    # FINISH=14000.0
+    FINISH=4400.0
     INTERVAL=100.0
 fi
 ###############################################################

@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/03/08 (Thu) 19:02:07
+# last updated on 2018/03/09 (Fri) 15:02:36
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -502,6 +502,7 @@ SAMPLE	:= $(BINDIR)/sample
 PLGDIR	:= plugins
 TAGBODY	:= GOTHIC_split
 TAGSNAP	:= GOTHIC_snp
+TAGPLOT	:= GOTHIC_plt
 TAGAERR	:= GOTHIC_err
 TAGDUMP	:= GOTHIC
 TAGDISK	:= MAGI_disk
@@ -509,6 +510,7 @@ TAGDIST	:= MAGI_df
 TAGPROF	:= MAGI_profile
 DIRBODY	:= $(PLGDIR)/$(TAGBODY)
 DIRSNAP	:= $(PLGDIR)/$(TAGSNAP)
+DIRPLOT	:= $(PLGDIR)/$(TAGPLOT)
 DIRAERR	:= $(PLGDIR)/$(TAGAERR)
 DIRDUMP	:= $(PLGDIR)/$(TAGDUMP)
 DIRDISK	:= $(PLGDIR)/$(TAGDISK)
@@ -516,6 +518,7 @@ DIRDIST	:= $(PLGDIR)/$(TAGDIST)
 DIRPROF	:= $(PLGDIR)/$(TAGPROF)
 XMLBODY	:= $(DIRBODY)/$(TAGBODY).xml
 XMLSNAP	:= $(DIRSNAP)/$(TAGSNAP).xml
+XMLPLOT	:= $(DIRPLOT)/$(TAGPLOT).xml
 XMLAERR	:= $(DIRAERR)/$(TAGAERR).xml
 XMLDUMP	:= $(DIRDUMP)/$(TAGDUMP).xml
 XMLDISK	:= $(DIRDISK)/$(TAGDISK).xml
@@ -523,6 +526,7 @@ XMLDIST	:= $(DIRDIST)/$(TAGDIST).xml
 XMLPROF	:= $(DIRPROF)/$(TAGPROF).xml
 SRCBODY	:= $(DIRBODY)/$(TAGBODY)CommonPluginInfo.C $(DIRBODY)/$(TAGBODY)EnginePluginInfo.C $(DIRBODY)/$(TAGBODY)MDServerPluginInfo.C
 SRCSNAP	:= $(DIRSNAP)/$(TAGSNAP)CommonPluginInfo.C $(DIRSNAP)/$(TAGSNAP)EnginePluginInfo.C $(DIRSNAP)/$(TAGSNAP)MDServerPluginInfo.C
+SRCPLOT	:= $(DIRPLOT)/$(TAGPLOT)CommonPluginInfo.C $(DIRPLOT)/$(TAGPLOT)EnginePluginInfo.C $(DIRPLOT)/$(TAGPLOT)MDServerPluginInfo.C
 SRCAERR	:= $(DIRAERR)/$(TAGAERR)CommonPluginInfo.C $(DIRAERR)/$(TAGAERR)EnginePluginInfo.C $(DIRAERR)/$(TAGAERR)MDServerPluginInfo.C
 SRCDUMP	:= $(DIRDUMP)/$(TAGDUMP)CommonPluginInfo.C $(DIRDUMP)/$(TAGDUMP)EnginePluginInfo.C $(DIRDUMP)/$(TAGDUMP)MDServerPluginInfo.C
 SRCDISK	:= $(DIRDISK)/$(TAGDISK)CommonPluginInfo.C $(DIRDISK)/$(TAGDISK)EnginePluginInfo.C $(DIRDISK)/$(TAGDISK)MDServerPluginInfo.C
@@ -530,6 +534,7 @@ SRCDIST	:= $(DIRDIST)/$(TAGDIST)CommonPluginInfo.C $(DIRDIST)/$(TAGDIST)EnginePl
 SRCPROF	:= $(DIRPROF)/$(TAGPROF)CommonPluginInfo.C $(DIRPROF)/$(TAGPROF)EnginePluginInfo.C $(DIRPROF)/$(TAGPROF)MDServerPluginInfo.C
 SRCBODY	+= $(DIRBODY)/$(TAGBODY)PluginInfo.C $(DIRBODY)/$(TAGBODY)PluginInfo.h $(DIRBODY)/avt$(TAGBODY)FileFormat.C $(DIRBODY)/avt$(TAGBODY)FileFormat.h
 SRCSNAP	+= $(DIRSNAP)/$(TAGSNAP)PluginInfo.C $(DIRSNAP)/$(TAGSNAP)PluginInfo.h $(DIRSNAP)/avt$(TAGSNAP)FileFormat.C $(DIRSNAP)/avt$(TAGSNAP)FileFormat.h
+SRCPLOT	+= $(DIRPLOT)/$(TAGPLOT)PluginInfo.C $(DIRPLOT)/$(TAGPLOT)PluginInfo.h $(DIRPLOT)/avt$(TAGPLOT)FileFormat.C $(DIRPLOT)/avt$(TAGPLOT)FileFormat.h
 SRCAERR	+= $(DIRAERR)/$(TAGAERR)PluginInfo.C $(DIRAERR)/$(TAGAERR)PluginInfo.h $(DIRAERR)/avt$(TAGAERR)FileFormat.C $(DIRAERR)/avt$(TAGAERR)FileFormat.h
 SRCDUMP	+= $(DIRDUMP)/$(TAGDUMP)PluginInfo.C $(DIRDUMP)/$(TAGDUMP)PluginInfo.h $(DIRDUMP)/avt$(TAGDUMP)FileFormat.C $(DIRDUMP)/avt$(TAGDUMP)FileFormat.h
 SRCDISK	+= $(DIRDISK)/$(TAGDISK)PluginInfo.C $(DIRDISK)/$(TAGDISK)PluginInfo.h $(DIRDISK)/avt$(TAGDISK)FileFormat.C $(DIRDISK)/avt$(TAGDISK)FileFormat.h
@@ -970,7 +975,7 @@ clean:
 	$(VERBOSE)rm -f $(ANALACT) $(ANALERR) $(ANALPRF)
 	$(VERBOSE)rm -f $(SAMPLE)
 #################################################################################################
-visit:	$(DIRBODY)/Makefile $(DIRSNAP)/Makefile $(DIRAERR)/Makefile $(DIRDUMP)/Makefile $(DIRDISK)/Makefile $(DIRDIST)/Makefile $(DIRPROF)/Makefile
+visit:	$(DIRBODY)/Makefile $(DIRSNAP)/Makefile $(DIRPLOT)/Makefile $(DIRAERR)/Makefile $(DIRDUMP)/Makefile $(DIRDISK)/Makefile $(DIRDIST)/Makefile $(DIRPROF)/Makefile
 #################################################################################################
 $(DIRBODY)/Makefile:	$(XMLBODY) $(SRCBODY)
 	$(VERBOSE)cd $(DIRBODY);\
@@ -983,6 +988,13 @@ $(DIRSNAP)/Makefile:	$(XMLSNAP) $(SRCSNAP)
 	$(VERBOSE)cd $(DIRSNAP);\
 	$(VERBOSE)xml2info $(TAGSNAP).xml;\
 	$(VERBOSE)xml2cmake $(TAGSNAP).xml;\
+	$(VERBOSE)cmake -DCMAKE_BUILD_TYPE:STRING=Debug;\
+	$(VERBOSE)make
+	$(VERBOSE)touch $@
+$(DIRPLOT)/Makefile:	$(XMLPLOT) $(SRCPLOT)
+	$(VERBOSE)cd $(DIRPLOT);\
+	$(VERBOSE)xml2info $(TAGPLOT).xml;\
+	$(VERBOSE)xml2cmake $(TAGPLOT).xml;\
 	$(VERBOSE)cmake -DCMAKE_BUILD_TYPE:STRING=Debug;\
 	$(VERBOSE)make
 	$(VERBOSE)touch $@
@@ -1033,6 +1045,11 @@ rmvisit:
 	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libE$(TAGSNAP)Database_???.so
 	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libI$(TAGSNAP)Database.so
 	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libM$(TAGSNAP)Database.so
+	$(VERBOSE)rm  -f $(DIRPLOT)/CMakeCache.txt $(DIRPLOT)/CMakeLists.txt $(DIRPLOT)/Makefile $(DIRPLOT)/cmake_install.cmake $(DIRPLOT)/make.log
+	$(VERBOSE)rm -rf $(DIRPLOT)/CMakeFiles
+	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libE$(TAGPLOT)Database_???.so
+	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libI$(TAGPLOT)Database.so
+	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libM$(TAGPLOT)Database.so
 	$(VERBOSE)rm  -f $(DIRAERR)/CMakeCache.txt $(DIRAERR)/CMakeLists.txt $(DIRAERR)/Makefile $(DIRAERR)/cmake_install.cmake $(DIRAERR)/make.log
 	$(VERBOSE)rm -rf $(DIRAERR)/CMakeFiles
 	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libE$(TAGAERR)Database_???.so
