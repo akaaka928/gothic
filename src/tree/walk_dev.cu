@@ -2594,21 +2594,27 @@ void calcGravity_dev
       if( (float)transfer > (FSIZE_J_PARALLELIZATION * (float)mpi.size) ){
 	choose_transfer_mode;
 
+	MPI_Allgather about Ni (laneNum is not required because it is allocated for Ni = NMAX);
+
+	set # of iterations;
 
 
+	  initialize acceleration for first group;
+	  MPI_Allgather about laneInfo, pi for first group;
 
+	  for(int iter = 0; iter < Niter; iter++){
 
+	    calc_gravity;
 
-
-
-
-
+	    if( iter + 1 < Niter ){
+	      initialize acceleration for next group;
+	      MPI_Allgather about laneInfo, pi for next group;
+	    }
+	  }
 
       }/* if( (float)transfer > (FSIZE_J_PARALLELIZATION * (float)mpi.size) ){ */
       else
-
 #endif//SWITCH_WITH_J_PARALLELIZATION
-
 	{
 
 #ifdef  MPI_ONE_SIDED_FOR_LET

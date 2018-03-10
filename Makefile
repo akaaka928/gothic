@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/03/09 (Fri) 15:02:36
+# last updated on 2018/03/10(Sat) 15:36:34
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -39,6 +39,7 @@ ADOPT_GADGET_TYPE_MAC	:= 1
 ADOPT_WS93_TYPE_MAC	:= 1
 IJ_PARALLELIZED_WALK	:= 1
 CLOCK_BASED_AUTO_TUNING	:= 1
+OMIT_VELOCITY_BASED_DT	:= 0
 DATAFILE_FORMAT_HDF5	:= 1
 HDF5_FOR_ZINDAIJI	:= 0
 DUMPFILE_IN_TIPSY	:= 0
@@ -253,6 +254,11 @@ endif
 ifeq ($(CLOCK_BASED_AUTO_TUNING), 1)
 CCARG	+= -DUSE_CLOCK_CYCLES_FOR_BRENT_METHOD
 CUARG	+= -DUSE_CLOCK_CYCLES_FOR_BRENT_METHOD
+endif
+#################################################################################################
+ifeq ($(OMIT_VELOCITY_BASED_DT), 1)
+CCARG	+= -DOMIT_VELOCITY_FOR_TIME_STEP
+CUARG	+= -DOMIT_VELOCITY_FOR_TIME_STEP
 endif
 #################################################################################################
 ifeq ($(REPORT_COMPUTE_RATE), 1)

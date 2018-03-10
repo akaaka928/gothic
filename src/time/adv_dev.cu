@@ -227,7 +227,9 @@ void setTimeStep_dev
  */
 __global__ void setTimeStep_kernel
 (const int Ni,
+#ifndef OMIT_VELOCITY_FOR_TIME_STEP
  READ_ONLY real * RESTRICT vix, READ_ONLY real * RESTRICT viy, READ_ONLY real * RESTRICT viz,
+#endif//OMIT_VELOCITY_FOR_TIME_STEP
  READ_ONLY acceleration * RESTRICT iacc,
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
  READ_ONLY acceleration * RESTRICT iacc_ext,
@@ -244,9 +246,11 @@ __global__ void setTimeStep_kernel
     const int ii = ih + tidx;
 
     if( ii < Ni ){
+#ifndef OMIT_VELOCITY_FOR_TIME_STEP
       const real         vx = vix [ii];
       const real         vy = viy [ii];
       const real         vz = viz [ii];
+#endif//OMIT_VELOCITY_FOR_TIME_STEP
 #ifndef SET_EXTERNAL_POTENTIAL_FIELD
       const acceleration ai = iacc[ii];
 #else///SET_EXTERNAL_POTENTIAL_FIELD
@@ -255,15 +259,21 @@ __global__ void setTimeStep_kernel
       const acceleration ai = {slf.x + ext.x, slf.y + ext.y, slf.z + ext.z, slf.pot + ext.pot};
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
+#ifndef OMIT_VELOCITY_FOR_TIME_STEP
       const real v2 = FLT_MIN +	  vx *	 vx +	vy *   vy +   vz *   vz;
+#endif//OMIT_VELOCITY_FOR_TIME_STEP
       const real a2 = FLT_MIN + ai.x * ai.x + ai.y * ai.y + ai.z * ai.z;
 
+#ifndef OMIT_VELOCITY_FOR_TIME_STEP
       const real vdt =      eps * RSQRT(v2);
+#endif//OMIT_VELOCITY_FOR_TIME_STEP
       const real adt = SQRT(eps * RSQRT(a2));
 
-      real dttmp = (vdt < adt) ? (vdt) : (adt);
-      if( dttmp < dtloc )
-	dtloc = dttmp;
+#ifndef OMIT_VELOCITY_FOR_TIME_STEP
+      dtloc = FMIN(dtloc, FMIN(vdt, adt));
+#else///OMIT_VELOCITY_FOR_TIME_STEP
+      dtloc = FMIN(dtloc, adt);
+#endif//OMIT_VELOCITY_FOR_TIME_STEP
     }/* if( ii < Ni ){ */
   }/* for(int ih = 0; ih < Ni; ih += NTHREADS_TIME){ */
 
@@ -374,7 +384,16 @@ void setTimeStep_dev(const int Ni, iparticle ibody, const real eta, const real e
   initStopwatch();
 #endif//EXEC_BENCHMARK
 
-  setTimeStep_kernel<<<1, NTHREADS_TIME>>>(Ni, ibody.vx, ibody.vy, ibody.vz, ibody.acc, eta, eps, dt_dev);
+  setTimeStep_kernel<<<1, NTHREADS_TIME>>>
+    (Ni,
+#ifndef OMIT_VELOCITY_FOR_TIME_STEP
+     ibody.vx, ibody.vy, ibody.vz,
+#endif//OMIT_VELOCITY_FOR_TIME_STEP
+     ibody.acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     ibody.acc_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     eta, eps, dt_dev);
   getLastCudaError("setTimeStep_kernel");
 
   real dt_tmp;
@@ -492,14 +511,25 @@ __device__ __forceinline__ void   getMinimumDblTsub(      double *min, volatile 
  *
  * @brief Calculate particle time step.
  */
-__device__ __forceinline__ real setParticleTime(const velocity vi, const acceleration ai, const real eps, const real eta)
+__device__ __forceinline__ real setParticleTime
+(const acceleration ai,
+#ifndef OMIT_VELOCITY_FOR_TIME_STEP
+ const velocity vi,
+#endif//OMIT_VELOCITY_FOR_TIME_STEP
+ const real eps, const real eta)
 {
   /** estimate the required time step to resolve eps */
+#ifndef OMIT_VELOCITY_FOR_TIME_STEP
   const real v2 = FLT_MIN + vi.x * vi.x + vi.y * vi.y + vi.z * vi.z;  const real vdt =      eps * RSQRT(v2);
+#endif//OMIT_VELOCITY_FOR_TIME_STEP
   const real a2 = FLT_MIN + ai.x * ai.x + ai.y * ai.y + ai.z * ai.z;  const real adt = SQRT(eps * RSQRT(a2));
 
   /** set new time step */
+#ifndef OMIT_VELOCITY_FOR_TIME_STEP
   return (LDEXP(UNITY, (int)FLOOR(LOG2(eta * FMIN(vdt, adt)))));
+#else///OMIT_VELOCITY_FOR_TIME_STEP
+  return (LDEXP(UNITY, (int)FLOOR(LOG2(eta * adt))));
+#endif//OMIT_VELOCITY_FOR_TIME_STEP
 }
 
 
@@ -555,7 +585,12 @@ __global__ void correction_kernel
     vi.z += vi.dt * ai.z;
 
     /** set new time step */
-    vi.dt = setParticleTime(vi, ai, eps, eta);
+    vi.dt = setParticleTime
+      (ai,
+#ifndef OMIT_VELOCITY_FOR_TIME_STEP
+    vi,
+#endif//OMIT_VELOCITY_FOR_TIME_STEP
+    eps, eta);
     /** store vi */
     ivel[idx] = vi;
 
@@ -623,7 +658,12 @@ __global__ void adjustParticleTime_kernel
     ti = time[idx];
 
     /** set new time step */
-    vi.dt = setParticleTime(vi, ai, eps, eta);
+    vi.dt = setParticleTime
+      (ai,
+#ifndef OMIT_VELOCITY_FOR_TIME_STEP
+    vi,
+#endif//OMIT_VELOCITY_FOR_TIME_STEP
+    eps, eta);
     /** store vi */
     ivel[idx] = vi;
 
@@ -766,7 +806,7 @@ void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTR
 
   /** thread-block structure must be identical to tree traversal */
 #ifndef SERIALIZED_EXECUTION
-  if( Ngrp != 0 )
+  if( Ngrp > 0 )
 #endif//SERIALIZED_EXECUTION
     {
       int Nrem = BLOCKSIZE(Ngrp, NWARP * NGROUPS);
