@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/26 (Mon)
+ * @date 2018/03/12 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -113,6 +113,14 @@ static inline void createMPIcfg_tree(MPIcfg_tree *let, const MPIinfo mpi)
   commitMPIstruct(num, blck, disp, type, &(let->send));
 #endif//MPI_ONE_SIDED_FOR_EXCG
 
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  num = 1;
+  type[0] = MPI_INT;
+  blck[0] = 2;
+  disp[0] = 0;
+  commitMPIstruct(num, blck, disp, type, &(let->lane));
+#endif//SWITCH_WITH_J_PARALLELIZATION
+
 #else
 
   commitMPIbyte(&(let->ipos), (int)sizeof(position));
@@ -129,6 +137,10 @@ static inline void createMPIcfg_tree(MPIcfg_tree *let, const MPIinfo mpi)
 #ifdef  MPI_ONE_SIDED_FOR_EXCG
   commitMPIbyte(&(let->send), (int)sizeof(sendBody));
 #endif//MPI_ONE_SIDED_FOR_EXCG
+
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  commitMPIbyte(&(let->lane), (int)sizeof(laneinfo));
+#endif//SWITCH_WITH_J_PARALLELIZATION
 
 #endif
 

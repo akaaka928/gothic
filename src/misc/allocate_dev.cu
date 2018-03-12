@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/06 (Tue)
+ * @date 2018/03/12 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -46,12 +46,6 @@ muse allocParticleDataSoA_hst
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
  , acceleration **acc_ext
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
- , position **ipos_ext, acceleration **iacc_ext
-#ifdef  GADGET_MAC
- , acceleration **iacc_ext_old
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
  )
 {
   __NOTE__("%s\n", "start");
@@ -81,15 +75,6 @@ muse allocParticleDataSoA_hst
   mycudaMallocHost((void **)acc_ext, size * sizeof(acceleration));  alloc.host += size * sizeof(acceleration);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-  mycudaMallocHost((void **)ipos_ext, NMAX_J_PARALLELIZATION * sizeof(position)    );  alloc.host += NMAX_J_PARALLELIZATION * sizeof(position);
-  mycudaMallocHost((void **)iacc_ext, NMAX_J_PARALLELIZATION * sizeof(acceleration));  alloc.host += NMAX_J_PARALLELIZATION * sizeof(acceleration);
-#ifdef  GADGET_MAC
-  mycudaMallocHost((void **)iacc_ext_old, NMAX_J_PARALLELIZATION * sizeof(acceleration));  alloc.host += NMAX_J_PARALLELIZATION * sizeof(acceleration);
- , acceleration **iacc_ext_old
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
-
   /** commit arrays to the utility structure */
   body_hst->pos  = *pos_hst;
   body_hst->acc  = *acc_hst;
@@ -106,14 +91,6 @@ muse allocParticleDataSoA_hst
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   body_hst->acc_ext = *acc_ext;
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-  body_hst->pos_iext = *ipos_ext;
-  body_hst->acc_iext = *iacc_ext;
-#ifdef  GADGET_MAC
-  body_hst->acc_old_iext = *iacc_ext_old;
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
 
   __NOTE__("%s\n", "end");
   return (alloc);
@@ -136,12 +113,6 @@ void  freeParticleDataSoA_hst
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
  , acceleration  *acc_ext
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
- , position  *ipos_ext, acceleration  *iacc_ext
-#ifdef  GADGET_MAC
- , acceleration  *iacc_ext_old
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
  )
 {
   __NOTE__("%s\n", "start");
@@ -161,14 +132,6 @@ void  freeParticleDataSoA_hst
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   mycudaFreeHost(acc_ext);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-  mycudaFreeHost(ipos_ext);
-  mycudaFreeHost(iacc_ext);
-#ifdef  GADGET_MAC
-  mycudaFreeHost(iacc_ext_old);
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
 
   __NOTE__("%s\n", "end");
 }

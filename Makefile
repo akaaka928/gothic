@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/03/10(Sat) 15:36:34
+# last updated on 2018/03/12 (Mon) 18:18:25
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################

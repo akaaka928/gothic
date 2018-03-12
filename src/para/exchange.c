@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/03/12 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -165,3 +165,32 @@ void  releaseORMtopology(float  *dxmin, float  *dxmax, float  *dymin, float  *dy
 
   __NOTE__("%s\n", "end");
 }
+
+
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+muse allocateExternalBodyInfo(int **Ni_list, int **head_list, int **grpNum_list, int **grpNum_disp, const MPIcfg_tree mpi)
+{
+  __NOTE__("%s\n", "start");
+
+  muse alloc = {0, 0};
+  *    Ni_list = (int *)malloc(mpi.size * sizeof(int));  alloc.host += mpi.size * sizeof(int);  if( *    Ni_list == NULL ){    __KILL__(stderr, "ERROR: failure to allocate Ni_list\n");  }
+  *  head_list = (int *)malloc(mpi.size * sizeof(int));  alloc.host += mpi.size * sizeof(int);  if( *  head_list == NULL ){    __KILL__(stderr, "ERROR: failure to allocate head_list\n");  }
+  *grpNum_list = (int *)malloc(mpi.size * sizeof(int));  alloc.host += mpi.size * sizeof(int);  if( *grpNum_list == NULL ){    __KILL__(stderr, "ERROR: failure to allocate grpNum_list\n");  }
+  *grpNum_disp = (int *)malloc(mpi.size * sizeof(int));  alloc.host += mpi.size * sizeof(int);  if( *grpNum_disp == NULL ){    __KILL__(stderr, "ERROR: failure to allocate grpNum_disp\n");  }
+
+  __NOTE__("%s\n", "end");
+  return (alloc);
+}
+
+void  releaseExternalBodyInfo(int  *Ni_list, int  *head_list, int  *grpNum_list, int  *grpNum_disp)
+{
+  __NOTE__("%s\n", "start");
+
+  free(Ni_list);
+  free(head_list);
+  free(grpNum_list);
+  free(grpNum_disp);
+
+  __NOTE__("%s\n", "end");
+}
+#endif//SWITCH_WITH_J_PARALLELIZATION

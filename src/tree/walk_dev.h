@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/07 (Wed)
+ * @date 2018/03/12 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -552,12 +552,6 @@ extern "C"
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
    , acceleration **res
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-   , position **pos_iext, acceleration **acc_iext
-#ifdef  GADGET_MAC
-   , acceleration **acc_iext_old
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
    );
   void  freeParticleDataSoA_dev
   (ulong  *idx0, position  *pos0, acceleration  *acc0
@@ -584,12 +578,6 @@ extern "C"
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
    , acceleration  *res
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-   , position  *pos_iext, acceleration  *acc_iext
-#ifdef  GADGET_MAC
-   , acceleration  *acc_iext_old
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
    );
 
   void  freeTreeBuffer_dev
@@ -650,7 +638,12 @@ extern "C"
    , unsigned long long int *cycles_let_hst, unsigned long long int *cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
 #ifdef  SWITCH_WITH_J_PARALLELIZATION
-   , const int maxNgrp_ext, laneinfo * RESTRICT laneInfo_ext_hst, laneinfo * RESTRICT laneInfo_ext_dev
+   , int * RESTRICT Ni_list, int * RESTRICT head_list, int * RESTRICT grpNum_list, int * RESTRICT displs
+   , const int maxNgrp_ext, laneinfo * RESTRICT laneInfo_ext, laneinfo * RESTRICT laneInfo_ext_hst
+   , laneinfo * RESTRICT laneInfo_hst, const iparticle pi_ext
+#ifdef  MPI_VIA_HOST
+   , const iparticle pi_ext_hst_loc, const iparticle pi_ext_hst_ful
+#endif//MPI_VIA_HOST
 #endif//SWITCH_WITH_J_PARALLELIZATION
 #endif//SERIALIZED_EXECUTION
 #endif//defined(MPI_INCLUDED) || defined(OMPI_MPI_H)

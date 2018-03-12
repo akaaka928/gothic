@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/22 (Thu)
+ * @date 2018/03/12 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -200,6 +200,11 @@ extern "C"
 			   float  *sxmin, float  *sxmax, float  *symin, float  *symax, float  *szmin, float  *szmax,
 			   sendCfg  *sendBuf, recvCfg  *recvBuf, int  *rnum, int  *disp,
 			   MPIinfo orm[], MPIinfo rep[], const int rank);
+
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  muse allocateExternalBodyInfo(int **Ni_list, int **head_list, int **grpNum_list, int **grpNum_disp, const MPIcfg_tree mpi);
+  void  releaseExternalBodyInfo(int  *Ni_list, int  *head_list, int  *grpNum_list, int  *grpNum_disp);
+#endif//SWITCH_WITH_J_PARALLELIZATION
 #ifdef  __CUDACC__
 }
 #endif//__CUDACC__

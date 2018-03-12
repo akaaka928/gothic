@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/06 (Tue)
+ * @date 2018/03/12 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -215,13 +215,6 @@ typedef struct
 #endif//BLOCK_TIME_STEP
   MPI_Win win_idx;
 #endif//defined(MPI_ONE_SIDED_FOR_EXCG) && !defined(SERIALIZED_EXECUTION)
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-  position *pos_iext;
-  acceleration *acc_iext;
-#ifdef  GADGET_MAC
-  acceleration *acc_old_iext;
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
 } iparticle;
 
 

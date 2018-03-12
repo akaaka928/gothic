@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/07 (Wed)
+ * @date 2018/03/12 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -208,12 +208,6 @@ muse allocParticleDataSoA_dev
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
  , acceleration **res
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
- , position **pos_iext, acceleration **acc_iext
-#ifdef  GADGET_MAC
- , acceleration **acc_iext_old
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
  )
 {
   __NOTE__("%s\n", "start");
@@ -247,17 +241,6 @@ muse allocParticleDataSoA_dev
   mycudaMalloc((void **)acc_ext, size * sizeof(acceleration));
   alloc.device +=                size * sizeof(acceleration) ;
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-  mycudaMalloc((void **)pos_iext, NMAX_J_PARALLELIZATION * sizeof(position));
-  alloc.device +=                 NMAX_J_PARALLELIZATION * sizeof(position) ;
-  mycudaMalloc((void **)acc_iext, NMAX_J_PARALLELIZATION * sizeof(acceleration));
-  alloc.device +=                 NMAX_J_PARALLELIZATION * sizeof(acceleration) ;
-#ifdef  GADGET_MAC
-  mycudaMalloc((void **)acc_iext_old, NMAX_J_PARALLELIZATION * sizeof(acceleration));
-  alloc.device +=                     NMAX_J_PARALLELIZATION * sizeof(acceleration) ;
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
 
 
   /** commit arrays to the utility structure */
@@ -316,15 +299,6 @@ muse allocParticleDataSoA_dev
   body1->res = *res;
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-  body0->pos_iext = *pos_iext;  body0->acc_iext = *acc_iext;
-  body1->pos_iext = *pos_iext;  body1->acc_iext = *acc_iext;
-#ifdef  GADGET_MAC
-  body0->acc_old_iext = *acc_iext_old;
-  body1->acc_old_iext = *acc_iext_old;
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
-
 
   __NOTE__("%s\n", "end");
   return (alloc);
@@ -362,12 +336,6 @@ void  freeParticleDataSoA_dev
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
  , acceleration  *res
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
- , position  *pos_iext, acceleration  *acc_iext
-#ifdef  GADGET_MAC
- , acceleration  *acc_iext_old
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
  )
 {
   __NOTE__("%s\n", "start");
@@ -404,14 +372,6 @@ void  freeParticleDataSoA_dev
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
   mycudaFree(res);
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-  mycudaFree(pos_iext);
-  mycudaFree(acc_iext);
-#ifdef  GADGET_MAC
-  mycudaFree(acc_iext_old);
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
 
 
   __NOTE__("%s\n", "end");
@@ -2140,6 +2100,110 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 
 
 /**
+ * @fn callInitAccFunc
+ *
+ * @brief Calculate gravitational acceleration based on the width-first tree traversal.
+ */
+static inline void callInitAccFunc
+(const int thrd, const int blck, const iparticle pi, const int grpNum, laneinfo * RESTRICT laneInfo
+#ifndef BLOCK_TIME_STEP
+ , const int Ni
+#endif//BLOCK_TIME_STEP
+ )
+{
+  __NOTE__("%s\n", "start");
+
+
+#ifdef  BLOCK_TIME_STEP
+  int Nrem = BLOCKSIZE(grpNum, NWARP * NGROUPS);
+#else///BLOCK_TIME_STEP
+  int Nrem = BLOCKSIZE(Ni, NTHREADS);
+#endif//BLOCK_TIME_STEP
+
+  if( Nrem <= MAX_BLOCKS_PER_GRID ){
+    /** when grid splitting is not required... */
+#ifdef  BLOCK_TIME_STEP
+#ifndef SERIALIZED_EXECUTION
+    if( grpNum > 0 )
+#endif//SERIALIZED_EXECUTION
+      initAcc_kernel<<<Nrem, thrd>>>
+	(pi.acc, BLOCKSIZE(grpNum, NGROUPS) * NGROUPS, laneInfo
+#ifdef  GADGET_MAC
+	 , pi.acc_old
+#endif//GADGET_MAC
+#ifdef  DPADD_FOR_ACC
+	 , pi.tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+	 , pi.res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+	 );
+#else///BLOCK_TIME_STEP
+    initAcc_kernel<<<Nrem, NTHREADS>>>
+      (pi.acc
+#ifdef  GADGET_MAC
+       , pi.acc_old
+#endif//GADGET_MAC
+#ifdef  DPADD_FOR_ACC
+       , pi.tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+       , pi.res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+       );
+#endif//BLOCK_TIME_STEP
+  }/* if( Nrem <= MAX_BLOCKS_PER_GRID ){ */
+  else{
+    /** when grid splitting is required... */
+    const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
+    int hidx = 0;
+
+    for(int iter = 0; iter < Niter; iter++){
+      int Nblck = MAX_BLOCKS_PER_GRID;
+      if( Nblck > Nrem )	Nblck = Nrem;
+
+#ifdef  BLOCK_TIME_STEP
+      int Nsub = Nblck * NWARP * NGROUPS;
+      initAcc_kernel<<<Nblck, thrd>>>
+	(pi.acc, BLOCKSIZE(Nsub, NGROUPS) * NGROUPS, &laneInfo[hidx]
+#ifdef  GADGET_MAC
+	 , pi.acc_old
+#endif//GADGET_MAC
+#ifdef  DPADD_FOR_ACC
+	 , pi.tmp
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+	 , pi.res
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+	 );
+#else///BLOCK_TIME_STEP
+      int Nsub = Nblck * NTHREADS;
+      initAcc_kernel<<<Nblck, NTHREADS>>>
+	(&pi.acc[hidx]
+#ifdef  GADGET_MAC
+	 , &pi.acc_old[hidx]
+#endif//GADGET_MAC
+#ifdef  DPADD_FOR_ACC
+	 , &pi.tmp[hidx]
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+	 , &pi.res[hidx]
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+	 );
+#endif//BLOCK_TIME_STEP
+
+      hidx += Nsub;
+      Nrem -= Nblck;
+    }/* for(int iter = 0; iter < Niter; iter++){ */
+  }/* else{ */
+  getLastCudaError("initAcc_kernel");
+
+
+  __NOTE__("%s\n", "end");
+}
+
+
+/**
  * @fn callCalcGravityFunc
  *
  * @brief Calculate gravitational acceleration based on the width-first tree traversal.
@@ -2406,7 +2470,12 @@ void calcGravity_dev
  , unsigned long long int *cycles_let_hst, unsigned long long int *cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
 #ifdef  SWITCH_WITH_J_PARALLELIZATION
- , const int maxNgrp_ext, laneinfo * RESTRICT laneInfo_ext_hst, laneinfo * RESTRICT laneInfo_ext_dev
+ , int * RESTRICT Ni_list, int * RESTRICT head_list, int * RESTRICT grpNum_list, int * RESTRICT displs
+ , const int maxNgrp_ext, laneinfo * RESTRICT laneInfo_ext, laneinfo * RESTRICT laneInfo_ext_hst
+   , laneinfo * RESTRICT laneInfo_hst, const iparticle pi_ext
+#ifdef  MPI_VIA_HOST
+   , const iparticle pi_ext_hst_loc, const iparticle pi_ext_hst_ful
+#endif//MPI_VIA_HOST
 #endif//SWITCH_WITH_J_PARALLELIZATION
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
@@ -2469,90 +2538,11 @@ void calcGravity_dev
 
 
   /** initialize acceleration and potential */
-#ifdef  BLOCK_TIME_STEP
-  Nrem = BLOCKSIZE(grpNum, NWARP * NGROUPS);
-#else///BLOCK_TIME_STEP
-  Nrem = BLOCKSIZE(Ni, NTHREADS);
+  callInitAccFunc(thrd, blck, pi, grpNum, laneInfo
+#ifndef BLOCK_TIME_STEP
+		  , Ni
 #endif//BLOCK_TIME_STEP
-
-  if( Nrem <= MAX_BLOCKS_PER_GRID ){
-    /** when grid splitting is not required... */
-#ifdef  BLOCK_TIME_STEP
-#ifndef SERIALIZED_EXECUTION
-    if( grpNum > 0 )
-#endif//SERIALIZED_EXECUTION
-      initAcc_kernel<<<Nrem, thrd>>>
-	(pi.acc, BLOCKSIZE(grpNum, NGROUPS) * NGROUPS, laneInfo
-#ifdef  GADGET_MAC
-	 , pi.acc_old
-#endif//GADGET_MAC
-#ifdef  DPADD_FOR_ACC
-	 , pi.tmp
-#endif//DPADD_FOR_ACC
-#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-	 , pi.res
-#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-	 );
-#else///BLOCK_TIME_STEP
-    initAcc_kernel<<<Nrem, NTHREADS>>>
-      (pi.acc
-#ifdef  GADGET_MAC
-       , pi.acc_old
-#endif//GADGET_MAC
-#ifdef  DPADD_FOR_ACC
-       , pi.tmp
-#endif//DPADD_FOR_ACC
-#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-       , pi.res
-#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-       );
-#endif//BLOCK_TIME_STEP
-  }/* if( Nrem <= MAX_BLOCKS_PER_GRID ){ */
-  else{
-    /** when grid splitting is required... */
-    const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
-    int hidx = 0;
-
-    for(int iter = 0; iter < Niter; iter++){
-      int Nblck = MAX_BLOCKS_PER_GRID;
-      if( Nblck > Nrem )	Nblck = Nrem;
-
-#ifdef  BLOCK_TIME_STEP
-      int Nsub = Nblck * NWARP * NGROUPS;
-      initAcc_kernel<<<Nblck, thrd>>>
-	(pi.acc, BLOCKSIZE(Nsub, NGROUPS) * NGROUPS, &laneInfo[hidx]
-#ifdef  GADGET_MAC
-	 , pi.acc_old
-#endif//GADGET_MAC
-#ifdef  DPADD_FOR_ACC
-	 , pi.tmp
-#endif//DPADD_FOR_ACC
-#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-	 , pi.res
-#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-	 );
-#else///BLOCK_TIME_STEP
-      int Nsub = Nblck * NTHREADS;
-      initAcc_kernel<<<Nblck, NTHREADS>>>
-	(&pi.acc[hidx]
-#ifdef  GADGET_MAC
-	 , &pi.acc_old[hidx]
-#endif//GADGET_MAC
-#ifdef  DPADD_FOR_ACC
-	 , &pi.tmp[hidx]
-#endif//DPADD_FOR_ACC
-#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-	 , &pi.res[hidx]
-#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-	 );
-#endif//BLOCK_TIME_STEP
-
-      hidx += Nsub;
-      Nrem -= Nblck;
-    }/* for(int iter = 0; iter < Niter; iter++){ */
-  }/* else{ */
-  getLastCudaError("initAcc_kernel");
-
+		  );
 
   /** calculate gravitational acceleration based on the width-first tree traversal */
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
@@ -2592,30 +2582,112 @@ void calcGravity_dev
       chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &transfer, 1, MPI_INT, MPI_SUM, mpi.comm));
 
       if( (float)transfer > (FSIZE_J_PARALLELIZATION * (float)mpi.size) ){
-	choose_transfer_mode;
 
-	MPI_Allgather about Ni (laneNum is not required because it is allocated for Ni = NMAX);
+	const int Ni_local = laneInfo_hst[grpNum - 1].head + laneInfo_hst[grpNum - 1].num;
+	chkMPIerr(MPI_Allgather(&Ni_local, 1, MPI_INT, Ni_list, 1, MPI_INT, mpi.comm));
+	chkMPIerr(MPI_Allgather(&grpNum, 1, MPI_INT, grpNum_list, 1, MPI_INT, mpi.comm));
+	head_list[0] = 0;
+	for(int ii = 1; ii < mpi.size; ii++)
+	  head_list[ii] = head_list[ii - 1] + Ni_list[ii - 1];
+	const int Ni_tot = head_list[mpi.size - 1] + Ni_list[mpi.size - 1];
 
-	set # of iterations;
+	if( Ni_tot <= NMAX_J_PARALLELIZATION ){
+
+	  displs[0] = 0;
+	  for(int ii = 1; ii < mpi.size; ii++)
+	    displs[ii] = displs[ii - 1] + grpNum_list[ii - 1];
+	  const int grpNum_tot = displs[mpi.size - 1] + grpNum_list[mpi.size - 1];
+	  if( grpNum_tot > maxNgrp_ext ){
+	    __KILL__(stderr, "ERROR: grpNum_tot(%d) exceeds maxNgrp_ext(%d); consider increasing NUM_IGROUP_SAFETY_FACTOR defined in src/tree/shrink_dev.h or NMAX_J_PARALLELIZATION(%d) defined in src/tree/walk_dev.h\n", grpNum_tot, maxNgrp_ext, NMAX_J_PARALLELIZATION);
+	  }/* if( grpNum_tot > maxNgrp_ext ){ */
+
+	  /** update laneInfo */
+	  chkMPIerr(MPI_Allgatherv(laneInfo_hst, grpNum, mpi.lane, laneInfo_ext_hst, grpNum_list, displs, mpi.lane, mpi.comm));
+	  for(int ii = 0; ii < mpi.size; ii++){
+	    const int offset = head_list[ii];
+	    for(int jj = displs[ii]; jj < displs[ii] + grpNum_list[ii]; jj++)
+	      laneInfo_ext_hst[jj].head += offset;
+	  }/* for(int ii = 0; ii < mpi.size; ii++){ */
+	  checkCudaErrors(cudaMemcpy(laneInfo_ext, laneInfo_ext_hst, sizeof(laneinfo) * grpNum_tot, cudaMemcpyHostToDevice));
+
+#ifndef MPI_VIA_HOST
+#ifdef  BLOCK_TIME_STEP
+	  chkMPIerr(MPI_Allgatherv(pi.jpos   , Ni_local, mpi.ipos, pi_ext.jpos   , Ni_list, head_list, mpi.ipos, mpi.comm));
+#else///BLOCK_TIME_STEP
+	  chkMPIerr(MPI_Allgatherv(pi. pos   , Ni_local, mpi.ipos, pi_ext. pos   , Ni_list, head_list, mpi.ipos, mpi.comm));
+#endif//BLOCK_TIME_STEP
+#ifdef  GADGET_MAC
+	  chkMPIerr(MPI_Allgatherv(pi.acc_old, Ni_local, mpi.iacc, pi_ext.acc_old, Ni_list, head_list, mpi.iacc, mpi.comm));
+#endif//GADGET_MAC
+#else///MPI_VIA_HOST
+#ifdef  BLOCK_TIME_STEP
+	  checkCudaErrors(cudaMemcpy(pi_ext_hst_loc.jpos, pi.jpos, sizeof(position) * Ni_local, cudaMemcpyDeviceToHost));
+	  chkMPIerr(MPI_Allgatherv(pi_ext_hst_loc.jpos, Ni_local, mpi.ipos, pi_ext_hst_ful.jpos, Ni_list, head_list, mpi.ipos, mpi.comm));
+	  checkCudaErrors(cudaMemcpy(pi_ext.jpos, pi_ext_hst_ful.jpos, sizeof(position) * Ni_tot, cudaMemcpyHostToDevice));
+#else///BLOCK_TIME_STEP
+	  checkCudaErrors(cudaMemcpy(pi_ext_hst_loc.pos, pi.pos, sizeof(position) * Ni_local, cudaMemcpyDeviceToHost));
+	  chkMPIerr(MPI_Allgatherv(pi_ext_hst_loc.pos, Ni_local, mpi.ipos, pi_ext_hst_ful.pos, Ni_list, head_list, mpi.ipos, mpi.comm));
+	  checkCudaErrors(cudaMemcpy(pi_ext.pos, pi_ext_hst_ful.pos, sizeof(position) * Ni_tot, cudaMemcpyHostToDevice));
+#endif//BLOCK_TIME_STEP
+#ifdef  GADGET_MAC
+	  checkCudaErrors(cudaMemcpy(pi_ext_hst_loc.acc_old, pi.acc_old, sizeof(acceleration) * Ni_local, cudaMemcpyDeviceToHost));
+	  chkMPIerr(MPI_Allgatherv(pi_ext_hst_loc.acc_old, Ni_local, mpi.iacc, pi_ext_hst_ful.acc_old, Ni_list, head_list, mpi.iacc, mpi.comm));
+	  checkCudaErrors(cudaMemcpy(pi_ext.acc_old, pi_ext_hst_ful.acc_old, sizeof(acceleration) * Ni_tot, cudaMemcpyHostToDevice));
+#endif//GADGET_MAC
+#endif//MPI_VIA_HOST
+
+	  /** initialize acceleration and potential */
+	  callInitAccFunc(thrd, blck, pi_ext, grpNum_tot, laneInfo_ext
+#ifndef BLOCK_TIME_STEP
+			  , Ni_tot
+#endif//BLOCK_TIME_STEP
+			  );
+
+	  /** calculate gravity for i-particles in multiple domains by local tree */
+	  callCalcGravityFunc(blck, thrd, sinfo, &sidx, laneInfo_ext, pi_ext, 0, tree, grpNum_tot, 0, cycles_dev, buf
+#ifdef  COUNT_INTERACTIONS
+			      , treeInfo
+#endif//COUNT_INTERACTIONS
+			      );
+
+	  /** accumulation of gravitational force by using MPI_Reduce_scatter for simple implementation */
+	  for(int ii = 0; ii < mpi.size; ii++)
+	    Ni_list[ii] <<= 2;/**< Ni_list[ii] = Ni_list[ii] * 4 (# of elements) */
+#ifndef MPI_VIA_HOST
+	  chkMPIerr(MPI_Reduce_scatter(pi_ext.acc, pi.acc, Ni_list, MPI_REALDAT, MPI_SUM, mpi.comm));
+#else///MPI_VIA_HOST
+	  checkCudaErrors(cudaMemcpy(pi_ext_hst_loc.acc, pi_ext.acc, sizeof(acceleration) * Ni_tot, cudaMemcpyDeviceToHost));
+	  chkMPIerr(MPI_Reduce_scatter(pi_ext_hst_loc.acc, pi_ext_hst_ful.acc, Ni_list, MPI_REALDAT, MPI_SUM, mpi.comm));
+	  checkCudaErrors(cudaMemcpy(pi.acc, pi_ext_hst_ful.acc, sizeof(acceleration) * Ni_local, cudaMemcpyHostToDevice));
+#endif//MPI_VIA_HOST
+	}/* if( Ni_tot <= NMAX_J_PARALLELIZATION ){ */
+	else{
+	  /* double_buffer_mode;use while() loop; */
+
+	  goto tentative_escape_point;
+	  /* set # of iterations; */
 
 
-	  initialize acceleration for first group;
-	  MPI_Allgather about laneInfo, pi for first group;
+	  /*   MPI_Allgather about laneInfo_ext_hst, pi for first group; */
+	  /*   initialize acceleration for first group; */
 
-	  for(int iter = 0; iter < Niter; iter++){
+	  /*   for(int iter = 0; iter < Niter; iter++){ */
 
-	    calc_gravity;
+	  /*     calc_gravity; */
 
-	    if( iter + 1 < Niter ){
-	      initialize acceleration for next group;
-	      MPI_Allgather about laneInfo, pi for next group;
-	    }
-	  }
-
+	  /*     if( iter + 1 < Niter ){ */
+	  /*       initialize acceleration for next group; */
+	  /*       MPI_Allgather about laneInfo, pi for next group; */
+	  /*     } */
+	  /*   } */
+	}/* else{ */
       }/* if( (float)transfer > (FSIZE_J_PARALLELIZATION * (float)mpi.size) ){ */
       else
 #endif//SWITCH_WITH_J_PARALLELIZATION
 	{
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+	tentative_escape_point:
+#endif//SWITCH_WITH_J_PARALLELIZATION
 
 #ifdef  MPI_ONE_SIDED_FOR_LET
 	  __NOTE__("MPI_Win_lock_all before MPI communications\n");
@@ -3137,8 +3209,8 @@ void calcGravity_dev
       Nrem -= Nblck;
     }/* for(int iter = 0; iter < Niter; iter++){ */
   }/* else{ */
-
   getLastCudaError("trimAcc_kernel");
+
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   calcExternalGravity_dev
@@ -3153,6 +3225,7 @@ void calcGravity_dev
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
      );
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+
 
   /** evaluate GPU time */
 #   if  defined(SERIALIZED_EXECUTION) || defined(EXEC_BENCHMARK)

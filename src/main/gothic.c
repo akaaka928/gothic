@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/06 (Tue)
+ * @date 2018/03/12 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -881,11 +881,32 @@ int main(int argc, char **argv)
   acceleration *res_dev;
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 #ifdef  SWITCH_WITH_J_PARALLELIZATION
-  position *ipos_ext_dev, *ipos_ext0, *ipos_ext1;
-  acceleration *iacc_ext_dev, *iacc_ext0, *iacc_ext1;
-#ifdef  GADGET_MAC
-  acceleration *iacc_ext_old_dev, *iacc_ext_old0, *iacc_ext_old1;
-#endif//GADGET_MAC
+#ifdef  MPI_VIA_HOST
+  iparticle     ibody_dist0,  ibody_dist1;
+  ulong        *  idx_dist0, *  idx_dist1;
+  position     *  pos_dist0, *  pos_dist1;
+  acceleration *  acc_dist0, *  acc_dist1;
+#endif//MPI_VIA_HOST
+  iparticle     ibody_dist0_dev,  ibody_dist1_dev;
+  ulong        *  idx_dist0_dev, *  idx_dist1_dev;
+  position     *  pos_dist0_dev, *  pos_dist1_dev;
+  acceleration *  acc_dist0_dev, *  acc_dist1_dev;
+  real *neighbor_dist_dev;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  acceleration *acc_ext_dist0, *acc_ext_dist1, *acc_ext_dist_dev;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
+  position *encBall_dist_dev, *encBall_dist_hst;
+#endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+  position *box_min_dist_hst, *box_max_dist_hst, *icom_dist_hst;
+#endif//USE_RECTANGULAR_BOX_FOR_LET
+#ifdef  DPADD_FOR_ACC
+  DPacc *tmp_dist_dev;
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+  acceleration *res_dist_dev;
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
 #endif//SWITCH_WITH_J_PARALLELIZATION
 #ifdef  BLOCK_TIME_STEP
   velocity     * vel0, * vel1, * vel0_dev, * vel1_dev;
@@ -895,24 +916,12 @@ int main(int argc, char **argv)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
      , &acc_ext0
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-     , &ipos_ext0, &iacc_ext0
-#ifdef  GADGET_MAC
-     , &iacc_ext_old0
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
      );
   const muse alloc_ibody1    = allocParticleDataSoA_hst
     (num_max, &ibody1, &idx1, &pos1, &acc1, &vel1, &time1
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
      , &acc_ext1
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-     , &ipos_ext1, &iacc_ext1
-#ifdef  GADGET_MAC
-     , &iacc_ext_old1
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
      );
   const muse alloc_ibody_dev = allocParticleDataSoA_dev
     (num_max
@@ -934,13 +943,48 @@ int main(int argc, char **argv)
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
      , &res_dev
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-     , &ipos_ext_dev, &iacc_ext_dev
-#ifdef  GADGET_MAC
-     , &iacc_ext_old_dev
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
      );
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  velocity   * vel_dist0_dev, * vel_dist1_dev;
+  ibody_time *time_dist0_dev, *time_dist1_dev;
+#ifdef  MPI_VIA_HOST
+  velocity     * vel_dist0, * vel_dist1;
+  ibody_time   *time_dist0, *time_dist1;
+  const muse alloc_ibody_dist0    = allocParticleDataSoA_hst
+    (NMAX_J_PARALLELIZATION, &ibody_dist0, &idx_dist0, &pos_dist0, &acc_dist0, &vel_dist0, &time_dist0
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , &acc_ext_dist0
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
+  const muse alloc_ibody_dist1    = allocParticleDataSoA_hst
+    (NMAX_J_PARALLELIZATION, &ibody_dist1, &idx_dist1, &pos_dist1, &acc_dist1, &vel_dist1, &time_dist1
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , &acc_ext_dist1
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
+#endif//MPI_VIA_HOST
+  const muse alloc_ibody_dist_dev = allocParticleDataSoA_dev
+    (NMAX_J_PARALLELIZATION
+     , &ibody_dist0_dev, &idx_dist0_dev, &pos_dist0_dev, &acc_dist0_dev, &vel_dist0_dev, &time_dist0_dev
+     , &ibody_dist1_dev, &idx_dist1_dev, &pos_dist1_dev, &acc_dist1_dev, &vel_dist1_dev, &time_dist1_dev
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , &acc_ext_dist_dev
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     , &neighbor_dist_dev
+#ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
+     , &encBall_dist_dev, &encBall_dist_hst
+#endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+     , &box_min_dist_hst, &box_max_dist_hst, &icom_dist_hst
+#endif//USE_RECTANGULAR_BOX_FOR_LET
+#ifdef  DPADD_FOR_ACC
+     , &tmp_dist_dev
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+     , &res_dist_dev
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+     );
+#endif//SWITCH_WITH_J_PARALLELIZATION
 #else///BLOCK_TIME_STEP
   real *vx0, *vx1, *vx0_dev, *vx1_dev;
   real *vy0, *vy1, *vy0_dev, *vy1_dev;
@@ -950,24 +994,12 @@ int main(int argc, char **argv)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
      , &acc_ext0
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-     , &ipos_ext0, &iacc_ext0
-#ifdef  GADGET_MAC
-     , &iacc_ext_old0
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
      );
   const muse alloc_ibody1    = allocParticleDataSoA_hst
     (num_max, &ibody1, &idx1, &pos1, &acc1, &vx1, &vy1, &vz1
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
      , &acc_ext1
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-     , &ipos_ext1, &iacc_ext1
-#ifdef  GADGET_MAC
-     , &iacc_ext_old1
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
      );
   const muse alloc_ibody_dev = allocParticleDataSoA_dev
     (num_max
@@ -989,13 +1021,50 @@ int main(int argc, char **argv)
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
      , &res_dev
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-     , &ipos_ext_dev, &iacc_ext_dev
-#ifdef  GADGET_MAC
-     , &iacc_ext_old_dev
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
      );
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  real *vx_dist0_dev, *vx_dist1_dev;
+  real *vy_dist0_dev, *vy_dist1_dev;
+  real *vz_dist0_dev, *vz_dist1_dev;
+#ifdef  MPI_VIA_HOST
+  real *vx_dist0, *vx_dist1;
+  real *vy_dist0, *vy_dist1;
+  real *vz_dist0, *vz_dist1;
+  const muse alloc_ibody_dist0    = allocParticleDataSoA_hst
+    (NMAX_J_PARALLELIZATION, &ibody_dist0, &idx_dist0, &pos_dist0, &acc_dist0, &vx_dist0, &vy_dist0, &vz_dist0
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , &acc_ext_dist0
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
+  const muse alloc_ibody_dist1    = allocParticleDataSoA_hst
+    (NMAX_J_PARALLELIZATION, &ibody_dist1, &idx_dist1, &pos_dist1, &acc_dist1, &vx_dist1, &vy_dist1, &vz_dist1
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , &acc_ext_dist1
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
+#endif//MPI_VIA_HOST
+  const muse alloc_ibody_dist_dev = allocParticleDataSoA_dev
+    (NMAX_J_PARALLELIZATION
+     , &ibody_dist0_dev, &idx_dist0_dev, &pos_dist0_dev, &acc_dist0_dev, &vx_dist0_dev, &vy_dist0_dev, &vz_dist0_dev
+     , &ibody_dist1_dev, &idx_dist1_dev, &pos_dist1_dev, &acc_dist1_dev, &vx_dist1_dev, &vy_dist1_dev, &vz_dist1_dev
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , &acc_ext_dist_dev
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     , &neighbor_dist_dev
+#ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
+     , &encBall_dist_dev, &encBall_dist_hst
+#endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+     , &box_min_dist_hst, &box_max_dist_hst, &icom_dist_hst
+#endif//USE_RECTANGULAR_BOX_FOR_LET
+#ifdef  DPADD_FOR_ACC
+     , &tmp_dist_dev
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+     , &res_dist_dev
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+     );
+#endif//SWITCH_WITH_J_PARALLELIZATION
 #endif//BLOCK_TIME_STEP
 
   iparticle_treeinfo treeinfo_dev;
@@ -1191,6 +1260,11 @@ int main(int argc, char **argv)
   int *gsync0_EB, *gsync1_EB;
   const muse alloc_appEnc = allocApproxEnclosingBall_dev(&appEncBall_dev, &gsync0_EB, &gsync1_EB, &soaEB, devProp);
 #endif//defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
+
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  int *Ni_list, *head_list, *grpNum_list, *grpNum_disp;
+  const muse alloc_extBodyInfo = allocateExternalBodyInfo(&Ni_list, &head_list, &grpNum_list, &grpNum_disp, letcfg);
+#endif//SWITCH_WITH_J_PARALLELIZATION
 
 #ifdef  MPI_ONE_SIDED_FOR_LET
   /** create MPI Window objects for one-sided communication */
@@ -1452,10 +1526,6 @@ int main(int argc, char **argv)
   body_mem.host   += alloc_snap.host;
   body_mem.device += alloc_snap.device;
 #endif//USE_HDF5_FORMAT
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-  misc_mem.host   += alloc_lane_ext_dev.host;
-  misc_mem.device += alloc_lane_ext_dev.device;
-#endif//SWITCH_WITH_J_PARALLELIZATION
   static muse used_mem;
   used_mem.host   = body_mem.host   + tree_mem.host   + misc_mem.host  ;
   used_mem.device = body_mem.device + tree_mem.device + misc_mem.device;
@@ -1475,6 +1545,18 @@ int main(int argc, char **argv)
 #endif//defined(USE_ENCLOSING_BALL_FOR_LET) && !defined(OCTREE_BASED_SEARCH)
   used_mem.host   += ball_mem.host;
   used_mem.device += ball_mem.device;
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+#ifndef MPI_VIA_HOST
+  const muse  ext_mem = {alloc_extBodyInfo.host   + alloc_ibody_dist_dev.host   + alloc_lane_ext_dev.host  ,
+			 alloc_extBodyInfo.device + alloc_ibody_dist_dev.device + alloc_lane_ext_dev.device};
+#else///MPI_VIA_HOST
+  const muse  ext_mem = {alloc_extBodyInfo.host   + alloc_ibody_dist_dev.host   + alloc_lane_ext_dev.host   + alloc_ibody_dist0.host   + alloc_ibody_dist1.host  ,
+			 alloc_extBodyInfo.device + alloc_ibody_dist_dev.device + alloc_lane_ext_dev.device + alloc_ibody_dist0.device + alloc_ibody_dist1.device};
+  used_mem.host   += ext_mem.host;
+  used_mem.device += ext_mem.device;
+#endif//MPI_VIA_HOST
+
+#endif//SWITCH_WITH_J_PARALLELIZATION
 #endif//SERIALIZED_EXECUTION
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
   used_mem.host   += alloc_acc_dev.host;
@@ -1557,6 +1639,9 @@ int main(int argc, char **argv)
     fprintf(stdout, "\t%zu MiB (%zu B) for LET related data\n"  ,  let_mem.device >> 20,  let_mem.device);
     fprintf(stdout, "\t%zu MiB (%zu KiB) for domain decomposition related data\n", box_mem.device >> 20, box_mem.device >> 10);
     fprintf(stdout, "\t%zu MiB (%zu KiB) for enclosing ball related data\n", ball_mem.device >> 20, ball_mem.device >> 10);
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+    fprintf(stdout, "\t%zu MiB (%zu B) for external N-body particles\n"  ,  ext_mem.device >> 20,  ext_mem.device);
+#endif//SWITCH_WITH_J_PARALLELIZATION
 #endif//SERIALIZED_EXECUTION
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
     fprintf(stdout, "\t%zu MiB (%zu GiB) for accuracy test data\n", alloc_acc_dev.device >> 20, alloc_acc_dev.device >> 30);
@@ -1580,6 +1665,9 @@ int main(int argc, char **argv)
     fprintf(stdout, "\t%zu MiB (%zu B) for LET related data\n", let_mem.host >> 20, let_mem.host);
     fprintf(stdout, "\t%zu MiB (%zu KiB) for domain decomposition related data\n", box_mem.host >> 20, box_mem.host >> 10);
     fprintf(stdout, "\t%zu MiB (%zu B) for enclosing ball related data\n", ball_mem.host >> 20, ball_mem.host);
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+    fprintf(stdout, "\t%zu MiB (%zu B) for external N-body particles\n"  ,  ext_mem.host >> 20,  ext_mem.host);
+#endif//SWITCH_WITH_J_PARALLELIZATION
 #endif//SERIALIZED_EXECUTION
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
     fprintf(stdout, "\t%zu MiB (%zu GiB) for accuracy test data\n", alloc_acc_dev.host >> 20, alloc_acc_dev.host >> 30);
@@ -1826,7 +1914,12 @@ int main(int argc, char **argv)
        , cycles_let_hst, cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
 #ifdef  SWITCH_WITH_J_PARALLELIZATION
-       , maxNgrp_ext, laneInfo_ext_hst, laneInfo_ext_dev
+       , Ni_list, head_list, grpNum_list, grpNum_disp
+       , maxNgrp_ext, laneInfo_ext_dev, laneInfo_ext_hst
+       , laneInfo_hst, ibody_dist0_dev
+#ifdef  MPI_VIA_HOST
+       , ibody_dist0, ibody_dist1
+#endif//MPI_VIA_HOST
 #endif//SWITCH_WITH_J_PARALLELIZATION
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
@@ -1924,7 +2017,12 @@ int main(int argc, char **argv)
        , cycles_let_hst, cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
 #ifdef  SWITCH_WITH_J_PARALLELIZATION
-       , maxNgrp_ext, laneInfo_ext_hst, laneInfo_ext_dev
+       , Ni_list, head_list, grpNum_list, grpNum_disp
+       , maxNgrp_ext, laneInfo_ext_dev, laneInfo_ext_hst
+       , laneInfo_hst, ibody_dist0_dev
+#ifdef  MPI_VIA_HOST
+       , ibody_dist0, ibody_dist1
+#endif//MPI_VIA_HOST
 #endif//SWITCH_WITH_J_PARALLELIZATION
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
@@ -2501,7 +2599,12 @@ int main(int argc, char **argv)
 	 , cycles_let_hst, cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
 #ifdef  SWITCH_WITH_J_PARALLELIZATION
-	 , maxNgrp_ext, laneInfo_ext_hst, laneInfo_ext_dev
+	 , Ni_list, head_list, grpNum_list, grpNum_disp
+	 , maxNgrp_ext, laneInfo_ext_dev, laneInfo_ext_hst
+	 , laneInfo_hst, ibody_dist0_dev
+#ifdef  MPI_VIA_HOST
+	 , ibody_dist0, ibody_dist1
+#endif//MPI_VIA_HOST
 #endif//SWITCH_WITH_J_PARALLELIZATION
 #endif//SERIALIZED_EXECUTION
 #ifdef  COUNT_INTERACTIONS
@@ -2887,24 +2990,12 @@ int main(int argc, char **argv)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
      , acc_ext0
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-     , ipos_ext0, iacc_ext0
-#ifdef  GADGET_MAC
-     , iacc_ext_old0
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
      );
   freeParticleDataSoA_hst
     (idx1, pos1, acc1, vel1, time1
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
      , acc_ext1
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-     , ipos_ext1, iacc_ext1
-#ifdef  GADGET_MAC
-     , iacc_ext_old1
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
      );
   freeParticleDataSoA_dev
     (idx0_dev, pos0_dev, acc0_dev, vel0_dev, time0_dev,
@@ -2925,37 +3016,55 @@ int main(int argc, char **argv)
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
      , res_dev
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-     , ipos_ext_dev, iacc_ext_dev
-#ifdef  GADGET_MAC
-     , iacc_ext_old_dev
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
      );
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+#ifdef  MPI_VIA_HOST
+  freeParticleDataSoA_hst
+    (idx_dist0, pos_dist0, acc_dist0, vel_dist0, time_dist0
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , acc_ext_dist0
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
+  freeParticleDataSoA_hst
+    (idx_dist1, pos_dist1, acc_dist1, vel_dist1, time_dist1
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , acc_ext_dist1
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
+#endif//MPI_VIA_HOST
+  freeParticleDataSoA_dev
+    (idx_dist0_dev, pos_dist0_dev, acc_dist0_dev, vel_dist0_dev, time_dist0_dev,
+     idx_dist1_dev, pos_dist1_dev, acc_dist1_dev, vel_dist1_dev, time_dist1_dev
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , acc_ext_dist_dev
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     , neighbor_dist_dev
+#ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
+     , encBall_dist_dev, encBall_dist_hst
+#endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+     , box_min_dist_hst, box_max_dist_hst, icom_dist_hst
+#endif//USE_RECTANGULAR_BOX_FOR_LET
+#ifdef  DPADD_FOR_ACC
+     , tmp_dist_dev
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+     , res_dist_dev
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+     );
+#endif//SWITCH_WITH_J_PARALLELIZATION
 #else///BLOCK_TIME_STEP
   freeParticleDataSoA_hst
     (idx0, pos0, acc0, vx0, vy0, vz0
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
      , acc_ext0
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-     , ipos_ext0, iacc_ext0
-#ifdef  GADGET_MAC
-     , iacc_ext_old0
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
      );
   freeParticleDataSoA_hst
     (idx1, pos1, acc1, vx1, vy1, vz1
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
      , acc_ext1
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-     , ipos_ext1, iacc_ext1
-#ifdef  GADGET_MAC
-     , iacc_ext_old1
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
      );
   freeParticleDataSoA_dev
     (idx0_dev, pos0_dev, acc0_dev, vx0_dev, vy0_dev, vz0_dev
@@ -2976,13 +3085,43 @@ int main(int argc, char **argv)
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
      , res_dev
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-     , ipos_ext_dev, iacc_ext_dev
-#ifdef  GADGET_MAC
-     , iacc_ext_old_dev
-#endif//GADGET_MAC
-#endif//SWITCH_WITH_J_PARALLELIZATION
      );
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+#ifdef  MPI_VIA_HOST
+  freeParticleDataSoA_hst
+    (idx_dist0, pos_dist0, acc_dist0, vx_dist0, vy_dist0, vz_dist0
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , acc_ext_dist0
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
+  freeParticleDataSoA_hst
+    (idx_dist1, pos_dist1, acc_dist1, vx_dist1, vy_dist1, vz_dist1
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , acc_ext_dist1
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     );
+#endif//MPI_VIA_HOST
+  freeParticleDataSoA_dev
+    (idx_dist0_dev, pos_dist0_dev, acc_dist0_dev, vx_dist0_dev, vy_dist0_dev, vz_dist0_dev
+     , idx1_dev, pos1_dev, acc1_dev, vx1_dev, vy1_dev, vz1_dev
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     , acc_ext_dist_dev
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     , neighbor_dist_dev
+#ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
+     , encBall_dist_dev, encBall_dist_hst
+#endif//RETURN_CENTER_BY_PHKEY_GENERATOR
+#ifdef  USE_RECTANGULAR_BOX_FOR_LET
+     , box_min_dist_hst, box_max_dist_hst, icom_dist_hst
+#endif//USE_RECTANGULAR_BOX_FOR_LET
+#ifdef  DPADD_FOR_ACC
+     , tmp_dist_dev
+#endif//DPADD_FOR_ACC
+#   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+     , res_dist_dev
+#endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION) && (!defined(SERIALIZED_EXECUTION) || (NWARP > 1))
+     );
+#endif//SWITCH_WITH_J_PARALLELIZATION
 #endif//BLOCK_TIME_STEP
 
 #ifdef  COUNT_INTERACTIONS
@@ -3113,6 +3252,10 @@ int main(int argc, char **argv)
      domrank_dev, domrank_hst, numNew_dev, numNew_hst, gmem_dom, gsync0_dom, gsync1_dom);
 
   freeGeometricEnclosingBall_dev(r2geo_dev);
+
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  releaseExternalBodyInfo(Ni_list, head_list, grpNum_list, grpNum_disp);
+#endif//SWITCH_WITH_J_PARALLELIZATION
 #endif//SERIALIZED_EXECUTION
 
   /** destroy CUDA streams */
