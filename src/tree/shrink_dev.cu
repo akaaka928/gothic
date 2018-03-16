@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/06 (Tue)
+ * @date 2018/03/16 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -20,6 +20,11 @@
 #include <stdbool.h>
 #include <math.h>
 #include <helper_cuda.h>
+
+#ifdef  MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
+#include <mpi.h>
+#include "mpilib.h"
+#endif//MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
 
 #include "macro.h"
 #include "cudalib.h"
@@ -222,6 +227,9 @@ __global__ void countContinuousNeighbor_kernel(const int Ni, position * RESTRICT
  */
 extern "C"
 void examineParticleSeparation(const int Ni, iparticle body_dev, brentStatus *brent
+#ifdef  MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
+			       , MPI_Comm mpi_comm
+#endif//MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
 #ifdef  EXEC_BENCHMARK
 			       , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
@@ -241,8 +249,14 @@ void examineParticleSeparation(const int Ni, iparticle body_dev, brentStatus *br
   initStopwatch();
 #endif//HUNT_FIND_PARAMETER
 
+#ifndef MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
   const real rmax = thrust::reduce((thrust::device_ptr<real>)body_dev.neighbor, (thrust::device_ptr<real>)(body_dev.neighbor + Ni), ZERO, thrust::maximum<real>());
   const real rmin = rmax * NEIGHBOR_LENGTH_SHRINK_FACTOR;
+#else///MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
+  real rmax = thrust::reduce((thrust::device_ptr<real>)body_dev.neighbor, (thrust::device_ptr<real>)(body_dev.neighbor + Ni), ZERO, thrust::maximum<real>());
+  const real rmin = rmax * NEIGHBOR_LENGTH_SHRINK_FACTOR;
+  chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &rmax, 1, MPI_REALDAT, MPI_MAX, mpi_comm));
+#endif//MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
 
   if( brent->initialized )
     brentPerturb(brent, (double)rmin, (double)rmax);

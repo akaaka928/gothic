@@ -14,7 +14,7 @@ EXEC=bin/magi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    # PROBLEM=2
+    PROBLEM=2
     # PROBLEM=27
     # PROBLEM=60
     # PROBLEM=61
@@ -22,7 +22,7 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=91
     # PROBLEM=92
     # PROBLEM=93
-    PROBLEM=94
+    # PROBLEM=94
 fi
 ###############################################################
 # number of N-body particles
@@ -37,10 +37,10 @@ if [ -z "$NTOT" ]; then
     # NTOT=16384
     # NTOT=32768
     # NTOT=65536
-    NTOT=131072
+    # NTOT=131072
     # NTOT=262144
     # NTOT=524288
-    # NTOT=1048576
+    NTOT=1048576
     # NTOT=2097152
     # NTOT=4194304
     # NTOT=8388608

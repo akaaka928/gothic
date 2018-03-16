@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/14 (Wed)
+ * @date 2018/03/13 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -151,7 +151,7 @@
 #define NEGLECT_DENSITY_MINIMUM (1.0e-10)
 
 
-#define INDEX4D(n0, n1, n2, n3, ii, jj, kk, ll) ((ll) + (n3) * ((kk) + (n2) * ((jj) + (n1) * (ii))))
+/* #define INDEX4D(n0, n1, n2, n3, ii, jj, kk, ll) ((ll) + (n3) * ((kk) + (n2) * ((jj) + (n1) * (ii)))) */
 
 /* #define NDISKBIN_RAD (16384) */
 #define NDISKBIN_RAD (131072)

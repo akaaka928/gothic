@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/03/09 (Fri)
+ * @date 2018/03/13 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -614,7 +614,6 @@ real getCenter(const int num, nbody_particle *body, real com[restrict], real vel
   __NOTE__("%s\n", "start");
 
 
-  double mtot = 0.0;
   double comx = 0.0;
   double comy = 0.0;
   double comz = 0.0;
@@ -623,15 +622,15 @@ real getCenter(const int num, nbody_particle *body, real com[restrict], real vel
   double velz = 0.0;
   real rhalf = ZERO;
 
+  int Npart = num >> 1;
+
   bool converge = false;
   int steps = 0;
   while( true ){
-    real rold = rhalf;
-
     for(int ii = 0; ii < num; ii++){
-      const real xx = body[ii].x - CAST_D2R(comx);
-      const real yy = body[ii].y - CAST_D2R(comy);
-      const real zz = body[ii].z - CAST_D2R(comz);
+      const real xx = CAST_D2R(CAST_R2D(body[ii].x) - comx);
+      const real yy = CAST_D2R(CAST_R2D(body[ii].y) - comy);
+      const real zz = CAST_D2R(CAST_R2D(body[ii].z) - comz);
       /* is recipe for correcting precession required?? */
       const real R2 = 1.0e-30f + xx * xx + yy * yy;
       const real r2 = R2 + zz * zz;
@@ -643,26 +642,26 @@ real getCenter(const int num, nbody_particle *body, real com[restrict], real vel
     qsort(body, num, sizeof(nbody_particle), radAscendingOrder);
     rhalf = (num & 1) ? (body[num >> 1].rad) : (HALF * (body[num >> 1].rad + body[(num >> 1) + 1].rad));
 
-    if( converge )
+    if( converge || (Npart < 1) )
       break;
 
-    mtot = 0.0;
     velx = 0.0;
     vely = 0.0;
     velz = 0.0;
 
+    double mtot = 0.0;
     double newx = 0.0;
     double newy = 0.0;
     double newz = 0.0;
 
     /** find center-of-mass and bulk velocity of particles within the half-mass radius (assumption: equal-mass particles) */
-    for(int ii = 0; ii < (num >> 1); ii++){
-      const double xx = CAST_R2D(body[ii].x) - comx;
-      const double yy = CAST_R2D(body[ii].y) - comy;
-      const double zz = CAST_R2D(body[ii].z) - comz;
-
+    for(int ii = 0; ii < Npart; ii++){
       const double mass = CAST_R2D(body[ii].m);
       mtot += mass;
+
+      const double xx = CAST_R2D(body[ii].x);
+      const double yy = CAST_R2D(body[ii].y);
+      const double zz = CAST_R2D(body[ii].z);
 
       const double vx = CAST_R2D(body[ii].vx);
       const double vy = CAST_R2D(body[ii].vy);
@@ -675,25 +674,26 @@ real getCenter(const int num, nbody_particle *body, real com[restrict], real vel
       velx += mass * vx;
       vely += mass * vy;
       velz += mass * vz;
-    }/* for(int ii = 0; ii < (num >> 1); ii++){ */
+    }/* for(int ii = 0; ii < Npart; ii++){ */
 
-    mtot = 1.0 / mtot;
-    newx *= mtot;
-    newy *= mtot;
-    newz *= mtot;
-    velx *= mtot;
-    vely *= mtot;
-    velz *= mtot;
+    const double minv = 1.0 / mtot;
+    newx *= minv;
+    newy *= minv;
+    newz *= minv;
+    velx *= minv;
+    vely *= minv;
+    velz *= minv;
 
     const double dx = newx - comx;
     const double dy = newy - comy;
     const double dz = newz - comz;
 
-    converge = ( (dx * dx + dy * dy + dz * dz) < 1.0e-6 ) || ((rhalf / rold) < 1.0e-6);
+    converge = (dx * dx + dy * dy + dz * dz) < 1.0e-6;
 
     if( (steps > 1024) && !converge ){
-      __FPRINTF__(stderr, "Warning: does not converged after %d iterations (%d particles; error are %e and %e).\n", steps, num, dx * dx + dy * dy + dz * dz, rhalf / rold);
-      break;
+      __FPRINTF__(stderr, "Warning: does not converged after %d iterations (%d particles; error are %e): shrink Npart(%d) to %d.\n", steps, num, dx * dx + dy * dy + dz * dz, Npart, Npart >> 1);
+      Npart >>= 1;
+      steps = -1;
     }/* if( (steps > 1024) && !converge ){ */
 
     comx = newx;
@@ -702,6 +702,16 @@ real getCenter(const int num, nbody_particle *body, real com[restrict], real vel
 
     steps++;
   }/* while( true ){ */
+
+  if( num == 1 ){
+    com[0] = ZERO;
+    com[1] = ZERO;
+    com[2] = ZERO;
+    vel[0] = ZERO;
+    vel[1] = ZERO;
+    vel[2] = ZERO;
+    rhalf = ZERO;
+  }/* if( num == 1 ){ */
 
   com[0] = CAST_D2R(comx);
   com[1] = CAST_D2R(comy);
@@ -855,7 +865,7 @@ void analyzeHorizontalProfile(const int kind, int * restrict bodyHead, int * res
       for(int ii = head; ii < tail; ii++){
       	mass += body[ii].m;
 
-	ver[ii - head] = body[ii].z - com[2];
+	ver[ii - head] = FABS(body[ii].z - com[2]);
 
 	const real invR = UNITY / body[ii].hor;
 	const real xx = body[ii].x - com[0];

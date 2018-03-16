@@ -13,10 +13,12 @@ import multiprocessing as mp
 import utils as utils
 
 
-nxpanel, nypanel = 1, 2
+outputPDF = False
+
 
 # filename = "m31"
-# Ndark = 1
+# Nskip = 1
+# skip = [0]
 # init = 0
 # last = 47
 # fmin, fmax = 1.0e+7, 1.0e+10
@@ -27,181 +29,234 @@ nxpanel, nypanel = 1, 2
 # ytics = [-10, -5, 0, 5, 10]
 
 filename = "halocusp_run"
-Ndark = 1
+Nskip = 1
+skip = [0]
 init = 0
-# last = 0
 last = 140
-fmin, fmax = 1.0e+2, 1.0e+8
-xmin, xmax = -2.0, 2.0
-ymin, ymax = -2.0, 2.0
-zmin, zmax = -2.0, 2.0
-xtics = [-1.0, 0.0, 1.0]
-ytics = [-1.0, 0.0, 1.0]
+# last = 0
+fmin, fmax = 1.0e-6, 1.0e-1
+lab = ["halo", "core", "GC"]
 
-nx, ny, nz = 128, 128, 128
-# nx, ny, nz = 256, 256, 256
-# nx, ny, nz = 512, 512, 512
-
-dx, dy, dz = (xmax - xmin) / nx, (ymax - ymin) / ny, (zmax - zmin) / nz
-
+# filename = "hernquist"
+# Nskip = 0
+# init = 0
+# last = 47
+# # last = 0
+# fmin, fmax = 1.0e-3, 1.0e+1
+# lab = ["halo"]
 
 
-def draw_figure(fileid, Nkind):
-    fig = utils.set_figure(nxpanel, nypanel)
-    ax = [0] * nxpanel * nypanel
-    utils.locate_panels(fig, ax, nxpanel, nypanel, True, True)
 
+pt = ["o", "s", "^", "D"]
+ls = ["-", ":", "-.", "--"]
+col = ["black", "red", "blue", "magenta"]
+
+
+
+def draw_figure(fileid, kind):
     snapshot = "{:03d}".format(fileid)
-    input_file = "dat/" + filename + ".plot" + snapshot + ".h5"
+    input_file = "dat/" + filename + ".plt" + snapshot + ".h5"
 
     # read snapshot
     h5file = h5py.File(input_file, "r")
 
     # read attributes
-    length_unit = h5file["/"].attrs["length_astro_unit_name"]
-    time_unit = h5file["/"].attrs["time_astro_unit_name"]
-    mass_unit = h5file["/"].attrs["mass_astro_unit_name"]
-    time = h5file["/"].attrs["time"]
+    length_unit = h5file["/"].attrs["length_astro_unit_name"][0]
+    time_unit = h5file["/"].attrs["time_astro_unit_name"][0]
+    mass_unit = h5file["/"].attrs["mass_astro_unit_name"][0]
+    velocity_unit = h5file["/"].attrs["velocity_astro_unit_name"][0]
+    density_unit = h5file["/"].attrs["density_astro_unit_name"][0]
+    col_density_unit = h5file["/"].attrs["col_density_astro_unit_name"][0]
+    time = h5file["/"].attrs["time"][0]
 
-    xx = np.linspace(xmin, xmax, nx)
-    yy = np.linspace(ymin, ymax, ny)
-    zz = np.linspace(zmin, zmax, nz)
+    # kind = h5file["/"].attrs["kinds"][0]
+    nx = h5file["/"].attrs["nx"][0]
+    ny = h5file["/"].attrs["ny"][0]
+    nz = h5file["/"].attrs["nz"][0]
 
-    dSxyinv = 1.0 / (dx * dy)
-    dSxzinv = 1.0 / (dx * dz)
-
-    xy_sum = np.zeros((nx, ny))
-    xz_sum = np.zeros((nx, nz))
-
-
-    for ii in range(Ndark, Nkind):
-        # read particle position and mass
-        folder = "data" + str(ii) + "/"
-        position = h5file[folder + "position"].value
-        mass = h5file[folder + "mass"].value
-
-        # data preparation
-        px = position[:, 0]
-        py = position[:, 1]
-        pz = position[:, 2]
-
-        xy_map = np.zeros((nx, ny))
-        xz_map = np.zeros((nx, nz))
-
-        for jj in range(mass.size):
-            xj = int(np.rint((px[jj] - xmin) / dx - 0.5))
-            yj = int(np.rint((py[jj] - ymin) / dy - 0.5))
-            zj = int(np.rint((pz[jj] - zmin) / dz - 0.5))
-
-            # apply smoothing by point spreading function
-            xp = np.linspace(xmin + (xj - Nsmooth) * dx, xmin + (xj + Nsmooth + 1) * dx, 2 * Nsmooth + 2)
-            yp = np.linspace(ymin + (yj - Nsmooth) * dy, ymin + (yj + Nsmooth + 1) * dy, 2 * Nsmooth + 2)
-            zp = np.linspace(zmin + (zj - Nsmooth) * dz, zmin + (zj + Nsmooth + 1) * dz, 2 * Nsmooth + 2)
-
-            erfx = [0] * (2 * Nsmooth + 2)
-            erfy = [0] * (2 * Nsmooth + 2)
-            erfz = [0] * (2 * Nsmooth + 2)
-            for kk in range(2 * Nsmooth + 2):
-                erfx[kk] = math.erf((xp[kk] - px[jj]) * PSFinv)
-                erfy[kk] = math.erf((yp[kk] - py[jj]) * PSFinv)
-                erfz[kk] = math.erf((zp[kk] - pz[jj]) * PSFinv)
-
-            psf_x = [0] * (2 * Nsmooth + 1)
-            psf_y = [0] * (2 * Nsmooth + 1)
-            psf_z = [0] * (2 * Nsmooth + 1)
-            for kk in range(2 * Nsmooth + 1):
-                psf_x[kk] = 0.5 * (erfx[kk + 1] - erfx[kk])
-                psf_y[kk] = 0.5 * (erfy[kk + 1] - erfy[kk])
-                psf_z[kk] = 0.5 * (erfz[kk + 1] - erfz[kk])
+    # memory allocation for surface density maps
+    xy_map = np.zeros((kind, nx, ny))
+    xz_map = np.zeros((kind, nx, nz))
+    xx     = np.zeros((kind, nx + 1))
+    yy     = np.zeros((kind, ny + 1))
+    zz     = np.zeros((kind, nz + 1))
 
 
-            for kk in range(max(0, xj - Nsmooth), min(nx - 1, xj + Nsmooth)):
-                for ll in range(max(0, yj - Nsmooth), min(ny - 1, yj + Nsmooth)):
-                    xy_map[kk][ll] += mass[jj] * psf_x[kk - xj - Nsmooth] * psf_y[ll - yj - Nsmooth]
-                for ll in range(max(0, zj - Nsmooth), min(nz - 1, zj + Nsmooth)):
-                    xz_map[kk][ll] += mass[jj] * psf_x[kk - xj - Nsmooth] * psf_z[ll - zj - Nsmooth]
+    fig_rho = utils.set_figure(1, 1)
+    fig_enc = utils.set_figure(1, 1)
+    fig_sig = utils.set_figure(1, 1)
+    fig_Sig = utils.set_figure(1, 1)
+    fig_ver = utils.set_figure(1, 1)
+    fig_sig2D = utils.set_figure(1, 1)
+    ax_rho = [0]
+    ax_enc = [0]
+    ax_sig = [0]
+    ax_Sig = [0]
+    ax_ver = [0]
+    ax_sig2D = [0]
+    utils.locate_panels(fig_rho, ax_rho, 1, 1, True, True)
+    utils.locate_panels(fig_enc, ax_enc, 1, 1, True, True)
+    utils.locate_panels(fig_sig, ax_sig, 1, 1, True, True)
+    utils.locate_panels(fig_Sig, ax_Sig, 1, 1, True, True)
+    utils.locate_panels(fig_ver, ax_ver, 1, 1, True, True)
+    utils.locate_panels(fig_sig2D, ax_sig2D, 1, 1, True, True)
 
 
-        xy_map *= dSxyinv
-        xy_sum += xy_map
-        xz_map *= dSxzinv
-        xz_sum += xz_map
-        xy_map = np.maximum(xy_map, fmin)
-        xy_map = np.minimum(xy_map, fmax)
-        xz_map = np.maximum(xz_map, fmin)
-        xz_map = np.minimum(xz_map, fmax)
-        # for jj in range(nx):
-        #     for kk in range(ny):
-        #         xy_map[jj][kk] *= dSxyinv
-        #         xy_sum[jj][kk] += xy_map[jj][kk]
-        #     for kk in range(nz):
-        #         xz_map[jj][kk] *= dSxzinv
-        #         xz_sum[jj][kk] += xz_map[jj][kk]
+    nxpanel = 0
+    nypanel = 2
+    Ndata = 0
+    for ii in range(kind):
+        num = h5file["attr" + str(ii)].attrs["number"][0]
+        if (Nskip == 0) or (ii not in skip) and (num > 1):
+            # read surface density maps
+            folder = "field" + str(ii) + "/"
+            xy_map[nxpanel] = h5file[folder + "Sigma_xy"].value
+            xz_map[nxpanel] = h5file[folder + "Sigma_zx"].value.T
+            xx[nxpanel] = h5file[folder + "x"].value
+            yy[nxpanel] = h5file[folder + "y"].value
+            zz[nxpanel] = h5file[folder + "z"].value
+
+            nxpanel += 1
+            Ndata += 1
+
+        folder = "rad" + str(ii) + "/"
+        rad = h5file[folder + "rad"].value
+        rho = h5file[folder + "rho"].value
+        enc = h5file[folder + "enc"].value
+        sig = h5file[folder + "sig"].value
+
+        folder = "hor" + str(ii) + "/"
+        hor = h5file[folder + "hor"].value
+        ver = h5file[folder + "height"].value
+        Sig = h5file[folder + "Sigma"].value
+        sigR = h5file[folder + "sigR"].value
+        sigp = h5file[folder + "sigp"].value
+        sigz = h5file[folder + "sigz"].value
+
+        # measure of the thickness, according to Rodionov & Sotnikova (2013)
+        ver *= 1.82
+
+        ax_rho[0].plot(rad, rho, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
+        ax_enc[0].plot(rad, enc, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
+        ax_sig[0].plot(rad, sig, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
+        ax_Sig[0].plot(hor, Sig, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
+        ax_ver[0].plot(hor, ver, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
+        ax_sig2D[0].plot(hor, sigR, pt[0], linestyle = ls[ii], color = col[ii], label = r"$\sigma_R$" + " (" + lab[ii] + ")")
+        ax_sig2D[0].plot(hor, sigp, pt[1], linestyle = ls[ii], color = col[ii], label = r"$\sigma_p$" + " (" + lab[ii] + ")")
+        ax_sig2D[0].plot(hor, sigz, pt[2], linestyle = ls[ii], color = col[ii], label = r"$\sigma_z$" + " (" + lab[ii] + ")")
 
 
-        # plot the data
-        xz_idx = ii * nypanel + 1
-        xy_idx = ii * nypanel
-        img = ax[xz_idx].imshow(xz_map.T, extent = [xmin, xmax, zmin, zmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
-        img = ax[xy_idx].imshow(xy_map.T, extent = [xmin, xmax, ymin, ymax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
 
-        ax[xz_idx].set_ylim([zmin, zmax])
-        ax[xy_idx].set_ylim([ymin, ymax])
-
-        ax[xz_idx].spines["bottom"].set_color("white")
-        ax[xy_idx].spines[   "top"].set_color("white")
-        ax[xz_idx].spines[  "left"].set_color("white")
-        ax[xy_idx].spines[  "left"].set_color("white")
-        if ii != (nxpanel - 1):
-            ax[xz_idx].spines["right"].set_color("white")
-            ax[xy_idx].spines["right"].set_color("white")
-
-        ax[xy_idx].set_xlabel(r"$x$ ({:<})".format(length_unit[0].decode('UTF-8')))
 
     # close the HDF5 file
     h5file.close()
 
-    xy_sum = np.maximum(xy_sum, fmin)
-    xy_sum = np.minimum(xy_sum, fmax)
-    xz_sum = np.maximum(xz_sum, fmin)
-    xz_sum = np.minimum(xz_sum, fmax)
+    summary = False
+    if nxpanel > 1:
+        for ii in range(nxpanel):
+            xy_map[nxpanel] += xy_map[ii]
+            xz_map[nxpanel] += xz_map[ii]
 
-    img = ax[1].imshow(xz_sum.T, extent = [xmin, xmax, zmin, zmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
-    img = ax[0].imshow(xy_sum.T, extent = [xmin, xmax, ymin, ymax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
-
-    ax[1].set_ylim([zmin, zmax])
-    ax[0].set_ylim([ymin, ymax])
-
-    ax[1].spines["bottom"].set_color("white")
-    ax[0].spines[   "top"].set_color("white")
-    ax[1].spines[ "right"].set_color("white")
-    ax[0].spines[ "right"].set_color("white")
-
-    ax[0].set_xlabel(r"$x$ ({:<})".format(length_unit[0].decode('UTF-8')))
-    ax[0].set_ylabel(r"$y$ ({:<})".format(length_unit[0].decode('UTF-8')))
-    ax[1].set_ylabel(r"$z$ ({:<})".format(length_unit[0].decode('UTF-8')))
+        nxpanel += 1
+        summary = True
 
 
-
-    for idx in range(nxpanel * nypanel):
-        ax[idx].set_xlim([xmin, xmax])
-
-        ax[idx].set_xticks(xtics)
-        ax[idx].set_yticks(ytics)
-        # ax[idx].grid()
-        ax[idx].tick_params(axis = "both", direction = "in", color = "white", bottom = "on", top = "on", left = "on", right = "on")
+    xy_map = np.maximum(xy_map, fmin)
+    xy_map = np.minimum(xy_map, fmax)
+    xz_map = np.maximum(xz_map, fmin)
+    xz_map = np.minimum(xz_map, fmax)
 
 
-        # # set caption
-        # caption  = "(" + "{:^c}".format(97 + ii + nxpanel * (nypanel - 1 - jj)) + ")"
-        # caption += " " + r"${:<} = {:.1f}$ {:<}".format("z_\mathrm{d}", zd[kk], length_unit[0].decode('UTF-8'))
-        # caption += ", $t =$" + r"${:.0f}$ {:<}".format(time[0] / 1000, "Gyr")
-        # # ax[idx].text(xmin + 2, zmax - 7, caption, fontsize=12)
-        # ax[idx].text(xmin + 0.5, zmax - 2.5, caption, fontsize=11)
+    # plot the data
+    fig = utils.set_figure(nxpanel, nypanel)
+    ax = [0] * nxpanel * nypanel
+    utils.locate_panels(fig, ax, nxpanel, nypanel, True, True)
+
+    xmin, xmax = xx[0][0], xx[0][nx]
+    ymin, ymax = yy[0][0], yy[0][ny]
+    zmin, zmax = zz[0][0], zz[0][nz]
+
+    head = 0
+    if summary:
+        img = ax[1].imshow(xz_map[nxpanel - 1].T, extent = [xmin, xmax, zmin, zmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
+        img = ax[0].imshow(xy_map[nxpanel - 1].T, extent = [xmin, xmax, ymin, ymax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
+        head = 1
+
+    for ii in range(Ndata):
+        img = ax[(head + ii) * nypanel + 1].imshow(xz_map[ii].T, extent = [xmin, xmax, zmin, zmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
+        img = ax[(head + ii) * nypanel    ].imshow(xy_map[ii].T, extent = [xmin, xmax, ymin, ymax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
 
 
-    # utils.set_shared_xlabel(ax, r"$x$ ({:<})".format(length_unit[0].decode('UTF-8')))
-    # utils.set_shared_ylabel(ax, r"$z$ ({:<})".format(length_unit[0].decode('UTF-8')))
+    for ii in range(nxpanel * nypanel):
+        ax[ii].set_xlim([xmin, xmax])
+        # ax[ii].set_xticks(xtics)
+        # ax[ii].set_yticks(ytics)
+        ax[ii].tick_params(axis = "both", direction = "in", color = "white", bottom = True, top = True, left = True, right = True)
+        ax[ii].spines["bottom"].set_color("white")
+        ax[ii].spines[   "top"].set_color("white")
+        ax[ii].spines[  "left"].set_color("white")
+        ax[ii].spines[ "right"].set_color("white")
+
+    for ii in range(nxpanel):
+        ax[ii * nypanel + 1].set_ylim([zmin, zmax])
+        ax[ii * nypanel    ].set_ylim([ymin, ymax])
+        ax[ii * nypanel    ].set_xlabel(r"$x$ ({:<})".format(length_unit.decode("UTF-8")))
+        ax[ii * nypanel + 1].spines[   "top"].set_color("black")
+        ax[ii * nypanel    ].spines["bottom"].set_color("black")
+
+
+    ax[0].set_ylabel(r"$y$ ({:<})".format(length_unit.decode("UTF-8")))
+    ax[1].set_ylabel(r"$z$ ({:<})".format(length_unit.decode("UTF-8")))
+    ax[0].spines["left"].set_color("black")
+    ax[1].spines["left"].set_color("black")
+    ax[(nxpanel - 1) * nypanel + 1].spines[ "right"].set_color("black")
+    ax[(nxpanel - 1) * nypanel    ].spines[ "right"].set_color("black")
+
+
+
+    ax_rho[0].set_xlabel(r"$r$ ({:<})".format(length_unit.decode("UTF-8")))
+    ax_enc[0].set_xlabel(r"$r$ ({:<})".format(length_unit.decode("UTF-8")))
+    ax_sig[0].set_xlabel(r"$r$ ({:<})".format(length_unit.decode("UTF-8")))
+    ax_Sig[0].set_xlabel(r"$R$ ({:<})".format(length_unit.decode("UTF-8")))
+    ax_ver[0].set_xlabel(r"$R$ ({:<})".format(length_unit.decode("UTF-8")))
+    ax_sig2D[0].set_xlabel(r"$R$ ({:<})".format(length_unit.decode("UTF-8")))
+
+    ax_rho[0].set_ylabel(r"$\rho$ ({:<})".format(density_unit.decode("UTF-8")))
+    ax_enc[0].set_ylabel(r"$M_\mathrm{enc}$" + r"({:<})".format(mass_unit.decode("UTF-8")))
+    ax_sig[0].set_ylabel(r"$\sigma_r$ ({:<})".format(velocity_unit.decode("UTF-8")))
+    ax_Sig[0].set_ylabel(r"$\Sigma$ ({:<})".format(col_density_unit.decode("UTF-8")))
+    ax_ver[0].set_ylabel(r"$1.82\, \mathrm{median}(|z|)$" + r"({:<})".format(length_unit.decode("UTF-8")))
+    ax_sig2D[0].set_ylabel(r"$\sigma$ ({:<})".format(velocity_unit.decode("UTF-8")))
+
+    ax_rho[0].loglog()
+    ax_enc[0].loglog()
+    ax_Sig[0].loglog()
+    ax_sig[0].semilogx()
+    ax_ver[0].semilogx()
+    ax_sig2D[0].semilogx()
+
+    ax_rho[0].grid()
+    ax_enc[0].grid()
+    ax_sig[0].grid()
+    ax_Sig[0].grid()
+    ax_ver[0].grid()
+    ax_sig2D[0].grid()
+
+
+    # add legends
+    handles, labels = ax_rho[0].get_legend_handles_labels()
+    # ax_rho[0].legend(handles[::-1], labels[::-1], numpoints = 1, handlelength = 2.5, loc = 'best')
+    ax_rho[0].legend(handles, labels, numpoints = 1, handlelength = 2.5, loc = 'best')
+    handles, labels = ax_enc[0].get_legend_handles_labels()
+    ax_enc[0].legend(handles, labels, numpoints = 1, handlelength = 2.5, loc = 'best')
+    handles, labels = ax_sig[0].get_legend_handles_labels()
+    ax_sig[0].legend(handles, labels, numpoints = 1, handlelength = 2.5, loc = 'best')
+    handles, labels = ax_Sig[0].get_legend_handles_labels()
+    ax_Sig[0].legend(handles, labels, numpoints = 1, handlelength = 2.5, loc = 'best')
+    handles, labels = ax_ver[0].get_legend_handles_labels()
+    ax_ver[0].legend(handles, labels, numpoints = 1, handlelength = 2.5, loc = 'best')
+    handles, labels = ax_sig2D[0].get_legend_handles_labels()
+    ax_sig2D[0].legend(handles, labels, numpoints = 1, handlelength = 2.5, loc = 'best')
 
 
     # add colorbar
@@ -220,19 +275,36 @@ def draw_figure(fileid, Nkind):
         if y1 < yt:
             y1 = yt
     colorbar_ax = fig.add_axes([x1, y0, 0.1 / nxpanel, y1 - y0])
-    cbar = fig.colorbar(img, cax = colorbar_ax, label = r"$\Sigma$ ($M_\odot$ kpc$^{-2}$)")
+    cbar = fig.colorbar(img, cax = colorbar_ax, label = r"$\Sigma$ ({:<})".format(col_density_unit.decode("UTF-8")))
+    # cbar = fig.colorbar(img, cax = colorbar_ax, label = r"$\Sigma$ ($M_\odot$ kpc$^{-2}$)")
     cbar.solids.set_edgecolor("face")
 
-
     # add current time
-    # fig.suptitle(r"$t = {:.2f}$ {:<}".format(time[0] / 1000, "Gyr"))
-    # fig.suptitle(r"$t = {:.0f}$ {:<}".format(time[0], "Myr"))
-    fig.suptitle(r"$t = {:.3f}$ {:<}".format(time[0] / 1000, "Gyr"))
+    fig.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
+    # fig.suptitle(r"$t = {:.2f}$ {:<}".format(time / 1000, "Gyr"))
+
+    fig_rho.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
+    fig_enc.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
+    fig_sig.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
+    fig_Sig.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
+    fig_ver.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
+    fig_sig2D.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
 
 
-    # plt.show()
-    figname = "fig/" + filename + "_star" + snapshot
-    plt.savefig(figname + ".png", format = "png", dpi = 150, bbox_inches = "tight")
+
+    # save figures
+    figname = "fig/" + filename + "_map" + snapshot
+    fig.savefig(figname + ".png", format = "png", dpi =  96, bbox_inches = "tight")
+    fig_rho.savefig("fig/" + filename + "_rho" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
+    fig_enc.savefig("fig/" + filename + "_enc" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
+    fig_sig.savefig("fig/" + filename + "_sig" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
+    fig_Sig.savefig("fig/" + filename + "_Sig" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
+    fig_ver.savefig("fig/" + filename + "_ver" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
+    fig_sig2D.savefig("fig/" + filename + "_sigRz" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
+    if outputPDF:
+        fig.savefig(figname + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
+    plt.close("all")
+
 
 
 def wrapper(argv):
@@ -248,9 +320,6 @@ plt.rcParams['text.usetex'] = True
 # plt.rcParams['font.size'] = 16
 plt.rcParams['font.size'] = 14
 
-if contain < 3:
-    print("NOTE: contain is {:<}; smaller than 3".format(contain))
-
 # read number of all component(s)
 txtfile = open("doc/" + filename + ".summary.txt", "r")
 unit = txtfile.readline()
@@ -259,13 +328,10 @@ Nkind = int(tmp[0])
 # Nsphe = int(tmp[2])
 txtfile.close()
 
-if Nkind > Ndark:
-    nxpanel += Nkind - Ndark
-
-    my_cmap = utils.generate_cmap(["darkblue", "deepskyblue", "lime", "yellow", "red", "magenta", "white"])
-    # cores = mp.cpu_count()
-    cores = int(np.ceil(mp.cpu_count() / 2))
-    pool = mp.Pool(cores)
-    args = [(ii, Nkind) for ii in range(init, last + 1, 1)]
-    pool.map(wrapper, args)
-    pool.close()
+my_cmap = utils.generate_cmap(["darkblue", "deepskyblue", "lime", "yellow", "red", "magenta", "white"])
+# cores = mp.cpu_count()
+cores = int(np.ceil(mp.cpu_count() / 2))
+pool = mp.Pool(cores)
+args = [(ii, Nkind) for ii in range(init, last + 1, 1)]
+pool.map(wrapper, args)
+pool.close()

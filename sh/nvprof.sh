@@ -1,6 +1,6 @@
 #!/bin/sh
-if [ $# -lt 5 ]; then
-    echo "$# input(s) is/are detected while at least 5 inputs are required to specify <EXEC>, <LOGNAME>, <JOB_ID>, <PROCS_PER_NODE>, and <PROCS_PER_SOCKET>" 1>&2
+if [ $# -lt 6 ]; then
+    echo "$# input(s) is/are detected while at least 5 inputs are required to specify <EXEC>, <LOGNAME>, <JOB_ID>, <PROCS_PER_NODE>, <PROCS_PER_SOCKET>, and <NVPROF_TIMEOUT>" 1>&2
     exit 1
 fi
 
@@ -17,19 +17,19 @@ STDERR=${LOGNAME}.e${JOB_ID}_${RANK}
 PROCS_PER_NODE=$4
 PROCS_PER_SOCKET=$5
 
-export TMPDIR=.
+NVPROF_TIMEOUT=$6
 
 # execute job with numactl --localalloc
 EXEC=$1
-OPTION="`echo $@ | sed -e "s|$EXEC||" -e "s|$LOGNAME||" -e "s/$JOB_ID//" -e "s/$PROCS_PER_NODE//" -e "s/$PROCS_PER_SOCKET//"`"
+OPTION="`echo $@ | sed -e "s|$EXEC||" -e "s|$LOGNAME||" -e "s/$JOB_ID//" -e "s/$PROCS_PER_NODE//" -e "s/$PROCS_PER_SOCKET//" -e "s/$NVPROF_TIMEOUT//"`"
 if [ `which numactl` ]; then
     TEMPID=`expr $RANK % $PROCS_PER_NODE`
     SOCKET=`expr $TEMPID / $PROCS_PER_SOCKET`
-    # echo "numactl --cpunodebind=$SOCKET --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
-    numactl --cpunodebind=$SOCKET --localalloc nvprof --timeout 25 --force-overwrite -o ${LOGNAME}.${JOB_ID}.${RANK}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    echo "numactl --cpunodebind=$SOCKET --localalloc nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o ${LOGNAME}_${JOB_ID}_rank${RANK}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
+    numactl --cpunodebind=$SOCKET --localalloc nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o ${LOGNAME}_${JOB_ID}_rank${RANK}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 else
-    # echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
-    $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    echo "nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o ${LOGNAME}_${JOB_ID}_rank${RANK}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
+    nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o ${LOGNAME}_${JOB_ID}_rank${RANK}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 fi
 
 exit 0

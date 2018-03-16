@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/12 (Mon)
+ * @date 2018/03/16 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -19,7 +19,8 @@
 #ifdef  SERIALIZED_EXECUTION
 #define OUTPUT_MEMORY_USAGE
 #else///SERIALIZED_EXECUTION
-#define MONITOR_SIMULATION_STATUS
+/* #define MONITOR_SIMULATION_STATUS */
+#define SHARED_AUTO_TUNER
 #endif//SERIALIZED_EXECUTION
 
 #include <stdio.h>
@@ -102,6 +103,38 @@ real theta2;
 #   if  defined(HUNT_MAKE_PARAMETER) || defined(HUNT_FIND_PARAMETER)
 int treeBuildCalls = 0;
 #endif//defined(HUNT_MAKE_PARAMETER) || defined(HUNT_FIND_PARAMETER)
+
+
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+static inline void selectCommunicationMode
+(const int grpNum, const int totNum, laneinfo *laneInfo_hst, const MPIcfg_tree mpi,
+ bool *transferMode, int * restrict Ni_local, int * restrict Ni_total, int * restrict Ni_list, int * restrict head_list, int * restrict grpNum_list)
+{
+  __NOTE__("%s\n", "start");
+
+  int transfer = ((float)grpNum < (FCRIT_J_PARALLELIZATION * (float)totNum)) ? 1 : 0;
+  chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &transfer, 1, MPI_INT, MPI_SUM, mpi.comm));
+
+  *transferMode = ((float)transfer > (FSIZE_J_PARALLELIZATION * (float)mpi.size));
+  if( *transferMode ){
+    __NOTE__("%s\n", "i-particle transfer mode");
+
+    *Ni_local = (grpNum > 0) ? (laneInfo_hst[grpNum - 1].head + laneInfo_hst[grpNum - 1].num) : 0;
+    chkMPIerr(MPI_Allgather(Ni_local, 1, MPI_INT, Ni_list, 1, MPI_INT, mpi.comm));
+    chkMPIerr(MPI_Allgather(&grpNum, 1, MPI_INT, grpNum_list, 1, MPI_INT, mpi.comm));
+    head_list[0] = 0;
+    for(int ii = 1; ii < mpi.size; ii++)
+      head_list[ii] = head_list[ii - 1] + Ni_list[ii - 1];
+    *Ni_total = head_list[mpi.size - 1] + Ni_list[mpi.size - 1];
+    __NOTE__("Ni_local = %d, Ni_total = %d\n", *Ni_local, *Ni_tot);
+
+    if( *Ni_total > NMAX_J_PARALLELIZATION )
+      *transferMode = false;/**< #this is a tentative treatment before developing double buffer mode for i-particle transfer mode in src/tree/walk_dev.cu */
+  }/* if( *transferMode ){ */
+
+  __NOTE__("%s\n", "end");
+}
+#endif//SWITCH_WITH_J_PARALLELIZATION
 
 
 /**
@@ -1264,6 +1297,8 @@ int main(int argc, char **argv)
 #ifdef  SWITCH_WITH_J_PARALLELIZATION
   int *Ni_list, *head_list, *grpNum_list, *grpNum_disp;
   const muse alloc_extBodyInfo = allocateExternalBodyInfo(&Ni_list, &head_list, &grpNum_list, &grpNum_disp, letcfg);
+  static bool transferMode = false;
+  static int Ni_local, Ni_total;
 #endif//SWITCH_WITH_J_PARALLELIZATION
 
 #ifdef  MPI_ONE_SIDED_FOR_LET
@@ -1410,6 +1445,10 @@ int main(int argc, char **argv)
 #endif//BLOCK_TIME_STEP
   static brentStatus brentDistance;  brentDistance.initialized = false;
   static brentMemory brentHistory = {0.0, 0.0, 0, 0};
+#ifdef  SHARED_AUTO_TUNER
+  static double shared_brent_u;
+  static int shared_brent_num;
+#endif//SHARED_AUTO_TUNER
 
   /** read initial condition */
 #   if  defined(MONITOR_ENERGY_ERROR) && defined(USE_HDF5_FORMAT)
@@ -1803,6 +1842,9 @@ int main(int argc, char **argv)
     /** therefore, brentDistance.a, brentDistance.b, brentDistance.x.pos are set by calling brentInit1st() */
     examineParticleSeparation
       (num, ibody0_dev, &brentDistance
+#ifdef  MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
+       , letcfg.comm
+#endif//MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
 #ifdef  EXEC_BENCHMARK
        , execTime
 #endif//EXEC_BENCHMARK
@@ -1914,6 +1956,7 @@ int main(int argc, char **argv)
        , cycles_let_hst, cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
 #ifdef  SWITCH_WITH_J_PARALLELIZATION
+       , false, Ni_local, Ni_total
        , Ni_list, head_list, grpNum_list, grpNum_disp
        , maxNgrp_ext, laneInfo_ext_dev, laneInfo_ext_hst
        , laneInfo_hst, ibody_dist0_dev
@@ -2017,6 +2060,7 @@ int main(int argc, char **argv)
        , cycles_let_hst, cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
 #ifdef  SWITCH_WITH_J_PARALLELIZATION
+       , false, Ni_local, Ni_total
        , Ni_list, head_list, grpNum_list, grpNum_disp
        , maxNgrp_ext, laneInfo_ext_dev, laneInfo_ext_hst
        , laneInfo_hst, ibody_dist0_dev
@@ -2042,12 +2086,25 @@ int main(int argc, char **argv)
 #endif//COMPARE_WITH_DIRECT_SOLVER
        );
 
+#ifndef SHARED_AUTO_TUNER
 #ifdef  USE_CLOCK_CYCLES_FOR_BRENT_METHOD
     brentDistance.u.val += (double)(*cycles_hst);
 #else///USE_CLOCK_CYCLES_FOR_BRENT_METHOD
     brentDistance.u.val += elapsed.walkTree[0];
 #endif//USE_CLOCK_CYCLES_FOR_BRENT_METHOD
     brentHistory.totNum += Ngrp;
+#else///SHARED_AUTO_TUNER
+#ifdef  USE_CLOCK_CYCLES_FOR_BRENT_METHOD
+    shared_brent_u = (double)(*cycles_hst);
+#else///USE_CLOCK_CYCLES_FOR_BRENT_METHOD
+    shared_brent_u = elapsed.walkTree[0];
+#endif//USE_CLOCK_CYCLES_FOR_BRENT_METHOD
+    shared_brent_num = Ngrp;
+    chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &shared_brent_u, 1, MPI_DOUBLE, MPI_SUM, letcfg.comm));
+    chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &shared_brent_num, 1, MPI_INT, MPI_SUM, letcfg.comm));
+    brentDistance.u.val += shared_brent_u;
+    brentHistory.totNum += shared_brent_num;
+#endif//SHARED_AUTO_TUNER
     rebuild.interval += 1.0;
     linearModel(&(rebuildParam.linearGuess), &(rebuildParam.linearStats), rebuild.interval, elapsed.walkTree[0], 1.0);
     powerModel (&(rebuildParam. powerGuess), &(rebuildParam. powerStats), rebuild.interval, elapsed.walkTree[0], 1.0);
@@ -2352,6 +2409,9 @@ int main(int argc, char **argv)
 	if( perturbBrent ){
 	  examineParticleSeparation
 	    (num, ibody0_dev, &brentDistance
+#ifdef  MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
+	     , letcfg.comm
+#endif//MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
 #ifdef  EXEC_BENCHMARK
 	     , execTime
 #endif//EXEC_BENCHMARK
@@ -2502,62 +2562,70 @@ int main(int argc, char **argv)
        );
 
 
-    /** preparation to construct LET */
 #ifndef SERIALIZED_EXECUTION
-    /** find center of enclosing ball */
+
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+    selectCommunicationMode(grpNum, Ngrp, laneInfo_hst, letcfg, &transferMode, &Ni_local, &Ni_total, Ni_list, head_list, grpNum_list);
+
+    if( !transferMode )
+#endif//SWITCH_WITH_J_PARALLELIZATION
+      {
+	/** preparation to construct LET */
+	/** find center of enclosing ball */
 #ifdef  USE_ENCLOSING_BALL_FOR_LET
-    getApproxEnclosingBall_dev
-      (num, ibody0_dev
+	getApproxEnclosingBall_dev
+	  (num, ibody0_dev
 #ifdef  OCTREE_BASED_SEARCH
-       , soaCell_dev, soaNode_dev, soaMakeBuf
+	   , soaCell_dev, soaNode_dev, soaMakeBuf
 #else///OCTREE_BASED_SEARCH
-       , soaEB, soaPH_dev, devProp
+	   , soaEB, soaPH_dev, devProp
 #endif//OCTREE_BASED_SEARCH
-       , stream_let[Nstream_let - 1]
+	   , stream_let[Nstream_let - 1]
 #ifdef  EXEC_BENCHMARK
-       , &execTime[steps - bench_begin]
+	   , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-       );
+	   );
 #endif//USE_ENCLOSING_BALL_FOR_LET
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
-    getEnclosingBox_dev(existNewTree ? Ngrp : grpNum, Ngrp, laneInfo_hst, ibody0_dev, soaPH_dev, devProp);
+	getEnclosingBox_dev(existNewTree ? Ngrp : grpNum, Ngrp, laneInfo_hst, ibody0_dev, soaPH_dev, devProp);
 #endif//USE_RECTANGULAR_BOX_FOR_LET
 
-/*     calc_r2max_dev */
-/*       (Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev */
-/* #ifdef  EXEC_BENCHMARK */
-/*        , &execTime[steps - bench_begin] */
-/* #endif//EXEC_BENCHMARK */
-/*        ); */
-    calc_r2max_dev
-      (existNewTree ? Ngrp : grpNum, laneInfo_dev, &ibody0_dev, soaGEO_dev
+	/*     calc_r2max_dev */
+	/*       (Ngrp, laneInfo_dev, &ibody0_dev, soaGEO_dev */
+	/* #ifdef  EXEC_BENCHMARK */
+	/*        , &execTime[steps - bench_begin] */
+	/* #endif//EXEC_BENCHMARK */
+	/*        ); */
+	calc_r2max_dev
+	  (existNewTree ? Ngrp : grpNum, laneInfo_dev, &ibody0_dev, soaGEO_dev
 #ifdef  EXEC_BENCHMARK
-       , &execTime[steps - bench_begin]
+	   , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
-       );
-    shareNodePosition
-      (letcfg.size, nodeInfo,
+	   );
+	shareNodePosition
+	  (letcfg.size, nodeInfo,
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
-       min, *(ibody0_dev.min_hst),
-       max, *(ibody0_dev.max_hst),
+	   min, *(ibody0_dev.min_hst),
+	   max, *(ibody0_dev.max_hst),
 #endif//USE_RECTANGULAR_BOX_FOR_LET
 #ifdef  USE_ENCLOSING_BALL_FOR_LET
-       ipos, *(ibody0_dev.encBall_hst),
+	   ipos, *(ibody0_dev.encBall_hst),
 #endif//USE_ENCLOSING_BALL_FOR_LET
 #ifdef  GADGET_MAC
-       amin, ibody0_dev.amin,
+	   amin, ibody0_dev.amin,
 #endif//GADGET_MAC
-       letcfg);
-       /** this function must be called when tree structure is rebuild */
-    if( existNewTree )
-      guessLETpartition(letcfg.size, nodeInfo, numNode,
+	   letcfg);
+	/** this function must be called when tree structure is rebuild */
+	if( existNewTree )
+	  guessLETpartition(letcfg.size, nodeInfo, numNode,
 #ifdef  USE_RECTANGULAR_BOX_FOR_LET
-			*(ibody0_dev.icom_hst),
+			    *(ibody0_dev.icom_hst),
 #else///USE_RECTANGULAR_BOX_FOR_LET
-			*(ibody0_dev.encBall_hst),
+			    *(ibody0_dev.encBall_hst),
 #endif//USE_RECTANGULAR_BOX_FOR_LET
-			letcfg);
-    existNewTree = false;
+			    letcfg);
+	existNewTree = false;
+      }
 #endif//SERIALIZED_EXECUTION
 
 
@@ -2599,6 +2667,7 @@ int main(int argc, char **argv)
 	 , cycles_let_hst, cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
 #ifdef  SWITCH_WITH_J_PARALLELIZATION
+	 , transferMode, Ni_local, Ni_total
 	 , Ni_list, head_list, grpNum_list, grpNum_disp
 	 , maxNgrp_ext, laneInfo_ext_dev, laneInfo_ext_hst
 	 , laneInfo_hst, ibody_dist0_dev
@@ -2624,6 +2693,8 @@ int main(int argc, char **argv)
 #endif//COMPARE_WITH_DIRECT_SOLVER
 	 );
 
+
+#ifndef SHARED_AUTO_TUNER
 #ifdef  USE_CLOCK_CYCLES_FOR_BRENT_METHOD
       brentDistance.u.val += (double)(*cycles_hst);
 #else///USE_CLOCK_CYCLES_FOR_BRENT_METHOD
@@ -2634,6 +2705,26 @@ int main(int argc, char **argv)
 #else///BLOCK_TIME_STEP
       brentHistory.totNum += Ngrp;
 #endif//BLOCK_TIME_STEP
+#else///SHARED_AUTO_TUNER
+#ifdef  USE_CLOCK_CYCLES_FOR_BRENT_METHOD
+      shared_brent_u = (double)(*cycles_hst);
+#else///USE_CLOCK_CYCLES_FOR_BRENT_METHOD
+      shared_brent_u = elapsed.walkTree[rebuild.reuse];
+#endif//USE_CLOCK_CYCLES_FOR_BRENT_METHOD
+      chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &shared_brent_u, 1, MPI_DOUBLE, MPI_SUM, letcfg.comm));
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+      shared_brent_num = grpNum_disp[letcfg.size - 1] + grpNum_list[letcfg.size - 1];
+#else///SWITCH_WITH_J_PARALLELIZATION
+#ifdef  BLOCK_TIME_STEP
+      shared_brent_num = grpNum;
+#else///BLOCK_TIME_STEP
+      shared_brent_num = Ngrp;
+#endif//BLOCK_TIME_STEP
+      chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &shared_brent_num, 1, MPI_INT, MPI_SUM, letcfg.comm));
+#endif//SWITCH_WITH_J_PARALLELIZATION
+      brentDistance.u.val += shared_brent_u;
+      brentHistory.totNum += shared_brent_num;
+#endif//SHARED_AUTO_TUNER
 
 
 #ifdef  SHOW_NI_DEPENDENCE

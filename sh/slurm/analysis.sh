@@ -18,6 +18,7 @@ EXEC=bin/extract
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
+    # PROBLEM=2
     PROBLEM=124
 fi
 ###############################################################
@@ -45,11 +46,23 @@ fi
 ###############################################################
 # problem specific configurations
 ###############################################################
+# dynamical stability of a Hernquist sphere
+if [ $PROBLEM -eq 2 ]; then
+    FILE=hernquist
+    FINISH=23.5
+    INTERVAL=0.5
+    XMAX=3.0
+    YMAX=3.0
+    ZMAX=3.0
+    XMIN=-$XMAX
+    YMIN=-$YMAX
+    ZMIN=-$ZMAX
+fi
+###############################################################
 # Fornax simulation
 if [ $PROBLEM -eq 124 ]; then
     FILE=halocusp_run
-    # FINISH=14000.0
-    FINISH=4400.0
+    FINISH=14000.0
     INTERVAL=100.0
     XMAX=3.0
     YMAX=3.0

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/12 (Mon)
+ * @date 2018/03/16 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2470,6 +2470,7 @@ void calcGravity_dev
  , unsigned long long int *cycles_let_hst, unsigned long long int *cycles_let_dev
 #endif//MONITOR_LETGEN_TIME
 #ifdef  SWITCH_WITH_J_PARALLELIZATION
+ , const bool transferMode, const int Ni_local, const int Ni_total
  , int * RESTRICT Ni_list, int * RESTRICT head_list, int * RESTRICT grpNum_list, int * RESTRICT displs
  , const int maxNgrp_ext, laneinfo * RESTRICT laneInfo_ext, laneinfo * RESTRICT laneInfo_ext_hst
    , laneinfo * RESTRICT laneInfo_hst, const iparticle pi_ext
@@ -2577,117 +2578,129 @@ void calcGravity_dev
 
 #ifdef  SWITCH_WITH_J_PARALLELIZATION
 
-      /** consider which mode is faster: LET communications or i-particle transfer */
-      int transfer = ((float)grpNum < (FCRIT_J_PARALLELIZATION * (float)totNum)) ? 1 : 0;
-      chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &transfer, 1, MPI_INT, MPI_SUM, mpi.comm));
+      /* /\** consider which mode is faster: LET communications or i-particle transfer *\/ */
+      /* int transfer = ((float)grpNum < (FCRIT_J_PARALLELIZATION * (float)totNum)) ? 1 : 0; */
+      /* chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &transfer, 1, MPI_INT, MPI_SUM, mpi.comm)); */
 
-      if( (float)transfer > (FSIZE_J_PARALLELIZATION * (float)mpi.size) ){
+      /* if( (float)transfer > (FSIZE_J_PARALLELIZATION * (float)mpi.size) ){ */
+      /* 	__NOTE__("%s\n", "i-particle transfer mode"); */
 
-	const int Ni_local = laneInfo_hst[grpNum - 1].head + laneInfo_hst[grpNum - 1].num;
-	chkMPIerr(MPI_Allgather(&Ni_local, 1, MPI_INT, Ni_list, 1, MPI_INT, mpi.comm));
-	chkMPIerr(MPI_Allgather(&grpNum, 1, MPI_INT, grpNum_list, 1, MPI_INT, mpi.comm));
-	head_list[0] = 0;
+      /* 	const int Ni_local = (grpNum > 0) ? (laneInfo_hst[grpNum - 1].head + laneInfo_hst[grpNum - 1].num) : 0; */
+      /* 	chkMPIerr(MPI_Allgather(&Ni_local, 1, MPI_INT, Ni_list, 1, MPI_INT, mpi.comm)); */
+      /* 	chkMPIerr(MPI_Allgather(&grpNum, 1, MPI_INT, grpNum_list, 1, MPI_INT, mpi.comm)); */
+      /* 	head_list[0] = 0; */
+      /* 	for(int ii = 1; ii < mpi.size; ii++) */
+      /* 	  head_list[ii] = head_list[ii - 1] + Ni_list[ii - 1]; */
+      /* 	const int Ni_total = head_list[mpi.size - 1] + Ni_list[mpi.size - 1]; */
+      /* 	__NOTE__("Ni_local = %d, Ni_total = %d\n", Ni_local, Ni_total); */
+
+      /* 	if( Ni_total <= NMAX_J_PARALLELIZATION ){ */
+      if( transferMode ){
+
+	displs[0] = 0;
 	for(int ii = 1; ii < mpi.size; ii++)
-	  head_list[ii] = head_list[ii - 1] + Ni_list[ii - 1];
-	const int Ni_tot = head_list[mpi.size - 1] + Ni_list[mpi.size - 1];
+	  displs[ii] = displs[ii - 1] + grpNum_list[ii - 1];
+	const int grpNum_tot = displs[mpi.size - 1] + grpNum_list[mpi.size - 1];
+	if( grpNum_tot > maxNgrp_ext ){
+	  __KILL__(stderr, "ERROR: grpNum_tot(%d) exceeds maxNgrp_ext(%d); consider increasing NUM_IGROUP_SAFETY_FACTOR defined in src/tree/shrink_dev.h or NMAX_J_PARALLELIZATION(%d) defined in src/tree/walk_dev.h\n", grpNum_tot, maxNgrp_ext, NMAX_J_PARALLELIZATION);
+	}/* if( grpNum_tot > maxNgrp_ext ){ */
+	__NOTE__("grpNum = %d, grpNum_tot = %d\n", grpNum, grpNum_tot);
 
-	if( Ni_tot <= NMAX_J_PARALLELIZATION ){
-
-	  displs[0] = 0;
-	  for(int ii = 1; ii < mpi.size; ii++)
-	    displs[ii] = displs[ii - 1] + grpNum_list[ii - 1];
-	  const int grpNum_tot = displs[mpi.size - 1] + grpNum_list[mpi.size - 1];
-	  if( grpNum_tot > maxNgrp_ext ){
-	    __KILL__(stderr, "ERROR: grpNum_tot(%d) exceeds maxNgrp_ext(%d); consider increasing NUM_IGROUP_SAFETY_FACTOR defined in src/tree/shrink_dev.h or NMAX_J_PARALLELIZATION(%d) defined in src/tree/walk_dev.h\n", grpNum_tot, maxNgrp_ext, NMAX_J_PARALLELIZATION);
-	  }/* if( grpNum_tot > maxNgrp_ext ){ */
-
-	  /** update laneInfo */
-	  chkMPIerr(MPI_Allgatherv(laneInfo_hst, grpNum, mpi.lane, laneInfo_ext_hst, grpNum_list, displs, mpi.lane, mpi.comm));
-	  for(int ii = 0; ii < mpi.size; ii++){
-	    const int offset = head_list[ii];
-	    for(int jj = displs[ii]; jj < displs[ii] + grpNum_list[ii]; jj++)
-	      laneInfo_ext_hst[jj].head += offset;
-	  }/* for(int ii = 0; ii < mpi.size; ii++){ */
-	  checkCudaErrors(cudaMemcpy(laneInfo_ext, laneInfo_ext_hst, sizeof(laneinfo) * grpNum_tot, cudaMemcpyHostToDevice));
+	/** update laneInfo */
+	chkMPIerr(MPI_Allgatherv(laneInfo_hst, grpNum, mpi.lane, laneInfo_ext_hst, grpNum_list, displs, mpi.lane, mpi.comm));
+	for(int ii = 0; ii < mpi.size; ii++){
+	  const int offset = head_list[ii];
+	  for(int jj = displs[ii]; jj < displs[ii] + grpNum_list[ii]; jj++)
+	    laneInfo_ext_hst[jj].head += offset;
+	}/* for(int ii = 0; ii < mpi.size; ii++){ */
+	__NOTE__("laneInfo_ext_hst is updated\n");
+	checkCudaErrors(cudaMemcpy(laneInfo_ext, laneInfo_ext_hst, sizeof(laneinfo) * grpNum_tot, cudaMemcpyHostToDevice));
 
 #ifndef MPI_VIA_HOST
 #ifdef  BLOCK_TIME_STEP
-	  chkMPIerr(MPI_Allgatherv(pi.jpos   , Ni_local, mpi.ipos, pi_ext.jpos   , Ni_list, head_list, mpi.ipos, mpi.comm));
+	chkMPIerr(MPI_Allgatherv(pi.jpos   , Ni_local, mpi.ipos, pi_ext.jpos   , Ni_list, head_list, mpi.ipos, mpi.comm));
+	__NOTE__("obtain pi_ext.jpos\n");
 #else///BLOCK_TIME_STEP
-	  chkMPIerr(MPI_Allgatherv(pi. pos   , Ni_local, mpi.ipos, pi_ext. pos   , Ni_list, head_list, mpi.ipos, mpi.comm));
+	chkMPIerr(MPI_Allgatherv(pi. pos   , Ni_local, mpi.ipos, pi_ext. pos   , Ni_list, head_list, mpi.ipos, mpi.comm));
+	__NOTE__("obtain pi_ext.pos\n");
 #endif//BLOCK_TIME_STEP
 #ifdef  GADGET_MAC
-	  chkMPIerr(MPI_Allgatherv(pi.acc_old, Ni_local, mpi.iacc, pi_ext.acc_old, Ni_list, head_list, mpi.iacc, mpi.comm));
+	chkMPIerr(MPI_Allgatherv(pi.acc_old, Ni_local, mpi.iacc, pi_ext.acc_old, Ni_list, head_list, mpi.iacc, mpi.comm));
+	__NOTE__("obtain pi_ext.acc_old\n");
 #endif//GADGET_MAC
 #else///MPI_VIA_HOST
 #ifdef  BLOCK_TIME_STEP
-	  checkCudaErrors(cudaMemcpy(pi_ext_hst_loc.jpos, pi.jpos, sizeof(position) * Ni_local, cudaMemcpyDeviceToHost));
-	  chkMPIerr(MPI_Allgatherv(pi_ext_hst_loc.jpos, Ni_local, mpi.ipos, pi_ext_hst_ful.jpos, Ni_list, head_list, mpi.ipos, mpi.comm));
-	  checkCudaErrors(cudaMemcpy(pi_ext.jpos, pi_ext_hst_ful.jpos, sizeof(position) * Ni_tot, cudaMemcpyHostToDevice));
+	__NOTE__("cudaMemcpy for pi_ext_hst_loc.pos\n");
+	checkCudaErrors(cudaMemcpy(pi_ext_hst_loc.pos, pi.jpos, sizeof(position) * Ni_local, cudaMemcpyDeviceToHost));
+	__NOTE__("MPI_Allgatherv for pi_ext_hst_???.pos\n");
+	chkMPIerr(MPI_Allgatherv(pi_ext_hst_loc.pos, Ni_local, mpi.ipos, pi_ext_hst_ful.pos, Ni_list, head_list, mpi.ipos, mpi.comm));
+	__NOTE__("cudaMemcpy for pi_ext.jpos\n");
+	checkCudaErrors(cudaMemcpy(pi_ext.jpos, pi_ext_hst_ful.pos, sizeof(position) * Ni_total, cudaMemcpyHostToDevice));
+	__NOTE__("obtain pi_ext.jpos\n");
 #else///BLOCK_TIME_STEP
-	  checkCudaErrors(cudaMemcpy(pi_ext_hst_loc.pos, pi.pos, sizeof(position) * Ni_local, cudaMemcpyDeviceToHost));
-	  chkMPIerr(MPI_Allgatherv(pi_ext_hst_loc.pos, Ni_local, mpi.ipos, pi_ext_hst_ful.pos, Ni_list, head_list, mpi.ipos, mpi.comm));
-	  checkCudaErrors(cudaMemcpy(pi_ext.pos, pi_ext_hst_ful.pos, sizeof(position) * Ni_tot, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(pi_ext_hst_loc.pos, pi.pos, sizeof(position) * Ni_local, cudaMemcpyDeviceToHost));
+	chkMPIerr(MPI_Allgatherv(pi_ext_hst_loc.pos, Ni_local, mpi.ipos, pi_ext_hst_ful.pos, Ni_list, head_list, mpi.ipos, mpi.comm));
+	checkCudaErrors(cudaMemcpy(pi_ext.pos, pi_ext_hst_ful.pos, sizeof(position) * Ni_total, cudaMemcpyHostToDevice));
+	__NOTE__("obtain pi_ext.pos\n");
 #endif//BLOCK_TIME_STEP
 #ifdef  GADGET_MAC
-	  checkCudaErrors(cudaMemcpy(pi_ext_hst_loc.acc_old, pi.acc_old, sizeof(acceleration) * Ni_local, cudaMemcpyDeviceToHost));
-	  chkMPIerr(MPI_Allgatherv(pi_ext_hst_loc.acc_old, Ni_local, mpi.iacc, pi_ext_hst_ful.acc_old, Ni_list, head_list, mpi.iacc, mpi.comm));
-	  checkCudaErrors(cudaMemcpy(pi_ext.acc_old, pi_ext_hst_ful.acc_old, sizeof(acceleration) * Ni_tot, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(pi_ext_hst_loc.acc, pi.acc_old, sizeof(acceleration) * Ni_local, cudaMemcpyDeviceToHost));
+	chkMPIerr(MPI_Allgatherv(pi_ext_hst_loc.acc, Ni_local, mpi.iacc, pi_ext_hst_ful.acc, Ni_list, head_list, mpi.iacc, mpi.comm));
+	checkCudaErrors(cudaMemcpy(pi_ext.acc, pi_ext_hst_ful.acc, sizeof(acceleration) * Ni_total, cudaMemcpyHostToDevice));
+	__NOTE__("obtain pi_ext.acc_old\n");
 #endif//GADGET_MAC
 #endif//MPI_VIA_HOST
 
-	  /** initialize acceleration and potential */
-	  callInitAccFunc(thrd, blck, pi_ext, grpNum_tot, laneInfo_ext
+	/** initialize acceleration and potential */
+	callInitAccFunc(thrd, blck, pi_ext, grpNum_tot, laneInfo_ext
 #ifndef BLOCK_TIME_STEP
-			  , Ni_tot
+			, Ni_total
 #endif//BLOCK_TIME_STEP
-			  );
+			);
 
-	  /** calculate gravity for i-particles in multiple domains by local tree */
-	  callCalcGravityFunc(blck, thrd, sinfo, &sidx, laneInfo_ext, pi_ext, 0, tree, grpNum_tot, 0, cycles_dev, buf
+	/** calculate gravity for i-particles in multiple domains by local tree */
+	callCalcGravityFunc(blck, thrd, sinfo, &sidx, laneInfo_ext, pi_ext, 0, tree, grpNum_tot, 0, cycles_dev, buf
 #ifdef  COUNT_INTERACTIONS
-			      , treeInfo
+			    , treeInfo
 #endif//COUNT_INTERACTIONS
-			      );
+			    );
 
-	  /** accumulation of gravitational force by using MPI_Reduce_scatter for simple implementation */
-	  for(int ii = 0; ii < mpi.size; ii++)
-	    Ni_list[ii] <<= 2;/**< Ni_list[ii] = Ni_list[ii] * 4 (# of elements) */
+	/** accumulation of gravitational force by using MPI_Reduce_scatter for simple implementation */
+	for(int ii = 0; ii < mpi.size; ii++)
+	  Ni_list[ii] <<= 2;/**< Ni_list[ii] = Ni_list[ii] * 4 (# of elements) */
 #ifndef MPI_VIA_HOST
-	  chkMPIerr(MPI_Reduce_scatter(pi_ext.acc, pi.acc, Ni_list, MPI_REALDAT, MPI_SUM, mpi.comm));
+	chkMPIerr(MPI_Reduce_scatter(pi_ext.acc, pi.acc, Ni_list, MPI_REALDAT, MPI_SUM, mpi.comm));
 #else///MPI_VIA_HOST
-	  checkCudaErrors(cudaMemcpy(pi_ext_hst_loc.acc, pi_ext.acc, sizeof(acceleration) * Ni_tot, cudaMemcpyDeviceToHost));
-	  chkMPIerr(MPI_Reduce_scatter(pi_ext_hst_loc.acc, pi_ext_hst_ful.acc, Ni_list, MPI_REALDAT, MPI_SUM, mpi.comm));
-	  checkCudaErrors(cudaMemcpy(pi.acc, pi_ext_hst_ful.acc, sizeof(acceleration) * Ni_local, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(pi_ext_hst_loc.acc, pi_ext.acc, sizeof(acceleration) * Ni_total, cudaMemcpyDeviceToHost));
+	chkMPIerr(MPI_Reduce_scatter(pi_ext_hst_loc.acc, pi_ext_hst_ful.acc, Ni_list, MPI_REALDAT, MPI_SUM, mpi.comm));
+	checkCudaErrors(cudaMemcpy(pi.acc, pi_ext_hst_ful.acc, sizeof(acceleration) * Ni_local, cudaMemcpyHostToDevice));
 #endif//MPI_VIA_HOST
-	}/* if( Ni_tot <= NMAX_J_PARALLELIZATION ){ */
-	else{
-	  /* double_buffer_mode;use while() loop; */
+      /* 	}/\* if( Ni_total <= NMAX_J_PARALLELIZATION ){ *\/ */
+      /* 	else{ */
+      /* 	  /\* double_buffer_mode;use while() loop; *\/ */
 
-	  goto tentative_escape_point;
-	  /* set # of iterations; */
+      /* 	  goto tentative_escape_point; */
+      /* 	  /\* set # of iterations; *\/ */
 
 
-	  /*   MPI_Allgather about laneInfo_ext_hst, pi for first group; */
-	  /*   initialize acceleration for first group; */
+      /* 	  /\*   MPI_Allgather about laneInfo_ext_hst, pi for first group; *\/ */
+      /* 	  /\*   initialize acceleration for first group; *\/ */
 
-	  /*   for(int iter = 0; iter < Niter; iter++){ */
+      /* 	  /\*   for(int iter = 0; iter < Niter; iter++){ *\/ */
 
-	  /*     calc_gravity; */
+      /* 	  /\*     calc_gravity; *\/ */
 
-	  /*     if( iter + 1 < Niter ){ */
-	  /*       initialize acceleration for next group; */
-	  /*       MPI_Allgather about laneInfo, pi for next group; */
-	  /*     } */
-	  /*   } */
-	}/* else{ */
-      }/* if( (float)transfer > (FSIZE_J_PARALLELIZATION * (float)mpi.size) ){ */
+      /* 	  /\*     if( iter + 1 < Niter ){ *\/ */
+      /* 	  /\*       initialize acceleration for next group; *\/ */
+      /* 	  /\*       MPI_Allgather about laneInfo, pi for next group; *\/ */
+      /* 	  /\*     } *\/ */
+      /* 	  /\*   } *\/ */
+      /* 	}/\* else{ *\/ */
+      /* }/\* if( (float)transfer > (FSIZE_J_PARALLELIZATION * (float)mpi.size) ){ *\/ */
+      }/* if( transferMode ){ */
       else
 #endif//SWITCH_WITH_J_PARALLELIZATION
 	{
-#ifdef  SWITCH_WITH_J_PARALLELIZATION
-	tentative_escape_point:
-#endif//SWITCH_WITH_J_PARALLELIZATION
 
 #ifdef  MPI_ONE_SIDED_FOR_LET
 	  __NOTE__("MPI_Win_lock_all before MPI communications\n");

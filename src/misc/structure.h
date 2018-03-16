@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/12 (Mon)
+ * @date 2018/03/13 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -47,10 +47,18 @@
 
 
 #ifdef  RUN_ON_PC
-#   if  NUM_BODY_MAX > 8388608
+/* #   if  NUM_BODY_MAX > 8388608 */
+/* #undef  NUM_BODY_MAX */
+/* #define NUM_BODY_MAX  (8388608) */
+/* #endif//NUM_BODY_MAX > 8388608 */
+#   if  NUM_BODY_MAX > 1048576
 #undef  NUM_BODY_MAX
-#define NUM_BODY_MAX  (8388608)
-#endif//NUM_BODY_MAX > 8388608
+#define NUM_BODY_MAX  (1048576)
+#endif//NUM_BODY_MAX > 1048576
+/* #   if  NUM_BODY_MAX > 131072 */
+/* #undef  NUM_BODY_MAX */
+/* #define NUM_BODY_MAX  (131072) */
+/* #endif//NUM_BODY_MAX > 131072 */
 #endif//RUN_ON_PC
 
 

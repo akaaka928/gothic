@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/06 (Tue)
+ * @date 2018/03/16 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -17,6 +17,10 @@
 #ifndef SHRINK_DEV_H
 #define SHRINK_DEV_H
 
+
+#ifdef  MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
+#include <mpi.h>
+#endif//MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
 
 #include "macro.h"
 #include "cudalib.h"
@@ -83,6 +87,9 @@ extern "C"
    int *inumPerLane, int *maxNgrp, const int num_max);
 
   void examineParticleSeparation(const int Ni, iparticle body_dev, brentStatus *brent
+#ifdef  MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
+				 , MPI_Comm mpi_comm
+#endif//MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
 #ifdef  EXEC_BENCHMARK
 				 , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK

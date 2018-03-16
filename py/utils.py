@@ -40,17 +40,17 @@ def locate_panels(fig, ax, nx, ny, share_xaxis, share_yaxis):
             yl = ymin + jj * ybin + ymargin
             kk = ii * ny + jj
             ax[kk] = fig.add_axes((xl, yl, xbin - 2 * xmargin, ybin - 2 * ymargin))
-            ax[kk].tick_params(axis = "both", direction = "in", bottom = "on", top = "on", left = "on", right = "on")
+            ax[kk].tick_params(axis = "both", direction = "in", bottom = True, top = True, left = True, right = True)
 
             if share_xaxis == True:
-                ax[kk].tick_params(labelbottom = "off")
+                ax[kk].tick_params(labelbottom = False)
                 if jj == 0:
-                    ax[kk].tick_params(labelbottom = "on")
+                    ax[kk].tick_params(labelbottom = True)
 
             if share_yaxis == True:
-                ax[kk].tick_params(labelleft = "off")
+                ax[kk].tick_params(labelleft = False)
                 if ii == 0:
-                    ax[kk].tick_params(labelleft = "on")
+                    ax[kk].tick_params(labelleft = True)
 
 
 def set_shared_xlabel(ax, xlabel):

@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/03/12 (Mon) 18:18:25
+# last updated on 2018/03/16 (Fri) 13:22:50
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -21,6 +21,7 @@ DEBUG	:= -DNDEBUG
 # Execution options
 FORCE_SINGLE_GPU_RUN	:= 0
 COMBINE_WITH_J_PARALLEL	:= 1
+MPI_AUTO_TUNE_FOR_RMAX	:= 1
 SKIP_UNUSED_LET_BUILD	:= 1
 RECTANGULAR_BOX_FOR_LET	:= 1
 ENCLOSING_BALL_FOR_LET	:= 0
@@ -169,13 +170,25 @@ endif
 ifeq ($(FORCE_SINGLE_GPU_RUN), 1)
 CCARG	+= -DSERIALIZED_EXECUTION
 CUARG	+= -DSERIALIZED_EXECUTION
+COMBINE_WITH_J_PARALLEL	:= 0
+MPI_AUTO_TUNE_FOR_RMAX	:= 0
+SKIP_UNUSED_LET_BUILD	:= 0
+RECTANGULAR_BOX_FOR_LET	:= 0
+ENCLOSING_BALL_FOR_LET	:= 0
 COMMUNICATION_VIA_HOST	:= 0
+USE_MPI_GET_FOR_LET	:= 0
+USE_MPI_GET_FOR_EXCG	:= 0
+CARE_EXTERNAL_PARTICLES	:= 0
 else
 # direct solver is not parallelized
 EVALUATE_FORCE_ERROR	:= 0
 ifeq ($(COMBINE_WITH_J_PARALLEL), 1)
 CCARG	+= -DSWITCH_WITH_J_PARALLELIZATION
 CUARG	+= -DSWITCH_WITH_J_PARALLELIZATION
+endif
+ifeq ($(MPI_AUTO_TUNE_FOR_RMAX), 1)
+CCARG	+= -DMPI_MAX_FOR_RMAX_IN_AUTO_TUNING
+CUARG	+= -DMPI_MAX_FOR_RMAX_IN_AUTO_TUNING
 endif
 ifeq ($(MONITOR_LETGEN_TIME), 1)
 CCARG	+= -DMONITOR_LETGEN_TIME
@@ -565,7 +578,6 @@ UTILGPU	+= peano_dev.cu
 # TREESRC	+= make.c macutil.c
 # TREESRC	:= make.c
 TREEGPU	:= neighbor_dev.cu
-UTILGPU	+= shrink_dev.cu
 ifeq ($(FORCE_SINGLE_GPU_RUN), 0)
 LETHOST	:= let.c
 LET_GPU	:= let_dev.cu
@@ -576,6 +588,11 @@ GEO_GPU	+= icom_dev.cu
 endif
 else
 TREEGPU	+= adv_dev.cu make_dev.cu walk_dev.cu
+endif
+ifeq ($(MPI_AUTO_TUNE_FOR_RMAX), 1)
+LET_GPU	+= shrink_dev.cu
+else
+UTILGPU	+= shrink_dev.cu
 endif
 ifeq ($(SET_EXTERNAL_FIELD), 1)
 POT_EXT	:= potential_dev.cu

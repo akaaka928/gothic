@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/02 (Fri)
+ * @date 2018/03/14 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -40,9 +40,9 @@
  * @brief extend number of arrays for tree node
  */
 #ifndef USE_GPU_FOR_MONITOR
-/* #define EXTEND_NUM_TREE_NODE (3.0f) */
 #define EXTEND_NUM_TREE_NODE (4.0f)
 #else///USE_GPU_FOR_MONITOR
+/* #define EXTEND_NUM_TREE_NODE (3.0f) */
 #define EXTEND_NUM_TREE_NODE (2.0f)
 #endif//USE_GPU_FOR_MONITOR
 
