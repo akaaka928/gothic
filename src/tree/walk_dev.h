@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/16 (Fri)
+ * @date 2018/03/17 (Sat)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -53,8 +53,8 @@
  * @brief consider to exploit j-parallelization when grpNum < FCRIT_J_PARALLELIZATION * totNum
  */
 /* #define FCRIT_J_PARALLELIZATION (2.5e-1f) */
-/* #define FCRIT_J_PARALLELIZATION (1.25e-1f) */
-#define FCRIT_J_PARALLELIZATION (6.25e-2f)
+#define FCRIT_J_PARALLELIZATION (1.25e-1f)
+/* #define FCRIT_J_PARALLELIZATION (6.25e-2f) */
 /* #define FCRIT_J_PARALLELIZATION (3.125e-2f) */
 
 /**

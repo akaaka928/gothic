@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/16 (Fri)
+ * @date 2018/03/17 (Sat)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -20,7 +20,7 @@
 #define OUTPUT_MEMORY_USAGE
 #else///SERIALIZED_EXECUTION
 /* #define MONITOR_SIMULATION_STATUS */
-#define SHARED_AUTO_TUNER
+/* #define SHARED_AUTO_TUNER */
 #endif//SERIALIZED_EXECUTION
 
 #include <stdio.h>

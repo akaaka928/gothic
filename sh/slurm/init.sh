@@ -39,8 +39,8 @@ if [ -z "$NTOT" ]; then
     # NTOT=65536
     # NTOT=131072
     # NTOT=262144
-    # NTOT=524288
-    NTOT=1048576
+    NTOT=524288
+    # NTOT=1048576
     # NTOT=2097152
     # NTOT=4194304
     # NTOT=8388608

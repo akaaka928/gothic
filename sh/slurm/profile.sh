@@ -4,10 +4,10 @@
 #SBATCH -t 00:10:00           # upper limit of elapsed time
 #SBATCH -p normal             # partition name
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
-# #SBATCH --ntasks=1            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
-# #SBATCH --ntasks-per-socket=1 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
-#SBATCH --ntasks=2            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
-#SBATCH --ntasks-per-socket=2 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
+#SBATCH --ntasks=1            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
+#SBATCH --ntasks-per-socket=1 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
+# #SBATCH --ntasks=2            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
+# #SBATCH --ntasks-per-socket=2 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
 #SBATCH --get-user-env        # retrieve the login environment variables
 ###############################################################
 
@@ -316,12 +316,12 @@ else
     STDERR=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.err
     if [ `which numactl` ]; then
 	# run with numactl
-	echo "numactl --localalloc nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o ${FILE}_${SLURM_JOB_NAME}_${SLURM_JOB_ID}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-	numactl --localalloc nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o ${FILE}_${SLURM_JOB_NAME}_${SLURM_JOB_ID}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+	echo "numactl --localalloc nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o log/${FILE}_${SLURM_JOB_NAME}_${SLURM_JOB_ID}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+	numactl --localalloc nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o log/${FILE}_${SLURM_JOB_NAME}_${SLURM_JOB_ID}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
     else
 	# run without numactl
-	echo "nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o ${FILE}_${SLURM_JOB_NAME}_${SLURM_JOB_ID}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-	nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o ${FILE}_${SLURM_JOB_NAME}_${SLURM_JOB_ID}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+	echo "nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o log/${FILE}_${SLURM_JOB_NAME}_${SLURM_JOB_ID}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+	nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o log/${FILE}_${SLURM_JOB_NAME}_${SLURM_JOB_ID}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
     fi
 fi
 ###############################################################
