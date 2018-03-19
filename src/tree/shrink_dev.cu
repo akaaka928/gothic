@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/16 (Fri)
+ * @date 2018/03/19 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -14,6 +14,13 @@
  * The MIT License is applied to this software, see LICENSE.txt
  *
  */
+
+/**
+ * @def OUTPUT_AUTO_TUNING_PARAMETER
+ *
+ * @brief a switch to output values in Brent's method
+ */
+#define OUTPUT_AUTO_TUNING_PARAMETER
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -259,11 +266,15 @@ void examineParticleSeparation(const int Ni, iparticle body_dev, brentStatus *br
 #endif//MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
 
   if( brent->initialized )
-    brentPerturb(brent, (double)rmin, (double)rmax);
+    brentPerturb(brent, CAST_R2D(rmin), CAST_R2D(rmax));
   else{
     brent->initialized = true;
-    brentInit1st(brent, (double)rmin, (double)rmax);
+    brentInit1st(brent, CAST_R2D(rmin), CAST_R2D(rmax));
   }/* else{ */
+
+#ifdef  OUTPUT_AUTO_TUNING_PARAMETER
+  __FPRINTF__(stdout, "min, max = %e, %e\n", rmin, rmax);
+#endif//OUTPUT_AUTO_TUNING_PARAMETER
 
 #ifdef  HUNT_FIND_PARAMETER
   stopStopwatch(&(elapsed->sortNeighbors));
@@ -303,6 +314,10 @@ void updateParticleGroups
 #ifdef  EXEC_BENCHMARK
   initStopwatch();
 #endif//EXEC_BENCHMARK
+
+#ifdef  OUTPUT_AUTO_TUNING_PARAMETER
+  __FPRINTF__(stdout, "brent_rad = %e\n", rmax);
+#endif//OUTPUT_AUTO_TUNING_PARAMETER
 
   int Nrem = BLOCKSIZE(Ni, NTHREADS_SHRINK);
   if( Nrem <= MAX_BLOCKS_PER_GRID )

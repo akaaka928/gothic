@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/17 (Sat)
+ * @date 2018/03/19 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -362,8 +362,7 @@ static inline void configDistribution
   if( initialized )    brentCalc1st(brent, 1.0e-13);
   else                 initialized = true;
 
-  updateParticleGroups(num, laneInfo_hst, inumPerLane, maxNgrp, Ngrp,
-		       ibody_dev, inum_dev, inum_hst, (real)brent->u.pos
+  updateParticleGroups(num, laneInfo_hst, inumPerLane, maxNgrp, Ngrp, ibody_dev, inum_dev, inum_hst, CAST_D2R(brent->u.pos)
 #ifdef  EXEC_BENCHMARK
 		       , execTime
 #endif//EXEC_BENCHMARK
