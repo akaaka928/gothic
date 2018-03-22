@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/06 (Tue)
+ * @date 2018/03/20 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1963,8 +1963,8 @@ void exchangeParticles_dev
 
 
   for(int ii = 0; ii < numProcs; ii++){
-    MPI_Status status;
-    chkMPIerr(MPI_Wait(&(domain.req[ii]), &status));
+    MPI_Status dom;
+    chkMPIerr(MPI_Wait(&(domain.req[ii]), &dom));
   }/* for(int ii = 0; ii < numProcs; ii++){ */
 
 
@@ -2020,6 +2020,10 @@ void exchangeParticles_dev
   status->v.val *= scale;
   status->u.val *= scale;
   memory->previous *= scale;
+#if 0
+  if( memory->interval >= BRENT_METHOD_LAUNCH )
+    memory->interval = BRENT_METHOD_LAUNCH - 1;
+#endif
 
   /** reset counter */
   measured->sum_excg = 0.0;

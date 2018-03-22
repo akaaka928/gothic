@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/03/22 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -22,9 +22,31 @@
 
 
 /* parameters for purturbing results of Brent's method (not to lock in a local minimum) */
-#define BRENT_METHOD_ALLOW (1.1)
 #define BRENT_METHOD_LAUNCH (5)
 #define BRENT_METHOD_MODIFY (2)
+/* #define BRENT_METHOD_MODIFY (4) */
+#define BRENT_METHOD_ALLOW (1.12)
+#ifndef SERIALIZED_EXECUTION
+#define BRENT_METHOD_ALLOW_LAUNCH (10.0 * BRENT_METHOD_ALLOW)
+/* #define BRENT_METHOD_ALLOW_LAUNCH (4.0) */
+/* #define BRENT_METHOD_ALLOW_LAUNCH (5.0) */
+/* #define BRENT_METHOD_ALLOW_LAUNCH (6.0) */
+/* #define BRENT_METHOD_ALLOW_LAUNCH (8.0) */
+/* #define BRENT_METHOD_ALLOW_LAUNCH (9.0) */
+/* #define BRENT_METHOD_ALLOW_LAUNCH (10.0) */
+/* #define BRENT_METHOD_ALLOW_LAUNCH (11.0) */
+/* #define BRENT_METHOD_ALLOW_LAUNCH (12.0) */
+/* #define BRENT_METHOD_ALLOW_LAUNCH (16.0) */
+/* #define BRENT_METHOD_ALLOW_LAUNCH (20.0) */
+#endif//SERIALIZED_EXECUTION
+
+
+/**
+ * @def NMAX_FOR_PERTURBATION_ABOUT_BRENT
+ *
+ * @brief a parameter to re-initialize Brent's status
+ */
+#define NMAX_FOR_PERTURBATION_ABOUT_BRENT (128)
 
 
 /**

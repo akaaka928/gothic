@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/17 (Sat)
+ * @date 2018/03/22 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -53,9 +53,14 @@
  * @brief consider to exploit j-parallelization when grpNum < FCRIT_J_PARALLELIZATION * totNum
  */
 /* #define FCRIT_J_PARALLELIZATION (2.5e-1f) */
-#define FCRIT_J_PARALLELIZATION (1.25e-1f)
+/* #define FCRIT_J_PARALLELIZATION (1.25e-1f) */
 /* #define FCRIT_J_PARALLELIZATION (6.25e-2f) */
 /* #define FCRIT_J_PARALLELIZATION (3.125e-2f) */
+/* #define FCRIT_J_PARALLELIZATION (1.5625e-2f) */
+/* #define FCRIT_J_PARALLELIZATION (7.8125e-3f) */
+#define FCRIT_J_PARALLELIZATION (3.90625e-3f)
+/* #define FCRIT_J_PARALLELIZATION (1.953125e-3f) */
+/* #define FCRIT_J_PARALLELIZATION (9.765625e-4f) */
 
 /**
  * @def FSIZE_J_PARALLELIZATION
@@ -587,6 +592,9 @@ extern "C"
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
 #   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
    , unsigned long long int  *cycles_hst, unsigned long long int  *cycles_dev
+#ifndef SERIALIZED_EXECUTION
+   , unsigned long long int  *cycles_dist_hst, unsigned long long int  *cycles_dist_dev
+#endif//SERIALIZED_EXECUTION
 #endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
    , unsigned long long int  *cycles_let_hst, unsigned long long int  *cycles_let_dev
@@ -599,6 +607,9 @@ extern "C"
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
 #   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
    unsigned long long int **cycles_hst, unsigned long long int **cycles_dev,
+#ifndef SERIALIZED_EXECUTION
+   unsigned long long int **cycles_dist_hst, unsigned long long int **cycles_dist_dev,
+#endif//SERIALIZED_EXECUTION
 #endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
    unsigned long long int **cycles_let_hst, unsigned long long int **cycles_let_dev,
@@ -626,6 +637,9 @@ extern "C"
 #endif//PRINT_PSEUDO_PARTICLE_INFO
 #   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
    , unsigned long long int *cycles_hst, unsigned long long int *cycles_dev
+#ifndef SERIALIZED_EXECUTION
+   , unsigned long long int *cycles_dist_hst, unsigned long long int *cycles_dist_dev
+#endif//SERIALIZED_EXECUTION
 #endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 #ifndef SERIALIZED_EXECUTION

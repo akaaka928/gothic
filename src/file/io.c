@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/08 (Thu)
+ * @date 2018/03/20 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -863,6 +863,19 @@ void  readTentativeData(double *time, double *dt, ulong *steps, int num, ipartic
   if( (*steps != 0) && (*dropPrevTune == 0) ){
     group = H5Gopen(target, "parameters in auto-tuning", H5P_DEFAULT);
 
+    /* read number of MPI processes in the previous run */
+    int procs;
+    attribute = H5Aopen(group, "MPI_procs", H5P_DEFAULT);
+    chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &procs));
+    chkHDF5err(H5Aclose(attribute));
+
+    if( procs != 1 ){
+      *dropPrevTune = 1;
+      chkHDF5err(H5Gclose(group));
+    }/* if( procs != 1 ){ */
+  }/* if( (*steps != 0) && (*dropPrevTune == 0) ){ */
+
+  if( (*steps != 0) && (*dropPrevTune == 0) ){
     /* read attributes */
     /* read flag about FORCE_ADJUSTING_PARTICLE_TIME_STEPS */
     int forceAdjust;
@@ -1251,6 +1264,11 @@ void writeTentativeData
     attr_dims = 1;
     dataspace = H5Screate_simple(1, &attr_dims, NULL);
     int flag;
+    /* write number of MPI processes in the current run */
+    flag = 1;
+    attribute = H5Acreate(group, "MPI_procs", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &flag));
+    chkHDF5err(H5Aclose(attribute));
     /* write flag about FORCE_ADJUSTING_PARTICLE_TIME_STEPS */
 #ifdef  FORCE_ADJUSTING_PARTICLE_TIME_STEPS
     flag = 1;
@@ -1494,11 +1512,27 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int *num
 
 #ifndef  RUN_WITHOUT_GOTHIC
   /* read parameters for auto-tuning in GOTHIC */
-  /* if( (*steps != 0) && (*dropPrevTune == 0) ){ */
-  if( (*steps != 0) && (*dropPrevTune == 0) && (*steps != 926) ){
+  if( (*steps != 0) && (*dropPrevTune == 0) ){
     chkHDF5err(H5Gclose(group));
     group = H5Gopen(target, "parameters in auto-tuning", H5P_DEFAULT);
 
+    /* read number of MPI processes in the previous run */
+    int procs;
+    if( mpi->rank == 0 ){
+      hid_t attribute = H5Aopen(group, "MPI_procs", H5P_DEFAULT);
+      chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &procs));
+      chkHDF5err(H5Aclose(attribute));
+    }/* if( mpi->rank == 0 ){ */
+    chkMPIerr(MPI_Bcast(&procs, 1, MPI_INT, 0, mpi->comm));
+
+    if( procs != mpi->size ){
+      *dropPrevTune = 1;
+      chkHDF5err(H5Gclose(group));
+      group = H5Gopen(target, "nbody", H5P_DEFAULT);
+    }/* if( procs != mpi->size ){ */
+  }/* if( (*steps != 0) && (*dropPrevTune == 0) ){ */
+
+  if( (*steps != 0) && (*dropPrevTune == 0) ){
     /* read attributes */
     int forceAdjust;
     int monitor, parabolic;
@@ -2224,6 +2258,10 @@ void writeTentativeDataParallel
     attr_dims = 1;
     dataspace = H5Screate_simple(1, &attr_dims, NULL);
     int flag;
+    /* write number of MPI processes in the current run */
+    attribute = H5Acreate(group, "MPI_procs", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &mpi->size));
+    chkHDF5err(H5Aclose(attribute));
     /* write flag about FORCE_ADJUSTING_PARTICLE_TIME_STEPS */
 #ifdef  FORCE_ADJUSTING_PARTICLE_TIME_STEPS
     flag = 1;

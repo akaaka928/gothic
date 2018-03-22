@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/12 (Mon)
+ * @date 2018/03/20 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -169,6 +169,8 @@ typedef struct
 } domainDecomposeKey;
 
 
+static const double minimumExecutionTime = 1.0e+1;/**< constant to disable particle exchanging */
+/* static const int minimumExchangeInterval = 3; */
 /* static const double loadImbalanceCrit = 0.9;/\**< constant to detect load imbalance *\/ */
 static const double loadImbalanceCrit = 0.95;/**< constant to detect load imbalance */
 #define SLOW_DOWN_PROCS_CRIT(tot) ((tot) >> 4)

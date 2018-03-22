@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/19 (Mon)
+ * @date 2018/03/22 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -20,7 +20,7 @@
  *
  * @brief a switch to output values in Brent's method
  */
-#define OUTPUT_AUTO_TUNING_PARAMETER
+/* #define OUTPUT_AUTO_TUNING_PARAMETER */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,6 +31,7 @@
 #ifdef  MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
 #include <mpi.h>
 #include "mpilib.h"
+/* #define USE_FIXED_RMAX_VALUE */
 #endif//MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
 
 #include "macro.h"
@@ -257,20 +258,41 @@ void examineParticleSeparation(const int Ni, iparticle body_dev, brentStatus *br
 #endif//HUNT_FIND_PARAMETER
 
 #ifndef MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
-  const real rmax = thrust::reduce((thrust::device_ptr<real>)body_dev.neighbor, (thrust::device_ptr<real>)(body_dev.neighbor + Ni), ZERO, thrust::maximum<real>());
-  const real rmin = rmax * NEIGHBOR_LENGTH_SHRINK_FACTOR;
+  const double rmax = CAST_R2D(thrust::reduce((thrust::device_ptr<real>)body_dev.neighbor, (thrust::device_ptr<real>)(body_dev.neighbor + Ni), ZERO, thrust::maximum<real>()));
+  const double rmin = rmax * NEIGHBOR_LENGTH_SHRINK_FACTOR;
 #else///MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
-  real rmax = thrust::reduce((thrust::device_ptr<real>)body_dev.neighbor, (thrust::device_ptr<real>)(body_dev.neighbor + Ni), ZERO, thrust::maximum<real>());
-  const real rmin = rmax * NEIGHBOR_LENGTH_SHRINK_FACTOR;
-  chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &rmax, 1, MPI_REALDAT, MPI_MAX, mpi_comm));
+#ifndef USE_FIXED_RMAX_VALUE
+  double rmax = CAST_R2D(thrust::reduce((thrust::device_ptr<real>)body_dev.neighbor, (thrust::device_ptr<real>)(body_dev.neighbor + Ni), ZERO, thrust::maximum<real>()));
+  chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &rmax, 1, MPI_DOUBLE, MPI_MAX, mpi_comm));
+  const double rmin = rmax * NEIGHBOR_LENGTH_SHRINK_FACTOR;
+#else///USE_FIXED_RMAX_VALUE
+  const double rmax = CAST_R2D(thrust::reduce((thrust::device_ptr<real>)body_dev.neighbor, (thrust::device_ptr<real>)(body_dev.neighbor + Ni), ZERO, thrust::maximum<real>()));
+  const double rmin = rmax * NEIGHBOR_LENGTH_SHRINK_FACTOR;
+#endif//USE_FIXED_RMAX_VALUE
 #endif//MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
 
-  if( brent->initialized )
-    brentPerturb(brent, CAST_R2D(rmin), CAST_R2D(rmax));
+#ifndef USE_FIXED_RMAX_VALUE
+  if( brent->initialized ){
+    if( (brent->u.pos >= rmin) && (brent->u.pos <= rmax) )
+      brentPerturb(brent, rmin, rmax);
+    else{
+      brentInit1st(brent, rmin, rmax);
+      brent->x = brent->u;
+      brentInit2nd(brent);
+    }/* else{ */
+  }
   else{
     brent->initialized = true;
-    brentInit1st(brent, CAST_R2D(rmin), CAST_R2D(rmax));
+    brentInit1st(brent, rmin, rmax);
   }/* else{ */
+#else///USE_FIXED_RMAX_VALUE
+  if( !brent->initialized ){
+    brent->initialized = true;
+    brentInit1st(brent, rmin, rmax);
+  }/* if( !brent->initialized ){ */
+  /* brent->u.pos = brent->x.pos = brent->w.pos = brent->v.pos = brent->a = brent->b = 0.5 * (rmin + rmax); */
+  brent->u.pos = brent->x.pos = brent->w.pos = brent->v.pos = brent->a = brent->b = 4.6e+2;
+#endif//USE_FIXED_RMAX_VALUE
 
 #ifdef  OUTPUT_AUTO_TUNING_PARAMETER
   __FPRINTF__(stdout, "min, max = %e, %e\n", rmin, rmax);

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/16 (Fri)
+ * @date 2018/03/22 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -391,6 +391,9 @@ void  freeTreeBuffer_dev
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
 #   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
  , unsigned long long int  *cycles_hst, unsigned long long int  *cycles_dev
+#ifndef SERIALIZED_EXECUTION
+ , unsigned long long int  *cycles_dist_hst, unsigned long long int  *cycles_dist_dev
+#endif//SERIALIZED_EXECUTION
 #endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
  , unsigned long long int  *cycles_let_hst, unsigned long long int  *cycles_let_dev
@@ -409,6 +412,10 @@ void  freeTreeBuffer_dev
 #   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
   mycudaFree    (cycles_dev);
   mycudaFreeHost(cycles_hst);
+#ifndef SERIALIZED_EXECUTION
+  mycudaFree    (cycles_dist_dev);
+  mycudaFreeHost(cycles_dist_hst);
+#endif//SERIALIZED_EXECUTION
 #endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
   mycudaFree    (cycles_let_dev);
@@ -436,6 +443,9 @@ muse allocTreeBuffer_dev
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
 #   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
  unsigned long long int **cycles_hst, unsigned long long int **cycles_dev,
+#ifndef SERIALIZED_EXECUTION
+ unsigned long long int **cycles_dist_hst, unsigned long long int **cycles_dist_dev,
+#endif//SERIALIZED_EXECUTION
 #endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
  unsigned long long int **cycles_let_hst, unsigned long long int **cycles_let_dev,
@@ -491,6 +501,10 @@ muse allocTreeBuffer_dev
 #   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
   mycudaMalloc    ((void **)cycles_dev, sizeof(unsigned long long int));  alloc.device += sizeof(unsigned long long int);
   mycudaMallocHost((void **)cycles_hst, sizeof(unsigned long long int));  alloc.host   += sizeof(unsigned long long int);
+#ifndef SERIALIZED_EXECUTION
+  mycudaMalloc    ((void **)cycles_dist_dev, sizeof(unsigned long long int));  alloc.device += sizeof(unsigned long long int);
+  mycudaMallocHost((void **)cycles_dist_hst, sizeof(unsigned long long int));  alloc.host   += sizeof(unsigned long long int);
+#endif//SERIALIZED_EXECUTION
 #endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
@@ -2459,6 +2473,9 @@ void calcGravity_dev
 #endif//PRINT_PSEUDO_PARTICLE_INFO
 #   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
  , unsigned long long int *cycles_hst, unsigned long long int *cycles_dev
+#ifndef SERIALIZED_EXECUTION
+ , unsigned long long int *cycles_dist_hst, unsigned long long int *cycles_dist_dev
+#endif//SERIALIZED_EXECUTION
 #endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
  , measuredTime *measured, const int pjNum
@@ -2517,6 +2534,10 @@ void calcGravity_dev
 #   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
   *cycles_hst = 0;
   checkCudaErrors(cudaMemcpy(cycles_dev, cycles_hst, sizeof(unsigned long long int), cudaMemcpyHostToDevice));
+#ifndef SERIALIZED_EXECUTION
+  *cycles_dist_hst = 0;
+  checkCudaErrors(cudaMemcpy(cycles_dist_dev, cycles_dist_hst, sizeof(unsigned long long int), cudaMemcpyHostToDevice));
+#endif//SERIALIZED_EXECUTION
 #endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
   *cycles_let_hst = 0;
@@ -2659,7 +2680,7 @@ void calcGravity_dev
 			);
 
 	/** calculate gravity for i-particles in multiple domains by local tree */
-	callCalcGravityFunc(blck, thrd, sinfo, &sidx, laneInfo_ext, pi_ext, 0, tree, grpNum_tot, 0, cycles_dev, buf
+	callCalcGravityFunc(blck, thrd, sinfo, &sidx, laneInfo_ext, pi_ext, 0, tree, grpNum_tot, 0, cycles_dist_dev, buf
 #ifdef  COUNT_INTERACTIONS
 			    , treeInfo
 #endif//COUNT_INTERACTIONS
@@ -2942,7 +2963,7 @@ void calcGravity_dev
 #ifdef  MPI_VIA_HOST
 	       tree_hst,
 #endif//MPI_VIA_HOST
-	       blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree, grpNum, cycles_dev, buf
+	       blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree, grpNum, grav_by_LET ? cycles_dist_dev : cycles_dev, buf
 #ifdef  COUNT_INTERACTIONS
 	       , treeInfo
 #endif//COUNT_INTERACTIONS
@@ -2976,7 +2997,7 @@ void calcGravity_dev
 #ifdef  MPI_VIA_HOST
 	     tree_hst,
 #endif//MPI_VIA_HOST
-	     blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree, grpNum, cycles_dev, buf
+	     blck, thrd, sinfo, &sidx, laneInfo, pi, 0, tree, grpNum, grav_by_LET ? cycles_dist_dev : cycles_dev, buf
 #ifdef  COUNT_INTERACTIONS
 	     , treeInfo
 #endif//COUNT_INTERACTIONS
@@ -3253,9 +3274,22 @@ void calcGravity_dev
 
 #   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION)
   checkCudaErrors(cudaDeviceSynchronize());
-  checkCudaErrors(cudaMemcpy(cycles_hst, cycles_dev, sizeof(unsigned long long int), cudaMemcpyDeviceToHost));
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  if( !transferMode )
+#endif//SWITCH_WITH_J_PARALLELIZATION
+    checkCudaErrors(cudaMemcpy(cycles_hst, cycles_dev, sizeof(unsigned long long int), cudaMemcpyDeviceToHost));
 #endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION)
 #ifndef SERIALIZED_EXECUTION
+  checkCudaErrors(cudaMemcpy(cycles_dist_hst, cycles_dist_dev, sizeof(unsigned long long int), cudaMemcpyDeviceToHost));
+
+#ifdef  SWITCH_WITH_J_PARALLELIZATION
+  if( transferMode ){
+    const float localFrac = (float)grpNum / (float)(displs[mpi.size - 1] + grpNum_list[mpi.size - 1]);
+    *cycles_hst      = (unsigned long long int)nearbyintf(        localFrac  * (float)(*cycles_dist_hst));
+    *cycles_dist_hst = (unsigned long long int)nearbyintf((1.0f - localFrac) * (float)(*cycles_dist_hst));
+  }/* if( transferMode ){ */
+#endif//SWITCH_WITH_J_PARALLELIZATION
+
   /** number of launched blocks for tree traversal = # of blocks per kernel function * (# of local tree + # of LETs) = # of blocks per kernel function * # of GPUs */
 #ifdef  USE_MEASURED_CLOCK_FREQ
   double devClock = (double)clockWalk * 1.0e+6;
@@ -3263,12 +3297,13 @@ void calcGravity_dev
 #ifdef  USE_GPU_BASE_CLOCK_FREQ
   const double devClock = devProp.coreClk * 1.0e+9;
 #endif//USE_GPU_BASE_CLOCK_FREQ
-  const double calcAcc = ((double)(*cycles_hst) / (devClock * (double)(blck * mpi.size))) * (double)BLOCKSIZE(blck * mpi.size, devProp.numSM);
-  measured->sum_excg    += calcAcc;
-  measured->sum_rebuild += calcAcc;
-  *time   = calcAcc;
+  const double calcAcc_loc = ((double)(*cycles_hst     ) / (devClock * (double)(blck * mpi.size))) * (double)BLOCKSIZE(blck * mpi.size, devProp.numSM);
+  const double calcAcc_dst = ((double)(*cycles_dist_hst) / (devClock * (double)(blck * mpi.size))) * (double)BLOCKSIZE(blck * mpi.size, devProp.numSM);
+  measured->sum_excg    += calcAcc_loc + calcAcc_dst;
+  measured->sum_rebuild += calcAcc_loc;
+  *time   = calcAcc_loc;
 #ifdef  EXEC_BENCHMARK
-  elapsed->calcAcc_kernel = calcAcc;
+  elapsed->calcAcc_kernel = calcAcc_loc + calcAcc_dst;
 #endif//EXEC_BENCHMARK
 #ifdef  MONITOR_LETGEN_TIME
   checkCudaErrors(cudaMemcpy(cycles_let_hst, cycles_let_dev, sizeof(unsigned long long int), cudaMemcpyDeviceToHost));

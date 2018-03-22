@@ -25,11 +25,11 @@ OPTION="`echo $@ | sed -e "s|$EXEC||" -e "s|$LOGNAME||" -e "s/$JOB_ID//" -e "s/$
 if [ `which numactl` ]; then
     TEMPID=`expr $RANK % $PROCS_PER_NODE`
     SOCKET=`expr $TEMPID / $PROCS_PER_SOCKET`
-    echo "numactl --cpunodebind=$SOCKET --localalloc nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o ${LOGNAME}_${JOB_ID}_rank${RANK}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
-    numactl --cpunodebind=$SOCKET --localalloc nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o ${LOGNAME}_${JOB_ID}_rank${RANK}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    echo "numactl --cpunodebind=$SOCKET --localalloc nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o ${LOGNAME}.p${JOB_ID}_r${RANK}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
+    numactl --cpunodebind=$SOCKET --localalloc nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o ${LOGNAME}.p${JOB_ID}_r${RANK}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 else
-    echo "nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o ${LOGNAME}_${JOB_ID}_rank${RANK}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
-    nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o ${LOGNAME}_${JOB_ID}_rank${RANK}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    echo "nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o ${LOGNAME}.p${JOB_ID}_r${RANK}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
+    nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o ${LOGNAME}.p${JOB_ID}_r${RANK}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 fi
 
 exit 0

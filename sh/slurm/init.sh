@@ -678,8 +678,8 @@ fi
 # job execution via SLURM
 ###############################################################
 # set stdout and stderr
-STDOUT=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.out
-STDERR=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.err
+STDOUT=log/${FILE}_$SLURM_JOB_NAME.o${SLURM_JOB_ID}
+STDERR=log/${FILE}_$SLURM_JOB_NAME.e${SLURM_JOB_ID}
 ###############################################################
 # start logging
 cd $SLURM_SUBMIT_DIR

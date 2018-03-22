@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/19 (Mon)
+ * @date 2018/03/22 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -16,11 +16,24 @@
  *
  */
 
+/**
+ * @def OUTPUT_EXCHANGE_SIGNAL
+ *
+ * @brief a switch to output signals of particle exchanging
+ */
+/* #define OUTPUT_EXCHANGE_SIGNAL */
+
 #ifdef  SERIALIZED_EXECUTION
 #define OUTPUT_MEMORY_USAGE
 #else///SERIALIZED_EXECUTION
 /* #define MONITOR_SIMULATION_STATUS */
 /* #define SHARED_AUTO_TUNER */
+/**
+ * @def DISABLE_EXCG_BODIES_BEFORE_SATURATION
+ *
+ * @brief disable particle exchanging before auto-tuning reaches saturation
+ */
+#define DISABLE_EXCG_BODIES_BEFORE_SATURATION
 #endif//SERIALIZED_EXECUTION
 
 #include <stdio.h>
@@ -1623,6 +1636,9 @@ int main(int argc, char **argv)
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
 #   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
   unsigned long long int *cycles_hst, *cycles_dev;
+#ifndef SERIALIZED_EXECUTION
+  unsigned long long int *cycles_dist_hst, *cycles_dist_dev;
+#endif//SERIALIZED_EXECUTION
 #endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
   unsigned long long int *cycles_let_hst, *cycles_let_dev;
@@ -1634,6 +1650,9 @@ int main(int argc, char **argv)
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
 #   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
      &cycles_hst, &cycles_dev,
+#ifndef SERIALIZED_EXECUTION
+     &cycles_dist_hst, &cycles_dist_dev,
+#endif//SERIALIZED_EXECUTION
 #endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
      &cycles_let_hst, &cycles_let_dev,
@@ -1944,6 +1963,9 @@ int main(int argc, char **argv)
 #endif//PRINT_PSEUDO_PARTICLE_INFO
 #   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
        , cycles_hst, cycles_dev
+#ifndef SERIALIZED_EXECUTION
+       , cycles_dist_hst, cycles_dist_dev
+#endif//SERIALIZED_EXECUTION
 #endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
        , &elapsed, numNode
@@ -2048,6 +2070,9 @@ int main(int argc, char **argv)
 #endif//PRINT_PSEUDO_PARTICLE_INFO
 #   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
        , cycles_hst, cycles_dev
+#ifndef SERIALIZED_EXECUTION
+       , cycles_dist_hst, cycles_dist_dev
+#endif//SERIALIZED_EXECUTION
 #endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
        , &elapsed, numNode
@@ -2220,9 +2245,20 @@ int main(int argc, char **argv)
 
 
   /** calculate time evolution */
-#ifndef SERIALIZED_EXECUTION
+#ifdef  SERIALIZED_EXECUTION
+  static const double brent_method_allow = BRENT_METHOD_ALLOW;
+#else///SERIALIZED_EXECUTION
+#ifdef  DISABLE_EXCG_BODIES_BEFORE_SATURATION
+  bool allowBodyExcg = false;
+  static double brent_method_allow = BRENT_METHOD_ALLOW_LAUNCH;
+#else///DISABLE_EXCG_BODIES_BEFORE_SATURATION
+  static const double brent_method_allow = BRENT_METHOD_ALLOW;
+#endif//DISABLE_EXCG_BODIES_BEFORE_SATURATION
   bool existNewTree = false;
 #endif//SERIALIZED_EXECUTION
+#   if  NMAX_FOR_PERTURBATION_ABOUT_BRENT > 0
+  static int brent_perturb_count = 0;
+#endif//NMAX_FOR_PERTURBATION_ABOUT_BRENT > 0
   while( time < ft ){
 #ifdef  MONITOR_SIMULATION_STATUS
     if( mpi.rank == 0 ){
@@ -2267,8 +2303,6 @@ int main(int argc, char **argv)
     /** rebuild tree structure if required */
 #ifndef SERIALIZED_EXECUTION
     /** detect slow down */
-    /* chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.enable), 1, MPI_BOOL, MPI_LAND, letcfg.comm)); */
-    /* chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(rebuild.reuse), 1, MPI_BOOL, MPI_LAND, letcfg.comm)); */
     if( !rebuild.reuse ){
       exchangeInterval += 1.0;
       linearModel(&(exchangeParam.linearGuess), &(exchangeParam.linearStats), exchangeInterval, elapsed.sum_rebuild, 1.0);
@@ -2292,20 +2326,30 @@ int main(int argc, char **argv)
 	  guess = exchangeParam.parabolicGuess.time;
 	}/* if( rchi2 > exchangeParam.parabolicGuess.rchisq ){ */
 #endif//USE_PARABOLIC_GROWTH_MODEL
-	if( guess > elapsed.excg )
+	if( guess > elapsed.excg ){
 	  balancer.execute = true;
+#ifdef  OUTPUT_EXCHANGE_SIGNAL
+	  __FPRINTF__(stdout, "exchange by detecting slow down @ %zu-th step\n", steps);
+#endif//OUTPUT_EXCHANGE_SIGNAL
+	}/* if( guess > elapsed.excg ){ */
       }/* if( balancer.enable ){ */
     }/* if( !rebuild.reuse ){ */
 
+    chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.execute), 1, MPI_BOOL, MPI_LOR, letcfg.comm));
     /** detect load imbalance */
-    chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.execute), 1, MPI_BOOL, MPI_LOR , letcfg.comm));
-    if( balancer.enable & !balancer.execute ){
+    if( (balancer.enable) && (!balancer.execute) ){
       balancer.tmin = balancer.tmax = elapsed.sum_excg;
-      chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.tmin), 1, MPI_DOUBLE, MPI_MIN, letcfg.comm));
       chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.tmax), 1, MPI_DOUBLE, MPI_MAX, letcfg.comm));
-      if( balancer.tmin < (loadImbalanceCrit * balancer.tmax) )
-	balancer.execute = true;
-    }/* if( balancer.enable & !balancer.execute ){ */
+      if( balancer.tmax > minimumExecutionTime ){
+	chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.tmin), 1, MPI_DOUBLE, MPI_MIN, letcfg.comm));
+	if( balancer.tmin < (loadImbalanceCrit * balancer.tmax) ){
+	  balancer.execute = true;
+#ifdef  OUTPUT_EXCHANGE_SIGNAL
+	  __FPRINTF__(stdout, "exchange by detecting load imbalance (tmin = %e, tmax = %e) @ %zu-th step\n", balancer.tmin, balancer.tmax, steps);
+#endif//OUTPUT_EXCHANGE_SIGNAL
+	}/* if( balancer.tmin < (loadImbalanceCrit * balancer.tmax) ){ */
+      }/* if( balancer.tmax > minimumExecutionTime ){ */
+    }/* if( (balancer.enable) && (!balancer.execute) ){ */
     __NOTE__("balancer.execute = %d @ rank %d\n", balancer.execute, letcfg.rank);
 
     if( balancer.execute ){
@@ -2326,6 +2370,11 @@ int main(int argc, char **argv)
 
       rebuild.reuse = 0;
       balancer.enable = false;
+
+#ifdef  DISABLE_EXCG_BODIES_BEFORE_SATURATION
+      allowBodyExcg = false;
+      brent_method_allow = BRENT_METHOD_ALLOW_LAUNCH;
+#endif//DISABLE_EXCG_BODIES_BEFORE_SATURATION
     }/* if( balancer.execute ){ */
 #endif//SERIALIZED_EXECUTION
 
@@ -2394,18 +2443,26 @@ int main(int argc, char **argv)
 	/** check # of sequences executed and the evolution of elapsed time */
 	bool perturbBrent = false;
 	if( brentHistory.interval > BRENT_METHOD_LAUNCH ){
-	  /** if increase of the elapsed time exceeds the allowable range, then perturb brentStatus */
-	  if( brentDistance.u.val > BRENT_METHOD_ALLOW * brentHistory.previous )	    perturbBrent = true;
 	  /** when the elapsed time grows continuously, parturb the brentStatus */
 	  if( brentDistance.u.val > brentHistory.previous ){
 	    brentHistory.degraded++;
-	    if( brentHistory.degraded > BRENT_METHOD_MODIFY )	      perturbBrent = true;
+	    perturbBrent = (brentHistory.degraded > BRENT_METHOD_MODIFY) || (brentDistance.u.val > (brent_method_allow * brentHistory.previous));
 	  }/* if( brentDistance.u.val > brentHistory.previous ){ */
-	  else	                                                    brentHistory.degraded = 0;
+	  else
+	    brentHistory.degraded = 0;
 	}/* if( brentHistory.interval > BRENT_METHOD_LAUNCH ){ */
 	brentHistory.previous = brentDistance.u.val;
 
 	if( perturbBrent ){
+#ifdef  DISABLE_EXCG_BODIES_BEFORE_SATURATION
+	  if( brentHistory.degraded > BRENT_METHOD_MODIFY ){
+	    allowBodyExcg = true;
+	    brent_method_allow = BRENT_METHOD_ALLOW;
+	  }/* if( brentHistory.degraded > BRENT_METHOD_MODIFY ){ */
+#endif//DISABLE_EXCG_BODIES_BEFORE_SATURATION
+#if 0
+	  __FPRINTF__(stdout, "perturb: interval = %d, degraded = %d @ %zu-step.\n", brentHistory.interval, brentHistory.degraded, steps);
+#endif
 	  examineParticleSeparation
 	    (num, ibody0_dev, &brentDistance
 #ifdef  MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
@@ -2416,9 +2473,19 @@ int main(int argc, char **argv)
 #endif//EXEC_BENCHMARK
 	     );
 
+#   if  NMAX_FOR_PERTURBATION_ABOUT_BRENT > 0
+	  brent_perturb_count++;
+	  if( brent_perturb_count > NMAX_FOR_PERTURBATION_ABOUT_BRENT ){
+	    brentInit1st(&brentDistance, brentDistance.a, brentDistance.b);
+	    brentInit2nd(&brentDistance);
+	    brentDistance.u = brentDistance.x;
+	    brent_perturb_count = 0;
+	  }/* if( brent_perturb_count > NMAX_FOR_PERTURBATION_ABOUT_BRENT ){ */
+#endif//NMAX_FOR_PERTURBATION_ABOUT_BRENT > 0
+
 	  brentHistory.interval = 0;
 	  brentHistory.degraded = 0;
-	}/* if( brentHistory.degraded > BRENT_METHOD_MODIFY ){ */
+	}/* if( perturbBrent ){ */
 	else{
 	  /** when the brentStatus is conserved */
 	  brentCalc2nd(&brentDistance);
@@ -2454,9 +2521,13 @@ int main(int argc, char **argv)
 
     /** share information on domain decomposition in the next time step */
 #ifndef SERIALIZED_EXECUTION
-    chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.enable), 1, MPI_BOOL, MPI_LOR, letcfg.comm));
-    __NOTE__("balancer.enable = %d\n", balancer.enable);
     chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &existNewTree, 1, MPI_BOOL, MPI_LOR, letcfg.comm));
+#ifdef  DISABLE_EXCG_BODIES_BEFORE_SATURATION
+    balancer.enable &= allowBodyExcg;
+    chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.enable), 1, MPI_BOOL, MPI_LAND, letcfg.comm));
+#else///DISABLE_EXCG_BODIES_BEFORE_SATURATION
+    chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.enable), 1, MPI_BOOL, MPI_LOR, letcfg.comm));
+#endif//DISABLE_EXCG_BODIES_BEFORE_SATURATION
 #endif//SERIALIZED_EXECUTION
 
 
@@ -2655,6 +2726,9 @@ int main(int argc, char **argv)
 #endif//PRINT_PSEUDO_PARTICLE_INFO
 #   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 	 , cycles_hst, cycles_dev
+#ifndef SERIALIZED_EXECUTION
+	 , cycles_dist_hst, cycles_dist_dev
+#endif//SERIALIZED_EXECUTION
 #endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #ifndef SERIALIZED_EXECUTION
 	 , &elapsed, numNode
@@ -2694,16 +2768,21 @@ int main(int argc, char **argv)
 
 
 #ifndef SHARED_AUTO_TUNER
+/* #ifdef  SWITCH_WITH_J_PARALLELIZATION */
+/*       if( !transferMode ) */
+/* #endif//SWITCH_WITH_J_PARALLELIZATION */
+	{
 #ifdef  USE_CLOCK_CYCLES_FOR_BRENT_METHOD
-      brentDistance.u.val += (double)(*cycles_hst);
+	  brentDistance.u.val += (double)(*cycles_hst);
 #else///USE_CLOCK_CYCLES_FOR_BRENT_METHOD
-      brentDistance.u.val += elapsed.walkTree[rebuild.reuse];
+	  brentDistance.u.val += elapsed.walkTree[rebuild.reuse];
 #endif//USE_CLOCK_CYCLES_FOR_BRENT_METHOD
 #ifdef  BLOCK_TIME_STEP
-      brentHistory.totNum += grpNum;
+	  brentHistory.totNum += grpNum;
 #else///BLOCK_TIME_STEP
-      brentHistory.totNum += Ngrp;
+	  brentHistory.totNum += Ngrp;
 #endif//BLOCK_TIME_STEP
+	}
 #else///SHARED_AUTO_TUNER
 #ifdef  USE_CLOCK_CYCLES_FOR_BRENT_METHOD
       shared_brent_u = (double)(*cycles_hst);
@@ -3266,6 +3345,9 @@ int main(int argc, char **argv)
 #endif//!defined(USE_SMID_TO_GET_BUFID) && !defined(TRY_MODE_ABOUT_BUFFER)
 #   if  defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
      , cycles_hst, cycles_dev
+#ifndef SERIALIZED_EXECUTION
+     , cycles_dist_hst, cycles_dist_dev
+#endif//SERIALIZED_EXECUTION
 #endif//defined(USE_CLOCK_CYCLES_FOR_BRENT_METHOD) || !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
      , cycles_let_hst, cycles_let_dev

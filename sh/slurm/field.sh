@@ -133,8 +133,8 @@ if [ $PROCS -gt 1 ]; then
     mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION
 else
     # set stdout and stderr
-    STDOUT=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.out
-    STDERR=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.err
+    STDOUT=log/${FILE}_$SLURM_JOB_NAME.o${SLURM_JOB_ID}
+    STDERR=log/${FILE}_$SLURM_JOB_NAME.e${SLURM_JOB_ID}
     if [ `which numactl` ]; then
 	# run with numactl
 	echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"

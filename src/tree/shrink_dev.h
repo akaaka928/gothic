@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/19 (Mon)
+ * @date 2018/03/22 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -64,7 +64,7 @@
  * @brief a key parameter to set minimum length in Brent's method
  */
 #ifndef NEIGHBOR_LENGTH_SHRINK_FACTOR
-#define NEIGHBOR_LENGTH_SHRINK_FACTOR (0.8f)
+#define NEIGHBOR_LENGTH_SHRINK_FACTOR (0.8)
 #endif//NEIGHBOR_LENGTH_SHRINK_FACTOR
 
 
