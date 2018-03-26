@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/03/13 (Tue)
+ * @date 2018/03/23 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -403,13 +403,6 @@ int main(int argc, char **argv)
   const real dx = (xmax - xmin) / (real)nx;  for(int ii = 0; ii < nx + 1; ii++)    xx[ii] = xmin + dx * (real)ii;
   const real dy = (ymax - ymin) / (real)ny;  for(int jj = 0; jj < ny + 1; jj++)    yy[jj] = ymin + dy * (real)jj;
   const real dz = (zmax - zmin) / (real)nz;  for(int kk = 0; kk < nz + 1; kk++)    zz[kk] = zmin + dz * (real)kk;
-#if 0
-  __FPRINTF__(stdout, "dx = %e, xmin = %e, xmax = %e\n", dx, xmin, xmax);
-  __FPRINTF__(stdout, "dy = %e, ymin = %e, ymax = %e\n", dy, ymin, ymax);
-  __FPRINTF__(stdout, "dz = %e, zmin = %e, zmax = %e\n", dz, zmin, zmax);
-  MPI_Finalize();
-  exit(0);
-#endif
 
   real *rho_map;
   rho_map = (real *)malloc(sizeof(real) * kind * nx * ny * nz);  if( rho_map == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate rho_map");  }
@@ -611,7 +604,7 @@ int main(int argc, char **argv)
 
 real getCenter(const int num, nbody_particle *body, real com[restrict], real vel[restrict])
 {
-  __NOTE__("%s\n", "start");
+  __NOTE__("%s for %d particles\n", "start", num);
 
 
   double comx = 0.0;
@@ -622,96 +615,88 @@ real getCenter(const int num, nbody_particle *body, real com[restrict], real vel
   double velz = 0.0;
   real rhalf = ZERO;
 
-  int Npart = num >> 1;
+  if( num > 1 ){
+    int Npart = num >> 1;
 
-  bool converge = false;
-  int steps = 0;
-  while( true ){
-    for(int ii = 0; ii < num; ii++){
-      const real xx = CAST_D2R(CAST_R2D(body[ii].x) - comx);
-      const real yy = CAST_D2R(CAST_R2D(body[ii].y) - comy);
-      const real zz = CAST_D2R(CAST_R2D(body[ii].z) - comz);
-      /* is recipe for correcting precession required?? */
-      const real R2 = 1.0e-30f + xx * xx + yy * yy;
-      const real r2 = R2 + zz * zz;
-      body[ii].hor = R2 * RSQRT(R2);
-      body[ii].rad = r2 * RSQRT(r2);
-    }/* for(int ii = 0; ii < num; ii++){ */
+    bool converge = false;
+    int steps = 0;
+    while( true ){
+      for(int ii = 0; ii < num; ii++){
+	const real xx = CAST_D2R(CAST_R2D(body[ii].x) - comx);
+	const real yy = CAST_D2R(CAST_R2D(body[ii].y) - comy);
+	const real zz = CAST_D2R(CAST_R2D(body[ii].z) - comz);
+	/* is recipe for correcting precession required?? */
+	const real R2 = 1.0e-30f + xx * xx + yy * yy;
+	const real r2 = R2 + zz * zz;
+	body[ii].hor = R2 * RSQRT(R2);
+	body[ii].rad = r2 * RSQRT(r2);
+      }/* for(int ii = 0; ii < num; ii++){ */
 
-    /** sort by particle position */
-    qsort(body, num, sizeof(nbody_particle), radAscendingOrder);
-    rhalf = (num & 1) ? (body[num >> 1].rad) : (HALF * (body[num >> 1].rad + body[(num >> 1) + 1].rad));
+      /** sort by particle position */
+      qsort(body, num, sizeof(nbody_particle), radAscendingOrder);
+      rhalf = (num & 1) ? (body[num >> 1].rad) : (HALF * (body[num >> 1].rad + body[(num >> 1) + 1].rad));
 
-    if( converge || (Npart < 1) )
-      break;
+      if( converge || (Npart < 1) )
+	break;
 
-    velx = 0.0;
-    vely = 0.0;
-    velz = 0.0;
+      velx = 0.0;
+      vely = 0.0;
+      velz = 0.0;
 
-    double mtot = 0.0;
-    double newx = 0.0;
-    double newy = 0.0;
-    double newz = 0.0;
+      double mtot = 0.0;
+      double newx = 0.0;
+      double newy = 0.0;
+      double newz = 0.0;
 
-    /** find center-of-mass and bulk velocity of particles within the half-mass radius (assumption: equal-mass particles) */
-    for(int ii = 0; ii < Npart; ii++){
-      const double mass = CAST_R2D(body[ii].m);
-      mtot += mass;
+      /** find center-of-mass and bulk velocity of particles within the half-mass radius (assumption: equal-mass particles) */
+      for(int ii = 0; ii < Npart; ii++){
+	const double mass = CAST_R2D(body[ii].m);
+	mtot += mass;
 
-      const double xx = CAST_R2D(body[ii].x);
-      const double yy = CAST_R2D(body[ii].y);
-      const double zz = CAST_R2D(body[ii].z);
+	const double xx = CAST_R2D(body[ii].x);
+	const double yy = CAST_R2D(body[ii].y);
+	const double zz = CAST_R2D(body[ii].z);
 
-      const double vx = CAST_R2D(body[ii].vx);
-      const double vy = CAST_R2D(body[ii].vy);
-      const double vz = CAST_R2D(body[ii].vz);
+	const double vx = CAST_R2D(body[ii].vx);
+	const double vy = CAST_R2D(body[ii].vy);
+	const double vz = CAST_R2D(body[ii].vz);
 
-      newx += mass * xx;
-      newy += mass * yy;
-      newz += mass * zz;
+	newx += mass * xx;
+	newy += mass * yy;
+	newz += mass * zz;
 
-      velx += mass * vx;
-      vely += mass * vy;
-      velz += mass * vz;
-    }/* for(int ii = 0; ii < Npart; ii++){ */
+	velx += mass * vx;
+	vely += mass * vy;
+	velz += mass * vz;
+      }/* for(int ii = 0; ii < Npart; ii++){ */
 
-    const double minv = 1.0 / mtot;
-    newx *= minv;
-    newy *= minv;
-    newz *= minv;
-    velx *= minv;
-    vely *= minv;
-    velz *= minv;
+      const double minv = 1.0 / mtot;
+      newx *= minv;
+      newy *= minv;
+      newz *= minv;
+      velx *= minv;
+      vely *= minv;
+      velz *= minv;
 
-    const double dx = newx - comx;
-    const double dy = newy - comy;
-    const double dz = newz - comz;
+      const double dx = newx - comx;
+      const double dy = newy - comy;
+      const double dz = newz - comz;
 
-    converge = (dx * dx + dy * dy + dz * dz) < 1.0e-6;
+      converge = (dx * dx + dy * dy + dz * dz) < 1.0e-6;
 
-    if( (steps > 1024) && !converge ){
-      __FPRINTF__(stderr, "Warning: does not converged after %d iterations (%d particles; error are %e): shrink Npart(%d) to %d.\n", steps, num, dx * dx + dy * dy + dz * dz, Npart, Npart >> 1);
-      Npart >>= 1;
-      steps = -1;
-    }/* if( (steps > 1024) && !converge ){ */
+      if( (steps > 1024) && !converge ){
+	__FPRINTF__(stderr, "Warning: does not converged after %d iterations (%d particles; error are %e): shrink Npart(%d) to %d.\n", steps, num, dx * dx + dy * dy + dz * dz, Npart, Npart >> 1);
+	Npart >>= 1;
+	steps = -1;
+      }/* if( (steps > 1024) && !converge ){ */
 
-    comx = newx;
-    comy = newy;
-    comz = newz;
+      comx = newx;
+      comy = newy;
+      comz = newz;
 
-    steps++;
-  }/* while( true ){ */
-
-  if( num == 1 ){
-    com[0] = ZERO;
-    com[1] = ZERO;
-    com[2] = ZERO;
-    vel[0] = ZERO;
-    vel[1] = ZERO;
-    vel[2] = ZERO;
-    rhalf = ZERO;
-  }/* if( num == 1 ){ */
+      steps++;
+    }/* while( true ){ */
+  }/* if( num > 1 ){ */
 
   com[0] = CAST_D2R(comx);
   com[1] = CAST_D2R(comy);
@@ -740,60 +725,63 @@ void analyzeRadialProfile(const int kind, int * restrict bodyHead, int * restric
     const real com[3] = {com_tot[INDEX2D(kind, 3, kk, 0)], com_tot[INDEX2D(kind, 3, kk, 1)], com_tot[INDEX2D(kind, 3, kk, 2)]};
     const real vel[3] = {vel_tot[INDEX2D(kind, 3, kk, 0)], vel_tot[INDEX2D(kind, 3, kk, 1)], vel_tot[INDEX2D(kind, 3, kk, 2)]};
 
-    /* /\* sort the array in ascending distance from the center *\/ */
-    /* qsort(body, bodyNum[kk], sizeof(nbody_particle), radAscendingOrder); */
+    if( bodyNum[kk] > Nminimum ){
+      /* /\* sort the array in ascending distance from the center *\/ */
+      /* qsort(body, bodyNum[kk], sizeof(nbody_particle), radAscendingOrder); */
 
-    prfHead[kk] = *num;
-    real *prad, *prho, *penc, *psig;
-    real inner = ZERO;
-    real Menc  = ZERO;
-    prad = *rad;
-    prho = *rho;
-    penc = *enc;
-    psig = *sig;
-    const int ncrit = ((int)(bodyNum[kk] / ncrit_base) > Nminimum) ? ncrit_base : (int)(bodyNum[kk] / Nminimum);
-    const real inv_ncrit = UNITY / (real)ncrit;
+      prfHead[kk] = *num;
+      real *prad, *prho, *penc, *psig;
+      real inner = ZERO;
+      real Menc  = ZERO;
+      prad = *rad;
+      prho = *rho;
+      penc = *enc;
+      psig = *sig;
+      const int ncrit = ((int)(bodyNum[kk] / ncrit_base) > Nminimum) ? ncrit_base : (int)(bodyNum[kk] / Nminimum);
+      const real inv_ncrit = UNITY / (real)ncrit;
 
-    for(int head = 0; head < bodyNum[kk]; head += ncrit){
-      /** check # of unused elements */
-      if( *rem == 0 ){
-	enlargeProfileArray(*num + NAllocUnit, rad, rho, enc, sig);
-	*rem += NAllocUnit;
-	prad = *rad;
-	prho = *rho;
-	penc = *enc;
-	psig = *sig;
-      }/* if( *rem == 0 ){ */
+      for(int head = 0; head < bodyNum[kk]; head += ncrit){
+	/** check # of unused elements */
+	if( *rem == 0 ){
+	  enlargeProfileArray(*num + NAllocUnit, rad, rho, enc, sig);
+	  *rem += NAllocUnit;
+	  prad = *rad;
+	  prho = *rho;
+	  penc = *enc;
+	  psig = *sig;
+	}/* if( *rem == 0 ){ */
 
-      int tail = head + ncrit;
-      if( tail - 1 >= bodyNum[kk] )	break;
+	int tail = head + ncrit;
+	if( tail - 1 >= bodyNum[kk] )
+	  break;
 
-      real outer = body[tail - 1].rad;
-      prad[*num] = (ncrit & 1) ? (body[head + (ncrit >> 1)].rad) : (HALF * (body[head + (ncrit >> 1) - 1].rad + body[head + (ncrit >> 1)].rad));/**< use median of particle location */
+	real outer = body[tail - 1].rad;
+	prad[*num] = (ncrit & 1) ? (body[head + (ncrit >> 1)].rad) : (HALF * (body[head + (ncrit >> 1) - 1].rad + body[head + (ncrit >> 1)].rad));/**< use median of particle location */
 
-      real vr2 = ZERO;
-      real vrm = ZERO;
-      for(int ii = head; ii < tail; ii++){
-	const real vr = ((body[ii].vx - vel[0]) * (body[ii].x - com[0]) + (body[ii].vy - vel[1]) * (body[ii].y - com[1]) + (body[ii].vz - vel[2]) * (body[ii].z - com[2])) / body_tot[ii].rad;
-	vrm += vr;
-	vr2 += vr * vr;
-      }/* for(int ii = head; ii < tail; ii++){ */
-      vrm *= inv_ncrit;
-      vr2 *= inv_ncrit;
-      psig[*num] = SQRT(vr2 - vrm * vrm);
+	real vr2 = ZERO;
+	real vrm = ZERO;
+	for(int ii = head; ii < tail; ii++){
+	  const real vr = ((body[ii].vx - vel[0]) * (body[ii].x - com[0]) + (body[ii].vy - vel[1]) * (body[ii].y - com[1]) + (body[ii].vz - vel[2]) * (body[ii].z - com[2])) / body_tot[ii].rad;
+	  vrm += vr;
+	  vr2 += vr * vr;
+	}/* for(int ii = head; ii < tail; ii++){ */
+	vrm *= inv_ncrit;
+	vr2 *= inv_ncrit;
+	psig[*num] = SQRT(vr2 - vrm * vrm);
 
-      real mass = ZERO;
-      for(int ii = head; ii < tail; ii++)
-	mass += body[ii].m;
-      prho[*num] = mass / (CAST_D2R(4.0 * M_PI / 3.0) * (outer * outer * outer - inner * inner * inner));
-      penc[*num] = Menc + HALF * mass;
+	real mass = ZERO;
+	for(int ii = head; ii < tail; ii++)
+	  mass += body[ii].m;
+	prho[*num] = mass / (CAST_D2R(4.0 * M_PI / 3.0) * (outer * outer * outer - inner * inner * inner));
+	penc[*num] = Menc + HALF * mass;
 
-      Menc += mass;
-      inner = outer;
+	Menc += mass;
+	inner = outer;
 
-      *num += 1;
-      *rem -= 1;
-    }/* for(int head = 0; head < bodyNum[kk]; head += ncrit){ */
+	*num += 1;
+	*rem -= 1;
+      }/* for(int head = 0; head < bodyNum[kk]; head += ncrit){ */
+    }/* if( bodyNum[kk] > Nminimum ){ */
 
     prfNum[kk] = *num - prfHead[kk];
   }/* for(int kk = 0; kk < kind; kk++){ */
@@ -817,89 +805,90 @@ void analyzeHorizontalProfile(const int kind, int * restrict bodyHead, int * res
     const real com[3] = {com_tot[INDEX2D(kind, 3, kk, 0)], com_tot[INDEX2D(kind, 3, kk, 1)], com_tot[INDEX2D(kind, 3, kk, 2)]};
     const real vel[3] = {vel_tot[INDEX2D(kind, 3, kk, 0)], vel_tot[INDEX2D(kind, 3, kk, 1)], vel_tot[INDEX2D(kind, 3, kk, 2)]};
 
-    /* sort the array in ascending distance from the center */
-    qsort(body, bodyNum[kk], sizeof(nbody_particle), horAscendingOrder);
+    if( bodyNum[kk] > Nminimum ){
+      /* sort the array in ascending distance from the center */
+      qsort(body, bodyNum[kk], sizeof(nbody_particle), horAscendingOrder);
 
-    prfHead[kk] = *num;
-    real *ppos, *pSigma, *pheight, *psigR, *psigp, *psigz;
-    real inner = ZERO;
-    ppos    = *pos;
-    pSigma  = *Sigma;
-    pheight = *height;
-    psigR   = *sigR;
-    psigp   = *sigp;
-    psigz   = *sigz;
+      prfHead[kk] = *num;
+      real *ppos, *pSigma, *pheight, *psigR, *psigp, *psigz;
+      real inner = ZERO;
+      ppos    = *pos;
+      pSigma  = *Sigma;
+      pheight = *height;
+      psigR   = *sigR;
+      psigp   = *sigp;
+      psigz   = *sigz;
 
-    const int ncrit = ((int)(bodyNum[kk] / ncrit_base) > Nminimum) ? ncrit_base : (int)(bodyNum[kk] / Nminimum);
-    const real inv_ncrit = UNITY / (real)ncrit;
-    real *ver;
-    ver = (real *)malloc(sizeof(real) * ncrit);
-    if( ver == NULL ){
-      __KILL__(stderr, "%s\n", "ERROR: memory allocation failed.");
-    }
+      const int ncrit = ((int)(bodyNum[kk] / ncrit_base) > Nminimum) ? ncrit_base : (int)(bodyNum[kk] / Nminimum);
+      const real inv_ncrit = UNITY / (real)ncrit;
+      real *ver;
+      ver = (real *)malloc(sizeof(real) * ncrit);
+      if( ver == NULL ){
+	__KILL__(stderr, "%s\n", "ERROR: memory allocation failed.");
+      }
 
+      for(int head = 0; head < bodyNum[kk]; head += ncrit){
+	/* check # of unused elements */
+	if( *rem == 0 ){
+	  enlargeHorizontalProfileArray(*num + NAllocUnit, pos, Sigma, height, sigR, sigp, sigz);
+	  *rem += NAllocUnit;
+	  ppos    = *pos;
+	  pSigma  = *Sigma;
+	  pheight = *height;
+	  psigR   = *sigR;
+	  psigp   = *sigp;
+	  psigz   = *sigz;
+	}/* if( *rem == 0 ){ */
 
-    for(int head = 0; head < bodyNum[kk]; head += ncrit){
-      /* check # of unused elements */
-      if( *rem == 0 ){
-      	enlargeHorizontalProfileArray(*num + NAllocUnit, pos, Sigma, height, sigR, sigp, sigz);
-      	*rem += NAllocUnit;
-	ppos    = *pos;
-	pSigma  = *Sigma;
-	pheight = *height;
-	psigR   = *sigR;
-	psigp   = *sigp;
-	psigz   = *sigz;
-      }/* if( *rem == 0 ){ */
+	int tail = head + ncrit;
+	if( tail - 1 >= bodyNum[kk] )
+	  break;
 
-      int tail = head + ncrit;
-      if( tail - 1 >= bodyNum[kk] )	break;
+	real outer = body[tail - 1].hor;
+	ppos[*num] = (ncrit & 1) ? (body[head + (ncrit >> 1)].hor) : (HALF * (body[head + (ncrit >> 1) - 1].hor + body[head + (ncrit >> 1)].hor));/**< use median of particle location */
 
-      real outer = body[tail - 1].hor;
-      ppos[*num] = (ncrit & 1) ? (body[head + (ncrit >> 1)].hor) : (HALF * (body[head + (ncrit >> 1) - 1].hor + body[head + (ncrit >> 1)].hor));/**< use median of particle location */
+	real mass = ZERO;
+	real vR2 = ZERO;      real vRm = ZERO;
+	real vp2 = ZERO;      real vpm = ZERO;
+	real vz2 = ZERO;      real vzm = ZERO;
+	for(int ii = head; ii < tail; ii++){
+	  mass += body[ii].m;
 
-      real mass = ZERO;
-      real vR2 = ZERO;      real vRm = ZERO;
-      real vp2 = ZERO;      real vpm = ZERO;
-      real vz2 = ZERO;      real vzm = ZERO;
-      for(int ii = head; ii < tail; ii++){
-      	mass += body[ii].m;
+	  ver[ii - head] = FABS(body[ii].z - com[2]);
 
-	ver[ii - head] = FABS(body[ii].z - com[2]);
+	  const real invR = UNITY / body[ii].hor;
+	  const real xx = body[ii].x - com[0];
+	  const real yy = body[ii].y - com[1];
+	  const real vx = body[ii].vx - vel[0];
+	  const real vy = body[ii].vy - vel[1];
+	  const real vz = body[ii].vz - vel[2];
+	  vzm += vz;
+	  vz2 += vz * vz;
+	  const real vR = ( xx * vx + yy * vy) * invR;
+	  const real vp = (-yy * vx + xx * vy) * invR;
+	  vRm += vR;
+	  vR2 += vR * vR;
+	  vpm += vp;
+	  vp2 += vp * vp;
+	}/* for(int ii = hea; ii < tail; ii++){ */
 
-	const real invR = UNITY / body[ii].hor;
-	const real xx = body[ii].x - com[0];
-	const real yy = body[ii].y - com[1];
-	const real vx = body[ii].vx - vel[0];
-	const real vy = body[ii].vy - vel[1];
-	const real vz = body[ii].vz - vel[2];
-	vzm += vz;
-	vz2 += vz * vz;
-	const real vR = ( xx * vx + yy * vy) * invR;
-	const real vp = (-yy * vx + xx * vy) * invR;
-	vRm += vR;
-	vR2 += vR * vR;
-	vpm += vp;
-	vp2 += vp * vp;
-      }/* for(int ii = hea; ii < tail; ii++){ */
+	pSigma[*num] = mass / (CAST_D2R(M_PI) * (outer * outer - inner * inner));
 
-      pSigma[*num] = mass / (CAST_D2R(M_PI) * (outer * outer - inner * inner));
+	qsort(ver, ncrit, sizeof(real), verAscendingOrder);
+	pheight[*num] = (ncrit & 1) ? (ver[(ncrit >> 1)]) : (HALF * (ver[(ncrit >> 1) - 1] + ver[(ncrit >> 1)]));/**< use median of height */
 
-      qsort(ver, ncrit, sizeof(real), verAscendingOrder);
-      pheight[*num] = (ncrit & 1) ? (ver[(ncrit >> 1)]) : (HALF * (ver[(ncrit >> 1) - 1] + ver[(ncrit >> 1)]));/**< use median of height */
+	vzm *= inv_ncrit;      vz2 *= inv_ncrit;
+	vRm *= inv_ncrit;      vR2 *= inv_ncrit;
+	vpm *= inv_ncrit;      vp2 *= inv_ncrit;
+	psigz[*num] = SQRT(vz2 - vzm * vzm);
+	psigR[*num] = SQRT(vR2 - vRm * vRm);
+	psigp[*num] = SQRT(vp2 - vpm * vpm);
 
-      vzm *= inv_ncrit;      vz2 *= inv_ncrit;
-      vRm *= inv_ncrit;      vR2 *= inv_ncrit;
-      vpm *= inv_ncrit;      vp2 *= inv_ncrit;
-      psigz[*num] = SQRT(vz2 - vzm * vzm);
-      psigR[*num] = SQRT(vR2 - vRm * vRm);
-      psigp[*num] = SQRT(vp2 - vpm * vpm);
-
-
-      inner = outer;
-      *num += 1;
-      *rem -= 1;
-    }/* for(int head = 0; head < (int)group[kk].num; head += ncrit){ */
+	inner = outer;
+	*num += 1;
+	*rem -= 1;
+      }/* for(int head = 0; head < (int)group[kk].num; head += ncrit){ */
+    }/* if( bodyNum[kk] > Nminimum ){ */
 
     prfNum[kk] = *num - prfHead[kk];
   }/* for(int kk = 0; kk < kind; kk++){ */
@@ -924,9 +913,6 @@ void generateMassDistributionMaps(const int kind, int * restrict bodyHead, int *
   const real sig = HALF * eps;/**< sigma in Gaussian is roughly corresponding to eps of Plummer softening */
   const real invsig = UNITY / sig;
 
-  /* const int nx_smooth = (int)CEIL(SPREAD * dx * invsig); */
-  /* const int ny_smooth = (int)CEIL(SPREAD * dy * invsig); */
-  /* const int nz_smooth = (int)CEIL(SPREAD * dz * invsig); */
   const int nx_smooth = (int)CEIL(SPREAD * dxinv * sig);
   const int ny_smooth = (int)CEIL(SPREAD * dyinv * sig);
   const int nz_smooth = (int)CEIL(SPREAD * dzinv * sig);
@@ -936,12 +922,6 @@ void generateMassDistributionMaps(const int kind, int * restrict bodyHead, int *
   for(int ii = 0; ii < 2 * nx_smooth + 2; ii++)    erfx[ii] = ERF((dx * ((real)(ii - nx_smooth) - HALF)) * invsig);
   for(int ii = 0; ii < 2 * ny_smooth + 2; ii++)    erfy[ii] = ERF((dy * ((real)(ii - ny_smooth) - HALF)) * invsig);
   for(int ii = 0; ii < 2 * nz_smooth + 2; ii++)    erfz[ii] = ERF((dz * ((real)(ii - nz_smooth) - HALF)) * invsig);
-  /* for(int ii = 0; ii < 2 * nx_smooth + 2; ii++)    erfx[ii] = ERF((dxinv * (real)(ii - nx_smooth)) * sig); */
-  /* for(int ii = 0; ii < 2 * ny_smooth + 2; ii++)    erfy[ii] = ERF((dyinv * (real)(ii - ny_smooth)) * sig); */
-  /* for(int ii = 0; ii < 2 * nz_smooth + 2; ii++)    erfz[ii] = ERF((dzinv * (real)(ii - nz_smooth)) * sig); */
-  /* for(int ii = 0; ii < 2 * nx_smooth + 2; ii++)    erfx[ii] = ERF(((real)(ii - nx_smooth)) * sig); */
-  /* for(int ii = 0; ii < 2 * ny_smooth + 2; ii++)    erfy[ii] = ERF(((real)(ii - ny_smooth)) * sig); */
-  /* for(int ii = 0; ii < 2 * nz_smooth + 2; ii++)    erfz[ii] = ERF(((real)(ii - nz_smooth)) * sig); */
 
   real *psfx;  psfx = (real *)malloc(sizeof(real) * (2 * nx_smooth + 1));  if( psfx == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate psfx");  }
   real *psfy;  psfy = (real *)malloc(sizeof(real) * (2 * ny_smooth + 1));  if( psfy == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate psfy");  }
@@ -950,18 +930,6 @@ void generateMassDistributionMaps(const int kind, int * restrict bodyHead, int *
   for(int ii = 0; ii < 2 * ny_smooth + 1; ii++)    psfy[ii] = HALF * (erfy[ii + 1] - erfy[ii]);
   for(int ii = 0; ii < 2 * nz_smooth + 1; ii++)    psfz[ii] = HALF * (erfz[ii + 1] - erfz[ii]);
 
-
-#if 0
-  for(int ii = 0; ii < 2 * nx_smooth + 2; ii++)    printf("%d\t%e\n", ii, erfx[ii]);
-  for(int ii = 0; ii < 2 * ny_smooth + 2; ii++)    printf("%d\t%e\n", ii, erfy[ii]);
-  for(int ii = 0; ii < 2 * nz_smooth + 2; ii++)    printf("%d\t%e\n", ii, erfz[ii]);
-  __FPRINTF__(stdout, "sig = %e, dx = %e, dy = %e, dz = %e, nx_smooth = %d, ny_smooth = %d, nz_smooth = %d\n", sig, dx, dy, dz, nx_smooth, ny_smooth, nz_smooth);
-  for(int ii = 0; ii < 2 * nx_smooth + 1; ii++)    printf("%d\t%e\n", ii, psfx[ii]);
-  for(int ii = 0; ii < 2 * ny_smooth + 1; ii++)    printf("%d\t%e\n", ii, psfy[ii]);
-  for(int ii = 0; ii < 2 * nz_smooth + 1; ii++)    printf("%d\t%e\n", ii, psfz[ii]);
-  MPI_Finalize();
-  exit(0);
-#endif
 
   const real dVinv = dxinv * dyinv * dzinv;
   const real dSxyinv = dxinv * dyinv;
@@ -991,28 +959,6 @@ void generateMassDistributionMaps(const int kind, int * restrict bodyHead, int *
       const int m0 = (int)FLOOR((yi - ymin) * dyinv);
       const int n0 = (int)FLOOR((zi - zmin) * dzinv);
 
-#if 0
-      if( ((l0 - nx_smooth) >= 0) && ((l0 + nx_smooth) < nx) )
-	if( ((m0 - ny_smooth) >= 0) && ((m0 + ny_smooth) < ny) )
-	  if( ((n0 - nz_smooth) >= 0) && ((n0 + nz_smooth) < nz) ){
-	    for(int ll = l0 - nx_smooth; ll < l0 + nx_smooth + 1; ll++){
-	      const real mx = mi * psfx[ll - l0 - nx_smooth];
-	      for(int mm = m0 - ny_smooth; mm < m0 + ny_smooth + 1; mm++){
-		const real my = mx * psfy[mm - m0 - ny_smooth];
-		Sigma_xy[INDEX(kind, nx, ny, kk, ll, mm)] += my;
-		for(int nn = n0 - nz_smooth; nn < n0 + nz_smooth + 1; nn++)
-		  rho_map[INDEX4D(kind, nx, ny, nz, kk, ll, mm, nn)] += my * psfz[nn - n0 - nz_smooth];
-	      }
-	      for(int nn = n0 - nz_smooth; nn < n0 + nz_smooth + 1; nn++)
-		Sigma_zx[INDEX(kind, nz, nx, kk, nn, ll)] += mx * psfz[nn - n0 - nz_smooth];
-	    }
-	    for(int mm = m0 - ny_smooth; mm < m0 + ny_smooth + 1; mm++){
-	      const real my = mi * psfy[mm - m0 - ny_smooth];
-	      for(int nn = n0 - nz_smooth; nn < n0 + nz_smooth + 1; nn++)
-		Sigma_yz[INDEX(kind, ny, nz, kk, mm, nn)] += my * psfz[nn - n0 - nz_smooth];
-	    }
-	  }
-#else
       for(int sx = 0; sx < 2 * nx_smooth + 1; sx++){
 	const int ll = l0 + sx - nx_smooth;
 	if( (ll >= 0) && (ll < nx) ){
@@ -1052,31 +998,6 @@ void generateMassDistributionMaps(const int kind, int * restrict bodyHead, int *
 	  }/* for(int sz = 0; sz < 2 * nz_smooth + 1; sz++){ */
 	}/* if( (mm >= 0) && (mm < ny) ){ */
       }/* for(int sy = 0; sy < 2 * ny_smooth + 1; sy++){ */
-
-      /* for(int ll = l0 - nx_smooth; ll < l0 + nx_smooth + 1; ll++) */
-      /* 	if( (ll >= 0) && (ll < nx) ){ */
-      /* 	  const real mx = mi * psfx[ll - l0 - nx_smooth]; */
-      /* 	  for(int mm = m0 - ny_smooth; mm < m0 + ny_smooth + 1; mm++) */
-      /* 	    if( (mm >= 0) && (mm < ny) ){ */
-      /* 	      const real my = mx * psfy[mm - m0 - ny_smooth]; */
-      /* 	      Sigma_xy[INDEX(kind, nx, ny, kk, ll, mm)] += my; */
-      /* 	      for(int nn = n0 - nz_smooth; nn < n0 + nz_smooth + 1; nn++) */
-      /* 		if( (nn >= 0) && (nn < nz) ) */
-      /* 		  rho_map[INDEX4D(kind, nx, ny, nz, kk, ll, mm, nn)] += my * psfz[nn - n0 - nz_smooth]; */
-      /* 	    }/\* if( (mm >= 0) && (mm < ny) ){ *\/ */
-      /* 	  for(int nn = n0 - nz_smooth; nn < n0 + nz_smooth + 1; nn++) */
-      /* 	    if( (nn >= 0) && (nn < nz) ) */
-      /* 	      Sigma_zx[INDEX(kind, nz, nx, kk, nn, ll)] += mx * psfz[nn - n0 - nz_smooth]; */
-      /* 	}/\* if( (ll >= 0) && (ll < nx) ){ *\/ */
-
-      /* for(int mm = m0 - ny_smooth; mm < m0 + ny_smooth + 1; mm++) */
-      /* 	if( (mm >= 0) && (mm < ny) ){ */
-      /* 	  const real my = mi * psfy[mm - m0 - ny_smooth]; */
-      /* 	  for(int nn = n0 - nz_smooth; nn < n0 + nz_smooth + 1; nn++) */
-      /* 	    if( (nn >= 0) && (nn < nz) ) */
-      /* 	      Sigma_yz[INDEX(kind, ny, nz, kk, mm, nn)] += my * psfz[nn - n0 - nz_smooth]; */
-      /* 	}/\* if( (mm >= 0) && (mm < ny) ){ *\/ */
-#endif
     }/* for(int ii = 0; ii < bodyNum[kk]; ii++){ */
 
     for(int ii = 0; ii < nx * ny * nz; ii++)
@@ -1125,6 +1046,7 @@ void writeAnalyzedProfiles
   hid_t dataset, dataspace, property;
 #ifdef  USE_FILE_COMPRESSION
   const hsize_t cdims_max = (MAXIMUM_CHUNK_SIZE_4BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_4BIT : MAXIMUM_CHUNK_SIZE;
+  hsize_t cdims_loc[3];
 #ifdef  USE_SZIP_COMPRESSION
   /* compression using szip */
   const uint szip_options_mask = H5_SZIP_NN_OPTION_MASK;
@@ -1132,6 +1054,7 @@ void writeAnalyzedProfiles
   const hsize_t szip_cdims[3] = {1, 1, 128 * szip_pixels_per_block};
 #endif//USE_SZIP_COMPRESSION
 #ifdef  USE_GZIP_COMPRESSION
+  /* compression using gzip */
   const uint gzip_compress_level = 9;/**< 9 is the maximum compression ratio */
   const hsize_t gzip_cdims[3] = {1, 1, 1024};
 #endif//USE_GZIP_COMPRESSION
@@ -1214,12 +1137,16 @@ void writeAnalyzedProfiles
   for(int ii = 0; ii < kind; ii++){
     char grp[16];    sprintf(grp, "field%d", ii);
     hid_t group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    hsize_t attr_dims = 1;
+    hid_t attribute;
 
     /** 3D (nx * ny * nz) array */
     hsize_t dims[3] = {nx, ny, nz};
     dataspace = H5Screate_simple(3, dims, NULL);
 #ifdef  USE_SZIP_COMPRESSION
-    hsize_t cdims_loc[3] = {szip_cdims[0], szip_cdims[1], szip_cdims[2]};
+    cdims_loc[0] = szip_cdims[0];
+    cdims_loc[1] = szip_cdims[1];
+    cdims_loc[2] = szip_cdims[2];
     if( (dims[0] * dims[1] * dims[2]) > (hsize_t)szip_pixels_per_block ){
       property = H5Pcreate(H5P_DATASET_CREATE);
       if( dims[2] < cdims_loc[2] ){
@@ -1418,112 +1345,112 @@ void writeAnalyzedProfiles
     chkHDF5err(H5Sclose(dataspace));
 
 
-    chkHDF5err(H5Gclose(group));
-    sprintf(grp, "rad%d", ii);
-    group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    /** 1D (num) arrays */
-    dims[0] = prfNum[ii];
-    dataspace = H5Screate_simple(1, dims, NULL);
+    if( bodyNum[ii] > Nminimum ){
+      chkHDF5err(H5Gclose(group));
+      sprintf(grp, "rad%d", ii);
+      group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+      /** 1D (num) arrays */
+      dims[0] = prfNum[ii];
+      dataspace = H5Screate_simple(1, dims, NULL);
 #ifdef  USE_GZIP_COMPRESSION
-    cdims_loc[0] = gzip_cdims[2];
-    property = H5Pcreate(H5P_DATASET_CREATE);
-    if( dims[0] < cdims_loc[0] )
-      cdims_loc[0] = dims[0];
-    if( cdims_loc[0] > cdims_max )
-      cdims_loc[0] = cdims_max;
-    chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
-    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+      cdims_loc[0] = gzip_cdims[2];
+      property = H5Pcreate(H5P_DATASET_CREATE);
+      if( dims[0] < cdims_loc[0] )
+	cdims_loc[0] = dims[0];
+      if( cdims_loc[0] > cdims_max )
+	cdims_loc[0] = cdims_max;
+      chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
+      chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_GZIP_COMPRESSION
-    for(int jj = prfHead[ii]; jj < prfHead[ii] + prfNum[ii]; jj++){
-      rad[jj] = CAST_D2R(CAST_R2D(rad[jj]) *   length2astro);
-      rho[jj] = CAST_D2R(CAST_R2D(rho[jj]) *  density2astro);
-      enc[jj] = CAST_D2R(CAST_R2D(enc[jj]) *     mass2astro);
-      sig[jj] = CAST_D2R(CAST_R2D(sig[jj]) * velocity2astro);
-    }/* for(int jj = prfHead[ii]; jj < prfHead[ii] + prfNum[ii]; jj++){ */
-    dataset = H5Dcreate(group, "rad", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rad[prfHead[ii]]));
-    chkHDF5err(H5Dclose(dataset));
-    dataset = H5Dcreate(group, "rho", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rho[prfHead[ii]]));
-    chkHDF5err(H5Dclose(dataset));
-    dataset = H5Dcreate(group, "enc", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &enc[prfHead[ii]]));
-    chkHDF5err(H5Dclose(dataset));
-    dataset = H5Dcreate(group, "sig", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &sig[prfHead[ii]]));
-    chkHDF5err(H5Dclose(dataset));
+      for(int jj = prfHead[ii]; jj < prfHead[ii] + prfNum[ii]; jj++){
+	rad[jj] = CAST_D2R(CAST_R2D(rad[jj]) *   length2astro);
+	rho[jj] = CAST_D2R(CAST_R2D(rho[jj]) *  density2astro);
+	enc[jj] = CAST_D2R(CAST_R2D(enc[jj]) *     mass2astro);
+	sig[jj] = CAST_D2R(CAST_R2D(sig[jj]) * velocity2astro);
+      }/* for(int jj = prfHead[ii]; jj < prfHead[ii] + prfNum[ii]; jj++){ */
+      dataset = H5Dcreate(group, "rad", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rad[prfHead[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "rho", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rho[prfHead[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "enc", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &enc[prfHead[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "sig", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &sig[prfHead[ii]]));
+      chkHDF5err(H5Dclose(dataset));
 #ifdef  USE_GZIP_COMPRESSION
-    chkHDF5err(H5Pclose(property));
+      chkHDF5err(H5Pclose(property));
 #endif//USE_GZIP_COMPRESSION
-    /* close the dataspace */
-    chkHDF5err(H5Sclose(dataspace));
-    /* write attribute data */
-    hsize_t attr_dims = 1;
-    dataspace = H5Screate_simple(1, &attr_dims, NULL);
-    hid_t attribute;
-    /* write # of grid points */
-    attribute = H5Acreate(group, "Nrad", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &prfNum[ii]));
-    chkHDF5err(H5Aclose(attribute));
-    chkHDF5err(H5Sclose(dataspace));
+      /* close the dataspace */
+      chkHDF5err(H5Sclose(dataspace));
+      /* write attribute data */
+      attr_dims = 1;
+      dataspace = H5Screate_simple(1, &attr_dims, NULL);
+      /* write # of grid points */
+      attribute = H5Acreate(group, "Nrad", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &prfNum[ii]));
+      chkHDF5err(H5Aclose(attribute));
+      chkHDF5err(H5Sclose(dataspace));
 
 
-    chkHDF5err(H5Gclose(group));
-    sprintf(grp, "hor%d", ii);
-    group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    /** 1D (num_hor) arrays */
-    dims[0] = prfNum_hor[ii];
-    dataspace = H5Screate_simple(1, dims, NULL);
+      chkHDF5err(H5Gclose(group));
+      sprintf(grp, "hor%d", ii);
+      group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+      /** 1D (num_hor) arrays */
+      dims[0] = prfNum_hor[ii];
+      dataspace = H5Screate_simple(1, dims, NULL);
 #ifdef  USE_GZIP_COMPRESSION
-    cdims_loc[0] = gzip_cdims[2];
-    property = H5Pcreate(H5P_DATASET_CREATE);
-    if( dims[0] < cdims_loc[0] )
-      cdims_loc[0] = dims[0];
-    if( cdims_loc[0] > cdims_max )
-      cdims_loc[0] = cdims_max;
-    chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
-    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+      cdims_loc[0] = gzip_cdims[2];
+      property = H5Pcreate(H5P_DATASET_CREATE);
+      if( dims[0] < cdims_loc[0] )
+	cdims_loc[0] = dims[0];
+      if( cdims_loc[0] > cdims_max )
+	cdims_loc[0] = cdims_max;
+      chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
+      chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_GZIP_COMPRESSION
-    for(int jj = prfHead_hor[ii]; jj < prfHead_hor[ii] + prfNum_hor[ii]; jj++){
-      hor   [jj] = CAST_D2R(CAST_R2D(hor   [jj]) *      length2astro);
-      Sigma [jj] = CAST_D2R(CAST_R2D(Sigma [jj]) * col_density2astro);
-      height[jj] = CAST_D2R(CAST_R2D(height[jj]) *      length2astro);
-      sigR  [jj] = CAST_D2R(CAST_R2D(sigR  [jj]) *    velocity2astro);
-      sigp  [jj] = CAST_D2R(CAST_R2D(sigp  [jj]) *    velocity2astro);
-      sigz  [jj] = CAST_D2R(CAST_R2D(sigz  [jj]) *    velocity2astro);
-    }/* for(int jj = prfHead[ii]; jj < prfHead[ii] + prfNum[ii]; jj++){ */
-    dataset = H5Dcreate(group, "hor", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &hor[prfHead_hor[ii]]));
-    chkHDF5err(H5Dclose(dataset));
-    dataset = H5Dcreate(group, "Sigma", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &Sigma[prfHead_hor[ii]]));
-    chkHDF5err(H5Dclose(dataset));
-    dataset = H5Dcreate(group, "height", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &height[prfHead_hor[ii]]));
-    chkHDF5err(H5Dclose(dataset));
-    dataset = H5Dcreate(group, "sigR", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &sigR[prfHead_hor[ii]]));
-    chkHDF5err(H5Dclose(dataset));
-    dataset = H5Dcreate(group, "sigp", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &sigp[prfHead_hor[ii]]));
-    chkHDF5err(H5Dclose(dataset));
-    dataset = H5Dcreate(group, "sigz", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &sigz[prfHead_hor[ii]]));
-    chkHDF5err(H5Dclose(dataset));
+      for(int jj = prfHead_hor[ii]; jj < prfHead_hor[ii] + prfNum_hor[ii]; jj++){
+	hor   [jj] = CAST_D2R(CAST_R2D(hor   [jj]) *      length2astro);
+	Sigma [jj] = CAST_D2R(CAST_R2D(Sigma [jj]) * col_density2astro);
+	height[jj] = CAST_D2R(CAST_R2D(height[jj]) *      length2astro);
+	sigR  [jj] = CAST_D2R(CAST_R2D(sigR  [jj]) *    velocity2astro);
+	sigp  [jj] = CAST_D2R(CAST_R2D(sigp  [jj]) *    velocity2astro);
+	sigz  [jj] = CAST_D2R(CAST_R2D(sigz  [jj]) *    velocity2astro);
+      }/* for(int jj = prfHead[ii]; jj < prfHead[ii] + prfNum[ii]; jj++){ */
+      dataset = H5Dcreate(group, "hor", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &hor[prfHead_hor[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "Sigma", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &Sigma[prfHead_hor[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "height", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &height[prfHead_hor[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "sigR", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &sigR[prfHead_hor[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "sigp", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &sigp[prfHead_hor[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "sigz", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &sigz[prfHead_hor[ii]]));
+      chkHDF5err(H5Dclose(dataset));
 #ifdef  USE_GZIP_COMPRESSION
-    chkHDF5err(H5Pclose(property));
+      chkHDF5err(H5Pclose(property));
 #endif//USE_GZIP_COMPRESSION
-    /* close the dataspace */
-    chkHDF5err(H5Sclose(dataspace));
-    /* write attribute data */
-    attr_dims = 1;
-    dataspace = H5Screate_simple(1, &attr_dims, NULL);
-    /* write # of grid points */
-    attribute = H5Acreate(group, "Nhor", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &prfNum_hor[ii]));
-    chkHDF5err(H5Aclose(attribute));
-    chkHDF5err(H5Sclose(dataspace));
-
+      /* close the dataspace */
+      chkHDF5err(H5Sclose(dataspace));
+      /* write attribute data */
+      attr_dims = 1;
+      dataspace = H5Screate_simple(1, &attr_dims, NULL);
+      /* write # of grid points */
+      attribute = H5Acreate(group, "Nhor", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &prfNum_hor[ii]));
+      chkHDF5err(H5Aclose(attribute));
+      chkHDF5err(H5Sclose(dataspace));
+    }/* if( bodyNum[ii] > Nminimum ){ */
 
     /* write attribute data */
     chkHDF5err(H5Gclose(group));

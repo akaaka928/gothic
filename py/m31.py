@@ -110,7 +110,7 @@ def disk_ellipse():
         obs = np.dot(inv, np.array([rad * np.cos(theta), rad * np.sin(theta), 0.0]))
 
         xi[ii], eta[ii], D[ii] = standard_coordinate(obs[0], obs[1], obs[2])
-        D[ii] -= zm31
+        # D[ii] -= zm31
 
     return num, xi, eta, D
 
@@ -254,8 +254,8 @@ def GSS_distance():
     gss_xi[7] =  2.358;    gss_eta[7] = -4.772;    gss_D[7] = 844.0;    gss_Dep[7] =  8.0;    gss_Dem[7] =  7.0# GSS9
     gss_xi[8] =  2.701;    gss_eta[8] = -5.242;    gss_D[8] = 870.0;    gss_Dep[8] = 25.0;    gss_Dem[8] = 41.0# GSS10
 
-    for ii in range(Ngss):
-        gss_D[ii] -= zm31
+    # for ii in range(Ngss):
+    #     gss_D[ii] -= zm31
 
     gss_field_xi  = np.zeros((Ngss, 4 + 1))
     gss_field_eta = np.zeros((Ngss, 4 + 1))
@@ -325,8 +325,8 @@ def StreamC_distance():
     streamC_xi[2] = 3.580;    streamC_eta[2] = -1.896;    streamC_D[2] = 819.0;    streamC_Dep[2] =  9.0;    streamC_Dem[2] = 56.0# C3
     streamC_xi[3] = 3.715;    streamC_eta[3] = -0.499;    streamC_D[3] = 831.0;    streamC_Dep[3] =  8.0;    streamC_Dem[3] = 20.0# C4
 
-    for ii in range(NstreamC):
-        streamC_D[ii] -= zm31
+    # for ii in range(NstreamC):
+    #     streamC_D[ii] -= zm31
 
     streamC_field_xi  = np.zeros((NstreamC, 4 + 1))
     streamC_field_eta = np.zeros((NstreamC, 4 + 1))
@@ -372,8 +372,8 @@ def StreamD_distance():
     streamD_xi[3] = 3.097;    streamD_eta[3] =  0.469;    streamD_D[3] = 818.0;    streamD_Dep[3] = 50.0;    streamD_Dem[3] = 15.0# D4
     streamD_xi[4] = 2.932;    streamD_eta[4] =  1.198;    streamD_D[4] = 783.0;    streamD_Dep[4] = 13.0;    streamD_Dem[4] = 17.0# D5
 
-    for ii in range(NstreamD):
-        streamD_D[ii] -= zm31
+    # for ii in range(NstreamD):
+    #     streamD_D[ii] -= zm31
 
     streamD_field_xi  = np.zeros((NstreamD, 4 + 1))
     streamD_field_eta = np.zeros((NstreamD, 4 + 1))

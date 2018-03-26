@@ -28,14 +28,22 @@ outputPDF = False
 # xtics = [-10, -5, 0, 5, 10]
 # ytics = [-10, -5, 0, 5, 10]
 
-filename = "halocusp_run"
-Nskip = 1
-skip = [0]
+filename = "k17disk"
+Nskip = 2
+skip = [0, 2]
 init = 0
-last = 140
-# last = 0
-fmin, fmax = 1.0e-6, 1.0e-1
-lab = ["halo", "core", "GC"]
+last = 399
+fmin, fmax = 1.0e-7, 1.0e-1
+lab = ["halo", "bulge", "MBH", "disk"]
+
+# filename = "halocusp_run"
+# Nskip = 1
+# skip = [0]
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-6, 1.0e-1
+# lab = ["halo", "core", "GC"]
 
 # filename = "hernquist"
 # Nskip = 0
@@ -106,44 +114,45 @@ def draw_figure(fileid, kind):
     nypanel = 2
     Ndata = 0
     for ii in range(kind):
-        num = h5file["attr" + str(ii)].attrs["number"][0]
-        if (Nskip == 0) or (ii not in skip) and (num > 1):
-            # read surface density maps
-            folder = "field" + str(ii) + "/"
-            xy_map[nxpanel] = h5file[folder + "Sigma_xy"].value
-            xz_map[nxpanel] = h5file[folder + "Sigma_zx"].value.T
-            xx[nxpanel] = h5file[folder + "x"].value
-            yy[nxpanel] = h5file[folder + "y"].value
-            zz[nxpanel] = h5file[folder + "z"].value
+        if (Nskip == 0) or (ii not in skip):
+            num = h5file["attr" + str(ii)].attrs["number"][0]
+            if (num > 1):
+                # read surface density maps
+                folder = "field" + str(ii) + "/"
+                xy_map[nxpanel] = h5file[folder + "Sigma_xy"].value
+                xz_map[nxpanel] = h5file[folder + "Sigma_zx"].value.T
+                xx[nxpanel] = h5file[folder + "x"].value
+                yy[nxpanel] = h5file[folder + "y"].value
+                zz[nxpanel] = h5file[folder + "z"].value
 
-            nxpanel += 1
-            Ndata += 1
+                nxpanel += 1
+                Ndata += 1
 
-        folder = "rad" + str(ii) + "/"
-        rad = h5file[folder + "rad"].value
-        rho = h5file[folder + "rho"].value
-        enc = h5file[folder + "enc"].value
-        sig = h5file[folder + "sig"].value
+            folder = "rad" + str(ii) + "/"
+            rad = h5file[folder + "rad"].value
+            rho = h5file[folder + "rho"].value
+            enc = h5file[folder + "enc"].value
+            sig = h5file[folder + "sig"].value
 
-        folder = "hor" + str(ii) + "/"
-        hor = h5file[folder + "hor"].value
-        ver = h5file[folder + "height"].value
-        Sig = h5file[folder + "Sigma"].value
-        sigR = h5file[folder + "sigR"].value
-        sigp = h5file[folder + "sigp"].value
-        sigz = h5file[folder + "sigz"].value
+            folder = "hor" + str(ii) + "/"
+            hor = h5file[folder + "hor"].value
+            ver = h5file[folder + "height"].value
+            Sig = h5file[folder + "Sigma"].value
+            sigR = h5file[folder + "sigR"].value
+            sigp = h5file[folder + "sigp"].value
+            sigz = h5file[folder + "sigz"].value
 
-        # measure of the thickness, according to Rodionov & Sotnikova (2013)
-        ver *= 1.82
+            # measure of the thickness, according to Rodionov & Sotnikova (2013)
+            ver *= 1.82
 
-        ax_rho[0].plot(rad, rho, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
-        ax_enc[0].plot(rad, enc, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
-        ax_sig[0].plot(rad, sig, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
-        ax_Sig[0].plot(hor, Sig, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
-        ax_ver[0].plot(hor, ver, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
-        ax_sig2D[0].plot(hor, sigR, pt[0], linestyle = ls[ii], color = col[ii], label = r"$\sigma_R$" + " (" + lab[ii] + ")")
-        ax_sig2D[0].plot(hor, sigp, pt[1], linestyle = ls[ii], color = col[ii], label = r"$\sigma_p$" + " (" + lab[ii] + ")")
-        ax_sig2D[0].plot(hor, sigz, pt[2], linestyle = ls[ii], color = col[ii], label = r"$\sigma_z$" + " (" + lab[ii] + ")")
+            ax_rho[0].plot(rad, rho, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
+            ax_enc[0].plot(rad, enc, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
+            ax_sig[0].plot(rad, sig, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
+            ax_Sig[0].plot(hor, Sig, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
+            ax_ver[0].plot(hor, ver, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
+            ax_sig2D[0].plot(hor, sigR, pt[0], linestyle = ls[ii], color = col[ii], label = r"$\sigma_R$" + " (" + lab[ii] + ")")
+            ax_sig2D[0].plot(hor, sigp, pt[1], linestyle = ls[ii], color = col[ii], label = r"$\sigma_p$" + " (" + lab[ii] + ")")
+            ax_sig2D[0].plot(hor, sigz, pt[2], linestyle = ls[ii], color = col[ii], label = r"$\sigma_z$" + " (" + lab[ii] + ")")
 
 
 
@@ -303,6 +312,12 @@ def draw_figure(fileid, kind):
     fig_sig2D.savefig("fig/" + filename + "_sigRz" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
     if outputPDF:
         fig.savefig(figname + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
+        fig_rho.savefig("fig/" + filename + "_rho" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
+        fig_enc.savefig("fig/" + filename + "_enc" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
+        fig_sig.savefig("fig/" + filename + "_sig" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
+        fig_Sig.savefig("fig/" + filename + "_Sig" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
+        fig_ver.savefig("fig/" + filename + "_ver" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
+        fig_sig2D.savefig("fig/" + filename + "_sigRz" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
     plt.close("all")
 
 

@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/22 (Thu)
+ * @date 2018/03/24 (Sat)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -139,7 +139,7 @@ static inline void selectCommunicationMode
     for(int ii = 1; ii < mpi.size; ii++)
       head_list[ii] = head_list[ii - 1] + Ni_list[ii - 1];
     *Ni_total = head_list[mpi.size - 1] + Ni_list[mpi.size - 1];
-    __NOTE__("Ni_local = %d, Ni_total = %d\n", *Ni_local, *Ni_tot);
+    __NOTE__("Ni_local = %d, Ni_total = %d\n", *Ni_local, *Ni_total);
 
     if( *Ni_total > NMAX_J_PARALLELIZATION )
       *transferMode = false;/**< #this is a tentative treatment before developing double buffer mode for i-particle transfer mode in src/tree/walk_dev.cu */
@@ -1603,10 +1603,9 @@ int main(int argc, char **argv)
 #else///MPI_VIA_HOST
   const muse  ext_mem = {alloc_extBodyInfo.host   + alloc_ibody_dist_dev.host   + alloc_lane_ext_dev.host   + alloc_ibody_dist0.host   + alloc_ibody_dist1.host  ,
 			 alloc_extBodyInfo.device + alloc_ibody_dist_dev.device + alloc_lane_ext_dev.device + alloc_ibody_dist0.device + alloc_ibody_dist1.device};
+#endif//MPI_VIA_HOST
   used_mem.host   += ext_mem.host;
   used_mem.device += ext_mem.device;
-#endif//MPI_VIA_HOST
-
 #endif//SWITCH_WITH_J_PARALLELIZATION
 #endif//SERIALIZED_EXECUTION
 #ifdef  COMPARE_WITH_DIRECT_SOLVER

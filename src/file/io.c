@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/20 (Tue)
+ * @date 2018/03/26 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2639,7 +2639,7 @@ void writeFixedPotentialTable
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   /* write numeric table for superposed spherical components */
-  sprintf(filename, "%s/%s.%s.%s", DATAFOLDER, file, "pot", "sphe");
+  sprintf(filename, "%s/%s.%s.dat", DATAFOLDER, file, "ext_pot");
   FILE *fp;
   fp = fopen(filename, binary ? "wb" : "w");
   if( fp == NULL ){    __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);  }
@@ -4090,10 +4090,10 @@ void writeSnapshotParallel
  * @return (head) index of the head particle in each group
  * @return (num) number of N-body particles in each group
  */
-#ifndef USE_SZIP_COMPRESSION
-#define USE_SZIP_COMPRESSION
-#define SZIP_ONLY_FOR_SPLITTER
-#endif//USE_SZIP_COMPRESSION
+#   if  !defined(USE_SZIP_COMPRESSION) && !defined(USE_GZIP_COMPRESSION)
+#define USE_GZIP_COMPRESSION
+#define TENTATIVE_USE_GZIP_COMPRESSION
+#endif//!defined(USE_SZIP_COMPRESSION) && !defined(USE_GZIP_COMPRESSION)
 void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char file[], uint id, hdf5struct type, int kind, int *head, int *num)
 {
   __NOTE__("%s\n", "start");
@@ -4108,14 +4108,24 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
   /* create the data space for the dataset */
   /* preparation for data compression */
   hid_t dataset, dataspace, property;
+#   if  defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
+  const hsize_t cdims_max = (MAXIMUM_CHUNK_SIZE_4BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_4BIT : MAXIMUM_CHUNK_SIZE;
+  hsize_t cdims_loc[2];
 #ifdef  USE_SZIP_COMPRESSION
   /* compression using szip */
-  uint szip_options_mask = H5_SZIP_NN_OPTION_MASK;
-  uint szip_pixels_per_block = 8;
-  hsize_t cdims[2] = {32 * szip_pixels_per_block, 3};
-#else///USE_SZIP_COMPRESSION
-  property = H5P_DEFAULT;
+  const uint szip_options_mask = H5_SZIP_NN_OPTION_MASK;
+  const uint szip_pixels_per_block = 8;
+  hsize_t szip_cdims[2] = {32 * szip_pixels_per_block, 3};
 #endif//USE_SZIP_COMPRESSION
+#ifdef  USE_GZIP_COMPRESSION
+  /* compression using gzip */
+  const uint gzip_compress_level = 9;/**< 9 is the maximum compression ratio */
+  /* const hsize_t gzip_cdims[2] = {1, 1024}; */
+  hsize_t gzip_cdims[2] = {512, 3};
+#endif//USE_GZIP_COMPRESSION
+#else///defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
+  property = H5P_DEFAULT;
+#endif//defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
 
 
   /* write attribute data */
@@ -4196,21 +4206,33 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
     /* 2D (num * 3) array */
     hsize_t dims[2] = {num[ii], 3};
     dataspace = H5Screate_simple(2, dims, NULL);
+#   if  defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
 #ifdef  USE_SZIP_COMPRESSION
-    hsize_t cdims_loc[2] = {cdims[0], cdims[1]};
-    if( (hsize_t)(num[ii] * 3) > (hsize_t)szip_pixels_per_block ){
+    cdims_loc[0] = szip_cdims[0];
+    cdims_loc[1] = szip_cdims[1];
+    if( dims[0] * dims[1] > (hsize_t)szip_pixels_per_block ){
       property = H5Pcreate(H5P_DATASET_CREATE);
-      if( (hsize_t)num[ii] < cdims_loc[0] )
-	cdims_loc[0] = (hsize_t)num[ii];
-      hsize_t cdims_max = (MAXIMUM_CHUNK_SIZE_4BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_4BIT : MAXIMUM_CHUNK_SIZE;
+      if( dims[0] < cdims_loc[0] )
+	cdims_loc[0] = dims[0];
       if( cdims_loc[0] * cdims_loc[1] > cdims_max )
 	cdims_loc[0] = cdims_max / cdims_loc[1];
       chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
       chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
-    }/* if( (hsize_t)(num[ii] * 3) > (hsize_t)szip_pixels_per_block ){ */
+    }/* if( dims[0] * dims[1] > (hsize_t)szip_pixels_per_block ){ */
     else
       property = H5P_DEFAULT;
+#else///USE_SZIP_COMPRESSION
+    cdims_loc[0] = gzip_cdims[0];
+    cdims_loc[1] = gzip_cdims[1];
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] * cdims_loc[1] > cdims_max )
+      cdims_loc[0] = cdims_max / cdims_loc[1];
+    chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_SZIP_COMPRESSION
+#endif//defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
     /* write particle position */
     for(int jj = 3 * head[ii]; jj < 3 * (head[ii] + num[ii]); jj++)
       body->pos[jj] = CAST_D2R(CAST_R2D(body->pos[jj]) * length2astro);
@@ -4260,23 +4282,25 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &body->acc_ext[head[ii] * 3]));
     chkHDF5err(H5Dclose(dataset));
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#   if  defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
 #ifdef  USE_SZIP_COMPRESSION
-    if( (hsize_t)(num[ii] * 3) > (hsize_t)szip_pixels_per_block )
-      chkHDF5err(H5Pclose(property));
+    if( dims[0] * dims[1] > (hsize_t)szip_pixels_per_block )
 #endif//USE_SZIP_COMPRESSION
+      chkHDF5err(H5Pclose(property));
+#endif//defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
     /* close the dataspace */
     chkHDF5err(H5Sclose(dataspace));
 
     /* 1D (num) arrays */
     dataspace = H5Screate_simple(1, dims, NULL);
-#ifdef  USE_SZIP_COMPRESSION
+#   if  defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
     property = H5Pcreate(H5P_DATASET_CREATE);
-    cdims[0] = 128 * szip_pixels_per_block;
-    cdims_loc[0] = cdims[0];
-    if( (hsize_t)num[ii] < cdims_loc[0] )
-      cdims_loc[0] = (hsize_t)num[ii];
-    if( (hsize_t)num[ii] > (hsize_t)szip_pixels_per_block ){
-      hsize_t cdims_max = (MAXIMUM_CHUNK_SIZE_8BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_8BIT : MAXIMUM_CHUNK_SIZE;
+#ifdef  USE_SZIP_COMPRESSION
+    szip_cdims[0] = 128 * szip_pixels_per_block;
+    cdims_loc[0] = szip_cdims[0];
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( dims[0] > (hsize_t)szip_pixels_per_block ){
       if( cdims_loc[0] > cdims_max )
 	cdims_loc[0] = cdims_max;
       chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
@@ -4284,7 +4308,17 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
     }/* if( (hsize_t)num[ii] > (hsize_t)szip_pixels_per_block ){ */
     else
       property = H5P_DEFAULT;
+#else///USE_SZIP_COMPRESSION
+    gzip_cdims[0] = 1024;
+    cdims_loc[0] = gzip_cdims[0];
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] > cdims_max )
+      cdims_loc[0] = cdims_max;
+    chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_SZIP_COMPRESSION
+#endif//defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
     /* write particle mass */
     for(int jj = head[ii]; jj < head[ii] + num[ii]; jj++)
       body->m[jj] = CAST_D2R(CAST_R2D(body->m[jj]) * mass2astro);
@@ -4309,10 +4343,12 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
     dataset = H5Dcreate(group, "index", H5T_NATIVE_ULONG, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, H5T_NATIVE_ULONG, H5S_ALL, H5S_ALL, H5P_DEFAULT, &body->idx[head[ii]]));
     chkHDF5err(H5Dclose(dataset));
+#   if  defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
 #ifdef  USE_SZIP_COMPRESSION
-    if( (hsize_t)num[ii] > (hsize_t)szip_pixels_per_block )
-      chkHDF5err(H5Pclose(property));
+    if( dims[0] > (hsize_t)szip_pixels_per_block )
 #endif//USE_SZIP_COMPRESSION
+      chkHDF5err(H5Pclose(property));
+#endif//defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
     /* close the dataspace */
     chkHDF5err(H5Sclose(dataspace));
 
@@ -4354,10 +4390,10 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
 
   __NOTE__("%s\n", "end");
 }
-#   if  defined(USE_SZIP_COMPRESSION) && defined(SZIP_ONLY_FOR_SPLITTER)
-#undef USE_SZIP_COMPRESSION
-#undef SZIP_ONLY_FOR_SPLITTER
-#endif//defined(USE_SZIP_COMPRESSION) && defined(SZIP_ONLY_FOR_SPLITTER)
+#   if  defined(TENTATIVE_USE_GZIP_COMPRESSION) && defined(USE_GZIP_COMPRESSION)
+#undef TENTATIVE_USE_GZIP_COMPRESSION
+#undef USE_GZIP_COMPRESSION
+#endif//defined(TENTATIVE_USE_GZIP_COMPRESSION) && defined(USE_GZIP_COMPRESSION)
 #endif//USE_HDF5_FORMAT
 
 

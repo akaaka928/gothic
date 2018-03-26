@@ -511,6 +511,7 @@ PLTDISK	:= $(BINDIR)/disk
 ANALACT	:= $(BINDIR)/action
 ANALERR	:= $(BINDIR)/error
 ANALPRF	:= $(BINDIR)/extract
+M31OBS	:= $(BINDIR)/m31obs
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 PLTCMP	:= $(BINDIR)/comparison
 endif
@@ -629,6 +630,7 @@ EXCGGPU	:= exchange_dev.cu
 AACTSRC	:= action.c
 AERRSRC	:= error.c
 APRFSRC	:= extract.c
+AM31SRC	:= m31obs.c
 #################################################################################################
 
 
@@ -814,6 +816,13 @@ OBJAPRF	:= $(patsubst %.c, $(OBJDIR)/%.mpi.o,      $(notdir $(APRFSRC) $(FILELIB
 OBJAPRF	+= $(patsubst %.c, $(OBJDIR)/%.o,          $(notdir $(ALLCLIB)))
 endif
 #################################################################################################
+ifeq ($(DATAFILE_FORMAT_HDF5), 1)
+OBJAM31	:= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o, $(notdir $(AM31SRC) $(FILELIB) $(ALLCLIB)))
+else
+OBJAM31	:= $(patsubst %.c, $(OBJDIR)/%.mpi.o,      $(notdir $(AM31SRC) $(FILELIB)))
+OBJAM31	+= $(patsubst %.c, $(OBJDIR)/%.o,          $(notdir $(ALLCLIB)))
+endif
+#################################################################################################
 
 
 #################################################################################################
@@ -832,6 +841,7 @@ bench:	TAGS $(OPTCFG) $(PLTELP) $(PLTDEP) $(PLTBRK) $(PLTCMP) $(PLTFLP) $(PLTRAD
 sample:	TAGS $(SAMPLE) $(PLTDF)
 disk:	TAGS $(PLTJET) $(PLTDISK)
 anal:	TAGS $(ANALACT) $(ANALERR) $(ANALPRF)
+m31:	TAGS $(M31OBS)
 sass:	TAGS $(GOTHIC).sass
 #################################################################################################
 ## Making TAGS file for Emacs
@@ -888,6 +898,8 @@ $(ANALERR):	$(OBJAERR)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)cons
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAERR) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)hdf5lib $(HDF5LIB)
 $(ANALPRF):	$(OBJAPRF)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAPRF) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)hdf5lib $(HDF5LIB)
+$(M31OBS):	$(OBJAM31)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAM31) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)mpilib -l$(LIBPREC)hdf5lib $(HDF5LIB)
 else
 ifeq ($(USE_OFFICIAL_SFMT), 1)
 ifeq ($(USE_OFFICIAL_SFMT_JUMP), 1)
@@ -923,6 +935,8 @@ $(ANALERR):	$(OBJAERR)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)cons
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAERR) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib
 $(ANALPRF):	$(OBJAPRF)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAPRF) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib
+$(M31OBS):	$(OBJAM31)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAM31) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)mpilib
 endif
 $(PLTELP):	$(OBJPELP)	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)mpilib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPELP) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib
@@ -996,6 +1010,7 @@ clean:
 	$(VERBOSE)rm -f $(PLTELP) $(PLTDEP) $(PLTBRK) $(PLTCMP) $(PLTFLP)
 	$(VERBOSE)rm -f $(PLTRAD) $(PLTJET) $(OPTCFG) $(PLTDF) $(PLTDISK)
 	$(VERBOSE)rm -f $(ANALACT) $(ANALERR) $(ANALPRF)
+	$(VERBOSE)rm -f $(M31OBS)
 	$(VERBOSE)rm -f $(SAMPLE)
 #################################################################################################
 visit:	$(DIRBODY)/Makefile $(DIRSNAP)/Makefile $(DIRPLOT)/Makefile $(DIRAERR)/Makefile $(DIRDUMP)/Makefile $(DIRDISK)/Makefile $(DIRDIST)/Makefile $(DIRPROF)/Makefile
@@ -1292,9 +1307,11 @@ ANAL_DEP	:=	$(COMMON_DEP)	$(MYINC)/constants.h	$(MYINC)/name.h	$(MYINC)/mpilib.h
 ANAL_DEP	+=	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h	$(FILEDIR)/io.h
 $(OBJDIR)/action.mpi.gsl.pl.hdf5.o:	$(ANAL_DEP)	$(INITDIR)/spline.h	$(MYINC)/hdf5lib.h
 $(OBJDIR)/action.mpi.gsl.pl.o:		$(ANAL_DEP)	$(INITDIR)/spline.h
-$(OBJDIR)/anal.error.mpi.hdf5.o:	$(ANAL_DEP)	$(MYINC)/hdf5lib.h
-$(OBJDIR)/anal.error.mpi.o:		$(ANAL_DEP)
-$(OBJDIR)/extract.error.mpi.hdf5.o:	$(ANAL_DEP)	$(MYINC)/hdf5lib.h
-$(OBJDIR)/extract.error.mpi.o:		$(ANAL_DEP)
+$(OBJDIR)/error.mpi.hdf5.o:	$(ANAL_DEP)	$(MYINC)/hdf5lib.h
+$(OBJDIR)/error.mpi.o:		$(ANAL_DEP)
+$(OBJDIR)/extract.mpi.hdf5.o:	$(ANAL_DEP)	$(MYINC)/hdf5lib.h
+$(OBJDIR)/extract.mpi.o:		$(ANAL_DEP)
+$(OBJDIR)/m31obs.mpi.hdf5.o:	$(ANAL_DEP)	$(MYINC)/rotate.h	$(MYINC)/hdf5lib.h
+$(OBJDIR)/m31obs.mpi.o:		$(ANAL_DEP)	$(MYINC)/rotate.h
 #################################################################################################
 #################################################################################################

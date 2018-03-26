@@ -96,6 +96,16 @@ if [ $PROBLEM -eq 12 ]; then
     INTERVAL=3.125
 fi
 ###############################################################
+# GSS simulation in observed frame with live M31
+if [ $PROBLEM -eq 20 ]; then
+    FILE=gss
+    CFG=gss/obs_run.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1246.875
+    INTERVAL=3.125
+fi
+###############################################################
 # Fornax simulation
 if [ $PROBLEM -eq 21 ]; then
     FILE=halocore1_run
