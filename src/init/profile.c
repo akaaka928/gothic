@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/15 (Thu)
+ * @date 2018/03/28 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1033,7 +1033,7 @@ static inline void writeProfileCfgFormat(char *filename, const profile_cfg cfg)
     fprintf(stderr, "\tzd<real>: scale height of isothermal disk in the vertical direction in astrophysical units\n");
     fprintf(stderr, "\tsigmaR0<real> param<real>: velocity dispersion in radial direction at the center in astrophysical units (negative value indicates sigmaR0 = sigmaz0), perpendicular velocity dispersion over circular velocity\n");
 #ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
-    fprintf(stderr, "\t\tparam is used as frac (scaling factor f in Miki & Umemura (arXiv:1712.08760)).\n");
+    fprintf(stderr, "\t\tparam is used as frac (scaling factor f in Miki & Umemura (2018), MNRAS, 475, 2269).\n");
     fprintf(stderr, "\t\tif the inputted sigmaR0 is negative, then the default value (= sigma_z(R = 0)) is substituted\n");
 #else///ENFORCE_EPICYCLIC_APPROXIMATION
     fprintf(stderr, "\t\tparam is used as Toomre's Q-value at the scale length.\n");

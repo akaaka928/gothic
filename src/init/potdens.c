@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/01 (Thu)
+ * @date 2018/03/29 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1116,13 +1116,20 @@ static inline void setColumnDensityProfile(const int ndisk, const int maxLev, di
 	(*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, 0, ii, jj)] = rho0 * gaussQuad1d4Rho(getVerticalDensity, disk[kk].ver[INDEX2D(maxLev, NDISKBIN_VER, 0, jj)] - 0.5 * disk[kk].hh, disk[kk].ver[INDEX2D(maxLev, NDISKBIN_VER, 0, jj)] + 0.5 * disk[kk].hh, invzd, disk[kk].util);
 
 
-      /** calculate column density */
+      /** calculate surface density */
+#if 1
+      double Sigma = (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, 0, ii, 0)];
+      for(int jj = 1; jj < NDISKBIN_VER - 1; jj++)
+	Sigma += (double)(2 << (jj & 1)) * (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, 0, ii, jj)];
+      Sigma += 2.0 * disk[kk].hh / 3.0;/**< 2.0 reflects plane symmetry about the equatorial plane (z = 0) */
+#else
       double Sigma = 0.0;
       for(int jj = 0; jj < NDISKBIN_VER; jj++)
 	Sigma += (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, 0, ii, jj)];
       Sigma *= 2.0 * disk[kk].hh;/**< 2.0 reflects plane symmetry about the equatorial plane (z = 0) */
+#endif
 
-      /** calibrate column density */
+      /** calibrate surface density */
       const double Mscale = disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, 0, ii)] / (DBL_MIN + Sigma);
       for(int jj = 0; jj < NDISKBIN_VER; jj++)
 	(*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, 0, ii, jj)] *= Mscale;
@@ -2109,6 +2116,12 @@ static inline double _setzdep4calcRho
     ((1.0 - fz) * (-Phi[INDEX2D(NR, Nz, 1 + iR, jz)]) + fz * (-Phi[INDEX2D(NR, Nz, 1 + iR, 1 + jz)])) *        fR  +
     Psi_spherical(sqrt(R2 + zz * zz), sph, invlogrbin_sph);
 
+#if 0
+  if( (fpclassify(exp(-(PsiRz - PsiR0) * invPsi)) != FP_NORMAL) && (fpclassify(exp(-(PsiRz - PsiR0) * invPsi)) != FP_ZERO) && (fpclassify(exp(-(PsiRz - PsiR0) * invPsi)) != FP_SUBNORMAL)){
+    __FPRINTF__(stderr, "iR = %d, zz = %e, PsiRz = %e, PsiR0 = %e, invPsi = %e, exponent = %e\n", iR, zz, PsiRz, PsiR0, invPsi, -(PsiRz - PsiR0) * invPsi);
+  }
+#endif
+
   return (exp(-(PsiRz - PsiR0) * invPsi));
 }
 
@@ -2141,13 +2154,17 @@ static inline double _setzdep4calcRho
  */
 static inline void _setRdep4calcRho
 (const double RR, double * restrict R2, double * restrict horDep, int * restrict iR, double * restrict fR, double * restrict PsiR0, double * restrict invPsi,
- const int NR, double * restrict horRad, const double invdR, const int Nz, double * restrict ver, const double invdz, double * restrict Phi,
+ const int NR, double * restrict horRad, const double invdR, const int Nz, double * restrict Phi,
  const int lev, const disk_data disk, profile * restrict sph, const double invlogrbin_sph)
 {
   *R2 = RR * RR;
 
   *iR = bisection(RR, NR, horRad, false, invdR, fR);
+#if 0
+  *PsiR0 = Psi_spherical(RR, sph, invlogrbin_sph) - 0.25 * ((1.0 - (*fR)) * (5.0 * Phi[INDEX2D(NR, Nz, *iR, 0)] - Phi[INDEX2D(NR, Nz, *iR, 1)]) + (*fR) * (5.0 * Phi[INDEX2D(NR, Nz, 1 + (*iR), 0)] - Phi[INDEX2D(NR, Nz, 1 + (*iR), 1)]));
+#else
   *PsiR0 = (1.0 - (*fR)) * (-Phi[INDEX2D(NR, Nz, *iR, 0)]) + (*fR) * (-Phi[INDEX2D(NR, Nz, 1 + (*iR), 0)]) + Psi_spherical(RR, sph, invlogrbin_sph);
+#endif
 
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
   const double    zd = (1.0 - (*fR)) * disk.zd[INDEX2D(maxLev, NDISKBIN_HOR, lev, *iR)] + (*fR) * disk.zd[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + (*iR))];
@@ -2158,12 +2175,22 @@ static inline void _setRdep4calcRho
 
   *horDep = invzd * disk.getColumnDensity(RR, disk.invRd, disk.util);
 
+  /** find appropriate grid level */
+  const int levz = (int)floor(log2(disk.hh * ((double)Nz - 0.5) * invzd));
+  const int lev_zd = (levz > lev) ? lev : levz;
+  /** find the corresponding grid location */
+  const double hinv_zd = ldexp(disk.hh, lev_zd);
   double fz;
-  const int jz = bisection(zd, Nz, ver, false, invdz, &fz);
+  int jz = bisection(zd, Nz, &disk.ver[INDEX2D(maxLev, NDISKBIN_VER, lev_zd, 0)], false, hinv_zd, &fz);
+  double aaR = *fR;
+  int iiR = *iR;
+  if( lev_zd != lev )
+    iiR = bisection(RR, NR, &disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev_zd, 0)], false, hinv_zd, &aaR);
   const double Psi_Rzd =
-    ((1.0 - fz) * (-Phi[INDEX2D(NR, Nz,      *iR , jz)]) + fz * (-Phi[INDEX2D(NR, Nz,      *iR , 1 + jz)])) * (1.0 - (*fR)) +
-    ((1.0 - fz) * (-Phi[INDEX2D(NR, Nz, 1 + (*iR), jz)]) + fz * (-Phi[INDEX2D(NR, Nz, 1 + (*iR), 1 + jz)])) *        (*fR)  +
+    ((1.0 - fz) * (-disk.pot[INDEX(maxLev, NR, Nz, lev_zd,     iiR, jz)]) + fz * (-disk.pot[INDEX(maxLev, NR, Nz, lev_zd,     iiR, 1 + jz)])) * (1.0 - aaR) +
+    ((1.0 - fz) * (-disk.pot[INDEX(maxLev, NR, Nz, lev_zd, 1 + iiR, jz)]) + fz * (-disk.pot[INDEX(maxLev, NR, Nz, lev_zd, 1 + iiR, 1 + jz)])) *        aaR  +
     Psi_spherical(sqrt((*R2) + zd * zd), sph, invlogrbin_sph);
+
   *invPsi = 1.0 / (Psi_Rzd - (*PsiR0));
 }
 
@@ -2248,7 +2275,7 @@ static inline double gaussQuad2d4calcRho
     double R2, radVal, fR, PsiR0, invPsi;
     int iR;
     _setRdep4calcRho(pls + mns * gsl_gaussQD_low_pos[(NINTBIN_LOW >> 1)],
-		     &R2, &radVal, &iR, &fR, &PsiR0, &invPsi, NR, hor, invdR, Nz, ver, invdz, Phi, lev, disk, sph, invlogrbin_sph);
+		     &R2, &radVal, &iR, &fR, &PsiR0, &invPsi, NR, hor, invdR, Nz, Phi, lev, disk, sph, invlogrbin_sph);
 
     sum = gsl_gaussQD_low_weight[(NINTBIN_LOW >> 1)] * radVal * _gaussQuad2d4calcRho(zmin, zmax, Nz, ver, invdz, iR, fR, R2, PsiR0, invPsi, Phi, sph, invlogrbin_sph);
   }/* if( NINTBIN_LOW & 1 ){ */
@@ -2257,10 +2284,10 @@ static inline double gaussQuad2d4calcRho
   for(int ii = (NINTBIN_LOW >> 1) - 1; ii >= 0; ii--){
     double R2, radVal, fR, PsiR0, invPsi;
     int iR;
-    _setRdep4calcRho(pls + mns * gsl_gaussQD_low_pos[ii], &R2, &radVal, &iR, &fR, &PsiR0, &invPsi, NR, hor, invdR, Nz, ver, invdz, Phi, lev, disk, sph, invlogrbin_sph);
+    _setRdep4calcRho(pls + mns * gsl_gaussQD_low_pos[ii], &R2, &radVal, &iR, &fR, &PsiR0, &invPsi, NR, hor, invdR, Nz, Phi, lev, disk, sph, invlogrbin_sph);
     sum += gsl_gaussQD_low_weight[ii] * radVal * _gaussQuad2d4calcRho(zmin, zmax, Nz, ver, invdz, iR, fR, R2, PsiR0, invPsi, Phi, sph, invlogrbin_sph);
 
-    _setRdep4calcRho(pls - mns * gsl_gaussQD_low_pos[ii], &R2, &radVal, &iR, &fR, &PsiR0, &invPsi, NR, hor, invdR, Nz, ver, invdz, Phi, lev, disk, sph, invlogrbin_sph);
+    _setRdep4calcRho(pls - mns * gsl_gaussQD_low_pos[ii], &R2, &radVal, &iR, &fR, &PsiR0, &invPsi, NR, hor, invdR, Nz, Phi, lev, disk, sph, invlogrbin_sph);
     sum += gsl_gaussQD_low_weight[ii] * radVal * _gaussQuad2d4calcRho(zmin, zmax, Nz, ver, invdz, iR, fR, R2, PsiR0, invPsi, Phi, sph, invlogrbin_sph);
   }/* for(int ii = (NINTBIN_LOW >> 1) - 1; ii >= 0; ii--){ */
 
@@ -2285,6 +2312,9 @@ static inline void swapDblArrays(double **p0, double **p1)
   *p1 = tmp;
 }
 
+
+#define SCALE_BY_SURFACE_DENSITY
+/* #define ASSIGN_COARSER_PATCH_FOR_SURFACE_DENSITY */
 
 /**
  * @fn getPotDensPair
@@ -2327,11 +2357,8 @@ void getPotDensPair
 #   if  defined(ITERATE_VARIABLE_SCALE_HEIGHT) && defined(ENABLE_VARIABLE_SCALE_HEIGHT)
  const int maxLev,
 #endif//defined(ITERATE_VARIABLE_SCALE_HEIGHT) && defined(ENABLE_VARIABLE_SCALE_HEIGHT)
- const int lev, const int levOld, disk_data * restrict disk,
- double * restrict Phi_NR, double * restrict Phi_Nz,
- soaBiCGSTAB mat, soaPreConditioning pre
- , double * restrict stock_inv, double * restrict stock_sub, double * restrict stock_tmp, double * restrict stock_sum
-)
+ const int lev, const int levOld, disk_data * restrict disk, double * restrict Phi_NR, double * restrict Phi_Nz,
+ soaBiCGSTAB mat, soaPreConditioning pre, double * restrict stock_inv, double * restrict stock_sub, double * restrict stock_tmp, double * restrict stock_sum)
 {
   __NOTE__("%s\n", "start");
 
@@ -2358,13 +2385,51 @@ void getPotDensPair
 
 
   /** iterative process to get the potential-density pair */
-  /** modify column density profile if necessary */
+  /** modify surface density profile if necessary */
   if( lev > 0 ){
-    /** save the column density profile */
+#ifdef  ASSIGN_COARSER_PATCH_FOR_SURFACE_DENSITY
+    const int levCoarse = lev - 1;
+    const double hh_tmp = ldexp(disk[0].hh, -levCoarse);
+    for(int kk = 0; kk < ndisk; kk++){
+#pragma omp parallel for
+      for(int ii = 0; ii < (NDISKBIN_HOR >> 1); ii++){
+	/** evaluate mass to be assigned */
+	double mass = (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levCoarse, ii, 0)];
+	for(int jj = 1; jj < ((NDISKBIN_VER >> 1) - 1); jj++)
+	  mass += (double)(2 << (jj & 1)) * (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levCoarse, ii, jj)];
+	mass += (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levCoarse, ii, (NDISKBIN_VER >> 1) - 1)];
+	mass *= 2.0 * hh_tmp / 3.0;/**< 2.0 reflects plane symmetry about the equatorial plane (z = 0) */
+	mass *= disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, levCoarse, ii)] * hh_tmp;/**< consider mass within the corresponding shell */
+
+	const int il = ii << 1;
+	const int ir = il + 1;
+	double ml = (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, il, 0)];
+	double mr = (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ir, 0)];
+	for(int jj = 1; jj < NDISKBIN_VER - 1; jj++){
+	  const double coeff = (double)(2 << (jj & 1));
+	  ml += coeff * (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, il, jj)];
+	  mr += coeff * (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ir, jj)];
+	}/* for(int jj = 1; jj < NDISKBIN_VER - 1; jj++){ */
+	ml += (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, il, NDISKBIN_VER - 1)];
+	mr += (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ir, NDISKBIN_VER - 1)];
+	ml *= disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, il)];/**< consider mass within the corresponding shell */
+	mr *= disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ir)];/**< consider mass within the corresponding shell */
+	const double inv = 1.0 / (ml + mr);
+	/** save the current surface-density profile */
+	disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, il)] = disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, il)];
+	disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ir)] = disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ir)];
+	/** assign mass to fine grids */
+	disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, il)] = ml * inv * mass / (disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, il)] * hh);
+	disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ir)] = mr * inv * mass / (disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ir)] * hh);
+      }/* for(int ii = 0; ii < (NDISKBIN_HOR >> 1); ii++){ */
+    }/* for(int ii = 0; ii < ndisk; ii++){ */
+#else///ASSIGN_COARSER_PATCH_FOR_SURFACE_DENSITY
+    /** save the surface density profile */
     for(int ii = 0; ii < ndisk; ii++)
 #pragma omp parallel for
-      for(int jj = 0; jj < NDISKBIN_HOR; jj++)
+      for(int jj = 0; jj < NDISKBIN_HOR; jj++){
 	disk[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] = disk[ii].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)];
+      }/* for(int jj = 0; jj < NDISKBIN_HOR; jj++){ */
 
     /** subtract mass above the domain in this level */
     for(int ll = lev - 1; ll >= 0; ll--){
@@ -2374,15 +2439,24 @@ void getPotDensPair
       for(int ii = 0; ii < (NDISKBIN_HOR >> ldiff); ii++)
 	for(int kk = 0; kk < ndisk; kk++){
 	  /** evaluate mass to be subtracted */
+#if 1
+	  double mass = (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, NDISKBIN_VER >> 1)];
+	  for(int jj = (NDISKBIN_VER >> 1) + 1; jj < NDISKBIN_VER - 1; jj++)
+	    mass += (double)(2 << (jj & 1)) * (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)];
+	  mass += (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, NDISKBIN_VER - 1)];
+	  mass *= 2.0 * hh_tmp / 3.0;/**< 2.0 reflects plane symmetry about the equatorial plane (z = 0) */
+#else
 	  double mass = 0.0;
 	  for(int jj = (NDISKBIN_VER >> 1); jj < NDISKBIN_VER; jj++)
 	    mass += (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)];
 	  mass *= 2.0 * hh_tmp;/**< 2.0 reflects plane symmetry about the equatorial plane (z = 0) */
+#endif
 	  for(int mm = (ii << ldiff); mm < (ii << ldiff) + (1 << ldiff); mm++){
 	    disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, mm)] -= mass;
 	  }/* for(int mm = 0; mm < (1 << ldiff); mm++){ */
 	}/* for(int kk = 0; kk < ndisk; kk++){ */
     }/* for(int ll = lev - 1; ll >= 0; ll--){ */
+#endif//ASSIGN_COARSER_PATCH_FOR_SURFACE_DENSITY
   }/* if( lev > 0 ){ */
 
 
@@ -2409,9 +2483,7 @@ void getPotDensPair
     else      rhoTot = *disk[0].rho;
 
     /** solve Poisson equation using ILU(0) preconditioned BiCGSTAB method */
-    getPotentialField(ndisk, disk, lev, hh, invhh, RR, zz, rhoTot, Phi, Phi_NR, Phi_Nz, mat, pre
-		      , stock_inv, stock_sub, stock_tmp, stock_sum
-		      );
+    getPotentialField(ndisk, disk, lev, hh, invhh, RR, zz, rhoTot, Phi, Phi_NR, Phi_Nz, mat, pre, stock_inv, stock_sub, stock_tmp, stock_sum);
 
 
 #   if  defined(ITERATE_VARIABLE_SCALE_HEIGHT) && defined(ENABLE_VARIABLE_SCALE_HEIGHT)
@@ -2420,13 +2492,22 @@ void getPotDensPair
 
 
     /** update density field from the derived potential field */
+#ifndef SCALE_BY_SURFACE_DENSITY
     static double errMax;
     errMax = 0.0;
+#endif//SCALE_BY_SURFACE_DENSITY
     for(int kk = 0; kk < ndisk; kk++){
 #pragma omp parallel for
       for(int ii = 0; ii < NDISKBIN_HOR; ii++){
 	const double Rmin = RR[ii] - 0.5 * hh;
 	const double Rmax = RR[ii] + 0.5 * hh;
+
+#ifdef  SCALE_BY_SURFACE_DENSITY
+	/** calculate vertical density profile */
+	for(int jj = 0; jj < NDISKBIN_VER; jj++)
+	  (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)] =
+	    gaussQuad2d4calcRho(Rmin, Rmax, NDISKBIN_HOR, RR, invhh, zz[jj] - 0.5 * hh, zz[jj] + 0.5 * hh, NDISKBIN_VER, zz, invhh, sph, invlogrbin_sph, Phi, lev, disk[kk]);
+#else///SCALE_BY_SURFACE_DENSITY
 	const double rho0 = (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] /
 	  (DBL_MIN + gaussQuad2d4calcRho(Rmin, Rmax, NDISKBIN_HOR, RR, invhh, 0.0, hh, NDISKBIN_VER, zz, invhh, sph, invlogrbin_sph, Phi, lev, disk[kk]));
 
@@ -2435,38 +2516,57 @@ void getPotDensPair
 	for(int jj = 1; jj < NDISKBIN_VER; jj++)
 	  (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)] =
 	    rho0 * gaussQuad2d4calcRho(Rmin, Rmax, NDISKBIN_HOR, RR, invhh, zz[jj] - 0.5 * hh, zz[jj] + 0.5 * hh, NDISKBIN_VER, zz, invhh, sph, invlogrbin_sph, Phi, lev, disk[kk]);
+#endif//SCALE_BY_SURFACE_DENSITY
 
-	/** calculate column density */
+	/** calculate surface density */
+#if 1
+	double Sigma = (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)];
+	for(int jj = 1; jj < NDISKBIN_VER - 1; jj++)
+	  Sigma += (double)(2 << (jj & 1)) * (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)];
+	Sigma += (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, NDISKBIN_VER - 1)];
+	Sigma *= 2.0 * hh / 3.0;/**< 2.0 reflects plane symmetry about the equatorial plane (z = 0) */
+#else
 	double Sigma = 0.0;
 	for(int jj = 0; jj < NDISKBIN_VER; jj++)
 	  Sigma += (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)];
 	Sigma *= 2.0 * hh;/**< 2.0 reflects plane symmetry about the equatorial plane (z = 0) */
+#endif
 
-	/** calibrate column density */
+	/** calibrate surface density */
 	const double Mscale = disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] / (DBL_MIN + Sigma);
 	for(int jj = 0; jj < NDISKBIN_VER; jj++)
 	  (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)] *= Mscale;
 
+#if 0
+	if( fpclassify(Mscale) != FP_NORMAL ){
+	  __KILL__(stderr, "ERROR: lev = %d, ii = %d, Mscale = %e, Sigma = %e, assigned = %e, hh = %e, zd = %e\n", lev, ii, Mscale, Sigma, disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], hh, disk[kk].zd[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
+	}
+#endif
+
+#ifndef SCALE_BY_SURFACE_DENSITY
 	const double errVal = (disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] > NEGLECT_DENSITY_MINIMUM * disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)]) ? fabs(Mscale - 1.0) : (0.0);
 #pragma omp flush(errMax)
 	if( errVal > errMax )
 #pragma omp critical
 	  if( errVal > errMax )
 	    errMax = errVal;
+#endif//SCALE_BY_SURFACE_DENSITY
       }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
     }/* for(int kk = 0; kk < ndisk; kk++){ */
 
 
     /** convergence tests */
-    /** convergence test for the column density */
+    /** convergence test for the surface density */
     bool converge = true;
+#ifndef SCALE_BY_SURFACE_DENSITY
     if( errMax > CONVERGENCE_POTDENSPAIR )      converge = false;
 #ifdef  PROGRESS_REPORT_ON
-    fprintf(stdout, "# %d-th iteration: column density error is %e, procedure is %s\n", steps, errMax, (converge ? ("    converged") : ("not converged")));
+    fprintf(stdout, "# %d-th iteration: surface density error is %e, procedure is %s\n", steps, errMax, (converge ? ("    converged") : ("not converged")));
     fflush(stdout);
 #endif//PROGRESS_REPORT_ON
+#endif//SCALE_BY_SURFACE_DENSITY
 
-    /** convergence test for the density field */
+    /** convergence test for the volume-density field */
     if( converge ){
       static double worst;
       worst = DBL_EPSILON;

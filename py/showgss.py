@@ -14,7 +14,8 @@ import utils as utils
 import m31 as m31
 
 
-outputPDF = False
+outputPDF = True
+# outputPDF = False
 
 
 col_M31disk = "white"
@@ -43,11 +44,13 @@ Nmbh = 1
 wmbh = [2]
 init = 0
 last = 399
-# init = 270
-# last = 270
+# init = 285
+# last = 285
 fmin, fmax = 1.0e+4, 1.0e+9
 xtics = [-4.0, -2.0, 0.0, 2.0, 4.0, 6.0]
-lab = ["halo", "bulge", "MBH", "disk"]
+ytics = [-8.0, -6.0, -4.0, -2.0, 0.0, 2.0]
+ztics = [700.0, 750.0, 800.0, 850.0, 900.0]
+lab = ["halo", "bulge", "MBH", "disk", "retro"]
 
 
 def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi, Eshell_eta, Nwest, Wshell_xi, Wshell_eta, Nfield, field_xi, field_eta, Ngss, gss_xi, gss_eta, gss_D, gss_Derr, gss_field_xi, gss_field_eta, NstreamC, streamC_xi, streamC_eta, streamC_D, streamC_Derr, streamC_field_xi, streamC_field_eta, NstreamD, streamD_xi, streamD_eta, streamD_D, streamD_Derr, streamD_field_xi, streamD_field_eta):
@@ -83,9 +86,9 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
             folder = "field" + str(ii) + "/"
             xy_map[nxpanel] = h5file[folder + "Sigma_xy"].value
             xz_map[nxpanel] = h5file[folder + "Sigma_zx"].value.T
-            xx[nxpanel] = h5file[folder + "x"].value
-            yy[nxpanel] = h5file[folder + "y"].value
-            zz[nxpanel] = h5file[folder + "z"].value
+            xx[nxpanel] = h5file[folder +  "xi"].value
+            yy[nxpanel] = h5file[folder + "eta"].value
+            zz[nxpanel] = h5file[folder +   "D"].value
 
             nxpanel += 1
             Ndata += 1
@@ -191,15 +194,17 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
         ax[ii].spines[ "right"].set_color("white")
 
     for ii in range(nxpanel):
+        ax[ii * nypanel + 1].set_yticks(ztics)
+        ax[ii * nypanel    ].set_yticks(ytics)
         ax[ii * nypanel + 1].set_ylim([zmin, zmax])
         ax[ii * nypanel    ].set_ylim([ymin, ymax])
-        ax[ii * nypanel    ].set_xlabel(r"$x$ ({:<})".format("degree"))
+        ax[ii * nypanel    ].set_xlabel(r"$\xi$ ({:<})".format("degree"))
         ax[ii * nypanel + 1].spines[   "top"].set_color("black")
         ax[ii * nypanel    ].spines["bottom"].set_color("black")
 
 
-    ax[0].set_ylabel(r"$y$ ({:<})".format("degree"))
-    ax[1].set_ylabel(r"$z$ ({:<})".format("kpc"))
+    ax[0].set_ylabel(r"$\eta$ ({:<})".format("degree"))
+    ax[1].set_ylabel(r"$D$ ({:<})".format("kpc"))
     ax[0].spines["left"].set_color("black")
     ax[1].spines["left"].set_color("black")
     ax[(nxpanel - 1) * nypanel + 1].spines["right"].set_color("black")
@@ -226,7 +231,7 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
     cbar.solids.set_edgecolor("face")
 
     # add current time
-    fig.suptitle(r"$t = {:.3f}$ {:<}".format(time, "Myr"))
+    fig.suptitle(r"$t = {:.2f}$ {:<}".format(time, "Myr"))
     # fig.suptitle(r"$t = {:.3f}$ {:<}".format(time / 1000, "Gyr"))
 
 

@@ -10,7 +10,7 @@
       ${HDF5_LIB}
     </LIBS>
     <FilePatterns>
-      *.plt???h5
+      *.plt???.h5
     </FilePatterns>
     <Attribute name="" purpose="" persistent="true" keyframe="true" exportAPI="" exportInclude="">
     </Attribute>

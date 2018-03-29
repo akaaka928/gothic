@@ -14,7 +14,8 @@ EXEC=bin/magi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=2
+    # PROBLEM=2
+    PROBLEM=14
     # PROBLEM=27
     # PROBLEM=60
     # PROBLEM=61
@@ -206,6 +207,17 @@ if [ $PROBLEM -eq 13 ]; then
     INTERVAL=0.5
     # FINISH=1400.0
     # INTERVAL=8.0
+fi
+###############################################################
+# dynamical stability of an exponential disk in an NFW sphere
+if [ $PROBLEM -eq 14 ]; then
+    FILE=hd
+    CONFIG=multi/hd.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=104.0
+    INTERVAL=8.0
+    NTOT=60003504
 fi
 ###############################################################
 # dynamical stability of an M31 model determined by Fardal et al. (2007)

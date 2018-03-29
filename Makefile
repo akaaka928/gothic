@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/03/22 (Thu) 16:56:20
+# last updated on 2018/03/29 (Thu) 13:00:44
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -19,12 +19,12 @@ DEBUG	:= -DNDEBUG
 # PROFILE	:= -pg
 #################################################################################################
 # Execution options
-FORCE_SINGLE_GPU_RUN	:= 0
+FORCE_SINGLE_GPU_RUN	:= 1
 COMBINE_WITH_J_PARALLEL	:= 1
 MPI_AUTO_TUNE_FOR_RMAX	:= 0
 SKIP_UNUSED_LET_BUILD	:= 1
 RECTANGULAR_BOX_FOR_LET	:= 1
-ENCLOSING_BALL_FOR_LET	:= 0
+ENCLOSING_BALL_FOR_LET	:= 1
 COMMUNICATION_VIA_HOST	:= 1
 USE_MPI_GET_FOR_LET	:= 1
 USE_MPI_GET_FOR_EXCG	:= 0
@@ -41,6 +41,7 @@ ADOPT_WS93_TYPE_MAC	:= 1
 IJ_PARALLELIZED_WALK	:= 1
 CLOCK_BASED_AUTO_TUNING	:= 1
 OMIT_VELOCITY_BASED_DT	:= 0
+REPORT_COMPUTE_RATE	:= 1
 DATAFILE_FORMAT_HDF5	:= 1
 HDF5_FOR_ZINDAIJI	:= 0
 DUMPFILE_IN_TIPSY	:= 0
@@ -50,12 +51,10 @@ USE_OFFICIAL_SFMT_JUMP	:= 1
 SET_EXTERNAL_FIELD	:= 0
 SET_EXTERNAL_FIELD_DISK	:= 1
 ADAPTIVE_EXTERNAL_FIELD	:= 0
-USE_ZH78_RETROGRADING	:= 0
+USE_ZH78_RETROGRADING	:= 1
 #################################################################################################
 # Debugging options
 EVALUATE_FORCE_ERROR	:= 0
-#################################################################################################
-REPORT_COMPUTE_RATE	:= 1
 #################################################################################################
 # Benchmark options
 REPORT_ELAPSED_TIME	:= 1
@@ -523,6 +522,7 @@ PLGDIR	:= plugins
 TAGBODY	:= GOTHIC_split
 TAGSNAP	:= GOTHIC_snp
 TAGPLOT	:= GOTHIC_plt
+TAGPM31	:= GOTHIC_m31
 TAGAERR	:= GOTHIC_err
 TAGDUMP	:= GOTHIC
 TAGDISK	:= MAGI_disk
@@ -531,6 +531,7 @@ TAGPROF	:= MAGI_profile
 DIRBODY	:= $(PLGDIR)/$(TAGBODY)
 DIRSNAP	:= $(PLGDIR)/$(TAGSNAP)
 DIRPLOT	:= $(PLGDIR)/$(TAGPLOT)
+DIRPM31	:= $(PLGDIR)/$(TAGPM31)
 DIRAERR	:= $(PLGDIR)/$(TAGAERR)
 DIRDUMP	:= $(PLGDIR)/$(TAGDUMP)
 DIRDISK	:= $(PLGDIR)/$(TAGDISK)
@@ -539,6 +540,7 @@ DIRPROF	:= $(PLGDIR)/$(TAGPROF)
 XMLBODY	:= $(DIRBODY)/$(TAGBODY).xml
 XMLSNAP	:= $(DIRSNAP)/$(TAGSNAP).xml
 XMLPLOT	:= $(DIRPLOT)/$(TAGPLOT).xml
+XMLPM31	:= $(DIRPM31)/$(TAGPM31).xml
 XMLAERR	:= $(DIRAERR)/$(TAGAERR).xml
 XMLDUMP	:= $(DIRDUMP)/$(TAGDUMP).xml
 XMLDISK	:= $(DIRDISK)/$(TAGDISK).xml
@@ -547,6 +549,7 @@ XMLPROF	:= $(DIRPROF)/$(TAGPROF).xml
 SRCBODY	:= $(DIRBODY)/$(TAGBODY)CommonPluginInfo.C $(DIRBODY)/$(TAGBODY)EnginePluginInfo.C $(DIRBODY)/$(TAGBODY)MDServerPluginInfo.C
 SRCSNAP	:= $(DIRSNAP)/$(TAGSNAP)CommonPluginInfo.C $(DIRSNAP)/$(TAGSNAP)EnginePluginInfo.C $(DIRSNAP)/$(TAGSNAP)MDServerPluginInfo.C
 SRCPLOT	:= $(DIRPLOT)/$(TAGPLOT)CommonPluginInfo.C $(DIRPLOT)/$(TAGPLOT)EnginePluginInfo.C $(DIRPLOT)/$(TAGPLOT)MDServerPluginInfo.C
+SRCPM31	:= $(DIRPM31)/$(TAGPM31)CommonPluginInfo.C $(DIRPM31)/$(TAGPM31)EnginePluginInfo.C $(DIRPM31)/$(TAGPM31)MDServerPluginInfo.C
 SRCAERR	:= $(DIRAERR)/$(TAGAERR)CommonPluginInfo.C $(DIRAERR)/$(TAGAERR)EnginePluginInfo.C $(DIRAERR)/$(TAGAERR)MDServerPluginInfo.C
 SRCDUMP	:= $(DIRDUMP)/$(TAGDUMP)CommonPluginInfo.C $(DIRDUMP)/$(TAGDUMP)EnginePluginInfo.C $(DIRDUMP)/$(TAGDUMP)MDServerPluginInfo.C
 SRCDISK	:= $(DIRDISK)/$(TAGDISK)CommonPluginInfo.C $(DIRDISK)/$(TAGDISK)EnginePluginInfo.C $(DIRDISK)/$(TAGDISK)MDServerPluginInfo.C
@@ -555,6 +558,7 @@ SRCPROF	:= $(DIRPROF)/$(TAGPROF)CommonPluginInfo.C $(DIRPROF)/$(TAGPROF)EnginePl
 SRCBODY	+= $(DIRBODY)/$(TAGBODY)PluginInfo.C $(DIRBODY)/$(TAGBODY)PluginInfo.h $(DIRBODY)/avt$(TAGBODY)FileFormat.C $(DIRBODY)/avt$(TAGBODY)FileFormat.h
 SRCSNAP	+= $(DIRSNAP)/$(TAGSNAP)PluginInfo.C $(DIRSNAP)/$(TAGSNAP)PluginInfo.h $(DIRSNAP)/avt$(TAGSNAP)FileFormat.C $(DIRSNAP)/avt$(TAGSNAP)FileFormat.h
 SRCPLOT	+= $(DIRPLOT)/$(TAGPLOT)PluginInfo.C $(DIRPLOT)/$(TAGPLOT)PluginInfo.h $(DIRPLOT)/avt$(TAGPLOT)FileFormat.C $(DIRPLOT)/avt$(TAGPLOT)FileFormat.h
+SRCPM31	+= $(DIRPM31)/$(TAGPM31)PluginInfo.C $(DIRPM31)/$(TAGPM31)PluginInfo.h $(DIRPM31)/avt$(TAGPM31)FileFormat.C $(DIRPM31)/avt$(TAGPM31)FileFormat.h
 SRCAERR	+= $(DIRAERR)/$(TAGAERR)PluginInfo.C $(DIRAERR)/$(TAGAERR)PluginInfo.h $(DIRAERR)/avt$(TAGAERR)FileFormat.C $(DIRAERR)/avt$(TAGAERR)FileFormat.h
 SRCDUMP	+= $(DIRDUMP)/$(TAGDUMP)PluginInfo.C $(DIRDUMP)/$(TAGDUMP)PluginInfo.h $(DIRDUMP)/avt$(TAGDUMP)FileFormat.C $(DIRDUMP)/avt$(TAGDUMP)FileFormat.h
 SRCDISK	+= $(DIRDISK)/$(TAGDISK)PluginInfo.C $(DIRDISK)/$(TAGDISK)PluginInfo.h $(DIRDISK)/avt$(TAGDISK)FileFormat.C $(DIRDISK)/avt$(TAGDISK)FileFormat.h
@@ -994,7 +998,7 @@ zip:
 	$(VERBOSE)mkdir pub; \
 	fi
 	$(VERBOSE)tar cvJf $(DATE)tree.tar.xz \
-	README.txt LICENSE.txt Makefile $(SRCDIR) sh cfg plt py plugins/README \
+	README.md LICENSE.txt Makefile $(SRCDIR) sh cfg plt py plugins/README \
 	$(XMLBODY) $(SRCBODY) $(XMLSNAP) $(SRCSNAP) $(XMLAERR) $(SRCAERR) $(XMLDUMP) $(SRCDUMP) $(XMLDISK) $(SRCDISK) $(XMLDIST) $(SRCDIST) $(XMLPROF) $(SRCPROF)
 	$(VERBOSE)mv       $(DATE)tree.tar.xz pub/
 #################################################################################################
@@ -1013,7 +1017,7 @@ clean:
 	$(VERBOSE)rm -f $(M31OBS)
 	$(VERBOSE)rm -f $(SAMPLE)
 #################################################################################################
-visit:	$(DIRBODY)/Makefile $(DIRSNAP)/Makefile $(DIRPLOT)/Makefile $(DIRAERR)/Makefile $(DIRDUMP)/Makefile $(DIRDISK)/Makefile $(DIRDIST)/Makefile $(DIRPROF)/Makefile
+visit:	$(DIRBODY)/Makefile $(DIRSNAP)/Makefile $(DIRPLOT)/Makefile $(DIRPM31)/Makefile $(DIRAERR)/Makefile $(DIRDUMP)/Makefile $(DIRDISK)/Makefile $(DIRDIST)/Makefile $(DIRPROF)/Makefile
 #################################################################################################
 $(DIRBODY)/Makefile:	$(XMLBODY) $(SRCBODY)
 	$(VERBOSE)cd $(DIRBODY);\
@@ -1033,6 +1037,13 @@ $(DIRPLOT)/Makefile:	$(XMLPLOT) $(SRCPLOT)
 	$(VERBOSE)cd $(DIRPLOT);\
 	$(VERBOSE)xml2info $(TAGPLOT).xml;\
 	$(VERBOSE)xml2cmake $(TAGPLOT).xml;\
+	$(VERBOSE)cmake -DCMAKE_BUILD_TYPE:STRING=Debug;\
+	$(VERBOSE)make
+	$(VERBOSE)touch $@
+$(DIRPM31)/Makefile:	$(XMLPM31) $(SRCPM31)
+	$(VERBOSE)cd $(DIRPM31);\
+	$(VERBOSE)xml2info $(TAGPM31).xml;\
+	$(VERBOSE)xml2cmake $(TAGPM31).xml;\
 	$(VERBOSE)cmake -DCMAKE_BUILD_TYPE:STRING=Debug;\
 	$(VERBOSE)make
 	$(VERBOSE)touch $@
@@ -1088,6 +1099,11 @@ rmvisit:
 	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libE$(TAGPLOT)Database_???.so
 	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libI$(TAGPLOT)Database.so
 	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libM$(TAGPLOT)Database.so
+	$(VERBOSE)rm  -f $(DIRPM31)/CMakeCache.txt $(DIRPM31)/CMakeLists.txt $(DIRPM31)/Makefile $(DIRPM31)/cmake_install.cmake $(DIRPM31)/make.log
+	$(VERBOSE)rm -rf $(DIRPM31)/CMakeFiles
+	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libE$(TAGPM31)Database_???.so
+	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libI$(TAGPM31)Database.so
+	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libM$(TAGPM31)Database.so
 	$(VERBOSE)rm  -f $(DIRAERR)/CMakeCache.txt $(DIRAERR)/CMakeLists.txt $(DIRAERR)/Makefile $(DIRAERR)/cmake_install.cmake $(DIRAERR)/make.log
 	$(VERBOSE)rm -rf $(DIRAERR)/CMakeFiles
 	$(VERBOSE)rm  -f $(HOME)/.visit/2.*/linux-x86_64/plugins/databases/libE$(TAGAERR)Database_???.so

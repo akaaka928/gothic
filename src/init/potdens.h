@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/13 (Tue)
+ * @date 2018/03/28 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -72,7 +72,7 @@
  * @def ENABLE_VARIABLE_SCALE_HEIGHT
  *
  * @brief enable to remove the needle-like structure
- * @detail Equation (8) in Miki & Umemura (arXiv:1712.08760)
+ * @detail Equation (8) in Miki & Umemura (2018), MNRAS, 475, 2269
  */
 #define ENABLE_VARIABLE_SCALE_HEIGHT
 
@@ -90,12 +90,12 @@
  * @def DISK_DIMMING_HEIGHT
  *
  * @brief parameter to remove the needle-like structure
- * @detail see Equation (8) in Miki & Umemura (arXiv:1712.08760)
+ * @detail see Equation (8) in Miki & Umemura (2018), MNRAS, 475, 2269
  */
 #define DISK_DIMMING_HEIGHT (16.0)
-#   if  defined(DISK_DIMMING_HEIGHT) && !defined(ENABLE_VARIABLE_SCALE_HEIGHT)
-#undef  DISK_DIMMING_HEIGHT
-#endif//defined(DISK_DIMMING_HEIGHT) && !defined(ENABLE_VARIABLE_SCALE_HEIGHT)
+/* #   if  defined(DISK_DIMMING_HEIGHT) && !defined(ENABLE_VARIABLE_SCALE_HEIGHT) */
+/* #undef  DISK_DIMMING_HEIGHT */
+/* #endif//defined(DISK_DIMMING_HEIGHT) && !defined(ENABLE_VARIABLE_SCALE_HEIGHT) */
 
 /**
  * @def DISK_DIMMING_HEIGHT_INV
