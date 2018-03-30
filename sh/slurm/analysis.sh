@@ -19,7 +19,9 @@ EXEC=bin/extract
 # problem ID
 if [ -z "$PROBLEM" ]; then
     # PROBLEM=2
-    PROBLEM=112
+    # PROBLEM=14
+    PROBLEM=22
+    # PROBLEM=112
     # PROBLEM=124
 fi
 ###############################################################
@@ -55,6 +57,32 @@ if [ $PROBLEM -eq 2 ]; then
     XMAX=3.0
     YMAX=3.0
     ZMAX=3.0
+    XMIN=-$XMAX
+    YMIN=-$YMAX
+    ZMIN=-$ZMAX
+fi
+###############################################################
+# dynamical stability of an exponential disk in an NFW sphere
+if [ $PROBLEM -eq 14 ]; then
+    FILE=hd
+    FINISH=104.0
+    INTERVAL=8.0
+    XMAX=5.0
+    YMAX=5.0
+    ZMAX=5.0
+    XMIN=-$XMAX
+    YMIN=-$YMAX
+    ZMIN=-$ZMAX
+fi
+###############################################################
+# dynamical stability of an exponential disk in an NFW sphere
+if [ $PROBLEM -eq 22 ]; then
+    FILE=disk
+    FINISH=104.0
+    INTERVAL=8.0
+    XMAX=5.0
+    YMAX=5.0
+    ZMAX=5.0
     XMIN=-$XMAX
     YMIN=-$YMAX
     ZMIN=-$ZMAX

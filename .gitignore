@@ -1,0 +1,12 @@
+# miscellaneous files
+TAGS
+make.log
+slurm-*.out
+# directories for numerical simulations
+bin/
+dat/
+doc/
+fig/
+log/
+# directory for zip
+pub/

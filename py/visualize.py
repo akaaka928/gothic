@@ -28,13 +28,21 @@ outputPDF = False
 # xtics = [-10, -5, 0, 5, 10]
 # ytics = [-10, -5, 0, 5, 10]
 
-filename = "k17disk"
-Nskip = 2
-skip = [0, 2]
+# filename = "k17disk"
+# Nskip = 2
+# skip = [0, 2]
+# init = 0
+# last = 399
+# fmin, fmax = 1.0e-7, 1.0e-1
+# lab = ["halo", "bulge", "MBH", "disk"]
+
+# filename = "hd"
+filename = "disk"
+Nskip = 0
 init = 0
-last = 399
-fmin, fmax = 1.0e-7, 1.0e-1
-lab = ["halo", "bulge", "MBH", "disk"]
+last = 13
+fmin, fmax = 1.0e-3, 1.0e+0
+lab = ["halo", "disk"]
 
 # filename = "halocusp_run"
 # Nskip = 1
@@ -83,11 +91,11 @@ def draw_figure(fileid, kind):
     nz = h5file["/"].attrs["nz"][0]
 
     # memory allocation for surface density maps
-    xy_map = np.zeros((kind, nx, ny))
-    xz_map = np.zeros((kind, nx, nz))
-    xx     = np.zeros((kind, nx + 1))
-    yy     = np.zeros((kind, ny + 1))
-    zz     = np.zeros((kind, nz + 1))
+    xy_map = np.zeros((kind + 1, nx, ny))
+    xz_map = np.zeros((kind + 1, nx, nz))
+    xx     = np.zeros((kind + 1, nx + 1))
+    yy     = np.zeros((kind + 1, ny + 1))
+    zz     = np.zeros((kind + 1, nz + 1))
 
 
     fig_rho = utils.set_figure(1, 1)

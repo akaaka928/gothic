@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/26 (Mon)
+ * @date 2018/03/30 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -471,10 +471,11 @@ void createHDF5DataType(hdf5struct *type)
 #else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   chkHDF5err(H5Tinsert(type->pot2, "Phi", HOFFSET(pot2, Phi), type->real));
   chkHDF5err(H5Tinsert(type->pot2,  "Fr", HOFFSET(pot2,  Fr), type->real));
-
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
   type->disk_grav = H5Tcreate(H5T_COMPOUND, sizeof(disk_grav));
   chkHDF5err(H5Tinsert(type->disk_grav, "R", HOFFSET(disk_grav, R), type->real));
   chkHDF5err(H5Tinsert(type->disk_grav, "z", HOFFSET(disk_grav, z), type->real));
+#endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 

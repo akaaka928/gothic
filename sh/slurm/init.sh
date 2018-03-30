@@ -217,7 +217,7 @@ if [ $PROBLEM -eq 14 ]; then
     ETA=0.5
     FINISH=104.0
     INTERVAL=8.0
-    NTOT=60003504
+    NTOT=600034
 fi
 ###############################################################
 # dynamical stability of an M31 model determined by Fardal et al. (2007)

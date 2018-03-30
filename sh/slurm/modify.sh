@@ -16,9 +16,10 @@ EXEC=bin/editor
 if [ -z "$PROBLEM" ]; then
     # PROBLEM=0
     # PROBLEM=1
+    PROBLEM=2
     # PROBLEM=10
     # PROBLEM=11
-    PROBLEM=12
+    # PROBLEM=12
     # PROBLEM=21
     # PROBLEM=22
     # PROBLEM=23
@@ -56,6 +57,16 @@ if [ $PROBLEM -eq 1 ]; then
     ETA=0.5
     FINISH=1175.0
     INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of an exponential disk in a spherical potential field (NFW sphere)
+if [ $PROBLEM -eq 2 ]; then
+    FILE=disk
+    CFG=external/hd_split.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=104.0
+    INTERVAL=8.0
 fi
 ###############################################################
 # dynamical stability of M31 in the observed coordinate

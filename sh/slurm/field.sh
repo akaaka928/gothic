@@ -22,7 +22,8 @@ EXEC=bin/gothic
 if [ -z "$PROBLEM" ]; then
     # PROBLEM=0
     # PROBLEM=11
-    PROBLEM=12
+    # PROBLEM=12
+    PROBLEM=22
 fi
 ###############################################################
 # topology of MPI processes
@@ -107,6 +108,12 @@ if [ $PROBLEM -eq 12 ]; then
     FILE=k17disk
     SPHEPOT=m31
     DISKPOT=m31
+fi
+###############################################################
+# dynamical stability of an exponential disk in a spherical potential field (NFW sphere)
+if [ $PROBLEM -eq 22 ]; then
+    FILE=disk
+    SPHEPOT=hd
 fi
 ###############################################################
 # set input arguments

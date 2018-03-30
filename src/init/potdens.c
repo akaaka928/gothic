@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/29 (Thu)
+ * @date 2018/03/30 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2314,7 +2314,7 @@ static inline void swapDblArrays(double **p0, double **p1)
 
 
 #define SCALE_BY_SURFACE_DENSITY
-/* #define ASSIGN_COARSER_PATCH_FOR_SURFACE_DENSITY */
+#define ASSIGN_COARSER_PATCH_FOR_SURFACE_DENSITY
 
 /**
  * @fn getPotDensPair
