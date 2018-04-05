@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/04/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -41,22 +41,37 @@ __device__ __forceinline__ Type PREFIX_SUM_VEC4_TSUB_NWARP(Type val, const int l
 #   if  TSUB_TN_SCAN_VEC4_INC >=  2
 #   if  NWARP_TN_SCAN_VEC4_INC <  2
   if( lane >=  1 ){    tmp = ldvec(smem[tidx -  1]);    val.x += tmp.x;    val.y += tmp.y;    val.z += tmp.z;    val.w += tmp.w;    stvec((Type *)smem, tidx, val);  }
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//NWARP_TN_SCAN_VEC4_INC <  2
 #   if  TSUB_TN_SCAN_VEC4_INC >=  4
 #   if  NWARP_TN_SCAN_VEC4_INC <  4
   if( lane >=  2 ){    tmp = ldvec(smem[tidx -  2]);    val.x += tmp.x;    val.y += tmp.y;    val.z += tmp.z;    val.w += tmp.w;    stvec((Type *)smem, tidx, val);  }
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//NWARP_TN_SCAN_VEC4_INC <  4
 #   if  TSUB_TN_SCAN_VEC4_INC >=  8
 #   if  NWARP_TN_SCAN_VEC4_INC <  8
   if( lane >=  4 ){    tmp = ldvec(smem[tidx -  4]);    val.x += tmp.x;    val.y += tmp.y;    val.z += tmp.z;    val.w += tmp.w;    stvec((Type *)smem, tidx, val);  }
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//NWARP_TN_SCAN_VEC4_INC <  8
 #   if  TSUB_TN_SCAN_VEC4_INC >= 16
 #   if  NWARP_TN_SCAN_VEC4_INC < 16
   if( lane >=  8 ){    tmp = ldvec(smem[tidx -  8]);    val.x += tmp.x;    val.y += tmp.y;    val.z += tmp.z;    val.w += tmp.w;    stvec((Type *)smem, tidx, val);  }
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//NWARP_TN_SCAN_VEC4_INC < 16
 #   if  TSUB_TN_SCAN_VEC4_INC == 32
 #   if  NWARP_TN_SCAN_VEC4_INC < 32
   if( lane >= 16 ){    tmp = ldvec(smem[tidx - 16]);    val.x += tmp.x;    val.y += tmp.y;    val.z += tmp.z;    val.w += tmp.w;    stvec((Type *)smem, tidx, val);  }
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//NWARP_TN_SCAN_VEC4_INC < 32
 #endif//TSUB_TN_SCAN_VEC4_INC == 32
 #endif//TSUB_TN_SCAN_VEC4_INC >= 16

@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/24 (Sat)
+ * @date 2018/04/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -893,6 +893,9 @@ int main(int argc, char **argv)
   int *tag_pre;
   void *phsort_temp_storage;
 #endif//CUB_AVAILABLE
+#   if  !defined(SERIALIZED_EXECUTION) && defined(USE_OCCUPANCY_CALCULATOR)
+  checkBoxSize_dev(&soaPH_dev);
+#endif//!defined(SERIALIZED_EXECUTION) && defined(USE_OCCUPANCY_CALCULATOR)
   const muse alloc_phkey = allocPeanoHilbertKey_dev
     (num_max, &tag_dev, &peano_dev, &peano, &min_dev, &max_dev, &gsync_ph0, &gsync_ph1,
 #ifndef SERIALIZED_EXECUTION
@@ -1247,7 +1250,9 @@ int main(int argc, char **argv)
   /* int *gsync_box0, *gsync_box1; */
   /* soaBoxSize soaBox; */
   /* const muse alloc_box = allocateBoxSize_dev(&pmin_hst, &pmax_hst, &pmin_dev, &pmax_dev, &gsync_box0, &gsync_box1, &soaBox, devProp); */
+#ifndef USE_OCCUPANCY_CALCULATOR
   checkBoxSize_dev(devProp);
+#endif//USE_OCCUPANCY_CALCULATOR
   float *x0hst, *x1hst, *y0hst, *y1hst, *z0hst, *z1hst;  int *idhst;
   float *x0dev, *x1dev, *y0dev, *y1dev, *z0dev, *z1dev;  int *iddev;
   samplePos samplePos0, samplePos1;

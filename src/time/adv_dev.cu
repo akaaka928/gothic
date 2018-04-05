@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/06 (Tue)
+ * @date 2018/04/03 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -97,6 +97,9 @@ __global__ void adjustTimeStep_kernel
   laneinfo info = {NUM_BODY_MAX, 0};
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   if( lane < info.num ){
     const int idx = info.head + lane;
@@ -276,6 +279,9 @@ __global__ void setTimeStep_kernel
 #endif//OMIT_VELOCITY_FOR_TIME_STEP
     }/* if( ii < Ni ){ */
   }/* for(int ih = 0; ih < Ni; ih += NTHREADS_TIME){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 
   /** find the minimum time step */
@@ -288,11 +294,11 @@ __global__ void setTimeStep_kernel
   /** find minimum time step within a warp */
   real dttmp;
 #ifdef  USE_WARP_SHUFFLE_FUNC_TIME
-  dttmp = __shfl_xor(dtloc,  1, warpSize);  dtloc = FMIN(dtloc, dttmp);
-  dttmp = __shfl_xor(dtloc,  2, warpSize);  dtloc = FMIN(dtloc, dttmp);
-  dttmp = __shfl_xor(dtloc,  4, warpSize);  dtloc = FMIN(dtloc, dttmp);
-  dttmp = __shfl_xor(dtloc,  8, warpSize);  dtloc = FMIN(dtloc, dttmp);
-  dttmp = __shfl_xor(dtloc, 16, warpSize);  dtloc = FMIN(dtloc, dttmp);
+  dttmp = __SHFL_XOR(dtloc,  1, warpSize);  dtloc = FMIN(dtloc, dttmp);
+  dttmp = __SHFL_XOR(dtloc,  2, warpSize);  dtloc = FMIN(dtloc, dttmp);
+  dttmp = __SHFL_XOR(dtloc,  4, warpSize);  dtloc = FMIN(dtloc, dttmp);
+  dttmp = __SHFL_XOR(dtloc,  8, warpSize);  dtloc = FMIN(dtloc, dttmp);
+  dttmp = __SHFL_XOR(dtloc, 16, warpSize);  dtloc = FMIN(dtloc, dttmp);
   if( (tidx & (warpSize - 1)) == 0 )
     dtmin[tidx / warpSize] = dtloc;
 #else///USE_WARP_SHUFFLE_FUNC_TIME
@@ -319,15 +325,15 @@ __global__ void setTimeStep_kernel
     /** find the minimum time step within the whole threads */
 #ifdef  USE_WARP_SHUFFLE_FUNC_TIME
 #   if  NTHREADS_TIME >=   64
-  dttmp = __shfl_xor(dtloc,  1, NTHREADS_TIME / warpSize);  dtloc = FMIN(dtloc, dttmp);
+  dttmp = __SHFL_XOR(dtloc,  1, NTHREADS_TIME / warpSize);  dtloc = FMIN(dtloc, dttmp);
 #   if  NTHREADS_TIME >=  128
-  dttmp = __shfl_xor(dtloc,  2, NTHREADS_TIME / warpSize);  dtloc = FMIN(dtloc, dttmp);
+  dttmp = __SHFL_XOR(dtloc,  2, NTHREADS_TIME / warpSize);  dtloc = FMIN(dtloc, dttmp);
 #   if  NTHREADS_TIME >=  256
-  dttmp = __shfl_xor(dtloc,  4, NTHREADS_TIME / warpSize);  dtloc = FMIN(dtloc, dttmp);
+  dttmp = __SHFL_XOR(dtloc,  4, NTHREADS_TIME / warpSize);  dtloc = FMIN(dtloc, dttmp);
 #   if  NTHREADS_TIME >=  512
-  dttmp = __shfl_xor(dtloc,  8, NTHREADS_TIME / warpSize);  dtloc = FMIN(dtloc, dttmp);
+  dttmp = __SHFL_XOR(dtloc,  8, NTHREADS_TIME / warpSize);  dtloc = FMIN(dtloc, dttmp);
 #   if  NTHREADS_TIME == 1024
-  dttmp = __shfl_xor(dtloc, 16, NTHREADS_TIME / warpSize);  dtloc = FMIN(dtloc, dttmp);
+  dttmp = __SHFL_XOR(dtloc, 16, NTHREADS_TIME / warpSize);  dtloc = FMIN(dtloc, dttmp);
 #endif//NTHREADS_TIME == 1024
 #endif//NTHREADS_TIME >=  512
 #endif//NTHREADS_TIME >=  256
@@ -451,6 +457,9 @@ __global__ void prediction_kernel
     vj.y += dt_2 * aj.y;    pj.y += dt * vj.y;
     vj.z += dt_2 * aj.z;    pj.z += dt * vj.z;
   }/* if( jj < Nj ){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   jpos[jj] = pj;
   jvel[jj] = vj;
@@ -466,22 +475,22 @@ __device__ __forceinline__ void   getMinimumDblTsub(      double *min, volatile 
 #ifdef  USE_WARP_SHUFFLE_FUNC_TIME
   union {int2 i; double d;} val, tmp;  val.d = min;
 #   if  DIV_NWARP(TSUB) >=  2
-  tmp.i.x = __shfl_xor(val.i.x,  1, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y,  1, DIV_NWARP(TSUB));  val.d = fmin(val.d, tmp.d);
+  tmp.i.x = __SHFL_XOR(val.i.x,  1, DIV_NWARP(TSUB));  tmp.i.y = __SHFL_XOR(val.i.y,  1, DIV_NWARP(TSUB));  val.d = fmin(val.d, tmp.d);
 #   if  DIV_NWARP(TSUB) >=  4
-  tmp.i.x = __shfl_xor(val.i.x,  2, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y,  2, DIV_NWARP(TSUB));  val.d = fmin(val.d, tmp.d);
+  tmp.i.x = __SHFL_XOR(val.i.x,  2, DIV_NWARP(TSUB));  tmp.i.y = __SHFL_XOR(val.i.y,  2, DIV_NWARP(TSUB));  val.d = fmin(val.d, tmp.d);
 #   if  DIV_NWARP(TSUB) >=  8
-  tmp.i.x = __shfl_xor(val.i.x,  4, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y,  4, DIV_NWARP(TSUB));  val.d = fmin(val.d, tmp.d);
+  tmp.i.x = __SHFL_XOR(val.i.x,  4, DIV_NWARP(TSUB));  tmp.i.y = __SHFL_XOR(val.i.y,  4, DIV_NWARP(TSUB));  val.d = fmin(val.d, tmp.d);
 #   if  DIV_NWARP(TSUB) >= 16
-  tmp.i.x = __shfl_xor(val.i.x,  8, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y,  8, DIV_NWARP(TSUB));  val.d = fmin(val.d, tmp.d);
+  tmp.i.x = __SHFL_XOR(val.i.x,  8, DIV_NWARP(TSUB));  tmp.i.y = __SHFL_XOR(val.i.y,  8, DIV_NWARP(TSUB));  val.d = fmin(val.d, tmp.d);
 #   if  DIV_NWARP(TSUB) == 32
-  tmp.i.x = __shfl_xor(val.i.x, 16, DIV_NWARP(TSUB));  tmp.i.y = __shfl_xor(val.i.y, 16, DIV_NWARP(TSUB));  val.d = fmin(val.d, tmp.d);
+  tmp.i.x = __SHFL_XOR(val.i.x, 16, DIV_NWARP(TSUB));  tmp.i.y = __SHFL_XOR(val.i.y, 16, DIV_NWARP(TSUB));  val.d = fmin(val.d, tmp.d);
 #endif//DIV_NWARP(TSUB) == 32
 #endif//DIV_NWARP(TSUB) >= 16
 #endif//DIV_NWARP(TSUB) >=  8
 #endif//DIV_NWARP(TSUB) >=  4
 #endif//DIV_NWARP(TSUB) >=  2
-  tmp.i.x = __shfl(val.i.x, 0, DIV_NWARP(TSUB));
-  tmp.i.y = __shfl(val.i.y, 0, DIV_NWARP(TSUB));
+  tmp.i.x = __SHFL(val.i.x, 0, DIV_NWARP(TSUB));
+  tmp.i.y = __SHFL(val.i.y, 0, DIV_NWARP(TSUB));
   return (tmp.d);
 #else///USE_WARP_SHUFFLE_FUNC_TIME
   smem[tidx] = *min;
@@ -559,6 +568,9 @@ __global__ void correction_kernel
   laneinfo info = {NUM_BODY_MAX, 0};
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   ibody_time ti = {0.0, DBL_MAX};
 
@@ -599,6 +611,9 @@ __global__ void correction_kernel
     ti.t1 += (double)vi.dt;
     time[idx] = ti;
   }/* if( lane < info.num ){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 
   /** get minimum ti.t1 of this group (TSUB threads) */
@@ -640,6 +655,9 @@ __global__ void adjustParticleTime_kernel
   laneinfo info = {NUM_BODY_MAX, 0};
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   ibody_time ti = {0.0, DBL_MAX};
 
@@ -671,6 +689,9 @@ __global__ void adjustParticleTime_kernel
     ti.t1 = ti.t0 + (double)vi.dt;
     time[idx] = ti;
   }/* if( lane < info.num ){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   /** get minimum ti.t1 of this group (TSUB threads) */
 #ifdef  USE_WARP_SHUFFLE_FUNC_TIME
@@ -703,11 +724,17 @@ __global__ void setLaneTime_kernel(const int laneNum, READ_ONLY laneinfo * RESTR
   laneinfo info = {NUM_BODY_MAX, 0};
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   ibody_time ti = {0.0, DBL_MAX};
 
   if( lane < info.num )
     ti = time[info.head + lane];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   /** get minimum ti.t1 of this group (TSUB threads) */
 #ifdef  USE_WARP_SHUFFLE_FUNC_TIME
@@ -985,6 +1012,9 @@ __global__ void advPos_kernel
     pi.y += dt * vy[ii];
     pi.z += dt * vz[ii];
   }/* if( ii < Ni ){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   ipos[ii] = pi;
 }

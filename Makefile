@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/03/30 (Fri) 14:00:02
+# last updated on 2018/04/05 (Thu) 15:09:42
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -42,6 +42,8 @@ IJ_PARALLELIZED_WALK	:= 1
 CLOCK_BASED_AUTO_TUNING	:= 1
 OMIT_VELOCITY_BASED_DT	:= 0
 REPORT_COMPUTE_RATE	:= 1
+USE_COOPERATIVE_GROUPS	:= 0
+GET_NBLOCKS_PER_SM_AUTO	:= 1
 DATAFILE_FORMAT_HDF5	:= 1
 HDF5_FOR_ZINDAIJI	:= 0
 DUMPFILE_IN_TIPSY	:= 0
@@ -85,7 +87,7 @@ MYINC	:= $(MYDIR)/inc
 MYLIB	:= $(MYDIR)/lib
 #################################################################################################
 ifeq ($(findstring reedbush, $(HOSTNAME)), reedbush)
-MYDIR	:= /lustre/gx31/z30118
+MYDIR	:= /lustre/jh180045l/$(USER)
 MYINC	:= $(MYDIR)/inc
 MYLIB	:= $(MYDIR)/lib
 endif
@@ -275,6 +277,20 @@ endif
 #################################################################################################
 ifeq ($(REPORT_COMPUTE_RATE), 1)
 CCARG	+= -DREPORT_COMPUTE_RATE
+endif
+#################################################################################################
+ifeq ($(COOPERATIVE_GROUPS_AVAILABLE), 1)
+ifeq ($(USE_COOPERATIVE_GROUPS), 1)
+CCARG	+= -DUSE_COOPERATIVE_GROUPS
+CUARG	+= -DUSE_COOPERATIVE_GROUPS
+endif
+else
+USE_COOPERATIVE_GROUPS	:= 0
+endif
+#################################################################################################
+ifeq ($(GET_NBLOCKS_PER_SM_AUTO), 1)
+CCARG	+= -DUSE_OCCUPANCY_CALCULATOR
+CUARG	+= -DUSE_OCCUPANCY_CALCULATOR
 endif
 #################################################################################################
 ifeq ($(USEPAPI), 0)
@@ -852,14 +868,45 @@ sass:	TAGS $(GOTHIC).sass
 TAGS:
 	$(VERBOSE)find $(SRCDIR) -name "*.[ch]" -print | etags -
 #################################################################################################
+ifeq ($(USE_COOPERATIVE_GROUPS), 1)
+$(OBJDIR)/make_dev.o:	make_dev.cu
+	$(VERBOSE)$(CU) $(CUFLAG) $(CUARG) $(DEBUG) $(CUDBG) $(CUOPT)          $(CUINC)           $(PREC) $(UNIT) $(PROFILE) --device-c -o $@ -c $<
+$(OBJDIR)/make_dev.mpi.o:	make_dev.cu
+	$(VERBOSE)$(CU) $(CUFLAG) $(CUARG) $(DEBUG) $(CUDBG) $(CUOPT) $(CUMPI) $(CUINC) $(MPIINC) $(PREC) $(UNIT) $(PROFILE) --device-c -o $@ -c $<
+endif
+#################################################################################################
 ## CUDA/C code
 # multiple GPUs code
+ifeq ($(USE_COOPERATIVE_GROUPS), 1)
+ifeq ($(FORCE_SINGLE_GPU_RUN), 1)
+ifeq ($(DATAFILE_FORMAT_HDF5), 1)
+$(GOTHIC):	$(OBJMPGT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)cudalib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
+	$(VERBOSE)$(CU) $(CUFLAG) $(CUARG) $(DEBUG) $(CUDBG) $(CUOPT) $(CUINC) $(PREC) $(UNIT) $(PROFILE) --device-link $(OBJMPGT) --output-file $(OBJDIR)/gothic_link.o
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) $(OBJDIR)/gothic_link.o $(CCLIB) $(CULIB) -lcudadevrt -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)mpilib -l$(LIBPREC)cudalib -l$(LIBPREC)hdf5lib $(HDF5LIB)
+else
+$(GOTHIC):	$(OBJMPGT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)cudalib.a
+	$(VERBOSE)$(CU) $(CUFLAG) $(CUARG) $(DEBUG) $(CUDBG) $(CUOPT) $(CUINC) $(PREC) $(UNIT) $(PROFILE) --device-link $(OBJMPGT) --output-file $(OBJDIR)/gothic_link.o
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) $(CCLIB) $(CULIB) -lcudadevrt -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)mpilib -l$(LIBPREC)cudalib
+endif
+else
+ifeq ($(DATAFILE_FORMAT_HDF5), 1)
+$(GOTHIC):	$(OBJMPGT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)cudalib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
+	$(VERBOSE)$(CU) $(CUFLAG) $(CUARG) $(DEBUG) $(CUDBG) $(CUOPT) $(CUMPI) $(CUINC) $(MPIINC) $(PREC) $(UNIT) $(PROFILE) --device-link $(OBJMPGT) --output-file $(OBJDIR)/gothic_link.o
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) $(OBJDIR)/gothic_link.o $(CCLIB) $(CULIB) -lcudadevrt -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)mpilib -l$(LIBPREC)cudalib -l$(LIBPREC)hdf5lib $(HDF5LIB)
+else
+$(GOTHIC):	$(OBJMPGT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)cudalib.a
+	$(VERBOSE)$(CU) $(CUFLAG) $(CUARG) $(DEBUG) $(CUDBG) $(CUOPT) $(CUMPI) $(CUINC) $(MPIINC) $(PREC) $(UNIT) $(PROFILE) --device-link $(OBJMPGT) --output-file $(OBJDIR)/gothic_link.o
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) $(CCLIB) $(CULIB) -lcudadevrt -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)mpilib -l$(LIBPREC)cudalib
+endif
+endif
+else
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 $(GOTHIC):	$(OBJMPGT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)cudalib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) $(CCLIB) $(CULIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)mpilib -l$(LIBPREC)cudalib -l$(LIBPREC)hdf5lib $(HDF5LIB)
 else
 $(GOTHIC):	$(OBJMPGT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)cudalib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) $(CCLIB) $(CULIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)mpilib -l$(LIBPREC)cudalib
+endif
 endif
 #################################################################################################
 ## C code

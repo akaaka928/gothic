@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/04/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -43,15 +43,30 @@ __device__ __forceinline__ Type PREFIX_SUM_TSUB
 
   Type tmp;
 #   if  TSUB_SCAN_INC >=  2
-  tmp = __shfl_up(val,  1, TSUB_SCAN_INC);  if( lane >=  1 )    val += tmp;
+  tmp = __SHFL_UP(val,  1, TSUB_SCAN_INC);  if( lane >=  1 )    val += tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB_SCAN_INC >=  4
-  tmp = __shfl_up(val,  2, TSUB_SCAN_INC);  if( lane >=  2 )    val += tmp;
+  tmp = __SHFL_UP(val,  2, TSUB_SCAN_INC);  if( lane >=  2 )    val += tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB_SCAN_INC >=  8
-  tmp = __shfl_up(val,  4, TSUB_SCAN_INC);  if( lane >=  4 )    val += tmp;
+  tmp = __SHFL_UP(val,  4, TSUB_SCAN_INC);  if( lane >=  4 )    val += tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB_SCAN_INC >= 16
-  tmp = __shfl_up(val,  8, TSUB_SCAN_INC);  if( lane >=  8 )    val += tmp;
+  tmp = __SHFL_UP(val,  8, TSUB_SCAN_INC);  if( lane >=  8 )    val += tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB_SCAN_INC == 32
-  tmp = __shfl_up(val, 16, TSUB_SCAN_INC);  if( lane >= 16 )    val += tmp;
+  tmp = __SHFL_UP(val, 16, TSUB_SCAN_INC);  if( lane >= 16 )    val += tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//TSUB_SCAN_INC == 32
 #endif//TSUB_SCAN_INC >= 16
 #endif//TSUB_SCAN_INC >=  8
@@ -62,15 +77,35 @@ __device__ __forceinline__ Type PREFIX_SUM_TSUB
 
   smem[tidx] = val;
 #   if  TSUB_SCAN_INC >=  2
-  if( lane >=  1 )    val += smem[tidx -  1];  smem[tidx] = val;
+  if( lane >=  1 )    val += smem[tidx -  1];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  smem[tidx] = val;
 #   if  TSUB_SCAN_INC >=  4
-  if( lane >=  2 )    val += smem[tidx -  2];  smem[tidx] = val;
+  if( lane >=  2 )    val += smem[tidx -  2];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  smem[tidx] = val;
 #   if  TSUB_SCAN_INC >=  8
-  if( lane >=  4 )    val += smem[tidx -  4];  smem[tidx] = val;
+  if( lane >=  4 )    val += smem[tidx -  4];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  smem[tidx] = val;
 #   if  TSUB_SCAN_INC >= 16
-  if( lane >=  8 )    val += smem[tidx -  8];  smem[tidx] = val;
+  if( lane >=  8 )    val += smem[tidx -  8];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  smem[tidx] = val;
 #   if  TSUB_SCAN_INC == 32
-  if( lane >= 16 )    val += smem[tidx - 16];  smem[tidx] = val;
+  if( lane >= 16 )    val += smem[tidx - 16];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  smem[tidx] = val;
 #endif//TSUB_SCAN_INC == 32
 #endif//TSUB_SCAN_INC >= 16
 #endif//TSUB_SCAN_INC >=  8
@@ -101,21 +136,21 @@ __device__ __forceinline__ Type TOTAL_SUM_TSUB
 
   Type tmp;
 #   if  TSUB_SCAN_INC >=  2
-  tmp = __shfl_xor(val,  1, TSUB_SCAN_INC);  val += tmp;
+  tmp = __SHFL_XOR(val,  1, TSUB_SCAN_INC);  val += tmp;
 #   if  TSUB_SCAN_INC >=  4
-  tmp = __shfl_xor(val,  2, TSUB_SCAN_INC);  val += tmp;
+  tmp = __SHFL_XOR(val,  2, TSUB_SCAN_INC);  val += tmp;
 #   if  TSUB_SCAN_INC >=  8
-  tmp = __shfl_xor(val,  4, TSUB_SCAN_INC);  val += tmp;
+  tmp = __SHFL_XOR(val,  4, TSUB_SCAN_INC);  val += tmp;
 #   if  TSUB_SCAN_INC >= 16
-  tmp = __shfl_xor(val,  8, TSUB_SCAN_INC);  val += tmp;
+  tmp = __SHFL_XOR(val,  8, TSUB_SCAN_INC);  val += tmp;
 #   if  TSUB_SCAN_INC == 32
-  tmp = __shfl_xor(val, 16, TSUB_SCAN_INC);  val += tmp;
+  tmp = __SHFL_XOR(val, 16, TSUB_SCAN_INC);  val += tmp;
 #endif//TSUB_SCAN_INC == 32
 #endif//TSUB_SCAN_INC >= 16
 #endif//TSUB_SCAN_INC >=  8
 #endif//TSUB_SCAN_INC >=  4
 #endif//TSUB_SCAN_INC >=  2
-  val = __shfl(val, 0, TSUB_SCAN_INC);
+  val = __SHFL(val, 0, TSUB_SCAN_INC);
 
 #else///USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
 

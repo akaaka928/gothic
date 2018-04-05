@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/02 (Fri)
+ * @date 2018/04/03 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -237,6 +237,9 @@ __device__ __forceinline__ void copyData_g2s
   const int numHead = (numTemp < numCopy) ? numTemp : numCopy;
   if( tidx < numHead )
     sbuf[dstHead + tidx] = gbuf[srcHead + tidx];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
   dstHead += numHead;
   srcHead += numHead;
   numCopy -= numHead;
@@ -261,6 +264,9 @@ __device__ __forceinline__ void copyData_s2g
   const int numHead = (numTemp < numCopy) ? numTemp : numCopy;
   if( tidx < numHead )
     gbuf[dstHead + tidx] = sbuf[srcHead + tidx];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
   dstHead += numHead;
   srcHead += numHead;
   numCopy -= numHead;
@@ -305,15 +311,27 @@ __device__ __forceinline__ void copyData_g2g
     switch( Nloop ){
     case 4:
       if(  grpIdx )	        local.i.x = temp;
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead +  ldIdx                         ];
       if( !grpIdx )      	local.i.x = temp;
       else	                local.i.y = temp;
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead + (ldIdx +     NTHREADS_MAKE_LET)];
       if( !grpIdx )      	local.i.y = temp;
       else	                local.i.z = temp;
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead + (ldIdx + 2 * NTHREADS_MAKE_LET)];
       if( !grpIdx )      	local.i.z = temp;
       else	                local.i.w = temp;
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead + (ldIdx + 3 * NTHREADS_MAKE_LET)];
       if( !grpIdx )      	local.i.w = temp;
       __syncthreads();
@@ -324,12 +342,21 @@ __device__ __forceinline__ void copyData_g2g
       break;
     case 3:
       if(  grpIdx )      	local.i.x = temp;
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead +  ldIdx                         ];
       if( !grpIdx )      	local.i.x = temp;
       else              	local.i.y = temp;
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead + (ldIdx +     NTHREADS_MAKE_LET)];
       if( !grpIdx )      	local.i.y = temp;
       else              	local.i.z = temp;
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead + (ldIdx + 2 * NTHREADS_MAKE_LET)];
       if( !grpIdx )      	local.i.z = temp;
       __syncthreads();
@@ -339,9 +366,15 @@ __device__ __forceinline__ void copyData_g2g
       break;
     case 2:
       if(  grpIdx )      	local.i.x = temp;
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead +  ldIdx                     ];
       if( !grpIdx )      	local.i.x = temp;
       else               	local.i.y = temp;
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead + (ldIdx + NTHREADS_MAKE_LET)];
       if( !grpIdx )      	local.i.y = temp;
       __syncthreads();
@@ -350,6 +383,9 @@ __device__ __forceinline__ void copyData_g2g
       break;
     case 1:
       if(  grpIdx )      	local.i.x = temp;
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead + ldIdx];
       if( !grpIdx )      	local.i.x = temp;
       __syncthreads();
@@ -492,6 +528,9 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
   uint jcell = 0;/**< 0 means that the head index is 0 and the number of tree nodes is 1; i.e., it is the root node */
   if( tidx == 0 )
     queue[0] = jcell;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   /** initialize queue for j-cells and interaction list by a representative thread */
   int sendNum = 0;/**< number of LET nodes already stored in the global memory */
@@ -518,6 +557,9 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
       jcell = queue[tidx];
       cnum = 1 + (int)(jcell >> IDXBITS);
     }/* if( lane < rem ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
     jcell &= IDXMASK;
 
     /** predict the head index on the shared memory by parallel prefix sum */
@@ -531,6 +573,9 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
       /** local data can be uploaded to the shared memory */
       int unum = NTHREADS_MAKE_LET - hidx;
       if( cnum < unum )	  unum = cnum;
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
       /** upload local data */
       for(int jj = 0; jj < unum; jj++){
@@ -605,6 +650,11 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
 	  lambda = FMAX(UNITY - SQRTRATIO(icom.m, r2), ZERO);
 	}
 #endif//USE_ENCLOSING_BALL_FOR_LET
+#   if  defined(USE_RECTANGULAR_BOX_FOR_LET) && defined(USE_ENCLOSING_BALL_FOR_LET)
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+#endif//defined(USE_RECTANGULAR_BOX_FOR_LET) && defined(USE_ENCLOSING_BALL_FOR_LET)
 
       /** calculate distance between the pseudo i-particle and the candidate j-particle */
       lambda *= lambda * r2;
@@ -632,6 +682,9 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
 	      hasChild = 1;
 	    }/* else{ */
     }/* if( returnLET ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 
     /** if the shared memory has open space and some tree cells are stored on the global memory, then load tree-cells from the global memory to the shared memory */
@@ -665,6 +718,9 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
     /** modify more pointer using leafHead */
     if( childNum > 0 )
       more_tmp = ((uint)(childNum - 1) << IDXBITS) + (uint)(totNum + leafHead);
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
     totNum += smem[NTHREADS_MAKE_LET - 1];
 
     /** add tree nodes to LET (mj_tmp is already stored) */
@@ -672,6 +728,9 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
       jpos_let[hidx] = jpos_tmp;
       more_let[hidx] = more_tmp;
     }/* if( returnLET ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
   }/* while( true ){ */
 
 

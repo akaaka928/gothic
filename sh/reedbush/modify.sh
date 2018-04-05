@@ -1,10 +1,12 @@
 #!/bin/bash
 ###############################################################
-#PBS -q u-regular
+#PBS -q u-short
 #PBS -l select=1:ncpus=36:mpiprocs=1:ompthreads=36
-#PBS -W group_list=gx31
+#PBS -W group_list=jh180045u
 #PBS -l walltime=00:10:00
 #PBS -N editor
+###############################################################
+# l-small for jh180045l
 ###############################################################
 
 
@@ -17,17 +19,19 @@ EXEC=bin/editor
 if [ -z "$PROBLEM" ]; then
     # PROBLEM=0
     # PROBLEM=1
+    PROBLEM=2
     # PROBLEM=10
     # PROBLEM=11
-    PROBLEM=12
+    # PROBLEM=12
+    # PROBLEM=21
+    # PROBLEM=22
+    # PROBLEM=23
+    # PROBLEM=24
 fi
 ###############################################################
 # dump file generation interval (in units of minute)
 if [ -z "$SAVE" ]; then
-    # SAVE=2.0
-    SAVE=35.0
-    # SAVE=70.0
-    # SAVE=140.0
+    SAVE=50.0
 fi
 ###############################################################
 
@@ -53,6 +57,16 @@ if [ $PROBLEM -eq 1 ]; then
     ETA=0.5
     FINISH=1175.0
     INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of an exponential disk in a spherical potential field (NFW sphere)
+if [ $PROBLEM -eq 2 ]; then
+    FILE=disk
+    CFG=external/hd_split.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=104.0
+    INTERVAL=8.0
 fi
 ###############################################################
 # dynamical stability of M31 in the observed coordinate
@@ -93,6 +107,56 @@ if [ $PROBLEM -eq 12 ]; then
     INTERVAL=3.125
 fi
 ###############################################################
+# GSS simulation in observed frame with live M31
+if [ $PROBLEM -eq 20 ]; then
+    FILE=gss
+    CFG=gss/obs_run.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1246.875
+    INTERVAL=3.125
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 21 ]; then
+    FILE=halocore1_run
+    CFG=pbh/halocore1_run.cfg
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 22 ]; then
+    FILE=halocore2_run
+    CFG=pbh/halocore2_run.cfg
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 23 ]; then
+    FILE=halocore3_run
+    CFG=pbh/halocore3_run.cfg
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 24 ]; then
+    FILE=halocusp_run
+    CFG=pbh/halocusp_run.cfg
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
 # set input arguments
 OPTION="-file=$FILE -list=$CFG -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE"
 ###############################################################
@@ -107,14 +171,15 @@ STDERR=log/$PBS_JOBNAME.$PBS_JOBID.err
 ###############################################################
 # start logging
 cd $PBS_O_WORKDIR
-# echo "use $SLURM_JOB_CPUS_PER_NODE CPUs"
 TIME=`date`
 echo "start: $TIME"
 ###############################################################
-export MODULEPATH=$MODULEPATH:/lustre/gx31/z30118/opt/Modules
+export MODULEPATH=$MODULEPATH:/lustre/jh180045l/share/opt/Modules
 . /etc/profile.d/modules.sh
-module load intel mvapich2-gdr/2.2/intel
-module load hdf5
+module load intel intel-mpi
+module load phdf5/impi
+# module load mvapich2/gdr/2.2/gnu
+# module load phdf5/mv2
 ###############################################################
 # execute the job
 if [ `which numactl` ]; then
@@ -130,4 +195,6 @@ fi
 # finish logging
 TIME=`date`
 echo "finish: $TIME"
+###############################################################
+exit 0
 ###############################################################

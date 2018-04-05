@@ -20,11 +20,11 @@ PLTCDF=bin/cdf
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    # PROBLEM=2
+    PROBLEM=2
     # PROBLEM=27
     # PROBLEM=111
     # PROBLEM=112
-    PROBLEM=124
+    # PROBLEM=124
 fi
 ###############################################################
 # file extension of figures

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/06 (Tue)
+ * @date 2018/04/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -382,6 +382,9 @@ void calcExternalForce_spherical
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   real aa, dxinv;
   int ii = bisec(rr, num, xx, &aa, &dxinv);
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   const real xl = xx[ii];
   const real xr = xx[ii + 1];
@@ -448,6 +451,9 @@ __global__ void calcExternalGravity_kernel
   laneinfo info = {NUM_BODY_MAX, 0};
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   if( lane < info.num ){
     const int ii = info.head + lane;
@@ -551,6 +557,9 @@ __global__ void calcExternalDiskGravity_kernel
   laneinfo info = {NUM_BODY_MAX, 0};
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   if( lane < info.num ){
     const int ii = info.head + lane;
@@ -674,6 +683,9 @@ __global__ void calcExternalDiskGravity_kernel
       ai.pot = pot;
     }/* else{ */
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     /** store acceleration */
     atomicAdd(&(acc[ii].x  ), ai.x  );

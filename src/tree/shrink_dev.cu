@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/22 (Thu)
+ * @date 2018/04/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -28,6 +28,10 @@
 #include <math.h>
 #include <helper_cuda.h>
 
+#include <thrust/device_ptr.h>
+#include <thrust/reduce.h>
+#include <thrust/functional.h>
+
 #ifdef  MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
 #include <mpi.h>
 #include "mpilib.h"
@@ -45,9 +49,6 @@
 #include "make_dev.h"
 
 #include "../misc/brent.h"
-#include <thrust/device_ptr.h>
-#include <thrust/reduce.h>
-#include <thrust/functional.h>
 #include "neighbor_dev.h"
 
 #include "shrink_dev.h"
@@ -217,6 +218,9 @@ __global__ void countContinuousNeighbor_kernel(const int Ni, position * RESTRICT
 	break;
       }/* if( r2 > r2max ){ */
     }/* for(int ii = 0; ii < NEIGHBOR_NUM_LANE; ii++){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     /** commit the derived maximum number as neighbor particles within rmax */
     inum[gidx] = nmax;

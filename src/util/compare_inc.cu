@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/04/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -47,12 +47,12 @@ __device__ __forceinline__ Type getMinWarp
 #ifdef  USE_WARP_SHUFFLE_FUNC_COMPARE_INC
 
   Type tmp;
-  tmp = __shfl_xor(val,  1, warpSize);  val = getMinVal(val, tmp);
-  tmp = __shfl_xor(val,  2, warpSize);  val = getMinVal(val, tmp);
-  tmp = __shfl_xor(val,  4, warpSize);  val = getMinVal(val, tmp);
-  tmp = __shfl_xor(val,  8, warpSize);  val = getMinVal(val, tmp);
-  tmp = __shfl_xor(val, 16, warpSize);  val = getMinVal(val, tmp);
-  val = __shfl(val, 0, warpSize);
+  tmp = __SHFL_XOR(val,  1, warpSize);  val = getMinVal(val, tmp);
+  tmp = __SHFL_XOR(val,  2, warpSize);  val = getMinVal(val, tmp);
+  tmp = __SHFL_XOR(val,  4, warpSize);  val = getMinVal(val, tmp);
+  tmp = __SHFL_XOR(val,  8, warpSize);  val = getMinVal(val, tmp);
+  tmp = __SHFL_XOR(val, 16, warpSize);  val = getMinVal(val, tmp);
+  val = __SHFL(val, 0, warpSize);
 
 #else///USE_WARP_SHUFFLE_FUNC_COMPARE_INC
 
@@ -87,12 +87,12 @@ __device__ __forceinline__ Type getMaxWarp
 #ifdef  USE_WARP_SHUFFLE_FUNC_COMPARE_INC
 
   Type tmp;
-  tmp = __shfl_xor(val,  1, warpSize);  val = getMaxVal(val, tmp);
-  tmp = __shfl_xor(val,  2, warpSize);  val = getMaxVal(val, tmp);
-  tmp = __shfl_xor(val,  4, warpSize);  val = getMaxVal(val, tmp);
-  tmp = __shfl_xor(val,  8, warpSize);  val = getMaxVal(val, tmp);
-  tmp = __shfl_xor(val, 16, warpSize);  val = getMaxVal(val, tmp);
-  val = __shfl(val, 0, warpSize);
+  tmp = __SHFL_XOR(val,  1, warpSize);  val = getMaxVal(val, tmp);
+  tmp = __SHFL_XOR(val,  2, warpSize);  val = getMaxVal(val, tmp);
+  tmp = __SHFL_XOR(val,  4, warpSize);  val = getMaxVal(val, tmp);
+  tmp = __SHFL_XOR(val,  8, warpSize);  val = getMaxVal(val, tmp);
+  tmp = __SHFL_XOR(val, 16, warpSize);  val = getMaxVal(val, tmp);
+  val = __SHFL(val, 0, warpSize);
 
 #else///USE_WARP_SHUFFLE_FUNC_COMPARE_INC
 
@@ -121,13 +121,27 @@ __device__ __forceinline__ Type getMinlocWarp
 (Type val, volatile Type * smem, const int tidx, const int head)
 {
   Type tmp;
+  stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^  1]);  if( tmp.val < val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^  2]);  if( tmp.val < val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^  4]);  if( tmp.val < val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^  8]);  if( tmp.val < val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^ 16]);  if( tmp.val < val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
   stloc((Type *)smem, tidx, val);
-
-  tmp = ldloc(smem[tidx ^  1]);	if( tmp.val < val.val )	   val = tmp;  stloc((Type *)smem, tidx, val);
-  tmp = ldloc(smem[tidx ^  2]);	if( tmp.val < val.val )	   val = tmp;  stloc((Type *)smem, tidx, val);
-  tmp = ldloc(smem[tidx ^  4]);	if( tmp.val < val.val )	   val = tmp;  stloc((Type *)smem, tidx, val);
-  tmp = ldloc(smem[tidx ^  8]);	if( tmp.val < val.val )	   val = tmp;  stloc((Type *)smem, tidx, val);
-  tmp = ldloc(smem[tidx ^ 16]); if( tmp.val < val.val )	   val = tmp;  stloc((Type *)smem, tidx, val);
 
   val = ldloc(smem[head]);
   return (val);
@@ -145,13 +159,28 @@ __device__ __forceinline__ Type getMaxlocWarp
 (Type val, volatile Type * smem, const int tidx, const int head)
 {
   Type tmp;
-  stloc((Type *)smem, tidx, val);
 
-  tmp = ldloc(smem[tidx ^  1]);	 if( tmp.val > val.val )    val = tmp;	stloc((Type *)smem, tidx, val);
-  tmp = ldloc(smem[tidx ^  2]);	 if( tmp.val > val.val )    val = tmp;	stloc((Type *)smem, tidx, val);
-  tmp = ldloc(smem[tidx ^  4]);	 if( tmp.val > val.val )    val = tmp;	stloc((Type *)smem, tidx, val);
-  tmp = ldloc(smem[tidx ^  8]);	 if( tmp.val > val.val )    val = tmp;	stloc((Type *)smem, tidx, val);
-  tmp = ldloc(smem[tidx ^ 16]);	 if( tmp.val > val.val )    val = tmp;	stloc((Type *)smem, tidx, val);
+  stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^  1]);  if( tmp.val > val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^  2]);  if( tmp.val > val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^  4]);  if( tmp.val > val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^  8]);  if( tmp.val > val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^ 16]);  if( tmp.val > val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  stloc((Type *)smem, tidx, val);
 
   val = ldloc(smem[head]);
 
@@ -190,15 +219,15 @@ __device__ __forceinline__ Type GET_MIN_BLCK(Type val, volatile Type * __restric
     const int groupSize = NTHREADS_COMPARE_INC >> 5;
     Type tmp;
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  2
-    tmp = __shfl_xor(val,  1, groupSize);    val = getMinVal(val, tmp);
+    tmp = __SHFL_XOR(val,  1, groupSize);    val = getMinVal(val, tmp);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  4
-    tmp = __shfl_xor(val,  2, groupSize);    val = getMinVal(val, tmp);
+    tmp = __SHFL_XOR(val,  2, groupSize);    val = getMinVal(val, tmp);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  8
-    tmp = __shfl_xor(val,  4, groupSize);    val = getMinVal(val, tmp);
+    tmp = __SHFL_XOR(val,  4, groupSize);    val = getMinVal(val, tmp);
 #   if  (NTHREADS_COMPARE_INC >> 5) >= 16
-    tmp = __shfl_xor(val,  8, groupSize);    val = getMinVal(val, tmp);
+    tmp = __SHFL_XOR(val,  8, groupSize);    val = getMinVal(val, tmp);
 #   if  (NTHREADS_COMPARE_INC >> 5) == 32
-    tmp = __shfl_xor(val, 16, groupSize);    val = getMinVal(val, tmp);
+    tmp = __SHFL_XOR(val, 16, groupSize);    val = getMinVal(val, tmp);
 #endif//(NTHREADS_COMPARE_INC >> 5) == 32
 #endif//(NTHREADS_COMPARE_INC >> 5) >= 16
 #endif//(NTHREADS_COMPARE_INC >> 5) >=  8
@@ -263,15 +292,15 @@ __device__ __forceinline__ Type GET_MAX_BLCK(Type val, volatile Type * __restric
     const int groupSize = NTHREADS_COMPARE_INC >> 5;
     Type tmp;
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  2
-    tmp = __shfl_xor(val,  1, groupSize);    val = getMaxVal(val, tmp);
+    tmp = __SHFL_XOR(val,  1, groupSize);    val = getMaxVal(val, tmp);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  4
-    tmp = __shfl_xor(val,  2, groupSize);    val = getMaxVal(val, tmp);
+    tmp = __SHFL_XOR(val,  2, groupSize);    val = getMaxVal(val, tmp);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  8
-    tmp = __shfl_xor(val,  4, groupSize);    val = getMaxVal(val, tmp);
+    tmp = __SHFL_XOR(val,  4, groupSize);    val = getMaxVal(val, tmp);
 #   if  (NTHREADS_COMPARE_INC >> 5) >= 16
-    tmp = __shfl_xor(val,  8, groupSize);    val = getMaxVal(val, tmp);
+    tmp = __SHFL_XOR(val,  8, groupSize);    val = getMaxVal(val, tmp);
 #   if  (NTHREADS_COMPARE_INC >> 5) == 32
-    tmp = __shfl_xor(val, 16, groupSize);    val = getMaxVal(val, tmp);
+    tmp = __SHFL_XOR(val, 16, groupSize);    val = getMaxVal(val, tmp);
 #endif//(NTHREADS_COMPARE_INC >> 5) == 32
 #endif//(NTHREADS_COMPARE_INC >> 5) >= 16
 #endif//(NTHREADS_COMPARE_INC >> 5) >=  8
@@ -326,15 +355,35 @@ __device__ __forceinline__ Type GET_MINLOC_BLCK(Type val, volatile Type * __rest
 
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  2
     Type tmp;
-    tmp = ldloc(smem[tidx ^  1]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^  1]);    if( tmp.val < val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  4
-    tmp = ldloc(smem[tidx ^  2]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^  2]);    if( tmp.val < val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  8
-    tmp = ldloc(smem[tidx ^  4]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^  4]);    if( tmp.val < val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >= 16
-    tmp = ldloc(smem[tidx ^  8]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^  8]);    if( tmp.val < val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) == 32
-    tmp = ldloc(smem[tidx ^ 16]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^ 16]);    if( tmp.val < val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #endif//(NTHREADS_COMPARE_INC >> 5) == 32
 #endif//(NTHREADS_COMPARE_INC >> 5) >= 16
 #endif//(NTHREADS_COMPARE_INC >> 5) >=  8
@@ -371,15 +420,35 @@ __device__ __forceinline__ Type GET_MAXLOC_BLCK(Type val, volatile Type * __rest
 
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  2
     Type tmp;
-    tmp = ldloc(smem[tidx ^  1]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^  1]);    if( tmp.val > val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  4
-    tmp = ldloc(smem[tidx ^  2]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^  2]);    if( tmp.val > val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  8
-    tmp = ldloc(smem[tidx ^  4]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^  4]);    if( tmp.val > val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >= 16
-    tmp = ldloc(smem[tidx ^  8]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^  8]);    if( tmp.val > val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) == 32
-    tmp = ldloc(smem[tidx ^ 16]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^ 16]);    if( tmp.val > val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #endif//(NTHREADS_COMPARE_INC >> 5) == 32
 #endif//(NTHREADS_COMPARE_INC >> 5) >= 16
 #endif//(NTHREADS_COMPARE_INC >> 5) >=  8
@@ -423,15 +492,35 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_BLCK(Type * __restrict__ minlo
 
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  2
     Type tmp;
-    tmp = ldloc(smem[tidx ^  1]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^  1]);    if( tmp.val < val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  4
-    tmp = ldloc(smem[tidx ^  2]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^  2]);    if( tmp.val < val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  8
-    tmp = ldloc(smem[tidx ^  4]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^  4]);    if( tmp.val < val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >= 16
-    tmp = ldloc(smem[tidx ^  8]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^  8]);    if( tmp.val < val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) == 32
-    tmp = ldloc(smem[tidx ^ 16]);    if( tmp.val < val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^ 16]);    if( tmp.val < val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #endif//(NTHREADS_COMPARE_INC >> 5) == 32
 #endif//(NTHREADS_COMPARE_INC >> 5) >= 16
 #endif//(NTHREADS_COMPARE_INC >> 5) >=  8
@@ -445,15 +534,35 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_BLCK(Type * __restrict__ minlo
 
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  2
     Type tmp;
-    tmp = ldloc(smem[tidx ^  1]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^  1]);    if( tmp.val > val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  4
-    tmp = ldloc(smem[tidx ^  2]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^  2]);    if( tmp.val > val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  8
-    tmp = ldloc(smem[tidx ^  4]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^  4]);    if( tmp.val > val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >= 16
-    tmp = ldloc(smem[tidx ^  8]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^  8]);    if( tmp.val > val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) == 32
-    tmp = ldloc(smem[tidx ^ 16]);    if( tmp.val > val.val )      val = tmp;    stloc((Type *)smem, tidx, val);
+    tmp = ldloc(smem[tidx ^ 16]);    if( tmp.val > val.val )      val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+    stloc((Type *)smem, tidx, val);
 #endif//(NTHREADS_COMPARE_INC >> 5) == 32
 #endif//(NTHREADS_COMPARE_INC >> 5) >= 16
 #endif//(NTHREADS_COMPARE_INC >> 5) >=  8

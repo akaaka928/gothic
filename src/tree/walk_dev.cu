@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/22 (Thu)
+ * @date 2018/04/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -609,6 +609,9 @@ __global__ void initAcc_kernel
   laneinfo info = {NUM_BODY_MAX, 0};
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   if( lane < info.num ){
 #ifdef  GADGET_MAC
@@ -687,6 +690,9 @@ __global__ void trimAcc_kernel(acceleration * RESTRICT acc, READ_ONLY position *
   laneinfo info = {NUM_BODY_MAX, 0};
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   if( lane < info.num ){
     const int ii = info.head + lane;
@@ -820,7 +826,7 @@ __device__ __forceinline__
 
   for(int iter = 1; iter < Niter; iter++){
 #ifdef  USE_WARP_SHUFFLE_FUNC
-    const uint inc = (__shfl(smem, TSUB - 1, TSUB) >> (IDX_SHIFT_BITS * (iter - 1))) & IDX_SHIFT_MASK;
+    const uint inc = (__SHFL(smem, TSUB - 1, TSUB) >> (IDX_SHIFT_BITS * (iter - 1))) & IDX_SHIFT_MASK;
     smem         += (inc << (IDX_SHIFT_BITS * iter));
 #else///USE_WARP_SHUFFLE_FUNC
     const uint inc = (smem[tail].i                 >> (IDX_SHIFT_BITS * (iter - 1))) & IDX_SHIFT_MASK;
@@ -863,6 +869,9 @@ __device__ __forceinline__ void copyData_s2s(uint *src, int sidx, uint *dst, int
 
   if( lane < frac )
     dst[didx] = src[sidx];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 }
 
 /**
@@ -877,6 +886,9 @@ __device__ __forceinline__ void copyData_g2s(uint * RESTRICT gbuf, size_t srcHea
   const int numHead = (numTemp < numCopy) ? numTemp : numCopy;
   if( lane < numHead )
     sbuf[dstHead + lane] = gbuf[srcHead + lane];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
   dstHead += numHead;
   srcHead += numHead;
   numCopy -= numHead;
@@ -884,6 +896,9 @@ __device__ __forceinline__ void copyData_g2s(uint * RESTRICT gbuf, size_t srcHea
   /** sequential load from source on the global memory and store to destination on the shared memory */
   for(int ii = lane; ii < numCopy; ii += TSUB)
     sbuf[dstHead + ii] = gbuf[srcHead + ii];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 }
 
 /**
@@ -898,6 +913,9 @@ __device__ __forceinline__ void copyData_s2g(uint * RESTRICT sbuf, int srcHead, 
   const int numHead = (numTemp < numCopy) ? numTemp : numCopy;
   if( lane < numHead )
     gbuf[dstHead + lane] = sbuf[srcHead + lane];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
   dstHead += numHead;
   srcHead += numHead;
   numCopy -= numHead;
@@ -905,6 +923,9 @@ __device__ __forceinline__ void copyData_s2g(uint * RESTRICT sbuf, int srcHead, 
   /** sequential load from source on the shared memory and store to destination on the global memory */
   for(int ii = lane; ii < numCopy; ii += TSUB)
     gbuf[dstHead + ii] = sbuf[srcHead + ii];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 }
 
 /**
@@ -937,6 +958,9 @@ __device__ __forceinline__ void copyData_g2g(uint * RESTRICT gbuf, size_t srcHea
     temp = gbuf[srcHead + ldIdx];
     if( !grpIdx )
       local = temp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     /** store to the destination array on the global memory */
     gbuf[dstHead + lane] = local;
@@ -985,11 +1009,14 @@ __device__ __forceinline__ void cpChildNodes
       const uint hidx = (nadd >> (IDX_SHIFT_BITS * iter)) & IDX_SHIFT_MASK;
       node[hidx] = jidx.idx[iter];
     }/* if( (leaf >> (IDX_SHIFT_BITS * iter)) & 1 ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
     jidx.idx[iter] = NULL_NODE;
   }/* for(iter = 0; iter < NSTOCK; iter++){ */
 
 #ifdef  USE_WARP_SHUFFLE_FUNC
-  const int nold = (int)((__shfl(smem, TSUB - 1, TSUB) >> (IDX_SHIFT_BITS * (NSTOCK - 1))) & IDX_SHIFT_MASK);
+  const int nold = (int)((__SHFL(smem, TSUB - 1, TSUB) >> (IDX_SHIFT_BITS * (NSTOCK - 1))) & IDX_SHIFT_MASK);
 #else///USE_WARP_SHUFFLE_FUNC
   const int nold = (int)((       smem[tail].i          >> (IDX_SHIFT_BITS * (NSTOCK - 1))) & IDX_SHIFT_MASK);
 #endif//USE_WARP_SHUFFLE_FUNC
@@ -1003,7 +1030,7 @@ __device__ __forceinline__ void cpChildNodes
   if( Niter != NSTOCK )
 #endif//MERGE_QUEUED_TREE_NODES
 #ifdef  USE_WARP_SHUFFLE_FUNC
-    Ntot = (int)((__shfl(smem, TSUB - 1, TSUB) >> (IDX_SHIFT_BITS * (NSTOCK - 1))) & IDX_SHIFT_MASK);
+    Ntot = (int)((__SHFL(smem, TSUB - 1, TSUB) >> (IDX_SHIFT_BITS * (NSTOCK - 1))) & IDX_SHIFT_MASK);
 #else///USE_WARP_SHUFFLE_FUNC
     Ntot = (int)((       smem[tail].i          >> (IDX_SHIFT_BITS * (NSTOCK - 1))) & IDX_SHIFT_MASK);
 #endif//USE_WARP_SHUFFLE_FUNC
@@ -1028,6 +1055,9 @@ __device__ __forceinline__ void cpChildNodes
 	jidx.idx[2 * iter    ] += (numLatter << IDXBITS);
 	jidx.idx[2 * iter + 1]  = NULL_NODE;
       }/* if( (tailFormer == headLatter) && ((numFormer + numLatter) <= NLEAF) ){ */
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
       uint numNodes = 0;
 #pragma unroll
@@ -1047,7 +1077,7 @@ __device__ __forceinline__ void cpChildNodes
 #endif//USE_WARP_SHUFFLE_FUNC
 
 #ifdef  USE_WARP_SHUFFLE_FUNC
-    Ntot = (int)((__shfl(smem, TSUB - 1, TSUB) >> (IDX_SHIFT_BITS * (Nloop - 1))) & IDX_SHIFT_MASK);
+    Ntot = (int)((__SHFL(smem, TSUB - 1, TSUB) >> (IDX_SHIFT_BITS * (Nloop - 1))) & IDX_SHIFT_MASK);
 #else///USE_WARP_SHUFFLE_FUNC
     Ntot = (int)((       smem[tail].i          >> (IDX_SHIFT_BITS * (Nloop - 1))) & IDX_SHIFT_MASK);
 #endif//USE_WARP_SHUFFLE_FUNC
@@ -1484,6 +1514,9 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     icom = pi;
 #endif//ADOPT_ENCLOSING_BALL
   }/* if( !skip ){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   int fail = hp + lane;
   jnode jidx;
@@ -1498,6 +1531,9 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
   pj[hp + lane].pi = pi;
   icom = pj[hp].pi;
   if( skip )    pi = icom;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #ifdef  ADOPT_SMALLEST_ENCLOSING_BALL
   /** adopt the smallest enclosing ball */
   {
@@ -1613,6 +1649,9 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     acceleration ai_old = {ZERO, ZERO, ZERO, ZERO};
     if( !skip )
       ai_old = iacc_old[idx];
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     /** calculate minimum of a squared */
     const real tmp = GET_MIN_TSUB_NWARP(FLT_MIN + ai_old.x * ai_old.x + ai_old.y * ai_old.y + ai_old.z * ai_old.z
@@ -1650,6 +1689,9 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     atomicAdd(cycles, elapsed);
     iacc[DIV_TSUB(GLOBALIDX_X1D)].pi = icom;
   }/* if( tidx == 0 ){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//PRINT_PSEUDO_PARTICLE_INFO
 
 
@@ -1678,6 +1720,9 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 
     if( tidx == tail )
       queue[hq] += ((rem - TSUB) << IDXBITS);
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     rem = TSUB;
   }/* if( rem > TSUB ){ */
@@ -1686,6 +1731,9 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 
     if( lane < rem )
       queue[hq] = more[jcell + lane];
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
   }/* else{ */
 
   if( info.num == 0 )
@@ -1725,6 +1773,9 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
       jcell = queue[hq];
       cnum = 1 + (jcell >> IDXBITS);
     }/* if( lane < rem ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     /** predict the head index on the shared memory by parallel prefix sum */
 #ifdef  USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
@@ -1738,6 +1789,9 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
       /** local data can be uploaded to the shared memory */
       int unum = TSUB * NSTOCK - hidx;
       if( cnum < unum )	  unum = cnum;
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
       /** upload local data */
       jcell &= IDXMASK;
@@ -1754,12 +1808,18 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 	jcell += ((cnum - unum - 1) << IDXBITS);
 	queue[hq] = jcell;
       }/* else{ */
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
     }/* if( (cnum != 0) && (hidx < TSUB * NSTOCK) ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     /** remove scanned j-cells if possible */
 #ifdef  USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
     smem = PREFIX_SUM_TSUB(remove, lane);
-    remove = __shfl(smem, TSUB - 1, TSUB);
+    remove = __SHFL(smem, TSUB - 1, TSUB);
 #else///USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
     PREFIX_SUM_TSUB(remove, lane, (int *)smem, tidx);
     remove = smem[tail].i;
@@ -1836,6 +1896,9 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 	      jidx.idx[iter] = more[target];
 	    }/* else{ */
       }/* if( target != NULL_NODE ){ */
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 
       /** prefixSum to build a local interaction list */
@@ -1854,9 +1917,12 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 	eps2[hp + Nj + hidx] = jeps2;
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
       }
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 #ifdef  USE_WARP_SHUFFLE_FUNC
-      Nj += __shfl(smem, TSUB - 1, TSUB);/**< inclusive prefix sum of calc */
+      Nj += __SHFL(smem, TSUB - 1, TSUB);/**< inclusive prefix sum of calc */
 #else///USE_WARP_SHUFFLE_FUNC
       Nj += smem[tail].i;/**< inclusive prefix sum of calc */
 #endif//USE_WARP_SHUFFLE_FUNC
@@ -1941,6 +2007,9 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 	eps2[hp + Nj + addr]     = UNITY;
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
       }/* if( addr < Ndummy ){ */
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
     }/* for(int jj = 0; jj < NLOOP; jj++){ */
 
     calc_interaction
@@ -1983,13 +2052,22 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 #   if  NWARP == 32
   if( gtag < 4 )
     pj[itag].val[jtag] += pj[itag + 16].val[jtag];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//NWARP == 32
 #   if  NWARP >= 16
   if( gtag < 2 )
     pj[itag].val[jtag] += pj[itag + 8].val[jtag];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//NWARP >= 16
   if( gtag == 0 )
     pj[itag].val[jtag] += pj[itag + 4].val[jtag];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//NWARP >= 8
   res = pj[itag].ai;
 #endif//defined(ACCURATE_ACCUMULATION) && (NWARP > 1)
@@ -2040,10 +2118,16 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 #   if  NWARP == 32
     if( gtag < 4 )
       pj[itag].val[jtag] += pj[itag + 16].val[jtag];
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//NWARP == 32
 #   if  NWARP >= 16
     if( gtag < 2 )
       pj[itag].val[jtag] += pj[itag + 8].val[jtag];
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//NWARP >= 16
     if( gtag == 0 ){
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION)
@@ -2056,6 +2140,9 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
       atomicAdd(&(iacc[idx].val[jtag]), pj[itag].val[jtag] + pj[itag + 4].val[jtag]);
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION)
     }/* if( gtag == 0 ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//NWARP >= 8
 #else///NWARP > 1
 #   if  defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION)

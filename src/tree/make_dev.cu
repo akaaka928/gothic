@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/02 (Fri)
+ * @date 2018/04/05 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -19,6 +19,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <helper_cuda.h>
+
+#ifdef  USE_COOPERATIVE_GROUPS
+#include <cooperative_groups.h>
+using namespace cooperative_groups;
+#endif//USE_COOPERATIVE_GROUPS
 
 #include "macro.h"
 #include "cudalib.h"
@@ -48,6 +53,7 @@
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 
 
+#ifndef USE_OCCUPANCY_CALCULATOR
 /** limitation from capacity of shared memory */
 /** capacity of shared memory is 64KiB on newer GPUs */
 /** in shared memory preferred configuration, capacity of shared memory is 48KiB per SM on older GPUs */
@@ -310,6 +316,8 @@
 #endif//NBLOCKS_PER_SM_OUTFLOW < 1
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 
+#endif//USE_OCCUPANCY_CALCULATOR
+
 
 #ifdef  GADGET_MAC
 __constant__      real mac_delta;/**< G / alpha */
@@ -392,6 +400,9 @@ __global__ void initPHhierarchy_kernel(PHinfo *level)
       phLev.head = 0;
       phLev.num  = 1;
     }/* if( ii == 0 ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     /** store initialized information on PH-key hierarchy */
     level[ii] = phLev;
@@ -453,6 +464,9 @@ __global__ void initTreeCellOffset_kernel
       tmp_null_cell.num  = piNum;
       tmp_hkey           = 0;
     }/* if( ii == 0 ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     /** store initialized information on tree-cell */
     cell    [ii] = tmp_null_cell;
@@ -508,12 +522,17 @@ __global__ void initTreeLink_kernel(int *jtag)
 #define USE_WARP_SHUFFLE_FUNC_SCAN_INC
 #endif//USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE
 #include "../util/scan_inc.cu"
-__global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) makeTree_kernel
+__global__ void
+#ifndef USE_OCCUPANCY_CALCULATOR
+__launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE)
+#endif//USE_OCCUPANCY_CALCULATOR
+makeTree_kernel
      (int * RESTRICT leafLev_gm, PHinfo * RESTRICT level,
       int * RESTRICT numCell_gm, treecell * RESTRICT cell, PHint * RESTRICT hkey, bool * RESTRICT leaf, uint * RESTRICT children, uint * RESTRICT parent,
       READ_ONLY PHint * RESTRICT peano,
-      int * RESTRICT gmem, volatile int * RESTRICT scanNum_gm,
-      int * RESTRICT gsync0Ful, int * RESTRICT gsync1Ful, int * RESTRICT gsync0Loc, int * RESTRICT gsync1Loc)
+      int * RESTRICT gmem, volatile int * RESTRICT scanNum_gm
+      , int * RESTRICT gsync0Ful, int * RESTRICT gsync1Ful, int * RESTRICT gsync0Loc, int * RESTRICT gsync1Loc
+      )
 {
   /** identify thread properties */
   const int bnum =   GRIDDIM_X1D;
@@ -528,11 +547,13 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
 
   const int  idx = DIV_TSUB_MAKE_TREE(tidx);
 
-
   /** shared quantities in the thread parallelized version */
   __shared__ PHinfo lev_sm[NUM_PHKEY_LEVEL];
   if( tidx < NUM_PHKEY_LEVEL )
     lev_sm[tidx] = level[tidx];
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
   __shared__ treecell cell_sm[NTHREADS_MAKE_TREE];
   __shared__ PHint    hkey_sm[NTHREADS_MAKE_TREE];
 
@@ -602,6 +623,9 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
 	  /** the responsible tree cell is a node cell */
 	  if( lane == 0 )
 	    leaf[cidx] = false;
+#   if  __CUDA_ARCH__ >= 700
+	  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 	  /** find CELL_UNIT - 1 (== TSUB_MAKE_TREE - 1 == 7) boundaries (in maximum) */
 	  if( lane < (CELL_UNIT - 1) ){
@@ -614,6 +638,9 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
 	    /** check whether the specified region contains keys between khead and ktail */
 	    if( lane == 0 )
 	      hkey_sm[tidx] = peano[root.head + itail];
+#   if  __CUDA_ARCH__ >= 700
+	    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 	    if( ktail <= hkey_sm[ghead] ){
 	      /** find the tail of the PH-key for the child cell using bisection method */
 	      while( true ){
@@ -623,19 +650,31 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
 		uint ihalf = (uint)(ihead + itail) >> 1;
 		if( peano[root.head + ihalf] <= ktail )		  ihead = (int)ihalf;
 		else		                                  itail = (int)ihalf;
+#   if  __CUDA_ARCH__ >= 700
+		__syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 	      }/* while( true ){ */
 
 	      itail = ihead;
 	    }/* if( ktail <= hkey_sm[ghead] ){ */
+#   if  __CUDA_ARCH__ >= 700
+	    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 	    if( ((peano[root.head] - keyHead) / leafScale) <= lane )
 	      itail++;
 	    cell_sm[tidx].num = itail;
 	  }/* if( lane < (CELL_UNIT - 1) ){ */
+#   if  __CUDA_ARCH__ >= 700
+	  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 	  /** assume implicit synchronization within a warp */
 	  if( lane > 0 )
 	    cell_sm[tidx].head = cell_sm[tidx - 1].num;
+#   if  __CUDA_ARCH__ >= 700
+	  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 	  cell_sm[tidx].num -= cell_sm[tidx].head;
 	  cell_sm[tidx].head += root.head;
 
@@ -646,12 +685,18 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
 	    addChild = 1;
 #endif//SPLIT_CHILD_CELL
 	}/* if( node ){ */
+#   if  __CUDA_ARCH__ >= 700
+	__syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 	/** calculate prefix sum about addChild */
 	int headIdx, scanNum;
 	int targetIdx = PREFIX_SUM_GRID_WITH_PARTITION(addChild, smem, scanLane, tidx, &headIdx, &scanNum, gmem, bidx, bnumSub, gsync0Loc, gsync1Loc);
 	if( bidx + tidx == 0 )
 	  *scanNum_gm = scanNum;
+#   if  __CUDA_ARCH__ >= 700
+	__syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 	targetIdx += tail - addChild;/**< this must be an exclusive scan */
 
@@ -663,6 +708,9 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
 	/** if performance is too low due to uncoalesced store, then try to implement coalesced version (probably, use additional shared memory to stock splitted child cells) */
 	if( (node) && (lane == 0) )
 	  children[cidx] = ((tag - 1) << IDXBITS) + targetIdx;
+#   if  __CUDA_ARCH__ >= 700
+	__syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 #ifdef  SPLIT_CHILD_CELL
 	treecell childCell = cell_sm[tidx];
@@ -687,6 +735,9 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_TREE, NBLOCKS_PER_SM_MAKE_TREE) 
 	  hkey  [targetIdx] = keyHead + lane * leafScale;
 	  parent[targetIdx] = cidx;
 	}/* if( addChild > 0 ){ */
+#   if  __CUDA_ARCH__ >= 700
+	__syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//SPLIT_CHILD_CELL
       }/* if( bidx < bnumSub ){ */
 
@@ -770,6 +821,9 @@ __device__ __forceinline__ void linkNode
 
   if( nadd > 0 )
     *ptag = ((nadd - 1) << IDXBITS) + headIdx;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   /** when the tree cell is a leaf cell, then more index specifies the cell itself */
   if( (head != NULL_CELL) && leaf_cell ){
@@ -782,6 +836,9 @@ __device__ __forceinline__ void linkNode
       jtag[head + jj] = jidx;
     }/* for(int jj = 0; jj < nadd; jj++){ */
   }/* if( (head != NULL_CELL) && lear_cell ){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   *phead += scanNum;
 }
@@ -792,7 +849,11 @@ __device__ __forceinline__ void linkNode
  *
  * @brief Link tree nodes.
  */
-__global__ void __launch_bounds__(NTHREADS_LINK_TREE, NBLOCKS_PER_SM_LINK_TREE) linkTree_kernel
+__global__ void
+#ifndef USE_OCCUPANCY_CALCULATOR
+__launch_bounds__(NTHREADS_LINK_TREE, NBLOCKS_PER_SM_LINK_TREE)
+#endif//USE_OCCUPANCY_CALCULATOR
+linkTree_kernel
      (const int cellTail, READ_ONLY treecell * RESTRICT cell, READ_ONLY bool * RESTRICT leaf, uint * RESTRICT ptag,
       int * RESTRICT pjNum, uint * RESTRICT more, int * RESTRICT jtag,
       int * RESTRICT gmem, int * RESTRICT gsync0, int * RESTRICT gsync1)
@@ -803,6 +864,10 @@ __global__ void __launch_bounds__(NTHREADS_LINK_TREE, NBLOCKS_PER_SM_LINK_TREE) 
   const int gidx = GLOBALIDX_X1D;
   const int bidx =  BLOCKIDX_X1D;
   const int lane = tidx & (warpSize - 1);
+
+#ifdef  USE_COOPERATIVE_GROUPS
+  grid_group grid = this_grid();
+#endif//USE_COOPERATIVE_GROUPS
 
   /** shared quantities in the thread parallelized version */
   __shared__ int smem[NTHREADS_LINK_TREE];
@@ -821,7 +886,11 @@ __global__ void __launch_bounds__(NTHREADS_LINK_TREE, NBLOCKS_PER_SM_LINK_TREE) 
     const int cidx = gidx + chkNumStep * loop;
     treecell root = (cidx < cellTail) ? (cell[cidx]) : (null_cell_device);
 
+#ifdef  USE_COOPERATIVE_GROUPS
+    grid.sync();
+#else///USE_COOPERATIVE_GROUPS
     globalSync(tidx, bidx, bnum, gsync0, gsync1);
+#endif//USE_COOPERATIVE_GROUPS
 
     /** extend the pseudo particle chain */
     linkNode(root, leaf[cidx], &ptag[cidx], more, jtag, &numNode,
@@ -997,6 +1066,9 @@ void makeTreeStructure_dev
 
 
   /** make tree structure */
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  const int NBLOCKS_PER_SM_MAKE_TREE = buf.numBlocksPerSM_make_tree;
+#endif//USE_OCCUPANCY_CALCULATOR
   makeTree_kernel<<<devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE, NTHREADS_MAKE_TREE>>>
     (leafLev_dev, cell.level, cellNum_dev, cell.cell, cell.hkey, cell.leaf, cell.children, cell.parent, peano,
      buf.gmem_make_tree, scanNum_dev, buf.gsync0_make_tree, buf.gsync1_make_tree, buf.gsync2_make_tree, buf.gsync3_make_tree);
@@ -1022,10 +1094,31 @@ void makeTreeStructure_dev
 
 
   /** link tree structure */
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  const int NBLOCKS_PER_SM_LINK_TREE = buf.numBlocksPerSM_link_tree;
+#endif//USE_OCCUPANCY_CALCULATOR
+#ifdef  USE_COOPERATIVE_GROUPS
+  const int cellNum_tmp = *cellNum;
+  int *nodeNum_tmp = nodeNum_dev;
+  void *kernelArgs[] = {
+    (void *)&cellNum_tmp,
+    (void *)&cell.cell,
+    (void *)&cell.leaf,
+    (void *)&cell.ptag,
+    (void *)&nodeNum_tmp,
+    (void *)&node.more,
+    (void *)&node.jtag,
+    (void *)&buf.gmem_link_tree,
+    (void *)&buf.gsync0_link_tree,
+    (void *)&buf.gsync1_link_tree
+  };
+  checkCudaErrors(cudaLaunchCooperativeKernel((void *)linkTree_kernel, NBLOCKS_PER_SM_LINK_TREE, NTHREADS_LINK_TREE, kernelArgs));
+#else///USE_COOPERATIVE_GROUPS
   linkTree_kernel<<<devProp.numSM * NBLOCKS_PER_SM_LINK_TREE, NTHREADS_LINK_TREE>>>
     (*cellNum, cell.cell, cell.leaf, cell.ptag,
      nodeNum_dev, node.more, node.jtag,
      buf.gmem_link_tree, buf.gsync0_link_tree, buf.gsync1_link_tree);
+#endif//USE_COOPERATIVE_GROUPS
   getLastCudaError("linkTree_kernel");
   checkCudaErrors(cudaMemcpy(nodeNum, nodeNum_dev, sizeof(int), cudaMemcpyDeviceToHost));
 
@@ -1074,217 +1167,6 @@ void makeTreeStructure_dev
   elapsed->makeTree += elapsed->initTreeLink_kernel + elapsed->initTreeCell_kernel + elapsed->initTreeNode_kernel + elapsed->makeTree_kernel + elapsed->linkTree_kernel + elapsed->trimTree_kernel;
 #endif//HUNT_MAKE_PARAMETER
 #endif//EXEC_BENCHMARK
-
-
-  __NOTE__("%s\n", "end");
-}
-
-
-/**
- * @fn allocTreeNode_dev
- *
- * @brief Allocate arrays to store properties of tree nodes (tree cells and N-body particles).
- */
-extern "C"
-muse allocTreeNode_dev
-(soaTreeNode *dev, uint **more_dev, jparticle **pj_dev, jmass **mj_dev, real **bmax_dev, int **n2c_dev, int **gsync0, int **gsync1, deviceProp devProp,
-#ifdef  WS93_MAC
- real **mr2_dev,
-#endif//WS93_MAC
-#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
- soaTreeNode *hst, uint **more_hst, jparticle **pj_hst, jmass **mj_hst,
-#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
- int **gmem_make_tree, int **gsync0_make_tree, int **gsync1_make_tree, int **gsync2_make_tree, int **gsync3_make_tree,
- int **gmem_link_tree, int **gsync0_link_tree, int **gsync1_link_tree,
-#ifdef  GADGET_MAC
- real **mac_dev,
-#endif//GADGET_MAC
-#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
- int **gmem_external, int **gsync0_external, int **gsync1_external, float **diameter_dev, float **diameter_hst, domainLocation *location, const float eps, const float eta,
-#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
- int **more0Buf, int **more1Buf, real **rjmaxBuf, int **fail_dev, soaMakeTreeBuf *buf)
-{
-  __NOTE__("%s\n", "start");
-
-
-  muse alloc = {0, 0};
-
-  const size_t num = (size_t)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE);
-  mycudaMalloc    ((void **) more_dev, num * sizeof(uint     ));  alloc.device += num * sizeof(uint     );  dev->more      = * more_dev;
-  mycudaMalloc    ((void **)   pj_dev, num * sizeof(jparticle));  alloc.device += num * sizeof(jparticle);  dev->jpos      = *   pj_dev;
-  mycudaMalloc    ((void **)   mj_dev, num * sizeof(jmass    ));  alloc.device += num * sizeof(jmass    );  dev->mj        = *   mj_dev;
-  mycudaMalloc    ((void **)  n2c_dev, num * sizeof(int      ));  alloc.device += num * sizeof(int      );  dev->node2cell = *  n2c_dev;
-
-#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
-  __NOTE__("%zu MiB for more_hst\n", num * sizeof(uint) >> 20);
-  mycudaMallocHost((void **) more_hst, num * sizeof(uint     ));  alloc.host += num * sizeof(uint     );  hst->more      = * more_hst;
-  __NOTE__("%zu MiB for pj_hst\n", num * sizeof(jparticle) >> 20);
-  mycudaMallocHost((void **)   pj_hst, num * sizeof(jparticle));  alloc.host += num * sizeof(jparticle);  hst->jpos      = *   pj_hst;
-  __NOTE__("%zu MiB for mj_hst\n", num * sizeof(jmass) >> 20);
-  mycudaMallocHost((void **)   mj_hst, num * sizeof(jmass    ));  alloc.host += num * sizeof(jmass    );  hst->mj        = *   mj_hst;
-#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
-
-#ifdef  GADGET_MAC
-  mycudaMalloc((void **)mac_dev, num * sizeof(real));  alloc.device += num * sizeof(real);  dev->mac = *mac_dev;
-#endif//GADGET_MAC
-
-#ifdef  WS93_MAC
-  mycudaMalloc    ((void **) mr2_dev, num * sizeof(real));  alloc.device += num * sizeof(real);  dev->mr2  = * mr2_dev;
-#endif//WS93_MAC
-  mycudaMalloc    ((void **)bmax_dev, num * sizeof(real));  alloc.device += num * sizeof(real);  dev->bmax = *bmax_dev;
-
-  mycudaMalloc    ((void **)more0Buf, devProp.numSM * NBLOCKS_PER_SM_MAC * NGROUPS_MAC * NUM_ALLOC_MACBUF * sizeof(int ));
-  alloc.device +=                     devProp.numSM * NBLOCKS_PER_SM_MAC * NGROUPS_MAC * NUM_ALLOC_MACBUF * sizeof(int ) ;
-  mycudaMalloc    ((void **)more1Buf, devProp.numSM * NBLOCKS_PER_SM_MAC * NGROUPS_MAC * NUM_ALLOC_MACBUF * sizeof(int ));
-  alloc.device +=                     devProp.numSM * NBLOCKS_PER_SM_MAC * NGROUPS_MAC * NUM_ALLOC_MACBUF * sizeof(int ) ;
-  mycudaMalloc    ((void **)rjmaxBuf, devProp.numSM * NBLOCKS_PER_SM_MAC * NGROUPS_MAC * NUM_ALLOC_MACBUF * sizeof(real));
-  alloc.device +=                     devProp.numSM * NBLOCKS_PER_SM_MAC * NGROUPS_MAC * NUM_ALLOC_MACBUF * sizeof(real) ;
-
-  mycudaMalloc((void **)gsync0, devProp.numSM * NBLOCKS_PER_SM_MAC * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAC * sizeof(int);
-  mycudaMalloc((void **)gsync1, devProp.numSM * NBLOCKS_PER_SM_MAC * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAC * sizeof(int);
-  initGsync_kernel<<<1, devProp.numSM * NBLOCKS_PER_SM_MAC>>>(devProp.numSM * NBLOCKS_PER_SM_MAC, *gsync0, *gsync1);
-  getLastCudaError("initGsync_kernel");
-
-  mycudaMalloc((void **)fail_dev, 1 * sizeof(int));
-  alloc.device +=                 1 * sizeof(int);
-  const int fail_hst = 0;
-  checkCudaErrors(cudaMemcpy(*fail_dev, &fail_hst, sizeof(int), cudaMemcpyHostToDevice));
-
-  mycudaMalloc((void **)  gmem_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
-  mycudaMalloc((void **)gsync0_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
-  mycudaMalloc((void **)gsync1_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
-  mycudaMalloc((void **)gsync2_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
-  mycudaMalloc((void **)gsync3_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
-  mycudaMalloc((void **)  gmem_link_tree, devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int);
-  mycudaMalloc((void **)gsync0_link_tree, devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int);
-  mycudaMalloc((void **)gsync1_link_tree, devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int);
-  initGsync_kernel<<<1, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE>>>(devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE, *gsync0_make_tree, *gsync1_make_tree);
-  getLastCudaError("initGsync_kernel");
-  initGsync_kernel<<<1, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE>>>(devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE, *gsync2_make_tree, *gsync3_make_tree);
-  getLastCudaError("initGsync_kernel");
-  initGsync_kernel<<<1, devProp.numSM * NBLOCKS_PER_SM_LINK_TREE>>>(devProp.numSM * NBLOCKS_PER_SM_LINK_TREE, *gsync0_link_tree, *gsync1_link_tree);
-  getLastCudaError("initGsync_kernel");
-
-#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-  mycudaMalloc((void **)  gmem_external, devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int);
-  mycudaMalloc((void **)gsync0_external, devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int);
-  mycudaMalloc((void **)gsync1_external, devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int);
-  initGsync_kernel<<<1, devProp.numSM * NBLOCKS_PER_SM_OUTFLOW>>>(devProp.numSM * NBLOCKS_PER_SM_OUTFLOW, *gsync0_external, *gsync1_external);
-  getLastCudaError("initGsync_kernel");
-  mycudaMalloc    ((void **)diameter_dev, sizeof(float));  alloc.device += sizeof(float);
-  mycudaMallocHost((void **)diameter_hst, sizeof(float));  alloc.host   += sizeof(float);
-#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-
-  buf->Nbuf   = devProp.numSM * NBLOCKS_PER_SM_MAC * NGROUPS_MAC * NUM_ALLOC_MACBUF;
-
-  buf->more0  = *more0Buf;
-  buf->more1  = *more1Buf;
-  buf->rjmax  = *rjmaxBuf;
-  buf->fail   = *fail_dev;
-  buf->gsync0 = *gsync0;
-  buf->gsync1 = *gsync1;
-
-  buf->  gmem_make_tree = *  gmem_make_tree;
-  buf->  gmem_link_tree = *  gmem_link_tree;
-  buf->gsync0_make_tree = *gsync0_make_tree;
-  buf->gsync1_make_tree = *gsync1_make_tree;
-  buf->gsync2_make_tree = *gsync2_make_tree;
-  buf->gsync3_make_tree = *gsync3_make_tree;
-  buf->gsync0_link_tree = *gsync0_link_tree;
-  buf->gsync1_link_tree = *gsync1_link_tree;
-
-#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-#   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
-  buf->  Nbuf_external = devProp.numSM * NBLOCKS_PER_SM_MAC * NGROUPS_MAC * NUM_ALLOC_MACBUF;
-  buf->  ibuf_external = *more0Buf;/**< cast required */
-  buf->  rbuf_external = *rjmaxBuf;/**< cast required */
-#endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
-  buf->  gmem_external = *  gmem_external;
-  buf->gsync0_external = *gsync0_external;
-  buf->gsync1_external = *gsync1_external;
-  location->eps = eps;
-  location->eta = eta;
-#ifdef  TIME_BASED_MODIFICATION
-  location->elapsed = 0.0f;
-  location->dtmin   = 0.5f * FLT_MAX;
-  location->dtinv   = 1.0f / location->dtmin;
-#else///TIME_BASED_MODIFICATION
-  location->step = 0.0f;
-#endif//TIME_BASED_MODIFICATION
-  location->diameter_dev = *diameter_dev;
-  location->diameter_hst = *diameter_hst;
-#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-
-
-  __NOTE__("%s\n", "end");
-  return (alloc);
-}
-
-
-/**
- * @fn freeTreeNode_dev
- *
- * @brief Deallocate arrays to store properties of tree nodes (tree cells and N-body particles).
- */
-extern "C"
-void  freeTreeNode_dev
-(uint  *more_dev, jparticle  *pj_dev, jmass  *mj_dev, real  *bmax_dev, int  *n2c_dev, int  *gsync0, int  *gsync1,
-#ifdef  WS93_MAC
- real  *mr2_dev,
-#endif//WS93_MAC
-#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
- uint  *more_hst, jparticle  *pj_hst, jmass  *mj_hst,
-#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
- int  *gmem_make_tree, int  *gsync0_make_tree, int  *gsync1_make_tree, int  *gsync2_make_tree, int  *gsync3_make_tree,
- int  *gmem_link_tree, int  *gsync0_link_tree, int  *gsync1_link_tree,
-#ifdef  GADGET_MAC
- real  *mac_dev,
-#endif//GADGET_MAC
-#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
- int  *gmem_external, int  *gsync0_external, int  *gsync1_external, float  *diameter_dev, float  *diameter_hst,
-#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
- int  *more0Buf, int  *more1Buf, real  *rjmaxBuf, int  *fail_dev)
-{
-  __NOTE__("%s\n", "start");
-
-
-  mycudaFree    ( more_dev);
-  mycudaFree    (   pj_dev);
-  mycudaFree    (   mj_dev);
-  mycudaFree    (  n2c_dev);
-
-#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
-  mycudaFreeHost( more_hst);
-  mycudaFreeHost(   pj_hst);
-  mycudaFreeHost(   mj_hst);
-#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
-
-#ifdef  GADGET_MAC
-  mycudaFree(mac_dev);
-#endif//GADGET_MAC
-
-#ifdef  WS93_MAC
-  mycudaFree( mr2_dev);
-#endif//WS93_MAC
-  mycudaFree(bmax_dev);
-
-  mycudaFree(more0Buf);
-  mycudaFree(more1Buf);
-  mycudaFree(rjmaxBuf);
-  mycudaFree(gsync0);
-  mycudaFree(gsync1);
-
-  mycudaFree(fail_dev);
-
-  mycudaFree(gmem_make_tree);  mycudaFree(gsync0_make_tree);  mycudaFree(gsync1_make_tree);  mycudaFree(gsync2_make_tree);  mycudaFree(gsync3_make_tree);
-  mycudaFree(gmem_link_tree);  mycudaFree(gsync0_link_tree);  mycudaFree(gsync1_link_tree);
-
-#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-  mycudaFree(gmem_external);
-  mycudaFree(gsync0_external);
-  mycudaFree(gsync1_external);
-  mycudaFree(diameter_dev);  mycudaFreeHost(diameter_hst);
-#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 
 
   __NOTE__("%s\n", "end");
@@ -1433,6 +1315,9 @@ __global__ void enforceBarnesHutMAC
     const acceleration iacc = {UNITY, ZERO, ZERO, ZERO};
     ai[gidx] = iacc;
   }/* if( gidx < Ni ){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   if( gidx < Nj ){
     /** load position and MAC of j-particle */
@@ -1679,13 +1564,19 @@ __global__ void copyRealBody_kernel
  * @return (mr2) mass times r squared of pseudo N-body particle as j-particles
  * @return (bmax) size of pseudo N-body particle as j-particles
  */
-__global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipole_kernel
+__global__ void
+#ifndef USE_OCCUPANCY_CALCULATOR
+__launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC)
+#endif//USE_OCCUPANCY_CALCULATOR
+calcMultipole_kernel
      (const int bottomLev, READ_ONLY PHinfo * RESTRICT level,
       READ_ONLY treecell * RESTRICT cell, READ_ONLY bool * RESTRICT leaf, READ_ONLY position * RESTRICT pi,
       READ_ONLY uint * RESTRICT node, READ_ONLY uint * RESTRICT more, READ_ONLY int * RESTRICT node2cell,
       jparticle * RESTRICT pj, jmass * RESTRICT mj, real * RESTRICT bmax,
-      int * RESTRICT more0Buf, int * RESTRICT more1Buf, real * RESTRICT rjmaxBuf, int * RESTRICT overflow,
-      int * RESTRICT gsync0, int * RESTRICT gsync1
+      int * RESTRICT more0Buf, int * RESTRICT more1Buf, real * RESTRICT rjmaxBuf, int * RESTRICT overflow
+#ifndef USE_COOPERATIVE_GROUPS
+      , int * RESTRICT gsync0, int * RESTRICT gsync1
+#endif//USE_COOPERATIVE_GROUPS
 #ifdef  WS93_MAC
       , real * RESTRICT mr2
 #endif//WS93_MAC
@@ -1706,6 +1597,10 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
   const int tail = head + TSUB_MAC - 1;
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
   const int hbuf = DIV_TSUB_MAC(head) * TSUB_MAC * NBUF_MAC;/**< head index of the shared array close and queue within a thread group */
+
+#ifdef  USE_COOPERATIVE_GROUPS
+  grid_group grid = this_grid();
+#endif//USE_COOPERATIVE_GROUPS
 
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
   int smem;
@@ -1732,7 +1627,11 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
     /** if cidx is not less than tail, then the thread has a null leaf-cell */
     const PHinfo clev = level[levelIdx];
 
+#ifdef  USE_COOPERATIVE_GROUPS
+    grid.sync();
+#else///USE_COOPERATIVE_GROUPS
     globalSync(tidx, bidx, bnum, gsync0, gsync1);
+#endif//USE_COOPERATIVE_GROUPS
 
     /** loop to set a maximum number for # of blocks */
     for(int ii = 0; ii < BLOCKSIZE(clev.num, bnum * NGROUPS_MAC); ii++){
@@ -1809,6 +1708,9 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 				 );
 	  if( lane == 0 )
 	    mr2[jidx] = mjrj2;
+#   if  __CUDA_ARCH__ >= 700
+	  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//WS93_MAC
 
 
@@ -1833,6 +1735,9 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 	    mj[jidx] =  mj_loc;
 	  }/* if( lane == 0 ){ */
+#   if  __CUDA_ARCH__ >= 700
+	  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 #ifdef  COUNT_INTERACTIONS
 	  local.nodeNum++;
@@ -1846,6 +1751,9 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 	  int inum = root.num;
 	  int Ntry = 1;
 	  if( lane == 0 )	    list0[hbuf] = cidx;
+#   if  __CUDA_ARCH__ >= 700
+	  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 	  /** pick up NI_BMAX_ESTIMATE i-particles in maximum to estimate bmax */
 	  while( inum > NI_BMAX_ESTIMATE ){
@@ -1872,6 +1780,9 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 		  for(int jj = 1; jj < nodenum; jj++)
 		    cnum += (1 + (more[nodehead + jj] >> IDXBITS));
 		}/* if( (lane + ibuf * TSUB_MAC) < Nsweep ){ */
+#   if  __CUDA_ARCH__ >= 700
+		__syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
 		smem = PREFIX_SUM_TSUB(cnum, lane);
@@ -1880,7 +1791,7 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
 
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
-		const int lend = BLOCKSIZE(__shfl(smem, TSUB_MAC - 1, TSUB_MAC), NBUF_MAC * TSUB_MAC);
+		const int lend = BLOCKSIZE(__SHFL(smem, TSUB_MAC - 1, TSUB_MAC), NBUF_MAC * TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
 		const int lend = BLOCKSIZE(       smem[tail].i,                  NBUF_MAC * TSUB_MAC);
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
@@ -1921,7 +1832,7 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 		  alignedInt pjidx_loc = {NULL_NODE, NULL_NODE};
 #endif//NBUF_MAC == 2
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
-		  const int stail = (__shfl(smem, TSUB_MAC - 1, TSUB_MAC) < (TSUB_MAC * NBUF_MAC)) ? (__shfl(smem, TSUB_MAC - 1, TSUB_MAC)) : (TSUB_MAC * NBUF_MAC);
+		  const int stail = (__SHFL(smem, TSUB_MAC - 1, TSUB_MAC) < (TSUB_MAC * NBUF_MAC)) ? (__SHFL(smem, TSUB_MAC - 1, TSUB_MAC)) : (TSUB_MAC * NBUF_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
 		  const int stail = (       smem[tail].i                  < (TSUB_MAC * NBUF_MAC)) ? (       smem[tail].i                 ) : (TSUB_MAC * NBUF_MAC);
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
@@ -1949,6 +1860,9 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 		      pjidx_loc.ia[kk] = kidx;
 		      rjmax_loc.ra[kk] = rjmax;
 		    }/* if( rjmax > rmin ){ */
+#   if  __CUDA_ARCH__ >= 700
+		    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 		  }/* for(int kk = 0; kk < NBUF_MAC; kk++){ */
 
 		  /** share rmin within TSUB_MAC threads */
@@ -1978,8 +1892,11 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 		      list1[dst] = pjidx_loc.ia[jj];
 		      rjbuf[dst] = rjmax_loc.ra[jj];
 		    }/* if( share ){ */
+#   if  __CUDA_ARCH__ >= 700
+		    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
-		    Nloc += __shfl(smem, TSUB_MAC - 1, TSUB_MAC);
+		    Nloc += __SHFL(smem, TSUB_MAC - 1, TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
 		    Nloc +=        smem[tail].i;
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
@@ -1993,6 +1910,9 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 		      Nbuf += Nloc;
 		      Nloc = 0;
 		    }/* if( Nloc > ((NBUF_MAC - 1) * TSUB_MAC) ){ */
+#   if  __CUDA_ARCH__ >= 700
+		    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 		  }/* for(int jj = 0; jj < NBUF_MAC; jj++){ */
 
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
@@ -2022,10 +1942,16 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 		rjbuf[hbuf + ll] = rjmaxBuf[bufHead + ll];
 	      }/* for(int ll = lane; ll < TSUB_MAC * NBUF_MAC; ll += TSUB_MAC){ */
 	    }/* if( Nbuf != 0 ){ */
+#   if  __CUDA_ARCH__ >= 700
+	    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 	    Ntry = Nbuf + Nloc;
 	    if( (lane == 0) && (Ntry > NUM_ALLOC_MACBUF) )
 	      atomicAdd(overflow, 1);
+#   if  __CUDA_ARCH__ >= 700
+	    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 
 	    /** list up all child nodes that satisfy rjmax > rmin */
@@ -2055,6 +1981,9 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 		    add = 1;
 		  }/* if( rjbuf[cellIdx] > rmin ){ */
 		}/* if( cellIdx < krem ){ */
+#   if  __CUDA_ARCH__ >= 700
+		__syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 		/** remove duplicated tree cells */
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
@@ -2078,6 +2007,9 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 		    iadd = 0;
 		  }/* if( ((smidx > 0) && (list0[hbuf + smidx - 1] == cellIdx)) || ((Nbuf > 0) && (smidx == 0) && (more0Buf[bufHead + Nbuf - 1] == cellIdx)) ){ */
 		}/* if( add ){ */
+#   if  __CUDA_ARCH__ >= 700
+		__syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 		/** save tree cells on the local buffer */
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
@@ -2094,9 +2026,12 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
 		  list0[hbuf + smidx] = cellIdx;
 		}/* if( add ){ */
+#   if  __CUDA_ARCH__ >= 700
+		__syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
-		Nloc += __shfl(smem, TSUB_MAC - 1, TSUB_MAC);
+		Nloc += __SHFL(smem, TSUB_MAC - 1, TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
 		Nloc +=        smem[tail].i;
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
@@ -2108,6 +2043,9 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 		  Nbuf += Nloc;
 		  Nloc  = 0;
 		}/* if( Nloc > ((NBUF_MAC - 1) * TSUB_MAC) ){ */
+#   if  __CUDA_ARCH__ >= 700
+		__syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 		/** sum up iadd within TSUB_MAC threads */
 		iadd = TOTAL_SUM_TSUB(iadd
@@ -2136,11 +2074,17 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 	      for(int ll = lane; ll < NBUF_MAC * TSUB_MAC; ll += TSUB_MAC)
 		list0[hbuf + ll] = more0Buf[bufHead + ll];
 	    }/* if( Nbuf != 0 ){ */
+#   if  __CUDA_ARCH__ >= 700
+	    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 	    Ntry = Nloc + Nbuf;
 	    if( (lane == 0) && (Ntry > NUM_ALLOC_MACBUF) )
 	      atomicAdd(overflow, 1);
 	  }/* while( inum > NI_BMAX_ESTIMATE ){ */
+#   if  __CUDA_ARCH__ >= 700
+	  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 
 	  /** check positions of all the pick upped i-particles */
@@ -2156,6 +2100,9 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 	      cand = cell[list0[hbuf + iter * TSUB_MAC + lane]];
 	      pnum = cand.num;
 	    }/* if( lane < Ntry ){ */
+#   if  __CUDA_ARCH__ >= 700
+	    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
 	    smem = PREFIX_SUM_TSUB(pnum, lane);
@@ -2166,7 +2113,7 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
 	    for(int jj = 0; jj < pnum; jj++)
 	      list1[hbuf + Ncand + smem         - pnum + jj] = cand.head + jj;
-	    Ncand += __shfl(smem, TSUB_MAC - 1, TSUB_MAC);
+	    Ncand += __SHFL(smem, TSUB_MAC - 1, TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
 	    for(int jj = 0; jj < pnum; jj++)
 	      list1[hbuf + Ncand + smem[tidx].i - pnum + jj] = cand.head + jj;
@@ -2196,6 +2143,9 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 	  jbmax *= RSQRT(jbmax);
 	  if( lane == 0 )
 	    bmax[jidx] = jbmax;
+#   if  __CUDA_ARCH__ >= 700
+	  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 #ifdef  GADGET_MAC
 	  jcom.w  = mac_delta * mtot * jbmax * jbmax;
@@ -2216,6 +2166,9 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 
 	  if( lane == 0 )
 	    pj[jidx] = jcom;
+#   if  __CUDA_ARCH__ >= 700
+	  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 #ifdef  COUNT_INTERACTIONS
 	  local.nodeNum++;
@@ -2224,6 +2177,9 @@ __global__ void __launch_bounds__(NTHREADS_MAC, NBLOCKS_PER_SM_MAC) calcMultipol
 #endif//COUNT_INTERACTIONS
 	}/* if( !leaf[cidx] ){ */
       }/* if( root.head != NULL_CELL ){ */
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
     }/* for(int ii = 0; ii < BLOCKSIZE(clev.num, bnum * NGROUPS_MAC); ii++){ */
 
 
@@ -2314,6 +2270,9 @@ __device__ __forceinline__ void copyData_g2g
       floc = ftmp;
 #endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
     }
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     /** store to the destination array on the global memory */
     ubuf[dstHead + gidx] = uloc;
@@ -2335,7 +2294,11 @@ __device__ __forceinline__ void copyData_g2g
  *
  * @brief Detect particles locate exterior of the local domain.
  */
-__global__ void __launch_bounds__(NTHREADS_OUTFLOW, NBLOCKS_PER_SM_OUTFLOW) checkOutflow_kernel
+__global__ void
+#ifndef USE_OCCUPANCY_CALCULATOR
+__launch_bounds__(NTHREADS_OUTFLOW, NBLOCKS_PER_SM_OUTFLOW)
+#endif//USE_OCCUPANCY_CALCULATOR
+checkOutflow_kernel
   (const int topLev, READ_ONLY PHinfo * level, READ_ONLY uint * RESTRICT ptag,
    READ_ONLY uint * RESTRICT more, jparticle * RESTRICT pj, real * RESTRICT bmax,
    const float3 boxmin, const float3 boxmax,
@@ -2378,12 +2341,16 @@ __global__ void __launch_bounds__(NTHREADS_OUTFLOW, NBLOCKS_PER_SM_OUTFLOW) chec
       int list = 0;
 
       if( node != NULL_NODE )
-	for(uint jj = lane; jj < jnum; jj += TSUB_OUTFLOW)
+	for(uint jj = lane; jj < jnum; jj += TSUB_OUTFLOW){
 	  if( more[jhead + jj] != (jhead + jj) )
 	    if( detectOuterParticle(pj[jhead + jj], CAST_R2F(bmax[jhead + jj]), boxmin, boxmax) ){
 	      num++;
 	      list |= 1 << (DIV_TSUB_OUTFLOW(jj));
 	    }/* if( detectOuterParticle(pj[jhead + jj], CAST_R2F(bmax[jhead + jj])) ){ */
+#   if  __CUDA_ARCH__ >= 700
+	  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+	}/* for(uint jj = lane; jj < jnum; jj += TSUB_OUTFLOW){ */
 
       /** exclusive scan within a grid */
       int scanNum;
@@ -2406,6 +2373,9 @@ __global__ void __launch_bounds__(NTHREADS_OUTFLOW, NBLOCKS_PER_SM_OUTFLOW) chec
 	  }/* if( (list >> DIV_TSUB_OUTFLOW(jj)) & 1 ){ */
 	  if( kk == num )
 	    break;
+#   if  __CUDA_ARCH__ >= 700
+	  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 	}/* for(int jj = 0; jj < DIV_TSUB_OUTFLOW(NLEAF); jj++){ */
       }/* if( num != 0 ){ */
       rem += scanNum;
@@ -2430,6 +2400,9 @@ __global__ void __launch_bounds__(NTHREADS_OUTFLOW, NBLOCKS_PER_SM_OUTFLOW) chec
     hbuf += checked;
     if( (rem == 0) && (hbuf > (checked + bnum * NGROUPS_OUTFLOW)) )
       hbuf = tbuf = 0;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     /** pick up tree nodes and check the position */
     const uint jnum  = (root >> IDXBITS) + 1;
@@ -2437,12 +2410,16 @@ __global__ void __launch_bounds__(NTHREADS_OUTFLOW, NBLOCKS_PER_SM_OUTFLOW) chec
     int num = 0;
     int list = 0;
     if( root != NULL_NODE )
-      for(uint jj = lane; jj < jnum; jj += TSUB_OUTFLOW)
+      for(uint jj = lane; jj < jnum; jj += TSUB_OUTFLOW){
 	if( more[jhead + jj] != (jhead + jj) )
 	  if( detectOuterParticle(pj[jhead + jj], CAST_R2F(bmax[jhead + jj]), boxmin, boxmax) ){
 	    num++;
 	    list |= 1 << (DIV_TSUB_OUTFLOW(jj));
 	  }/* if( detectOuterParticle(pj[jhead + jj], CAST_R2F(bmax[jhead + jj])) ){ */
+#   if  __CUDA_ARCH__ >= 700
+	__syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+      }/* for(uint jj = lane; jj < jnum; jj += TSUB_OUTFLOW){ */
 
     /** exclusive scan within a grid */
     int scanNum;
@@ -2492,6 +2469,9 @@ __global__ void __launch_bounds__(NTHREADS_OUTFLOW, NBLOCKS_PER_SM_OUTFLOW) chec
 	}/* if( (list >> DIV_TSUB_OUTFLOW(jj)) & 1 ){ */
 	if( kk == num )
 	  break;
+#   if  __CUDA_ARCH__ >= 700
+	__syncwarp();
+#endif//__CUDA_ARCH__ >= 700
       }/* for(uint jj = lane; jj < jnum; jj += TSUB_OUTFLOW){ */
     }/* if( num != 0 ){ */
 
@@ -2499,6 +2479,9 @@ __global__ void __launch_bounds__(NTHREADS_OUTFLOW, NBLOCKS_PER_SM_OUTFLOW) chec
     rem  += scanNum;
     if( (gidx == 0) && (tbuf > bufSize) )
       atomicAdd(overflow, 1);
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     globalSync(tidx, bidx, bnum, gsync0, gsync1);
 
@@ -2508,6 +2491,9 @@ __global__ void __launch_bounds__(NTHREADS_OUTFLOW, NBLOCKS_PER_SM_OUTFLOW) chec
 		   fbuf,
 #endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
 		   0, 0, tbuf - hbuf, hbuf, gidx, bnum * NTHREADS_OUTFLOW, tidx, bidx, bnum, gsync0, gsync1);
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
   }/* while( true ){ */
 }
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
@@ -2670,6 +2656,43 @@ void calcMultipole_dev
 
   /** set pseudo j-particles */
   __NOTE__("calcMultipole_kernel; bottomLev = %d\n", bottomLev);
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  const int NBLOCKS_PER_SM_MAC = buf.numBlocksPerSM_mac;
+#endif//USE_OCCUPANCY_CALCULATOR
+#ifdef  USE_COOPERATIVE_GROUPS
+  const int bottomLev_tmp = bottomLev - 1;
+#ifdef  COUNT_INTERACTIONS
+  tree_stats *stats_tmp = &stats_dev[0];
+#endif//COUNT_INTERACTIONS
+  void *kernelArgs[] = {
+    (void *)&bottomLev_tmp,
+    (void *)&cell.level,
+    (void *)&cell.cell,
+    (void *)&cell.leaf,
+#ifdef  BLOCK_TIME_STEP
+    (void *)&pi.jpos,
+#else///BLOCK_TIME_STEP
+    (void *)&pi. pos,
+#endif//BLOCK_TIME_STEP
+    (void *)&cell.ptag,
+    (void *)&node.more,
+    (void *)&node.node2cell,
+    (void *)&node.jpos,
+    (void *)&node.mj,
+    (void *)&node.bmax,
+    (void *)&buf.more0,
+    (void *)&buf.more1,
+    (void *)&buf.rjmax,
+    (void *)&buf.fail
+#ifdef  WS93_MAC
+    , (void *)&node.mr2
+#endif//WS93_MAC
+#ifdef  COUNT_INTERACTIONS
+    , (void *)&stats_tmp
+#endif//COUNT_INTERACTIONS
+  };
+  checkCudaErrors(cudaLaunchCooperativeKernel((void *)calcMultipole_kernel, NBLOCKS_PER_SM_MAC, NTHREADS_MAC, kernelArgs));
+#else///USE_COOPERATIVE_GROUPS
   calcMultipole_kernel<<<devProp.numSM * NBLOCKS_PER_SM_MAC, NTHREADS_MAC>>>
     (bottomLev - 1, cell.level, cell.cell, cell.leaf,
 #ifdef  BLOCK_TIME_STEP
@@ -2686,6 +2709,7 @@ void calcMultipole_dev
      , &stats_dev[0]
 #endif//COUNT_INTERACTIONS
      );
+#endif//USE_COOPERATIVE_GROUPS
 
   getLastCudaError("calcMultipole_kernel");
 
@@ -2730,6 +2754,9 @@ void calcMultipole_dev
 #endif//TIME_BASED_MODIFICATION
 
   __NOTE__("checkOutflow_kernel\n");
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  const int NBLOCKS_PER_SM_OUTFLOW = buf.numBlocksPerSM_outflow;
+#endif//USE_OCCUPANCY_CALCULATOR
   checkOutflow_kernel<<<devProp.numSM * NBLOCKS_PER_SM_OUTFLOW, NTHREADS_OUTFLOW>>>
     (topLev, cell.level, cell.ptag, node.more, node.jpos, node.bmax, boxmin, boxmax,
 #   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
@@ -2781,6 +2808,246 @@ void calcMultipole_dev
   checkCudaErrors(cudaMemcpy(stats_hst, stats_dev, MAXIMUM_PHKEY_LEVEL * sizeof(tree_stats), cudaMemcpyDeviceToHost));
   mycudaFree(stats_dev);
 #endif//COUNT_INTERACTIONS
+
+
+  __NOTE__("%s\n", "end");
+}
+
+
+/**
+ * @fn allocTreeNode_dev
+ *
+ * @brief Allocate arrays to store properties of tree nodes (tree cells and N-body particles).
+ */
+extern "C"
+muse allocTreeNode_dev
+(soaTreeNode *dev, uint **more_dev, jparticle **pj_dev, jmass **mj_dev, real **bmax_dev, int **n2c_dev, int **gsync0, int **gsync1, deviceProp devProp,
+#ifdef  WS93_MAC
+ real **mr2_dev,
+#endif//WS93_MAC
+#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
+ soaTreeNode *hst, uint **more_hst, jparticle **pj_hst, jmass **mj_hst,
+#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
+ int **gmem_make_tree, int **gsync0_make_tree, int **gsync1_make_tree, int **gsync2_make_tree, int **gsync3_make_tree,
+ int **gmem_link_tree, int **gsync0_link_tree, int **gsync1_link_tree,
+#ifdef  GADGET_MAC
+ real **mac_dev,
+#endif//GADGET_MAC
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+ int **gmem_external, int **gsync0_external, int **gsync1_external, float **diameter_dev, float **diameter_hst, domainLocation *location, const float eps, const float eta,
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+ int **more0Buf, int **more1Buf, real **rjmaxBuf, int **fail_dev, soaMakeTreeBuf *buf)
+{
+  __NOTE__("%s\n", "start");
+
+
+  muse alloc = {0, 0};
+
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&buf->numBlocksPerSM_mac, calcMultipole_kernel, NTHREADS_MAC, 0));
+  const int NBLOCKS_PER_SM_MAC = buf->numBlocksPerSM_mac;
+  checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&buf->numBlocksPerSM_make_tree, makeTree_kernel, NTHREADS_MAKE_TREE, 0));
+  const int NBLOCKS_PER_SM_MAKE_TREE = buf->numBlocksPerSM_make_tree;
+  checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&buf->numBlocksPerSM_link_tree, linkTree_kernel, NTHREADS_LINK_TREE, 0));
+  const int NBLOCKS_PER_SM_LINK_TREE = buf->numBlocksPerSM_link_tree;
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+  checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&buf->numBlocksPerSM_outflow, checkOutflow_kernel, NTHREADS_OUTFLOW, 0));
+  const int NBLOCKS_PER_SM_OUTFLOW = buf->numBlocksPerSM_outflow;
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+#endif//USE_OCCUPANCY_CALCULATOR
+
+
+  const size_t num = (size_t)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE);
+  mycudaMalloc    ((void **) more_dev, num * sizeof(uint     ));  alloc.device += num * sizeof(uint     );  dev->more      = * more_dev;
+  mycudaMalloc    ((void **)   pj_dev, num * sizeof(jparticle));  alloc.device += num * sizeof(jparticle);  dev->jpos      = *   pj_dev;
+  mycudaMalloc    ((void **)   mj_dev, num * sizeof(jmass    ));  alloc.device += num * sizeof(jmass    );  dev->mj        = *   mj_dev;
+  mycudaMalloc    ((void **)  n2c_dev, num * sizeof(int      ));  alloc.device += num * sizeof(int      );  dev->node2cell = *  n2c_dev;
+
+#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
+  __NOTE__("%zu MiB for more_hst\n", num * sizeof(uint) >> 20);
+  mycudaMallocHost((void **) more_hst, num * sizeof(uint     ));  alloc.host += num * sizeof(uint     );  hst->more      = * more_hst;
+  __NOTE__("%zu MiB for pj_hst\n", num * sizeof(jparticle) >> 20);
+  mycudaMallocHost((void **)   pj_hst, num * sizeof(jparticle));  alloc.host += num * sizeof(jparticle);  hst->jpos      = *   pj_hst;
+  __NOTE__("%zu MiB for mj_hst\n", num * sizeof(jmass) >> 20);
+  mycudaMallocHost((void **)   mj_hst, num * sizeof(jmass    ));  alloc.host += num * sizeof(jmass    );  hst->mj        = *   mj_hst;
+#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
+
+#ifdef  GADGET_MAC
+  mycudaMalloc((void **)mac_dev, num * sizeof(real));  alloc.device += num * sizeof(real);  dev->mac = *mac_dev;
+#endif//GADGET_MAC
+
+#ifdef  WS93_MAC
+  mycudaMalloc    ((void **) mr2_dev, num * sizeof(real));  alloc.device += num * sizeof(real);  dev->mr2  = * mr2_dev;
+#endif//WS93_MAC
+  mycudaMalloc    ((void **)bmax_dev, num * sizeof(real));  alloc.device += num * sizeof(real);  dev->bmax = *bmax_dev;
+
+  mycudaMalloc    ((void **)more0Buf, devProp.numSM * NBLOCKS_PER_SM_MAC * NGROUPS_MAC * NUM_ALLOC_MACBUF * sizeof(int ));
+  alloc.device +=                     devProp.numSM * NBLOCKS_PER_SM_MAC * NGROUPS_MAC * NUM_ALLOC_MACBUF * sizeof(int ) ;
+  mycudaMalloc    ((void **)more1Buf, devProp.numSM * NBLOCKS_PER_SM_MAC * NGROUPS_MAC * NUM_ALLOC_MACBUF * sizeof(int ));
+  alloc.device +=                     devProp.numSM * NBLOCKS_PER_SM_MAC * NGROUPS_MAC * NUM_ALLOC_MACBUF * sizeof(int ) ;
+  mycudaMalloc    ((void **)rjmaxBuf, devProp.numSM * NBLOCKS_PER_SM_MAC * NGROUPS_MAC * NUM_ALLOC_MACBUF * sizeof(real));
+  alloc.device +=                     devProp.numSM * NBLOCKS_PER_SM_MAC * NGROUPS_MAC * NUM_ALLOC_MACBUF * sizeof(real) ;
+
+#ifndef USE_COOPERATIVE_GROUPS
+  mycudaMalloc((void **)gsync0, devProp.numSM * NBLOCKS_PER_SM_MAC * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAC * sizeof(int);
+  mycudaMalloc((void **)gsync1, devProp.numSM * NBLOCKS_PER_SM_MAC * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAC * sizeof(int);
+  initGsync_kernel<<<1, devProp.numSM * NBLOCKS_PER_SM_MAC>>>(devProp.numSM * NBLOCKS_PER_SM_MAC, *gsync0, *gsync1);
+  getLastCudaError("initGsync_kernel");
+#endif//USE_COOPERATIVE_GROUPS
+
+  mycudaMalloc((void **)fail_dev, 1 * sizeof(int));
+  alloc.device +=                 1 * sizeof(int);
+  const int fail_hst = 0;
+  checkCudaErrors(cudaMemcpy(*fail_dev, &fail_hst, sizeof(int), cudaMemcpyHostToDevice));
+
+  mycudaMalloc((void **)  gmem_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
+  mycudaMalloc((void **)gsync0_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
+  mycudaMalloc((void **)gsync1_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
+  mycudaMalloc((void **)gsync2_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
+  mycudaMalloc((void **)gsync3_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
+  mycudaMalloc((void **)  gmem_link_tree, devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int);
+/* #ifndef USE_COOPERATIVE_GROUPS */
+  mycudaMalloc((void **)gsync0_link_tree, devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int);
+  mycudaMalloc((void **)gsync1_link_tree, devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int);
+/* #endif//USE_COOPERATIVE_GROUPS */
+  initGsync_kernel<<<1, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE>>>(devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE, *gsync0_make_tree, *gsync1_make_tree);
+  getLastCudaError("initGsync_kernel");
+  initGsync_kernel<<<1, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE>>>(devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE, *gsync2_make_tree, *gsync3_make_tree);
+  getLastCudaError("initGsync_kernel");
+/* #ifndef USE_COOPERATIVE_GROUPS */
+  initGsync_kernel<<<1, devProp.numSM * NBLOCKS_PER_SM_LINK_TREE>>>(devProp.numSM * NBLOCKS_PER_SM_LINK_TREE, *gsync0_link_tree, *gsync1_link_tree);
+  getLastCudaError("initGsync_kernel");
+/* #endif//USE_COOPERATIVE_GROUPS */
+
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+  mycudaMalloc((void **)  gmem_external, devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int);
+  mycudaMalloc((void **)gsync0_external, devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int);
+  mycudaMalloc((void **)gsync1_external, devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int);
+  initGsync_kernel<<<1, devProp.numSM * NBLOCKS_PER_SM_OUTFLOW>>>(devProp.numSM * NBLOCKS_PER_SM_OUTFLOW, *gsync0_external, *gsync1_external);
+  getLastCudaError("initGsync_kernel");
+  mycudaMalloc    ((void **)diameter_dev, sizeof(float));  alloc.device += sizeof(float);
+  mycudaMallocHost((void **)diameter_hst, sizeof(float));  alloc.host   += sizeof(float);
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+
+  buf->Nbuf   = devProp.numSM * NBLOCKS_PER_SM_MAC * NGROUPS_MAC * NUM_ALLOC_MACBUF;
+
+  buf->more0  = *more0Buf;
+  buf->more1  = *more1Buf;
+  buf->rjmax  = *rjmaxBuf;
+  buf->fail   = *fail_dev;
+#ifndef USE_COOPERATIVE_GROUPS
+  buf->gsync0 = *gsync0;
+  buf->gsync1 = *gsync1;
+#endif//USE_COOPERATIVE_GROUPS
+
+  buf->  gmem_make_tree = *  gmem_make_tree;
+  buf->  gmem_link_tree = *  gmem_link_tree;
+  buf->gsync0_make_tree = *gsync0_make_tree;
+  buf->gsync1_make_tree = *gsync1_make_tree;
+  buf->gsync2_make_tree = *gsync2_make_tree;
+  buf->gsync3_make_tree = *gsync3_make_tree;
+/* #ifndef USE_COOPERATIVE_GROUPS */
+  buf->gsync0_link_tree = *gsync0_link_tree;
+  buf->gsync1_link_tree = *gsync1_link_tree;
+/* #endif//USE_COOPERATIVE_GROUPS */
+
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+#   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+  buf->  Nbuf_external = devProp.numSM * NBLOCKS_PER_SM_MAC * NGROUPS_MAC * NUM_ALLOC_MACBUF;
+  buf->  ibuf_external = *more0Buf;/**< cast required */
+  buf->  rbuf_external = *rjmaxBuf;/**< cast required */
+#endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
+  buf->  gmem_external = *  gmem_external;
+  buf->gsync0_external = *gsync0_external;
+  buf->gsync1_external = *gsync1_external;
+  location->eps = eps;
+  location->eta = eta;
+#ifdef  TIME_BASED_MODIFICATION
+  location->elapsed = 0.0f;
+  location->dtmin   = 0.5f * FLT_MAX;
+  location->dtinv   = 1.0f / location->dtmin;
+#else///TIME_BASED_MODIFICATION
+  location->step = 0.0f;
+#endif//TIME_BASED_MODIFICATION
+  location->diameter_dev = *diameter_dev;
+  location->diameter_hst = *diameter_hst;
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+
+
+  __NOTE__("%s\n", "end");
+  return (alloc);
+}
+
+
+/**
+ * @fn freeTreeNode_dev
+ *
+ * @brief Deallocate arrays to store properties of tree nodes (tree cells and N-body particles).
+ */
+extern "C"
+void  freeTreeNode_dev
+(uint  *more_dev, jparticle  *pj_dev, jmass  *mj_dev, real  *bmax_dev, int  *n2c_dev, int  *gsync0, int  *gsync1,
+#ifdef  WS93_MAC
+ real  *mr2_dev,
+#endif//WS93_MAC
+#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
+ uint  *more_hst, jparticle  *pj_hst, jmass  *mj_hst,
+#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
+ int  *gmem_make_tree, int  *gsync0_make_tree, int  *gsync1_make_tree, int  *gsync2_make_tree, int  *gsync3_make_tree,
+ int  *gmem_link_tree, int  *gsync0_link_tree, int  *gsync1_link_tree,
+#ifdef  GADGET_MAC
+ real  *mac_dev,
+#endif//GADGET_MAC
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+ int  *gmem_external, int  *gsync0_external, int  *gsync1_external, float  *diameter_dev, float  *diameter_hst,
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+ int  *more0Buf, int  *more1Buf, real  *rjmaxBuf, int  *fail_dev)
+{
+  __NOTE__("%s\n", "start");
+
+
+  mycudaFree    ( more_dev);
+  mycudaFree    (   pj_dev);
+  mycudaFree    (   mj_dev);
+  mycudaFree    (  n2c_dev);
+
+#   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
+  mycudaFreeHost( more_hst);
+  mycudaFreeHost(   pj_hst);
+  mycudaFreeHost(   mj_hst);
+#endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
+
+#ifdef  GADGET_MAC
+  mycudaFree(mac_dev);
+#endif//GADGET_MAC
+
+#ifdef  WS93_MAC
+  mycudaFree( mr2_dev);
+#endif//WS93_MAC
+  mycudaFree(bmax_dev);
+
+  mycudaFree(more0Buf);
+  mycudaFree(more1Buf);
+  mycudaFree(rjmaxBuf);
+#ifndef USE_COOPERATIVE_GROUPS
+  mycudaFree(gsync0);
+  mycudaFree(gsync1);
+#endif//USE_COOPERATIVE_GROUPS
+
+  mycudaFree(fail_dev);
+
+  mycudaFree(gmem_make_tree);  mycudaFree(gsync0_make_tree);  mycudaFree(gsync1_make_tree);  mycudaFree(gsync2_make_tree);  mycudaFree(gsync3_make_tree);
+  mycudaFree(gmem_link_tree);
+/* #ifndef USE_COOPERATIVE_GROUPS */
+  mycudaFree(gsync0_link_tree);  mycudaFree(gsync1_link_tree);
+/* #endif//USE_COOPERATIVE_GROUPS */
+
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+  mycudaFree(gmem_external);
+  mycudaFree(gsync0_external);
+  mycudaFree(gsync1_external);
+  mycudaFree(diameter_dev);  mycudaFreeHost(diameter_hst);
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 
 
   __NOTE__("%s\n", "end");
@@ -2843,6 +3110,7 @@ void setGlobalConstants_make_dev_cu
   checkCudaErrors(cudaFuncSetCacheConfig(calcMultipole_kernel, cudaFuncCachePreferShared));
 
 
+#ifndef USE_OCCUPANCY_CALCULATOR
   /** error checking before running the kernel */
   struct cudaFuncAttributes funcAttr;
 
@@ -2932,6 +3200,7 @@ void setGlobalConstants_make_dev_cu
     __KILL__(stderr, "ERROR: # of blocks per SM for checkOutflow_kernel() is mispredicted (%d).\n\tThe limits come from register and shared memory are %d and %d, respectively.\n\tHowever, the expected value of NBLOCKS_PER_SM_OUTFLOW defined in src/tree/make_dev.cu is %d.\n\tAdditional information: # of registers per thread is %d while predicted as %d (GPUGEN = %d, GPUVER = %d).\n", Nblck, regLimit, memLimit, NBLOCKS_PER_SM_OUTFLOW, funcAttr.numRegs, REGISTERS_PER_THREAD_OUTFLOW, GPUGEN, GPUVER);
   }/* if( Nblck != NBLOCKS_PER_SM ){ */
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+#endif//USE_OCCUPANCY_CALCULATOR
 
 
   __NOTE__("%s\n", "end");

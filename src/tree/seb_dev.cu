@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/04/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -61,36 +61,66 @@ __device__ __forceinline__ real getMinLocRealTsub(      real min, int *loc, vola
 #   if  TSUB >= ( 2 * NWARP)
   real tmp;
   int  buf;
-  tmp = __shfl_xor(val,      NWARP, TSUB);  buf = __shfl_xor(idx,      NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(val,      NWARP, TSUB);  buf = __SHFL_XOR(idx,      NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= ( 4 * NWARP)
-  tmp = __shfl_xor(val,  2 * NWARP, TSUB);  buf = __shfl_xor(idx,  2 * NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(val,  2 * NWARP, TSUB);  buf = __SHFL_XOR(idx,  2 * NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= ( 8 * NWARP)
-  tmp = __shfl_xor(val,  4 * NWARP, TSUB);  buf = __shfl_xor(idx,  4 * NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(val,  4 * NWARP, TSUB);  buf = __SHFL_XOR(idx,  4 * NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= (16 * NWARP)
-  tmp = __shfl_xor(val,  8 * NWARP, TSUB);  buf = __shfl_xor(idx,  8 * NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(val,  8 * NWARP, TSUB);  buf = __SHFL_XOR(idx,  8 * NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB == (32 * NWARP)
-  tmp = __shfl_xor(val, 16 * NWARP, TSUB);  buf = __shfl_xor(idx, 16 * NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(val, 16 * NWARP, TSUB);  buf = __SHFL_XOR(idx, 16 * NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//TSUB == (32 * NWARP)
 #endif//TSUB >= (16 * NWARP)
 #endif//TSUB >= ( 8 * NWARP)
 #endif//TSUB >= ( 4 * NWARP)
 #endif//TSUB >= ( 2 * NWARP)
-  *loc =  __shfl(idx, 0, TSUB);
-  return (__shfl(val, 0, TSUB));
+  *loc =  __SHFL(idx, 0, TSUB);
+  return (__SHFL(val, 0, TSUB));
 #else///USE_WARP_SHUFFLE_FUNC
   smem[tidx].r =  min;
   sidx[tidx]   = *loc;
 #   if  TSUB >= ( 2 * NWARP)
   real tmp;
   tmp = smem[tidx ^ (     NWARP)].r;  if( tmp < min ){    min = tmp;    sidx[tidx] = sidx[tidx ^ (     NWARP)];  }  smem[tidx].r = min;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= ( 4 * NWARP)
   tmp = smem[tidx ^ ( 2 * NWARP)].r;  if( tmp < min ){    min = tmp;    sidx[tidx] = sidx[tidx ^ ( 2 * NWARP)];  }  smem[tidx].r = min;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= ( 8 * NWARP)
   tmp = smem[tidx ^ ( 4 * NWARP)].r;  if( tmp < min ){    min = tmp;    sidx[tidx] = sidx[tidx ^ ( 4 * NWARP)];  }  smem[tidx].r = min;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= (16 * NWARP)
   tmp = smem[tidx ^ ( 8 * NWARP)].r;  if( tmp < min ){    min = tmp;    sidx[tidx] = sidx[tidx ^ ( 8 * NWARP)];  }  smem[tidx].r = min;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB == (32 * NWARP)
   tmp = smem[tidx ^ (16 * NWARP)].r;  if( tmp < min ){    min = tmp;    sidx[tidx] = sidx[tidx ^ (16 * NWARP)];  }  smem[tidx].r = min;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//TSUB == (32 * NWARP)
 #endif//TSUB >= (16 * NWARP)
 #endif//TSUB >= ( 8 * NWARP)
@@ -121,36 +151,66 @@ __device__ __forceinline__ real getMaxLocRealTsub(      real max, int *loc, vola
 #   if  TSUB >= ( 2 * NWARP)
   real tmp;
   int  buf;
-  tmp = __shfl_xor(val,      NWARP, TSUB);  buf = __shfl_xor(idx,      NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(val,      NWARP, TSUB);  buf = __SHFL_XOR(idx,      NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= ( 4 * NWARP)
-  tmp = __shfl_xor(val,  2 * NWARP, TSUB);  buf = __shfl_xor(idx,  2 * NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(val,  2 * NWARP, TSUB);  buf = __SHFL_XOR(idx,  2 * NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= ( 8 * NWARP)
-  tmp = __shfl_xor(val,  4 * NWARP, TSUB);  buf = __shfl_xor(idx,  4 * NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(val,  4 * NWARP, TSUB);  buf = __SHFL_XOR(idx,  4 * NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= (16 * NWARP)
-  tmp = __shfl_xor(val,  8 * NWARP, TSUB);  buf = __shfl_xor(idx,  8 * NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(val,  8 * NWARP, TSUB);  buf = __SHFL_XOR(idx,  8 * NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB == (32 * NWARP)
-  tmp = __shfl_xor(val, 16 * NWARP, TSUB);  buf = __shfl_xor(idx, 16 * NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(val, 16 * NWARP, TSUB);  buf = __SHFL_XOR(idx, 16 * NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//TSUB == (32 * NWARP)
 #endif//TSUB >= (16 * NWARP)
 #endif//TSUB >= ( 8 * NWARP)
 #endif//TSUB >= ( 4 * NWARP)
 #endif//TSUB >= ( 2 * NWARP)
-  *loc =  __shfl(idx, 0, TSUB);
-  return (__shfl(val, 0, TSUB));
+  *loc =  __SHFL(idx, 0, TSUB);
+  return (__SHFL(val, 0, TSUB));
 #else///USE_WARP_SHUFFLE_FUNC
   smem[tidx].r =  max;
   sidx[tidx]   = *loc;
 #   if  TSUB >= ( 2 * NWARP)
   real tmp;
   tmp = smem[tidx ^ (     NWARP)].r;  if( tmp > max ){    max = tmp;    sidx[tidx] = sidx[tidx ^ (     NWARP)];  }  smem[tidx].r = max;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= ( 4 * NWARP)
   tmp = smem[tidx ^ ( 2 * NWARP)].r;  if( tmp > max ){    max = tmp;    sidx[tidx] = sidx[tidx ^ ( 2 * NWARP)];  }  smem[tidx].r = max;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= ( 8 * NWARP)
   tmp = smem[tidx ^ ( 4 * NWARP)].r;  if( tmp > max ){    max = tmp;    sidx[tidx] = sidx[tidx ^ ( 4 * NWARP)];  }  smem[tidx].r = max;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= (16 * NWARP)
   tmp = smem[tidx ^ ( 8 * NWARP)].r;  if( tmp > max ){    max = tmp;    sidx[tidx] = sidx[tidx ^ ( 8 * NWARP)];  }  smem[tidx].r = max;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #   if  TSUB == (32 * NWARP)
   tmp = smem[tidx ^ (16 * NWARP)].r;  if( tmp > max ){    max = tmp;    sidx[tidx] = sidx[tidx ^ (16 * NWARP)];  }  smem[tidx].r = max;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//TSUB == (32 * NWARP)
 #endif//TSUB >= (16 * NWARP)
 #endif//TSUB >= ( 8 * NWARP)
@@ -313,6 +373,9 @@ __device__ __forceinline__ void initQR
   /** commit the inputted data point as a support set */
   if( lane == 0 )
     mem[0] = idx;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
   *rank = 0;
 
   /** initialize the identifier of the support set */
@@ -419,6 +482,9 @@ __device__ __forceinline__ void findAffineCoefficients
     /** calculate Q^{-1} uu into ww, Q is an orthogonal matrix */
     WW(lane) = QQ(lane, 0) * UU(0) + QQ(lane, 1) * UU(1) + QQ(lane, 2) * UU(2);
   }/* if( lane < NDIM_SEB ){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   /** calculate lambda by backward substitution */
   /** TENTATIVE IMPLEMENTATION based on atomic function */
@@ -426,15 +492,24 @@ __device__ __forceinline__ void findAffineCoefficients
   for(int ii = rank - 1; ii >= 0; ii--){
     if( ((ii + 1) <= lane) && (lane < rank) )
       atomicAdd((real *)&WW(ii), -aff[lane] * RR(lane, ii));
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     const real tmp = WW(ii) / RR(ii, ii);
     affRem -= tmp;
     if( lane == 0 )
       aff[ii] = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
   }/* for(int ii = rank - 1; ii >= 0; ii--){ */
 
   if( lane == 0 )
     aff[rank] = affRem;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 }
 
 
@@ -465,6 +540,9 @@ __device__ __forceinline__ void givensRotation(const real ff, const real gg, rea
     *ss = COPYSIGN(RSQRT(UNITY + tt * tt), ff);
     *cc = (*ss) * tt;
   }/* else{ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 }
 
 
@@ -485,6 +563,9 @@ __device__ __forceinline__ void clearHessenberg
     /** rotate R-rows */
     if( lane == ii )
       RR(ii, ii) = cc * RR(ii, ii) + ss * RR(ii, ii + 1);/**< the other one is an implicit zero */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
     if( ((ii + 1) <= lane) && (lane < rank) ){
       const real ff = RR(lane, ii    );
       const real gg = RR(lane, ii + 1);
@@ -492,6 +573,9 @@ __device__ __forceinline__ void clearHessenberg
       RR(lane, ii    ) = cc * ff + ss * gg;
       RR(lane, ii + 1) = cc * gg - ss * ff;
     }/* if( ((ii + 1) <= lane) && (lane < rank) ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     /** rotate Q-columns */
     if( lane < NDIM_SEB ){
@@ -501,6 +585,9 @@ __device__ __forceinline__ void clearHessenberg
       QQ(ii    , lane) = cc * ff + ss * gg;
       QQ(ii + 1, lane) = cc * gg - ss * ff;
     }/* if( lane < NDIM_SEB ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
   }/* for(int ii = idx; ii < qr->rank; ii++){ */
 }
 
@@ -516,6 +603,9 @@ __device__ __forceinline__ void updateQR(const int lane, const int rank, volatil
   /** compute w = Q^{-1} u */
   if( lane < NDIM_SEB )
     WW(lane) = QQ(lane, 0) * UU(0) + QQ(lane, 1) * UU(1) + QQ(lane, 2) * UU(2);
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   /** rotate w */
   for(int jj = NDIM_SEB - 1; jj > 0; jj--){
@@ -526,12 +616,18 @@ __device__ __forceinline__ void updateQR(const int lane, const int rank, volatil
     /** rotate w */
     if( lane == rank )
       WW(jj - 1) = cc * WW(jj - 1) + ss * WW(jj);
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     /** rotate two R-rows */
     if( lane == (jj - 1) ){
       RR(jj - 1, jj    )  = -ss * RR(jj - 1, jj - 1);
       RR(jj - 1, jj - 1) *=  cc;
     }/* if( lane == (jj - 1) ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
     if( (jj <= lane) && (lane < rank) ){
       const real ff = RR(lane, jj - 1);
       const real gg = RR(lane, jj    );
@@ -539,6 +635,9 @@ __device__ __forceinline__ void updateQR(const int lane, const int rank, volatil
       RR(lane, jj - 1) = cc * ff + ss * gg;
       RR(lane, jj    ) = cc * gg - ss * ff;
     }/* if( (jj <= lane) && (lane < rank) ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     /** rotate two Q-columns */
     if( lane < NDIM_SEB ){
@@ -548,11 +647,17 @@ __device__ __forceinline__ void updateQR(const int lane, const int rank, volatil
       QQ(jj - 1, lane) = cc * ff + ss * gg;
       QQ(jj    , lane) = cc * gg - ss * ff;
     }/* if( lane < NDIM_SEB ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
   }/* for(int jj = NDIM_SEB - 1; jj > 0; jj--){ */
 
   /** update R */
   if( lane < rank )
     RR(lane, 0) += WW(0);
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   /** clear subdiagonal entries */
   clearHessenberg(lane, rank, 0, qq, rr);
@@ -572,6 +677,9 @@ __device__ __forceinline__ void removePoint
   /** remove the point and update Q and R */
   if( lane == mem[idx] )
     pos->support = false;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   if( idx == *rank ){
     /** remove origin if the remove point is the origin */
@@ -581,6 +689,9 @@ __device__ __forceinline__ void removePoint
       UU(1) = org.y - pos->y;
       UU(2) = org.z - pos->z;
     }/* if( lane == mem.idx[*rank] ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     (*rank)--;
 
@@ -595,14 +706,23 @@ __device__ __forceinline__ void removePoint
 	RR(ii - 1, lane) = RR(ii, lane);
       if( lane == NDIM_SEB )
 	mem[ii - 1] = mem[ii];
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
     }/* for(int ii = idx + 1; ii < *rank; ii++){ */
 
     if( lane == NDIM_SEB )
       mem[(*rank) - 1] = mem[*rank];
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
     (*rank)--;
 
     if( lane < NDIM_SEB )
       RR(*rank, lane) = tmp;
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     clearHessenberg(lane, *rank, idx, qq, rr);
   }/* else{ */
@@ -630,6 +750,9 @@ __device__ __forceinline__ bool dropSupport
       min = aff[ii];
       idx = ii;
     }/* if( aff[ii] < min ){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   /** drop a point with non-positive coefficient */
   if( min <= ZERO ){
@@ -671,7 +794,13 @@ __device__ __forceinline__ void findStopper
       bound = HALF * (cen.w - dx * dx - dy * dy - dz * dz) * RSQRT(SEB_TINY + diff * diff);
       *idx  = lane;
     }/* if( diff >= tinyVal ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
   }/* if( !pos.support ){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   *frac = getMinLocRealTsub(bound, idx
 #ifndef USE_WARP_SHUFFLE_FUNC
@@ -703,6 +832,9 @@ __device__ __forceinline__ void appendColumn
     /** rotate one R-entry (another entry is an implicit zero) */
     if( lane == 0 )
       RR(rank, jj - 1) = cc * RR(rank, jj - 1) + ss * RR(rank, jj);
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     /** rotate two Q-columns */
     if( lane < NDIM_SEB ){
@@ -712,6 +844,9 @@ __device__ __forceinline__ void appendColumn
       QQ(jj - 1, lane) = cc * ff + ss * gg;
       QQ(jj    , lane) = cc * gg - ss * ff;
     }/* if( lane < NDIM_SEB ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
   }/* for(int jj = Ndim - 1; jj > rank; jj--){ */
 }
 
@@ -740,6 +875,9 @@ __device__ __forceinline__ void addSupport
     mem[(*rank) + 1] = mem[*rank];
     mem[ *rank     ] = idx;
   }/* if( lane == idx ){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   /** append new column u to R and update QR-decomposition */
   appendColumn(lane, *rank, qq, rr);
@@ -827,6 +965,9 @@ __device__ __forceinline__ void findSEB
       if( !dropSupport(lane, pi, pos, *cen, aff, &rank, mem, qq, rr) )
 	return;
     }/* else{ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
   }/* while( true ){ */
 }
 #endif//ADOPT_SMALLEST_ENCLOSING_BALL

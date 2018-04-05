@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/20 (Tue)
+ * @date 2018/04/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -456,6 +456,14 @@ typedef struct
   int *gmem_external, *gsync0_external, *gsync1_external;
   size_t Nbuf_external;
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  int numBlocksPerSM_mac;
+  int numBlocksPerSM_make_tree;
+  int numBlocksPerSM_link_tree;
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+  int numBlocksPerSM_outflow;
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+#endif//USE_OCCUPANCY_CALCULATOR
 } soaMakeTreeBuf;
 
 

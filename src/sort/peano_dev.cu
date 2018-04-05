@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/21 (Wed)
+ * @date 2018/04/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -43,11 +43,12 @@
 
 #include "../tree/make.h"/**< required to read NLEAF */
 
-#ifndef SERIALIZED_EXECUTION
+#   if  !defined(SERIALIZED_EXECUTION) && !defined(USE_OCCUPANCY_CALCULATOR)
 #include "../para/exchange_dev.h"/**< required to read NBLOCKS_PER_SM_BOX */
-#endif//SERIALIZED_EXECUTION
+#endif//!defined(SERIALIZED_EXECUTION) && !defined(USE_OCCUPANCY_CALCULATOR)
 
 
+#ifndef USE_OCCUPANCY_CALCULATOR
 #   if  GPUGEN >= 60
 /** capacity of shared memory is 64KiB per SM on newer GPUs */
 /** real4 smem[NTHREADS_PH] corresponds 16 * NTHREADS_PH bytes */
@@ -104,6 +105,7 @@
 #undef  NBLOCKS_PER_SM_PH
 #define NBLOCKS_PER_SM_PH  (1)
 #endif//NBLOCKS_PER_SM_PH < 1
+#endif//USE_OCCUPANCY_CALCULATOR
 
 
 /**
@@ -136,7 +138,11 @@ __device__ __forceinline__ PHint dilate3D(const PHint val)
  *
  * @brief Calculate Peano--Hilbert space-filling curve on GPU.
  */
-__global__ void __launch_bounds__(NTHREADS_PH, NBLOCKS_PER_SM_PH) calcPHkey_kernel
+__global__ void
+#ifndef USE_OCCUPANCY_CALCULATOR
+__launch_bounds__(NTHREADS_PH, NBLOCKS_PER_SM_PH)
+#endif//USE_OCCUPANCY_CALCULATOR
+calcPHkey_kernel
      (const int num, READ_ONLY position * RESTRICT ipos, float4 * RESTRICT min_all, float4 * RESTRICT max_all,
       const int nlevel, int * RESTRICT idx, PHint * RESTRICT key, int * RESTRICT gsync0, int * RESTRICT gsync1
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR
@@ -167,7 +173,6 @@ __global__ void __launch_bounds__(NTHREADS_PH, NBLOCKS_PER_SM_PH) calcPHkey_kern
 
   for(int ih = ihead; ih < itail; ih += NTHREADS_PH){
     const int ii = ih + tidx;
-    /* if( ii < itail ){ */
     if( ii < num ){
       const position pi = ipos[ii];
       const float px = CAST_R2F(pi.x);
@@ -179,6 +184,9 @@ __global__ void __launch_bounds__(NTHREADS_PH, NBLOCKS_PER_SM_PH) calcPHkey_kern
       min.z = fminf(min.z, pz);      max.z = fmaxf(max.z, pz);
     }/* if( ii < itail ){ */
   }/* for(int ih = ihead; ih < itail; ih += NTHREADS_PH){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 
   /** get the box size within a warp */
@@ -196,14 +204,10 @@ __global__ void __launch_bounds__(NTHREADS_PH, NBLOCKS_PER_SM_PH) calcPHkey_kern
 
     *center_dev = center;
   }/* if( (tidx + bidx) == 0 ){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
-
-/* #ifndef NDEBUG */
-/*   if( (tidx + bidx) == 0 ){ */
-/*     printf("local: min.x = %e, min.y = %e, min.z = %e\n", min.x, min.y, min.z); */
-/*     printf("local: max.x = %e, max.y = %e, max.z = %e\n", max.x, max.y, max.z); */
-/*   }/\* if( (tidx + bidx) == 0 ){ *\/ */
-/* #endif//NDEBUG */
 
 #ifdef  SHARE_PH_BOX_BOUNDARY
   float4 tmp;
@@ -222,20 +226,15 @@ __global__ void __launch_bounds__(NTHREADS_PH, NBLOCKS_PER_SM_PH) calcPHkey_kern
   /** store diameter to global memory (purpose: detect external particles) */
   if( (bidx + tidx) == 0 )
     *length = diameter;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
   const float dinv = 1.0f / diameter;
 
   min.x = 0.5f * (min.x + max.x - diameter);
   min.y = 0.5f * (min.y + max.y - diameter);
   min.z = 0.5f * (min.z + max.z - diameter);
-
-/* #ifndef NDEBUG */
-/*   if( (tidx + bidx) == 0 ){ */
-/*     printf("min.x = %e, min.y = %e, min.z = %e\n", min.x, min.y, min.z); */
-/*     printf("max.x = %e, max.y = %e, max.z = %e\n", max.x, max.y, max.z); */
-/*     printf("diameter = %e\n", diameter); */
-/*   }/\* if( (tidx + bidx) == 0 ){ *\/ */
-/* #endif//NDEBUG */
 
   /** calculate Peano--Hilbert key */
   const PHint keymax = (PHint)1 << nlevel;
@@ -270,15 +269,13 @@ __global__ void __launch_bounds__(NTHREADS_PH, NBLOCKS_PER_SM_PH) calcPHkey_kern
 	  /** if yi == 0, then exchange x and z */
 	  if( !yi ){	    PHint pt = px;	    px = pz;	                  pz = pt;	}
 	}
+#   if  __CUDA_ARCH__ >= 700
+	__syncwarp();
+#endif//__CUDA_ARCH__ >= 700
       }/* for(int jj = nlevel - 1; jj >= 0; jj--){ */
 
       idx[ii] = ii;
       key[ii] = tkey;
-
-/* #ifndef NDEBUG */
-/*       if( pi.m < EPSILON ) */
-/* 	printf("pi[%d]: x = %e, y = %e, z = %e, m = %e\n", ii, pi.x, pi.y, pi.z, pi.m); */
-/* #endif//NDEBUG */
     }/* if( ii < num ){ */
   }/* for(int ih = ihead; ih < itail; ih += bnum * NTHREADS_PH){ */
 }
@@ -306,6 +303,11 @@ muse allocPeanoHilbertKey_dev
 
   muse alloc = {0, 0};
 
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&dev->numBlocksPerSM_peano, calcPHkey_kernel, NTHREADS_PH, 0));
+  const int NBLOCKS_PER_SM_PH = dev->numBlocksPerSM_peano;
+#endif//USE_OCCUPANCY_CALCULATOR
+
   /** Peano--Hilbert key of N-body particles */
   /** the size of the array is set to be a multiple of NTHREADS_PH */
   size_t size = (size_t)num;
@@ -325,6 +327,9 @@ muse allocPeanoHilbertKey_dev
 #ifdef  SERIALIZED_EXECUTION
   const size_t num_ph = devProp.numSM * NBLOCKS_PER_SM_PH;
 #else///SERIALIZED_EXECUTION
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  const int NBLOCKS_PER_SM_BOX = dev->numBlocksPerSM_box;
+#endif//USE_OCCUPANCY_CALCULATOR
   const size_t num_ph = devProp.numSM * ((NBLOCKS_PER_SM_PH > NBLOCKS_PER_SM_BOX) ? (NBLOCKS_PER_SM_PH) : (NBLOCKS_PER_SM_BOX));
   mycudaMalloc    ((void **)box_min, sizeof(float4));  alloc.device += sizeof(float4);  dev->box_min = *box_min;
   mycudaMalloc    ((void **)box_max, sizeof(float4));  alloc.device += sizeof(float4);  dev->box_max = *box_max;
@@ -362,6 +367,7 @@ muse allocPeanoHilbertKey_dev
 #endif//CUB_AVAILABLE
 
 
+#ifndef USE_OCCUPANCY_CALCULATOR
   /** error checking before running the kernel */
   struct cudaFuncAttributes funcAttr;
   checkCudaErrors(cudaFuncGetAttributes(&funcAttr, calcPHkey_kernel));
@@ -388,6 +394,7 @@ muse allocPeanoHilbertKey_dev
   if( (devProp.numSM * NBLOCKS_PER_SM_PH) > NTHREADS_PH ){
     __KILL__(stderr, "ERROR: product (%d) of devProp.numSM(%d) * NBLOCKS_PER_SM_PH(%d) must be smaller than NTHREADS_PH(%d) to use shared memory.\n", devProp.numSM * NBLOCKS_PER_SM_PH, devProp.numSM, NBLOCKS_PER_SM_PH, NTHREADS_PH);
   }/* if( (devProp.numSM * NBLOCKS_PER_SM_PH) > NTHREADS_PH ){ */
+#endif//USE_OCCUPANCY_CALCULATOR
 
 
   __NOTE__("%s\n", "end");
@@ -571,6 +578,9 @@ void sortParticlesPHcurve_dev(const int num, iparticle * RESTRICT src, iparticle
 
 
   /** generate Peano--Hilbert key */
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  const int NBLOCKS_PER_SM_PH = dev.numBlocksPerSM_peano;
+#endif//USE_OCCUPANCY_CALCULATOR
 #ifdef  CUB_AVAILABLE
   calcPHkey_kernel<<<devProp.numSM * NBLOCKS_PER_SM_PH, NTHREADS_PH>>>(num, (*src).pos, dev.min, dev.max, MAXIMUM_PHKEY_LEVEL, pre.idx, pre.key, dev.gsync0, dev.gsync1
 #ifdef  RETURN_CENTER_BY_PHKEY_GENERATOR

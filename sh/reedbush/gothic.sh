@@ -1,9 +1,9 @@
 #!/bin/bash
 ###############################################################
-#PBS -q h-regular
-#PBS -l select=4:mpiprocs=2:ompthreads=1
-#PBS -W group_list=gx31
-#PBS -l walltime=00:05:00
+#PBS -q l-regular
+#PBS -l select=1:mpiprocs=1:ompthreads=1
+#PBS -W group_list=jh180045l
+#PBS -l walltime=01:00:00
 #PBS -N gothic
 ###############################################################
 
@@ -13,35 +13,23 @@
 ###############################################################
 EXEC=bin/gothic
 ###############################################################
-USE_NVPROF=1
-###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    # PROBLEM=2
+    PROBLEM=2
     # PROBLEM=27
-    PROBLEM=100
 fi
 ###############################################################
 # topology of MPI processes
 if [ -z "$NX" ]; then
-    NX=2
+    NX=1
 fi
 if [ -z "$NY" ]; then
-    NY=2
+    NY=1
 fi
 if [ -z "$NZ" ]; then
-    NZ=2
+    NZ=1
 fi
-# if [ $SLURM_NTASKS -eq 1 ]; then
-#     NX=1
-#     NY=1
-#     NZ=1
-# fi
 PROCS=`expr $NX \* $NY \* $NZ`
-# if [ $PROCS -ne $SLURM_NTASKS ]; then
-#     echo "product of $NX, $NY, and $NZ must be equal to the number of total MPI processes ($SLURM_NTASKS)"
-#     exit 1
-# fi
 ###############################################################
 # value of accuracy controling parameter: GADGET MAC by Springel (2005)
 if [ -z "$ABSERR" ]; then
@@ -149,6 +137,11 @@ fi
 # dynamical stability of thick exponential disk and thin Sersic disk in an Einasto sphere and a King sphere
 if [ $PROBLEM -eq 13 ]; then
     FILE=ekes
+fi
+###############################################################
+# dynamical stability of an exponential disk in an NFW sphere
+if [ $PROBLEM -eq 14 ]; then
+    FILE=hd
 fi
 ###############################################################
 # dynamical stability of an M31 model determined by Fardal et al. (2007)
@@ -281,13 +274,8 @@ if [ $PROBLEM -eq 81 ]; then
     FILE=cb17_core
 fi
 ###############################################################
-# GSS simulation with live M31
-if [ $PROBLEM -eq 100 ]; then
-    FILE=gss
-fi
-###############################################################
 # set input arguments
-OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$SLURM_JOB_ID"
+OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$PBS_JOBID"
 ###############################################################
 
 
@@ -295,9 +283,8 @@ OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$N
 # job execution via PBS
 ###############################################################
 # set number of MPI processes per node
-# PROCS_PER_NODE=`expr $SLURM_NTASKS / $SLURM_JOB_NUM_NODES`
-PROCS_PER_NODE=2
-PROCS_PER_SOCKET=1
+PROCS_PER_NODE=4
+PROCS_PER_SOCKET=2
 ###############################################################
 export MV2_ENABLE_AFFINITY=0
 export MV2_USE_CUDA=1
@@ -305,27 +292,21 @@ export MV2_USE_GPUDIRECT=1
 ###############################################################
 # start logging
 cd $PBS_O_WORKDIR
-# echo "use $SLURM_JOB_NUM_NODES nodes"
-# echo "use $SLURM_JOB_CPUS_PER_NODE CPUs per node"
 TIME=`date`
 echo "start: $TIME"
 ###############################################################
-export MODULEPATH=$MODULEPATH:/lustre/gx31/z30118/opt/Modules
+export MODULEPATH=$MODULEPATH:/lustre/jh180045l/share/opt/Modules
 . /etc/profile.d/modules.sh
-module load intel cuda mvapich2-gdr/2.2/intel
-module load cub hdf5
+module load cuda9
+module load intel intel-mpi
+module load phdf5/impi
+# module load mvapich2/gdr/2.2/gnu
+# module load cub phdf5/mv2
 ###############################################################
 # execute the job
 if [ $PROCS -gt 1 ]; then
-    # echo "mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION"
-    # mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION
-    if [ $USE_NVPROF -eq 1 ]; then
-	echo "mpirun -n $PROCS -f ${PBS_NODEFILE} sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION"
-	mpirun -n $PROCS -f ${PBS_NODEFILE} sh/nvprof.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION
-    else
-	echo "mpirun -n $PROCS -f ${PBS_NODEFILE} sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION"
-	mpirun -n $PROCS -f ${PBS_NODEFILE} sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION
-    fi
+    echo "mpirun -n $PROCS -f ${PBS_NODEFILE} sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION"
+    mpirun -n $PROCS -f ${PBS_NODEFILE} sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION
 else
     # set stdout and stderr
     STDOUT=log/$PBS_JOBNAME.$PBS_JOBID.out
@@ -344,4 +325,6 @@ fi
 # finish logging
 TIME=`date`
 echo "finish: $TIME"
+###############################################################
+exit 0
 ###############################################################

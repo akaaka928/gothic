@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/20 (Tue)
+ * @date 2018/04/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -66,13 +66,17 @@
 
 
 /** tentative treatment for GTX TITAN X: (# of SM = 24) * (# of blocks per SM = 8) = 192 exceeds NTHREADS_ASSIGN */
-#   if  GPUGEN == 52
+#ifndef RUN_ON_PC
+/* #   if  GPUGEN == 52 */
 #   if  NTHREADS_ASSIGN < 256
 #undef  NTHREADS_ASSIGN
 #define NTHREADS_ASSIGN  (256)
 #endif//NTHREADS_ASSIGN < 256
-#endif//GPUGEN == 52
+/* #endif//GPUGEN == 52 */
+#endif//RUN_ON_PC
 
+
+#ifndef USE_OCCUPANCY_CALCULATOR
 #   if  GPUGEN >= 60
 /** capacity of shared memory is 64KiB per SM on newer GPUs */
 /** int4 num_sm[NTHREADS_ASSIGN] corresponds 16 * NTHREADS_ASSIGN bytes */
@@ -114,6 +118,7 @@
 #undef  NBLOCKS_PER_SM_ASSIGN
 #define NBLOCKS_PER_SM_ASSIGN  (1)
 #endif//NBLOCKS_PER_SM_ASSIGN < 1
+#endif//USE_OCCUPANCY_CALCULATOR
 
 
 /**
@@ -140,7 +145,11 @@ __global__ void pickupSamples_kernel(const int num, const int nskip, READ_ONLY p
  *
  * @brief Calculate box size to include all N-body particles in the local domain.
  */
-__global__ void __launch_bounds__(NTHREADS_BOX, NBLOCKS_PER_SM_BOX) getBoxSize_kernel
+__global__ void
+#ifndef USE_OCCUPANCY_CALCULATOR
+__launch_bounds__(NTHREADS_BOX, NBLOCKS_PER_SM_BOX)
+#endif//USE_OCCUPANCY_CALCULATOR
+getBoxSize_kernel
      (const int num, READ_ONLY position * RESTRICT ipos, float4 * RESTRICT min_all, float4 * RESTRICT max_all,
       int * RESTRICT gsync0, int * RESTRICT gsync1)
 {
@@ -192,10 +201,20 @@ __global__ void __launch_bounds__(NTHREADS_BOX, NBLOCKS_PER_SM_BOX) getBoxSize_k
  * @sa getBoxSize_kernel
  */
 extern "C"
-void checkBoxSize_dev(const deviceProp devProp)
+void checkBoxSize_dev
+(
+#ifdef  USE_OCCUPANCY_CALCULATOR
+ soaPHsort *soa
+#else///USE_OCCUPANCY_CALCULATOR
+ const deviceProp devProp
+#endif//USE_OCCUPANCY_CALCULATOR
+)
 {
   __NOTE__("%s\n", "start");
 
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&soa->numBlocksPerSM_box, getBoxSize_kernel, NTHREADS_BOX, 0));
+#else///USE_OCCUPANCY_CALCULATOR
   struct cudaFuncAttributes funcAttr;
   checkCudaErrors(cudaFuncGetAttributes(&funcAttr, getBoxSize_kernel));
   if( funcAttr.numRegs != REGISTERS_PER_THREAD_BOX ){
@@ -221,6 +240,7 @@ void checkBoxSize_dev(const deviceProp devProp)
   if( (devProp.numSM * NBLOCKS_PER_SM_BOX) > NTHREADS_BOX ){
     __KILL__(stderr, "ERROR: product (%d) of devProp.numSM(%d) * NBLOCKS_PER_SM_BOX(%d) must be smaller than NTHREADS_BOX(%d) to use shared memory.\n", devProp.numSM * NBLOCKS_PER_SM_BOX, devProp.numSM, NBLOCKS_PER_SM_BOX, NTHREADS_BOX);
   }/* if( (devProp.numSM * NBLOCKS_PER_SM_BOX) > NTHREADS_BOX ){ */
+#endif//USE_OCCUPANCY_CALCULATOR
 
   __NOTE__("%s\n", "end");
 }
@@ -236,6 +256,10 @@ void getBoxSize_dev(const int num, position * RESTRICT ipos, soaPHsort soa, cons
 {
   __NOTE__("%s\n", "start");
 
+
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  const int NBLOCKS_PER_SM_BOX = soa.numBlocksPerSM_box;
+#endif//USE_OCCUPANCY_CALCULATOR
 
   getBoxSize_kernel<<<devProp.numSM * NBLOCKS_PER_SM_BOX, NTHREADS_BOX, SMEM_SIZE, stream>>>(num, ipos, soa.min, soa.max, soa.gsync0, soa.gsync1);
   getLastCudaError("getBoxSize_kernel");
@@ -256,6 +280,10 @@ void getEnclosingBox_dev(const int grpNum, const int Ngrp, laneinfo *laneInfo_hs
 {
   __NOTE__("%s\n", "start");
   __NOTE__("grpNum = %d, Ngrp = %d\n", grpNum, Ngrp);
+
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  const int NBLOCKS_PER_SM_BOX = soa.numBlocksPerSM_box;
+#endif//USE_OCCUPANCY_CALCULATOR
 
   if( grpNum > 0 ){
     /* getBoxSize_kernel<<<devProp.numSM * NBLOCKS_PER_SM_BOX, NTHREADS_BOX>>>(laneInfo_hst[(grpNum < Ngrp) ? (grpNum) : (Ngrp - 1)].head, pi.pos, soa.min, soa.max, soa.gsync0, soa.gsync1); */
@@ -684,7 +712,11 @@ typedef union __align__(16)
  *
  * @brief Assign N-body particles to new computational domain on GPU.
  */
-__global__ void __launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN) assignNewDomain_kernel
+__global__ void
+#ifndef USE_OCCUPANCY_CALCULATOR
+__launch_bounds__(NTHREADS_ASSIGN, NBLOCKS_PER_SM_ASSIGN)
+#endif//USE_OCCUPANCY_CALCULATOR
+assignNewDomain_kernel
      (const int num, int * RESTRICT numNew_gm, READ_ONLY position * RESTRICT ipos,
       const int domHead, const int domRem, READ_ONLY int * RESTRICT domRank, int * RESTRICT dstRank, READ_ONLY float * RESTRICT xmin, READ_ONLY float * RESTRICT xmax, READ_ONLY float * RESTRICT ymin, READ_ONLY float * RESTRICT ymax, READ_ONLY float * RESTRICT zmin, READ_ONLY float * RESTRICT zmax,
       int4 * RESTRICT gmem, int * RESTRICT gsync0, int * RESTRICT gsync1)
@@ -1002,6 +1034,7 @@ void  releaseParticlePosition(float  *xhst, float  *yhst, float  *zhst,
 }
 
 
+#ifndef USE_OCCUPANCY_CALCULATOR
 /**
  * @fn checkDomainPos_dev
  *
@@ -1009,11 +1042,9 @@ void  releaseParticlePosition(float  *xhst, float  *yhst, float  *zhst,
  *
  * @sa assignNewDomain_kernel
  */
-extern "C"
 void checkDomainPos_dev(const deviceProp devProp)
 {
   __NOTE__("%s\n", "start");
-
 
   struct cudaFuncAttributes funcAttr;
   checkCudaErrors(cudaFuncGetAttributes(&funcAttr, assignNewDomain_kernel));
@@ -1044,6 +1075,7 @@ void checkDomainPos_dev(const deviceProp devProp)
 
   __NOTE__("%s\n", "end");
 }
+#endif//USE_OCCUPANCY_CALCULATOR
 
 
 /**
@@ -1082,6 +1114,10 @@ muse allocateDomainPos(float **xmin_dev, float **xmax_dev, float **ymin_dev, flo
   mycudaMalloc    ((void **)numNew    , num * sizeof(int));  alloc.device += num * sizeof(int);
   mycudaMallocHost((void **)numNew_hst, num * sizeof(int));  alloc.host   += num * sizeof(int);
 
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&dom->numBlocksPerSM_assign, assignNewDomain_kernel, NTHREADS_ASSIGN, 0));
+  const int NBLOCKS_PER_SM_ASSIGN = dom->numBlocksPerSM_assign;
+#endif//USE_OCCUPANCY_CALCULATOR
   const size_t size = devProp.numSM * NBLOCKS_PER_SM_ASSIGN;
   mycudaMalloc((void **)gmem  , size * sizeof(int4));  alloc.device += size * sizeof(int4);
   mycudaMalloc((void **)gsync0, size * sizeof(int ));  alloc.device += size * sizeof(int);
@@ -1094,7 +1130,9 @@ muse allocateDomainPos(float **xmin_dev, float **xmax_dev, float **ymin_dev, flo
   dom->gsync1 = *gsync1;
 
   /* check # of blocks launched in assignNewDomain_kernel(); */
+#ifndef USE_OCCUPANCY_CALCULATOR
   checkDomainPos_dev(devProp);
+#endif//USE_OCCUPANCY_CALCULATOR
 
 
   __NOTE__("%s\n", "end");
@@ -1532,6 +1570,9 @@ void exchangeParticles_dev
   /** determine process rank for each particle to belong */
   initDstRank<<<BLOCKSIZE(numOld, 1024), 1024>>>(numOld, key.dstRank_dev);
 
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  const int NBLOCKS_PER_SM_ASSIGN = domBoundary.numBlocksPerSM_assign;
+#endif//USE_OCCUPANCY_CALCULATOR
   for(int ii = 0; ii < overlapNum; ii += 4)
     assignNewDomain_kernel<<<devProp.numSM * NBLOCKS_PER_SM_ASSIGN, NTHREADS_ASSIGN>>>(numOld, domBoundary.numNew, (*src_dev).pos, ii, overlapNum - ii, domBoundary.rank, key.dstRank_dev, domBoundary.xmin_dev, domBoundary.xmax_dev, domBoundary.ymin_dev, domBoundary.ymax_dev, domBoundary.zmin_dev, domBoundary.zmax_dev, domBoundary.gmem, domBoundary.gsync0, domBoundary.gsync1);
   getLastCudaError("assignNewDomain_kernel");

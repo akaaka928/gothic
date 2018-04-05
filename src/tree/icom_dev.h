@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/04/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -39,8 +39,6 @@
  *
  * @brief number of threads per block for enclosing ball generator
  */
-/**# ここの default 値は性能測定の結果決定する */
-/**# また，オプションごとに最適値が変わるはずなのでそこも考慮すること */
 #ifndef NTHREADS_EB
 #define NTHREADS_EB (256)
 #endif//NTHREADS_EB
@@ -56,6 +54,9 @@ typedef struct
 {
   void *gmem;
   int *gsync0, *gsync1;
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  int numBlocksPerSM_eb;
+#endif//USE_OCCUPANCY_CALCULATOR
 } soaEncBall;
 #endif//OCTREE_BASED_SEARCH
 

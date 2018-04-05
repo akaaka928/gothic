@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/04/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -44,21 +44,21 @@ __device__ __forceinline__ Type GET_MIN_TSUB_NWARP
 
   Type tmp;
 #   if  TSUB_TN_COMPARE_INC >= ( 2 * NWARP_TN_COMPARE_INC)
-  tmp = __shfl_xor(val,      NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMinVal(val, tmp);
+  tmp = __SHFL_XOR(val,      NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMinVal(val, tmp);
 #   if  TSUB_TN_COMPARE_INC >= ( 4 * NWARP_TN_COMPARE_INC)
-  tmp = __shfl_xor(val,  2 * NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMinVal(val, tmp);
+  tmp = __SHFL_XOR(val,  2 * NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMinVal(val, tmp);
 #   if  TSUB_TN_COMPARE_INC >= ( 8 * NWARP_TN_COMPARE_INC)
-  tmp = __shfl_xor(val,  4 * NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMinVal(val, tmp);
+  tmp = __SHFL_XOR(val,  4 * NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMinVal(val, tmp);
 #   if  TSUB_TN_COMPARE_INC >= (16 * NWARP_TN_COMPARE_INC)
-  tmp = __shfl_xor(val,  8 * NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMinVal(val, tmp);
+  tmp = __SHFL_XOR(val,  8 * NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMinVal(val, tmp);
 #   if  TSUB_TN_COMPARE_INC == (32 * NWARP_TN_COMPARE_INC)
-  tmp = __shfl_xor(val, 16 * NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMinVal(val, tmp);
+  tmp = __SHFL_XOR(val, 16 * NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMinVal(val, tmp);
 #endif//TSUB_TN_COMPARE_INC == (32 * NWARP_TN_COMPARE_INC)
 #endif//TSUB_TN_COMPARE_INC >= (16 * NWARP_TN_COMPARE_INC)
 #endif//TSUB_TN_COMPARE_INC >= ( 8 * NWARP_TN_COMPARE_INC)
 #endif//TSUB_TN_COMPARE_INC >= ( 4 * NWARP_TN_COMPARE_INC)
 #endif//TSUB_TN_COMPARE_INC >= ( 2 * NWARP_TN_COMPARE_INC)
-  val = __shfl(val, 0, TSUB_TN_COMPARE_INC);
+  val = __SHFL(val, 0, TSUB_TN_COMPARE_INC);
 
 #else///USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_NWARP_INC
 
@@ -104,21 +104,21 @@ __device__ __forceinline__ Type GET_MAX_TSUB_NWARP
 
   Type tmp;
 #   if  TSUB_TN_COMPARE_INC >= ( 2 * NWARP_TN_COMPARE_INC)
-  tmp = __shfl_xor(val,      NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMaxVal(val, tmp);
+  tmp = __SHFL_XOR(val,      NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMaxVal(val, tmp);
 #   if  TSUB_TN_COMPARE_INC >= ( 4 * NWARP_TN_COMPARE_INC)
-  tmp = __shfl_xor(val,  2 * NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMaxVal(val, tmp);
+  tmp = __SHFL_XOR(val,  2 * NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMaxVal(val, tmp);
 #   if  TSUB_TN_COMPARE_INC >= ( 8 * NWARP_TN_COMPARE_INC)
-  tmp = __shfl_xor(val,  4 * NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMaxVal(val, tmp);
+  tmp = __SHFL_XOR(val,  4 * NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMaxVal(val, tmp);
 #   if  TSUB_TN_COMPARE_INC >= (16 * NWARP_TN_COMPARE_INC)
-  tmp = __shfl_xor(val,  8 * NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMaxVal(val, tmp);
+  tmp = __SHFL_XOR(val,  8 * NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMaxVal(val, tmp);
 #   if  TSUB_TN_COMPARE_INC == (32 * NWARP_TN_COMPARE_INC)
-  tmp = __shfl_xor(val, 16 * NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMaxVal(val, tmp);
+  tmp = __SHFL_XOR(val, 16 * NWARP_TN_COMPARE_INC, TSUB_TN_COMPARE_INC);  val = getMaxVal(val, tmp);
 #endif//TSUB_TN_COMPARE_INC == (32 * NWARP_TN_COMPARE_INC)
 #endif//TSUB_TN_COMPARE_INC >= (16 * NWARP_TN_COMPARE_INC)
 #endif//TSUB_TN_COMPARE_INC >= ( 8 * NWARP_TN_COMPARE_INC)
 #endif//TSUB_TN_COMPARE_INC >= ( 4 * NWARP_TN_COMPARE_INC)
 #endif//TSUB_TN_COMPARE_INC >= ( 2 * NWARP_TN_COMPARE_INC)
-  val = __shfl(val, 0, TSUB_TN_COMPARE_INC);
+  val = __SHFL(val, 0, TSUB_TN_COMPARE_INC);
 
 #else///USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_NWARP_INC
 
@@ -160,15 +160,35 @@ __device__ __forceinline__ Type GET_MINLOC_TSUB_NWARP
   smem[tidx] = val;
 
 #   if  TSUB_TN_COMPARE_INC >= ( 2 * NWARP_TN_COMPARE_INC)
-  tmp = smem[tidx ^ (     NWARP_TN_COMPARE_INC)];  if( tmp.val < val.val )    val = tmp;  smem[tidx] = val;
+  tmp = smem[tidx ^ (     NWARP_TN_COMPARE_INC)];  if( tmp.val < val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  smem[tidx] = val;
 #   if  TSUB_TN_COMPARE_INC >= ( 4 * NWARP_TN_COMPARE_INC)
-  tmp = smem[tidx ^ ( 2 * NWARP_TN_COMPARE_INC)];  if( tmp.val < val.val )    val = tmp;  smem[tidx] = val;
+  tmp = smem[tidx ^ ( 2 * NWARP_TN_COMPARE_INC)];  if( tmp.val < val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  smem[tidx] = val;
 #   if  TSUB_TN_COMPARE_INC >= ( 8 * NWARP_TN_COMPARE_INC)
-  tmp = smem[tidx ^ ( 4 * NWARP_TN_COMPARE_INC)];  if( tmp.val < val.val )    val = tmp;  smem[tidx] = val;
+  tmp = smem[tidx ^ ( 4 * NWARP_TN_COMPARE_INC)];  if( tmp.val < val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  smem[tidx] = val;
 #   if  TSUB_TN_COMPARE_INC >= (16 * NWARP_TN_COMPARE_INC)
-  tmp = smem[tidx ^ ( 8 * NWARP_TN_COMPARE_INC)];  if( tmp.val < val.val )    val = tmp;  smem[tidx] = val;
+  tmp = smem[tidx ^ ( 8 * NWARP_TN_COMPARE_INC)];  if( tmp.val < val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  smem[tidx] = val;
 #   if  TSUB_TN_COMPARE_INC == (32 * NWARP_TN_COMPARE_INC)
-  tmp = smem[tidx ^ (16 * NWARP_TN_COMPARE_INC)];  if( tmp.val < val.val )    val = tmp;  smem[tidx] = val;
+  tmp = smem[tidx ^ (16 * NWARP_TN_COMPARE_INC)];  if( tmp.val < val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  smem[tidx] = val;
 #endif//TSUB_TN_COMPARE_INC == (32 * NWARP_TN_COMPARE_INC)
 #endif//TSUB_TN_COMPARE_INC >= (16 * NWARP_TN_COMPARE_INC)
 #endif//TSUB_TN_COMPARE_INC >= ( 8 * NWARP_TN_COMPARE_INC)
@@ -194,15 +214,35 @@ __device__ __forceinline__ Type GET_MAXLOC_TSUB_NWARP
   smem[tidx] = val;
 
 #   if  TSUB_TN_COMPARE_INC >= ( 2 * NWARP_TN_COMPARE_INC)
-  tmp = smem[tidx ^ (     NWARP_TN_COMPARE_INC)];  if( tmp.val > val.val )    val = tmp;  smem[tidx] = val;
+  tmp = smem[tidx ^ (     NWARP_TN_COMPARE_INC)];  if( tmp.val > val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  smem[tidx] = val;
 #   if  TSUB_TN_COMPARE_INC >= ( 4 * NWARP_TN_COMPARE_INC)
-  tmp = smem[tidx ^ ( 2 * NWARP_TN_COMPARE_INC)];  if( tmp.val > val.val )    val = tmp;  smem[tidx] = val;
+  tmp = smem[tidx ^ ( 2 * NWARP_TN_COMPARE_INC)];  if( tmp.val > val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  smem[tidx] = val;
 #   if  TSUB_TN_COMPARE_INC >= ( 8 * NWARP_TN_COMPARE_INC)
-  tmp = smem[tidx ^ ( 4 * NWARP_TN_COMPARE_INC)];  if( tmp.val > val.val )    val = tmp;  smem[tidx] = val;
+  tmp = smem[tidx ^ ( 4 * NWARP_TN_COMPARE_INC)];  if( tmp.val > val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  smem[tidx] = val;
 #   if  TSUB_TN_COMPARE_INC >= (16 * NWARP_TN_COMPARE_INC)
-  tmp = smem[tidx ^ ( 8 * NWARP_TN_COMPARE_INC)];  if( tmp.val > val.val )    val = tmp;  smem[tidx] = val;
+  tmp = smem[tidx ^ ( 8 * NWARP_TN_COMPARE_INC)];  if( tmp.val > val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  smem[tidx] = val;
 #   if  TSUB_TN_COMPARE_INC == (32 * NWARP_TN_COMPARE_INC)
-  tmp = smem[tidx ^ (16 * NWARP_TN_COMPARE_INC)];  if( tmp.val > val.val )    val = tmp;  smem[tidx] = val;
+  tmp = smem[tidx ^ (16 * NWARP_TN_COMPARE_INC)];  if( tmp.val > val.val )    val = tmp;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
+  smem[tidx] = val;
 #endif//TSUB_TN_COMPARE_INC == (32 * NWARP_TN_COMPARE_INC)
 #endif//TSUB_TN_COMPARE_INC >= (16 * NWARP_TN_COMPARE_INC)
 #endif//TSUB_TN_COMPARE_INC >= ( 8 * NWARP_TN_COMPARE_INC)

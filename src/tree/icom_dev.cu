@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/04/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -191,6 +191,9 @@ __device__ __forceinline__ float findFarthestParticle
 	  for(int jj = 1; jj < nodenum; jj++)
 	    cnum += (1 + (more[nodehead + jj] >> IDXBITS));
 	}/* if( target < Nsweep ){ */
+#   if  __CUDA_ARCH__ >= 700
+	__syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 	PREFIX_SUM_BLCK(cnum, (int *)smem, lane, tidx);
 	const int lend = BLOCKSIZE(smem[tail].i, NTHREADS_EB * NBUF_EB);
@@ -246,6 +249,9 @@ __device__ __forceinline__ float findFarthestParticle
 	      rjmax_loc.ra[kk] = rjmax;
 	    }/* if( rjmax > rmin ){ */
 	  }/* for(int kk = 0; kk < NBUF_EB; kk++){ */
+#   if  __CUDA_ARCH__ >= 700
+	  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 	  /** share rmin within NTHREADS_EB threads */
 	  rmin = GET_MAX_BLCK(rmin, (float *)smem, tidx, head);
@@ -309,6 +315,9 @@ __device__ __forceinline__ float findFarthestParticle
     Ntry = Nbuf + Nloc;
     if( (tidx == 0) && (Ntry > bufSize) )
       atomicAdd(overflow, 1);
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     /** list up all child nodes that satisfy rjmax > rmin */
     inum = 0;
@@ -336,6 +345,9 @@ __device__ __forceinline__ float findFarthestParticle
 	    add = 1;
 	  }/* if( rjbuf[cellIdx] > rmin ){ */
 	}/* if( cellIdx < krem ){ */
+#   if  __CUDA_ARCH__ >= 700
+	__syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 	/** remove duplicated tree cells */
 	PREFIX_SUM_BLCK(add, (int *)smem, lane, tidx);
@@ -351,6 +363,9 @@ __device__ __forceinline__ float findFarthestParticle
 	    iadd = 0;
 	  }/* if( ((smidx > 0) && (list0[smidx - 1] == cellIdx)) || ((Nbuf > 0) && (smidx == 0) && (more0Buf[Nbuf - 1] == cellIdx)) ){ */
 	}/* if( add ){ */
+#   if  __CUDA_ARCH__ >= 700
+	__syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 	/** save tree cells on the local buffer */
 	PREFIX_SUM_BLCK(add, (int *)smem, lane, tidx);
@@ -401,6 +416,9 @@ __device__ __forceinline__ float findFarthestParticle
     Ntry = Nloc + Nbuf;
     if( (tidx == 0) && (Ntry > bufSize) )
       atomicAdd(overflow, 1);
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
   }/* while( inum > NI_R2MAX_ESTIMATE ){ */
 
 
@@ -414,6 +432,9 @@ __device__ __forceinline__ float findFarthestParticle
       cand = cell[list0[tidx + iter * NTHREADS_EB]];
       pnum = cand.num;
     }/* if( tidx < Ntry ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
     PREFIX_SUM_BLCK(pnum, (int *)smem, lane, tidx);
 
@@ -442,6 +463,9 @@ __device__ __forceinline__ float findFarthestParticle
     };/* if( r2 > r2max->val ){ */
 
   }/* for(int jj = tidx; jj < Ncand; jj += NTHREADS_EB){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
 
   *r2max = GET_MAXLOC_BLCK(*r2max, (floc *)rjbuf, tidx, head);
@@ -484,6 +508,9 @@ __global__ void getApproxEnclosingBall_kernel
   __shared__ position smem;
   if( tidx == 0 )
     smem = *ebs;
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   __syncthreads();
   position cen = smem;
@@ -540,7 +567,7 @@ __global__ void getApproxEnclosingBall_kernel
 #include "../util/gsync_dev.cu"
 
 
-
+#ifndef USE_OCCUPANCY_CALCULATOR
 #   if  GPUGEN >= 60
 /** capacity of shared memory is 64KiB per SM on newer GPUs */
 /** floc smem[NTHREADS_EB] corresponds 8 * NTHREADS_EB bytes */
@@ -586,6 +613,7 @@ __global__ void getApproxEnclosingBall_kernel
 #undef  NBLOCKS_PER_SM_EB
 #define NBLOCKS_PER_SM_EB  (1)
 #endif//NBLOCKS_PER_SM_EB < 1
+#endif//USE_OCCUPANCY_CALCULATOR
 
 
 /**
@@ -657,6 +685,9 @@ __device__ __forceinline__ float findFarthestParticle
 
     }/* if( ii < itail ){ */
   }/* for(int ih = ihead; ih < itail; ih += NTHREADS_EB){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();
+#endif//__CUDA_ARCH__ >= 700
 
   /** global reduction */
   *r2max = GET_MAXLOC_GRID(*r2max, smem, tidx, head, gmem, bidx, bnum, gsync0, gsync1);
@@ -674,7 +705,11 @@ __device__ __forceinline__ float findFarthestParticle
  * @param (num) number of N-body particles
  * @param (ipos) position and mass of N-body particles
  */
-__global__ void __launch_bounds__(NTHREADS_EB, NBLOCKS_PER_SM_EB) getApproxEnclosingBall_kernel
+__global__ void
+#ifndef USE_OCCUPANCY_CALCULATOR
+__launch_bounds__(NTHREADS_EB, NBLOCKS_PER_SM_EB)
+#endif//USE_OCCUPANCY_CALCULATOR
+getApproxEnclosingBall_kernel
      (position * RESTRICT ebs, const int num, READ_ONLY position * RESTRICT ipos, float4 * RESTRICT min_all, float4 * RESTRICT max_all, floc * RESTRICT gmem,
       int * RESTRICT gsync0, int * RESTRICT gsync1)
 {
@@ -744,6 +779,7 @@ __global__ void __launch_bounds__(NTHREADS_EB, NBLOCKS_PER_SM_EB) getApproxEnclo
 }
 
 
+#ifndef USE_OCCUPANCY_CALCULATOR
 static inline void checkDeadLockCondition(void (*func)(position * RESTRICT ebs, const int num, READ_ONLY position * RESTRICT ipos, float4 * RESTRICT min_all, float4 * RESTRICT max_all, floc * RESTRICT gmem, int * RESTRICT gsync0, int * RESTRICT gsync1), const char *name, const char *file, const int line, const char *call, const int Nregs, const int Ttot, const bool warpShuffle, const int Bguess)
 {
   struct cudaFuncAttributes funcAttr;
@@ -772,6 +808,7 @@ static inline void checkDeadLockCondition(void (*func)(position * RESTRICT ebs, 
     __KILL__(stderr, "ERROR: # of blocks per SM for %s is mispredicted (%d).\n\tThe limits come from register and shared memory are %d and %d, respectively.\n\tHowever, the expected value of # of blocks in %s is %d.\n\tAdditional information: # of registers per thread is %d while predicted as %d (GPUGEN = %d, GPUVER = %d).\n", name, Nblck, regLimit, memLimit, file, Bguess, funcAttr.numRegs, Nregs, GPUGEN, GPUVER);
   }/* if( Nblck != Bguess ){ */
 }
+#endif//USE_OCCUPANCY_CALCULATOR
 
 
 /**
@@ -786,6 +823,11 @@ muse allocApproxEnclosingBall_dev(void **dev, int **gsync0, int **gsync1, soaEnc
 
 
   muse alloc = {0, 0};
+
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&soa->numBlocksPerSM_eb, getApproxEnclosingBall_kernel, NTHREADS_EB, 0));
+  const int NBLOCKS_PER_SM_EB = soa->numBlocksPerSM_eb;
+#endif//USE_OCCUPANCY_CALCULATOR
 
   /** memory allocation and simple confirmation */
   const size_t num = devProp.numSM * NBLOCKS_PER_SM_EB;
@@ -804,6 +846,7 @@ muse allocApproxEnclosingBall_dev(void **dev, int **gsync0, int **gsync1, soaEnc
   soa->gsync1 = *gsync1;
 
 
+#ifndef USE_OCCUPANCY_CALCULATOR
   /** error checking before running the kernel */
   checkDeadLockCondition(getApproxEnclosingBall_kernel, "getApproxEnclosingBall_kernel", (const char *)__FILE__, __LINE__, (const char *)__func__, REGISTERS_PER_THREAD_EB, NTHREADS_EB,
 #ifdef  USE_WARP_SHUFFLE_FUNC_EB
@@ -812,6 +855,7 @@ muse allocApproxEnclosingBall_dev(void **dev, int **gsync0, int **gsync1, soaEnc
 			   false,
 #endif//USE_WARP_SHUFFLE_FUNC_EB
 			   NBLOCKS_PER_SM_EB);
+#endif//USE_OCCUPANCY_CALCULATOR
 
 
   __NOTE__("%s\n", "end");
@@ -895,6 +939,9 @@ void getApproxEnclosingBall_dev
 
 #else///OCTREE_BASED_SEARCH
 
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  const int NBLOCKS_PER_SM_EB = soaEB.numBlocksPerSM_eb;
+#endif//USE_OCCUPANCY_CALCULATOR
   getApproxEnclosingBall_kernel<<<devProp.numSM * NBLOCKS_PER_SM_EB, NTHREADS_EB, SMEM_SIZE, stream>>>
     (body.encBall, num, body.pos, soaPH.min, soaPH.max, (floc *)(soaEB.gmem), soaEB.gsync0, soaEB.gsync1);
   getLastCudaError("getApproxEnclosingBall_kernel");

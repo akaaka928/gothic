@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/04/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -98,6 +98,12 @@ typedef struct
   void *temp_storage;
   size_t temp_storage_size;
 #endif//CUB_AVAILABLE
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  int numBlocksPerSM_peano;
+#ifndef SERIALIZED_EXECUTION
+  int numBlocksPerSM_box;
+#endif//SERIALIZED_EXECUTION
+#endif//USE_OCCUPANCY_CALCULATOR
 } soaPHsort;
 
 

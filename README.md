@@ -106,6 +106,8 @@
      - REPORT_COMPUTE_RATE: 1 enables reporting computing speed; 1 is default
      - REPORT_ELAPSED_TIME: 1 reports elapsed time of representative functions in every step; 1 is default
      - REPORT_CLOCK_FREQUENCY: 1 reports clock frequency of GPU; 1 is default
+     - USE_COOPERATIVE_GROUPS: 1 adopts cooperative groups for global synchronization; 0 is default (slower than original global synchronization)
+     - GET_NBLOCKS_PER_SM_AUTO: 1 automatically set # of blocks per SM for various function; 1 is default
    * File format options for MAGI (shared with GOTHIC)
      - DATAFILE_FORMAT_HDF5: 1 uses HDF5 container; 1 is default
      - HDF5_FOR_ZINDAIJI: 1 generates additional data for Zindaiji in HDF5 files; 0 is default
@@ -152,7 +154,6 @@
 ## Future update plans
    * GOTHIC
      - performance enhancements of MPI version
-     - support for CUDA 9 (cooperative groups and synchronized version of warp shuffle instructions)
      - refactoring of flags related to enclosing ball
    * MAGI
      - debug for ASSIGN_COARSER_PATCH_FOR_SURFACE_DENSITY option in src/init/potdens.c

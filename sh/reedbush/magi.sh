@@ -1,10 +1,12 @@
 #!/bin/bash
 ###############################################################
-#PBS -q u-regular
+#PBS -q u-short
 #PBS -l select=1:ncpus=36:mpiprocs=1:ompthreads=36
-#PBS -W group_list=gx31
+#PBS -W group_list=jh180045u
 #PBS -l walltime=00:10:00
 #PBS -N magi
+###############################################################
+# l-small for jh180045l
 ###############################################################
 
 
@@ -15,10 +17,16 @@ EXEC=bin/magi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    # PROBLEM=2
+    PROBLEM=2
+    # PROBLEM=14
     # PROBLEM=27
     # PROBLEM=60
-    PROBLEM=61
+    # PROBLEM=61
+    # PROBLEM=90
+    # PROBLEM=91
+    # PROBLEM=92
+    # PROBLEM=93
+    # PROBLEM=94
 fi
 ###############################################################
 # number of N-body particles
@@ -32,10 +40,10 @@ if [ -z "$NTOT" ]; then
     # NTOT=8192
     # NTOT=16384
     # NTOT=32768
-    NTOT=65536
+    # NTOT=65536
     # NTOT=131072
     # NTOT=262144
-    # NTOT=524288
+    NTOT=524288
     # NTOT=1048576
     # NTOT=2097152
     # NTOT=4194304
@@ -54,9 +62,7 @@ fi
 ###############################################################
 # dump file generation interval (in units of minute)
 if [ -z "$SAVE" ]; then
-    # SAVE=2.0
-    # SAVE=60.0
-    SAVE=140.0
+    SAVE=50.0
 fi
 ###############################################################
 
@@ -202,6 +208,17 @@ if [ $PROBLEM -eq 13 ]; then
     INTERVAL=0.5
     # FINISH=1400.0
     # INTERVAL=8.0
+fi
+###############################################################
+# dynamical stability of an exponential disk in an NFW sphere
+if [ $PROBLEM -eq 14 ]; then
+    FILE=hd
+    CONFIG=multi/hd.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=104.0
+    INTERVAL=8.0
+    NTOT=600034
 fi
 ###############################################################
 # dynamical stability of an M31 model determined by Fardal et al. (2007)
@@ -606,6 +623,61 @@ if [ $PROBLEM -eq 81 ]; then
     # INTERVAL=25.0
 fi
 ###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 90 ]; then
+    FILE=gc
+    CONFIG=pbh/gc.cfg
+    NTOT=100000
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 91 ]; then
+    FILE=halocore1
+    CONFIG=pbh/halocore1.cfg
+    NTOT=11000000
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 92 ]; then
+    FILE=halocore2
+    CONFIG=pbh/halocore2.cfg
+    NTOT=11000000
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 93 ]; then
+    FILE=halocore3
+    CONFIG=pbh/halocore3.cfg
+    NTOT=11000000
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 94 ]; then
+    FILE=halocusp
+    CONFIG=pbh/halocusp.cfg
+    NTOT=11000000
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
 # set input arguments
 if [ $PROBLEM -ge 1 ]; then
     OPTION="-file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE"
@@ -628,11 +700,13 @@ cd $PBS_O_WORKDIR
 TIME=`date`
 echo "start: $TIME"
 ###############################################################
-export MODULEPATH=$MODULEPATH:/lustre/gx31/z30118/opt/Modules
+export MODULEPATH=$MODULEPATH:/lustre/jh180045l/share/opt/Modules
 . /etc/profile.d/modules.sh
-module load intel mvapich2-gdr/2.2/intel
-module load hdf5
-module load gsl/2.4
+module load intel intel-mpi
+module load phdf5/impi
+# module load mvapich2/gdr/2.2/gnu
+# module load phdf5/mv2
+module load gsl
 ###############################################################
 # execute the job
 if [ `which numactl` ]; then
@@ -648,4 +722,6 @@ fi
 # finish logging
 TIME=`date`
 echo "finish: $TIME"
+###############################################################
+exit 0
 ###############################################################
