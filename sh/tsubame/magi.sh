@@ -1,10 +1,15 @@
 #!/bin/sh
 #$ -cwd
 #$ -l q_core=1
-#$ -l h_rt=1:00:00
+#$ -l h_rt=0:05:00
 #$ -N magi
 ###############################################################
-export OMP_NUM_THREADS=4
+# NCORES_PER_NODE=28 # for f_node
+# NCORES_PER_NODE=14 # for h_node
+# NCORES_PER_NODE=7 # for q_node
+NCORES_PER_NODE=4 # for q_core
+###############################################################
+export OMP_NUM_THREADS=$NCORES_PER_NODE
 ###############################################################
 
 
@@ -15,7 +20,8 @@ EXEC=bin/magi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=20
+    PROBLEM=2
+    # PROBLEM=20
     # PROBLEM=26
     # PROBLEM=28
     # PROBLEM=70
@@ -58,9 +64,7 @@ fi
 ###############################################################
 # dump file generation interval (in units of minute)
 if [ -z "$SAVE" ]; then
-    # SAVE=2.0
-    # SAVE=60.0
-    SAVE=140.0
+    SAVE=55.0
 fi
 ###############################################################
 
@@ -609,10 +613,9 @@ STDERR=log/$REQUEST.e$JOB_ID
 ###############################################################
 # load modules
 . /etc/profile.d/modules.sh
-export MODULEPATH=$MODULEPATH:$HOME/opt/Modules
-module load intel intel-mpi phdf5
-module load gsl
-module load cuda/8.0.61 cub
+export MODULEPATH=$MODULEPATH:/gs/hs1/jh180045/share/opt/Modules
+module load intel cuda openmpi
+module load gsl phdf5/ompi
 module list 1>>$STDOUT 2>>$STDERR
 ###############################################################
 cat $PE_HOSTFILE 1>>$STDOUT 2>>$STDERR

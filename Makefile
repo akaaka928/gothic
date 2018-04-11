@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/04/05 (Thu) 15:09:42
+# last updated on 2018/04/11 (Wed) 10:40:45
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -86,8 +86,16 @@ MYDIR	:= $(HOME)
 MYINC	:= $(MYDIR)/inc
 MYLIB	:= $(MYDIR)/lib
 #################################################################################################
+# Reedbush
 ifeq ($(findstring reedbush, $(HOSTNAME)), reedbush)
 MYDIR	:= /lustre/jh180045l/$(USER)
+MYINC	:= $(MYDIR)/inc
+MYLIB	:= $(MYDIR)/lib
+endif
+#################################################################################################
+# TSUBAME 3.0
+ifeq ($(findstring login, $(HOSTNAME)), login)
+MYDIR	:= /gs/hs1/jh180045/$(USER)
 MYINC	:= $(MYDIR)/inc
 MYLIB	:= $(MYDIR)/lib
 endif

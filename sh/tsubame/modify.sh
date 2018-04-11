@@ -1,12 +1,16 @@
 #!/bin/sh
+#$ -cwd
+#$ -l q_core=1
+#$ -l h_rt=0:05:00
+#$ -N editor
+#$ -hold_jid magi
 ###############################################################
-#PBS -q u-short
-#PBS -l select=1:ncpus=36:mpiprocs=1:ompthreads=36
-#PBS -W group_list=jh180045u
-#PBS -l walltime=00:10:00
-#PBS -N editor
+# NCORES_PER_NODE=28 # for f_node
+# NCORES_PER_NODE=14 # for h_node
+# NCORES_PER_NODE=7 # for q_node
+NCORES_PER_NODE=4 # for q_core
 ###############################################################
-# l-small for jh180045l
+export OMP_NUM_THREADS=$NCORES_PER_NODE
 ###############################################################
 
 
@@ -163,38 +167,37 @@ OPTION="-file=$FILE -list=$CFG -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval
 
 
 ###############################################################
-# job execution via PBS
+# job execution via UNIVA Grid Engine
 ###############################################################
 # set stdout and stderr
-STDOUT=log/${FILE}_$PBS_JOBNAME.o${PBS_JOBID}
-STDERR=log/${FILE}_$PBS_JOBNAME.e${PBS_JOBID}
+STDOUT=log/${FILE}_$REQUEST.o$JOB_ID
+STDERR=log/${FILE}_$REQUEST.e$JOB_ID
 ###############################################################
-# start logging
-cd $PBS_O_WORKDIR
-TIME=`date`
-echo "start: $TIME"
-###############################################################
-export MODULEPATH=$MODULEPATH:/lustre/jh180045l/share/opt/Modules
+# load modules
 . /etc/profile.d/modules.sh
-module load intel intel-mpi
-module load phdf5/impi
-# module load mvapich2/gdr/2.2/gnu
-# module load phdf5/mv2
+export MODULEPATH=$MODULEPATH:/gs/hs1/jh180045/share/opt/Modules
+module load intel cuda openmpi
+module load phdf5/ompi
+module list 1>>$STDOUT 2>>$STDERR
+###############################################################
+cat $PE_HOSTFILE 1>>$STDOUT 2>>$STDERR
+TIME=`date`
+echo "start: $TIME" 1>>$STDOUT 2>>$STDERR
 ###############################################################
 # execute the job
 if [ `which numactl` ]; then
     # run with numactl
-    echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+    echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
     numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 else
     # run without numactl
-    echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+    echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
     $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 fi
 ###############################################################
 # finish logging
 TIME=`date`
-echo "finish: $TIME"
+echo "finish: $TIME" 1>>$STDOUT 2>>$STDERR
 ###############################################################
 exit 0
 ###############################################################

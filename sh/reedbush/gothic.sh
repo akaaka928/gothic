@@ -309,8 +309,8 @@ if [ $PROCS -gt 1 ]; then
     mpirun -n $PROCS -f ${PBS_NODEFILE} sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION
 else
     # set stdout and stderr
-    STDOUT=log/$PBS_JOBNAME.$PBS_JOBID.out
-    STDERR=log/$PBS_JOBNAME.$PBS_JOBID.err
+    STDOUT=log/${FILE}_$PBS_JOBNAME.o${PBS_JOBID}
+    STDERR=log/${FILE}_$PBS_JOBNAME.e${PBS_JOBID}
     if [ `which numactl` ]; then
 	# run with numactl
 	echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"

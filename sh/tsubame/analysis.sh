@@ -1,12 +1,16 @@
 #!/bin/sh
+#$ -cwd
+#$ -l q_core=1
+#$ -l h_rt=1:00:00
+#$ -N analysis
+#$ -hold_jid gothic
 ###############################################################
-#PBS -q u-short
-#PBS -l select=1:ncpus=36:mpiprocs=36:ompthreads=1
-#PBS -W group_list=jh180045u
-#PBS -l walltime=01:00:00
-#PBS -N analysis
+# NCORES_PER_NODE=28 # for f_node
+# NCORES_PER_NODE=14 # for h_node
+# NCORES_PER_NODE=7 # for q_node
+NCORES_PER_NODE=4 # for q_core
 ###############################################################
-# l-small for jh180045l
+PROCS=`expr $NQUEUES \* $NCORES_PER_NODE`
 ###############################################################
 
 
@@ -130,27 +134,41 @@ OPTION="-file=$FILE -start=$START -end=$END -interval=$INCREMENT -ncrit=$NCRIT -
 
 
 ###############################################################
-# job execution via PBS
+# job execution via UNIVA Grid Engine
 ###############################################################
 # set number of MPI processes per node
-PROCS_PER_NODE=36
-PROCS_PER_SOCKET=18
+PROCS_PER_NODE=$NCORES_PER_NODE
+PROCS_PER_SOCKET=14
+###############################################################
+# load modules
+. /etc/profile.d/modules.sh
+export MODULEPATH=$MODULEPATH:/gs/hs1/jh180045/share/opt/Modules
+module load intel cuda openmpi
+module load phdf5/ompi
 ###############################################################
 # start logging
-cd $PBS_O_WORKDIR
+cat $PE_HOSTFILE
 TIME=`date`
 echo "start: $TIME"
 ###############################################################
-export MODULEPATH=$MODULEPATH:/lustre/jh180045l/share/opt/Modules
-. /etc/profile.d/modules.sh
-module load intel intel-mpi
-module load phdf5/impi
-# module load mvapich2/gdr/2.2/gnu
-# module load phdf5/mv2
-###############################################################
 # execute the job
-echo "mpirun sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION"
-mpirun sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION
+if [ $PROCS -gt 1 ]; then
+    echo "mpirun -n $PROCS sh/wrapper.sh $EXEC log/${FILE}_${REQUEST} $JOB_ID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION"
+    mpirun -n $PROCS sh/wrapper.sh $EXEC log/${FILE}_${REQUEST} $JOB_ID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION
+else
+    # set stdout and stderr
+    STDOUT=log/${FILE}_${REQUEST}.o${JOB_ID}
+    STDERR=log/${FILE}_${REQUEST}.e${JOB_ID}
+    if [ `which numactl` ]; then
+	# run with numactl
+	echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+	numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    else
+	# run without numactl
+	echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+	$EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    fi
+fi
 ###############################################################
 # finish logging
 TIME=`date`

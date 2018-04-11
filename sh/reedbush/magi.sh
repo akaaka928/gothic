@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 ###############################################################
 #PBS -q u-short
 #PBS -l select=1:ncpus=36:mpiprocs=1:ompthreads=36
@@ -62,7 +62,7 @@ fi
 ###############################################################
 # dump file generation interval (in units of minute)
 if [ -z "$SAVE" ]; then
-    SAVE=50.0
+    SAVE=55.0
 fi
 ###############################################################
 
@@ -691,8 +691,8 @@ fi
 # job execution via PBS
 ###############################################################
 # set stdout and stderr
-STDOUT=log/$PBS_JOBNAME.$PBS_JOBID.out
-STDERR=log/$PBS_JOBNAME.$PBS_JOBID.err
+STDOUT=log/${FILE}_$PBS_JOBNAME.o${PBS_JOBID}
+STDERR=log/${FILE}_$PBS_JOBNAME.e${PBS_JOBID}
 ###############################################################
 # start logging
 cd $PBS_O_WORKDIR

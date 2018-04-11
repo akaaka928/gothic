@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/30 (Fri)
+ * @date 2018/04/11 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2313,6 +2313,220 @@ static inline void swapDblArrays(double **p0, double **p1)
 }
 
 
+/* #define USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE */
+#ifdef  USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
+static inline double get_disk_rho(double * restrict rho, const double RR, const double Rinv, const double zz, const int maxLev, const double h0, const double h0inv)
+{
+
+  const int levR = (int)floor(log2(h0 * ((double)NDISKBIN_HOR - 0.5) * Rinv));
+  const int levz = (int)floor(log2(h0 * ((double)NDISKBIN_VER - 0.5) / zz));
+  int lev = (levz > levR) ? levR : levz;
+  lev = (lev < (maxLev - 1)) ? lev : (maxLev - 1);
+
+  const int ii = (int)fmax(floor(ldexp(RR * h0inv, lev) - 0.5), 0.0);
+  const int jj = (int)fmax(floor(ldexp(zz * h0inv, lev) - 0.5), 0.0);
+
+  return (rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)]);
+}
+
+
+/* DE formula for zmin <= z <= zmax */
+static inline double get_DEformula_part(const double tt, const double zmin, const double zmax, double * restrict rho, const double RR, const double Rinv, const int maxLev, const double h0, const double h0inv)
+{
+  const double sinh_t = M_PI_2 * sinh(tt);
+  const double inv_cosh_t = 1.0 / cosh(sinh_t);
+
+  const double zz = 0.5 * (zmin * exp(-sinh_t) + zmax * exp(sinh_t)) * inv_cosh_t;
+
+  return (cosh(tt) * inv_cosh_t * inv_cosh_t * get_disk_rho(rho, RR, Rinv, zz, maxLev, h0, h0inv));
+}
+/* DE formula for 0 <= z <= zmax */
+static inline double get_DEformula_full(const double tt, const double zmax, double * restrict rho, const double RR, const double Rinv, const int maxLev, const double h0, const double h0inv)
+{
+  const double sinh_t = M_PI_2 * sinh(tt);
+  const double inv_cosh_t = 1.0 / cosh(sinh_t);
+
+  const double zz = 0.5 * zmax * exp(sinh_t) * inv_cosh_t;
+
+  return (cosh(tt) * inv_cosh_t * inv_cosh_t * get_disk_rho(rho, RR, Rinv, zz, maxLev, h0, h0inv));
+}
+
+
+static inline double update_trapezoidal_part(const double hh, const double tmin, const double tmax, const double sum, const double zmin, const double zmax, double * restrict rho, const double RR, const double Rinv, const int maxLev, const double h0, const double h0inv)
+{
+  /** initialization */
+  double tmp = 0.0;
+  double tt = tmin + hh;
+
+  /** employ mid-point rule */
+  while( tt < tmax ){
+    tmp += get_DEformula_part(tt, zmin, zmax, rho, RR, Rinv, maxLev, h0, h0inv);
+    tt += 2.0 * hh;
+  }/* while( tt < tmax ){ */
+
+  return (0.5 * sum + hh * tmp);
+}
+static inline double update_trapezoidal_full(const double hh, const double tmin, const double tmax, const double sum, const double zmax, double * restrict rho, const double RR, const double Rinv, const int maxLev, const double h0, const double h0inv)
+{
+  /** initialization */
+  double tmp = 0.0;
+  double tt = tmin + hh;
+
+  /** employ mid-point rule */
+  while( tt < tmax ){
+    tmp += get_DEformula_full(tt, zmax, rho, RR, Rinv, maxLev, h0, h0inv);
+    tt += 2.0 * hh;
+  }/* while( tt < tmax ){ */
+
+  return (0.5 * sum + hh * tmp);
+}
+
+
+static inline double set_domain_boundary_part(const double hh, double * restrict tmin, double * restrict tmax, const double zmin, const double zmax, double * restrict rho, const double RR, const double Rinv, const int maxLev, const double h0, const double h0inv)
+{
+  const double converge = 1.0e-16;
+  const double maximum = 128.0;
+
+  double tt = 0.0;
+  double fp = get_DEformula_part(tt, zmin, zmax, rho, RR, Rinv, maxLev, h0, h0inv);
+  const double f0 = fp;
+  double sum = hh * fp;
+
+
+  /** determine upper boundary */
+  double boundary = 0.0;
+  double damp = 1.0;
+  while( (damp > converge) && (boundary < maximum) ){
+    const double ft = fp;
+
+    tt += hh;    boundary = tt;
+    fp = get_DEformula_part(tt, zmin, zmax, rho, RR, Rinv, maxLev, h0, h0inv);
+
+    sum += hh * fp;
+    damp = fabs(ft) + fabs(fp);
+  }/* while( (damp > converge) && (boundary < maximum) ){ */
+  *tmax = boundary;
+
+
+  /** determine lower boundary */
+  fp = f0;
+  tt = 0.0;
+  boundary = 0.0;
+  damp = 1.0;
+  while( (damp > converge) && (boundary > -maximum) ){
+    const double ft = fp;
+
+    tt -= hh;    boundary = tt;
+    fp = get_DEformula_part(tt, zmin, zmax, rho, RR, Rinv, maxLev, h0, h0inv);
+
+    sum += hh * fp;
+    damp = fabs(ft) + fabs(fp);
+  }/* while( (damp > converge) && (boundary > -maximum) ){ */
+  *tmin = boundary;
+
+  return (sum);
+}
+static inline double set_domain_boundary_full(const double hh, double * restrict tmin, double * restrict tmax, const double zmax, double * restrict rho, const double RR, const double Rinv, const int maxLev, const double h0, const double h0inv)
+{
+  const double converge = 1.0e-16;
+  const double maximum = 128.0;
+
+  double tt = 0.0;
+  double fp = get_DEformula_full(tt, zmax, rho, RR, Rinv, maxLev, h0, h0inv);
+  const double f0 = fp;
+  double sum = hh * fp;
+
+
+  /** determine upper boundary */
+  double boundary = 0.0;
+  double damp = 1.0;
+  while( (damp > converge) && (boundary < maximum) ){
+    const double ft = fp;
+
+    tt += hh;    boundary = tt;
+    fp = get_DEformula_full(tt, zmax, rho, RR, Rinv, maxLev, h0, h0inv);
+
+    sum += hh * fp;
+    damp = fabs(ft) + fabs(fp);
+  }/* while( (damp > converge) && (boundary < maximum) ){ */
+  *tmax = boundary;
+
+
+  /** determine lower boundary */
+  fp = f0;
+  tt = 0.0;
+  boundary = 0.0;
+  damp = 1.0;
+  while( (damp > converge) && (boundary > -maximum) ){
+    const double ft = fp;
+
+    tt -= hh;    boundary = tt;
+    fp = get_DEformula_full(tt, zmax, rho, RR, Rinv, maxLev, h0, h0inv);
+
+    sum += hh * fp;
+    damp = fabs(ft) + fabs(fp);
+  }/* while( (damp > converge) && (boundary > -maximum) ){ */
+  *tmin = boundary;
+
+  return (sum);
+}
+
+
+static inline double integrate_DEformula_part(const double zmin, const double zmax, double * restrict rho, const double RR, const double Rinv, const int maxLev, const double h0, const double h0inv)
+{
+  const double criteria_abs = 1.0e-12;
+  /* const double criteria_rel = 1.0e-10; */
+  /* const double criteria_rel = 1.0e-8; */
+  /* const double criteria_rel = 1.0e-7; */
+  /* const double criteria_rel = 1.0e-6; */
+  /* const double criteria_rel = 1.0e-5; */
+  const double criteria_rel = 1.0e-4;
+
+  double hh = 1.0;
+  double tmin, tmax;
+  double sum = set_domain_boundary_part(hh, &tmin, &tmax, zmin, zmax, rho, RR, Rinv, maxLev, h0, h0inv);
+
+  while( true ){
+    const double f0 = sum;
+
+    hh *= 0.5;
+    sum = update_trapezoidal_part(hh, tmin, tmax, sum, zmin, zmax, rho, RR, Rinv, maxLev, h0, h0inv);
+
+    if( (fabs(sum) > DBL_EPSILON) ? (fabs(1.0 - f0 / sum) <= criteria_rel) : (fabs(sum - f0) <= criteria_abs) )
+      break;
+  }/* while( true ){ */
+
+  return (sum);
+}
+static inline double integrate_DEformula_full(const double zmax, double * restrict rho, const double RR, const double Rinv, const int maxLev, const double h0, const double h0inv)
+{
+  const double criteria_abs = 1.0e-12;
+  /* const double criteria_rel = 1.0e-10; */
+  /* const double criteria_rel = 1.0e-8; */
+  /* const double criteria_rel = 1.0e-7; */
+  /* const double criteria_rel = 1.0e-6; */
+  /* const double criteria_rel = 1.0e-5; */
+  const double criteria_rel = 1.0e-4;
+
+  double hh = 1.0;
+  double tmin, tmax;
+  double sum = set_domain_boundary_full(hh, &tmin, &tmax, zmax, rho, RR, Rinv, maxLev, h0, h0inv);
+
+  while( true ){
+    const double f0 = sum;
+
+    hh *= 0.5;
+    sum = update_trapezoidal_full(hh, tmin, tmax, sum, zmax, rho, RR, Rinv, maxLev, h0, h0inv);
+
+    if( (fabs(sum) > DBL_EPSILON) ? (fabs(1.0 - f0 / sum) <= criteria_rel) : (fabs(sum - f0) <= criteria_abs) )
+      break;
+  }/* while( true ){ */
+
+  return (sum);
+}
+#endif//USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
+
+
 #define SCALE_BY_SURFACE_DENSITY
 #define ASSIGN_COARSER_PATCH_FOR_SURFACE_DENSITY
 
@@ -2347,6 +2561,9 @@ void getPotDensPair
 #   if  defined(ITERATE_VARIABLE_SCALE_HEIGHT) && defined(ENABLE_VARIABLE_SCALE_HEIGHT)
  const int maxLev,
 #endif//defined(ITERATE_VARIABLE_SCALE_HEIGHT) && defined(ENABLE_VARIABLE_SCALE_HEIGHT)
+#ifdef  USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
+ const int highestLev,
+#endif//USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
  const int lev, const int levOld, disk_data * restrict disk,
  double * restrict Phi_NR, double * restrict Phi_Nz,
  soaBiCGSTAB mat, soaPreConditioning pre
@@ -2357,6 +2574,9 @@ void getPotDensPair
 #   if  defined(ITERATE_VARIABLE_SCALE_HEIGHT) && defined(ENABLE_VARIABLE_SCALE_HEIGHT)
  const int maxLev,
 #endif//defined(ITERATE_VARIABLE_SCALE_HEIGHT) && defined(ENABLE_VARIABLE_SCALE_HEIGHT)
+#ifdef  USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
+ const int highestLev,
+#endif//USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
  const int lev, const int levOld, disk_data * restrict disk, double * restrict Phi_NR, double * restrict Phi_Nz,
  soaBiCGSTAB mat, soaPreConditioning pre, double * restrict stock_inv, double * restrict stock_sub, double * restrict stock_tmp, double * restrict stock_sum)
 {
@@ -2386,6 +2606,25 @@ void getPotDensPair
 
   /** iterative process to get the potential-density pair */
   /** modify surface density profile if necessary */
+#ifdef  USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
+  if( lev > 0 ){
+    const double h0 = disk[0].hh;
+    const double h0inv = 1.0 / h0;
+    const double zmax = h0 * (double)NDISKBIN_VER;
+    const double zmid = hh * (double)NDISKBIN_VER;
+    for(int kk = 0; kk < ndisk; kk++)
+#pragma omp parallel for
+      for(int ii = 0; ii < NDISKBIN_HOR; ii++){
+	const double Ri = RR[ii];
+	const double Rinv = 1.0 / Ri;
+	const double full = M_PI_4 *  zmid         * integrate_DEformula_full(      zmid, *(disk[kk].rho), Ri, Rinv, highestLev + 1, h0, h0inv);
+	const double part = M_PI_4 * (zmax - zmid) * integrate_DEformula_part(zmid, zmax, *(disk[kk].rho), Ri, Rinv, highestLev + 1, h0, h0inv);
+
+	disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] = (full >= part) ? (full) : (0.5 * disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] - part);
+      }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
+  }/* if( lev > 0 ){ */
+
+#else///USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
   if( lev > 0 ){
 #ifdef  ASSIGN_COARSER_PATCH_FOR_SURFACE_DENSITY
     const int levCoarse = lev - 1;
@@ -2398,7 +2637,7 @@ void getPotDensPair
 	for(int jj = 1; jj < ((NDISKBIN_VER >> 1) - 1); jj++)
 	  mass += (double)(2 << (jj & 1)) * (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levCoarse, ii, jj)];
 	mass += (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levCoarse, ii, (NDISKBIN_VER >> 1) - 1)];
-	mass *= 2.0 * hh_tmp / 3.0;/**< 2.0 reflects plane symmetry about the equatorial plane (z = 0) */
+	mass *= hh_tmp / 3.0;
 	mass *= disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, levCoarse, ii)] * hh_tmp;/**< consider mass within the corresponding shell */
 
 	const int il = ii << 1;
@@ -2415,21 +2654,12 @@ void getPotDensPair
 	ml *= disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, il)];/**< consider mass within the corresponding shell */
 	mr *= disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ir)];/**< consider mass within the corresponding shell */
 	const double inv = 1.0 / (ml + mr);
-	/** save the current surface-density profile */
-	disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, il)] = disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, il)];
-	disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ir)] = disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ir)];
 	/** assign mass to fine grids */
-	disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, il)] = ml * inv * mass / (disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, il)] * hh);
-	disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ir)] = mr * inv * mass / (disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ir)] * hh);
+	disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, il)] = ml * inv * mass / (disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, il)] * hh);
+	disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ir)] = mr * inv * mass / (disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ir)] * hh);
       }/* for(int ii = 0; ii < (NDISKBIN_HOR >> 1); ii++){ */
     }/* for(int ii = 0; ii < ndisk; ii++){ */
 #else///ASSIGN_COARSER_PATCH_FOR_SURFACE_DENSITY
-    /** save the surface density profile */
-    for(int ii = 0; ii < ndisk; ii++)
-#pragma omp parallel for
-      for(int jj = 0; jj < NDISKBIN_HOR; jj++){
-	disk[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] = disk[ii].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)];
-      }/* for(int jj = 0; jj < NDISKBIN_HOR; jj++){ */
 
     /** subtract mass above the domain in this level */
     for(int ll = lev - 1; ll >= 0; ll--){
@@ -2444,20 +2674,21 @@ void getPotDensPair
 	  for(int jj = (NDISKBIN_VER >> 1) + 1; jj < NDISKBIN_VER - 1; jj++)
 	    mass += (double)(2 << (jj & 1)) * (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)];
 	  mass += (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, NDISKBIN_VER - 1)];
-	  mass *= 2.0 * hh_tmp / 3.0;/**< 2.0 reflects plane symmetry about the equatorial plane (z = 0) */
+	  mass *= hh_tmp / 3.0;
 #else
 	  double mass = 0.0;
 	  for(int jj = (NDISKBIN_VER >> 1); jj < NDISKBIN_VER; jj++)
 	    mass += (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)];
-	  mass *= 2.0 * hh_tmp;/**< 2.0 reflects plane symmetry about the equatorial plane (z = 0) */
+	  mass *= hh_tmp;
 #endif
 	  for(int mm = (ii << ldiff); mm < (ii << ldiff) + (1 << ldiff); mm++){
-	    disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, mm)] -= mass;
+	    disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, mm)] = 0.5 * disk[ii].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] - mass;
 	  }/* for(int mm = 0; mm < (1 << ldiff); mm++){ */
 	}/* for(int kk = 0; kk < ndisk; kk++){ */
     }/* for(int ll = lev - 1; ll >= 0; ll--){ */
 #endif//ASSIGN_COARSER_PATCH_FOR_SURFACE_DENSITY
   }/* if( lev > 0 ){ */
+#endif//USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
 
 
 #ifdef  PROGRESS_REPORT_ON
@@ -2524,27 +2755,27 @@ void getPotDensPair
 	for(int jj = 1; jj < NDISKBIN_VER - 1; jj++)
 	  Sigma += (double)(2 << (jj & 1)) * (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)];
 	Sigma += (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, NDISKBIN_VER - 1)];
-	Sigma *= 2.0 * hh / 3.0;/**< 2.0 reflects plane symmetry about the equatorial plane (z = 0) */
+	Sigma *= hh / 3.0;
 #else
 	double Sigma = 0.0;
 	for(int jj = 0; jj < NDISKBIN_VER; jj++)
 	  Sigma += (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)];
-	Sigma *= 2.0 * hh;/**< 2.0 reflects plane symmetry about the equatorial plane (z = 0) */
+	Sigma *= hh;
 #endif
 
 	/** calibrate surface density */
-	const double Mscale = disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] / (DBL_MIN + Sigma);
+	const double Mscale = disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] / (DBL_MIN + Sigma);
 	for(int jj = 0; jj < NDISKBIN_VER; jj++)
 	  (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)] *= Mscale;
 
 #if 0
 	if( fpclassify(Mscale) != FP_NORMAL ){
-	  __KILL__(stderr, "ERROR: lev = %d, ii = %d, Mscale = %e, Sigma = %e, assigned = %e, hh = %e, zd = %e\n", lev, ii, Mscale, Sigma, disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], hh, disk[kk].zd[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
+	  __KILL__(stderr, "ERROR: lev = %d, ii = %d, Mscale = %e, Sigma = %e, assigned = %e, hh = %e, zd = %e\n", lev, ii, Mscale, Sigma, disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], hh, disk[kk].zd[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)]);
 	}
 #endif
 
 #ifndef SCALE_BY_SURFACE_DENSITY
-	const double errVal = (disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] > NEGLECT_DENSITY_MINIMUM * disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)]) ? fabs(Mscale - 1.0) : (0.0);
+	const double errVal = (disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] > NEGLECT_DENSITY_MINIMUM * disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)]) ? fabs(Mscale - 1.0) : (0.0);
 #pragma omp flush(errMax)
 	if( errVal > errMax )
 #pragma omp critical
@@ -2609,13 +2840,6 @@ void getPotDensPair
 #endif//PROGRESS_REPORT_ON
   }/* while( true ){ */
 
-
-  /** recover column density profile if necessary */
-  if( lev > 0 )
-    for(int ii = 0; ii < ndisk; ii++)
-#pragma omp parallel for
-      for(int jj = 0; jj < NDISKBIN_HOR; jj++)
-	disk[ii].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)] = disk[ii].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, jj)];
 
 #ifdef  PROGRESS_REPORT_ON
   fprintf(stdout, "# procedure finish after %d iteration(s): NR = %d, Nz = %d\n#\n#\n", 1 + steps, NDISKBIN_HOR, NDISKBIN_VER);
@@ -2706,6 +2930,12 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
   /** set column density profile */
   setColumnDensityProfile(ndisk, maxLev, disk, disk[0].prf, disk[0].invlogrbin);
 
+  /** temporal value for generating potential-density pair of the disk component(s) */
+  for(int kk = 0; kk < ndisk; kk++)
+#pragma omp parallel for
+    for(int ii = 0; ii < NDISKBIN_HOR; ii++)
+      disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, 0, ii)] = 0.5 * disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, 0, ii)];
+
 
   /** calculate GD formalism */
   double *stock_inv;  stock_inv = malloc(sizeof(double) * ndisk * (size_t)CPUS_PER_PROCESS);
@@ -2753,6 +2983,9 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
   int inc = 1;
   int top = 1;
   int num = 0;
+#ifdef  USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
+  int highestLev = lev;
+#endif//USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
   while( true ){
 #ifdef  PROGRESS_REPORT_ON
     fprintf(stdout, "# grid level: lev = %d, oldLev = %d\n", lev, old);
@@ -2763,7 +2996,14 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
 #   if  defined(ITERATE_VARIABLE_SCALE_HEIGHT) && defined(ENABLE_VARIABLE_SCALE_HEIGHT)
 		   maxLev,
 #endif//defined(ITERATE_VARIABLE_SCALE_HEIGHT) && defined(ENABLE_VARIABLE_SCALE_HEIGHT)
+#ifdef  USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
+		   highestLev,
+#endif//USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
 		   lev, old, disk, Phi_NR, Phi_Nz, smat, pre, stock_inv, stock_sub, stock_tmp, stock_sum);
+
+#ifdef  USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
+    highestLev = (lev > highestLev) ? lev : highestLev;
+#endif//USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
 
     /** procedure proposed by Press & Teukolsky (1991), Computers in Physics 5, 514, Multigrid Methods for Boundary Value Problems. I */
     if( lev == top ){   num++;  inc = -1;

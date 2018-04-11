@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/01 (Thu)
+ * @date 2018/04/11 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -886,6 +886,9 @@ int main(int argc, char **argv)
     initBenchmark_cpu();
     makeDiskPotentialTable(ndisk, maxLev, disk_info);
     stopBenchmark_cpu(&execTime.diskTbl);
+#if 0
+    writeDiskData(file, ndisk, maxLev, disk_info);
+#endif
 
     /** set profile of spherical averaged density, mass and potential */
     initBenchmark_cpu();

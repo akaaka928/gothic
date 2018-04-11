@@ -14,8 +14,8 @@ EXEC=bin/magi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=2
-    # PROBLEM=14
+    # PROBLEM=2
+    PROBLEM=14
     # PROBLEM=27
     # PROBLEM=60
     # PROBLEM=61

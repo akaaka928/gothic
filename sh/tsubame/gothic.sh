@@ -1,8 +1,9 @@
 #!/bin/sh
 #$ -cwd
 #$ -l s_gpu=1
-#$ -l h_rt=1:00:00
+#$ -l h_rt=0:30:00
 #$ -N gothic
+#$ -hold_jid magi,gothic
 ###############################################################
 
 
@@ -13,33 +14,13 @@ EXEC=bin/gothic
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=20
+    PROBLEM=2
+    # PROBLEM=20
     # PROBLEM=26
     # PROBLEM=28
     # PROBLEM=80
     # PROBLEM=81
 fi
-###############################################################
-# topology of MPI processes
-if [ -z "$NX" ]; then
-    NX=1
-fi
-if [ -z "$NY" ]; then
-    NY=1
-fi
-if [ -z "$NZ" ]; then
-    NZ=1
-fi
-# if [ $SLURM_NTASKS -eq 1 ]; then
-#     NX=1
-#     NY=1
-#     NZ=1
-# fi
-PROCS=`expr $NX \* $NY \* $NZ`
-# if [ $PROCS -ne $SLURM_NTASKS ]; then
-#     echo "product of $NX, $NY, and $NZ must be equal to the number of total MPI processes ($SLURM_NTASKS)"
-#     exit 1
-# fi
 ###############################################################
 # value of accuracy controling parameter: GADGET MAC by Springel (2005)
 if [ -z "$ABSERR" ]; then
@@ -288,15 +269,14 @@ OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$N
 # job execution via UNIVA Grid Engine
 ###############################################################
 # set stdout and stderr
-STDOUT=log/$REQUEST.o$JOB_ID
-STDERR=log/$REQUEST.e$JOB_ID
+STDOUT=log/${FILE}_$REQUEST.o$JOB_ID
+STDERR=log/${FILE}_$REQUEST.e$JOB_ID
 ###############################################################
 # load modules
 . /etc/profile.d/modules.sh
-export MODULEPATH=$MODULEPATH:$HOME/opt/Modules
-module load intel intel-mpi phdf5
-module load gsl
-module load cuda/8.0.61 cub
+export MODULEPATH=$MODULEPATH:/gs/hs1/jh180045/share/opt/Modules
+module load intel cuda openmpi
+module load cub phdf5/ompi
 module list 1>>$STDOUT 2>>$STDERR
 ###############################################################
 cat $PE_HOSTFILE 1>>$STDOUT 2>>$STDERR

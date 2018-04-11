@@ -5,6 +5,7 @@
 ##$ -l s_gpu=4
 #$ -l h_rt=00:05:00
 #$ -N gothic
+#$ -hold_jid magi,gothic
 ###############################################################
 NGPUS_PER_NODE=4
 # NGPUS_PER_NODE=2
@@ -302,17 +303,19 @@ echo "start: $TIME"
 ###############################################################
 # load modules
 . /etc/profile.d/modules.sh
-export MODULEPATH=$MODULEPATH:$HOME/opt/Modules
-module load intel intel-mpi phdf5
-module load gsl
-module load cuda/8.0.61 cub
+export MODULEPATH=$MODULEPATH:/gs/hs1/jh180045/share/opt/Modules
+module load intel cuda openmpi
+module load cub phdf5
 module list
 ###############################################################
 cat $PE_HOSTFILE
 ###############################################################
 # execute the job
-echo "mpiexec -ppn $NGPUS_PER_NODE -n $PROCS sh/wrapper.sh $EXEC log/${FILE}_${REQUEST} $JOB_ID $NGPUS_PER_NODE $NGPUS_PER_SOCKET $OPTION"
-mpiexec -ppn $NGPUS_PER_NODE -n $PROCS sh/wrapper.sh $EXEC log/${FILE}_${REQUEST} $JOB_ID $NGPUS_PER_NODE $NGPUS_PER_SOCKET $OPTION
+# echo "mpiexec -ppn $NGPUS_PER_NODE -n $PROCS sh/wrapper.sh $EXEC log/${FILE}_${REQUEST} $JOB_ID $NGPUS_PER_NODE $NGPUS_PER_SOCKET $OPTION"
+# mpiexec -ppn $NGPUS_PER_NODE -n $PROCS sh/wrapper.sh $EXEC log/${FILE}_${REQUEST} $JOB_ID $NGPUS_PER_NODE $NGPUS_PER_SOCKET $OPTION
+# below example is for 2 processes with 2 nodes (1 GPU per node)
+mpirun -mca pml cm -mca mtl psm2 -np $PROCS -npernode $NGPUS_PER_NODE --bind-to core -cpu-set 0 -x CUDA_VISIBLE_DEVICES=0 -x PSM2_CUDA=1 -x PSM2_GPUDIRECT=1 -x LD_LIBRARY_PATH -x PATH $EXEC $OPTION
+# for 4 GPUs per node: -cpu-set 0,1,14,15 -x CUDA_VISIBLE_DEVICES=0,1,2,3 ??
 ###############################################################
 # finish logging
 TIME=`date`
