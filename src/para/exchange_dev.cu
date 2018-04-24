@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/04 (Wed)
+ * @date 2018/04/13 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1090,6 +1090,16 @@ muse allocateDomainPos(float **xmin_dev, float **xmax_dev, float **ymin_dev, flo
 		       sendDom *dom, const int Ngpu, const deviceProp devProp)
 {
   __NOTE__("%s\n", "start");
+
+
+#   if  GPUGEN >= 70
+  /* remove shared memory if __global__ function does not use */
+  checkCudaErrors(cudaFuncSetCacheConfig(     pickupSamples_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetCacheConfig(          setIndex_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetCacheConfig(  sortSamplePos_yz_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetCacheConfig(              initDstRank, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetCacheConfig(sortParticlesDDkey_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+#endif//GPUGEN >= 70
 
 
   muse alloc = {0, 0};

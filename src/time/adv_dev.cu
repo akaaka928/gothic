@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/03 (Tue)
+ * @date 2018/04/13 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1354,3 +1354,28 @@ void copyCounters_dev2hst(const int Ni, iparticle_treeinfo dev, iparticle_treein
   __NOTE__("%s\n", "end");
 }
 #endif//COUNT_INTERACTIONS
+
+
+#   if  GPUGEN >= 70
+extern "C"
+void setCacheConfig_adv_dev_cu(void)
+{
+  __NOTE__("%s\n", "start");
+
+  /* remove shared memory if __global__ function does not use */
+#ifdef  BLOCK_TIME_STEP
+  checkCudaErrors(cudaFuncSetCacheConfig(adjustTimeStep_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetCacheConfig(prediction_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+#ifdef  USE_WARP_SHUFFLE_FUNC_TIME
+  checkCudaErrors(cudaFuncSetCacheConfig(correction_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetCacheConfig(adjustParticleTime_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetCacheConfig(setLaneTime_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+#endif//USE_WARP_SHUFFLE_FUNC_TIME
+#else///BLOCK_TIME_STEP
+  checkCudaErrors(cudaFuncSetCacheConfig(advPos_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetCacheConfig(advVel_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+#endif//BLOCK_TIME_STEP
+
+  __NOTE__("%s\n", "end");
+}
+#endif//GPUGEN >= 70

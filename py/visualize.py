@@ -36,17 +36,27 @@ outputPDF = False
 # fmin, fmax = 1.0e-7, 1.0e-1
 # lab = ["halo", "bulge", "MBH", "disk"]
 
-# filename = "hd"
-filename = "disk"
-Nskip = 0
-init = 0
-last = 13
-fmin, fmax = 1.0e-3, 1.0e+0
-lab = ["halo", "disk"]
+# # filename = "hd"
+# filename = "disk"
+# Nskip = 0
+# init = 0
+# last = 13
+# fmin, fmax = 1.0e-3, 1.0e+0
+# lab = ["halo", "disk"]
 
-# filename = "halocusp_run"
-# Nskip = 1
-# skip = [0]
+filename = "halocusp_run"
+Nskip = 1
+skip = [0]
+init = 0
+last = 140
+# last = 0
+fmin, fmax = 1.0e-6, 1.0e-1
+lab = ["halo", "core", "GC"]
+
+# filename = "halocore3_run"
+# # Nskip = 1
+# # skip = [0]
+# Nskip = 0
 # init = 0
 # last = 140
 # # last = 0
@@ -122,9 +132,9 @@ def draw_figure(fileid, kind):
     nypanel = 2
     Ndata = 0
     for ii in range(kind):
-        if (Nskip == 0) or (ii not in skip):
-            num = h5file["attr" + str(ii)].attrs["number"][0]
-            if (num > 1):
+        num = h5file["attr" + str(ii)].attrs["number"][0]
+        if (num > 1):
+            if (Nskip == 0) or (ii not in skip):
                 # read surface density maps
                 folder = "field" + str(ii) + "/"
                 xy_map[nxpanel] = h5file[folder + "Sigma_xy"].value

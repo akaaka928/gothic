@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/04 (Wed)
+ * @date 2018/04/13 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -280,219 +280,6 @@ calcPHkey_kernel
   }/* for(int ih = ihead; ih < itail; ih += bnum * NTHREADS_PH){ */
 }
 
-
-/**
- * @fn allocPeanoHilbertKey_dev
- *
- * @brief Memory allocation for PH-key.
- */
-extern "C"
-muse allocPeanoHilbertKey_dev
-(const int num, int **idx_dev, PHint **key_dev, PHint **key_hst, float4 **minall, float4 **maxall, int **gsync0, int **gsync1,
-#ifndef SERIALIZED_EXECUTION
- float4 **box_min, float4 **box_max, float4 **min_hst, float4 **max_hst,
-#endif//SERIALIZED_EXECUTION
- soaPHsort *dev, soaPHsort *hst,
-#ifdef  CUB_AVAILABLE
- soaPHsort *pre, void **temp_storage, int **idx_pre, PHint **key_pre,
-#endif//CUB_AVAILABLE
- const deviceProp devProp)
-{
-  __NOTE__("%s\n", "start");
-
-
-  muse alloc = {0, 0};
-
-#ifdef  USE_OCCUPANCY_CALCULATOR
-  checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&dev->numBlocksPerSM_peano, calcPHkey_kernel, NTHREADS_PH, 0));
-  const int NBLOCKS_PER_SM_PH = dev->numBlocksPerSM_peano;
-#endif//USE_OCCUPANCY_CALCULATOR
-
-  /** Peano--Hilbert key of N-body particles */
-  /** the size of the array is set to be a multiple of NTHREADS_PH */
-  size_t size = (size_t)num;
-  if( (num % NTHREADS_PH) != 0 )
-    size += (size_t)(NTHREADS_PH - (num % NTHREADS_PH));
-
-  /** memory allocation and simple confirmation */
-  mycudaMalloc    ((void **)idx_dev, num * sizeof(  int));  alloc.device += num * sizeof(  int);
-  mycudaMalloc    ((void **)key_dev, num * sizeof(PHint));  alloc.device += num * sizeof(PHint);
-  mycudaMallocHost((void **)key_hst, num * sizeof(PHint));  alloc.host   += num * sizeof(PHint);
-
-#ifdef  CUB_AVAILABLE
-  mycudaMalloc    ((void **)idx_pre, num * sizeof(  int));  alloc.device += num * sizeof(  int);
-  mycudaMalloc    ((void **)key_pre, num * sizeof(PHint));  alloc.device += num * sizeof(PHint);
-#endif//CUB_AVAILABLE
-
-#ifdef  SERIALIZED_EXECUTION
-  const size_t num_ph = devProp.numSM * NBLOCKS_PER_SM_PH;
-#else///SERIALIZED_EXECUTION
-#ifdef  USE_OCCUPANCY_CALCULATOR
-  const int NBLOCKS_PER_SM_BOX = dev->numBlocksPerSM_box;
-#endif//USE_OCCUPANCY_CALCULATOR
-  const size_t num_ph = devProp.numSM * ((NBLOCKS_PER_SM_PH > NBLOCKS_PER_SM_BOX) ? (NBLOCKS_PER_SM_PH) : (NBLOCKS_PER_SM_BOX));
-  mycudaMalloc    ((void **)box_min, sizeof(float4));  alloc.device += sizeof(float4);  dev->box_min = *box_min;
-  mycudaMalloc    ((void **)box_max, sizeof(float4));  alloc.device += sizeof(float4);  dev->box_max = *box_max;
-  mycudaMallocHost((void **)min_hst, sizeof(float4));  alloc.host   += sizeof(float4);  dev->min_hst = *min_hst;
-  mycudaMallocHost((void **)max_hst, sizeof(float4));  alloc.host   += sizeof(float4);  dev->max_hst = *max_hst;
-#endif//SERIALIZED_EXECUTION
-  mycudaMalloc((void **)minall, num_ph * sizeof(float4));  alloc.device += num_ph * sizeof(float4);
-  mycudaMalloc((void **)maxall, num_ph * sizeof(float4));  alloc.device += num_ph * sizeof(float4);
-  mycudaMalloc((void **)gsync0, num_ph * sizeof(int   ));  alloc.device += num_ph * sizeof(int);
-  mycudaMalloc((void **)gsync1, num_ph * sizeof(int   ));  alloc.device += num_ph * sizeof(int);
-
-  initGsync_kernel<<<1, num_ph>>>(num_ph, *gsync0, *gsync1);
-  getLastCudaError("initGsync_kernel");
-
-  dev->idx = *idx_dev;
-  dev->key = *key_dev;  hst->key = *key_hst;
-  dev->min = *minall;
-  dev->max = *maxall;
-  dev->gsync0 = *gsync0;
-  dev->gsync1 = *gsync1;
-
-#ifdef  CUB_AVAILABLE
-  size_t temp_storage_size = 0;
-  pre->idx = *idx_pre;
-  pre->key = *key_pre;
-  pre->min = *minall;
-  pre->max = *maxall;
-  pre->gsync0 = *gsync0;
-  pre->gsync1 = *gsync1;
-  *temp_storage = NULL;
-  cub::DeviceRadixSort::SortPairs(*temp_storage, temp_storage_size, pre->key, dev->key, pre->idx, dev->idx, num);
-  mycudaMalloc(temp_storage, temp_storage_size);  alloc.device += temp_storage_size;
-  dev->temp_storage = *temp_storage;  dev->temp_storage_size = temp_storage_size;
-  pre->temp_storage = *temp_storage;  pre->temp_storage_size = temp_storage_size;
-#endif//CUB_AVAILABLE
-
-
-#ifndef USE_OCCUPANCY_CALCULATOR
-  /** error checking before running the kernel */
-  struct cudaFuncAttributes funcAttr;
-  checkCudaErrors(cudaFuncGetAttributes(&funcAttr, calcPHkey_kernel));
-  if( funcAttr.numRegs != REGISTERS_PER_THREAD_PH ){
-    fprintf(stderr, "%s(%d): %s\n", __FILE__, __LINE__, __func__);
-    fprintf(stderr, "warning: # of registers used (%d) in calcPHkey_kernel() is not match with the predicted value (%d).\n", funcAttr.numRegs, REGISTERS_PER_THREAD_PH);
-    fprintf(stderr, "note: GPUGEN = %d, GPUVER = %d, NTHREADS_PH = %d.\n", GPUGEN, GPUVER, NTHREADS_PH);
-    fflush (stderr);
-  }/* if( funcAttr.numRegs != REGISTERS_PER_THREAD_MAC ){ */
-
-  int regLimit = MAX_REGISTERS_PER_SM / (funcAttr.numRegs * NTHREADS_PH);
-  if( regLimit > (MAX_REGISTERS_PER_SM / NTHREADS_PH) )
-    regLimit = (MAX_REGISTERS_PER_SM / NTHREADS_PH);
-  int memLimit = SMEM_SIZE_L1_PREF / funcAttr.sharedSizeBytes;
-  int Nblck = (regLimit <= memLimit) ? regLimit : memLimit;
-  if( Nblck > (MAX_THREADS_PER_SM       / NTHREADS_PH) )    Nblck = MAX_THREADS_PER_SM / NTHREADS_PH;
-  if( Nblck >   MAX_BLOCKS_PER_SM                      )    Nblck = MAX_BLOCKS_PER_SM;
-  if( Nblck > (( MAX_WARPS_PER_SM * 32) / NTHREADS_PH) )    Nblck = ((MAX_WARPS_PER_SM * 32) / NTHREADS_PH);
-
-  if( Nblck != NBLOCKS_PER_SM_PH ){
-    __KILL__(stderr, "ERROR: # of blocks per SM for calcPHkey_kernel() is mispredicted (%d).\n\tThe limits come from register and shared memory are %d and %d, respectively.\n\tHowever, the expected value of NBLOCKS_PER_SM_PH defined in src/sort/peano_dev.cu is %d.\n\tAdditional information: # of registers per thread is %d while predicted as %d (GPUGEN = %d, GPUVER = %d).\n", Nblck, regLimit, memLimit, NBLOCKS_PER_SM_PH, funcAttr.numRegs, REGISTERS_PER_THREAD_PH, GPUGEN, GPUVER);
-  }/* if( Nblck != NBLOCKS_PER_SM ){ */
-
-  if( (devProp.numSM * NBLOCKS_PER_SM_PH) > NTHREADS_PH ){
-    __KILL__(stderr, "ERROR: product (%d) of devProp.numSM(%d) * NBLOCKS_PER_SM_PH(%d) must be smaller than NTHREADS_PH(%d) to use shared memory.\n", devProp.numSM * NBLOCKS_PER_SM_PH, devProp.numSM, NBLOCKS_PER_SM_PH, NTHREADS_PH);
-  }/* if( (devProp.numSM * NBLOCKS_PER_SM_PH) > NTHREADS_PH ){ */
-#endif//USE_OCCUPANCY_CALCULATOR
-
-
-  __NOTE__("%s\n", "end");
-  return (alloc);
-}
-
-
-/**
- * @fn freePeanoHilbertKey_dev
- *
- * @brief Memory deallocation for PH-key.
- */
-extern "C"
-void  freePeanoHilbertKey_dev
-(int  *idx_dev, PHint  *key_dev, PHint  *key_hst, float4  *minall, float4  *maxall, int  *gsync0, int  *gsync1
-#ifndef SERIALIZED_EXECUTION
- , float4  *box_min, float4  *box_max, float4  *min_hst, float4  *max_hst
-#endif//SERIALIZED_EXECUTION
-#ifdef  CUB_AVAILABLE
- , void  *temp_storage, int  *idx_pre, PHint  *key_pre
-#endif//CUB_AVAILABLE
- )
-{
-  __NOTE__("%s\n", "start");
-
-
-  mycudaFree    (idx_dev);
-  mycudaFree    (key_dev);
-  mycudaFreeHost(key_hst);
-
-  mycudaFree(minall);
-  mycudaFree(maxall);
-  mycudaFree(gsync0);
-  mycudaFree(gsync1);
-
-#ifndef SERIALIZED_EXECUTION
-  mycudaFree    (box_min);
-  mycudaFree    (box_max);
-  mycudaFreeHost(min_hst);
-  mycudaFreeHost(max_hst);
-#endif//SERIALIZED_EXECUTION
-
-#ifdef  CUB_AVAILABLE
-  mycudaFree(temp_storage);
-  mycudaFree(idx_pre);
-  mycudaFree(key_pre);
-#endif//CUB_AVAILABLE
-
-
-  __NOTE__("%s\n", "end");
-}
-
-
-/* /\** */
-/*  * @fn sortParticlesPHcurve_kernel */
-/*  * */
-/*  * @brief Sort N-body particles by PH-key. */
-/*  *\/ */
-/* __global__ void sortParticlesPHcurve_kernel */
-/* (const int num, READ_ONLY int * RESTRICT old, */
-/*  ulong        * RESTRICT didx , READ_ONLY ulong        * RESTRICT sidx , */
-/*  position     * RESTRICT dpos , READ_ONLY position     * RESTRICT spos , */
-/*  acceleration * RESTRICT dacc , READ_ONLY acceleration * RESTRICT sacc , */
-/* #ifdef  SET_EXTERNAL_POTENTIAL_FIELD */
-/*  acceleration * RESTRICT dext , READ_ONLY acceleration * RESTRICT sext , */
-/* #endif//SET_EXTERNAL_POTENTIAL_FIELD */
-/* #ifdef  BLOCK_TIME_STEP */
-/*  velocity     * RESTRICT dvel , READ_ONLY velocity     * RESTRICT svel , */
-/*  ibody_time   * RESTRICT dtime, READ_ONLY ibody_time   * RESTRICT stime */
-/* #else///BLOCK_TIME_STEP */
-/*  real         * RESTRICT dvx  , READ_ONLY real         * RESTRICT svx  , */
-/*  real         * RESTRICT dvy  , READ_ONLY real         * RESTRICT svy  , */
-/*  real         * RESTRICT dvz  , READ_ONLY real         * RESTRICT svz */
-/* #endif//BLOCK_TIME_STEP */
-/* ) */
-/* { */
-/*   const int ii = GLOBALIDX_X1D; */
-
-/*   if( ii < num ){ */
-/*     /\** load old tag *\/ */
-/*     const int jj = old[ii]; */
-
-/*     didx [ii] = sidx [jj]; */
-/*     dpos [ii] = spos [jj]; */
-/*     dacc [ii] = sacc [jj]; */
-/* #ifdef  SET_EXTERNAL_POTENTIAL_FIELD */
-/*     dext [ii] = sext [jj]; */
-/* #endif//SET_EXTERNAL_POTENTIAL_FIELD */
-/* #ifdef  BLOCK_TIME_STEP */
-/*     dvel [ii] = svel [jj]; */
-/*     dtime[ii] = stime[jj]; */
-/* #else///BLOCK_TIME_STEP */
-/*     dvx  [ii] = svx  [jj]; */
-/*     dvy  [ii] = svy  [jj]; */
-/*     dvz  [ii] = svz  [jj]; */
-/* #endif//BLOCK_TIME_STEP */
-/*   }/\* if( ii < num ){ *\/ */
-/* } */
 
 /**
  * @fn sortParticlesPHcurve_kernel_offset
@@ -817,6 +604,183 @@ void initPHinfo_dev(PHinfo *info)
 
   initPHinfo_kernel<<<1, NUM_PHKEY_LEVEL>>>(info);
   getLastCudaError("initPHinfo_kernel");
+
+  __NOTE__("%s\n", "end");
+}
+
+
+/**
+ * @fn allocPeanoHilbertKey_dev
+ *
+ * @brief Memory allocation for PH-key.
+ */
+extern "C"
+muse allocPeanoHilbertKey_dev
+(const int num, int **idx_dev, PHint **key_dev, PHint **key_hst, float4 **minall, float4 **maxall, int **gsync0, int **gsync1,
+#ifndef SERIALIZED_EXECUTION
+ float4 **box_min, float4 **box_max, float4 **min_hst, float4 **max_hst,
+#endif//SERIALIZED_EXECUTION
+ soaPHsort *dev, soaPHsort *hst,
+#ifdef  CUB_AVAILABLE
+ soaPHsort *pre, void **temp_storage, int **idx_pre, PHint **key_pre,
+#endif//CUB_AVAILABLE
+ const deviceProp devProp)
+{
+  __NOTE__("%s\n", "start");
+
+
+#   if  GPUGEN >= 70
+  /* remove shared memory if __global__ function does not use */
+  checkCudaErrors(cudaFuncSetCacheConfig(sortParticlesPHcurve_kernel_offset, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+#ifdef  BLOCK_TIME_STEP
+  checkCudaErrors(cudaFuncSetCacheConfig(copySortedParticles_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+#endif//BLOCK_TIME_STEP
+  checkCudaErrors(cudaFuncSetCacheConfig(initPHinfo_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+#endif//GPUGEN >= 70
+
+
+  muse alloc = {0, 0};
+
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&dev->numBlocksPerSM_peano, calcPHkey_kernel, NTHREADS_PH, 0));
+  const int NBLOCKS_PER_SM_PH = dev->numBlocksPerSM_peano;
+#endif//USE_OCCUPANCY_CALCULATOR
+
+  /** Peano--Hilbert key of N-body particles */
+  /** the size of the array is set to be a multiple of NTHREADS_PH */
+  size_t size = (size_t)num;
+  if( (num % NTHREADS_PH) != 0 )
+    size += (size_t)(NTHREADS_PH - (num % NTHREADS_PH));
+
+  /** memory allocation and simple confirmation */
+  mycudaMalloc    ((void **)idx_dev, num * sizeof(  int));  alloc.device += num * sizeof(  int);
+  mycudaMalloc    ((void **)key_dev, num * sizeof(PHint));  alloc.device += num * sizeof(PHint);
+  mycudaMallocHost((void **)key_hst, num * sizeof(PHint));  alloc.host   += num * sizeof(PHint);
+
+#ifdef  CUB_AVAILABLE
+  mycudaMalloc    ((void **)idx_pre, num * sizeof(  int));  alloc.device += num * sizeof(  int);
+  mycudaMalloc    ((void **)key_pre, num * sizeof(PHint));  alloc.device += num * sizeof(PHint);
+#endif//CUB_AVAILABLE
+
+#ifdef  SERIALIZED_EXECUTION
+  const size_t num_ph = devProp.numSM * NBLOCKS_PER_SM_PH;
+#else///SERIALIZED_EXECUTION
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  const int NBLOCKS_PER_SM_BOX = dev->numBlocksPerSM_box;
+#endif//USE_OCCUPANCY_CALCULATOR
+  const size_t num_ph = devProp.numSM * ((NBLOCKS_PER_SM_PH > NBLOCKS_PER_SM_BOX) ? (NBLOCKS_PER_SM_PH) : (NBLOCKS_PER_SM_BOX));
+  mycudaMalloc    ((void **)box_min, sizeof(float4));  alloc.device += sizeof(float4);  dev->box_min = *box_min;
+  mycudaMalloc    ((void **)box_max, sizeof(float4));  alloc.device += sizeof(float4);  dev->box_max = *box_max;
+  mycudaMallocHost((void **)min_hst, sizeof(float4));  alloc.host   += sizeof(float4);  dev->min_hst = *min_hst;
+  mycudaMallocHost((void **)max_hst, sizeof(float4));  alloc.host   += sizeof(float4);  dev->max_hst = *max_hst;
+#endif//SERIALIZED_EXECUTION
+  mycudaMalloc((void **)minall, num_ph * sizeof(float4));  alloc.device += num_ph * sizeof(float4);
+  mycudaMalloc((void **)maxall, num_ph * sizeof(float4));  alloc.device += num_ph * sizeof(float4);
+  mycudaMalloc((void **)gsync0, num_ph * sizeof(int   ));  alloc.device += num_ph * sizeof(int);
+  mycudaMalloc((void **)gsync1, num_ph * sizeof(int   ));  alloc.device += num_ph * sizeof(int);
+
+  initGsync_kernel<<<1, num_ph>>>(num_ph, *gsync0, *gsync1);
+  getLastCudaError("initGsync_kernel");
+
+  dev->idx = *idx_dev;
+  dev->key = *key_dev;  hst->key = *key_hst;
+  dev->min = *minall;
+  dev->max = *maxall;
+  dev->gsync0 = *gsync0;
+  dev->gsync1 = *gsync1;
+
+#ifdef  CUB_AVAILABLE
+  size_t temp_storage_size = 0;
+  pre->idx = *idx_pre;
+  pre->key = *key_pre;
+  pre->min = *minall;
+  pre->max = *maxall;
+  pre->gsync0 = *gsync0;
+  pre->gsync1 = *gsync1;
+  *temp_storage = NULL;
+  cub::DeviceRadixSort::SortPairs(*temp_storage, temp_storage_size, pre->key, dev->key, pre->idx, dev->idx, num);
+  mycudaMalloc(temp_storage, temp_storage_size);  alloc.device += temp_storage_size;
+  dev->temp_storage = *temp_storage;  dev->temp_storage_size = temp_storage_size;
+  pre->temp_storage = *temp_storage;  pre->temp_storage_size = temp_storage_size;
+#endif//CUB_AVAILABLE
+
+
+#ifndef USE_OCCUPANCY_CALCULATOR
+  /** error checking before running the kernel */
+  struct cudaFuncAttributes funcAttr;
+  checkCudaErrors(cudaFuncGetAttributes(&funcAttr, calcPHkey_kernel));
+  if( funcAttr.numRegs != REGISTERS_PER_THREAD_PH ){
+    fprintf(stderr, "%s(%d): %s\n", __FILE__, __LINE__, __func__);
+    fprintf(stderr, "warning: # of registers used (%d) in calcPHkey_kernel() is not match with the predicted value (%d).\n", funcAttr.numRegs, REGISTERS_PER_THREAD_PH);
+    fprintf(stderr, "note: GPUGEN = %d, GPUVER = %d, NTHREADS_PH = %d.\n", GPUGEN, GPUVER, NTHREADS_PH);
+    fflush (stderr);
+  }/* if( funcAttr.numRegs != REGISTERS_PER_THREAD_MAC ){ */
+
+  int regLimit = MAX_REGISTERS_PER_SM / (funcAttr.numRegs * NTHREADS_PH);
+  if( regLimit > (MAX_REGISTERS_PER_SM / NTHREADS_PH) )
+    regLimit = (MAX_REGISTERS_PER_SM / NTHREADS_PH);
+  int memLimit = SMEM_SIZE_L1_PREF / funcAttr.sharedSizeBytes;
+  int Nblck = (regLimit <= memLimit) ? regLimit : memLimit;
+  if( Nblck > (MAX_THREADS_PER_SM       / NTHREADS_PH) )    Nblck = MAX_THREADS_PER_SM / NTHREADS_PH;
+  if( Nblck >   MAX_BLOCKS_PER_SM                      )    Nblck = MAX_BLOCKS_PER_SM;
+  if( Nblck > (( MAX_WARPS_PER_SM * 32) / NTHREADS_PH) )    Nblck = ((MAX_WARPS_PER_SM * 32) / NTHREADS_PH);
+
+  if( Nblck != NBLOCKS_PER_SM_PH ){
+    __KILL__(stderr, "ERROR: # of blocks per SM for calcPHkey_kernel() is mispredicted (%d).\n\tThe limits come from register and shared memory are %d and %d, respectively.\n\tHowever, the expected value of NBLOCKS_PER_SM_PH defined in src/sort/peano_dev.cu is %d.\n\tAdditional information: # of registers per thread is %d while predicted as %d (GPUGEN = %d, GPUVER = %d).\n", Nblck, regLimit, memLimit, NBLOCKS_PER_SM_PH, funcAttr.numRegs, REGISTERS_PER_THREAD_PH, GPUGEN, GPUVER);
+  }/* if( Nblck != NBLOCKS_PER_SM ){ */
+
+  if( (devProp.numSM * NBLOCKS_PER_SM_PH) > NTHREADS_PH ){
+    __KILL__(stderr, "ERROR: product (%d) of devProp.numSM(%d) * NBLOCKS_PER_SM_PH(%d) must be smaller than NTHREADS_PH(%d) to use shared memory.\n", devProp.numSM * NBLOCKS_PER_SM_PH, devProp.numSM, NBLOCKS_PER_SM_PH, NTHREADS_PH);
+  }/* if( (devProp.numSM * NBLOCKS_PER_SM_PH) > NTHREADS_PH ){ */
+#endif//USE_OCCUPANCY_CALCULATOR
+
+
+  __NOTE__("%s\n", "end");
+  return (alloc);
+}
+
+
+/**
+ * @fn freePeanoHilbertKey_dev
+ *
+ * @brief Memory deallocation for PH-key.
+ */
+extern "C"
+void  freePeanoHilbertKey_dev
+(int  *idx_dev, PHint  *key_dev, PHint  *key_hst, float4  *minall, float4  *maxall, int  *gsync0, int  *gsync1
+#ifndef SERIALIZED_EXECUTION
+ , float4  *box_min, float4  *box_max, float4  *min_hst, float4  *max_hst
+#endif//SERIALIZED_EXECUTION
+#ifdef  CUB_AVAILABLE
+ , void  *temp_storage, int  *idx_pre, PHint  *key_pre
+#endif//CUB_AVAILABLE
+ )
+{
+  __NOTE__("%s\n", "start");
+
+
+  mycudaFree    (idx_dev);
+  mycudaFree    (key_dev);
+  mycudaFreeHost(key_hst);
+
+  mycudaFree(minall);
+  mycudaFree(maxall);
+  mycudaFree(gsync0);
+  mycudaFree(gsync1);
+
+#ifndef SERIALIZED_EXECUTION
+  mycudaFree    (box_min);
+  mycudaFree    (box_max);
+  mycudaFreeHost(min_hst);
+  mycudaFreeHost(max_hst);
+#endif//SERIALIZED_EXECUTION
+
+#ifdef  CUB_AVAILABLE
+  mycudaFree(temp_storage);
+  mycudaFree(idx_pre);
+  mycudaFree(key_pre);
+#endif//CUB_AVAILABLE
+
 
   __NOTE__("%s\n", "end");
 }

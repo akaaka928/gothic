@@ -615,7 +615,7 @@ STDERR=log/$REQUEST.e$JOB_ID
 . /etc/profile.d/modules.sh
 export MODULEPATH=$MODULEPATH:/gs/hs1/jh180045/share/opt/Modules
 module load intel cuda openmpi
-module load gsl phdf5/ompi
+module load gsl lis phdf5/ompi
 module list 1>>$STDOUT 2>>$STDERR
 ###############################################################
 cat $PE_HOSTFILE 1>>$STDOUT 2>>$STDERR

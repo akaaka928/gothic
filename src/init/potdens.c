@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/11 (Wed)
+ * @date 2018/04/24 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -22,6 +22,10 @@
 #include <omp.h>
 
 #include <gsl/gsl_integration.h>
+
+#ifdef  USE_LIS
+#include "lis.h"
+#endif//USE_LIS
 
 #include "macro.h"
 #include "constants.h"
@@ -1782,7 +1786,14 @@ static inline void calcOuterPotential
  * @param (Phi_Nz) potential outside the boundary
  * @return (vec) resultant vector
  */
-static inline void setResultantVector(const int lev, const double hh, double * restrict RR, double * restrict rho, double * restrict Phi_NR, double * restrict Phi_Nz, double * restrict vec)
+static inline void setResultantVector
+(const int lev, const double hh, double * restrict RR, double * restrict rho, double * restrict Phi_NR, double * restrict Phi_Nz,
+#ifdef  USE_LIS
+ LIS_VECTOR vec
+#else///USE_LIS
+ double * restrict vec
+#endif//USE_LIS
+)
 {
   __NOTE__("%s\n", "start");
 
@@ -1792,16 +1803,30 @@ static inline void setResultantVector(const int lev, const double hh, double * r
   for(int ii = 0; ii < NDISKBIN_HOR; ii++){
     const double Ri = RR[ii];
 
-    for(int jj = 0; jj < NDISKBIN_VER; jj++)
+    for(int jj = 0; jj < NDISKBIN_VER; jj++){
+#ifdef  USE_LIS
+      lis_vector_set_value(LIS_INS_VALUE, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj), Phi0 * Ri * rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)], vec);
+#else///USE_LIS
       vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)] = Phi0 * Ri * rho[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)];
+#endif//USE_LIS
+    }/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
 
     /** boundary condition @ z-edge */
+#ifdef  USE_LIS
+    lis_vector_set_value(LIS_ADD_VALUE, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, NDISKBIN_VER - 1), -(double)(1 + (ii << 1)) * Phi_Nz[ii], vec);
+#else///USE_LIS
     vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, NDISKBIN_VER - 1)] -= (double)(1 + (ii << 1)) * Phi_Nz[ii];
+#endif//USE_LIS
   }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
 
   /** boundary condition @ R-edge */
-  for(int jj = 0; jj < NDISKBIN_VER; jj++)
+  for(int jj = 0; jj < NDISKBIN_VER; jj++){
+#ifdef  USE_LIS
+    lis_vector_set_value(LIS_ADD_VALUE, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj), -(double)(NDISKBIN_HOR << 1) * Phi_NR[jj], vec);
+#else///USE_LIS
     vec[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj)] -= (double)(NDISKBIN_HOR << 1) * Phi_NR[jj];
+#endif//USE_LIS
+  }/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
 
 
   __NOTE__("%s\n", "end");
@@ -1812,96 +1837,175 @@ static inline void setResultantVector(const int lev, const double hh, double * r
  * @fn setSparseMatrix
  *
  * @brief Set sparse matrix to solve the Poisson's equation.
- *
- * @return (mat) resultant sparse matrix
  */
+#ifdef  USE_LIS
+static inline void setSparseMatrix(LIS_MATRIX mat)
+#else///USE_LIS
 static inline void setSparseMatrix(const crs mat)
+#endif//USE_LIS
 {
   __NOTE__("%s\n", "start");
 
 
-  /** const int Nrow = NDISKBIN_HOR * NDISKBIN_VER; */
-  int valIdx = 0;
   int rowIdx = 0;
+#ifndef USE_LIS
+  int valIdx = 0;
   mat.row[rowIdx] = valIdx;
+#endif//USE_LIS
 
 
   /** inner boundary (ii = 0) */
   /** ii = 0; jj = 0; */
+#ifdef  USE_LIS
+  lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, 0), -3.0, mat);
+  lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, 1),  1.0, mat);
+  lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 1, 0),  2.0, mat);
+  rowIdx++;
+#else///USE_LIS
   mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, 0);  mat.val[valIdx] = -3.0;  valIdx++;
   mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, 1);  mat.val[valIdx] =  1.0;  valIdx++;
   mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 1, 0);  mat.val[valIdx] =  2.0;  valIdx++;
   rowIdx++;  mat.row[rowIdx] = valIdx;
+#endif//USE_LIS
 
   /** ii = 0; 1 <= jj <= NDISKBIN_VER - 2 */
   for(int jj = 1; jj < NDISKBIN_VER - 1; jj++){
+#ifdef  USE_LIS
+    lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, jj - 1),  1.0, mat);
+    lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, jj    ), -4.0, mat);
+    lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, jj + 1),  1.0, mat);
+    lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 1, jj    ),  2.0, mat);
+    rowIdx++;
+#else///USE_LIS
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, jj - 1);    mat.val[valIdx] =  1.0;    valIdx++;
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, jj    );    mat.val[valIdx] = -4.0;    valIdx++;
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, jj + 1);    mat.val[valIdx] =  1.0;    valIdx++;
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 1, jj    );    mat.val[valIdx] =  2.0;    valIdx++;
     rowIdx++;    mat.row[rowIdx] = valIdx;
+#endif//USE_LIS
   }/* for(int jj = 1; jj < NDISKBIN_VER - 1; jj++){ */
 
   /** ii = 0; jj = NDISKBIN_VER - 1 */
+#ifdef  USE_LIS
+  lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, NDISKBIN_VER - 2),  1.0, mat);
+  lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, NDISKBIN_VER - 1), -4.0, mat);
+  lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 1, NDISKBIN_VER - 1),  2.0, mat);
+  rowIdx++;
+#else///USE_LIS
   mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, NDISKBIN_VER - 2);  mat.val[valIdx] =  1.0;  valIdx++;
   mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, NDISKBIN_VER - 1);  mat.val[valIdx] = -4.0;  valIdx++;
   mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 1, NDISKBIN_VER - 1);  mat.val[valIdx] =  2.0;  valIdx++;
   rowIdx++;  mat.row[rowIdx] = valIdx;
+#endif//USE_LIS
 
 
   /** main domain (1 <= ii <= NDISKBIN_HOR - 2) */
   for(int ii = 1; ii < NDISKBIN_HOR - 1; ii++){
     /** inner boundary (jj = 0) */
+#ifdef  USE_LIS
+    lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii - 1, 0),  (double)(      ii << 1      ), mat);
+    lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , 0), -(double)((1 + (ii << 1)) * 3), mat);
+    lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , 1),  (double)( 1 + (ii << 1)     ), mat);
+    lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii + 1, 0),  (double)((1 +  ii     ) << 1), mat);
+    rowIdx++;
+#else///USE_LIS
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii - 1, 0);    mat.val[valIdx] =  (double)(      ii << 1      );    valIdx++;
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , 0);    mat.val[valIdx] = -(double)((1 + (ii << 1)) * 3);    valIdx++;
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , 1);    mat.val[valIdx] =  (double)( 1 + (ii << 1)     );    valIdx++;
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii + 1, 0);    mat.val[valIdx] =  (double)((1 +  ii     ) << 1);    valIdx++;
     rowIdx++;    mat.row[rowIdx] = valIdx;
+#endif//USE_LIS
 
     /** main domain (1 <= jj <= Nz - 2) */
     for(int jj = 1; jj < NDISKBIN_VER - 1; jj++){
+#ifdef  USE_LIS
+      lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii - 1, jj    ),  (double)(      ii << 1       ), mat);
+      lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , jj - 1),  (double)( 1 + (ii << 1)      ), mat);
+      lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , jj    ), -(double)((1 + (ii << 1)) << 2), mat);
+      lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , jj + 1),  (double)( 1 + (ii << 1)      ), mat);
+      lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii + 1, jj    ),  (double)((1 +  ii      ) << 1), mat);
+      rowIdx++;
+#else///USE_LIS
       mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii - 1, jj    );      mat.val[valIdx] =  (double)(      ii << 1       );      valIdx++;
       mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , jj - 1);      mat.val[valIdx] =  (double)( 1 + (ii << 1)      );      valIdx++;
       mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , jj    );      mat.val[valIdx] = -(double)((1 + (ii << 1)) << 2);      valIdx++;
       mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , jj + 1);      mat.val[valIdx] =  (double)( 1 + (ii << 1)      );      valIdx++;
       mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii + 1, jj    );      mat.val[valIdx] =  (double)((1 +  ii      ) << 1);      valIdx++;
       rowIdx++;      mat.row[rowIdx] = valIdx;
+#endif//USE_LIS
     }/* for(int jj = 1; jj < NDISKBIN_VER - 1; jj++){ */
 
     /** outer boundary (jj = Nz - 1) */
+#ifdef  USE_LIS
+    lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii - 1, NDISKBIN_VER - 1),  (double)(      ii << 1       ), mat);
+    lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , NDISKBIN_VER - 2),  (double)( 1 + (ii << 1)      ), mat);
+    lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , NDISKBIN_VER - 1), -(double)((1 + (ii << 1)) << 2), mat);
+    lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii + 1, NDISKBIN_VER - 1),  (double)((1 +  ii      ) << 1), mat);
+    rowIdx++;
+#else///USE_LIS
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii - 1, NDISKBIN_VER - 1);    mat.val[valIdx] =  (double)(      ii << 1       );    valIdx++;
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , NDISKBIN_VER - 2);    mat.val[valIdx] =  (double)( 1 + (ii << 1)      );    valIdx++;
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii    , NDISKBIN_VER - 1);    mat.val[valIdx] = -(double)((1 + (ii << 1)) << 2);    valIdx++;
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii + 1, NDISKBIN_VER - 1);    mat.val[valIdx] =  (double)((1 +  ii      ) << 1);    valIdx++;
     rowIdx++;    mat.row[rowIdx] = valIdx;
+#endif//USE_LIS
   }/* for(int ii = 1; ii < NDISKBIN_HOR - 1; ii++){ */
 
 
   /** outer boundary (ii = NDISKBIN_HOR - 1) */
   /* ii = NDISKBIN_HOR - 1; jj = 0; */
+#ifdef  USE_LIS
+  lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, 0),  (double)(      (NDISKBIN_HOR - 1) << 1      ), mat);
+  lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, 0), -(double)((1 + ((NDISKBIN_HOR - 1) << 1)) * 3), mat);
+  lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, 1),  (double)( 1 + ((NDISKBIN_HOR - 1) << 1)     ), mat);
+  rowIdx++;
+#else///USE_LIS
   mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, 0);  mat.val[valIdx] =  (double)(      (NDISKBIN_HOR - 1) << 1      );  valIdx++;
   mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, 0);  mat.val[valIdx] = -(double)((1 + ((NDISKBIN_HOR - 1) << 1)) * 3);  valIdx++;
   mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, 1);  mat.val[valIdx] =  (double)( 1 + ((NDISKBIN_HOR - 1) << 1)     );  valIdx++;
   rowIdx++;  mat.row[rowIdx] = valIdx;
+#endif//USE_LIS
 
   /** ii = NDISKBIN_HOR - 1; 1 <= jj <= NDISKBIN_VER - 2 */
   for(int jj = 1; jj < NDISKBIN_VER - 1; jj++){
+#ifdef  USE_LIS
+    lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, jj    ),  (double)(      (NDISKBIN_HOR - 1) << 1       ), mat);
+    lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj - 1),  (double)( 1 + ((NDISKBIN_HOR - 1) << 1)      ), mat);
+    lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj    ), -(double)((1 + ((NDISKBIN_HOR - 1) << 1)) << 2), mat);
+    lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj + 1),  (double)( 1 + ((NDISKBIN_HOR - 1) << 1)      ), mat);
+    rowIdx++;
+#else///USE_LIS
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, jj    );    mat.val[valIdx] =  (double)(      (NDISKBIN_HOR - 1) << 1       );    valIdx++;
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj - 1);    mat.val[valIdx] =  (double)( 1 + ((NDISKBIN_HOR - 1) << 1)      );    valIdx++;
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj    );    mat.val[valIdx] = -(double)((1 + ((NDISKBIN_HOR - 1) << 1)) << 2);    valIdx++;
     mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj + 1);    mat.val[valIdx] =  (double)( 1 + ((NDISKBIN_HOR - 1) << 1)      );    valIdx++;
     rowIdx++;    mat.row[rowIdx] = valIdx;
+#endif//USE_LIS
   }/* for(int jj = 1; jj < NDISKBIN_VER - 1; jj++){ */
 
   /** ii = NR - 1; jj = NDISKBIN_VER - 1 */
+#ifdef  USE_LIS
+  lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, NDISKBIN_VER - 1),  (double)(      (NDISKBIN_HOR - 1 ) << 1       ), mat);
+  lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, NDISKBIN_VER - 2),  (double)( 1 + ((NDISKBIN_HOR - 1 ) << 1)      ), mat);
+  lis_matrix_set_value(LIS_INS_VALUE, rowIdx, INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, NDISKBIN_VER - 1), -(double)((1 + ((NDISKBIN_HOR - 1 ) << 1)) << 2), mat);
+  rowIdx++;
+#else///USE_LIS
   mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, NDISKBIN_VER - 1);  mat.val[valIdx] =  (double)(      (NDISKBIN_HOR - 1 ) << 1       );  valIdx++;
   mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, NDISKBIN_VER - 2);  mat.val[valIdx] =  (double)( 1 + ((NDISKBIN_HOR - 1 ) << 1)      );  valIdx++;
   mat.col[valIdx] = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, NDISKBIN_VER - 1);  mat.val[valIdx] = -(double)((1 + ((NDISKBIN_HOR - 1 ) << 1)) << 2);  valIdx++;
   rowIdx++;  mat.row[rowIdx] = valIdx;
+#endif//USE_LIS
 
+
+#ifdef  USE_LIS
+  /* lis_matrix_set_type(mat, LIS_MATRIX_CSR); */
+  lis_matrix_set_type(mat, LIS_MATRIX_MSR);
+  lis_matrix_assemble(mat);
+#else///USE_LIS
   if( mat.row[rowIdx] != (5 * NDISKBIN_HOR * NDISKBIN_VER - 2 * (NDISKBIN_HOR + NDISKBIN_VER)) ){
     __KILL__(stderr, "ERROR: Number of non-zero elements is %d, while the expected is %d\n", mat.row[rowIdx], 5 * NDISKBIN_HOR * NDISKBIN_VER - 2 * (NDISKBIN_HOR + NDISKBIN_VER));
   }/* if( mat.row[rowIdx] != (5 * NDISKBIN_HOR * NDISKBIN_VER - 2 * (NDISKBIN_HOR + NDISKBIN_VER)) ){ */
+#endif//USE_LIS
 
 
   __NOTE__("%s\n", "end");
@@ -1939,8 +2043,13 @@ static inline void setSparseMatrix(const crs mat)
 static inline void getPotentialField
 (const int ndisk, disk_data * restrict disk, const int lev,
  const double hh, const double invhh, double * restrict RR, double * restrict zz,
- double * restrict rho, double * restrict Phi, double * restrict Phi_NR, double * restrict Phi_Nz, soaBiCGSTAB mat, soaPreConditioning pre
- , double * restrict stock_inv, double * restrict stock_sub, double * restrict stock_tmp, double * restrict stock_sum
+ double * restrict rho, double * restrict Phi, double * restrict Phi_NR, double * restrict Phi_Nz,
+#ifdef  USE_LIS
+ LIS_MATRIX lis_mat, LIS_VECTOR lis_b, LIS_VECTOR lis_x, LIS_SOLVER lis_solver,
+#else///USE_LIS
+ soaBiCGSTAB mat, soaPreConditioning pre,
+#endif//USE_LIS
+ double * restrict stock_inv, double * restrict stock_sub, double * restrict stock_tmp, double * restrict stock_sum
  )
 {
   __NOTE__("%s\n", "start");
@@ -2070,11 +2179,25 @@ static inline void getPotentialField
 		       );
   }/* else{ */
 
-  setResultantVector(lev, hh, RR, rho, Phi_NR, Phi_Nz, mat.vec);
+  setResultantVector(lev, hh, RR, rho, Phi_NR, Phi_Nz,
+#ifdef  USE_LIS
+		     lis_b
+#else///USE_LIS
+		     mat.vec
+#endif//USE_LIS
+
+		     );
 
 
   /** solve Poisson equation using iterative method */
+#ifdef  USE_LIS
+  lis_solve(lis_mat, lis_b, lis_x, lis_solver);
+#pragma omp parallel for
+  for(int ii = 0; ii < NCOL_CG; ii++)
+    lis_vector_get_value(lis_x, ii, &Phi[ii]);
+#else///USE_LIS
   pbicgstab(mat.mat, NDISKBIN_HOR * NDISKBIN_VER, mat.vec, Phi, mat.res, mat.sdw, mat.mid, mat.tmp, mat.Api, mat.Ati, pre.ilu, pre.Kri, pre.Kpi, pre.Kti, CONVERGENCE_BICGSTAB);
+#endif//USE_LIS
 
 
   __NOTE__("%s\n", "end");
@@ -2179,7 +2302,7 @@ static inline void _setRdep4calcRho
   const int levz = (int)floor(log2(disk.hh * ((double)Nz - 0.5) * invzd));
   const int lev_zd = (levz > lev) ? lev : levz;
   /** find the corresponding grid location */
-  const double hinv_zd = ldexp(disk.hh, lev_zd);
+  const double hinv_zd = 1.0 / ldexp(disk.hh, -lev_zd);
   double fz;
   int jz = bisection(zd, Nz, &disk.ver[INDEX2D(maxLev, NDISKBIN_VER, lev_zd, 0)], false, hinv_zd, &fz);
   double aaR = *fR;
@@ -2566,8 +2689,12 @@ void getPotDensPair
 #endif//USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
  const int lev, const int levOld, disk_data * restrict disk,
  double * restrict Phi_NR, double * restrict Phi_Nz,
- soaBiCGSTAB mat, soaPreConditioning pre
- , double * restrict stock_inv, double * restrict stock_sub, double * restrict stock_tmp, double * restrict stock_sum
+#ifdef  USE_LIS
+ LIS_MATRIX lis_mat, LIS_VECTOR lis_b, LIS_VECTOR lis_x, LIS_SOLVER lis_solver,
+#else///USE_LIS
+ soaBiCGSTAB mat, soaPreConditioning pre,
+#endif//USE_LIS
+ double * restrict stock_inv, double * restrict stock_sub, double * restrict stock_tmp, double * restrict stock_sum
  );
 void getPotDensPair
 (const int ndisk,
@@ -2578,7 +2705,12 @@ void getPotDensPair
  const int highestLev,
 #endif//USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
  const int lev, const int levOld, disk_data * restrict disk, double * restrict Phi_NR, double * restrict Phi_Nz,
- soaBiCGSTAB mat, soaPreConditioning pre, double * restrict stock_inv, double * restrict stock_sub, double * restrict stock_tmp, double * restrict stock_sum)
+#ifdef  USE_LIS
+ LIS_MATRIX lis_mat, LIS_VECTOR lis_b, LIS_VECTOR lis_x, LIS_SOLVER lis_solver,
+#else///USE_LIS
+ soaBiCGSTAB mat, soaPreConditioning pre,
+#endif//USE_LIS
+ double * restrict stock_inv, double * restrict stock_sub, double * restrict stock_tmp, double * restrict stock_sum)
 {
   __NOTE__("%s\n", "start");
 
@@ -2608,23 +2740,126 @@ void getPotDensPair
   /** modify surface density profile if necessary */
 #ifdef  USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
   if( lev > 0 ){
+#if 1
+    /** adopt Simpson rule for numerical integral */
+
+    if( lev > levOld ){
+      /** previous step is coarser grid ==>> evaluate mass above the region */
+      for(int kk = 0; kk < ndisk; kk++){
+#pragma omp parallel for
+	for(int ii = 0; ii < NDISKBIN_HOR; ii++)
+	  disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] = 0.5 * disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
+
+	for(int ll = lev - 1; ll >= 0; ll--){
+	  const int ldiff = lev - ll;
+	  const double dh = ldexp(disk[0].hh, -ll) / 3.0;
+
+#pragma omp parallel for
+	  for(int ii = 0; ii < (NDISKBIN_HOR >> ldiff); ii++){
+	    double mass = (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, NDISKBIN_VER >> 1)];
+	    for(int jj = (NDISKBIN_VER >> 1) + 1; jj < NDISKBIN_VER - 1; jj++)
+	      mass += (double)(2 << (jj & 1)) * (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)];
+	    mass += (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, NDISKBIN_VER - 1)];
+	    mass *= dh;
+
+	    for(int mm = (ii << ldiff); mm < (ii << ldiff) + (1 << ldiff); mm++)
+	      disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, mm)] -= mass;
+	  }/* for(int ii = 0; ii < (NDISKBIN_HOR >> ldiff); ii++){ */
+	}/* for(int ll = lev - 1; ll >= 0; ll--){ */
+      }/* for(int kk = 0; kk < ndisk; kk++){ */
+    }/* if( lev > levOld ){ */
+/*     else{ */
+/*       /\** previous step is finer grid ==>> evaluate mass below the region *\/ */
+/*       for(int kk = 0; kk < ndisk; kk++){ */
+/* #pragma omp parallel for */
+/* 	for(int ii = 0; ii < NDISKBIN_HOR; ii++) */
+/* 	  disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] = 0.0; */
+
+/* 	for(int ll = lev; ll < highestLev + 1; ll++){ */
+/* 	  const int ldiff = ll - lev; */
+/* 	  const double dh = ldexp(disk[0].hh, -ll) / 3.0; */
+
+/* 	  for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
+/* 	    int j0 = (ll != highestLev) ? ((ii < (NDISKBIN_HOR >> 1)) ? (NDISKBIN_VER >> 1) : 0) : 0; */
+/* 	    double mass = (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, j0)]; */
+/* 	    for(int jj = j0 + 1; jj < NDISKBIN_VER - 1; jj++) */
+/* 	      mass += (double)(2 << (jj & 1)) * (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)]; */
+/* 	    mass += (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, NDISKBIN_VER - 1)]; */
+/* 	    mass *= dh; */
+
+/* 	    for(int mm = (ii >> ldiff); mm < (ii >> ldiff) + (1 << ldiff); mm++) */
+/* 	      disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, mm)] += mass; */
+/* 	  }/\* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ *\/ */
+/* 	}/\* for(int ll = lev; ll < highestLev + 1; ll++){ *\/ */
+/*       }/\* for(int kk = 0; kk < ndisk; kk++){ *\/ */
+/*     }/\* else{ *\/ */
+
+
+
+
+
+
+#else
     const double h0 = disk[0].hh;
     const double h0inv = 1.0 / h0;
     const double zmax = h0 * (double)NDISKBIN_VER;
     const double zmid = hh * (double)NDISKBIN_VER;
+    const double zmid_inv = 1.0 / zmid_inv;
+
     for(int kk = 0; kk < ndisk; kk++)
 #pragma omp parallel for
       for(int ii = 0; ii < NDISKBIN_HOR; ii++){
 	const double Ri = RR[ii];
 	const double Rinv = 1.0 / Ri;
 	const double full = M_PI_4 *  zmid         * integrate_DEformula_full(      zmid, *(disk[kk].rho), Ri, Rinv, highestLev + 1, h0, h0inv);
+#if 1
+	const double part = 0.5 * disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] - M_PI_4 * (zmax - zmid) * integrate_DEformula_part(zmid, zmax, *(disk[kk].rho), Ri, Rinv, highestLev + 1, h0, h0inv);
+
+	disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] = (full >= part) ? (full) : (part);
+	/* if( disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] < 0.0 ){ */
+	/*   __KILL__(stderr, "lev = %d, maxLev = %d, R = %e, ans = %e, tot = %e, full = %e, part = %e, zmax = %e, zmid = %e\n", lev, highestLev + 1, Ri, disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], 0.5 * disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], full, part, zmax, zmid); */
+	/* } */
+#else
 	const double part = M_PI_4 * (zmax - zmid) * integrate_DEformula_part(zmid, zmax, *(disk[kk].rho), Ri, Rinv, highestLev + 1, h0, h0inv);
 
 	disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] = (full >= part) ? (full) : (0.5 * disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] - part);
+	/* if( disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] < 0.0 ){ */
+	/*   __KILL__(stderr, "lev = %d, maxLev = %d, R = %e, ans = %e, tot = %e, full = %e, part = %e, zmax = %e, zmid = %e\n", lev, highestLev + 1, Ri, disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], 0.5 * disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], full, part, zmax, zmid); */
+	/* } */
+#endif
       }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
+#endif
   }/* if( lev > 0 ){ */
 
 #else///USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
+#if 1
+  /** adopt Simpson rule for numerical integral */
+  if( lev > levOld ){
+    /** previous step is coarser grid ==>> evaluate mass above the region */
+    for(int kk = 0; kk < ndisk; kk++){
+#pragma omp parallel for
+      for(int ii = 0; ii < NDISKBIN_HOR; ii++)
+	disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)] = 0.5 * disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
+
+      for(int ll = lev - 1; ll >= 0; ll--){
+	const int ldiff = lev - ll;
+	const double dh = ldexp(disk[0].hh, -ll) / 3.0;
+
+#pragma omp parallel for
+	for(int ii = 0; ii < (NDISKBIN_HOR >> ldiff); ii++){
+	  double mass = (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, NDISKBIN_VER >> 1)];
+	  for(int jj = (NDISKBIN_VER >> 1) + 1; jj < NDISKBIN_VER - 1; jj++)
+	    mass += (double)(2 << (jj & 1)) * (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, jj)];
+	  mass += (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, ll, ii, NDISKBIN_VER - 1)];
+	  mass *= dh;
+
+	  for(int mm = (ii << ldiff); mm < (ii << ldiff) + (1 << ldiff); mm++)
+	    disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, lev, mm)] -= mass;
+	}/* for(int ii = 0; ii < (NDISKBIN_HOR >> ldiff); ii++){ */
+      }/* for(int ll = lev - 1; ll >= 0; ll--){ */
+    }/* for(int kk = 0; kk < ndisk; kk++){ */
+  }/* if( lev > levOld ){ */
+#else
   if( lev > 0 ){
 #ifdef  ASSIGN_COARSER_PATCH_FOR_SURFACE_DENSITY
     const int levCoarse = lev - 1;
@@ -2688,6 +2923,7 @@ void getPotDensPair
     }/* for(int ll = lev - 1; ll >= 0; ll--){ */
 #endif//ASSIGN_COARSER_PATCH_FOR_SURFACE_DENSITY
   }/* if( lev > 0 ){ */
+#endif
 #endif//USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
 
 
@@ -2714,7 +2950,13 @@ void getPotDensPair
     else      rhoTot = *disk[0].rho;
 
     /** solve Poisson equation using ILU(0) preconditioned BiCGSTAB method */
-    getPotentialField(ndisk, disk, lev, hh, invhh, RR, zz, rhoTot, Phi, Phi_NR, Phi_Nz, mat, pre, stock_inv, stock_sub, stock_tmp, stock_sum);
+    getPotentialField(ndisk, disk, lev, hh, invhh, RR, zz, rhoTot, Phi, Phi_NR, Phi_Nz,
+#ifdef  USE_LIS
+		      lis_mat, lis_b, lis_x, lis_solver,
+#else///USE_LIS
+		      mat, pre,
+#endif//USE_LIS
+		      stock_inv, stock_sub, stock_tmp, stock_sum);
 
 
 #   if  defined(ITERATE_VARIABLE_SCALE_HEIGHT) && defined(ENABLE_VARIABLE_SCALE_HEIGHT)
@@ -2885,8 +3127,32 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
   }/* for(int ii = 0; ii < max; ii++){ */
   gsl_integration_glfixed_table_free(tab);
 
+  /** outer boundary condition of the potential field */
+  static double Phi_NR[NDISKBIN_VER], Phi_Nz[NDISKBIN_HOR];
+
   /** allocate memory for the iterative solver of the Poisson equation */
   /** sparse matrix in CRS format */
+#ifdef  USE_LIS
+  LIS_MATRIX lis_mat;
+  lis_matrix_create(0, &lis_mat);
+  lis_matrix_set_size(lis_mat, 0, NROW_CG);
+  setSparseMatrix(lis_mat);
+
+  LIS_VECTOR lis_b, lis_x;
+  lis_vector_create(0, &lis_b);
+  lis_vector_set_size(lis_b, 0, NCOL_CG);
+  lis_vector_duplicate(lis_b, &lis_x);
+
+  LIS_SOLVER lis_solver;
+  lis_solver_create(&lis_solver);
+  /* lis_solver_set_option("-i bicgstab", lis_solver);/\**< 2.564329e+02 sec for diskTbl *\/ */
+  /* lis_solver_set_option("-i bicgstab -p ilu", lis_solver);/\**< 1.304378e+02 sec for diskTbl *\/ */
+  lis_solver_set_option("-i bicgstab -p ilut", lis_solver);/**< 1.136713e+02 sec for diskTbl */
+  /* lis_solver_set_option("-i minres", lis_solver);/\**< 2.602234e+02 sec for diskTbl *\/ */
+  /* lis_solver_set_option("-i minres -p ilu", lis_solver); /\**< too long elapsed time for diskTbl *\/ */
+  /* lis_solver_set_option("-i minres -p ilut", lis_solver); /\**< 2.602234e+02 sec for diskTbl *\/ */
+  lis_solver_set_option("-tol 1.0e-10 -maxiter 16384", lis_solver);
+#else///USE_LIS
   crs mat, ilu;
   static double mat_val[NNZ_CG], ilu_val[NNZ_CG];
   static    int mat_col[NNZ_CG], ilu_col[NNZ_CG], mat_row[NROW_CG + 1], ilu_row[NROW_CG + 1];
@@ -2895,8 +3161,6 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
   /** vector used in BiCGSTAB method */
   static double vec[NCOL_CG], res[NCOL_CG], sdw[NCOL_CG], mid[NCOL_CG], tmp[NCOL_CG];
   static double Api[NCOL_CG], Ati[NCOL_CG], Kri[NCOL_CG], Kpi[NCOL_CG], Kti[NCOL_CG];
-  /** outer boundary condition of the potential field */
-  static double Phi_NR[NDISKBIN_VER], Phi_Nz[NDISKBIN_HOR];
 
   /** execute first touch for memories related to BiCGSTAB */
 #pragma omp parallel
@@ -2925,6 +3189,7 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
   /** prepare Poisson equation in matrix form (matrix part) */
   setSparseMatrix(smat.mat);
   getILU0(NDISKBIN_HOR * NDISKBIN_VER, smat.mat, pre.ilu);
+#endif//USE_LIS
 
 
   /** set column density profile */
@@ -2999,7 +3264,13 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
 #ifdef  USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
 		   highestLev,
 #endif//USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
-		   lev, old, disk, Phi_NR, Phi_Nz, smat, pre, stock_inv, stock_sub, stock_tmp, stock_sum);
+		   lev, old, disk, Phi_NR, Phi_Nz,
+#ifdef  USE_LIS
+		   lis_mat, lis_b, lis_x, lis_solver,
+#else///USE_LIS
+		   smat, pre,
+#endif//USE_LIS
+		   stock_inv, stock_sub, stock_tmp, stock_sum);
 
 #ifdef  USE_DEFORMULA_FOR_SURFACE_DENSITY_ESTIMATE
     highestLev = (lev > highestLev) ? lev : highestLev;
@@ -3124,6 +3395,13 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
 	for(int jj = 0; jj < NDISKBIN_VER + 1; jj++)
 	  (*disk[kk].rhoSum)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER + 1, ll, ii, jj)] *= disk[kk].sigmaz[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)];
   }/* for(int kk = 0; kk < ndisk; kk++){ */
+
+#ifdef  USE_LIS
+  lis_matrix_destroy(lis_mat);
+  lis_vector_destroy(lis_b);
+  lis_vector_destroy(lis_x);
+  lis_solver_destroy(lis_solver);
+#endif//USE_LIS
 
 
   __NOTE__("%s\n", "end");

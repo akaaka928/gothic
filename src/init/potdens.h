@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/28 (Wed)
+ * @date 2018/04/24 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -28,13 +28,12 @@
  *
  * @brief number of grid points of the density and potential fields in z-direction
  */
-/* #ifndef SET_EXTERNAL_POTENTIAL_FIELD_DISK */
+#ifdef  USE_LIS
+/* #define NDISKBIN_VER (128) */
 #define NDISKBIN_VER (64)
-/* #else///SET_EXTERNAL_POTENTIAL_FIELD_DISK */
-/* /\* #define NDISKBIN_VER (256) *\/ */
-/* /\* #define NDISKBIN_VER (512) *\/ */
-/* #define NDISKBIN_VER (1024) */
-/* #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK */
+#else///USE_LIS
+#define NDISKBIN_VER (64)
+#endif//USE_LIS
 
 /**
  * @def NHOR_OVER_NVER
@@ -54,13 +53,14 @@
 /** number of arrays for BiCGSTAB method */
 #define  NNZ_CG (5 * NDISKBIN_HOR * NDISKBIN_VER - 2 * (NDISKBIN_HOR + NDISKBIN_VER))
 #define NROW_CG (NDISKBIN_HOR * NDISKBIN_VER)
-#define NCOL_CG (NDISKBIN_HOR * NDISKBIN_VER)
+#define NCOL_CG NROW_CG
 
 
 /** macros for setting physical scale of the density and potential fields of the disk component(s) */
 #define DISK_MAX_SAFETY (2.0)
 #define DISK_MAX_LENGTH (10.0)
 #define DISK_MIN_LENGTH (3.90625e-3)
+/* #define DISK_MIN_LENGTH (7.8125e-3) */
 
 
 /* #define NDIVIDE_GAUSSQD4DISK (4) */
@@ -150,8 +150,6 @@
  */
 #define NEGLECT_DENSITY_MINIMUM (1.0e-10)
 
-
-/* #define INDEX4D(n0, n1, n2, n3, ii, jj, kk, ll) ((ll) + (n3) * ((kk) + (n2) * ((jj) + (n1) * (ii)))) */
 
 /* #define NDISKBIN_RAD (16384) */
 #define NDISKBIN_RAD (131072)

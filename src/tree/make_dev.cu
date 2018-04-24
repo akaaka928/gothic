@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/05 (Thu)
+ * @date 2018/04/16 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -408,39 +408,6 @@ __global__ void initPHhierarchy_kernel(PHinfo *level)
     level[ii] = phLev;
   }/* if( ii < NUM_PHKEY_LEVEL ){ */
 }
-
-
-/* /\** */
-/*  * @fn initTreeCell_kernel */
-/*  * */
-/*  * @brief Initialize information on tree cells. */
-/*  *\/ */
-/* __global__ void initTreeCell_kernel */
-/* (const int cellNum, treecell * RESTRICT cell, PHint * RESTRICT hkey, uint * RESTRICT parent, uint * RESTRICT children, bool * RESTRICT leaf, uint * RESTRICT ptag, const int piNum) */
-/* { */
-/*   const int ii = GLOBALIDX_X1D; */
-
-/*   if( ii < cellNum ){ */
-/*     /\** initialize tree-cell information *\/ */
-/*     treecell tmp_null_cell = {0, NULL_CELL}; */
-/*     int tmp_hkey = -1; */
-
-/*     /\** set a root cell *\/ */
-/*     if( ii == 0 ){ */
-/*       tmp_null_cell.head = 0; */
-/*       tmp_null_cell.num  = piNum; */
-/*       tmp_hkey           = 0; */
-/*     }/\* if( ii == 0 ){ *\/ */
-
-/*     /\** store initialized information on tree-cell *\/ */
-/*     cell    [ii] = tmp_null_cell; */
-/*     hkey    [ii] = tmp_hkey; */
-/*     parent  [ii] = NULL_CELL; */
-/*     children[ii] = NULL_CELL; */
-/*     leaf    [ii] = true; */
-/*     ptag    [ii] = NULL_NODE; */
-/*   }/\* if( ii < cellNum ){ *\/ */
-/* } */
 
 
 /**
@@ -865,10 +832,6 @@ linkTree_kernel
   const int bidx =  BLOCKIDX_X1D;
   const int lane = tidx & (warpSize - 1);
 
-#ifdef  USE_COOPERATIVE_GROUPS
-  grid_group grid = this_grid();
-#endif//USE_COOPERATIVE_GROUPS
-
   /** shared quantities in the thread parallelized version */
   __shared__ int smem[NTHREADS_LINK_TREE];
 
@@ -886,11 +849,7 @@ linkTree_kernel
     const int cidx = gidx + chkNumStep * loop;
     treecell root = (cidx < cellTail) ? (cell[cidx]) : (null_cell_device);
 
-#ifdef  USE_COOPERATIVE_GROUPS
-    grid.sync();
-#else///USE_COOPERATIVE_GROUPS
     globalSync(tidx, bidx, bnum, gsync0, gsync1);
-#endif//USE_COOPERATIVE_GROUPS
 
     /** extend the pseudo particle chain */
     linkNode(root, leaf[cidx], &ptag[cidx], more, jtag, &numNode,
@@ -1097,28 +1056,10 @@ void makeTreeStructure_dev
 #ifdef  USE_OCCUPANCY_CALCULATOR
   const int NBLOCKS_PER_SM_LINK_TREE = buf.numBlocksPerSM_link_tree;
 #endif//USE_OCCUPANCY_CALCULATOR
-#ifdef  USE_COOPERATIVE_GROUPS
-  const int cellNum_tmp = *cellNum;
-  int *nodeNum_tmp = nodeNum_dev;
-  void *kernelArgs[] = {
-    (void *)&cellNum_tmp,
-    (void *)&cell.cell,
-    (void *)&cell.leaf,
-    (void *)&cell.ptag,
-    (void *)&nodeNum_tmp,
-    (void *)&node.more,
-    (void *)&node.jtag,
-    (void *)&buf.gmem_link_tree,
-    (void *)&buf.gsync0_link_tree,
-    (void *)&buf.gsync1_link_tree
-  };
-  checkCudaErrors(cudaLaunchCooperativeKernel((void *)linkTree_kernel, NBLOCKS_PER_SM_LINK_TREE, NTHREADS_LINK_TREE, kernelArgs));
-#else///USE_COOPERATIVE_GROUPS
   linkTree_kernel<<<devProp.numSM * NBLOCKS_PER_SM_LINK_TREE, NTHREADS_LINK_TREE>>>
     (*cellNum, cell.cell, cell.leaf, cell.ptag,
      nodeNum_dev, node.more, node.jtag,
      buf.gmem_link_tree, buf.gsync0_link_tree, buf.gsync1_link_tree);
-#endif//USE_COOPERATIVE_GROUPS
   getLastCudaError("linkTree_kernel");
   checkCudaErrors(cudaMemcpy(nodeNum, nodeNum_dev, sizeof(int), cudaMemcpyDeviceToHost));
 
@@ -2691,7 +2632,7 @@ void calcMultipole_dev
     , (void *)&stats_tmp
 #endif//COUNT_INTERACTIONS
   };
-  checkCudaErrors(cudaLaunchCooperativeKernel((void *)calcMultipole_kernel, NBLOCKS_PER_SM_MAC, NTHREADS_MAC, kernelArgs));
+  checkCudaErrors(cudaLaunchCooperativeKernel((void *)calcMultipole_kernel, devProp.numSM * NBLOCKS_PER_SM_MAC, NTHREADS_MAC, kernelArgs));
 #else///USE_COOPERATIVE_GROUPS
   calcMultipole_kernel<<<devProp.numSM * NBLOCKS_PER_SM_MAC, NTHREADS_MAC>>>
     (bottomLev - 1, cell.level, cell.cell, cell.leaf,
@@ -2906,18 +2847,14 @@ muse allocTreeNode_dev
   mycudaMalloc((void **)gsync2_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
   mycudaMalloc((void **)gsync3_make_tree, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE * sizeof(int);
   mycudaMalloc((void **)  gmem_link_tree, devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int);
-/* #ifndef USE_COOPERATIVE_GROUPS */
   mycudaMalloc((void **)gsync0_link_tree, devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int);
   mycudaMalloc((void **)gsync1_link_tree, devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_LINK_TREE * sizeof(int);
-/* #endif//USE_COOPERATIVE_GROUPS */
   initGsync_kernel<<<1, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE>>>(devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE, *gsync0_make_tree, *gsync1_make_tree);
   getLastCudaError("initGsync_kernel");
   initGsync_kernel<<<1, devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE>>>(devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE, *gsync2_make_tree, *gsync3_make_tree);
   getLastCudaError("initGsync_kernel");
-/* #ifndef USE_COOPERATIVE_GROUPS */
   initGsync_kernel<<<1, devProp.numSM * NBLOCKS_PER_SM_LINK_TREE>>>(devProp.numSM * NBLOCKS_PER_SM_LINK_TREE, *gsync0_link_tree, *gsync1_link_tree);
   getLastCudaError("initGsync_kernel");
-/* #endif//USE_COOPERATIVE_GROUPS */
 
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
   mycudaMalloc((void **)  gmem_external, devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int));  alloc.device += devProp.numSM * NBLOCKS_PER_SM_OUTFLOW * sizeof(int);
@@ -2946,10 +2883,8 @@ muse allocTreeNode_dev
   buf->gsync1_make_tree = *gsync1_make_tree;
   buf->gsync2_make_tree = *gsync2_make_tree;
   buf->gsync3_make_tree = *gsync3_make_tree;
-/* #ifndef USE_COOPERATIVE_GROUPS */
   buf->gsync0_link_tree = *gsync0_link_tree;
   buf->gsync1_link_tree = *gsync1_link_tree;
-/* #endif//USE_COOPERATIVE_GROUPS */
 
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 #   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
@@ -3038,9 +2973,7 @@ void  freeTreeNode_dev
 
   mycudaFree(gmem_make_tree);  mycudaFree(gsync0_make_tree);  mycudaFree(gsync1_make_tree);  mycudaFree(gsync2_make_tree);  mycudaFree(gsync3_make_tree);
   mycudaFree(gmem_link_tree);
-/* #ifndef USE_COOPERATIVE_GROUPS */
   mycudaFree(gsync0_link_tree);  mycudaFree(gsync1_link_tree);
-/* #endif//USE_COOPERATIVE_GROUPS */
 
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
   mycudaFree(gmem_external);
@@ -3107,7 +3040,25 @@ void setGlobalConstants_make_dev_cu
 #endif//CUDART_VERSION >= 5000
 
 
+#   if  GPUGEN < 70
   checkCudaErrors(cudaFuncSetCacheConfig(calcMultipole_kernel, cudaFuncCachePreferShared));
+#else///GPUGEN < 70
+  checkCudaErrors(cudaFuncSetCacheConfig(calcMultipole_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, SMEM_SIZE_SM_PREF));
+
+  /* remove shared memory if __global__ function does not use */
+  checkCudaErrors(cudaFuncSetCacheConfig(initPHhierarchy_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetCacheConfig(initTreeCellOffset_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetCacheConfig(initTreeNode_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetCacheConfig(initTreeLink_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetCacheConfig(trimTree_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetCacheConfig(initTreeBody_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetCacheConfig(copyRealBody_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+#ifdef  GADGET_MAC
+  checkCudaErrors(cudaFuncSetCacheConfig(enforceBarnesHutMAC, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetCacheConfig(recoverGADGET_MAC, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+#endif//GADGET_MAC
+
+#endif//GPUGEN < 70
 
 
 #ifndef USE_OCCUPANCY_CALCULATOR

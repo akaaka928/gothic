@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/04/13 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -126,7 +126,11 @@ void setGlobalConstants_neighbor_dev_cu(void)
 {
   __NOTE__("%s\n", "start");
 
+#   if  GPUGEN < 70
   checkCudaErrors(cudaFuncSetCacheConfig(facileNeighborSearching_kernel, cudaFuncCachePreferShared));
+#else///GPUGEN < 70
+  checkCudaErrors(cudaFuncSetCacheConfig(facileNeighborSearching_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, SMEM_SIZE_SM_PREF));
+#endif//GPUGEN < 70
 
   __NOTE__("%s\n", "end");
 }

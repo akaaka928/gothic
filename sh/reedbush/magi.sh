@@ -706,7 +706,7 @@ module load intel intel-mpi
 module load phdf5/impi
 # module load mvapich2/gdr/2.2/gnu
 # module load phdf5/mv2
-module load gsl
+module load gsl lis
 ###############################################################
 # execute the job
 if [ `which numactl` ]; then

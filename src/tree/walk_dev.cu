@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/04 (Wed)
+ * @date 2018/04/13 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -3473,7 +3473,11 @@ void setGlobalConstants_walk_dev_cu
 #endif//CUDART_VERSION >= 5000
 
 #   if  SMPREF == 1
+#   if  GPUGEN < 70
   checkCudaErrors(cudaFuncSetCacheConfig(calcAcc_kernel, cudaFuncCachePreferShared));
+#else///GPUGEN < 70
+  checkCudaErrors(cudaFuncSetCacheConfig(calcAcc_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, SMEM_SIZE_SM_PREF));
+#endif//GPUGEN < 70
 #endif//SMPREF == 1
 
 #   if  WIDEBANK == 0
@@ -3490,6 +3494,14 @@ void setGlobalConstants_walk_dev_cu
   if( Nblck != NBLOCKS_PER_SM ){
     __KILL__(stderr, "ERROR: # of blocks per SM for calcAcc_kernel is mispredicted (%d).\n\tThe limits come from register and shared memory are %d and %d, respectively.\n\tHowever, the expected value of NBLOCKS_PER_SM defined in src/tree/walk_dev.cu is %d\n", Nblck, regLimit, memLimit, NBLOCKS_PER_SM);
   }/* if( Nblck != NBLOCKS_PER_SM ){ */
+
+
+  /* remove shared memory if __global__ function does not use */
+#   if  GPUGEN >= 70
+  checkCudaErrors(cudaFuncSetCacheConfig(initFreeLst, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetCacheConfig(initAcc_Lst, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetCacheConfig(trimAcc_Lst, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+#endif//GPUGEN >= 70
 
 
   __NOTE__("%s\n", "end");

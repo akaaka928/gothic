@@ -29,10 +29,7 @@ fi
 ###############################################################
 # dump file generation interval (in units of minute)
 if [ -z "$SAVE" ]; then
-    # SAVE=2.0
-    # SAVE=35.0
-    # SAVE=70.0
-    SAVE=140.0
+    SAVE=55.0
 fi
 ###############################################################
 
@@ -119,39 +116,39 @@ if [ $PROBLEM -eq 20 ]; then
 fi
 ###############################################################
 # Fornax simulation
-if [ $PROBLEM -eq 21 ]; then
-    FILE=halocore1_run
-    CFG=pbh/halocore1_run.cfg
-    EPS=9.765625000e-4
-    ETA=0.5
-    FINISH=14000.0
-    INTERVAL=100.0
-fi
-###############################################################
-# Fornax simulation
-if [ $PROBLEM -eq 22 ]; then
-    FILE=halocore2_run
-    CFG=pbh/halocore2_run.cfg
-    EPS=9.765625000e-4
-    ETA=0.5
-    FINISH=14000.0
-    INTERVAL=100.0
-fi
-###############################################################
-# Fornax simulation
-if [ $PROBLEM -eq 23 ]; then
-    FILE=halocore3_run
-    CFG=pbh/halocore3_run.cfg
-    EPS=9.765625000e-4
-    ETA=0.5
-    FINISH=14000.0
-    INTERVAL=100.0
-fi
-###############################################################
-# Fornax simulation
-if [ $PROBLEM -eq 24 ]; then
+if [ $PROBLEM -eq 30 ]; then
     FILE=halocusp_run
-    CFG=pbh/halocusp_run.cfg
+    CFG=fornax/halocusp_run.cfg
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 31 ]; then
+    FILE=halocore1_run
+    CFG=fornax/halocore1_run.cfg
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 32 ]; then
+    FILE=halocore2_run
+    CFG=fornax/halocore2_run.cfg
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 33 ]; then
+    FILE=halocore3_run
+    CFG=fornax/halocore3_run.cfg
     EPS=9.765625000e-4
     ETA=0.5
     FINISH=14000.0

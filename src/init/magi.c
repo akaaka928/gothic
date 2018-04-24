@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/11 (Wed)
+ * @date 2018/04/24 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -42,6 +42,10 @@
 #include <hdf5.h>
 #include "hdf5lib.h"
 #endif//USE_HDF5_FORMAT
+
+#ifdef  USE_LIS
+#include "lis.h"
+#endif//USE_LIS
 
 #include "macro.h"
 #include "name.h"
@@ -657,6 +661,10 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
 
 int main(int argc, char **argv)
 {
+#ifdef  USE_LIS
+  lis_initialize(&argc, &argv);
+#endif//USE_LIS
+
   /** read input arguments */
   if( argc < 9 ){
     __FPRINTF__(stderr, "insufficient number of input parameters of %d (at least %d inputs are required).\n", argc, 9);
@@ -886,9 +894,6 @@ int main(int argc, char **argv)
     initBenchmark_cpu();
     makeDiskPotentialTable(ndisk, maxLev, disk_info);
     stopBenchmark_cpu(&execTime.diskTbl);
-#if 0
-    writeDiskData(file, ndisk, maxLev, disk_info);
-#endif
 
     /** set profile of spherical averaged density, mass and potential */
     initBenchmark_cpu();
@@ -1508,6 +1513,10 @@ int main(int argc, char **argv)
        Phi_diskpot);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELDp
+
+#ifdef  USE_LIS
+  lis_finalize();
+#endif//USE_LIS
 
   return (0);
 }
@@ -2905,8 +2914,13 @@ static void evaluateDiskProperties
   for(int ii = ihead; ii < itail + 1; ii++){
     /** evaluate epicyclic quantities and circular speed */
 #ifndef USE_POTENTIAL_SCALING_SCHEME
+#if 1
     const double  dPhidR  = disk_info[diskID]. dPhidR [INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)];
     const double d2PhidR2 = disk_info[diskID].d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)];
+#else
+    const double  dPhidR  = 1.25 * disk_info[diskID]. dPhidR [INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] - 0.25 * disk_info[diskID]. dPhidR [INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 1)];
+    const double d2PhidR2 = 1.25 * disk_info[diskID].d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)] - 0.25 * disk_info[diskID].d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 1)];
+#endif
 #else///USE_POTENTIAL_SCALING_SCHEME
     const double  dPhidR  = disk_info[diskID]. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
     const double d2PhidR2 = disk_info[diskID].d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];

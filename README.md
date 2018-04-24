@@ -8,7 +8,7 @@
   * Released under the MIT license, see LICENSE.txt for detail.
   * Copyright (c) 2017 Yohei Miki and Masayuki Umemura, All rights reserved.
 
-# MAGI (version 1.0.2)
+# MAGI (version 1.0.4)
   * MAny-component Galaxy Initializer
   * Developed by
     * Yohei Miki (Information Technology Center, University of Tokyo)
@@ -116,6 +116,7 @@
    * Execution options for MAGI (shared with GOTHIC)
      - USE_OFFICIAL_SFMT: 1 uses SFMT (SIMD-oriented Fast Mersenne Twister developed by Mutsuo Saito and Makoto Matsumoto); 1 is default
      - USE_OFFICIAL_SFMT_JUMP: 1 uses SFMT-jump (jump function for SFMT developed by Mutsuo Saito and Makoto Matsumoto); 1 is default
+     - USE_LIS_FOR_MAGI: 1 uses Lis (Library of Iterative Solvers for linear systems developed by Nishida et al.); 1 is default
      - SET_EXTERNAL_FIELD: 1 outputs radial profiles of each components' potential for N-body simulations; 0 is default
      - SET_EXTERNAL_FIELD_DISK: 1 outputs potential field of disk components for N-body simulations; 1 is default (automatically disabled if SET_EXTERNAL_FIELD is 0)
      - ADAPTIVE_EXTERNAL_FIELD: 1 uses adaptive gridding instead of regular grid for numeric tables for potential profiles; 0 is default
@@ -156,7 +157,6 @@
      - performance enhancements of MPI version
      - refactoring of flags related to enclosing ball
    * MAGI
-     - debug for ASSIGN_COARSER_PATCH_FOR_SURFACE_DENSITY option in src/init/potdens.c
      - performance enhancements of generating potential-density pair of the disk component(s)
      - rotation of spherical components (in arbitrary rotation axis)
      - development of MPI parallelized versoin

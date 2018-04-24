@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/12 (Mon)
+ * @date 2018/04/23 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -324,49 +324,36 @@ void diffAxisymmetricPotential(const int maxLev, const disk_data disk)
   __NOTE__("%s\n", "start");
 
 
-  for(int lev = 0; lev < maxLev; lev++){
-    double *RR;    RR = &(disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)]);
-    double *zz;    zz = &(disk.ver[INDEX2D(maxLev, NDISKBIN_VER, lev, 0)]);
-    double *  Phi    ;      Phi     = &(disk.  pot   [INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, 0)]);
+  profile *prf;
+  prf = disk.prf;
+  const double invlogrbin = disk.invlogrbin;
 
 #ifndef USE_POTENTIAL_SCALING_SCHEME
-    double * dPhi_dR ;	   dPhi_dR  = &(disk. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, 0)]);
-    double *d2Phi_dR2;	  d2Phi_dR2 = &(disk.d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, 0)]);
+  const int Nj = NDISKBIN_VER;
 #else///USE_POTENTIAL_SCALING_SCHEME
-    double * dPhi_dR ;	   dPhi_dR  = &(disk. dPhidR [INDEX2D(maxLev, NDISKBIN_HOR               , lev, 0)]);
-    double *d2Phi_dR2;	  d2Phi_dR2 = &(disk.d2PhidR2[INDEX2D(maxLev, NDISKBIN_HOR               , lev, 0)]);
+  const int Nj = 1;
 #endif//USE_POTENTIAL_SCALING_SCHEME
 
-#if 1
-    double *Phi_coarse;
-    if( lev > 0 )
-      Phi_coarse = &(disk.pot[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev - 1, 0)]);
-#endif
 
+  for(int lev = 0; lev < maxLev; lev++){
     const double invRbin = 1.0 / ldexp(disk.hh, -lev);
-    profile *prf;    prf = disk.prf;
-    const double invlogrbin = disk.invlogrbin;
 
+    /** generate R-profile of \pdv{\Phi}{R} and \pdv[2]{\Phi}{R} */
 #pragma omp parallel for
     for(int ii = 0; ii < NDISKBIN_HOR; ii++){
-    /* for(int ii = 0; ii < NDISKBIN_HOR - 1; ii++){ */
 #ifdef  USE_POTENTIAL_SCALING_SCHEME
       const int jj = 0;
 #else///USE_POTENTIAL_SCALING_SCHEME
       for(int jj = 0; jj < NDISKBIN_VER; jj++)
 #endif//USE_POTENTIAL_SCALING_SCHEME
 	{
-	  /** R-derivatives of potential given by the disk component */
-	  double _dPhidR__disk, d2PhidR2_disk;
-#if 1
-	  const double Phi_m = Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, (ii > 0) ? (ii - 1) : (0), jj)];/**< symmetry @ R = 0 (ii == 0) */
-	  const double Phi_0 = Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)];
+	  const double Phi_m = disk.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, (ii > 0) ? (ii - 1) : (0), jj)];/**< symmetry @ R = 0 (ii == 0) */
+	  const double Phi_0 = disk.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)];
 	  double Phi_p = 0.0;
 
 	  if( ii < (NDISKBIN_HOR - 1) )
-	    Phi_p = Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii + 1, jj)];
-
-	  if( ii == (NDISKBIN_HOR - 1) ){
+	    Phi_p = disk.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii + 1, jj)];
+	  else{
 	    if( lev > 0 ){
 	      const int j0 = jj >> 1;
 	      const int im = ii >> 1;
@@ -375,42 +362,122 @@ void diffAxisymmetricPotential(const int maxLev, const disk_data disk)
 	      const int jm = (j0 > 0) ? (j0 - 1) : (0);/**< symmetry @ z = 0 */
 	      const int jp = j0 + 1;
 
-	      const double Phi_pm = 0.75 * Phi_coarse[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ip, jm)] + 0.25 * Phi_coarse[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, im, jm)];
-	      const double Phi_p0 = 0.75 * Phi_coarse[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ip, j0)] + 0.25 * Phi_coarse[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, im, j0)];
-	      const double Phi_pp = 0.75 * Phi_coarse[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ip, jp)] + 0.25 * Phi_coarse[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, im, jp)];
+	      const double Phi_pm = 0.75 * disk.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, ip, jm)] + 0.25 * disk.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, im, jm)];
+	      const double Phi_p0 = 0.75 * disk.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, ip, j0)] + 0.25 * disk.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, im, j0)];
+	      const double Phi_pp = 0.75 * disk.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, ip, jp)] + 0.25 * disk.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev - 1, im, jp)];
 
 	      Phi_p = 0.75 * Phi_p0 + 0.25 * ((jj & 1) ? (Phi_pp) : (Phi_pm));
 	    }/* if( lev > 0 ){ */
-	    else
-	      Phi_p = Phi_0;/**< sufficiently far from the focusing domain */
-	  }/* if( ii == (NDISKBIN_HOR - 1) ){ */
-
-
-	  _dPhidR__disk = 0.5     * invRbin * (Phi_p - Phi_m);
-	  d2PhidR2_disk = invRbin * invRbin * (Phi_p + Phi_m - 2.0 * Phi_0);
-#else
-	  if( ii != 0 ){
-	    _dPhidR__disk = 0.5     * invRbin * (Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii + 1, jj)] - Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii - 1, jj)]);
-	    d2PhidR2_disk = invRbin * invRbin * (Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii + 1, jj)] + Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii - 1, jj)] - 2.0 * Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)]);
-	  }/* if( ii != 0 ){ */
-	  else{
-	    _dPhidR__disk = 0.5     * invRbin * (Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 1, jj)] - Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, jj)]);
-	    d2PhidR2_disk = invRbin * invRbin * (Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 1, jj)] - Phi[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, 0, jj)]);
+	    else{
+	      /* Phi_p = Phi_0;/\**< sufficiently far from the focusing domain *\/ */
+	      Phi_p = 2.0 * Phi_0 - Phi_m;
+	    }
 	  }/* else{ */
-#endif
+	  disk. dPhidR [INDEX(maxLev, NDISKBIN_HOR, Nj, lev, ii, jj)] = 0.5     * invRbin * (Phi_p - Phi_m);
+	  disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, Nj, lev, ii, jj)] = invRbin * invRbin * (Phi_p + Phi_m - 2.0 * Phi_0);
+	}
+    }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
 
-#if 0
-#pragma omp critical
-	  if( jj == 0 ){
-	    fprintf(stderr, "%e\t%d\t%d\t%e\t%e\n", RR[ii], lev, ii, _dPhidR__disk, d2PhidR2_disk);
-	    fflush(stderr);
-	  }
-#endif
 
+    /** detect spikes of \pdv[2]{\Phi}{R} profile and smooth out by cubic spline interpolation */
+    {
+      const double hh = ldexp(disk.hh, -lev);
+      static double spline_xx[NDISKBIN_HOR + 2], spline_ff[NDISKBIN_HOR + 2], spline_bp[NDISKBIN_HOR + 2], spline_f2[NDISKBIN_HOR + 2];
+#ifdef  USE_POTENTIAL_SCALING_SCHEME
+      const int jj = 0;
+#else///USE_POTENTIAL_SCALING_SCHEME
+      for(int jj = 0; jj < NDISKBIN_VER; jj++)
+#endif//USE_POTENTIAL_SCALING_SCHEME
+	{
+	  spline_xx[0] = 0.0;
+	  spline_ff[0] = 1.25 * disk.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, 0, jj)] - 0.25 * disk.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, 1, jj)];
+
+	  spline_xx[1] = disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, 0)];
+	  spline_ff[1] = disk.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, 0, jj)];
+	  int Nspline = 2;
+
+	  double prev = disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, Nj, lev, 0, jj)];
+	  double curr = disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, Nj, lev, 1, jj)];
+
+	  for(int ii = 1; ii < NDISKBIN_HOR - 1; ii++){
+	    double next = disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, Nj, lev, ii + 1, jj)];
+
+	    if( (prev * curr >= 0.0) || (curr * next >= 0.0) ){
+	      spline_xx[Nspline] = disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
+	      spline_ff[Nspline] = disk.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)];
+	      Nspline++;
+	    }/* if( (prev * curr >= 0.0) || (curr * next >= 0.0) ){ */
+	    else
+	      disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)] = DBL_MAX;
+
+	    prev = curr;
+	    curr = next;
+	  }/* for(int ii = 1; ii < NDISKBIN_HOR - 1; ii++){ */
+
+	  spline_xx[Nspline] = disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, NDISKBIN_HOR - 1)];
+	  spline_ff[Nspline] = disk.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, NDISKBIN_HOR - 1, jj)];
+	  Nspline++;
+
+	  spline_xx[Nspline] = hh + disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, NDISKBIN_HOR - 1)];
+
+	  double S = 0.0, Sx = 0.0, Sy = 0.0, Sxx = 0.0, Sxy = 0.0, Syy = 0.0, Sxxx = 0.0, Sxxy = 0.0, Sxxxx = 0.0;
+	  for(int ii = NDISKBIN_HOR - 3; ii < NDISKBIN_HOR; ii++){
+	    const double xx = disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
+	    const double yy = disk.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, jj)];
+	    S += 1.0;
+	    Sx += xx;
+	    Sy += yy;
+	    Sxx += xx * xx;
+	    Sxy += xx * yy;
+	    Syy += yy + yy;
+	    Sxxx += xx * xx * xx;
+	    Sxxy += xx * xx * yy;
+	    Sxxxx += xx * xx * xx * xx;
+	  }/* for(int ii = NDISKBIN_HOR - 3; ii < NDISKBIN_HOR; ii++){ */
+
+	  const double aa = ((S * Sxxx - Sxx * Sx) * (S * Sxy - Sx * Sy) + (Sy * Sxx - S * Sxxy) * (S * Sxx - Sx * Sx)) / ((S * Sxxxx - Sxx * Sxx) * (S * Sxx - Sx * Sx) - (S * Sxxx - Sxx * Sx) * (S * Sxxx - Sxx * Sx));
+	  const double bb = (S * Sxy - Sx * Sy - (S * Sxxx - Sxx * Sx) * aa) / (S * Sxx - Sx * Sx);
+	  const double cc = (Sy - aa * Sxx - bb * Sx) / S;
+	  spline_ff[Nspline] = cc + spline_xx[Nspline] * (bb + aa * spline_xx[Nspline]);
+	  Nspline++;
+
+	  if( Nspline < (NDISKBIN_HOR + 2) ){
+	    for(int ii = Nspline; ii < NDISKBIN_HOR + 2; ii++){
+	      spline_xx[Nspline] = spline_xx[Nspline - 1] + hh;
+	      spline_ff[Nspline] = cc + spline_xx[Nspline] * (bb + aa * spline_xx[Nspline]);
+	      Nspline++;
+	    }/* for(int ii = Nspline; ii < NDISKBIN_HOR + 2; ii++){ */
+	    double fpr = 2.0 * aa * (spline_ff[Nspline - 1] - bb);
+
+	    genCubicSpline1D(Nspline, spline_xx, spline_ff, spline_bp, 0.0, fpr, spline_f2);
+
+#pragma omp parallel for
+	    for(int ii = 0; ii < NDISKBIN_HOR; ii++)
+	      if( disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, Nj, lev, ii, jj)] > 0.5 * DBL_MAX ){
+		const double RR = disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
+		disk. dPhidR [INDEX(maxLev, NDISKBIN_HOR, Nj, lev, ii, jj)] = getCubicSpline1stDifferential1D(RR, Nspline, spline_xx, spline_ff, spline_f2);
+		disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, Nj, lev, ii, jj)] = getCubicSpline2ndDifferential1D(RR, Nspline, spline_xx,            spline_f2);
+	      }/* if( disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, Nj, lev, ii, jj)] > 0.5 * DBL_MAX ){ */
+	  }/* if( Nspline < (NDISKBIN_HOR + 2) ){ */
+	}
+    }
+
+    /** superpose potential-field by spherical component(s) */
+#pragma omp parallel for
+    for(int ii = 0; ii < NDISKBIN_HOR; ii++){
+      const double RR = disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)];
+      const double R2 = RR * RR;
+#ifdef  USE_POTENTIAL_SCALING_SCHEME
+      const int jj = 0;
+#else///USE_POTENTIAL_SCALING_SCHEME
+      for(int jj = 0; jj < NDISKBIN_VER; jj++)
+#endif//USE_POTENTIAL_SCALING_SCHEME
+	{
 	  /** r-derivatives of potential given by the spherical component(s) */
-	  const double rad = sqrt(RR[ii] * RR[ii] + zz[jj] * zz[jj]);
+	  const double zz = disk.ver[INDEX2D(maxLev, NDISKBIN_VER, lev, jj)];
+	  const double rad = sqrt(R2 + zz * zz);
 	  const double rinv = 1.0 / rad;
-	  const double drdR = RR[ii] * rinv;
+	  const double drdR = RR * rinv;
 	  const double d2rdR2 = (1.0 - drdR * drdR) * rinv;
 
 	  /** find index corresponds to r = rad in prf */
@@ -419,81 +486,21 @@ void diffAxisymmetricPotential(const int maxLev, const disk_data disk)
 	  /** Psi = -Phi + Phi0 = -Phi (i.e. Phi0 is assumed to be zero) */
 	  const double enc = (1.0 - alpha) * prf[idx].enc_tot + alpha * prf[1 + idx].enc_tot;
 	  const double rho = (1.0 - alpha) * prf[idx].rho_tot + alpha * prf[1 + idx].rho_tot;
-	  const double  dPhidr__sphe = CAST_R2D(newton) *                           enc * rinv * rinv;
-	  const double d2Phidr2_sphe = CAST_R2D(newton) * (4.0 * M_PI * rho - 2.0 * enc * rinv * rinv * rinv);
+	  const double  dPhidr  = CAST_R2D(newton) *                           enc * rinv * rinv;
+	  const double d2Phidr2 = CAST_R2D(newton) * (4.0 * M_PI * rho - 2.0 * enc * rinv * rinv * rinv);
 
 	  /** R-derivatives of potential given by the all components */
-#ifndef USE_POTENTIAL_SCALING_SCHEME
-	  dPhi_dR  [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)] = _dPhidR__disk + dPhidr__sphe * drdR;
-	  d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj)] = d2PhidR2_disk + dPhidr__sphe * drdR * d2rdR2 + d2Phidr2_sphe * drdR * drdR;
-#else///USE_POTENTIAL_SCALING_SCHEME
-	  dPhi_dR  [ii] = _dPhidR__disk + dPhidr__sphe * drdR;
-	  d2Phi_dR2[ii] = d2PhidR2_disk + dPhidr__sphe * drdR * d2rdR2 + d2Phidr2_sphe * drdR * drdR;
-#endif//USE_POTENTIAL_SCALING_SCHEME
+	  disk. dPhidR [INDEX(maxLev, NDISKBIN_HOR, Nj, lev, ii, jj)] += dPhidr * drdR;
+	  disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, Nj, lev, ii, jj)] += dPhidr * drdR * d2rdR2 + d2Phidr2 * drdR * drdR;
 	}
-    }/* for(int ii = 0; ii < NDISKBIN_HOR - 1; ii++){ */
-
-#if 1
-    if( lev == 0 )
-#endif
-      {
-#ifndef USE_POTENTIAL_SCALING_SCHEME
-	for(int jj = 0; jj < NDISKBIN_VER; jj++){
-	  dPhi_dR  [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj)] =  dPhi_dR [INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, jj)];
-	  d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 1, jj)] = d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, NDISKBIN_HOR - 2, jj)];
-	}/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
-#else///USE_POTENTIAL_SCALING_SCHEME
-	dPhi_dR  [NDISKBIN_HOR - 1] =  dPhi_dR [NDISKBIN_HOR - 2];
-	d2Phi_dR2[NDISKBIN_HOR - 1] = d2Phi_dR2[NDISKBIN_HOR - 2];
-#endif//USE_POTENTIAL_SCALING_SCHEME
-      }
-
-#if 1
-    /** special treatment to remove bumps of d2PhidR2 and dPhidR at resolution boundaries */
-    if( lev != (maxLev - 1) ){
-      const int i0 = (NDISKBIN_HOR >> 1) - 1;
-
-      const double Rl = RR[i0 - 2];
-      const double Rr = RR[i0 + 2];
-      const double Rinv = 1.0 / (Rr - Rl);
-
-      const double xm = (RR[i0 - 1] - Rl) * Rinv;
-      const double x0 = (RR[i0    ] - Rl) * Rinv;
-      const double xp = (RR[i0 + 1] - Rl) * Rinv;
-
-#ifndef USE_POTENTIAL_SCALING_SCHEME
-#pragma omp parallel for
-      for(int jj = 0; jj < NDISKBIN_VER; jj++){
-	const double d1l = dPhi_dR[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0 - 2, jj)];	const double d2l = d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0 - 2, jj)];
-	const double d1r = dPhi_dR[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0 + 2, jj)];	const double d2r = d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0 + 2, jj)];
-
-	const double s1 = d1r - d1l;
-	const double s2 = d2r - d2l;
-
-	dPhi_dR[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0 - 1, jj)] = d1l + s1 * xm;	d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0 - 1, jj)] = d2l + s2 * xm;
-	dPhi_dR[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0    , jj)] = d1l + s1 * x0;	d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0    , jj)] = d2l + s2 * x0;
-	dPhi_dR[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0 + 1, jj)] = d1l + s1 * xp;	d2Phi_dR2[INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, i0 + 1, jj)] = d2l + s2 * xp;
-      }/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
-#else///USE_POTENTIAL_SCALING_SCHEME
-      const double d1l = dPhi_dR[i0 - 2];      const double d2l = d2Phi_dR2[i0 - 2];
-      const double d1r = dPhi_dR[i0 + 2];      const double d2r = d2Phi_dR2[i0 + 2];
-
-      const double s1 = d1r - d1l;
-      const double s2 = d2r - d2l;
-
-      dPhi_dR[i0 - 1] = d1l + s1 * xm;      d2Phi_dR2[i0 - 1] = d2l + s2 * xm;
-      dPhi_dR[i0    ] = d1l + s1 * x0;      d2Phi_dR2[i0    ] = d2l + s2 * x0;
-      dPhi_dR[i0 + 1] = d1l + s1 * xp;      d2Phi_dR2[i0 + 1] = d2l + s2 * xp;
-#endif//USE_POTENTIAL_SCALING_SCHEME
-    }/* if( lev != (maxLev - 1) ){ */
-#endif
+    }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
   }/* for(int lev = 0; lev < maxLev; lev++){ */
 
 
 #if 0
   for(int lev = 0; lev < maxLev; lev++){
     for(int ii = 0; ii < NDISKBIN_HOR; ii++)
-      fprintf(stderr, "%d\t%e\t%e\t%e\n", lev, disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)], disk.dPhidR[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)]);
+      fprintf(stderr, "%d\t%e\t%e\t%e\t%e\n", lev, disk.hor[INDEX2D(maxLev, NDISKBIN_HOR, lev, ii)], disk.pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ii, 0)], disk.dPhidR[INDEX(maxLev, NDISKBIN_HOR, Nj, lev, ii, 0)], disk.d2PhidR2[INDEX(maxLev, NDISKBIN_HOR, Nj, lev, ii, 0)]);
     fprintf(stderr, "\n");
   }
   exit(0);
@@ -832,7 +839,7 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     disk.cfg->vdispR0 = disk.cfg->vdispz0;
 #else///ENFORCE_EPICYCLIC_APPROXIMATION
   if( disk.cfg->vdispR0 < 0.0 ){
-    if( disk.cfg->toomre >= 0.0 ){
+    if( disk.cfg->toomre > 0.0 ){
       /* get physical quantities @ R = Rs to obtain Toomre's Q-value */
       const int lev = (int)floor(log2(disk.hh * ((double)NDISKBIN_HOR - 1.5) * disk.invRd));
       const int ii = (int)floor(ldexp(disk.cfg->rs / disk.hh, lev) - 0.5);
@@ -851,14 +858,16 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
       const double Omega0 = sqrt( dPhidR  * disk.invRd);
       const double kappa0 = sqrt(d2PhidR2 + 3.0 * Omega0 * Omega0);
 
+#pragma omp single
+      __NOTE__("Sigma0 = %e, kappa0 = %e, Q = %e, vdispR0 = %e\n", Sigma0, kappa0, disk.cfg->toomre, disk.cfg->vdispR0);
 #pragma omp barrier
       disk.cfg->vdispR0 = disk.cfg->toomre * sqrt(M_E) * 3.36 * CAST_R2D(newton) * Sigma0 / (DBL_MIN + kappa0);
-
-    }/* if( disk.cfg->toomre >= 0.0 ){ */
+    }/* if( disk.cfg->toomre > 0.0 ){ */
     else
       disk.cfg->vdispR0 = disk.cfg->vdispz0;
   }/* if( disk.cfg->vdispR0 < 0.0 ){ */
   const double vdispR0_2 = disk.cfg->vdispR0 * disk.cfg->vdispR0;
+  assert(vdispR0_2 > 0.0);
 #endif//ENFORCE_EPICYCLIC_APPROXIMATION
 
 #ifdef  USE_ZANG_HOHL_1978_EQ5
@@ -913,6 +922,7 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
 
     /** calculate vertical velocity dispersion at R = Rg */
     const double sigmaz = (1.0 - aRg) * sig[INDEX2D(maxLev, NDISKBIN_HOR, lev, iRg)] + aRg * sig[INDEX2D(maxLev, NDISKBIN_HOR, lev, 1 + iRg)];
+    assert(sigmaz >= 0.0);
 
 
     double zenc_max = 1.0;
@@ -1096,33 +1106,32 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     assert(gam2 >= 0.0);
     const double sz2inv  = 1.0 / (DBL_MIN + sigmaz * sigmaz);
 #ifdef  ENFORCE_EPICYCLIC_APPROXIMATION
-    const double sigmap = DISK_PERP_VDISP(sigmaz, vcirc, frac);
+    const double sigmap = DISK_PERP_VDISP(sigmaz, vcirc, frac);    assert(sigmap >= 0.0);
     const double sp2inv = 1.0 / (DBL_MIN + sigmap * sigmap);
     const double sR2inv = gam2inv * sp2inv;
-    const double sigmaR = sqrt(gam2) * sigmap;
+    const double sigmaR = sqrt(gam2) * sigmap;    assert(sigmaR >= 0.0);
 #else///ENFORCE_EPICYCLIC_APPROXIMATION
-    /* const double sR2inv = 1.0 / DISK_RADIAL_VDISP2(sig[INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, 0)] * sig[INDEX2D(maxLev, NDISKBIN_HOR, maxLev - 1, 0)], Rg, disk.invRd); */
     const double sR2inv = 1.0 / DISK_RADIAL_VDISP2(vdispR0_2, Rg, disk.invRd);
     const double sp2inv = gam2 * sR2inv;
 #ifdef  SPEEDUP_CONVERGENCE
-    const double sigmaR = 1.0 / sqrt(DBL_MIN + sR2inv);
-    const double sigmap = 1.0 / sqrt(DBL_MIN + sp2inv);
+    const double sigmaR = 1.0 / sqrt(DBL_MIN + sR2inv);    assert(sigmaR >= 0.0);
+    const double sigmap = 1.0 / sqrt(DBL_MIN + sp2inv);    assert(sigmap >= 0.0);
+    __NOTE__("i = %zu: sR2inv = %e, sp2inv = %e, vdispR0_2 = %e, Rg = %e, disk.invRd = %e, gam2 = %e\n", ii - (*Nuse), sR2inv, sp2inv, vdispR0_2, Rg, disk.invRd, gam2);
 #endif//SPEEDUP_CONVERGENCE
 #endif//ENFORCE_EPICYCLIC_APPROXIMATION
-    assert(sigmaR >= 0.0);
-    assert(sigmap >= 0.0);
 
 
     /** determine particle position and velocity */
     double vx, vy, vz;
     double xx, yy;
 
-    assert(vesc2 >= vcirc2);
     const double vmax2 = vesc2 - vcirc2;
+    assert(vmax2 >= 0.0);
 #ifndef  SPEEDUP_CONVERGENCE
     const double vmax  = sqrt(vmax2);
 #endif//SPEEDUP_CONVERGENCE
 
+    __NOTE__("%zu-th particle: examine velocity; %e, %e, %e, %e\n", ii - (*Nuse), sigmaR, sigmap, sigmaz, vmax2);
     double vR, vp;
     while( true ){
       while( true ){
@@ -1174,6 +1183,7 @@ void distributeDiskParticles(ulong *Nuse, iparticle body, const real mass, const
     const double sinphi = sin(phi);
     xx = Rg * cosphi;    vx = vR * cosphi - vp * sinphi;
     yy = Rg * sinphi;    vy = vR * sinphi + vp * cosphi;
+    __NOTE__("%zu-th particle: velocity determined\n", ii - (*Nuse));
 
     body.pos[ii].x = CAST_D2R(xx);
     body.pos[ii].y = CAST_D2R(yy);

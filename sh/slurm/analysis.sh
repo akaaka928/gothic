@@ -20,9 +20,12 @@ EXEC=bin/extract
 if [ -z "$PROBLEM" ]; then
     # PROBLEM=2
     # PROBLEM=14
-    PROBLEM=22
+    # PROBLEM=22
     # PROBLEM=112
-    # PROBLEM=124
+    PROBLEM=130
+    # PROBLEM=131
+    # PROBLEM=132
+    # PROBLEM=133
 fi
 ###############################################################
 # set number of N-body particles per bin to estimate density
@@ -102,8 +105,47 @@ if [ $PROBLEM -eq 112 ]; then
 fi
 ###############################################################
 # Fornax simulation
-if [ $PROBLEM -eq 124 ]; then
+if [ $PROBLEM -eq 130 ]; then
     FILE=halocusp_run
+    FINISH=14000.0
+    INTERVAL=100.0
+    XMAX=3.0
+    YMAX=3.0
+    ZMAX=3.0
+    XMIN=-$XMAX
+    YMIN=-$YMAX
+    ZMIN=-$ZMAX
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 131 ]; then
+    FILE=halocore1_run
+    FINISH=14000.0
+    INTERVAL=100.0
+    XMAX=3.0
+    YMAX=3.0
+    ZMAX=3.0
+    XMIN=-$XMAX
+    YMIN=-$YMAX
+    ZMIN=-$ZMAX
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 132 ]; then
+    FILE=halocore2_run
+    FINISH=14000.0
+    INTERVAL=100.0
+    XMAX=3.0
+    YMAX=3.0
+    ZMAX=3.0
+    XMIN=-$XMAX
+    YMIN=-$YMAX
+    ZMIN=-$ZMAX
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 133 ]; then
+    FILE=halocore3_run
     FINISH=14000.0
     INTERVAL=100.0
     XMAX=3.0

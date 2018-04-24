@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/04 (Wed)
+ * @date 2018/04/13 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -859,6 +859,11 @@ int main(int argc, char **argv)
 #endif//!defined(GADGET_MAC) && !defined(WS93_MAC)
 				);
 #endif//SERIALIZED_EXECUTION
+
+#   if  GPUGEN >= 70
+  setCacheConfig_adv_dev_cu();
+  setCacheConfig_geo_dev_cu();
+#endif//GPUGEN >= 70
 
 
   /** memory allocation */

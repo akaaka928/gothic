@@ -59,6 +59,7 @@ if [ -z "$ABSERR" ]; then
     # ABSERR=4.882812500e-4
     # ABSERR=2.441406250e-4
     # ABSERR=1.220703125e-4
+    # ABSERR=6.103515625e-5
 fi
 ###############################################################
 # value of accuracy controling parameter: opening criterion by Barnes & Hut (1986)

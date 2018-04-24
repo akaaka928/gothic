@@ -24,6 +24,8 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=92
     # PROBLEM=93
     # PROBLEM=94
+    # PROBLEM=95
+    # PROBLEM=96
 fi
 ###############################################################
 # number of N-body particles
@@ -40,11 +42,11 @@ if [ -z "$NTOT" ]; then
     # NTOT=65536
     # NTOT=131072
     # NTOT=262144
-    NTOT=524288
+    # NTOT=524288
     # NTOT=1048576
     # NTOT=2097152
     # NTOT=4194304
-    # NTOT=8388608
+    NTOT=8388608
     # NTOT=16777216
     # NTOT=33554432
     # NTOT=67108864
@@ -59,9 +61,7 @@ fi
 ###############################################################
 # dump file generation interval (in units of minute)
 if [ -z "$SAVE" ]; then
-    # SAVE=2.0
-    # SAVE=60.0
-    SAVE=140.0
+    SAVE=55.0
 fi
 ###############################################################
 
@@ -622,10 +622,10 @@ if [ $PROBLEM -eq 81 ]; then
     # INTERVAL=25.0
 fi
 ###############################################################
-# Fornax simulation
+# Fornax simulation (globular cluster model 0)
 if [ $PROBLEM -eq 90 ]; then
-    FILE=gc
-    CONFIG=pbh/gc.cfg
+    FILE=gc0
+    CONFIG=fornax/gc0.cfg
     NTOT=100000
     EPS=9.765625000e-4
     ETA=0.5
@@ -633,45 +633,96 @@ if [ $PROBLEM -eq 90 ]; then
     INTERVAL=100.0
 fi
 ###############################################################
-# Fornax simulation
+# Fornax 1 (globular cluster)
 if [ $PROBLEM -eq 91 ]; then
-    FILE=halocore1
-    CONFIG=pbh/halocore1.cfg
-    NTOT=11000000
+    FILE=for1
+    CONFIG=fornax/gc1.cfg
+    NTOT=100000
     EPS=9.765625000e-4
     ETA=0.5
     FINISH=14000.0
     INTERVAL=100.0
 fi
 ###############################################################
-# Fornax simulation
+# Fornax 2 (globular cluster)
 if [ $PROBLEM -eq 92 ]; then
-    FILE=halocore2
-    CONFIG=pbh/halocore2.cfg
-    NTOT=11000000
-    EPS=9.765625000e-4
+    FILE=for2
+    CONFIG=fornax/gc2.cfg
+    NTOT=100000
+    EPS=4.882812500e-4
     ETA=0.5
     FINISH=14000.0
     INTERVAL=100.0
 fi
 ###############################################################
-# Fornax simulation
+# Fornax 3 (globular cluster)
 if [ $PROBLEM -eq 93 ]; then
-    FILE=halocore3
-    CONFIG=pbh/halocore3.cfg
-    NTOT=11000000
-    EPS=9.765625000e-4
+    FILE=for3
+    CONFIG=fornax/gc3.cfg
+    NTOT=100000
+    EPS=1.220703125e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax 4 (globular cluster)
+if [ $PROBLEM -eq 94 ]; then
+    FILE=for4
+    CONFIG=fornax/gc4.cfg
+    NTOT=100000
+    EPS=6.103515625e-5
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax 5 (globular cluster)
+if [ $PROBLEM -eq 95 ]; then
+    FILE=for5
+    CONFIG=fornax/gc5.cfg
+    NTOT=100000
+    EPS=2.441406250e-4
     ETA=0.5
     FINISH=14000.0
     INTERVAL=100.0
 fi
 ###############################################################
 # Fornax simulation
-if [ $PROBLEM -eq 94 ]; then
+if [ $PROBLEM -eq 96 ]; then
     FILE=halocusp
-    CONFIG=pbh/halocusp.cfg
+    CONFIG=fornax/halocusp.cfg
     NTOT=11000000
-    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 97 ]; then
+    FILE=halocore1
+    CONFIG=fornax/halocore1.cfg
+    NTOT=11000000
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 98 ]; then
+    FILE=halocore2
+    CONFIG=fornax/halocore2.cfg
+    NTOT=11000000
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 99 ]; then
+    FILE=halocore3
+    CONFIG=fornax/halocore3.cfg
+    NTOT=11000000
     ETA=0.5
     FINISH=14000.0
     INTERVAL=100.0

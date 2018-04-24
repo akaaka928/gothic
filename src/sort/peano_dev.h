@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/04 (Wed)
+ * @date 2018/04/13 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -135,6 +135,25 @@ typedef struct
 extern "C"
 {
 #endif//__CUDACC__
+  void sortParticlesPHcurve_dev(const int num, iparticle * RESTRICT src, iparticle * RESTRICT dst, soaPHsort dev, const deviceProp devProp
+#ifdef  CUB_AVAILABLE
+				, soaPHsort pre
+#endif//CUB_AVAILABLE
+#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+				, domainLocation *location
+#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
+				, struct timespec *start
+#ifdef  EXEC_BENCHMARK
+				, wall_clock_time *elapsed
+#endif//EXEC_BENCHMARK
+				);
+
+#ifdef  BLOCK_TIME_STEP
+  void copySortedParticles_dev(const int Ni, const iparticle pi);
+#endif//BLOCK_TIME_STEP
+
+  void initPHinfo_dev(PHinfo *info);
+
   muse allocPeanoHilbertKey_dev
   (const int num, int **idx_dev, PHint **key_dev, PHint **key_hst, float4 **minall, float4 **maxall, int **gsync0, int **gsync1,
 #ifndef SERIALIZED_EXECUTION
@@ -154,25 +173,6 @@ extern "C"
    , void  *temp_storage, int  *idx_pre, PHint  *key_pre
 #endif//CUB_AVAILABLE
    );
-
-  void sortParticlesPHcurve_dev(const int num, iparticle * RESTRICT src, iparticle * RESTRICT dst, soaPHsort dev, const deviceProp devProp
-#ifdef  CUB_AVAILABLE
-				, soaPHsort pre
-#endif//CUB_AVAILABLE
-#   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-				, domainLocation *location
-#endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-				, struct timespec *start
-#ifdef  EXEC_BENCHMARK
-				, wall_clock_time *elapsed
-#endif//EXEC_BENCHMARK
-				);
-
-#ifdef  BLOCK_TIME_STEP
-  void copySortedParticles_dev(const int Ni, const iparticle pi);
-#endif//BLOCK_TIME_STEP
-
-  void initPHinfo_dev(PHinfo *info);
 #ifdef  __CUDACC__
 }
 #endif//__CUDACC__

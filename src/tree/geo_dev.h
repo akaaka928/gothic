@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/04/13 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -55,6 +55,11 @@ extern "C"
 
   muse allocGeometricEnclosingBall_dev(real **r2_dev, soaGEO *dev, const int num_max);
   void  freeGeometricEnclosingBall_dev(real  *r2_dev);
+
+#   if  GPUGEN >= 70
+  void setCacheConfig_geo_dev_cu(void);
+#endif//GPUGEN >= 70
+
 #ifdef  __CUDACC__
 }
 #endif//__CUDACC__

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/04 (Wed)
+ * @date 2018/04/13 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1204,8 +1204,17 @@ muse  readFixedPotentialTableSpherical
   fclose(fp_cfg);
 
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-  if( (pot_tbl->num * sizeof(real)) > (SMEM_SIZE_L1_PREF >> 1) )
+  if( (pot_tbl->num * sizeof(real)) > (SMEM_SIZE_L1_PREF >> 1) ){
+#   if  GPUGEN < 70
     checkCudaErrors(cudaFuncSetCacheConfig(calcExternalGravity_kernel, cudaFuncCachePreferShared));
+#else///GPUGEN < 70
+    checkCudaErrors(cudaFuncSetCacheConfig(calcExternalGravity_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, SMEM_SIZE_SM_PREF));
+#endif//GPUGEN < 70
+  }/* if( (pot_tbl->num * sizeof(real)) > (SMEM_SIZE_L1_PREF >> 1) ){ */
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+#   if  GPUGEN >= 70
+    checkCudaErrors(cudaFuncSetCacheConfig(calcExternalGravity_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+#endif//GPUGEN >= 70
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
 
@@ -1502,8 +1511,17 @@ muse  readFixedPotentialTableDisk
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-  if( (disk->sphe.num * sizeof(real)) > (SMEM_SIZE_L1_PREF >> 1) )
+  if( (disk->sphe.num * sizeof(real)) > (SMEM_SIZE_L1_PREF >> 1) ){
+#   if  GPUGEN < 70
     checkCudaErrors(cudaFuncSetCacheConfig(calcExternalDiskGravity_kernel, cudaFuncCachePreferShared));
+#else///GPUGEN < 70
+    checkCudaErrors(cudaFuncSetCacheConfig(calcExternalDiskGravity_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, SMEM_SIZE_SM_PREF));
+#endif//GPUGEN < 70
+  }/* if( (disk->sphe.num * sizeof(real)) > (SMEM_SIZE_L1_PREF >> 1) ){ */
+#else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+#   if  GPUGEN >= 70
+    checkCudaErrors(cudaFuncSetCacheConfig(calcExternalDiskGravity_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+#endif//GPUGEN >= 70
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   freeDiskPotentialTable_hst

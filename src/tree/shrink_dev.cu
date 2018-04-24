@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/04 (Wed)
+ * @date 2018/04/13 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -123,6 +123,11 @@ muse allocParticleGroups
 {
   __NOTE__("%s\n", "start");
 
+
+#   if  GPUGEN >= 70
+  /* remove shared memory if __global__ function does not use */
+  checkCudaErrors(cudaFuncSetCacheConfig(initLaneTime_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+#endif//GPUGEN >= 70
 
   muse alloc = {0, 0};
 

@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/03 (Tue)
+ * @date 2018/04/13 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -342,3 +342,18 @@ void  freeGeometricEnclosingBall_dev(real  *r2_dev)
 
   __NOTE__("%s\n", "end");
 }
+
+
+#   if  GPUGEN >= 70
+extern "C"
+void setCacheConfig_geo_dev_cu(void)
+{
+  __NOTE__("%s\n", "start");
+
+  /* remove shared memory if __global__ function does not use */
+  checkCudaErrors(cudaFuncSetCacheConfig(init_r2max_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetCacheConfig(init_amin_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+
+  __NOTE__("%s\n", "end");
+}
+#endif//GPUGEN >= 70

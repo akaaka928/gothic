@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/04/13 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -158,6 +158,10 @@ extern "C"
 #ifdef  COUNT_INTERACTIONS
   void copyCounters_dev2hst(const int Ni, iparticle_treeinfo dev, iparticle_treeinfo hst);
 #endif//COUNT_INTERACTIONS
+
+#   if  GPUGEN >= 70
+  void setCacheConfig_adv_dev_cu(void);
+#endif//GPUGEN >= 70
 
 #ifdef  __CUDACC__
 }

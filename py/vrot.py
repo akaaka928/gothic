@@ -9,11 +9,11 @@ import utils as utils
 
 
 # specify plot target
-filename = "m31"
+# filename = "m31"
+# filename = "halocusp"
 # filename = "halocore1"
 # filename = "halocore2"
-# filename = "halocore3"
-# filename = "halocusp"
+filename = "halocore3"
 
 # conversion factors of unit system (taken from doc/unit.txt)
 newton_com = 4.498466e+00
@@ -58,6 +58,7 @@ plt.rcParams['font.size'] = 24
 # read analytic profile of all component(s)
 target = "dat/" + filename + ".profile.h5"
 data_file = h5py.File(target, "r")
+mass_unit = data_file["/"].attrs["mass_astro_unit_name"][0]
 length_unit = data_file["/"].attrs["length_astro_unit_name"][0]
 velocity_unit = data_file["/"].attrs["velocity_astro_unit_name"][0]
 Nkind = data_file["/"].attrs["kinds"][0]
@@ -90,7 +91,7 @@ for ii in range(Ndata):
 
     # report circular velocity @ the specified radius
     if (np.abs(1.0 - radius[ii] * r_rep_inv) <= r_err):
-        print(r"v_c = {:.10f} ({:<}) @ r = {:.10f} ({:<})".format(vcirc[ii], velocity_unit.decode('UTF-8'), radius[ii], length_unit.decode('UTF-8')))
+        print(r"enc = {:.6e} ({:<}), v_c = {:.10f} ({:<}) @ r = {:.10f} ({:<})".format(mm, mass_unit.decode('UTF-8'), vcirc[ii], velocity_unit.decode('UTF-8'), radius[ii], length_unit.decode('UTF-8')))
 
 
 fig = utils.set_figure(nxpanel, nypanel)
