@@ -42,8 +42,8 @@ if [ -z "$NTOT" ]; then
     # NTOT=32768
     # NTOT=65536
     # NTOT=131072
-    # NTOT=262144
-    NTOT=524288
+    NTOT=262144
+    # NTOT=524288
     # NTOT=1048576
     # NTOT=2097152
     # NTOT=4194304
@@ -298,8 +298,8 @@ fi
 ###############################################################
 # dynamical stability of multi components galaxy model (only spherical components)
 if [ $PROBLEM -eq 26 ]; then
-    FILE=spherical
-    CONFIG=galaxy/spherical.cfg
+    FILE=etg
+    CONFIG=galaxy/etg.cfg
     EPS=1.5625e-2
     ETA=0.5
     # FINISH=75.0
@@ -317,11 +317,9 @@ fi
 if [ $PROBLEM -eq 27 ]; then
     FILE=m31
     CONFIG=galaxy/m31.cfg
-    # EPS=1.5625e-2
-    EPS=7.8125e-3
+    EPS=1.5625e-2
+    # EPS=7.8125e-3
     ETA=0.5
-    # FINISH=75.0
-    # INTERVAL=25.0
     FINISH=1175.0
     # FINISH=3175.0
     INTERVAL=25.0
@@ -702,10 +700,12 @@ echo "start: $TIME"
 ###############################################################
 export MODULEPATH=$MODULEPATH:/lustre/jh180045l/share/opt/Modules
 . /etc/profile.d/modules.sh
-module load intel intel-mpi
-module load phdf5/impi
-# module load mvapich2/gdr/2.2/gnu
-# module load phdf5/mv2
+module purge
+module load pbsutils
+module load intel
+# module load mvapich2/gdr/2.3a/gnu phdf5/mv2
+module load openmpi/gdr/2.1.2/intel phdf5/ompi
+# module load intel-mpi phdf5/impi
 module load gsl lis
 ###############################################################
 # execute the job

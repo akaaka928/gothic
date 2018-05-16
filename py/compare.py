@@ -309,6 +309,10 @@ plt.rcParams['text.usetex'] = True
 # set font size
 plt.rcParams['font.size'] = 28
 
+# specify direction of ticks
+plt.rcParams['xtick.direction'] = 'in'
+plt.rcParams['ytick.direction'] = 'in'
+
 plt.rcParams['text.latex.preamble'] = [r"\usepackage{bm}"]
 
 cores = mp.cpu_count()

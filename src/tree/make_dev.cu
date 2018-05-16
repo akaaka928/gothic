@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/16 (Mon)
+ * @date 2018/05/01 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -58,21 +58,23 @@ using namespace cooperative_groups;
 /** capacity of shared memory is 64KiB on newer GPUs */
 /** in shared memory preferred configuration, capacity of shared memory is 48KiB per SM on older GPUs */
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
-#   if  GPUGEN >= 60
-/* 4096 = 64 * 1024 / 16 */
-#define NBLOCKS_PER_SM_MAC ( 4096 / (NTHREADS_MAC * (1 +     NBUF_MAC)))
-#else///GPUGEN >= 60
-/* 3072 = 48 * 1024 / 16 */
-#define NBLOCKS_PER_SM_MAC ( 3072 / (NTHREADS_MAC * (1 +     NBUF_MAC)))
-#endif//GPUGEN >= 60
+#define NBLOCKS_PER_SM_MAC ( (SMEM_SIZE_SM_PREF >> 4) / (NTHREADS_MAC * (1 +     NBUF_MAC)))
+/* #   if  GPUGEN >= 60 */
+/* /\* 4096 = 64 * 1024 / 16 *\/ */
+/* #define NBLOCKS_PER_SM_MAC ( 4096 / (NTHREADS_MAC * (1 +     NBUF_MAC))) */
+/* #else///GPUGEN >= 60 */
+/* /\* 3072 = 48 * 1024 / 16 *\/ */
+/* #define NBLOCKS_PER_SM_MAC ( 3072 / (NTHREADS_MAC * (1 +     NBUF_MAC))) */
+/* #endif//GPUGEN >= 60 */
 #else///USE_WARP_SHUFFLE_FUNC_MAC
-#   if  GPUGEN >= 60
-/* 16384 = 64 * 1024 / 4 */
-#define NBLOCKS_PER_SM_MAC (16384 / (NTHREADS_MAC * (5 + 4 * NBUF_MAC)))
-#else///GPUGEN >= 60
-/* 12288 = 48 * 1024 / 4 */
-#define NBLOCKS_PER_SM_MAC (12288 / (NTHREADS_MAC * (5 + 4 * NBUF_MAC)))
-#endif//GPUGEN >= 60
+#define NBLOCKS_PER_SM_MAC ((SMEM_SIZE_SM_PREF >> 2) / (NTHREADS_MAC * (5 + 4 * NBUF_MAC)))
+/* #   if  GPUGEN >= 60 */
+/* /\* 16384 = 64 * 1024 / 4 *\/ */
+/* #define NBLOCKS_PER_SM_MAC (16384 / (NTHREADS_MAC * (5 + 4 * NBUF_MAC))) */
+/* #else///GPUGEN >= 60 */
+/* /\* 12288 = 48 * 1024 / 4 *\/ */
+/* #define NBLOCKS_PER_SM_MAC (12288 / (NTHREADS_MAC * (5 + 4 * NBUF_MAC))) */
+/* #endif//GPUGEN >= 60 */
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
 
 #define REGISTERS_PER_THREAD_MAC (80)

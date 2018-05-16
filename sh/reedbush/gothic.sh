@@ -3,7 +3,7 @@
 #PBS -q l-regular
 #PBS -l select=1:mpiprocs=1:ompthreads=1
 #PBS -W group_list=jh180045l
-#PBS -l walltime=01:00:00
+#PBS -l walltime=24:00:00
 #PBS -N gothic
 ###############################################################
 
@@ -15,21 +15,10 @@ EXEC=bin/gothic
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=2
+    # PROBLEM=2
+    PROBLEM=23
     # PROBLEM=27
 fi
-###############################################################
-# topology of MPI processes
-if [ -z "$NX" ]; then
-    NX=1
-fi
-if [ -z "$NY" ]; then
-    NY=1
-fi
-if [ -z "$NZ" ]; then
-    NZ=1
-fi
-PROCS=`expr $NX \* $NY \* $NZ`
 ###############################################################
 # value of accuracy controling parameter: GADGET MAC by Springel (2005)
 if [ -z "$ABSERR" ]; then
@@ -176,10 +165,13 @@ fi
 ###############################################################
 # dynamical stability of multi components galaxy model (only spherical components)
 if [ $PROBLEM -eq 26 ]; then
-    FILE=spherical
+    FILE=etg
 fi
 ###############################################################
-# dynamical stability of an M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk)
+# dynamical stability of an M31 model (NFW halo, Hernquist bulge, and exponential disk)
+# basically, this is Fardal et al. (2007) model
+# stellar halo: Gilbert et al. (2012): \Sigma \propto R^-2.2; Rmin = 9kpc, Rmax = 176kpc; Ibata et al. (2014, ApJ, 780, 128): total stellar mass of the smooth halo is ~8e+9 Msun
+# disk: Toomre's Q-value is set to reproduce Tenjes et al. (2017): Q_min = 1.8 @ 12-13 kpc
 if [ $PROBLEM -eq 27 ]; then
     FILE=m31
 fi
@@ -275,20 +267,16 @@ if [ $PROBLEM -eq 81 ]; then
 fi
 ###############################################################
 # set input arguments
-OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$PBS_JOBID"
+OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID"
 ###############################################################
 
 
 ###############################################################
 # job execution via PBS
 ###############################################################
-# set number of MPI processes per node
-PROCS_PER_NODE=4
-PROCS_PER_SOCKET=2
-###############################################################
-export MV2_ENABLE_AFFINITY=0
-export MV2_USE_CUDA=1
-export MV2_USE_GPUDIRECT=1
+# set stdout and stderr
+STDOUT=log/${FILE}_$PBS_JOBNAME.o${PBS_JOBID}
+STDERR=log/${FILE}_$PBS_JOBNAME.e${PBS_JOBID}
 ###############################################################
 # start logging
 cd $PBS_O_WORKDIR
@@ -297,29 +285,23 @@ echo "start: $TIME"
 ###############################################################
 export MODULEPATH=$MODULEPATH:/lustre/jh180045l/share/opt/Modules
 . /etc/profile.d/modules.sh
-module load cuda9
-module load intel intel-mpi
-module load phdf5/impi
-# module load mvapich2/gdr/2.2/gnu
-# module load cub phdf5/mv2
+module purge
+module load pbsutils
+module load intel
+# module load cuda9/9.0.176 mvapich2/gdr/2.3a/gnu phdf5/mv2
+module load cuda9/9.1.85 openmpi/gdr/2.1.2/intel phdf5/ompi
+# module load cuda9 intel-mpi phdf5/impi
+module load cub
 ###############################################################
 # execute the job
-if [ $PROCS -gt 1 ]; then
-    echo "mpirun -n $PROCS -f ${PBS_NODEFILE} sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION"
-    mpirun -n $PROCS -f ${PBS_NODEFILE} sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION
+if [ `which numactl` ]; then
+    # run with numactl
+    echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+    numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 else
-    # set stdout and stderr
-    STDOUT=log/${FILE}_$PBS_JOBNAME.o${PBS_JOBID}
-    STDERR=log/${FILE}_$PBS_JOBNAME.e${PBS_JOBID}
-    if [ `which numactl` ]; then
-	# run with numactl
-	echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-	numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
-    else
-	# run without numactl
-	echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-	$EXEC $OPTION 1>>$STDOUT 2>>$STDERR
-    fi
+    # run without numactl
+    echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+    $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 fi
 ###############################################################
 # finish logging

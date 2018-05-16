@@ -39,6 +39,10 @@ plt.rcParams['text.usetex'] = True
 # set font size
 plt.rcParams['font.size'] = 28
 
+# specify direction of ticks
+plt.rcParams['xtick.direction'] = 'in'
+plt.rcParams['ytick.direction'] = 'in'
+
 
 # read analytic profile of all component(s)
 target = "dat/" + filename + ".disk.h5"

@@ -183,7 +183,7 @@ fi
 ###############################################################
 # dynamical stability of multi components galaxy model (only spherical components)
 if [ $PROBLEM -eq 26 ]; then
-    FILE=spherical
+    FILE=etg
 fi
 ###############################################################
 # dynamical stability of an M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk)

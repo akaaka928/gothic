@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/30 (Fri)
+ * @date 2018/05/15 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2433,6 +2433,247 @@ void writeGalactICSFile(double time, int head, int num, iparticle body, char fil
 }
 
 
+/**
+ * @fn writeGADGETFile
+ *
+ * @brief Write particle data in GADGET format.
+ */
+void writeGADGETFile
+(const int Ntot, double time, int kind, int skind, int * head, int * num, iparticle body, char file[]
+#ifdef  USE_HDF5_FORMAT
+ , hdf5struct type
+#endif//USE_HDF5_FORMAT
+)
+{
+  __NOTE__("%s\n", "start");
+
+  /** header for GADGET */
+  struct io_header{
+    int npart[6];
+    double mass[6];
+    double time;
+    double redshift;
+    int flag_sfr;
+    int flag_feedback;
+    uint npartTotal[6];
+    int flag_cooling;
+    int num_files;
+    double BoxSize;
+    double Omega0;
+    double OmegaLambda;
+    double HubbleParam;
+    int flag_stellarage;
+    int flag_metals;
+    uint npartTotalHighWord[6];
+    int flag_entropy_instead_u;
+    char fill[60];
+  };
+  static struct io_header header;
+  header.npart[0] = 0;/**< Gas */
+  header.npart[1] = 0;/**< Halo */
+  header.npart[2] = 0;/**< Disk */
+  header.npart[3] = 0;/**< Bulge */
+  header.npart[4] = 0;/**< Stars */
+  header.npart[5] = 0;/**< Bndry */
+  header.time = time;
+  header.num_files = 1;
+  header.flag_entropy_instead_u = 0;
+
+  real *pos;  pos = (real *)malloc(Ntot * 3 * sizeof(real));  if( pos == NULL ){    __KILL__(stderr, "ERROR: failure to allocate pos");  }
+  real *vel;  vel = (real *)malloc(Ntot * 3 * sizeof(real));  if( vel == NULL ){    __KILL__(stderr, "ERROR: failure to allocate vel");  }
+  uint *idx;  idx = (uint *)malloc(Ntot     * sizeof(uint));  if( idx == NULL ){    __KILL__(stderr, "ERROR: failure to allocate idx");  }
+  real *mss;  mss = (real *)malloc(Ntot     * sizeof(real));  if( mss == NULL ){    __KILL__(stderr, "ERROR: failure to allocate mss");  }
+
+  /* set 0-th component as halo particles */
+  for(int ii = 0; ii < num[0]; ii++){
+    pos[INDEX2D(Ntot, 3, ii, 0)] = body.pos[ii].x;
+    pos[INDEX2D(Ntot, 3, ii, 1)] = body.pos[ii].y;
+    pos[INDEX2D(Ntot, 3, ii, 2)] = body.pos[ii].z;
+    mss[                 ii    ] = body.pos[ii].m;
+#ifdef  BLOCK_TIME_STEP
+    vel[INDEX2D(Ntot, 3, ii, 0)] = body.vel[ii].x;
+    vel[INDEX2D(Ntot, 3, ii, 1)] = body.vel[ii].y;
+    vel[INDEX2D(Ntot, 3, ii, 2)] = body.vel[ii].z;
+#else///BLOCK_TIME_STEP
+    vel[INDEX2D(Ntot, 3, ii, 0)] = body.vx[ii];
+    vel[INDEX2D(Ntot, 3, ii, 1)] = body.vy[ii];
+    vel[INDEX2D(Ntot, 3, ii, 2)] = body.vz[ii];
+#endif//BLOCK_TIME_STEP
+  }/* for(int ii = 0; ii < num[0]; ii++){ */
+  header.npart[1] += num[0];
+  int tail = num[0];
+
+  /* set disk particles */
+  for(int kk = skind; kk < kind; kk++){
+    for(int ii = 0; ii < num[kk]; ii++){
+      const int src = head[kk] + ii;
+      const int dst = tail + ii;
+
+      pos[INDEX2D(Ntot, 3, dst, 0)] = body.pos[src].x;
+      pos[INDEX2D(Ntot, 3, dst, 1)] = body.pos[src].y;
+      pos[INDEX2D(Ntot, 3, dst, 2)] = body.pos[src].z;
+      mss[                 dst    ] = body.pos[src].m;
+#ifdef  BLOCK_TIME_STEP
+      vel[INDEX2D(Ntot, 3, dst, 0)] = body.vel[src].x;
+      vel[INDEX2D(Ntot, 3, dst, 1)] = body.vel[src].y;
+      vel[INDEX2D(Ntot, 3, dst, 2)] = body.vel[src].z;
+#else///BLOCK_TIME_STEP
+      vel[INDEX2D(Ntot, 3, dst, 0)] = body.vx[src];
+      vel[INDEX2D(Ntot, 3, dst, 1)] = body.vy[src];
+      vel[INDEX2D(Ntot, 3, dst, 2)] = body.vz[src];
+#endif//BLOCK_TIME_STEP
+    }/* for(int ii = 0; ii < num[kk]; ii++){ */
+    header.npart[2] += num[kk];
+    tail += num[kk];
+  }/* for(int kk = skind; kk < kind; kk++){ */
+
+  /* set remained spherical components as bulge particles */
+  for(int kk = 1; kk < skind; kk++){
+    for(int ii = 0; ii < num[kk]; ii++){
+      const int src = head[kk] + ii;
+      const int dst = tail + ii;
+
+      pos[INDEX2D(Ntot, 3, dst, 0)] = body.pos[src].x;
+      pos[INDEX2D(Ntot, 3, dst, 1)] = body.pos[src].y;
+      pos[INDEX2D(Ntot, 3, dst, 2)] = body.pos[src].z;
+      mss[                 dst    ] = body.pos[src].m;
+#ifdef  BLOCK_TIME_STEP
+      vel[INDEX2D(Ntot, 3, dst, 0)] = body.vel[src].x;
+      vel[INDEX2D(Ntot, 3, dst, 1)] = body.vel[src].y;
+      vel[INDEX2D(Ntot, 3, dst, 2)] = body.vel[src].z;
+#else///BLOCK_TIME_STEP
+      vel[INDEX2D(Ntot, 3, dst, 0)] = body.vx[src];
+      vel[INDEX2D(Ntot, 3, dst, 1)] = body.vy[src];
+      vel[INDEX2D(Ntot, 3, dst, 2)] = body.vz[src];
+#endif//BLOCK_TIME_STEP
+    }/* for(int ii = 0; ii < num[kk]; ii++){ */
+    header.npart[3] += num[kk];
+    tail += num[kk];
+  }/* for(int kk = 1; kk < skind; kk++) */
+
+  for(uint ii = 0; ii < (uint)Ntot; ii++)
+    idx[ii] = ii;
+
+  for(int kk = 0; kk < 6; kk++){
+    header.mass[kk] = 0.0;
+    header.npartTotal[kk] = (uint)header.npart[kk];
+    header.npartTotalHighWord[kk] = 0;/**< most significant word of 64-bit total particle numbers (for N >= 2^23) */
+  }/* for(int kk = 0; kk < 6; kk++){ */
+
+
+  /* create a new file (if the file already exists, the file is opened with read-write access, new data will overwrite any existing data) */
+  char filename[128];
+#ifndef USE_HDF5_FORMAT
+  FILE *fp;
+  sprintf(filename, "%s/%s.gadget", DATAFOLDER, file);
+  fp = fopen(filename, "wb");
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
+
+  int dummy = 256;
+  bool success = true;
+  size_t tmp;
+  tmp =        1;  if( tmp != fwrite(& dummy, sizeof( dummy), tmp, fp) )    success = false;
+  tmp =        1;  if( tmp != fwrite(&header, sizeof(header), tmp, fp) )    success = false;
+  tmp =        1;  if( tmp != fwrite(& dummy, sizeof( dummy), tmp, fp) )    success = false;
+  tmp = Ntot * 3;  if( tmp != fwrite(pos, sizeof(real), tmp, fp) )    success = false;
+  tmp = Ntot * 3;  if( tmp != fwrite(vel, sizeof(real), tmp, fp) )    success = false;
+  tmp = Ntot    ;  if( tmp != fwrite(idx, sizeof(uint), tmp, fp) )    success = false;
+  tmp = Ntot    ;  if( tmp != fwrite(mss, sizeof(real), tmp, fp) )    success = false;
+
+  if( success != true ){    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);  }
+  fclose(fp);
+
+#else///USE_HDF5_FORMAT
+
+  sprintf(filename, "%s/%s.hdf5", DATAFOLDER, file);
+  hid_t target = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  hid_t group = H5Gcreate(target, "Header", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+  /* write attributes; */
+  hsize_t attr_dims = 6;
+  hid_t dataspace;
+  dataspace = H5Screate_simple(1, &attr_dims, NULL);
+  hid_t attribute;
+  /* write number of particles */
+  attribute = H5Acreate(group, "NumPart_ThisFile", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &header.npart));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "NumPart_Total", H5T_NATIVE_UINT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_UINT, &header.npartTotal));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "NumPart_Total_HighWord", H5T_NATIVE_UINT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_UINT, &header.npartTotalHighWord));
+  chkHDF5err(H5Aclose(attribute));
+  /* write particle mass */
+  attribute = H5Acreate(group, "MassTable", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &header.mass));
+  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Sclose(dataspace));
+
+  attr_dims = 1;
+  dataspace = H5Screate_simple(1, &attr_dims, NULL);
+  /* write current time */
+  attribute = H5Acreate(group, "Time", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &header.time));
+  chkHDF5err(H5Aclose(attribute));
+  /* write configuration */
+  attribute = H5Acreate(group, "NumFilesPerSnapshot", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &header.num_files));
+  chkHDF5err(H5Aclose(attribute));
+  /* write misc */
+  attribute = H5Acreate(group, "Flag_Entropy_ICs", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &header.flag_entropy_instead_u));
+  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Sclose(dataspace));
+  chkHDF5err(H5Gclose(group));
+
+  tail = 0;
+  for(int kk = 0; kk < 6; kk++)
+    if( header.npart[kk] > 0 ){
+      char grp[16];      sprintf(grp, "PartType%d", kk);
+      group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+      hid_t dataset;
+      hsize_t dims = header.npart[kk] * 3;
+      dataspace = H5Screate_simple(1, &dims, NULL);
+      /* write particle position */
+      dataset = H5Dcreate(group, "Coordinates", type.real, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &pos[tail * 3]));
+      chkHDF5err(H5Dclose(dataset));
+      /* write particle velocity */
+      dataset = H5Dcreate(group, "Velocities", type.real, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &vel[tail * 3]));
+      chkHDF5err(H5Dclose(dataset));
+      chkHDF5err(H5Sclose(dataspace));
+
+      dims = header.npart[kk];
+      dataspace = H5Screate_simple(1, &dims, NULL);
+      /* write particle index */
+      dataset = H5Dcreate(group, "ParticleIDs", H5T_NATIVE_UINT, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &idx[tail]));
+      chkHDF5err(H5Dclose(dataset));
+      /* write particle mass */
+      dataset = H5Dcreate(group, "Masses", type.real, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &mss[tail]));
+      chkHDF5err(H5Dclose(dataset));
+      chkHDF5err(H5Sclose(dataspace));
+
+      chkHDF5err(H5Gclose(group));
+      tail += header.npart[kk];
+    }/* if( header.npart[kk] > 0 ){ */
+
+  chkHDF5err(H5Fclose(target));
+#endif//USE_HDF5_FORMAT
+
+  free(pos);
+  free(vel);
+  free(idx);
+  free(mss);
+
+  __NOTE__("%s\n", "end");
+}
+
+
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
 /**
  * @fn writeFixedPotentialTable
@@ -3198,7 +3439,7 @@ void  readSnapshot(int *unit, double *time, ulong *steps, int num, char file[], 
 
 
 #ifdef  REPORT_COMPUTE_RATE
-static inline void writeComputeRate(char file[], const uint id, const double time, const ulong steps, const double speed, const double speed_run, const double complete, double guess)
+static inline void writeComputeRate(char file[], const uint id, const double time, const ulong steps, const double speed, const double speed_run, const double complete, double guess, const double brent_avg, const double rebuild_interval)
 {
   char filename[128];
   sprintf(filename, "%s/%s.%s.log", LOGFOLDER, file, "speed");
@@ -3206,7 +3447,7 @@ static inline void writeComputeRate(char file[], const uint id, const double tim
   if( id == 0 ){
     fp = fopen(filename, "w");
     if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
-    fprintf(fp, "#time(%s)\tsteps\tfile\trate(s/step)\tspeed(%s/s)\tcomplete\tremain\n", time_astro_unit_name, time_astro_unit_name);
+    fprintf(fp, "#time(%s)\tsteps\tfile\trate(s/step)\tspeed(%s/s)\tbrent_rate\tmake_interval\tcomplete\tremain\n", time_astro_unit_name, time_astro_unit_name);
   }/* if( id == 0 ){ */
   else{
     fp = fopen(filename, "a");
@@ -3222,10 +3463,70 @@ static inline void writeComputeRate(char file[], const uint id, const double tim
   const int minute = (int)floor(guess * 1.66666666667e-2);
   guess -= (double)minute * 60.0;
 
-  fprintf(fp, "%e\t%zu\t%u\t%e\t%e\t%7.3lf%%\t%dd %2dh %2dm %6.3lfs\n", time * time2astro, steps, id, speed, speed_run, complete, day, hour, minute, guess);
+  fprintf(fp, "%e\t%zu\t%u\t%e\t%e\t%e\t%e\t%7.3lf%%\t%dd %2dh %2dm %6.3lfs\n", time * time2astro, steps, id, speed, speed_run, brent_avg, rebuild_interval, complete, day, hour, minute, guess);
   fclose(fp);
 }
 #endif//REPORT_COMPUTE_RATE
+
+
+#ifdef  PREPARE_XDMF_FILES
+static inline void writeXdmf(const int num, char file[], const uint id)
+{
+  __NOTE__("%s\n", "start");
+
+  char filename[128];
+  sprintf(filename, "%s/%s.%s%.3u.xmf", DATAFOLDER, file, SNAPSHOT, id);
+  FILE *fp;
+  fp = fopen(filename, "w");
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
+
+  sprintf(filename, "%s.%s%.3u.h5", file, SNAPSHOT, id);
+
+  fprintf(fp, "<?xml version=\"1.0\" ?>\n");
+  fprintf(fp, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
+  fprintf(fp, "<Xdmf Version=\"3.0\">\n");
+  fprintf(fp, "<Domain>\n");
+  fprintf(fp, "<Grid Name=\"N-body\" GridType=\"Uniform\">\n");
+  fprintf(fp, "<Topology TopologyType=\"Polyvertex\" NumberOfElements=\"%d\"/>\n", num);
+  fprintf(fp, "<Geometry GeometryType=\"XYZ\">\n");
+  fprintf(fp, "<DataItem Dimensions=\"%d 3\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", num, sizeof(real));
+  fprintf(fp, "%s:/%s/position\n", filename, SNAPSHOT);
+  fprintf(fp, "</DataItem>\n");
+  fprintf(fp, "</Geometry>\n");
+  fprintf(fp, "<Attribute Name=\"velocity\" AttributeType=\"Vector\" Center=\"Node\">\n");
+  fprintf(fp, "<DataItem Dimensions=\"%d 3\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", num, sizeof(real));
+  fprintf(fp, "%s:/%s/velocity\n", filename, SNAPSHOT);
+  fprintf(fp, "</DataItem>\n");
+  fprintf(fp, "</Attribute>\n");
+  fprintf(fp, "<Attribute Name=\"acceleration\" AttributeType=\"Vector\" Center=\"Node\">\n");
+  fprintf(fp, "<DataItem Dimensions=\"%d 3\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", num, sizeof(real));
+  fprintf(fp, "%s:/%s/acceleration\n", filename, SNAPSHOT);
+  fprintf(fp, "</DataItem>\n");
+  fprintf(fp, "</Attribute>\n");
+  fprintf(fp, "<Attribute Name=\"mass\" AttributeType=\"Scalar\" Center=\"Node\">\n");
+  fprintf(fp, "<DataItem Dimensions=\"%d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", num, sizeof(real));
+  fprintf(fp, "%s:/%s/mass\n", filename, SNAPSHOT);
+  fprintf(fp, "</DataItem>\n");
+  fprintf(fp, "</Attribute>\n");
+  fprintf(fp, "<Attribute Name=\"potential\" AttributeType=\"Scalar\" Center=\"Node\">\n");
+  fprintf(fp, "<DataItem Dimensions=\"%d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", num, sizeof(real));
+  fprintf(fp, "%s:/%s/potential\n", filename, SNAPSHOT);
+  fprintf(fp, "</DataItem>\n");
+  fprintf(fp, "</Attribute>\n");
+  fprintf(fp, "<Attribute Name=\"index\" AttributeType=\"Scalar\" Center=\"Node\">\n");
+  fprintf(fp, "<DataItem Dimensions=\"%d\" NumberType=\"UInt\" Precision=\"%zu\" Format=\"HDF\">\n", num, sizeof(ulong));
+  fprintf(fp, "%s:/%s/index\n", filename, SNAPSHOT);
+  fprintf(fp, "</DataItem>\n");
+  fprintf(fp, "</Attribute>\n");
+  fprintf(fp, "</Grid>\n");
+  fprintf(fp, "</Domain>\n");
+  fprintf(fp, "</Xdmf>\n");
+
+  fclose(fp);
+
+  __NOTE__("%s\n", "end");
+}
+#endif//PREPARE_XDMF_FILES
 
 
 /**
@@ -3256,7 +3557,7 @@ void writeSnapshot
  , gpu_clock *deviceMonitors, const int monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  REPORT_COMPUTE_RATE
- , const double speed, const double speed_run, const double complete, const double guess
+ , const double speed, const double speed_run, const double complete, const double guess, const double brent_avg, const double rebuild_interval
 #endif//REPORT_COMPUTE_RATE
  )
 {
@@ -3316,7 +3617,7 @@ void writeSnapshot
 #endif//defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR)
 
 #ifdef  REPORT_COMPUTE_RATE
-  writeComputeRate(file, id, time, steps, speed, speed_run, complete, guess);
+  writeComputeRate(file, id, time, steps, speed, speed_run, complete, guess, brent_avg, rebuild_interval);
 #endif//REPORT_COMPUTE_RATE
 
   /* create a new file (if the file already exists, the file is opened with read-write access, new data will overwrite any existing data) */
@@ -3600,7 +3901,18 @@ void writeSnapshot
 
   /* close the file */
   chkHDF5err(H5Fclose(target));
+
+#ifdef  PREPARE_XDMF_FILES
+  writeXdmf(num, file, id);
+#endif//PREPARE_XDMF_FILES
 #endif//USE_HDF5_FORMAT
+
+#   if  defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR)
+  if( Eerr > 0.1 ){
+    __KILL__(stderr, "detect too large energy error: Eerr = %e\n", Eerr);
+  }/* if( Eerr > 0.1 ){ */
+#endif//defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR)
+
 
   __NOTE__("%s\n", "end");
 }
@@ -3637,7 +3949,7 @@ void writeSnapshotParallel
  , gpu_clock *deviceMonitors, const int monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  REPORT_COMPUTE_RATE
- , const double speed, const double speed_run, const double complete, const double guess
+ , const double speed, const double speed_run, const double complete, const double guess, const double brent_avg, const double rebuild_interval
 #endif//REPORT_COMPUTE_RATE
  )
 {
@@ -3710,7 +4022,7 @@ void writeSnapshotParallel
 
 #ifdef  REPORT_COMPUTE_RATE
   if( mpi->rank == 0 )
-    writeComputeRate(file, id, time, steps, speed, speed_run, complete, guess);
+    writeComputeRate(file, id, time, steps, speed, speed_run, complete, guess, brent_avg, rebuild_interval);
 #endif//REPORT_COMPUTE_RATE
 
 
@@ -4067,7 +4379,18 @@ void writeSnapshotParallel
 
   /* close the file */
   chkHDF5err(H5Fclose(target));
+
+#ifdef  PREPARE_XDMF_FILES
+  if( mpi->rank == 0 )
+    writeXdmf(Ntot, file, id);
+#endif//PREPARE_XDMF_FILES
 #endif//USE_HDF5_FORMAT
+
+#   if  defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR)
+  if( Eerr > 0.1 ){
+    __KILL__(stderr, "detect too large energy error: Eerr = %e\n", Eerr);
+  }/* if( Eerr > 0.1 ){ */
+#endif//defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR)
 
 
   __NOTE__("%s\n", "end");
@@ -4076,6 +4399,68 @@ void writeSnapshotParallel
 
 
 #ifdef  USE_HDF5_FORMAT
+#ifdef  PREPARE_XDMF_FILES
+static inline void writeXdmf_split(char file[], const uint id, const int kind, int *num)
+{
+  __NOTE__("%s\n", "start");
+
+  char filename[128];
+  sprintf(filename, "%s/%s.%s%.3u.xmf", DATAFOLDER, file, "split", id);
+  FILE *fp;
+  fp = fopen(filename, "w");
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
+
+  sprintf(filename, "%s.%s%.3u.h5", file, "split", id);
+
+  fprintf(fp, "<?xml version=\"1.0\" ?>\n");
+  fprintf(fp, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
+  fprintf(fp, "<Xdmf Version=\"3.0\">\n");
+  fprintf(fp, "<Domain>\n");
+  for(int kk = 0; kk < kind; kk++){
+    fprintf(fp, "<Grid Name=\"data%d\" GridType=\"Uniform\">\n", kk);
+    fprintf(fp, "<Topology TopologyType=\"Polyvertex\" NumberOfElements=\"%d\"/>\n", num[kk]);
+    fprintf(fp, "<Geometry GeometryType=\"XYZ\">\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d 3\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", num[kk], sizeof(real));
+    fprintf(fp, "%s:/data%d/position\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    fprintf(fp, "</Geometry>\n");
+    fprintf(fp, "<Attribute Name=\"velocity\" AttributeType=\"Vector\" Center=\"Node\">\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d 3\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", num[kk], sizeof(real));
+    fprintf(fp, "%s:/data%d/velocity\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    fprintf(fp, "</Attribute>\n");
+    fprintf(fp, "<Attribute Name=\"acceleration\" AttributeType=\"Vector\" Center=\"Node\">\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d 3\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", num[kk], sizeof(real));
+    fprintf(fp, "%s:/data%d/acceleration\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    fprintf(fp, "</Attribute>\n");
+    fprintf(fp, "<Attribute Name=\"mass\" AttributeType=\"Scalar\" Center=\"Node\">\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", num[kk], sizeof(real));
+    fprintf(fp, "%s:/data%d/mass\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    fprintf(fp, "</Attribute>\n");
+    fprintf(fp, "<Attribute Name=\"potential\" AttributeType=\"Scalar\" Center=\"Node\">\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", num[kk], sizeof(real));
+    fprintf(fp, "%s:/data%d/potential\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    fprintf(fp, "</Attribute>\n");
+    fprintf(fp, "<Attribute Name=\"index\" AttributeType=\"Scalar\" Center=\"Node\">\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d\" NumberType=\"UInt\" Precision=\"%zu\" Format=\"HDF\">\n", num[kk], sizeof(ulong));
+    fprintf(fp, "%s:/data%d/index\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    fprintf(fp, "</Attribute>\n");
+    fprintf(fp, "</Grid>\n");
+  }/* for(int kk = 0; kk < kind; kk++){ */
+  fprintf(fp, "</Domain>\n");
+  fprintf(fp, "</Xdmf>\n");
+
+  fclose(fp);
+
+  __NOTE__("%s\n", "end");
+}
+#endif//PREPARE_XDMF_FILES
+
+
 /**
  * @fn writeSnapshotMultiGroups
  *
@@ -4388,6 +4773,9 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
   chkHDF5err(H5Sclose(dataspace));
   /* close the file */
   chkHDF5err(H5Fclose(target));
+#ifdef  PREPARE_XDMF_FILES
+  writeXdmf_split(file, id, kind, num);
+#endif//PREPARE_XDMF_FILES
 
   __NOTE__("%s\n", "end");
 }

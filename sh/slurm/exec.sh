@@ -22,6 +22,7 @@ EXEC=bin/gothic
 if [ -z "$PROBLEM" ]; then
     PROBLEM=2
     # PROBLEM=14
+    # PROBLEM=26
     # PROBLEM=27
 fi
 ###############################################################
@@ -85,6 +86,9 @@ if [ -z "$ACCERR" ]; then
     # ACCERR=9.765625e-4
 fi
 ###############################################################
+REBUILD=8
+BRENT=1.0
+###############################################################
 
 
 ###############################################################
@@ -103,6 +107,8 @@ fi
 # dynamical stability of a Hernquist sphere
 if [ $PROBLEM -eq 2 ]; then
     FILE=hernquist
+    REBUILD=8
+    BRENT=1.0
 fi
 ###############################################################
 # dynamical stability of an NFW sphere small truncation radius
@@ -192,7 +198,7 @@ fi
 ###############################################################
 # dynamical stability of multi components galaxy model (only spherical components)
 if [ $PROBLEM -eq 26 ]; then
-    FILE=spherical
+    FILE=etg
 fi
 ###############################################################
 # dynamical stability of an M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk)
@@ -291,7 +297,7 @@ if [ $PROBLEM -eq 81 ]; then
 fi
 ###############################################################
 # set input arguments
-OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$SLURM_JOB_ID"
+OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -rebuild_interval=$REBUILD -brent_frac=$BRENT -jobID=$SLURM_JOB_ID"
 ###############################################################
 
 

@@ -42,19 +42,19 @@ plt.rcParams['text.usetex'] = True
 # plt.rcParams['font.size'] = 16
 plt.rcParams['font.size'] = 28
 
+# specify direction of ticks
+plt.rcParams['xtick.direction'] = 'in'
+plt.rcParams['ytick.direction'] = 'in'
+
 
 # read fundamental property of the system
 target = "doc/" + filename + ".summary.txt"
 txtfile = open(target, "r")
-unit = txtfile.readline()
-# print(unit)
-# Nkind, Nsphe = txtfile.readline()
-tmp = txtfile.readline()
-Nkind = int(tmp[0])
-Nsphe = int(tmp[2])
-# print(tmp)
-# print(Nkind)
-# print(Nsphe)
+unit = int(txtfile.readline())
+line = txtfile.readline()
+item = line.split("\t")
+Nkind = int(item[0])
+Nsphe = int(item[1])
 num = [0] * Nkind
 Ntot = 0
 for ii in range(Nkind):
@@ -62,7 +62,6 @@ for ii in range(Nkind):
     num[ii] = int(tmp)
     Ntot += num[ii]
 txtfile.close()
-# print(num)
 
 head = [0] * Nkind
 head[0] = 0

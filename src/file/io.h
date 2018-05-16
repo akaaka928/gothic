@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/01 (Thu)
+ * @date 2018/05/09 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -191,6 +191,15 @@ extern "C"
   /* write particle data in GalactICS format */
   void writeGalactICSFile(double time, int head, int num, iparticle body, char file[], int series);
 
+  /* write particle data in GADGET format */
+  void writeGADGETFile
+  (const int Ntot, double time, int kind, int skind, int * head, int * num, iparticle body, char file[]
+#ifdef  USE_HDF5_FORMAT
+   , hdf5struct type
+#endif//USE_HDF5_FORMAT
+   );
+
+
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   /* write fixed potential field */
   void writeFixedPotentialTable
@@ -237,7 +246,7 @@ extern "C"
    , gpu_clock *deviceMonitors, const int monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  REPORT_COMPUTE_RATE
-   , const double speed, const double speed_run, const double complete, const double guess
+   , const double speed, const double speed_run, const double complete, const double guess, const double brent_avg, const double rebuild_interval
 #endif//REPORT_COMPUTE_RATE
    );
 
@@ -256,7 +265,7 @@ extern "C"
    , gpu_clock *deviceMonitors, const int monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  REPORT_COMPUTE_RATE
-   , const double speed, const double speed_run, const double complete, const double guess
+   , const double speed, const double speed_run, const double complete, const double guess, const double brent_avg, const double rebuild_interval
 #endif//REPORT_COMPUTE_RATE
    );
 

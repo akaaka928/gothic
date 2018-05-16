@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/13 (Fri)
+ * @date 2018/05/02 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -47,6 +47,33 @@ __global__ void facileNeighborSearching_kernel(const int Ni, READ_ONLY position 
   __shared__ position ipos[NTHREADS_FACILE_NS + NEIGHBOR_NUM];
 
 
+#if 1
+  /** load position of i-particles and neighbor candidates */
+  ipos[tidx] = ibody[(gidx < Ni) ? gidx : (Ni - 1)];
+  if( tidx < NEIGHBOR_NUM ){
+    int idx = gidx + NTHREADS_FACILE_NS;
+    ipos[NTHREADS_FACILE_NS + tidx] = ibody[(idx < Ni) ? idx : (Ni - 1)];
+  }/* if( tidx < NEIGHBOR_NUM ){ */
+  __syncthreads();
+
+  /** calculate distance with NEIGHBOR_NUM particles and remember the maximum */
+  const position pi = ipos[tidx];
+  real r2max = ZERO;
+#pragma unroll
+  for(int ii = 0; ii < NEIGHBOR_NUM; ii++){
+    const position pj = ipos[tidx + 1 + ii];
+
+    const real dx = pj.x - pi.x;
+    const real dy = pj.y - pi.y;
+    const real dz = pj.z - pi.z;
+
+    r2max = FMAX(r2max, FLT_MIN + dx * dx + dy * dy + dz * dz);
+  }/* for(int ii = 0; ii < NEIGHBOR_NUM; ii++){ */
+
+  /** store the derived guess about the length of neighbor arm */
+  if( gidx < Ni )
+    neighbor_length[gidx] = r2max * RSQRT(r2max);
+#else
   if( gidx < Ni ){
     /** load position of i-particles and neighbor candidates */
     ipos[tidx] = ibody[gidx];
@@ -73,6 +100,7 @@ __global__ void facileNeighborSearching_kernel(const int Ni, READ_ONLY position 
     /** store the derived guess about the length of neighbor arm */
     neighbor_length[gidx] = r2max * RSQRT(r2max);
   }/* if( gidx < Ni ){ */
+#endif
 }
 
 

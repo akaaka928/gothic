@@ -265,8 +265,8 @@ fi
 ###############################################################
 # dynamical stability of multi components galaxy model (only spherical components)
 if [ $PROBLEM -eq 26 ]; then
-FILE=spherical
-CONFIG=galaxy/spherical.cfg
+FILE=etg
+CONFIG=galaxy/etg.cfg
 EPS=1.5625e-2
 ETA=0.5
 # FINISH=75.0

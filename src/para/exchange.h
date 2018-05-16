@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/20 (Tue)
+ * @date 2018/05/08 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -140,9 +140,6 @@ typedef struct
   MPI_Request dsp;
 #else///MPI_ONE_SIDED_FOR_EXCG
   int num/* , head */;
-#endif//MPI_ONE_SIDED_FOR_EXCG
-  MPI_Request req;
-#ifndef MPI_ONE_SIDED_FOR_EXCG
   MPI_Request pos, idx;
 #ifdef  GADGET_MAC
   MPI_Request acc;
@@ -156,6 +153,7 @@ typedef struct
   MPI_Request vx, vy, vz;
 #endif//BLOCK_TIME_STEP
 #endif//MPI_ONE_SIDED_FOR_EXCG
+  MPI_Request req;
 } recvCfg;
 
 /**

@@ -21,11 +21,12 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=2
     # PROBLEM=14
     # PROBLEM=22
+    # PROBLEM=26
     # PROBLEM=112
-    PROBLEM=130
+    # PROBLEM=130
     # PROBLEM=131
     # PROBLEM=132
-    # PROBLEM=133
+    PROBLEM=133
 fi
 ###############################################################
 # set number of N-body particles per bin to estimate density
@@ -83,6 +84,19 @@ if [ $PROBLEM -eq 22 ]; then
     FILE=disk
     FINISH=104.0
     INTERVAL=8.0
+    XMAX=5.0
+    YMAX=5.0
+    ZMAX=5.0
+    XMIN=-$XMAX
+    YMIN=-$YMAX
+    ZMIN=-$ZMAX
+fi
+###############################################################
+# dynamical stability of multi components galaxy model (only spherical components)
+if [ $PROBLEM -eq 26 ]; then
+    FILE=etg
+    FINISH=1175.0
+    INTERVAL=25.0
     XMAX=5.0
     YMAX=5.0
     ZMAX=5.0

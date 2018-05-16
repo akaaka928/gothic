@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/13 (Fri)
+ * @date 2018/05/08 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -28,12 +28,15 @@
 #else///SERIALIZED_EXECUTION
 /* #define MONITOR_SIMULATION_STATUS */
 /* #define SHARED_AUTO_TUNER */
+
+#ifndef DISABLE_AUTO_TUNING
 /**
  * @def DISABLE_EXCG_BODIES_BEFORE_SATURATION
  *
  * @brief disable particle exchanging before auto-tuning reaches saturation
  */
 #define DISABLE_EXCG_BODIES_BEFORE_SATURATION
+#endif//DISABLE_AUTO_TUNING
 #endif//SERIALIZED_EXECUTION
 
 #include <stdio.h>
@@ -230,7 +233,10 @@ static inline void updateDomain
  iparticle *ibody0_dev, iparticle *ibody1_dev, iparticle *ibody0_hst, iparticle *ibody1_hst, const ulong Ntot,
  sendDom domBoundary, particlePos pos_hst, particlePos pos_dev, domainCfg domain, domainDecomposeKey key,
  sampling sample, samplePos loc, samplePos ful, soaPHsort soa, const deviceProp devProp, const deviceInfo devInfo,
- autoTuningParam *exchangeParam, double *exchangeInterval, MPIinfo orm[restrict], MPIinfo rep[restrict],
+#ifndef DISABLE_AUTO_TUNING
+ autoTuningParam *exchangeParam, double *exchangeInterval,
+#endif//DISABLE_AUTO_TUNING
+ MPIinfo orm[restrict], MPIinfo rep[restrict],
 #ifdef  CARE_EXTERNAL_PARTICLES
  domainLocation *location,
 #endif//CARE_EXTERNAL_PARTICLES
@@ -245,6 +251,7 @@ static inline void updateDomain
 
 
   /** clear counters */
+#ifndef DISABLE_AUTO_TUNING
   *exchangeInterval = 0.0;
   initStatVal(&((*exchangeParam).linearStats));  initGuessTime(&((*exchangeParam).linearGuess));
   initStatVal(&((*exchangeParam). powerStats));  initGuessTime(&((*exchangeParam). powerGuess));
@@ -252,6 +259,7 @@ static inline void updateDomain
   initStatVal  (&((*exchangeParam).parabolicStats));
   initGuessTime(&((*exchangeParam).parabolicGuess));
 #endif//USE_PARABOLIC_GROWTH_MODEL
+#endif//DISABLE_AUTO_TUNING
 
   /** execute particle exchanging */
   exchangeParticles_dev
@@ -371,9 +379,11 @@ static inline void configDistribution
   __NOTE__("%s\n", "start");
 
 
+#ifndef DISABLE_AUTO_TUNING
   static bool initialized = false;
   if( initialized )    brentCalc1st(brent, 1.0e-13);
   else                 initialized = true;
+#endif//DISABLE_AUTO_TUNING
 
   updateParticleGroups(num, laneInfo_hst, inumPerLane, maxNgrp, Ngrp, ibody_dev, inum_dev, inum_hst, CAST_D2R(brent->u.pos)
 #ifdef  EXEC_BENCHMARK
@@ -442,7 +452,7 @@ static inline void dumpSnapshot
  , gpu_clock *deviceMonitors, int *monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  REPORT_COMPUTE_RATE
- , struct timespec *clock_prev, double *time_prev, ulong *step_prev, const double ft
+ , struct timespec *clock_prev, double *time_prev, ulong *step_prev, const double ft, double *brent_rate, ulong *brent_prev, ulong *rebuild_freq
 #endif//REPORT_COMPUTE_RATE
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
  , const int Ni, const iparticle ibody_direct_dev, const deviceProp devProp, acceleration *direct_hst, const int Ngrp, laneinfo *laneInfo_dev
@@ -490,9 +500,14 @@ static inline void dumpSnapshot
   const double speed_run = proceed / elapsed;
   const double guess = (ft - time) / speed_run;
   const double complete = (time / ft) * 100.0;
+  const double brent_avg = *brent_rate / ((present > 0) ? ((double)(steps - (*step_prev))) : (1.0));
+  const double rebuild_interval = ((present > 0) ? ((double)(steps - (*step_prev))) : (1.0)) / (double)(*rebuild_freq);
   *clock_prev = clock;
   *time_prev = time;
   *step_prev = steps;
+  *brent_rate = 0.0;
+  *brent_prev = steps;
+  *rebuild_freq = 0.0;
 #endif//REPORT_COMPUTE_RATE
 
   /** output the snapshot file */
@@ -511,7 +526,7 @@ static inline void dumpSnapshot
      , deviceMonitors, *monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  REPORT_COMPUTE_RATE
-     , speed, speed_run, complete, guess
+     , speed, speed_run, complete, guess, brent_avg, rebuild_interval
 #endif//REPORT_COMPUTE_RATE
      );
 #else///SERIALIZED_EXECUTION
@@ -529,7 +544,7 @@ static inline void dumpSnapshot
      , deviceMonitors, *monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  REPORT_COMPUTE_RATE
-     , speed, speed_run, complete, guess
+     , speed, speed_run, complete, guess, brent_avg, rebuild_interval
 #endif//REPORT_COMPUTE_RATE
      );
 #endif//SERIALIZED_EXECUTION
@@ -725,6 +740,10 @@ int main(int argc, char **argv)
     __FPRINTF__(stderr, "          -theta=<real>\n");
 #endif//WS93_MAC
 #endif//GADGET_MAC
+#ifdef  DISABLE_AUTO_TUNING
+    __FPRINTF__(stderr, "          -rebuild_interval=<real>\n");
+    __FPRINTF__(stderr, "          -brent_frac=<real>\n");
+#endif//DISABLE_AUTO_TUNING
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
     __FPRINTF__(stderr, "          -pot_file_sphe=<char *>\n");
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
@@ -737,15 +756,19 @@ int main(int argc, char **argv)
   char *file;  requiredCmdArg(getCmdArgStr(argc, (const char * const *)(void *)argv,  "file", &file));
   double tmp;
 #ifdef  GADGET_MAC
-  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)(void *)argv, "absErr", &tmp));  const real absErr = (real)tmp;
+  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)(void *)argv, "absErr", &tmp));  const real absErr = CAST_D2R(tmp);
 #else///GADGET_MAC
 #ifdef  WS93_MAC
-  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)(void *)argv, "accErr", &tmp));  const real accErr = (real)tmp;
+  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)(void *)argv, "accErr", &tmp));  const real accErr = CAST_D2R(tmp);
 #else///WS93_MAC
-  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)(void *)argv,  "theta", &tmp));  const real  theta = (real)tmp;
+  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)(void *)argv,  "theta", &tmp));  const real  theta = CAST_D2R(tmp);
   theta2 = theta * theta;
 #endif//WS93_MAC
 #endif//GADGET_MAC
+#ifdef  DISABLE_AUTO_TUNING
+  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)(void *)argv, "rebuild_interval", &tmp));  const double rebuild_interval = tmp;
+  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)(void *)argv,       "brent_frac", &tmp));  const double       brent_frac = tmp;
+#endif//DISABLE_AUTO_TUNING
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   char *pot_file_sphe;  requiredCmdArg(getCmdArgStr(argc, (const char * const *)(void *)argv,  "pot_file_sphe", &pot_file_sphe));
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
@@ -1450,7 +1473,9 @@ int main(int argc, char **argv)
   initStatVal  (&rebuildParam.parabolicStats);
   initGuessTime(&rebuildParam.parabolicGuess);
 #ifdef  USE_ADDITIONAL_SWITCH
+#ifndef DISABLE_AUTO_TUNING
   static int useParabolicGuess = 0;
+#endif//DISABLE_AUTO_TUNING
 #endif//USE_ADDITIONAL_SWITCH
 #endif//USE_PARABOLIC_GROWTH_MODEL
 
@@ -1516,6 +1541,10 @@ int main(int argc, char **argv)
   clock_gettime(CLOCK_MONOTONIC_RAW, &clock_prev);
   static double time_prev;  time_prev = time;
   static ulong  step_prev;  step_prev = steps;
+  static double brent_rate = 0.0;/**< brent->u.pos / brent->b */
+  static ulong brent_prev;/**< step of the previous update of brentStatus */
+  brent_prev = steps;
+  static ulong rebuild_freq = 0;/**< number of tree rebuild */
 #endif//REPORT_COMPUTE_RATE
 
   /** set up for output files */
@@ -1777,6 +1806,7 @@ int main(int argc, char **argv)
 
 
 #ifndef SERIALIZED_EXECUTION
+#ifndef DISABLE_AUTO_TUNING
   static loadImbalanceDetector balancer;
   balancer.enable  = false;
   balancer.execute = false;
@@ -1788,6 +1818,7 @@ int main(int argc, char **argv)
   initStatVal  (&exchangeParam.parabolicStats);
   initGuessTime(&exchangeParam.parabolicGuess);
 #endif//USE_PARABOLIC_GROWTH_MODEL
+#endif//DISABLE_AUTO_TUNING
 
 #if 1
   if( steps == 0 )
@@ -1798,7 +1829,10 @@ int main(int argc, char **argv)
      &ibody0_dev, &ibody1_dev, &ibody0, &ibody1, Ntot,
      domBoundary, particlePos_hst, particlePos_dev, domCfg, domDecKey,
      sample, samplePos0, samplePos1, soaPH_dev, devProp, devInfo,
-     &exchangeParam, &exchangeInterval, ormCfg, repCfg,
+#ifndef DISABLE_AUTO_TUNING
+     &exchangeParam, &exchangeInterval,
+#endif//DISABLE_AUTO_TUNING
+     ormCfg, repCfg,
 #ifdef  CARE_EXTERNAL_PARTICLES
      &location,
 #endif//CARE_EXTERNAL_PARTICLES
@@ -1835,6 +1869,9 @@ int main(int argc, char **argv)
      , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
      );
+#ifdef  REPORT_COMPUTE_RATE
+  rebuild_freq++;
+#endif//REPORT_COMPUTE_RATE
 
 #ifdef  BLOCK_TIME_STEP
   prediction_dev
@@ -1877,12 +1914,15 @@ int main(int argc, char **argv)
 #endif//EXEC_BENCHMARK
        );
     brentDistance.u = brentDistance.x;
- }/* if( dropPrevTune == 1 ){ */
+  }/* if( dropPrevTune == 1 ){ */
 
   /** commit i-particle groups */
   int Ngrp;
   /** first call of configDistribution() */
   /** do not call brentCalc1st() */
+#ifdef  DISABLE_AUTO_TUNING
+  brentDistance.u.pos = brent_frac * brentDistance.b;
+#endif//DISABLE_AUTO_TUNING
   configDistribution
     (num, inumPerLane, &Ngrp, maxNgrp, laneInfo_hst, laneInfo_dev,
      ibody0_dev, &brentDistance, inum_dev, inum_hst
@@ -2119,6 +2159,7 @@ int main(int argc, char **argv)
 #endif//COMPARE_WITH_DIRECT_SOLVER
        );
 
+#ifndef DISABLE_AUTO_TUNING
 #ifndef SHARED_AUTO_TUNER
 #ifdef  USE_CLOCK_CYCLES_FOR_BRENT_METHOD
     brentDistance.u.val += (double)(*cycles_hst);
@@ -2138,7 +2179,10 @@ int main(int argc, char **argv)
     brentDistance.u.val += shared_brent_u;
     brentHistory.totNum += shared_brent_num;
 #endif//SHARED_AUTO_TUNER
+#endif//DISABLE_AUTO_TUNING
+
     rebuild.interval += 1.0;
+#ifndef DISABLE_AUTO_TUNING
     linearModel(&(rebuildParam.linearGuess), &(rebuildParam.linearStats), rebuild.interval, elapsed.walkTree[0], 1.0);
     powerModel (&(rebuildParam. powerGuess), &(rebuildParam. powerStats), rebuild.interval, elapsed.walkTree[0], 1.0);
 #ifdef  USE_PARABOLIC_GROWTH_MODEL
@@ -2152,6 +2196,7 @@ int main(int argc, char **argv)
     rebuild.avg += reduce;
     rebuild.var += reduce * reduce;
 #endif//defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP)
+#endif//DISABLE_AUTO_TUNING
 
 #ifdef  COUNT_INTERACTIONS
     copyCounters_dev2hst(Ni, treeinfo_dev, treeinfo);
@@ -2172,6 +2217,9 @@ int main(int argc, char **argv)
 #endif//GADGET_MAC
 #endif//COMPARE_WITH_DIRECT_SOLVER
 
+#ifdef  REPORT_COMPUTE_RATE
+    brent_rate = brentDistance.u.pos / brentDistance.b;
+#endif//REPORT_COMPUTE_RATE
     dumpSnapshot
       (unit, num, ibody0_dev, ibody0,
 #ifdef  USE_HDF5_FORMAT
@@ -2194,7 +2242,7 @@ int main(int argc, char **argv)
        , deviceMonitors, &monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  REPORT_COMPUTE_RATE
-       , &clock_prev, &time_prev, &step_prev, ft
+       , &clock_prev, &time_prev, &step_prev, ft, &brent_rate, &brent_prev, &rebuild_freq
 #endif//REPORT_COMPUTE_RATE
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
        , Ni, ibody_direct_dev, devProp, direct, Ngrp, laneInfo_dev
@@ -2254,6 +2302,10 @@ int main(int argc, char **argv)
 
 
   /** calculate time evolution */
+#ifndef SERIALIZED_EXECUTION
+  bool existNewTree = false;
+#endif//SERIALIZED_EXECUTION
+#ifndef DISABLE_AUTO_TUNING
 #ifdef  SERIALIZED_EXECUTION
   static const double brent_method_allow = BRENT_METHOD_ALLOW;
 #else///SERIALIZED_EXECUTION
@@ -2263,11 +2315,11 @@ int main(int argc, char **argv)
 #else///DISABLE_EXCG_BODIES_BEFORE_SATURATION
   static const double brent_method_allow = BRENT_METHOD_ALLOW;
 #endif//DISABLE_EXCG_BODIES_BEFORE_SATURATION
-  bool existNewTree = false;
 #endif//SERIALIZED_EXECUTION
 #   if  NMAX_FOR_PERTURBATION_ABOUT_BRENT > 0
   static int brent_perturb_count = 0;
 #endif//NMAX_FOR_PERTURBATION_ABOUT_BRENT > 0
+#endif//DISABLE_AUTO_TUNING
   while( time < ft ){
 #ifdef  MONITOR_SIMULATION_STATUS
     if( mpi.rank == 0 ){
@@ -2311,6 +2363,7 @@ int main(int argc, char **argv)
     /** update octree structure if necessary */
     /** rebuild tree structure if required */
 #ifndef SERIALIZED_EXECUTION
+#ifndef DISABLE_AUTO_TUNING
     /** detect slow down */
     if( !rebuild.reuse ){
       exchangeInterval += 1.0;
@@ -2362,12 +2415,22 @@ int main(int argc, char **argv)
     __NOTE__("balancer.execute = %d @ rank %d\n", balancer.execute, letcfg.rank);
 
     if( balancer.execute ){
+#ifdef  MONITOR_SIMULATION_STATUS
+      if( mpi.rank == 0 ){
+	static char date[64];
+	getPresentDateInStrings(date);
+	__FPRINTF__(stdout, "domain re-decomposition on %s", date);
+      }/* if( mpi.rank == 0 ){ */
+#endif//MONITOR_SIMULATION_STATUS
       updateDomain
 	(&num, num_max, &Ni,
 	 &ibody0_dev, &ibody1_dev, &ibody0, &ibody1, Ntot,
 	 domBoundary, particlePos_hst, particlePos_dev, domCfg, domDecKey,
 	 sample, samplePos0, samplePos1, soaPH_dev, devProp, devInfo,
-	 &exchangeParam, &exchangeInterval, ormCfg, repCfg,
+#ifndef DISABLE_AUTO_TUNING
+	 &exchangeParam, &exchangeInterval,
+#endif//DISABLE_AUTO_TUNING
+	 ormCfg, repCfg,
 #ifdef  CARE_EXTERNAL_PARTICLES
 	 &location,
 #endif//CARE_EXTERNAL_PARTICLES
@@ -2385,14 +2448,40 @@ int main(int argc, char **argv)
       brent_method_allow = BRENT_METHOD_ALLOW_LAUNCH;
 #endif//DISABLE_EXCG_BODIES_BEFORE_SATURATION
     }/* if( balancer.execute ){ */
+#else///DISABLE_AUTO_TUNING
+    if( !rebuild.reuse ){
+#ifdef  MONITOR_SIMULATION_STATUS
+      if( mpi.rank == 0 ){
+	static char date[64];
+	getPresentDateInStrings(date);
+	__FPRINTF__(stdout, "domain re-decomposition on %s", date);
+      }/* if( mpi.rank == 0 ){ */
+#endif//MONITOR_SIMULATION_STATUS
+      updateDomain
+	(&num, num_max, &Ni,
+	 &ibody0_dev, &ibody1_dev, &ibody0, &ibody1, Ntot,
+	 domBoundary, particlePos_hst, particlePos_dev, domCfg, domDecKey,
+	 sample, samplePos0, samplePos1, soaPH_dev, devProp, devInfo,
+#ifndef DISABLE_AUTO_TUNING
+	 &exchangeParam, &exchangeInterval,
+#endif//DISABLE_AUTO_TUNING
+	 ormCfg, repCfg,
+#ifdef  CARE_EXTERNAL_PARTICLES
+	 &location,
+#endif//CARE_EXTERNAL_PARTICLES
+	 letcfg, iparticleSendBuf, iparticleRecvBuf, &elapsed, &brentDistance, &brentHistory
+#ifdef  EXEC_BENCHMARK
+	 , &execTime[steps - bench_begin]
+#endif//EXEC_BENCHMARK
+	 );
+    }/* if( !rebuild.reuse ){ */
+#endif//DISABLE_AUTO_TUNING
 #endif//SERIALIZED_EXECUTION
 
 
     /** rebuild the tree structure */
-#if 0
-    chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(rebuild.reuse), 1, MPI_BOOL, MPI_LOR, letcfg.comm));
-#endif
     if( !rebuild.reuse ){
+#ifndef DISABLE_AUTO_TUNING
 #ifndef SERIALIZED_EXECUTION
       elapsed.sum_rebuild = 0.0;
 #endif//SERIALIZED_EXECUTION
@@ -2406,8 +2495,10 @@ int main(int argc, char **argv)
       rebuild.avg = 0.0;
       rebuild.var = 0.0;
 #endif//defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP)
+#endif//DISABLE_AUTO_TUNING
       rebuild.interval = 0.0;
 
+#ifndef DISABLE_AUTO_TUNING
       initStatVal(&(rebuildParam.   linearStats));      initGuessTime(&(rebuildParam.   linearGuess));
       initStatVal(&(rebuildParam.    powerStats));      initGuessTime(&(rebuildParam.    powerGuess));
 #ifdef  USE_PARABOLIC_GROWTH_MODEL
@@ -2416,6 +2507,7 @@ int main(int argc, char **argv)
       useParabolicGuess = 0;
 #endif//USE_ADDITIONAL_SWITCH
 #endif//USE_PARABOLIC_GROWTH_MODEL
+#endif//DISABLE_AUTO_TUNING
 
 #ifdef  EXEC_BENCHMARK
       printf("#rebuild @ %zu-th step\n", steps);
@@ -2442,14 +2534,20 @@ int main(int argc, char **argv)
 	 , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
 	 );
+#ifdef  REPORT_COMPUTE_RATE
+      rebuild_freq++;
+#endif//REPORT_COMPUTE_RATE
 
+#ifndef DISABLE_AUTO_TUNING
       brentDistance.u.val /= (double)brentHistory.totNum;
       brentHistory.totNum = 0;
       brentHistory.interval++;
+#endif//DISABLE_AUTO_TUNING
       static bool initialized = false;
       if( initialized ){
 	/** from the second time, managing brentStatus is necessary */
 	/** check # of sequences executed and the evolution of elapsed time */
+#ifndef DISABLE_AUTO_TUNING
 	bool perturbBrent = false;
 	if( brentHistory.interval > BRENT_METHOD_LAUNCH ){
 	  /** when the elapsed time grows continuously, parturb the brentStatus */
@@ -2472,6 +2570,16 @@ int main(int argc, char **argv)
 #if 0
 	  __FPRINTF__(stdout, "perturb: interval = %d, degraded = %d @ %zu-step.\n", brentHistory.interval, brentHistory.degraded, steps);
 #endif
+#endif//DISABLE_AUTO_TUNING
+
+#ifdef  REPORT_COMPUTE_RATE
+	  brent_rate += (brentDistance.u.pos / brentDistance.b) * (double)(steps - brent_prev);
+	  /* if( fpclassify(brent_rate) == FP_NAN ){ */
+	  /*   __FPRINTF__(stderr, "brent_rate = %e: pos = %e, b = %e, step = %zu, prev = %zu\n", brent_rate, brentDistance.u.pos, brentDistance.b, steps, brent_prev); */
+	  /* }/\* if( fpclassify(brent_rate) == FP_NAN ){ *\/ */
+	  brent_prev = steps;
+#endif//REPORT_COMPUTE_RATE
+
 	  examineParticleSeparation
 	    (num, ibody0_dev, &brentDistance
 #ifdef  MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
@@ -2482,6 +2590,7 @@ int main(int argc, char **argv)
 #endif//EXEC_BENCHMARK
 	     );
 
+#ifndef DISABLE_AUTO_TUNING
 #   if  NMAX_FOR_PERTURBATION_ABOUT_BRENT > 0
 	  brent_perturb_count++;
 	  if( brent_perturb_count > NMAX_FOR_PERTURBATION_ABOUT_BRENT ){
@@ -2499,15 +2608,21 @@ int main(int argc, char **argv)
 	  /** when the brentStatus is conserved */
 	  brentCalc2nd(&brentDistance);
 	}/* else{ */
+#endif//DISABLE_AUTO_TUNING
       }/* if( initialized ){ */
       else{
 	/** the first execution of tree rebuild */
+#ifndef DISABLE_AUTO_TUNING
 	brentDistance.x = brentDistance.u;
 	brentInit2nd(&brentDistance);
+#endif//DISABLE_AUTO_TUNING
 	initialized = true;
       }/* else{ */
 
       /** from the second time, brentCalc1st() is called internally */
+#ifdef  DISABLE_AUTO_TUNING
+      brentDistance.u.pos = brent_frac * brentDistance.b;
+#endif//DISABLE_AUTO_TUNING
       configDistribution
 	(num, inumPerLane, &Ngrp, maxNgrp, laneInfo_hst, laneInfo_dev,
 	 ibody0_dev, &brentDistance, inum_dev, inum_hst
@@ -2522,8 +2637,10 @@ int main(int argc, char **argv)
 
 #ifndef SERIALIZED_EXECUTION
       existNewTree = true;
+#ifndef DISABLE_AUTO_TUNING
       if( !balancer.execute )      	balancer.enable  =  true;
       else	                        balancer.execute = false;
+#endif//DISABLE_AUTO_TUNING
 #endif//SERIALIZED_EXECUTION
     }/* if( !rebuild.reuse ){ */
 
@@ -2531,12 +2648,14 @@ int main(int argc, char **argv)
     /** share information on domain decomposition in the next time step */
 #ifndef SERIALIZED_EXECUTION
     chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &existNewTree, 1, MPI_BOOL, MPI_LOR, letcfg.comm));
+#ifndef DISABLE_AUTO_TUNING
 #ifdef  DISABLE_EXCG_BODIES_BEFORE_SATURATION
     balancer.enable &= allowBodyExcg;
     chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.enable), 1, MPI_BOOL, MPI_LAND, letcfg.comm));
 #else///DISABLE_EXCG_BODIES_BEFORE_SATURATION
     chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &(balancer.enable), 1, MPI_BOOL, MPI_LOR, letcfg.comm));
 #endif//DISABLE_EXCG_BODIES_BEFORE_SATURATION
+#endif//DISABLE_AUTO_TUNING
 #endif//SERIALIZED_EXECUTION
 
 
@@ -2775,7 +2894,7 @@ int main(int argc, char **argv)
 #endif//COMPARE_WITH_DIRECT_SOLVER
 	 );
 
-
+#ifndef DISABLE_AUTO_TUNING
 #ifndef SHARED_AUTO_TUNER
 /* #ifdef  SWITCH_WITH_J_PARALLELIZATION */
 /*       if( !transferMode ) */
@@ -2812,6 +2931,7 @@ int main(int argc, char **argv)
       brentDistance.u.val += shared_brent_u;
       brentHistory.totNum += shared_brent_num;
 #endif//SHARED_AUTO_TUNER
+#endif//DISABLE_AUTO_TUNING
 
 
 #ifdef  SHOW_NI_DEPENDENCE
@@ -2826,11 +2946,11 @@ int main(int argc, char **argv)
 
 
     rebuild.interval += 1.0;
+#ifndef DISABLE_AUTO_TUNING
 #   if  defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP)
     rebuild.avg += reduce;
     rebuild.var += reduce * reduce;
 #endif//defined(FORCE_ADJUSTING_PARTICLE_TIME_STEPS) && defined(BLOCK_TIME_STEP)
-
 
     linearModel(&(rebuildParam.linearGuess), &(rebuildParam.linearStats), rebuild.interval, elapsed.walkTree[rebuild.reuse] * reduce, reduce);
     powerModel (&(rebuildParam. powerGuess), &(rebuildParam. powerStats), rebuild.interval, elapsed.walkTree[rebuild.reuse] * reduce, reduce);
@@ -2840,6 +2960,11 @@ int main(int argc, char **argv)
      useParabolicGuess |= (elapsed.walkTree[rebuild.reuse] < elapsed.makeTree);
 #endif//USE_ADDITIONAL_SWITCH
 #endif//USE_PARABOLIC_GROWTH_MODEL
+#endif//DISABLE_AUTO_TUNING
+
+#ifdef  DISABLE_AUTO_TUNING
+    rebuild.reuse = rebuild.interval < rebuild_interval;
+#else///DISABLE_AUTO_TUNING
     rebuild.reuse = 1;
 #ifdef  USE_PARABOLIC_GROWTH_MODEL
     if( rebuild.interval > 3.5 ){
@@ -2858,6 +2983,7 @@ int main(int argc, char **argv)
 	((rebuildParam.linearGuess.rchisq < 1.0e-30 + rebuildParam.powerGuess.rchisq) ? (rebuildParam.linearGuess.time) : (rebuildParam.powerGuess.time)) > (elapsed.makeTree * reduce) )
 	rebuild.reuse = 0;
 #endif//USE_PARABOLIC_GROWTH_MODEL
+#endif//DISABLE_AUTO_TUNING
 
 
     /** orbit integration (correct step) */
@@ -2953,6 +3079,10 @@ int main(int argc, char **argv)
 #endif//GADGET_MAC
 #endif//COMPARE_WITH_DIRECT_SOLVER
 
+#ifdef  REPORT_COMPUTE_RATE
+      brent_rate += (brentDistance.u.pos / brentDistance.b) * (double)(steps - brent_prev);
+      brent_prev = steps;
+#endif//REPORT_COMPUTE_RATE
       dumpSnapshot
 	(unit, num, ibody0_dev, ibody0,
 #ifdef  USE_HDF5_FORMAT
@@ -2975,7 +3105,7 @@ int main(int argc, char **argv)
 	 , deviceMonitors, &monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  REPORT_COMPUTE_RATE
-	 , &clock_prev, &time_prev, &step_prev, ft
+	 , &clock_prev, &time_prev, &step_prev, ft, &brent_rate, &brent_prev, &rebuild_freq
 #endif//REPORT_COMPUTE_RATE
 #ifdef  COMPARE_WITH_DIRECT_SOLVER
 	 , Ni, ibody_direct_dev, devProp, direct, Ngrp, laneInfo_dev

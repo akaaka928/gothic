@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/13 (Fri)
+ * @date 2018/05/01 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -469,7 +469,7 @@ muse allocTreeBuffer_dev
   int num = 0;
   int *smid_dev;  mycudaMalloc    ((void **)&smid_dev, sizeof(int) * gpu.numSM);
   int *smid_hst;  mycudaMallocHost((void **)&smid_hst, sizeof(int) * gpu.numSM);
-  for(int ii = 0; ii < 64; ii++)
+  for(int ii = 0; ii < NMAX_SM; ii++)
     if( gpu.smid[ii] != -1 ){
       smid_hst[num] = gpu.smid[ii];      num++;
       last = ii;
@@ -2464,14 +2464,16 @@ static inline void callCalcGravityFunc_parallel
 #endif//COUNT_INTERACTIONS
  )
 {
-  __NOTE__("%s\n", "start");
+  __NOTE__("%s: head = %d, num = %d procs, LET is %d\n", "start", idxProcsPrev, numProcsPrev, grav_by_LET);
 
 
   for(int ii = idxProcsPrev; ii < idxProcsPrev + numProcsPrev; ii++){
     /** complete LET communications in the previous stage */
     if( grav_by_LET ){
+      __NOTE__("%d-th tree: %d nodes\n", ii, let[ii].numRecv);
       if( let[ii].numRecv > 0 ){
 	/** receive position of j-particles */
+	__NOTE__("wait j-particles\n");
 #ifdef  MPI_ONE_SIDED_FOR_LET
 	chkMPIerr(MPI_Win_flush_local(let[ii].recv, mpi.win_jpos));
 #else///MPI_ONE_SIDED_FOR_LET
@@ -2481,8 +2483,10 @@ static inline void callCalcGravityFunc_parallel
 #ifdef  MPI_VIA_HOST
 	checkCudaErrors(cudaMemcpyAsync(&(tree.jpos[let[ii].headRecv]), &(tree_hst.jpos[let[ii].headRecv]), sizeof(jparticle) * let[ii].numRecv, cudaMemcpyHostToDevice, sinfo->stream[*sidx]));
 #endif//MPI_VIA_HOST
+	__NOTE__("receive j-particles\n");
 
-      /** receive more pointers */
+	/** receive more pointers */
+	__NOTE__("wait more pointers\n");
 #ifdef  MPI_ONE_SIDED_FOR_LET
 	chkMPIerr(MPI_Win_flush_local(let[ii].recv, mpi.win_more));
 #else///MPI_ONE_SIDED_FOR_LET
@@ -2492,8 +2496,10 @@ static inline void callCalcGravityFunc_parallel
 #ifdef  MPI_VIA_HOST
 	checkCudaErrors(cudaMemcpyAsync(&(tree.more[let[ii].headRecv]), &(tree_hst.more[let[ii].headRecv]), sizeof(     uint) * let[ii].numRecv, cudaMemcpyHostToDevice, sinfo->stream[*sidx]));
 #endif//MPI_VIA_HOST
+	__NOTE__("receive more pointers\n");
 
-      /** receive mass of j-particles */
+	/** receive mass of j-particles */
+	__NOTE__("wait j-mass\n");
 #ifdef  MPI_ONE_SIDED_FOR_LET
 	chkMPIerr(MPI_Win_flush_local(let[ii].recv, mpi.win_mass));
 #else///MPI_ONE_SIDED_FOR_LET
@@ -2503,6 +2509,7 @@ static inline void callCalcGravityFunc_parallel
 #ifdef  MPI_VIA_HOST
 	checkCudaErrors(cudaMemcpyAsync(&(tree.mj  [let[ii].headRecv]), &(tree_hst.mj  [let[ii].headRecv]), sizeof(    jmass) * let[ii].numRecv, cudaMemcpyHostToDevice, sinfo->stream[*sidx]));
 #endif//MPI_VIA_HOST
+	__NOTE__("receive j-mass\n");
       }/* if( let[ii].numRecv > 0 ){ */
     }/* if( grav_by_LET ){ */
 
@@ -3486,6 +3493,18 @@ void setGlobalConstants_walk_dev_cu
 
 
   /** error checking before running the kernel */
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  int Nblck;
+  checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&Nblck, calcAcc_kernel, NTHREADS, 0));
+  if( Nblck != NBLOCKS_PER_SM ){
+    if( Nblck > NBLOCKS_PER_SM ){
+      __FPRINTF__(stderr, "Warning: # of blocks per SM for calcAcc_kernel is predicted as %d while the expected value of NBLOCKS_PER_SM defined in src/tree/walk_dev.cu is %d\n", Nblck, NBLOCKS_PER_SM);
+    }/* if( Nblck > NBLOCKS_PER_SM ){ */
+    else{
+      __KILL__(stderr, "ERROR: # of blocks per SM for calcAcc_kernel is predicted as %d while the expected value of NBLOCKS_PER_SM defined in src/tree/walk_dev.cu is %d\n", Nblck, NBLOCKS_PER_SM);
+    }/* else{ */
+  }/* if( Nblck != NBLOCKS_PER_SM ){ */
+#else///USE_OCCUPANCY_CALCULATOR
   struct cudaFuncAttributes funcAttr;
   checkCudaErrors(cudaFuncGetAttributes(&funcAttr, calcAcc_kernel));
   int regLimit = MAX_REGISTERS_PER_SM / (funcAttr.numRegs * NTHREADS);
@@ -3494,6 +3513,7 @@ void setGlobalConstants_walk_dev_cu
   if( Nblck != NBLOCKS_PER_SM ){
     __KILL__(stderr, "ERROR: # of blocks per SM for calcAcc_kernel is mispredicted (%d).\n\tThe limits come from register and shared memory are %d and %d, respectively.\n\tHowever, the expected value of NBLOCKS_PER_SM defined in src/tree/walk_dev.cu is %d\n", Nblck, regLimit, memLimit, NBLOCKS_PER_SM);
   }/* if( Nblck != NBLOCKS_PER_SM ){ */
+#endif//USE_OCCUPANCY_CALCULATOR
 
 
   /* remove shared memory if __global__ function does not use */

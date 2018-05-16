@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/13 (Fri)
+ * @date 2018/05/08 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -16,6 +16,10 @@
  */
 
 #define OMIT_INPLACE_IN_SCATTERV
+
+#ifdef  NDEBUG
+#undef  NDEBUG
+#endif//NDEBUG
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -425,8 +429,10 @@ static inline void sort_xpos_hst(const int num, samplePos RESTRICT src, samplePo
   __PRINTF__("\ndst:\n");
   for(int ii = 0; ii < num; ii++)
     __PRINTF__("%d: x = %e, y = %e, z = %e\n", ii, dst.x_hst[ii], dst.y_hst[ii], dst.z_hst[ii]);
+#if 0
   MPI_Abort(MPI_COMM_WORLD, 0);
   exit(0);
+#endif
 #endif
 #endif//NDEBUG
 
@@ -473,8 +479,10 @@ static inline void sort_ypos_dev(const int num, samplePos src)
   checkCudaErrors(cudaMemcpy(src.z_hst, src.z_dev, sizeof(float) * num, cudaMemcpyDeviceToHost));
   for(int ii = 0; ii < num; ii++)
     __PRINTF__("%d: y = %e, z = %e\n", ii, src.y_hst[ii], src.z_hst[ii]);
+#if 0
   MPI_Abort(MPI_COMM_WORLD, 0);
   exit(0);
+#endif
 #endif
 #endif//NDEBUG
 
@@ -497,8 +505,10 @@ static inline void sort_ypos_hst(const int num, samplePos src)
 #if 0
   for(int ii = 0; ii < num; ii++)
     __PRINTF__("%d: y = %e, z = %e\n", ii, src.y_hst[ii], src.z_hst[ii]);
+#if 0
   MPI_Abort(MPI_COMM_WORLD, 0);
   exit(0);
+#endif
 #endif
 #endif//NDEBUG
 
@@ -552,8 +562,10 @@ static inline void sort_zpos_hst(const int num, samplePos src)
 #if 0
   for(int ii = 0; ii < num; ii++)
     __PRINTF__("%d: z = %e\n", ii, src.z_hst[ii]);
+#if 0
   MPI_Abort(MPI_COMM_WORLD, 0);
   exit(0);
+#endif
 #endif
 #endif//NDEBUG
 
@@ -891,8 +903,10 @@ __global__ void sortParticlesDDkey_kernel
 #endif//BLOCK_TIME_STEP
 
 #ifndef NDEBUG
+#if 0
     if( spos[jj].m < EPSILON )
       printf("src = %d, dst = %d: massless (%e)\n", jj, ii, spos[jj].m);
+#endif
 #endif//NDEBUG
   }/* if( ii < num ){ */
 }
@@ -1637,6 +1651,10 @@ void exchangeParticles_dev
 		       , elapsed
 #endif//EXEC_BENCHMARK
 		       );
+/* #else///MPI_VIA_HOST */
+/* #if 1 */
+/*   checkCudaErrors(cudaDeviceSynchronize()); */
+/* #endif */
 #endif//MPI_VIA_HOST
 
 
@@ -1967,6 +1985,27 @@ void exchangeParticles_dev
 
 
   /** complete MPI communications */
+  for(int ii = 0; ii < numProcs; ii++)
+    if( recvBuf[ii].num > 0 ){
+      __NOTE__("recv %d bodies from rank %d\n", recvBuf[ii].num, ii);
+      MPI_Status  pos;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. pos), &pos));      __NOTE__("recvBuf[%d].pos\n", ii);
+      MPI_Status  idx;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. idx), &idx));      __NOTE__("recvBuf[%d].idx\n", ii);
+#ifdef  BLOCK_TIME_STEP
+      MPI_Status  vel;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. vel), &vel));      __NOTE__("recvBuf[%d].vel\n", ii);
+      MPI_Status time;      chkMPIerr(MPI_Wait(&(recvBuf[ii].time), &time));      __NOTE__("recvBuf[%d].time\n", ii);
+#else///BLOCK_TIME_STEP
+      MPI_Status   vx;      chkMPIerr(MPI_Wait(&(recvBuf[ii].  vx), & vx));      __NOTE__("recvBuf[%d].vx\n", ii);
+      MPI_Status   vy;      chkMPIerr(MPI_Wait(&(recvBuf[ii].  vy), & vy));      __NOTE__("recvBuf[%d].vy\n", ii);
+      MPI_Status   vz;      chkMPIerr(MPI_Wait(&(recvBuf[ii].  vz), & vz));      __NOTE__("recvBuf[%d].vz\n", ii);
+#endif//BLOCK_TIME_STEP
+#ifdef  GADGET_MAC
+      MPI_Status  acc;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. acc), &acc));      __NOTE__("recvBuf[%d].acc\n", ii);
+#endif//GADGET_MAC
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+      MPI_Status  ext;      chkMPIerr(MPI_Wait(&(recvBuf[ii].acc_ext), &ext));      __NOTE__("recvBuf[%d].ext\n", ii);
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+    }/* if( recvBuf[ii].num > 0 ){ */
+
   for(int ii = 0; ii < overlapNum; ii++){
     if( sendBuf[ii].num > 0 ){
       __NOTE__("send %d bodies to rank %d (%d/%d)\n", sendBuf[ii].num, sendBuf[ii].rank, ii, overlapNum);
@@ -1989,27 +2028,6 @@ void exchangeParticles_dev
     }/* if( sendBuf[ii].num > 0 ){ */
   }/* for(int ii = 0; ii < overlapNum; ii++){ */
 
-  for(int ii = 0; ii < numProcs; ii++)
-    if( recvBuf[ii].num > 0 ){
-      __NOTE__("recv %d bodies from rank %d\n", recvBuf[ii].num, ii);
-      MPI_Status  pos;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. pos), &pos));      __NOTE__("recvBuf[%d].pos\n", ii);
-      MPI_Status  idx;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. idx), &idx));      __NOTE__("recvBuf[%d].idx\n", ii);
-#ifdef  BLOCK_TIME_STEP
-      MPI_Status  vel;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. vel), &vel));      __NOTE__("recvBuf[%d].vel\n", ii);
-      MPI_Status time;      chkMPIerr(MPI_Wait(&(recvBuf[ii].time), &time));      __NOTE__("recvBuf[%d].time\n", ii);
-#else///BLOCK_TIME_STEP
-      MPI_Status   vx;      chkMPIerr(MPI_Wait(&(recvBuf[ii].  vx), & vx));      __NOTE__("recvBuf[%d].vx\n", ii);
-      MPI_Status   vy;      chkMPIerr(MPI_Wait(&(recvBuf[ii].  vy), & vy));      __NOTE__("recvBuf[%d].vy\n", ii);
-      MPI_Status   vz;      chkMPIerr(MPI_Wait(&(recvBuf[ii].  vz), & vz));      __NOTE__("recvBuf[%d].vz\n", ii);
-#endif//BLOCK_TIME_STEP
-#ifdef  GADGET_MAC
-      MPI_Status  acc;      chkMPIerr(MPI_Wait(&(recvBuf[ii]. acc), &acc));      __NOTE__("recvBuf[%d].acc\n", ii);
-#endif//GADGET_MAC
-#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-      MPI_Status  ext;      chkMPIerr(MPI_Wait(&(recvBuf[ii].acc_ext), &ext));      __NOTE__("recvBuf[%d].ext\n", ii);
-#endif//SET_EXTERNAL_POTENTIAL_FIELD
-    }/* if( recvBuf[ii].num > 0 ){ */
-
 #endif//MPI_ONE_SIDED_FOR_EXCG
 
 
@@ -2027,10 +2045,9 @@ void exchangeParticles_dev
   const int diff = (*numNew) - numOld;
   int diff_sum;
   chkMPIerr(MPI_Reduce(&diff, &diff_sum, 1, MPI_INT, MPI_SUM, 0, mpi.comm));
-  if( mpi.rank == 0 )
-    if( diff_sum != 0 ){
-      __KILL__(stderr, "ERROR: domain decomposition cause some error (duplication of %d particles)\n", diff_sum);
-    }/* if( diff_sum != 0 ){ */
+  if( (mpi.rank == 0) && (diff_sum != 0) ){
+    __KILL__(stderr, "ERROR: domain decomposition cause some error (duplication of %d particles)\n", diff_sum);
+  }/* if( (mpi.rank == 0) && (diff_sum != 0) ){ */
 
 
 #ifdef  MPI_VIA_HOST

@@ -21,12 +21,10 @@ outputPDF = False
 # skip = [0]
 # init = 0
 # last = 47
-# fmin, fmax = 1.0e+7, 1.0e+10
-# xmin, xmax = -15.0, 15.0
-# ymin, ymax = -15.0, 15.0
-# zmin, zmax = -15.0, 15.0
+# fmin, fmax = 1.0e-3, 1.0e+1
 # xtics = [-10, -5, 0, 5, 10]
 # ytics = [-10, -5, 0, 5, 10]
+# lab = ["DM halo", "stellar halo", "bulge", "disk"]
 
 # filename = "k17disk"
 # Nskip = 2
@@ -44,7 +42,10 @@ outputPDF = False
 # fmin, fmax = 1.0e-3, 1.0e+0
 # lab = ["halo", "disk"]
 
-filename = "halocusp_run"
+# filename = "halocusp_run"
+# filename = "halocore1_run"
+filename = "halocore2_run"
+# filename = "halocore3_run"
 Nskip = 1
 skip = [0]
 init = 0
@@ -52,16 +53,6 @@ last = 140
 # last = 0
 fmin, fmax = 1.0e-6, 1.0e-1
 lab = ["halo", "core", "GC"]
-
-# filename = "halocore3_run"
-# # Nskip = 1
-# # skip = [0]
-# Nskip = 0
-# init = 0
-# last = 140
-# # last = 0
-# fmin, fmax = 1.0e-6, 1.0e-1
-# lab = ["halo", "core", "GC"]
 
 # filename = "hernquist"
 # Nskip = 0
@@ -71,6 +62,16 @@ lab = ["halo", "core", "GC"]
 # fmin, fmax = 1.0e-3, 1.0e+1
 # lab = ["halo"]
 
+# filename = "etg"
+# Nskip = 1
+# skip = [0]
+# # Nskip = 0
+# init = 0
+# last = 47
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# lab = ["DM halo", "bulge", "stellar halo", "central BH"]
+
 
 
 pt = ["o", "s", "^", "D"]
@@ -78,8 +79,10 @@ ls = ["-", ":", "-.", "--"]
 col = ["black", "red", "blue", "magenta"]
 
 
+thicknessMeasure = 1.82
 
-def draw_figure(fileid, kind):
+
+def draw_figure(fileid, kind, radmin, radmax, rhomin, rhomax, encmin, encmax, sigmin, sigmax, hormin, hormax, Sigmin, Sigmax, sigRmin, sigRmax, sigpmin, sigpmax, sigzmin, sigzmax, diskmin, diskmax, add_ini_sphe, sphe_rad, sphe_rho, sphe_enc, sphe_Sig, sphe_sig):
     snapshot = "{:03d}".format(fileid)
     input_file = "dat/" + filename + ".plt" + snapshot + ".h5"
 
@@ -161,12 +164,19 @@ def draw_figure(fileid, kind):
             sigz = h5file[folder + "sigz"].value
 
             # measure of the thickness, according to Rodionov & Sotnikova (2013)
-            ver *= 1.82
+            ver *= thicknessMeasure
 
-            ax_rho[0].plot(rad, rho, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
-            ax_enc[0].plot(rad, enc, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
-            ax_sig[0].plot(rad, sig, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
-            ax_Sig[0].plot(hor, Sig, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
+            if add_ini_sphe:
+                ax_rho[0].plot(sphe_rad[ii], sphe_rho[ii], linestyle = ls[ii], color = col[ii])
+                ax_enc[0].plot(sphe_rad[ii], sphe_enc[ii], linestyle = ls[ii], color = col[ii])
+                ax_sig[0].plot(sphe_rad[ii], sphe_sig[ii], linestyle = ls[ii], color = col[ii])
+                ax_Sig[0].plot(sphe_rad[ii], sphe_Sig[ii], linestyle = ls[ii], color = col[ii])
+
+
+            ax_rho[0].plot(rad, rho, pt[ii], linestyle = "None" if add_ini_sphe else ls[ii], color = col[ii], label = lab[ii])
+            ax_enc[0].plot(rad, enc, pt[ii], linestyle = "None" if add_ini_sphe else ls[ii], color = col[ii], label = lab[ii])
+            ax_sig[0].plot(rad, sig, pt[ii], linestyle = "None" if add_ini_sphe else ls[ii], color = col[ii], label = lab[ii])
+            ax_Sig[0].plot(hor, Sig, pt[ii], linestyle = "None" if add_ini_sphe else ls[ii], color = col[ii], label = lab[ii])
             ax_ver[0].plot(hor, ver, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
             ax_sig2D[0].plot(hor, sigR, pt[0], linestyle = ls[ii], color = col[ii], label = r"$\sigma_R$" + " (" + lab[ii] + ")")
             ax_sig2D[0].plot(hor, sigp, pt[1], linestyle = ls[ii], color = col[ii], label = r"$\sigma_p$" + " (" + lab[ii] + ")")
@@ -249,11 +259,25 @@ def draw_figure(fileid, kind):
     ax_sig2D[0].set_xlabel(r"$R$ ({:<})".format(length_unit.decode("UTF-8")))
 
     ax_rho[0].set_ylabel(r"$\rho$ ({:<})".format(density_unit.decode("UTF-8")))
-    ax_enc[0].set_ylabel(r"$M_\mathrm{enc}$" + r"({:<})".format(mass_unit.decode("UTF-8")))
+    ax_enc[0].set_ylabel(r"$M_\mathrm{enc}$" + r" ({:<})".format(mass_unit.decode("UTF-8")))
     ax_sig[0].set_ylabel(r"$\sigma_r$ ({:<})".format(velocity_unit.decode("UTF-8")))
     ax_Sig[0].set_ylabel(r"$\Sigma$ ({:<})".format(col_density_unit.decode("UTF-8")))
-    ax_ver[0].set_ylabel(r"$1.82\, \mathrm{median}(|z|)$" + r"({:<})".format(length_unit.decode("UTF-8")))
+    ax_ver[0].set_ylabel(r"${:.2f}$".format(thicknessMeasure) + r" $\mathrm{median}(|z|)$" + r" ({:<})".format(length_unit.decode("UTF-8")))
     ax_sig2D[0].set_ylabel(r"$\sigma$ ({:<})".format(velocity_unit.decode("UTF-8")))
+
+    ax_rho[0].set_xlim(utils.scale_axis(radmin, radmax,  True))
+    ax_rho[0].set_ylim(utils.scale_axis(rhomin, rhomax,  True))
+    ax_enc[0].set_xlim(utils.scale_axis(radmin, radmax,  True))
+    ax_enc[0].set_ylim(utils.scale_axis(encmin, encmax,  True))
+    ax_sig[0].set_xlim(utils.scale_axis(radmin, radmax,  True))
+    ax_sig[0].set_ylim(utils.scale_axis(sigmin, sigmax, False))
+
+    ax_Sig[0].set_xlim(utils.scale_axis( hormin,  hormax, True))
+    ax_Sig[0].set_ylim(utils.scale_axis( Sigmin,  Sigmax, True))
+    ax_ver[0].set_xlim(utils.scale_axis( hormin,  hormax, True))
+    ax_ver[0].set_ylim(utils.scale_axis(diskmin, thicknessMeasure * diskmax, False))
+    ax_sig2D[0].set_xlim(utils.scale_axis( hormin,  hormax, True))
+    ax_sig2D[0].set_ylim(utils.scale_axis(min([sigRmin, sigpmin, sigzmin]), max([sigRmax, sigpmax, sigzmax]), False))
 
     ax_rho[0].loglog()
     ax_enc[0].loglog()
@@ -353,18 +377,91 @@ plt.rcParams['text.usetex'] = True
 # plt.rcParams['font.size'] = 16
 plt.rcParams['font.size'] = 14
 
+# specify direction of ticks
+plt.rcParams['xtick.direction'] = 'in'
+plt.rcParams['ytick.direction'] = 'in'
+
+# read minimum and maximum of each quantity
+txtfile = open("dat/" + filename + ".minmax.txt", "r")
+line = txtfile.readline()
+item = line.split("\t")
+radmin, radmax = float(item[0]), float(item[1])
+line = txtfile.readline()
+item = line.split("\t")
+rhomin, rhomax = float(item[0]), float(item[1])
+line = txtfile.readline()
+item = line.split("\t")
+encmin, encmax = float(item[0]), float(item[1])
+line = txtfile.readline()
+item = line.split("\t")
+sigmin, sigmax = float(item[0]), float(item[1])
+line = txtfile.readline()
+item = line.split("\t")
+hormin, hormax = float(item[0]), float(item[1])
+line = txtfile.readline()
+item = line.split("\t")
+Sigmin, Sigmax = float(item[0]), float(item[1])
+line = txtfile.readline()
+item = line.split("\t")
+sigRmin, sigRmax = float(item[0]), float(item[1])
+line = txtfile.readline()
+item = line.split("\t")
+sigpmin, sigpmax = float(item[0]), float(item[1])
+line = txtfile.readline()
+item = line.split("\t")
+sigzmin, sigzmax = float(item[0]), float(item[1])
+line = txtfile.readline()
+item = line.split("\t")
+diskmin, diskmax = float(item[0]), float(item[1])
+txtfile.close()
+
+
 # read number of all component(s)
 txtfile = open("doc/" + filename + ".summary.txt", "r")
-unit = txtfile.readline()
-tmp = txtfile.readline()
-Nkind = int(tmp[0])
-# Nsphe = int(tmp[2])
+unit = int(txtfile.readline())
+line = txtfile.readline()
+item = line.split("\t")
+Nkind = int(item[0])
+# Nsphe = int(item[1])
 txtfile.close()
+
+
+# read analytic profile of all component(s) if possible
+sphefile = "dat/" + filename + ".profile.h5"
+add_ini_sphe = path.isfile(sphefile)
+if add_ini_sphe:
+    data_file = h5py.File(sphefile, "r")
+    sphe_Nanal = data_file["/"].attrs["kinds"][0]
+    sphe_Ndata = data_file["/data0/"].attrs["num"][0]
+    sphe_rad = [0] * sphe_Nanal * sphe_Ndata
+    sphe_rho = [0] * sphe_Nanal * sphe_Ndata
+    sphe_enc = [0] * sphe_Nanal * sphe_Ndata
+    sphe_Sig = [0] * sphe_Nanal * sphe_Ndata
+    sphe_sig = [0] * sphe_Nanal * sphe_Ndata
+    for kk in range(sphe_Nanal):
+        folder = "data" + str(kk) + "/"
+        sphe_rad[kk] = data_file[folder + "rad"].value
+        sphe_rho[kk] = data_file[folder + "rho"].value
+        sphe_enc[kk] = data_file[folder + "enc"].value
+        sphe_Sig[kk] = data_file[folder + "Sigma"].value
+        sphe_sig[kk] = data_file[folder + "sigma_r"].value
+    data_file.close()
+else:
+    sphe_rad = [0]
+    sphe_rho = [0]
+    sphe_enc = [0]
+    sphe_Sig = [0]
+    sphe_sig = [0]
+
+
+# diskfile = "dat/" + filename + ".disk.h5"
+# add_ini_disk = path.isfile(diskfile)
+
 
 my_cmap = utils.generate_cmap(["darkblue", "deepskyblue", "lime", "yellow", "red", "magenta", "white"])
 # cores = mp.cpu_count()
 cores = int(np.ceil(mp.cpu_count() / 2))
 pool = mp.Pool(cores)
-args = [(ii, Nkind) for ii in range(init, last + 1, 1)]
+args = [(ii, Nkind, radmin, radmax, rhomin, rhomax, encmin, encmax, sigmin, sigmax, hormin, hormax, Sigmin, Sigmax, sigRmin, sigRmax, sigpmin, sigpmax, sigzmin, sigzmax, diskmin, diskmax, add_ini_sphe, sphe_rad, sphe_rho, sphe_enc, sphe_Sig, sphe_sig) for ii in range(init, last + 1, 1)]
 pool.map(wrapper, args)
 pool.close()

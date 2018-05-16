@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/05/04 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -18,16 +18,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <math.h>
 #include <omp.h>
 
 #include "macro.h"
 
 #include "blas.h"
-
-/* #define DEBUG_MODE_FOR_BLAS_C */
-#ifdef  DEBUG_MODE_FOR_BLAS_C
-#include <math.h>
-#endif//DEBUG_MODE_FOR_BLAS_C
 
 
 /**
@@ -440,6 +436,11 @@ void pbicgstab
       if( (steps % BLAS_PROGRESS_REPORT_ON) == 0 ){
 	fprintf(stdout, "#\t%d-th iteration: error is %e, goal is %e\n", steps, dnrm_ful, tol2);
 	fflush(stdout);
+#if 0
+	if( fpclassify(dnrm_ful) == FP_NAN ){
+	  __KILL__(stderr, "ERROR: dnrm_ful is NaN\n");
+	}/* if( fpclassify(dnrm_ful) == FP_NAN ){ */
+#endif
       }/* if( (steps % BLAS_PROGRESS_REPORT_ON) == 0 ){ */
       if( dnrm_ful < tol2 )      break;
 #pragma omp single nowait

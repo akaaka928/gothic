@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 # set figure size and its aspect ratio
@@ -51,6 +52,23 @@ def locate_panels(fig, ax, nx, ny, share_xaxis, share_yaxis):
                 ax[kk].tick_params(labelleft = False)
                 if ii == 0:
                     ax[kk].tick_params(labelleft = True)
+
+
+def scale_axis(minimum, maximum, logPlt):
+    blankVal = 0.2
+    if logPlt == True:
+        width = np.log10(maximum / minimum)
+        blank = width * blankVal / 2
+        scale = np.power(10.0, blank)
+        return minimum / scale, maximum * scale
+    else:
+        width = maximum - minimum
+        blank = width * blankVal / 2
+        right = maximum + blank
+        left = minimum
+        if minimum != 0.0:
+            left -= blank
+        return left, right
 
 
 def set_shared_xlabel(ax, xlabel):
@@ -125,7 +143,6 @@ def scientific(x, pos):
 
 # generate color map
 import sys
-import numpy as np
 from matplotlib.colors import LinearSegmentedColormap
 def generate_cmap(cols):
     vals = range(len(cols))

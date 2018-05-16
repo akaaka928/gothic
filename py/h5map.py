@@ -90,6 +90,10 @@ plt.rcParams['text.usetex'] = True
 # plt.rcParams['font.size'] = 16
 plt.rcParams['font.size'] = 14
 
+# specify direction of ticks
+plt.rcParams['xtick.direction'] = 'in'
+plt.rcParams['ytick.direction'] = 'in'
+
 # generate additional color maps
 my_cmap = utils.generate_cmap(["darkblue", "deepskyblue", "lime", "yellow", "red", "magenta", "white"])
 # cmap0 = utils.generate_cmap(["blue", "cyan", "green", "yellow", "red", "magenta"])

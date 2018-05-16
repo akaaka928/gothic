@@ -1,7 +1,7 @@
 #!/bin/sh
 #$ -cwd
 #$ -l q_core=1
-#$ -l h_rt=0:05:00
+#$ -l h_rt=0:10:00
 #$ -N magi
 ###############################################################
 # NCORES_PER_NODE=28 # for f_node
@@ -23,7 +23,7 @@ if [ -z "$PROBLEM" ]; then
     PROBLEM=2
     # PROBLEM=20
     # PROBLEM=26
-    # PROBLEM=28
+    # PROBLEM=27
     # PROBLEM=70
     # PROBLEM=71
     # PROBLEM=1
@@ -45,11 +45,11 @@ if [ -z "$NTOT" ]; then
     # NTOT=65536
     # NTOT=131072
     # NTOT=262144
-    # NTOT=524288
+    NTOT=524288
     # NTOT=1048576
     # NTOT=2097152
     # NTOT=4194304
-    NTOT=8388608
+    # NTOT=8388608
     # NTOT=16777216
     # NTOT=33554432
     # NTOT=67108864
@@ -289,8 +289,8 @@ fi
 ###############################################################
 # dynamical stability of multi components galaxy model (only spherical components)
 if [ $PROBLEM -eq 26 ]; then
-    FILE=spherical
-    CONFIG=galaxy/spherical.cfg
+    FILE=etg
+    CONFIG=galaxy/etg.cfg
     EPS=1.5625e-2
     ETA=0.5
     # FINISH=75.0
@@ -301,16 +301,19 @@ if [ $PROBLEM -eq 26 ]; then
     # INTERVAL=25.0
 fi
 ###############################################################
-# dynamical stability of an M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk)
+# dynamical stability of an M31 model (NFW halo, Hernquist bulge, and exponential disk)
+# basically, this is Fardal et al. (2007) model
+# stellar halo: Gilbert et al. (2012): \Sigma \propto R^-2.2; Rmin = 9kpc, Rmax = 176kpc; Ibata et al. (2014, ApJ, 780, 128): total stellar mass of the smooth halo is ~8e+9 Msun
+# disk: Toomre's Q-value is set to reproduce Tenjes et al. (2017): Q_min = 1.8 @ 12-13 kpc
 if [ $PROBLEM -eq 27 ]; then
-    FILE=m31_mod
+    FILE=m31
     CONFIG=galaxy/m31.cfg
     EPS=1.5625e-2
+    # EPS=7.8125e-3
     ETA=0.5
-    FINISH=75.0
-    INTERVAL=25.0
+    FINISH=1175.0
     # FINISH=3175.0
-    # INTERVAL=25.0
+    INTERVAL=25.0
 fi
 ###############################################################
 # dynamical stability of multi components galaxy model (NFW halo, King bulge, thick Sersic disk, and thin exponential disk)
@@ -608,8 +611,8 @@ fi
 # job execution via UNIVA Grid Engine
 ###############################################################
 # set stdout and stderr
-STDOUT=log/$REQUEST.o$JOB_ID
-STDERR=log/$REQUEST.e$JOB_ID
+STDOUT=log/${FILE}_$REQUEST.o$JOB_ID
+STDERR=log/${FILE}_$REQUEST.e$JOB_ID
 ###############################################################
 # load modules
 . /etc/profile.d/modules.sh

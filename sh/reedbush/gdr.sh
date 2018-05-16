@@ -1,17 +1,10 @@
 #!/bin/bash
-#$ -cwd
-#$ -l f_node=1
-##$ -l h_node=1
-##$ -l s_gpu=4
-#$ -l h_rt=00:05:00
-#$ -N gothic
-#$ -hold_jid magi,gothic
 ###############################################################
-NGPUS_PER_NODE=4
-# NGPUS_PER_NODE=2
-# NGPUS_PER_NODE=1
-###############################################################
-NGPUS_PER_SOCKET=2
+#PBS -q l-regular
+#PBS -l select=1:mpiprocs=4:ompthreads=1
+#PBS -W group_list=jh180045l
+#PBS -l walltime=01:00:00
+#PBS -N gothic
 ###############################################################
 
 
@@ -23,34 +16,20 @@ EXEC=bin/gothic
 # problem ID
 if [ -z "$PROBLEM" ]; then
     PROBLEM=2
-    # PROBLEM=20
-    # PROBLEM=26
-    # PROBLEM=28
-    # PROBLEM=80
-    # PROBLEM=81
+    # PROBLEM=27
 fi
 ###############################################################
 # topology of MPI processes
 if [ -z "$NX" ]; then
-    NX=4
+    NX=2
 fi
 if [ -z "$NY" ]; then
-    NY=1
+    NY=2
 fi
 if [ -z "$NZ" ]; then
     NZ=1
 fi
-NGPUS=`expr $NQUEUES \* $NGPUS_PER_NODE`
-if [ $NGPUS -eq 1 ]; then
-    NX=1
-    NY=1
-    NZ=1
-fi
 PROCS=`expr $NX \* $NY \* $NZ`
-if [ $PROCS -ne $NGPUS ]; then
-    echo "product of $NX, $NY, and $NZ must be equal to the number of total MPI processes ($NGPUS)"
-    exit 1
-fi
 ###############################################################
 # value of accuracy controling parameter: GADGET MAC by Springel (2005)
 if [ -z "$ABSERR" ]; then
@@ -59,8 +38,8 @@ if [ -z "$ABSERR" ]; then
     # ABSERR=3.125000000e-2
     # ABSERR=1.562500000e-2
     # ABSERR=7.812500000e-3
-    ABSERR=3.906250000e-3
-    # ABSERR=1.953125000e-3
+    # ABSERR=3.906250000e-3
+    ABSERR=1.953125000e-3
     # ABSERR=9.765625000e-4
     # ABSERR=4.882812500e-4
     # ABSERR=2.441406250e-4
@@ -89,6 +68,9 @@ if [ -z "$ACCERR" ]; then
     # ACCERR=1.953125e-3
     # ACCERR=9.765625e-4
 fi
+###############################################################
+REBUILD=8
+BRENT=1.0
 ###############################################################
 
 
@@ -160,6 +142,11 @@ if [ $PROBLEM -eq 13 ]; then
     FILE=ekes
 fi
 ###############################################################
+# dynamical stability of an exponential disk in an NFW sphere
+if [ $PROBLEM -eq 14 ]; then
+    FILE=hd
+fi
+###############################################################
 # dynamical stability of an M31 model determined by Fardal et al. (2007)
 if [ $PROBLEM -eq 20 ]; then
     FILE=m31
@@ -192,12 +179,15 @@ fi
 ###############################################################
 # dynamical stability of multi components galaxy model (only spherical components)
 if [ $PROBLEM -eq 26 ]; then
-    FILE=spherical
+    FILE=etg
 fi
 ###############################################################
-# dynamical stability of an M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk)
+# dynamical stability of an M31 model (NFW halo, Hernquist bulge, and exponential disk)
+# basically, this is Fardal et al. (2007) model
+# stellar halo: Gilbert et al. (2012): \Sigma \propto R^-2.2; Rmin = 9kpc, Rmax = 176kpc; Ibata et al. (2014, ApJ, 780, 128): total stellar mass of the smooth halo is ~8e+9 Msun
+# disk: Toomre's Q-value is set to reproduce Tenjes et al. (2017): Q_min = 1.8 @ 12-13 kpc
 if [ $PROBLEM -eq 27 ]; then
-    FILE=m31_mod
+    FILE=m31
 fi
 ###############################################################
 # dynamical stability of multi components galaxy model (NFW halo, King bulge, thick Sersic disk, and thin exponential disk)
@@ -291,31 +281,57 @@ if [ $PROBLEM -eq 81 ]; then
 fi
 ###############################################################
 # set input arguments
-OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID"
+OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -rebuild_interval=$REBUILD -brent_frac=$BRENT -jobID=$PBS_JOBID"
 ###############################################################
 
 
 ###############################################################
-# job execution via UNIVA Grid Engine
+# job execution via PBS
 ###############################################################
+# set number of MPI processes per node
+PROCS_PER_NODE=4
+PROCS_PER_SOCKET=2
+###############################################################
+export MV2_ENABLE_AFFINITY=0
+export MV2_USE_CUDA=1
+export MV2_USE_GPUDIRECT=1
+###############################################################
+# start logging
+cd $PBS_O_WORKDIR
 TIME=`date`
 echo "start: $TIME"
 ###############################################################
-# load modules
+export MODULEPATH=$MODULEPATH:/lustre/jh180045l/share/opt/Modules
 . /etc/profile.d/modules.sh
-export MODULEPATH=$MODULEPATH:/gs/hs1/jh180045/share/opt/Modules
-module load intel cuda openmpi
-module load cub phdf5
-module list
-###############################################################
-cat $PE_HOSTFILE
+module purge
+module load pbsutils
+module load intel
+# module load cuda9/9.0.176 mvapich2/gdr/2.3a/gnu phdf5/mv2
+module load cuda9/9.1.85 openmpi/gdr/2.1.2/intel phdf5/ompi
+# module load cuda9 intel-mpi phdf5/impi
+module load cub
 ###############################################################
 # execute the job
-# echo "mpiexec -ppn $NGPUS_PER_NODE -n $PROCS sh/wrapper.sh $EXEC log/${FILE}_${REQUEST} $JOB_ID $NGPUS_PER_NODE $NGPUS_PER_SOCKET $OPTION"
-# mpiexec -ppn $NGPUS_PER_NODE -n $PROCS sh/wrapper.sh $EXEC log/${FILE}_${REQUEST} $JOB_ID $NGPUS_PER_NODE $NGPUS_PER_SOCKET $OPTION
-# below example is for 2 processes with 2 nodes (1 GPU per node)
-mpirun -mca pml cm -mca mtl psm2 -np $PROCS -npernode $NGPUS_PER_NODE --bind-to core -cpu-set 0 -x CUDA_VISIBLE_DEVICES=0 -x PSM2_CUDA=1 -x PSM2_GPUDIRECT=1 -x LD_LIBRARY_PATH -x PATH $EXEC $OPTION
-# for 4 GPUs per node: -cpu-set 0,1,14,15 -x CUDA_VISIBLE_DEVICES=0,1,2,3 ??
+if [ $PROCS -gt 1 ]; then
+    echo "mpirun -n $PROCS -f ${PBS_NODEFILE} sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION"
+    mpirun -n $PROCS -f ${PBS_NODEFILE} sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION
+    # STDOUT=log/${FILE}_$PBS_JOBNAME.o${PBS_JOBID}
+    # STDERR=log/${FILE}_$PBS_JOBNAME.e${PBS_JOBID}
+    # mpirun -tag-output -np $PROCS -mca btl_openib_want_cuda_gdr 1 sh/wrapper.sh $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+else
+    # set stdout and stderr
+    STDOUT=log/${FILE}_$PBS_JOBNAME.o${PBS_JOBID}
+    STDERR=log/${FILE}_$PBS_JOBNAME.e${PBS_JOBID}
+    if [ `which numactl` ]; then
+	# run with numactl
+	echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+	numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    else
+	# run without numactl
+	echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+	$EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    fi
+fi
 ###############################################################
 # finish logging
 TIME=`date`

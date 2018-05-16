@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/24 (Tue)
+ * @date 2018/05/09 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1246,15 +1246,17 @@ int main(int argc, char **argv)
   double time = 0.0;
   initBenchmark_cpu();
 
-#   if  !defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT)
+#ifdef  USE_HDF5_FORMAT
+  static hdf5struct hdf5type;
+  createHDF5DataType(&hdf5type);
+#endif//USE_HDF5_FORMAT
+
+#   if  !defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT) && !defined(WRITE_IN_GADGET_FORMAT)
   double  dt  = 0.0;
   int   last  = 1;
   ulong steps = 0;
 
-  writeSettings(unit, Ntot, eps, eta, ft, snapshotInterval, saveInterval, file);
 #ifdef  USE_HDF5_FORMAT
-  static hdf5struct hdf5type;
-  createHDF5DataType(&hdf5type);
 #ifndef RUN_WITHOUT_GOTHIC
 #ifdef  MONITOR_ENERGY_ERROR
   static energyError relEneErr = {1.0, DBL_MIN};
@@ -1266,6 +1268,8 @@ int main(int argc, char **argv)
   static brentMemory memory;
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
+
+  writeSettings(unit, Ntot, eps, eta, ft, snapshotInterval, saveInterval, file);
 
   writeTentativeData(time, dt, steps, Ntot, body, file, &last
 #ifdef  USE_HDF5_FORMAT
@@ -1283,7 +1287,7 @@ int main(int argc, char **argv)
 		     );
   updateConfigFile(last, file);
 
-#else///!defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT)
+#else///!defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT) && !defined(WRITE_IN_GADGET_FORMAT)
 
 #ifdef  WRITE_IN_TIPSY_FORMAT
   writeTipsyFile(time, CAST_R2F(eps), (int)Ntot, body, file);
@@ -1297,7 +1301,24 @@ int main(int argc, char **argv)
   }/* for(int kk = 0; kk < kind; kk++){ */
 #endif//WRITE_IN_GALACTICS_FORMAT
 
-#endif//!defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT)
+#ifdef  WRITE_IN_GADGET_FORMAT
+  int *ghead;  ghead = (int *)malloc(sizeof(int) * kind);  if( ghead == NULL ){    __KILL__(stderr, "ERROR: failure to allocate ghead\n");  }
+  int *gnum ;  gnum  = (int *)malloc(sizeof(int) * kind);  if( gnum  == NULL ){    __KILL__(stderr, "ERROR: failure to allocate gnum\n");  }
+  for(int kk = 0; kk < kind; kk++)
+    gnum[kk] = cfg[kk].num;
+  ghead[0] = 0;
+  for(int kk = 1; kk < kind; kk++)
+    ghead[kk] = ghead[kk - 1] + gnum[kk - 1];
+  writeGADGETFile((int)Ntot, time, kind, skind, ghead, gnum, body, file
+#ifdef  USE_HDF5_FORMAT
+		  , hdf5type
+#endif//USE_HDF5_FORMAT
+		  );
+  free(ghead);
+  free(gnum);
+#endif//WRITE_IN_GADGET_FORMAT
+
+#endif//!defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT) && !defined(WRITE_IN_GADGET_FORMAT)
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   writeFixedPotentialTable

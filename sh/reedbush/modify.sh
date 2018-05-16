@@ -176,10 +176,12 @@ echo "start: $TIME"
 ###############################################################
 export MODULEPATH=$MODULEPATH:/lustre/jh180045l/share/opt/Modules
 . /etc/profile.d/modules.sh
-module load intel intel-mpi
-module load phdf5/impi
-# module load mvapich2/gdr/2.2/gnu
-# module load phdf5/mv2
+module purge
+module load pbsutils
+module load intel
+# module load mvapich2/gdr/2.3a/gnu phdf5/mv2
+module load openmpi/gdr/2.1.2/intel phdf5/ompi
+# module load intel-mpi phdf5/impi
 ###############################################################
 # execute the job
 if [ `which numactl` ]; then

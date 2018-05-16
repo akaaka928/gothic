@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/26 (Mon)
+ * @date 2018/05/01 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -114,15 +114,20 @@
 /** # of elements in SM is 12K or 4K on older GPUs */
 /** SM usage is NTHREADS_MAKE_LET * (NQUEUE_LET + 1) */
 #ifndef NQUEUE_LET
-#   if  GPUGEN >= 60
-#define NQUEUE_LET (DIV_NTHREADS_MAKE_LET(16384 / NBLOCKS_PER_SM) - 1)
-#else///GPUGEN >= 60
-#   if  SMPREF_LET == 1
-#define NQUEUE_LET (DIV_NTHREADS_MAKE_LET(12288 / NBLOCKS_PER_SM) - 1)
-#else///SMPREF_LET == 1
-#define NQUEUE_LET (DIV_NTHREADS_MAKE_LET( 4096 / NBLOCKS_PER_SM) - 1)
-#endif//SMPREF_LET == 1
-#endif//GPUGEN >= 60
+#   if  NBLOCKS_PER_SM == 2
+#define NQUEUE_LET (DIV_NTHREADS_MAKE_LET(SMEM_SIZE_SM_PREF >> 3) - 1)
+#else///NBLOCKS_PER_SM == 2
+#define NQUEUE_LET (DIV_NTHREADS_MAKE_LET((SMEM_SIZE_SM_PREF >> 2) / NBLOCKS_PER_SM) - 1)
+#endif//NBLOCKS_PER_SM == 2
+/* #   if  GPUGEN >= 60 */
+/* #define NQUEUE_LET (DIV_NTHREADS_MAKE_LET(16384 / NBLOCKS_PER_SM) - 1) */
+/* #else///GPUGEN >= 60 */
+/* #   if  SMPREF_LET == 1 */
+/* #define NQUEUE_LET (DIV_NTHREADS_MAKE_LET(12288 / NBLOCKS_PER_SM) - 1) */
+/* #else///SMPREF_LET == 1 */
+/* #define NQUEUE_LET (DIV_NTHREADS_MAKE_LET( 4096 / NBLOCKS_PER_SM) - 1) */
+/* #endif//SMPREF_LET == 1 */
+/* #endif//GPUGEN >= 60 */
 #endif//NQUEUE_LET
 
 

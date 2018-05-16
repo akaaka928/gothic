@@ -214,6 +214,10 @@ plt.rcParams['text.usetex'] = True
 # plt.rcParams['font.size'] = 16
 plt.rcParams['font.size'] = 28
 
+# specify direction of ticks
+plt.rcParams['xtick.direction'] = 'in'
+plt.rcParams['ytick.direction'] = 'in'
+
 
 # read fundamental property of the system
 target = "dat/" + filename + ".profile.h5"

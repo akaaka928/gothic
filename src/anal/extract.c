@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/03/23 (Fri)
+ * @date 2018/05/15 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -411,6 +411,18 @@ int main(int argc, char **argv)
   real *Sigma_zx;  Sigma_zx = (real *)malloc(sizeof(real) * kind * nz * nx);  if( Sigma_zx == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate Sigma_zx");  }
 
 
+#ifdef  USE_HDF5_FORMAT
+  /** obtain minimum and maximum values for matplotlib */
+  double radmin = DBL_MAX, radmax = 0.0;
+  double rhomin = DBL_MAX, rhomax = 0.0;
+  double encmin = DBL_MAX, encmax = 0.0;
+  double                   sigmax = 0.0;
+  double hormin = DBL_MAX, hormax = 0.0;
+  double Sigmin = DBL_MAX, Sigmax = 0.0;
+  double sigRmax = 0.0, sigpmax = 0.0, sigzmax = 0.0;
+  double diskmax = 0.0;
+#endif//USE_HDF5_FORMAT
+
 
   for(int filenum = start + mpi.rank * interval; filenum < end + 1; filenum += interval * mpi.size){
     /** read snapshot */
@@ -505,21 +517,67 @@ int main(int argc, char **argv)
     generateMassDistributionMaps(kind, bodyHead, bodyNum, body, eps, nx, xmin, dx, ny, ymin, dy, nz, zmin, dz, rho_map, Sigma_xy, Sigma_yz, Sigma_zx);
 
 
-    /** dump analyzed results for matplotlib and/or VisIt */
 #ifdef  USE_HDF5_FORMAT
+    /** dump analyzed results for matplotlib and/or VisIt */
     writeAnalyzedProfiles
       (time, steps, file, filenum, hdf5type, kind, bodyNum,
        nx, xx, ny, yy, nz, zz, rho_map, Sigma_xy, Sigma_yz, Sigma_zx,
        prfHead, prfNum, rad, rho, enc, sig,
        prfHead_hor, prfNum_hor, hor, Sigma, height, sigR, sigp, sigz,
        &rhalf[INDEX2D(nfile, kind, (filenum - start) / interval, 0)], &comPos[INDEX(nfile, kind, 3, (filenum - start) / interval, 0, 0)], &comVel[INDEX(nfile, kind, 3, (filenum - start) / interval, 0, 0)]);
+
+
+    /** obtain minimum and maximum values for matplotlib */
+    for(int kk = 0; kk < kind; kk++)
+      if( bodyNum[kk] > Nminimum ){
+	radmin = fmin(radmin, rad[prfHead[kk]]);	radmax = fmax(radmax, rad[prfHead[kk] + prfNum[kk] - 1]);
+	encmin = fmin(encmin, enc[prfHead[kk]]);	encmax = fmax(encmax, enc[prfHead[kk] + prfNum[kk] - 1]);
+
+	hormin = fmin(hormin, hor[prfHead_hor[kk]                     ]);
+	hormax = fmax(hormax, hor[prfHead_hor[kk] + prfNum_hor[kk] - 1]);
+      }/* if( bodyNum[kk] > Nminimum ){ */
+
+    for(int ii = prfHead[0]; ii < prfHead[kind - 1] + prfNum[kind - 1]; ii++){
+      rhomin = fmin(rhomin, rho[ii]);
+      rhomax = fmax(rhomax, rho[ii]);
+      sigmax = fmax(sigmax, sig[ii]);
+    }/* for(int ii = prfHead[0]; ii < prfHead[kind - 1] + prfNum[kind - 1]; ii++){ */
+
+    for(int ii = prfHead_hor[0]; ii < prfHead_hor[kind - 1] + prfNum_hor[kind - 1]; ii++){
+      Sigmin = fmin(Sigmin, Sigma[ii]);
+      Sigmax = fmax(Sigmax, Sigma[ii]);
+
+      sigRmax = fmax(sigRmax, sigR[ii]);
+      sigpmax = fmax(sigpmax, sigp[ii]);
+      sigzmax = fmax(sigzmax, sigz[ii]);
+
+      diskmax = fmax(diskmax, height[ii]);
+    }/* for(int ii = prfHead_hor[0]; ii < prfHead_hor[kind - 1] + prfNum_hor[kind - 1]; ii++){ */
 #endif//USE_HDF5_FORMAT
   }/* for(int filenum = start + mpi.rank * interval; filenum < end + 1; filenum += interval * mpi.size){ */
 
 
-  chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, comPos, nfile * kind * 3, MPI_REALDAT, MPI_SUM, mpi.comm));
-  chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, comVel, nfile * kind * 3, MPI_REALDAT, MPI_SUM, mpi.comm));
-  chkMPIerr(MPI_Allreduce(MPI_IN_PLACE,  rhalf, nfile * kind    , MPI_REALDAT, MPI_SUM, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? comPos : MPI_IN_PLACE, comPos, nfile * kind * 3, MPI_REALDAT, MPI_SUM, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? comVel : MPI_IN_PLACE, comVel, nfile * kind * 3, MPI_REALDAT, MPI_SUM, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ?  rhalf : MPI_IN_PLACE,  rhalf, nfile * kind    , MPI_REALDAT, MPI_SUM, 0, mpi.comm));
+#ifdef  USE_HDF5_FORMAT
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & radmin: MPI_IN_PLACE, & radmin, 1, MPI_DOUBLE, MPI_MIN, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & radmax: MPI_IN_PLACE, & radmax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & hormin: MPI_IN_PLACE, & hormin, 1, MPI_DOUBLE, MPI_MIN, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & hormax: MPI_IN_PLACE, & hormax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & encmin: MPI_IN_PLACE, & encmin, 1, MPI_DOUBLE, MPI_MIN, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & encmax: MPI_IN_PLACE, & encmax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & rhomin: MPI_IN_PLACE, & rhomin, 1, MPI_DOUBLE, MPI_MIN, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & rhomax: MPI_IN_PLACE, & rhomax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & Sigmin: MPI_IN_PLACE, & Sigmin, 1, MPI_DOUBLE, MPI_MIN, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & Sigmax: MPI_IN_PLACE, & Sigmax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & sigmax: MPI_IN_PLACE, & sigmax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? &sigRmax: MPI_IN_PLACE, &sigRmax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? &sigpmax: MPI_IN_PLACE, &sigpmax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? &sigzmax: MPI_IN_PLACE, &sigzmax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? &diskmax: MPI_IN_PLACE, &diskmax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
+#endif//USE_HDF5_FORMAT
+
   if( mpi.rank == 0 ){
     fprintf(stdout, "# position of center-of-mass\n");
     fprintf(stdout, "# file");
@@ -553,6 +611,23 @@ int main(int argc, char **argv)
 	fprintf(stdout, "\t%e", rhalf[INDEX2D(nfile, kind, ii, kk)]);
       fprintf(stdout, "\n");
     }/* for(int ii = 0; ii < nfile; ii++){ */
+
+    sprintf(filename, "%s/%s.minmax.txt", DATAFOLDER, file);
+    fp = fopen(filename, "w");
+    if( fp == NULL ){
+      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);
+    }
+    fprintf(fp, "%e\t%e\n", radmin, radmax);
+    fprintf(fp, "%e\t%e\n", rhomin, rhomax);
+    fprintf(fp, "%e\t%e\n", encmin, encmax);
+    fprintf(fp, "%e\t%e\n",    0.0, sigmax);
+    fprintf(fp, "%e\t%e\n", hormin, hormax);
+    fprintf(fp, "%e\t%e\n", Sigmin, Sigmax);
+    fprintf(fp, "%e\t%e\n",    0.0, sigRmax);
+    fprintf(fp, "%e\t%e\n",    0.0, sigpmax);
+    fprintf(fp, "%e\t%e\n",    0.0, sigzmax);
+    fprintf(fp, "%e\t%e\n",    0.0, diskmax);
+    fclose(fp);
   }/* if( mpi.rank == 0 ){ */
 
 
@@ -725,11 +800,11 @@ void analyzeRadialProfile(const int kind, int * restrict bodyHead, int * restric
     const real com[3] = {com_tot[INDEX2D(kind, 3, kk, 0)], com_tot[INDEX2D(kind, 3, kk, 1)], com_tot[INDEX2D(kind, 3, kk, 2)]};
     const real vel[3] = {vel_tot[INDEX2D(kind, 3, kk, 0)], vel_tot[INDEX2D(kind, 3, kk, 1)], vel_tot[INDEX2D(kind, 3, kk, 2)]};
 
+    prfHead[kk] = *num;
     if( bodyNum[kk] > Nminimum ){
       /* /\* sort the array in ascending distance from the center *\/ */
       /* qsort(body, bodyNum[kk], sizeof(nbody_particle), radAscendingOrder); */
 
-      prfHead[kk] = *num;
       real *prad, *prho, *penc, *psig;
       real inner = ZERO;
       real Menc  = ZERO;
@@ -761,7 +836,7 @@ void analyzeRadialProfile(const int kind, int * restrict bodyHead, int * restric
 	real vr2 = ZERO;
 	real vrm = ZERO;
 	for(int ii = head; ii < tail; ii++){
-	  const real vr = ((body[ii].vx - vel[0]) * (body[ii].x - com[0]) + (body[ii].vy - vel[1]) * (body[ii].y - com[1]) + (body[ii].vz - vel[2]) * (body[ii].z - com[2])) / body_tot[ii].rad;
+	  const real vr = ((body[ii].vx - vel[0]) * (body[ii].x - com[0]) + (body[ii].vy - vel[1]) * (body[ii].y - com[1]) + (body[ii].vz - vel[2]) * (body[ii].z - com[2])) / body[ii].rad;
 	  vrm += vr;
 	  vr2 += vr * vr;
 	}/* for(int ii = head; ii < tail; ii++){ */
@@ -805,11 +880,11 @@ void analyzeHorizontalProfile(const int kind, int * restrict bodyHead, int * res
     const real com[3] = {com_tot[INDEX2D(kind, 3, kk, 0)], com_tot[INDEX2D(kind, 3, kk, 1)], com_tot[INDEX2D(kind, 3, kk, 2)]};
     const real vel[3] = {vel_tot[INDEX2D(kind, 3, kk, 0)], vel_tot[INDEX2D(kind, 3, kk, 1)], vel_tot[INDEX2D(kind, 3, kk, 2)]};
 
+    prfHead[kk] = *num;
     if( bodyNum[kk] > Nminimum ){
       /* sort the array in ascending distance from the center */
       qsort(body, bodyNum[kk], sizeof(nbody_particle), horAscendingOrder);
 
-      prfHead[kk] = *num;
       real *ppos, *pSigma, *pheight, *psigR, *psigp, *psigz;
       real inner = ZERO;
       ppos    = *pos;
@@ -1019,6 +1094,117 @@ void generateMassDistributionMaps(const int kind, int * restrict bodyHead, int *
 
 
 #ifdef  USE_HDF5_FORMAT
+#ifdef  PREPARE_XDMF_FILES
+static inline void writeXdmf(char file[], const uint id, const int nx, const int ny, const int nz, const int kind)
+{
+  __NOTE__("%s\n", "start");
+
+  char filename[128];
+  sprintf(filename, "%s/%s.%s%.3u.xmf", DATAFOLDER, file, "plt", id);
+  FILE *fp;
+  fp = fopen(filename, "w");
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
+
+  sprintf(filename, "%s.%s%.3u.h5", file, "plt", id);
+
+  fprintf(fp, "<?xml version=\"1.0\" ?>\n");
+  fprintf(fp, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
+  fprintf(fp, "<Xdmf Version=\"3.0\">\n");
+  fprintf(fp, "<Domain>\n");
+  for(int kk = 0; kk < kind; kk++){
+    fprintf(fp, "<Grid Name=\"field%d\" GridType=\"Uniform\">\n", kk);
+    fprintf(fp, "<Topology TopologyType=\"3DRectMesh\" NumberOfElements=\"%d %d %d\"/>\n", nx + 1, ny + 1, nz + 1);
+    fprintf(fp, "<Geometry GeometryType=\"VXVYVZ\">\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", nx + 1, sizeof(real));
+    fprintf(fp, "%s:/field%d/x\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", ny + 1, sizeof(real));
+    fprintf(fp, "%s:/field%d/y\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", nz + 1, sizeof(real));
+    fprintf(fp, "%s:/field%d/z\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    fprintf(fp, "</Geometry>\n");
+    fprintf(fp, "<Attribute Name=\"rho\" AttributeType=\"Scalar\" Center=\"Cell\">\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d %d %d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", nx, ny, nz, sizeof(real));
+    fprintf(fp, "%s:/field%d/rho\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    fprintf(fp, "</Attribute>\n");
+    fprintf(fp, "</Grid>\n");
+
+    fprintf(fp, "<Grid Name=\"field%d_xy\" GridType=\"Uniform\">\n", kk);
+    fprintf(fp, "<Topology TopologyType=\"2DRectMesh\" NumberOfElements=\"%d %d\"/>\n", nx + 1, ny + 1);
+    /**# Is VXVY available in XDMF? */
+    fprintf(fp, "<Geometry GeometryType=\"VXVY\">\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", nx + 1, sizeof(real));
+    fprintf(fp, "%s:/field%d/x\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", ny + 1, sizeof(real));
+    fprintf(fp, "%s:/field%d/y\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    /* fprintf(fp, "<DataItem Dimensions=\"%d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", nz + 1, sizeof(real)); */
+    /* fprintf(fp, "%s:/field%d/z\n", filename, kk); */
+    /* fprintf(fp, "</DataItem>\n"); */
+    fprintf(fp, "</Geometry>\n");
+    fprintf(fp, "<Attribute Name=\"Sigma\" AttributeType=\"Scalar\" Center=\"Cell\">\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d %d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", nx, ny, sizeof(real));
+    fprintf(fp, "%s:/field%d/Sigma_xy\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    fprintf(fp, "</Attribute>\n");
+    fprintf(fp, "</Grid>\n");
+
+    fprintf(fp, "<Grid Name=\"field%d_yz\" GridType=\"Uniform\">\n", kk);
+    fprintf(fp, "<Topology TopologyType=\"2DRectMesh\" NumberOfElements=\"%d %d\"/>\n", ny + 1, nz + 1);
+    /**# Is VXVY available in XDMF? */
+    fprintf(fp, "<Geometry GeometryType=\"VXVY\">\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", ny + 1, sizeof(real));
+    fprintf(fp, "%s:/field%d/y\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", nz + 1, sizeof(real));
+    fprintf(fp, "%s:/field%d/z\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    /* fprintf(fp, "<DataItem Dimensions=\"%d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", nx + 1, sizeof(real)); */
+    /* fprintf(fp, "%s:/field%d/x\n", filename, kk); */
+    /* fprintf(fp, "</DataItem>\n"); */
+    fprintf(fp, "</Geometry>\n");
+    fprintf(fp, "<Attribute Name=\"Sigma\" AttributeType=\"Scalar\" Center=\"Cell\">\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d %d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", ny, nz, sizeof(real));
+    fprintf(fp, "%s:/field%d/Sigma_yz\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    fprintf(fp, "</Attribute>\n");
+    fprintf(fp, "</Grid>\n");
+
+    fprintf(fp, "<Grid Name=\"field%d_zx\" GridType=\"Uniform\">\n", kk);
+    fprintf(fp, "<Topology TopologyType=\"2DRectMesh\" NumberOfElements=\"%d %d\"/>\n", nz + 1, nx + 1);
+    /**# Is VXVY available in XDMF? */
+    fprintf(fp, "<Geometry GeometryType=\"VXVY\">\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", nz + 1, sizeof(real));
+    fprintf(fp, "%s:/field%d/z\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", nx + 1, sizeof(real));
+    fprintf(fp, "%s:/field%d/x\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    /* fprintf(fp, "<DataItem Dimensions=\"%d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", ny + 1, sizeof(real)); */
+    /* fprintf(fp, "%s:/field%d/y\n", filename, kk); */
+    /* fprintf(fp, "</DataItem>\n"); */
+    fprintf(fp, "</Geometry>\n");
+    fprintf(fp, "<Attribute Name=\"Sigma\" AttributeType=\"Scalar\" Center=\"Cell\">\n");
+    fprintf(fp, "<DataItem Dimensions=\"%d %d\" NumberType=\"Float\" Precision=\"%zu\" Format=\"HDF\">\n", nz, nx, sizeof(real));
+    fprintf(fp, "%s:/field%d/Sigma_zx\n", filename, kk);
+    fprintf(fp, "</DataItem>\n");
+    fprintf(fp, "</Attribute>\n");
+    fprintf(fp, "</Grid>\n");
+  }/* for(int kk = 0; kk < kind; kk++){ */
+  fprintf(fp, "</Domain>\n");
+  fprintf(fp, "</Xdmf>\n");
+
+  fclose(fp);
+
+  __NOTE__("%s\n", "end");
+}
+#endif//PREPARE_XDMF_FILES
+
+
 /**
  * @fn writeAnalyzedProfiles
  *
@@ -1166,6 +1352,27 @@ void writeAnalyzedProfiles
     }/* if( (dims[0] * dims[1] * dims[2]) > (hsize_t)szip_pixels_per_block ){ */
     else
       property = H5P_DEFAULT;
+#else///USE_SZIP_COMPRESSION
+#ifdef  USE_GZIP_COMPRESSION
+    cdims_loc[0] = gzip_cdims[0];
+    cdims_loc[1] = gzip_cdims[1];
+    cdims_loc[2] = gzip_cdims[2];
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[2] < cdims_loc[2] ){
+      cdims_loc[2] = dims[2];
+      cdims_loc[1] = dims[2] / cdims_loc[2];
+    }/* if( dims[1] < cdims_loc[1] ){ */
+    if( dims[1] < cdims_loc[1] ){
+      cdims_loc[1] = dims[1];
+      cdims_loc[0] = dims[1] / cdims_loc[1];
+    }/* if( dims[1] < cdims_loc[1] ){ */
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] * cdims_loc[1] * cdims_loc[2] > cdims_max )
+      cdims_loc[0] = cdims_max / (cdims_loc[1] * cdims_loc[2]);
+    chkHDF5err(H5Pset_chunk(property, 3, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
 #endif//USE_SZIP_COMPRESSION
     for(int jj = INDEX2D(kind, nx * ny * nz, ii, 0); jj < INDEX2D(kind, nx * ny * nz, ii + 1, 0); jj++)
       rho_map[jj] = CAST_D2R(CAST_R2D(rho_map[jj]) * density2astro);
@@ -1489,6 +1696,9 @@ void writeAnalyzedProfiles
 
   /* close the file */
   chkHDF5err(H5Fclose(target));
+#ifdef  PREPARE_XDMF_FILES
+  writeXdmf(file, id, nx, ny, nz, kind);
+#endif//PREPARE_XDMF_FILES
 
   firstCall = false;
 

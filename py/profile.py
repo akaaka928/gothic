@@ -252,6 +252,10 @@ plt.rcParams['text.usetex'] = True
 # plt.rcParams['font.size'] = 16
 plt.rcParams['font.size'] = 28
 
+# specify direction of ticks
+plt.rcParams['xtick.direction'] = 'in'
+plt.rcParams['ytick.direction'] = 'in'
+
 rho2astro = density_astro2com / mass_astro2com
 
 # read analytic profile of all component(s) in host component
@@ -280,10 +284,11 @@ data_file.close()
 
 # read number of all component(s)
 txtfile = open("doc/" + runname + ".summary.txt", "r")
-unit = txtfile.readline()
-tmp = txtfile.readline()
-Nkind = int(tmp[0])
-# Nsphe = int(tmp[2])
+unit = int(txtfile.readline())
+line = txtfile.readline()
+item = line.split("\t")
+Nkind = int(item[0])
+# Nsphe = int(item[1])
 txtfile.close()
 
 

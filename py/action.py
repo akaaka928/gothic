@@ -137,6 +137,10 @@ plt.rcParams['text.usetex'] = True
 # plt.rcParams['font.size'] = 16
 plt.rcParams['font.size'] = 28
 
+# specify direction of ticks
+plt.rcParams['xtick.direction'] = 'in'
+plt.rcParams['ytick.direction'] = 'in'
+
 
 h5file = h5py.File("dat/" + filename + ".action000.h5", "r")
 kinds = h5file["/"].attrs["kinds"][0]

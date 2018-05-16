@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/24 (Tue)
+ * @date 2018/05/07 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -311,6 +311,15 @@ void allocDiskProfile
   if( Rmax > ldexp(zmax, NHOR_OVER_NVER) ){    log2hmax = (int)ceil(log2(DISK_MAX_SAFETY * Rmax));    maxLR = ldexp(1.0, log2hmax);    maxLz = ldexp(maxLR, -NHOR_OVER_NVER);  }
   else{                                        log2hmax = (int)ceil(log2(DISK_MAX_SAFETY * zmax));    maxLz = ldexp(1.0, log2hmax);    maxLR = ldexp(maxLz,  NHOR_OVER_NVER);  }
   const double hh = maxLz / (double)NDISKBIN_VER;
+  for(int ii = 0; ii < ndisk; ii++)
+    if( disk_cfg[ii].zd < hh ){
+      if( disk_cfg[ii].cutoff ){
+	__FPRINTF__(stderr, "Warning: coarsest grid size hh = %e while scale height of %d-th disk = %e\n\tconsider using more grid points NDISKBIN_VER defined in src/init/potdens.h (current value is %d) or smaller cutoff value specified by the user (current value is %e) to shrink hh\n", hh, ii, disk_cfg[ii].zd, NDISKBIN_VER, disk_cfg[ii].rc);
+      }/* if( disk_cfg[ii].cutoff ){ */
+      else{
+	__FPRINTF__(stderr, "Warning: coarsest grid size hh = %e while scale height of %d-th disk is %e\n\tconsider using more grid points NDISKBIN_VER defined in src/init/potdens.h (current value is %d) or smaller boost factor DISK_MAX_LENGTH defined in src/init/potdens.h (current value is %e) to shrink hh\n", hh, ii, disk_cfg[ii].zd, NDISKBIN_VER, DISK_MAX_LENGTH);
+      }/* else{ */
+    }/* if( disk_cfg[ii].zd < hh ){ */
   log2hmax = (int)nearbyint(log2(hh));
 
   /** configuration of finest grid */
@@ -971,6 +980,11 @@ static inline void getVariableDiskScaleHeight(const int ndisk, const int maxLev,
       const double zd1 = sqrt(rr * rr - R2);
       zd[ii] = fmin(zd0, zd1);
 #endif
+
+#if 0
+      if( zd[ii] == 0.0 )
+	fprintf(stdout, "RR = %e, PsiMid = %e, PsiDim = %e, Psi = %e, dz = %e, zd0 = %e\n", RR, PsiMid, PsiDim, Psi, disk[kk].hh, zd0);
+#endif
     }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
   }/* for(int kk = 0; kk < ndisk; kk++){ */
 
@@ -1090,7 +1104,7 @@ static inline void setColumnDensityProfile(const int ndisk, const int maxLev, di
     getVariableDiskScaleHeight(ndisk, maxLev, ll, disk, sph, invlogrbin_sph);
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
 
-  /** set column density profile on the midplane */
+  /** set surface density profile */
   for(int kk = 0; kk < ndisk; kk++)
     for(int ll = 0; ll < maxLev; ll++){
       const double hh = ldexp(disk[kk].hh, -ll);
@@ -1100,6 +1114,13 @@ static inline void setColumnDensityProfile(const int ndisk, const int maxLev, di
       for(int ii = 0; ii < NDISKBIN_HOR; ii++)
 	disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)] = disk[kk].cfg->Sigma0 * gaussQuad1d4Rho(disk[kk].getColumnDensity, disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)] - 0.5 * hh, disk[kk].hor[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)] + 0.5 * hh, disk[kk].invRd, disk[kk].util) * hinv;
     }/* for(int ll = 0; ll < maxLev; ll++){ */
+#if 0
+  for(int kk = 0; kk < ndisk; kk++)
+    for(int ll = 0; ll < maxLev; ll++)
+      for(int ii = 0; ii < NDISKBIN_HOR; ii++)
+	if( fpclassify(disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)]) == FP_NAN )
+	  fprintf(stdout, "Sigma = %e, zd = %e\n", disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)], disk[kk].zd[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)]);
+#endif
 
 
   /** set a tentative density distribution as an initial value in the coarsest grid */
@@ -1110,7 +1131,7 @@ static inline void setColumnDensityProfile(const int ndisk, const int maxLev, di
     for(int ii = 0; ii < NDISKBIN_HOR; ii++){
       /** set scale height @ given R */
 #ifdef  ENABLE_VARIABLE_SCALE_HEIGHT
-      const double invzd = 1.0 / disk[kk].zd[INDEX2D(maxLev, NDISKBIN_HOR, 0, ii)];
+      const double invzd = 1.0 / (DBL_MIN + disk[kk].zd[INDEX2D(maxLev, NDISKBIN_HOR, 0, ii)]);
 #else///ENABLE_VARIABLE_SCALE_HEIGHT
       const double invzd = 1.0 / disk[kk].cfg->zd;
 #endif//ENABLE_VARIABLE_SCALE_HEIGHT
@@ -1137,6 +1158,12 @@ static inline void setColumnDensityProfile(const int ndisk, const int maxLev, di
       const double Mscale = disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, 0, ii)] / (DBL_MIN + Sigma);
       for(int jj = 0; jj < NDISKBIN_VER; jj++)
 	(*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, 0, ii, jj)] *= Mscale;
+
+#if 0
+      for(int jj = 0; jj < NDISKBIN_VER; jj++)
+	if( fpclassify((*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, 0, ii, jj)]) == FP_NAN )
+	  fprintf(stdout, "rho = %e, Sigma = %e, Mscale = %e, invzd = %e\n", (*disk[kk].rho)[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, 0, ii, jj)], Sigma, Mscale, invzd);
+#endif
     }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
   }/* for(int kk = 0; kk < ndisk; kk++){ */
 
@@ -1828,6 +1855,14 @@ static inline void setResultantVector
 #endif//USE_LIS
   }/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
 
+#if 0
+  for(int ii = 0; ii < NDISKBIN_HOR; ii++)
+    for(int jj = 0; jj < NDISKBIN_VER; jj++){
+      const int idx = INDEX2D(NDISKBIN_HOR, NDISKBIN_VER, ii, jj);
+      if( fpclassify(vec[idx]) == FP_NAN )
+	fprintf(stdout, "vec[%d][%d] = %e; rho = %e\n", ii, jj, vec[idx], rho[INDEX2D(maxLev, NDISKBIN_HOR * NDISKBIN_VER, lev, idx)]);
+    }
+#endif
 
   __NOTE__("%s\n", "end");
 }

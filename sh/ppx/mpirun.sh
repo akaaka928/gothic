@@ -87,7 +87,7 @@ if [ $PROBLEM -eq 25 ]; then
     FILE=compare
 fi
 if [ $PROBLEM -eq 26 ]; then
-    FILE=spherical
+    FILE=etg
 fi
 if [ $PROBLEM -eq 27 ]; then
     FILE=m31_mod

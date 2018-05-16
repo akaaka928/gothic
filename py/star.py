@@ -259,15 +259,20 @@ plt.rcParams['text.usetex'] = True
 # plt.rcParams['font.size'] = 16
 plt.rcParams['font.size'] = 14
 
+# specify direction of ticks
+plt.rcParams['xtick.direction'] = 'in'
+plt.rcParams['ytick.direction'] = 'in'
+
 if contain < 3:
     print("NOTE: contain is {:<}; smaller than 3".format(contain))
 
 # read number of all component(s)
 txtfile = open("doc/" + filename + ".summary.txt", "r")
-unit = txtfile.readline()
-tmp = txtfile.readline()
-Nkind = int(tmp[0])
-# Nsphe = int(tmp[2])
+unit = int(txtfile.readline())
+line = txtfile.readline()
+item = line.split("\t")
+Nkind = int(item[0])
+# Nsphe = int(item[1])
 txtfile.close()
 
 if Nkind > Ndark:

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/13 (Fri)
+ * @date 2018/05/08 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -266,6 +266,7 @@ void examineParticleSeparation(const int Ni, iparticle body_dev, brentStatus *br
   initStopwatch();
 #endif//HUNT_FIND_PARAMETER
 
+#ifndef DISABLE_AUTO_TUNING
 #ifndef MPI_MAX_FOR_RMAX_IN_AUTO_TUNING
   const double rmax = CAST_R2D(thrust::reduce((thrust::device_ptr<real>)body_dev.neighbor, (thrust::device_ptr<real>)(body_dev.neighbor + Ni), ZERO, thrust::maximum<real>()));
   const double rmin = rmax * NEIGHBOR_LENGTH_SHRINK_FACTOR;
@@ -306,6 +307,9 @@ void examineParticleSeparation(const int Ni, iparticle body_dev, brentStatus *br
 #ifdef  OUTPUT_AUTO_TUNING_PARAMETER
   __FPRINTF__(stdout, "min, max = %e, %e\n", rmin, rmax);
 #endif//OUTPUT_AUTO_TUNING_PARAMETER
+#else///DISABLE_AUTO_TUNING
+  brent->b = CAST_R2D(thrust::reduce((thrust::device_ptr<real>)body_dev.neighbor, (thrust::device_ptr<real>)(body_dev.neighbor + Ni), ZERO, thrust::maximum<real>()));
+#endif//DISABLE_AUTO_TUNING
 
 #ifdef  HUNT_FIND_PARAMETER
   stopStopwatch(&(elapsed->sortNeighbors));

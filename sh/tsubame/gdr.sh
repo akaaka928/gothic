@@ -1,9 +1,17 @@
-#!/bin/sh
+#!/bin/bash
 #$ -cwd
-#$ -l s_gpu=1
-#$ -l h_rt=0:30:00
+#$ -l f_node=1
+##$ -l h_node=1
+##$ -l s_gpu=4
+#$ -l h_rt=00:10:00
 #$ -N gothic
 #$ -hold_jid magi,gothic
+###############################################################
+NGPUS_PER_NODE=4
+# NGPUS_PER_NODE=2
+# NGPUS_PER_NODE=1
+###############################################################
+NGPUS_PER_SOCKET=2
 ###############################################################
 
 
@@ -14,12 +22,34 @@ EXEC=bin/gothic
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    # PROBLEM=2
+    PROBLEM=2
     # PROBLEM=20
     # PROBLEM=26
-    PROBLEM=27
+    # PROBLEM=27
     # PROBLEM=80
     # PROBLEM=81
+fi
+###############################################################
+# topology of MPI processes
+if [ -z "$NX" ]; then
+    NX=4
+fi
+if [ -z "$NY" ]; then
+    NY=1
+fi
+if [ -z "$NZ" ]; then
+    NZ=1
+fi
+NGPUS=`expr $NQUEUES \* $NGPUS_PER_NODE`
+if [ $NGPUS -eq 1 ]; then
+    NX=1
+    NY=1
+    NZ=1
+fi
+PROCS=`expr $NX \* $NY \* $NZ`
+if [ $PROCS -ne $NGPUS ]; then
+    echo "product of $NX, $NY, and $NZ must be equal to the number of total MPI processes ($NGPUS)"
+    exit 1
 fi
 ###############################################################
 # value of accuracy controling parameter: GADGET MAC by Springel (2005)
@@ -59,6 +89,9 @@ if [ -z "$ACCERR" ]; then
     # ACCERR=1.953125e-3
     # ACCERR=9.765625e-4
 fi
+###############################################################
+REBUILD=8
+BRENT=1.0
 ###############################################################
 
 
@@ -264,7 +297,7 @@ if [ $PROBLEM -eq 81 ]; then
 fi
 ###############################################################
 # set input arguments
-OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID"
+OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -rebuild_interval=$REBUILD -brent_frac=$BRENT -jobID=$JOB_ID"
 ###############################################################
 
 
@@ -275,29 +308,29 @@ OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$N
 STDOUT=log/${FILE}_$REQUEST.o$JOB_ID
 STDERR=log/${FILE}_$REQUEST.e$JOB_ID
 ###############################################################
+TIME=`date`
+echo "start: $TIME"
+###############################################################
 # load modules
 . /etc/profile.d/modules.sh
 export MODULEPATH=$MODULEPATH:/gs/hs1/jh180045/share/opt/Modules
 module load intel cuda openmpi
-module load cub phdf5/ompi
-module list 1>>$STDOUT 2>>$STDERR
+module load cub phdf5
+module list
 ###############################################################
-cat $PE_HOSTFILE 1>>$STDOUT 2>>$STDERR
-TIME=`date`
-echo "start: $TIME" 1>>$STDOUT 2>>$STDERR
+cat $PE_HOSTFILE
 ###############################################################
 # execute the job
-if [ `which numactl` ]; then
-    # run with numactl
-    echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
-    numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
-else
-    # run without numactl
-    echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
-    $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
-fi
+# echo "mpiexec -ppn $NGPUS_PER_NODE -n $PROCS sh/wrapper.sh $EXEC log/${FILE}_${REQUEST} $JOB_ID $NGPUS_PER_NODE $NGPUS_PER_SOCKET $OPTION"
+# mpiexec -ppn $NGPUS_PER_NODE -n $PROCS sh/wrapper.sh $EXEC log/${FILE}_${REQUEST} $JOB_ID $NGPUS_PER_NODE $NGPUS_PER_SOCKET $OPTION
+# # below example is for 2 processes with 2 nodes (1 GPU per node)
+# mpirun -mca pml cm -mca mtl psm2 -np $PROCS -npernode $NGPUS_PER_NODE --bind-to core -cpu-set 0 -x CUDA_VISIBLE_DEVICES=0 -x PSM2_CUDA=1 -x PSM2_GPUDIRECT=1 -x LD_LIBRARY_PATH -x PATH $EXEC $OPTION
+# for 4 GPUs per node: -cpu-set 0,1,14,15 -x CUDA_VISIBLE_DEVICES=0,1,2,3 ??
+mpirun -tag-output -mca pml cm -mca mtl psm2 -np $PROCS -npernode $NGPUS_PER_NODE --bind-to core -cpu-set 0,7,14,21 -x CUDA_VISIBLE_DEVICES=0,1,2,3 -x PSM2_CUDA=1 -x PSM2_GPUDIRECT=1 -x LD_LIBRARY_PATH -x PATH $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 ###############################################################
 # finish logging
 TIME=`date`
-echo "finish: $TIME" 1>>$STDOUT 2>>$STDERR
+echo "finish: $TIME"
+###############################################################
+exit 0
 ###############################################################

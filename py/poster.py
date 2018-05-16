@@ -19,17 +19,21 @@ outputPDF = True
 
 
 col_M31disk = "white"
-lw_M31disk = 0.5
+# lw_M31disk = 0.5
+lw_M31disk = 1
 
 col_shell = "white"
-ms_shell = 3
+# ms_shell = 3
+ms_shell = 8
 
 col_field, col_gss, col_sc, col_sd = "white", "red", "magenta", "yellow"
-lw_field, lw_gss, lw_sc, lw_sd = 0.5, 0.5, 0.5, 0.5
+# lw_field, lw_gss, lw_sc, lw_sd = 0.5, 0.5, 0.5, 0.5
+lw_field, lw_gss, lw_sc, lw_sd = 2, 2, 2, 2
 ms_gss, ms_sc, ms_sd = 3, 3, 3
 
 col_wmbh = "black"
-ms_wmbh = 3
+# ms_wmbh = 3
+ms_wmbh = 16
 
 
 pt = ["o", "s", "^", "D"]
@@ -44,8 +48,8 @@ Nmbh = 1
 wmbh = [2]
 init = 0
 last = 399
-# init = 285
-# last = 285
+# init = 270
+# last = 270
 fmin, fmax = 1.0e+4, 1.0e+9
 xtics = [-4.0, -2.0, 0.0, 2.0, 4.0, 6.0]
 ytics = [-8.0, -6.0, -4.0, -2.0, 0.0, 2.0]
@@ -121,9 +125,11 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
 
 
     # plot the data
-    fig = utils.set_figure(nxpanel, nypanel)
-    ax = [0] * nxpanel * nypanel
-    utils.locate_panels(fig, ax, nxpanel, nypanel, True, True)
+    nxpanel_plt = 1
+    nypanel_plt = 1
+    fig = utils.set_figure(nxpanel_plt, nypanel_plt)
+    ax = [0] * nxpanel_plt * nypanel_plt
+    utils.locate_panels(fig, ax, nxpanel_plt, nypanel_plt, True, True)
 
     xmin, xmax = xx[0][0], xx[0][nx]
     ymin, ymax = yy[0][0], yy[0][ny]
@@ -131,59 +137,59 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
 
     head = 0
     if summary:
-        img = ax[1].imshow(xz_map[nxpanel - 1].T, extent = [xmin, xmax, zmin, zmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
+        # img = ax[1].imshow(xz_map[nxpanel - 1].T, extent = [xmin, xmax, zmin, zmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
         img = ax[0].imshow(xy_map[nxpanel - 1].T, extent = [xmin, xmax, ymin, ymax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
         head = 1
 
-    for ii in range(Ndata):
-        img = ax[(head + ii) * nypanel + 1].imshow(xz_map[ii].T, extent = [xmin, xmax, zmin, zmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
-        img = ax[(head + ii) * nypanel    ].imshow(xy_map[ii].T, extent = [xmin, xmax, ymin, ymax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
+    # for ii in range(Ndata):
+    #     img = ax[(head + ii) * nypanel + 1].imshow(xz_map[ii].T, extent = [xmin, xmax, zmin, zmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
+    #     img = ax[(head + ii) * nypanel    ].imshow(xy_map[ii].T, extent = [xmin, xmax, ymin, ymax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
 
 
 
-    for ii in range(nxpanel):
-        idx = ii * nypanel
+    for ii in range(nxpanel_plt):
+        idx = ii * nypanel_plt
         # reference ellipse of the M31 disk
         ax[idx    ].plot(disk_xi[                    ::int((Ndisk - 1) / 2)], disk_eta[                    ::int((Ndisk - 1) / 2)], "-", color = col_M31disk, linewidth = lw_M31disk)# minor axis
         ax[idx    ].plot(disk_xi[int((Ndisk - 1) / 4)::int((Ndisk - 1) / 2)], disk_eta[int((Ndisk - 1) / 4)::int((Ndisk - 1) / 2)], "-", color = col_M31disk, linewidth = lw_M31disk)# major axis
         ax[idx    ].plot(disk_xi                                            , disk_eta                                            , "-", color = col_M31disk, linewidth = lw_M31disk)
-        ax[idx + 1].plot(disk_xi[                    ::int((Ndisk - 1) / 2)], disk_D  [                    ::int((Ndisk - 1) / 2)], "-", color = col_M31disk, linewidth = lw_M31disk)# minor axis
-        ax[idx + 1].plot(disk_xi[int((Ndisk - 1) / 4)::int((Ndisk - 1) / 2)], disk_D  [int((Ndisk - 1) / 4)::int((Ndisk - 1) / 2)], "-", color = col_M31disk, linewidth = lw_M31disk)# major axis
-        ax[idx + 1].plot(disk_xi                                            , disk_D                                              , "-", color = col_M31disk, linewidth = lw_M31disk)
+        # ax[idx + 1].plot(disk_xi[                    ::int((Ndisk - 1) / 2)], disk_D  [                    ::int((Ndisk - 1) / 2)], "-", color = col_M31disk, linewidth = lw_M31disk)# minor axis
+        # ax[idx + 1].plot(disk_xi[int((Ndisk - 1) / 4)::int((Ndisk - 1) / 2)], disk_D  [int((Ndisk - 1) / 4)::int((Ndisk - 1) / 2)], "-", color = col_M31disk, linewidth = lw_M31disk)# major axis
+        # ax[idx + 1].plot(disk_xi                                            , disk_D                                              , "-", color = col_M31disk, linewidth = lw_M31disk)
 
 
         # reference points of shells and GSS
         ax[idx].plot(Eshell_xi, Eshell_eta, "o", color = col_shell, markerfacecolor = "none", markersize = ms_shell)
         ax[idx].plot(Wshell_xi, Wshell_eta, "o", color = col_shell, markerfacecolor = "none", markersize = ms_shell)
-        for jj in range(Nfield):
-            ax[idx].plot(field_xi[jj], field_eta[jj], "-", color = col_field, linewidth = lw_field)
+        # for jj in range(Nfield):
+        #     ax[idx].plot(field_xi[jj], field_eta[jj], "-", color = col_field, linewidth = lw_field)
 
         # distance measurements to GSS
         for jj in range(Ngss):
             ax[idx].plot(gss_field_xi[jj], gss_field_eta[jj], "-", color = col_gss, linewidth = lw_gss)
-        ax[idx + 1].plot(gss_xi, gss_D, "s", color = col_gss, markerfacecolor = "none", markersize = ms_gss)
-        ax[idx + 1].errorbar(gss_xi, gss_D, yerr = gss_Derr, ls = "none", ecolor = col_gss, elinewidth = lw_gss)
+        # ax[idx + 1].plot(gss_xi, gss_D, "s", color = col_gss, markerfacecolor = "none", markersize = ms_gss)
+        # ax[idx + 1].errorbar(gss_xi, gss_D, yerr = gss_Derr, ls = "none", ecolor = col_gss, elinewidth = lw_gss)
 
-        # distance measurements to Stream C
-        for jj in range(NstreamC):
-            ax[idx].plot(streamC_field_xi[jj], streamC_field_eta[jj], "-", color = col_sc, linewidth = lw_sc)
-        ax[idx + 1].plot(streamC_xi, streamC_D, "s", color = col_sc, markerfacecolor = "none", markersize = ms_sc)
-        ax[idx + 1].errorbar(streamC_xi, streamC_D, yerr = streamC_Derr, ls = "none", ecolor = col_sc, elinewidth = lw_sc)
+        # # distance measurements to Stream C
+        # for jj in range(NstreamC):
+        #     ax[idx].plot(streamC_field_xi[jj], streamC_field_eta[jj], "-", color = col_sc, linewidth = lw_sc)
+        # # ax[idx + 1].plot(streamC_xi, streamC_D, "s", color = col_sc, markerfacecolor = "none", markersize = ms_sc)
+        # # ax[idx + 1].errorbar(streamC_xi, streamC_D, yerr = streamC_Derr, ls = "none", ecolor = col_sc, elinewidth = lw_sc)
 
         # distance measurements to Stream D
         for jj in range(NstreamD):
             ax[idx].plot(streamD_field_xi[jj], streamD_field_eta[jj], "-", color = col_sd, linewidth = lw_sd)
-        ax[idx + 1].plot(streamD_xi, streamD_D, "s", color = col_sd, markerfacecolor = "none", markersize = ms_sd)
-        ax[idx + 1].errorbar(streamD_xi, streamD_D, yerr = streamD_Derr, ls = "none", ecolor = col_sd, elinewidth = lw_sd)
+        # ax[idx + 1].plot(streamD_xi, streamD_D, "s", color = col_sd, markerfacecolor = "none", markersize = ms_sd)
+        # ax[idx + 1].errorbar(streamD_xi, streamD_D, yerr = streamD_Derr, ls = "none", ecolor = col_sd, elinewidth = lw_sd)
 
 
     # incidate wandering MBH location
     if Nmbh == 1:
         ax[0].plot(mbh_obs[0], mbh_obs[1], "+", color = col_wmbh, markersize = ms_wmbh)
-        ax[1].plot(mbh_obs[0], mbh_obs[2], "+", color = col_wmbh, markersize = ms_wmbh)
+        # ax[1].plot(mbh_obs[0], mbh_obs[2], "+", color = col_wmbh, markersize = ms_wmbh)
 
 
-    for ii in range(nxpanel * nypanel):
+    for ii in range(nxpanel_plt * nypanel_plt):
         ax[ii].set_xlim([xmin, xmax])
         ax[ii].set_xticks(xtics)
         # ax[ii].set_yticks(ytics)
@@ -193,22 +199,22 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
         ax[ii].spines[  "left"].set_color("white")
         ax[ii].spines[ "right"].set_color("white")
 
-    for ii in range(nxpanel):
-        ax[ii * nypanel + 1].set_yticks(ztics)
-        ax[ii * nypanel    ].set_yticks(ytics)
-        ax[ii * nypanel + 1].set_ylim([zmin, zmax])
-        ax[ii * nypanel    ].set_ylim([ymin, ymax])
-        ax[ii * nypanel    ].set_xlabel(r"$\xi$ ({:<})".format("degree"))
-        ax[ii * nypanel + 1].spines[   "top"].set_color("black")
-        ax[ii * nypanel    ].spines["bottom"].set_color("black")
+    for ii in range(nxpanel_plt):
+        # ax[ii * nypanel_plt + 1].set_yticks(ztics)
+        ax[ii * nypanel_plt    ].set_yticks(ytics)
+        # ax[ii * nypanel_plt + 1].set_ylim([zmin, zmax])
+        ax[ii * nypanel_plt    ].set_ylim([ymin, ymax])
+        ax[ii * nypanel_plt    ].set_xlabel(r"$\xi$ ({:<})".format("degree"))
+        # ax[ii * nypanel_plt + 1].spines[   "top"].set_color("black")
+        ax[ii * nypanel_plt    ].spines["bottom"].set_color("black")
 
 
     ax[0].set_ylabel(r"$\eta$ ({:<})".format("degree"))
-    ax[1].set_ylabel(r"$D$ ({:<})".format("kpc"))
+    # ax[1].set_ylabel(r"$D$ ({:<})".format("kpc"))
     ax[0].spines["left"].set_color("black")
-    ax[1].spines["left"].set_color("black")
-    ax[(nxpanel - 1) * nypanel + 1].spines["right"].set_color("black")
-    ax[(nxpanel - 1) * nypanel    ].spines["right"].set_color("black")
+    # ax[1].spines["left"].set_color("black")
+    # ax[(nxpanel_plt - 1) * nypanel_plt + 1].spines["right"].set_color("black")
+    ax[(nxpanel_plt - 1) * nypanel_plt    ].spines["right"].set_color("black")
 
 
     # add colorbar
@@ -226,17 +232,18 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
             y0 = yb
         if y1 < yt:
             y1 = yt
-    colorbar_ax = fig.add_axes([x1, y0, 0.1 / nxpanel, y1 - y0])
+    # colorbar_ax = fig.add_axes([x1, y0, 0.1 / nxpanel_plt, y1 - y0])
+    colorbar_ax = fig.add_axes([x1, y0, 0.05 / nxpanel_plt, y1 - y0])
     cbar = fig.colorbar(img, cax = colorbar_ax, label = r"$\Sigma$ ($M_\odot$ deg$^{-2}$)")
     cbar.solids.set_edgecolor("face")
 
-    # add current time
-    fig.suptitle(r"$t = {:.2f}$ {:<}".format(time, "Myr"))
-    # fig.suptitle(r"$t = {:.3f}$ {:<}".format(time / 1000, "Gyr"))
+    # # add current time
+    # fig.suptitle(r"$t = {:.2f}$ {:<}".format(time, "Myr"))
+    # # fig.suptitle(r"$t = {:.3f}$ {:<}".format(time / 1000, "Gyr"))
 
 
     # save figures
-    figname = "fig/" + filename + "_map" + snapshot
+    figname = "fig/" + filename + "_poster" + snapshot
     fig.savefig(figname + ".png", format = "png", dpi =  96, bbox_inches = "tight")
     if outputPDF:
         fig.savefig(figname + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
@@ -254,8 +261,8 @@ plt.rcParams['pdf.use14corefonts'] = True
 plt.rcParams['text.usetex'] = True
 
 # set font size
-# plt.rcParams['font.size'] = 16
-plt.rcParams['font.size'] = 14
+plt.rcParams['font.size'] = 28
+# plt.rcParams['font.size'] = 14
 
 # specify direction of ticks
 plt.rcParams['xtick.direction'] = 'in'

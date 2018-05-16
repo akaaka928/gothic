@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/04/23 (Mon) 18:21:22
+# last updated on 2018/05/15 (Tue) 11:28:45
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -25,7 +25,7 @@ MPI_AUTO_TUNE_FOR_RMAX	:= 0
 SKIP_UNUSED_LET_BUILD	:= 1
 RECTANGULAR_BOX_FOR_LET	:= 1
 ENCLOSING_BALL_FOR_LET	:= 1
-COMMUNICATION_VIA_HOST	:= 1
+COMMUNICATION_VIA_HOST	:= 0
 USE_MPI_GET_FOR_LET	:= 1
 USE_MPI_GET_FOR_EXCG	:= 0
 CARE_EXTERNAL_PARTICLES	:= 0
@@ -46,8 +46,10 @@ USE_COOPERATIVE_GROUPS	:= 0
 GET_NBLOCKS_PER_SM_AUTO	:= 1
 DATAFILE_FORMAT_HDF5	:= 1
 HDF5_FOR_ZINDAIJI	:= 0
+PREPARE_XDMF_FILES	:= 1
 DUMPFILE_IN_TIPSY	:= 0
 DUMPFILE_AS_GALACTICS	:= 0
+DUMPFILE_AS_GADGET	:= 0
 USE_OFFICIAL_SFMT	:= 1
 USE_OFFICIAL_SFMT_JUMP	:= 1
 USE_LIS_FOR_MAGI	:= 1
@@ -99,12 +101,20 @@ ifeq ($(findstring login, $(HOSTNAME)), login)
 MYDIR	:= /gs/hs1/jh180045/$(USER)
 MYINC	:= $(MYDIR)/inc
 MYLIB	:= $(MYDIR)/lib
+ifeq ($(USE_MPI_GET_FOR_LET), 1)
+# tentative treatment to switch off one-sided communication on TSUBAME 3.0
+USE_MPI_GET_FOR_LET	:= 0
+endif
 endif
 #################################################################################################
 include	$(MYINC)/common.mk
 #################################################################################################
 ifeq ($(USEHDF5), 0)
 DATAFILE_FORMAT_HDF5	:= 0
+endif
+#################################################################################################
+ifeq ($(GDR_AVAILABLE), 0)
+COMMUNICATION_VIA_HOST	:= 0
 endif
 #################################################################################################
 
@@ -190,6 +200,8 @@ USE_MPI_GET_FOR_LET	:= 0
 USE_MPI_GET_FOR_EXCG	:= 0
 CARE_EXTERNAL_PARTICLES	:= 0
 else
+CCARG	+= -DDISABLE_AUTO_TUNING
+CUARG	+= -DDISABLE_AUTO_TUNING
 # direct solver is not parallelized
 EVALUATE_FORCE_ERROR	:= 0
 ifeq ($(COMBINE_WITH_J_PARALLEL), 1)
@@ -500,8 +512,16 @@ ifeq ($(DUMPFILE_AS_GALACTICS), 1)
 CCARG	+= -DWRITE_IN_GALACTICS_FORMAT
 endif
 #################################################################################################
+ifeq ($(DUMPFILE_AS_GADGET), 1)
+CCARG	+= -DWRITE_IN_GADGET_FORMAT
+endif
+#################################################################################################
 ifeq ($(HDF5_FOR_ZINDAIJI), 1)
 CCARG	+= -DHDF5_FOR_ZINDAIJI
+endif
+#################################################################################################
+ifeq ($(PREPARE_XDMF_FILES), 1)
+CCARG	+= -DPREPARE_XDMF_FILES
 endif
 #################################################################################################
 

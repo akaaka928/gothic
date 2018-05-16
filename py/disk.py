@@ -25,6 +25,10 @@ plt.rcParams['text.usetex'] = True
 # plt.rcParams['font.size'] = 20
 plt.rcParams['font.size'] = 28
 
+# specify direction of ticks
+plt.rcParams['xtick.direction'] = 'in'
+plt.rcParams['ytick.direction'] = 'in'
+
 # set number of panels
 nxpanel, nypanel = 1, 1
 fig = utils.set_figure(nxpanel, nypanel)
