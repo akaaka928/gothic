@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/22 (Thu)
+ * @date 2018/06/01 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -46,15 +46,19 @@
  * @brief number of threads per block for countContinuousNeighbor_kernel
  */
 #ifndef NTHREADS_SHRINK
-#   if  (GPUGEN >= 52)
-#define NTHREADS_SHRINK (128)
-#else///(GPUGEN >= 52)
-#   if  (GPUGEN >= 30)
+#   if  GPUVER >= 70
 #define NTHREADS_SHRINK (1024)
-#else///(GPUGEN >= 30)
+#else///GPUVER >= 70
+#   if  GPUVER >= 52
 #define NTHREADS_SHRINK (128)
-#endif//(GPUGEN >= 30)
-#endif//(GPUGEN >= 52)
+#else///GPUVER >= 52
+#   if  GPUVER >= 30
+#define NTHREADS_SHRINK (1024)
+#else///GPUVER >= 30
+#define NTHREADS_SHRINK (128)
+#endif//GPUVER >= 30
+#endif//GPUVER >= 52
+#endif//GPUVER >= 70
 #endif//NTHREADS_SHRINK
 
 

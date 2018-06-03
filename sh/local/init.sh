@@ -39,9 +39,7 @@ NTOT=8388608
 # NTOT=4294967296
 # NTOT=8589934592
 ###############################################################
-SAVE=140.0
-# SAVE=60.0
-# SAVE=2.0
+SAVE=55.0
 ###############################################################
 #
 #
@@ -277,16 +275,20 @@ INTERVAL=25.0
 # INTERVAL=25.0
 fi
 ###############################################################
-# dynamical stability of an M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk)
+# dynamical stability of an M31 model (NFW halo, Hernquist bulge, and exponential disk)
+# basically, this is Fardal et al. (2007) model
+# stellar halo: Gilbert et al. (2012): \Sigma \propto R^-2.2; Rmin = 9kpc, Rmax = 176kpc; Ibata et al. (2014, ApJ, 780, 128): total stellar mass of the smooth halo is ~8e+9 Msun
+# disk: Toomre's Q-value is set to reproduce Tenjes et al. (2017): Q_min = 1.8 @ 12-13 kpc
 if [ $PROBLEM -eq 27 ]; then
-FILE=m31_mod
-CONFIG=galaxy/m31.cfg
-EPS=1.5625e-2
-ETA=0.5
-FINISH=75.0
-INTERVAL=25.0
-# FINISH=3175.0
-# INTERVAL=25.0
+    FILE=m31
+    CONFIG=galaxy/m31.cfg
+    EPS=1.5625e-2
+    # EPS=7.8125e-3
+    ETA=0.5
+    FINISH=75.0
+    # FINISH=1175.0
+    # FINISH=3175.0
+    INTERVAL=25.0
 fi
 ###############################################################
 # dynamical stability of multi components galaxy model (NFW halo, King bulge, thick Sersic disk, and thin exponential disk)

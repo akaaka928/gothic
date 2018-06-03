@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/08 (Tue)
+ * @date 2018/06/01 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -83,7 +83,6 @@
 #include "../para/exchange_dev.h"
 #endif//SERIALIZED_EXECUTION
 
-#include "../tree/macutil.h"
 #include "../tree/make.h"
 #include "../tree/let.h"
 #include "../tree/buf_inc.h"
@@ -111,9 +110,9 @@
 #endif//defined(LEAP_FROG_INTEGRATOR) && defined(BLOCK_TIME_STEP)
 
 
-#ifndef WS93_MAC
+#   if  !defined(GADGET_MAC) && !defined(WS93_MAC)
 real theta2;
-#endif//WS93_MAC
+#endif//!defined(GADGET_MAC) && !defined(WS93_MAC)
 
 
 #   if  defined(HUNT_MAKE_PARAMETER) || defined(HUNT_FIND_PARAMETER)
@@ -820,10 +819,13 @@ int main(int argc, char **argv)
   int devIdx;
   deviceInfo devInfo;
   deviceProp devProp;
+  int headIdx;
+  if( optionalCmdArg(getCmdArgInt(argc, (const char * const *)(void *)argv, "deviceID", &headIdx)) != myUtilAvail )
+    headIdx = 0;
 #ifdef  SERIALIZED_EXECUTION
-  openAcceleratorGPUs(&devIdx, &devInfo, &devProp, 0, 1, 0, 1);
+  openAcceleratorGPUs(&devIdx, &devInfo, &devProp, headIdx, 1, 0, 1);
 #else///SERIALIZED_EXECUTION
-  openAcceleratorGPUs(&devIdx, &devInfo, &devProp, 0, 1, mpi.rank, mpi.size);
+  openAcceleratorGPUs(&devIdx, &devInfo, &devProp, headIdx, 1, mpi.rank, mpi.size);
 #endif//SERIALIZED_EXECUTION
   __NOTE__("devIdx = %d\n", devIdx);
 
@@ -856,9 +858,9 @@ int main(int argc, char **argv)
   extern real newton;
   setGlobalConstants_walk_dev_cu
     (newton, eps * eps
-#ifndef WS93_MAC
+#   if  !defined(GADGET_MAC) && !defined(WS93_MAC)
      , theta2
-#endif//WS93_MAC
+#endif//!defined(GADGET_MAC) && !defined(WS93_MAC)
      );
   setGlobalConstants_make_dev_cu(
 #ifdef  GADGET_MAC
@@ -883,10 +885,12 @@ int main(int argc, char **argv)
 				);
 #endif//SERIALIZED_EXECUTION
 
-#   if  GPUGEN >= 70
+#   if  GPUVER >= 70
   setCacheConfig_adv_dev_cu();
+#ifndef SERIALIZED_EXECUTION
   setCacheConfig_geo_dev_cu();
-#endif//GPUGEN >= 70
+#endif//SERIALIZED_EXECUTION
+#endif//GPUVER >= 70
 
 
   /** memory allocation */
@@ -1539,8 +1543,10 @@ int main(int argc, char **argv)
 #ifdef  REPORT_COMPUTE_RATE
   static struct timespec clock_prev;
   clock_gettime(CLOCK_MONOTONIC_RAW, &clock_prev);
+#ifndef EXEC_BENCHMARK
   static double time_prev;  time_prev = time;
   static ulong  step_prev;  step_prev = steps;
+#endif//EXEC_BENCHMARK
   static double brent_rate = 0.0;/**< brent->u.pos / brent->b */
   static ulong brent_prev;/**< step of the previous update of brentStatus */
   brent_prev = steps;

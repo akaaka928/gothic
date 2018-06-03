@@ -93,7 +93,7 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
             nxpanel += 1
             Ndata += 1
         if (Nmbh > 0) and (ii in wmbh):
-            # read particle position and mass
+            # read particle location
             folder = "obs" + str(ii) + "/"
             mbh_xi   = h5file[folder +   "xi"].value
             mbh_eta  = h5file[folder +  "eta"].value

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/13 (Fri)
+ * @date 2018/05/24 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -42,6 +42,10 @@
 #include "walk_dev.h"
 #include "potential_dev.h"
 
+#   if  (GPUGEN >= 70) && defined(BLOCK_TIME_STEP) && (DIV_NWARP(TSUB) < 32)
+#include <cooperative_groups.h>
+using namespace cooperative_groups;
+#endif//(GPUGEN >= 70) && defined(BLOCK_TIME_STEP) && (DIV_NWARP(TSUB) < 32)
 
 /**
  * @fn allocSphericalPotentialTable_dev
@@ -380,10 +384,17 @@ void calcExternalForce_spherical
  pot2 * RESTRICT yy)
 {
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+  /* common in DIV_NWARP(TSUB) (<= 32) threads for BLOCK_TIME_STEP */
   real aa, dxinv;
   int ii = bisec(rr, num, xx, &aa, &dxinv);
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+    /** synchronization to reduce warp divergence */
+#   if  !defined(BLOCK_TIME_STEP) || (DIV_NWARP(TSUB) == 32)
+    __syncwarp();
+#else///!defined(BLOCK_TIME_STEP) || (DIV_NWARP(TSUB) == 32)
+    thread_block_tile<DIV_NWARP(TSUB)> tile = tiled_partition<DIV_NWARP(TSUB)>(this_thread_block());
+    tile.sync();
+#endif//!defined(BLOCK_TIME_STEP) || (DIV_NWARP(TSUB) == 32)
 #endif//__CUDA_ARCH__ >= 700
 
   const real xl = xx[ii];
@@ -452,7 +463,7 @@ __global__ void calcExternalGravity_kernel
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
   if( lane < info.num ){
@@ -554,11 +565,15 @@ __global__ void calcExternalDiskGravity_kernel
   const int lane    = THREADIDX_X1D & (DIV_NWARP(TSUB) - 1);
   const int laneIdx = GLOBALIDX_X1D /  DIV_NWARP(TSUB);
 
+#   if  (__CUDA_ARCH__ >= 700) && (DIV_NWARP(TSUB) < 32)
+  thread_block_tile<DIV_NWARP(TSUB)> tile = tiled_partition<DIV_NWARP(TSUB)>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (DIV_NWARP(TSUB) < 32)
+
   laneinfo info = {NUM_BODY_MAX, 0};
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
   if( lane < info.num ){
@@ -684,7 +699,12 @@ __global__ void calcExternalDiskGravity_kernel
     }/* else{ */
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 #   if  __CUDA_ARCH__ >= 700
+    /** synchronization to reduce warp divergence */
+#   if  !defined(BLOCK_TIME_STEP) || (DIV_NWARP(TSUB) == 32)
     __syncwarp();
+#else///!defined(BLOCK_TIME_STEP) || (DIV_NWARP(TSUB) == 32)
+    tile.sync();
+#endif//!defined(BLOCK_TIME_STEP) || (DIV_NWARP(TSUB) == 32)
 #endif//__CUDA_ARCH__ >= 700
 
     /** store acceleration */
@@ -1205,16 +1225,16 @@ muse  readFixedPotentialTableSpherical
 
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   if( (pot_tbl->num * sizeof(real)) > (SMEM_SIZE_L1_PREF >> 1) ){
-#   if  GPUGEN < 70
+#   if  GPUVER < 70
     checkCudaErrors(cudaFuncSetCacheConfig(calcExternalGravity_kernel, cudaFuncCachePreferShared));
-#else///GPUGEN < 70
-    checkCudaErrors(cudaFuncSetCacheConfig(calcExternalGravity_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, SMEM_SIZE_SM_PREF));
-#endif//GPUGEN < 70
+#else///GPUVER < 70
+    checkCudaErrors(cudaFuncSetAttribute(calcExternalGravity_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_SM));
+#endif//GPUVER < 70
   }/* if( (pot_tbl->num * sizeof(real)) > (SMEM_SIZE_L1_PREF >> 1) ){ */
 #else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-#   if  GPUGEN >= 70
-    checkCudaErrors(cudaFuncSetCacheConfig(calcExternalGravity_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-#endif//GPUGEN >= 70
+#   if  GPUVER >= 70
+    checkCudaErrors(cudaFuncSetAttribute(calcExternalGravity_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+#endif//GPUVER >= 70
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
 
@@ -1512,16 +1532,16 @@ muse  readFixedPotentialTableDisk
 
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   if( (disk->sphe.num * sizeof(real)) > (SMEM_SIZE_L1_PREF >> 1) ){
-#   if  GPUGEN < 70
+#   if  GPUVER < 70
     checkCudaErrors(cudaFuncSetCacheConfig(calcExternalDiskGravity_kernel, cudaFuncCachePreferShared));
-#else///GPUGEN < 70
-    checkCudaErrors(cudaFuncSetCacheConfig(calcExternalDiskGravity_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, SMEM_SIZE_SM_PREF));
-#endif//GPUGEN < 70
+#else///GPUVER < 70
+    checkCudaErrors(cudaFuncSetAttribute(calcExternalDiskGravity_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_SM));
+#endif//GPUVER < 70
   }/* if( (disk->sphe.num * sizeof(real)) > (SMEM_SIZE_L1_PREF >> 1) ){ */
 #else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-#   if  GPUGEN >= 70
-    checkCudaErrors(cudaFuncSetCacheConfig(calcExternalDiskGravity_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-#endif//GPUGEN >= 70
+#   if  GPUVER >= 70
+    checkCudaErrors(cudaFuncSetAttribute(calcExternalDiskGravity_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+#endif//GPUVER >= 70
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   freeDiskPotentialTable_hst

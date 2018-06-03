@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/08 (Tue)
+ * @date 2018/05/23 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -71,25 +71,25 @@
 
 /** tentative treatment for GTX TITAN X: (# of SM = 24) * (# of blocks per SM = 8) = 192 exceeds NTHREADS_ASSIGN */
 #ifndef RUN_ON_PC
-/* #   if  GPUGEN == 52 */
+/* #   if  GPUVER == 52 */
 #   if  NTHREADS_ASSIGN < 256
 #undef  NTHREADS_ASSIGN
 #define NTHREADS_ASSIGN  (256)
 #endif//NTHREADS_ASSIGN < 256
-/* #endif//GPUGEN == 52 */
+/* #endif//GPUVER == 52 */
 #endif//RUN_ON_PC
 
 
 #ifndef USE_OCCUPANCY_CALCULATOR
-#   if  GPUGEN >= 60
+#   if  GPUVER >= 60
 /** capacity of shared memory is 64KiB per SM on newer GPUs */
 /** int4 num_sm[NTHREADS_ASSIGN] corresponds 16 * NTHREADS_ASSIGN bytes */
 #define NBLOCKS_PER_SM_ASSIGN (4096 / NTHREADS_ASSIGN)
-#else///GPUGEN >= 60
+#else///GPUVER >= 60
 /** in L1 cache preferred configuration, capacity of shared memory is 16KiB per SM on older GPUs */
 /** int4 num_sm[NTHREADS_ASSIGN] corresponds 16 * NTHREADS_ASSIGN bytes */
 #define NBLOCKS_PER_SM_ASSIGN (1024 / NTHREADS_ASSIGN)
-#endif//GPUGEN >= 60
+#endif//GPUVER >= 60
 
 #define REGISTERS_PER_THREAD_ASSIGN (32)
 
@@ -1106,14 +1106,14 @@ muse allocateDomainPos(float **xmin_dev, float **xmax_dev, float **ymin_dev, flo
   __NOTE__("%s\n", "start");
 
 
-#   if  GPUGEN >= 70
+#   if  GPUVER >= 70
   /* remove shared memory if __global__ function does not use */
-  checkCudaErrors(cudaFuncSetCacheConfig(     pickupSamples_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-  checkCudaErrors(cudaFuncSetCacheConfig(          setIndex_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-  checkCudaErrors(cudaFuncSetCacheConfig(  sortSamplePos_yz_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-  checkCudaErrors(cudaFuncSetCacheConfig(              initDstRank, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-  checkCudaErrors(cudaFuncSetCacheConfig(sortParticlesDDkey_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-#endif//GPUGEN >= 70
+  checkCudaErrors(cudaFuncSetAttribute(     pickupSamples_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+  checkCudaErrors(cudaFuncSetAttribute(          setIndex_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+  checkCudaErrors(cudaFuncSetAttribute(  sortSamplePos_yz_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+  checkCudaErrors(cudaFuncSetAttribute(              initDstRank, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+  checkCudaErrors(cudaFuncSetAttribute(sortParticlesDDkey_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+#endif//GPUVER >= 70
 
 
   muse alloc = {0, 0};

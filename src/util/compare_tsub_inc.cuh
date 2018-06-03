@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/05/31 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -25,9 +25,9 @@
 #define COMPARE_TSUB_INC_CUH
 
 
-#   if  defined(USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC) && (GPUGEN < 30)
+#   if  defined(USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC) && (GPUVER < 30)
 #undef          USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
-#endif//defined(USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC) && (GPUGEN < 30)
+#endif//defined(USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC) && (GPUVER < 30)
 
 
 #   if  TSUB_COMPARE_INC ==  1

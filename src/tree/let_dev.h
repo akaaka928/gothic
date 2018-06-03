@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/01 (Tue)
+ * @date 2018/05/24 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -24,7 +24,6 @@
 #include "cudalib.h"
 
 #include "../sort/peano.h"
-#include "../tree/macutil.h"
 #include "../tree/make.h"
 #include "../tree/buf_inc.h"
 #include "../tree/let.h"
@@ -114,11 +113,19 @@
 /** # of elements in SM is 12K or 4K on older GPUs */
 /** SM usage is NTHREADS_MAKE_LET * (NQUEUE_LET + 1) */
 #ifndef NQUEUE_LET
+#   if  SMPREF_LET == 1
 #   if  NBLOCKS_PER_SM == 2
 #define NQUEUE_LET (DIV_NTHREADS_MAKE_LET(SMEM_SIZE_SM_PREF >> 3) - 1)
 #else///NBLOCKS_PER_SM == 2
 #define NQUEUE_LET (DIV_NTHREADS_MAKE_LET((SMEM_SIZE_SM_PREF >> 2) / NBLOCKS_PER_SM) - 1)
 #endif//NBLOCKS_PER_SM == 2
+#else///SMPREF_LET == 1
+#   if  NBLOCKS_PER_SM == 2
+#define NQUEUE_LET (DIV_NTHREADS_MAKE_LET(SMEM_SIZE_L1_PREF >> 3) - 1)
+#else///NBLOCKS_PER_SM == 2
+#define NQUEUE_LET (DIV_NTHREADS_MAKE_LET((SMEM_SIZE_L1_PREF >> 2) / NBLOCKS_PER_SM) - 1)
+#endif//NBLOCKS_PER_SM == 2
+#endif//SMPREF_LET == 1
 /* #   if  GPUGEN >= 60 */
 /* #define NQUEUE_LET (DIV_NTHREADS_MAKE_LET(16384 / NBLOCKS_PER_SM) - 1) */
 /* #else///GPUGEN >= 60 */

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/30 (Mon)
+ * @date 2018/05/24 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -39,8 +39,6 @@
 #include "peano.h"
 #include "peano_dev.h"
 
-#include "../tree/macutil.h"
-
 #include "../tree/make.h"/**< required to read NLEAF */
 
 #   if  !defined(SERIALIZED_EXECUTION) && !defined(USE_OCCUPANCY_CALCULATOR)
@@ -49,15 +47,15 @@
 
 
 #ifndef USE_OCCUPANCY_CALCULATOR
-#   if  GPUGEN >= 60
+#   if  GPUVER >= 60
 /** capacity of shared memory is 64KiB per SM on newer GPUs */
 /** real4 smem[NTHREADS_PH] corresponds 16 * NTHREADS_PH bytes */
 #define NBLOCKS_PER_SM_PH (4096 / NTHREADS_PH)
-#else///GPUGEN >= 60
+#else///GPUVER >= 60
 /** in L1 cache preferred configuration, capacity of shared memory is 16KiB per SM on older GPUs */
 /** real4 smem[NTHREADS_PH] corresponds 16 * NTHREADS_PH bytes */
 #define NBLOCKS_PER_SM_PH (1024 / NTHREADS_PH)
-#endif//GPUGEN >= 60
+#endif//GPUVER >= 60
 
 #define REGISTERS_PER_THREAD_PH (37)
 /** calcPHkey_kernel uses 32 registers @ Tesla M2090, Ttot = 1024 (registers are spilled to local memory) */
@@ -182,10 +180,10 @@ calcPHkey_kernel
       min.x = fminf(min.x, px);      max.x = fmaxf(max.x, px);
       min.y = fminf(min.y, py);      max.y = fmaxf(max.y, py);
       min.z = fminf(min.z, pz);      max.z = fmaxf(max.z, pz);
-    }/* if( ii < itail ){ */
+    }/* if( ii < num ){ */
   }/* for(int ih = ihead; ih < itail; ih += NTHREADS_PH){ */
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
 
@@ -205,7 +203,7 @@ calcPHkey_kernel
     *center_dev = center;
   }/* if( (tidx + bidx) == 0 ){ */
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
 
@@ -227,7 +225,7 @@ calcPHkey_kernel
   if( (bidx + tidx) == 0 )
     *length = diameter;
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
   const float dinv = 1.0f / diameter;
@@ -269,14 +267,14 @@ calcPHkey_kernel
 	  /** if yi == 0, then exchange x and z */
 	  if( !yi ){	    PHint pt = px;	    px = pz;	                  pz = pt;	}
 	}
-#   if  __CUDA_ARCH__ >= 700
-	__syncwarp();
-#endif//__CUDA_ARCH__ >= 700
       }/* for(int jj = nlevel - 1; jj >= 0; jj--){ */
 
       idx[ii] = ii;
       key[ii] = tkey;
     }/* if( ii < num ){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();/**< __syncwarp() to reduce warp divergence */
+#endif//__CUDA_ARCH__ >= 700
   }/* for(int ih = ihead; ih < itail; ih += bnum * NTHREADS_PH){ */
 }
 
@@ -629,14 +627,14 @@ muse allocPeanoHilbertKey_dev
   __NOTE__("%s\n", "start");
 
 
-#   if  GPUGEN >= 70
+#   if  GPUVER >= 70
   /* remove shared memory if __global__ function does not use */
-  checkCudaErrors(cudaFuncSetCacheConfig(sortParticlesPHcurve_kernel_offset, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetAttribute(sortParticlesPHcurve_kernel_offset, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
 #ifdef  BLOCK_TIME_STEP
-  checkCudaErrors(cudaFuncSetCacheConfig(copySortedParticles_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetAttribute(copySortedParticles_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
 #endif//BLOCK_TIME_STEP
-  checkCudaErrors(cudaFuncSetCacheConfig(initPHinfo_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-#endif//GPUGEN >= 70
+  checkCudaErrors(cudaFuncSetAttribute(initPHinfo_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+#endif//GPUVER >= 70
 
 
   muse alloc = {0, 0};

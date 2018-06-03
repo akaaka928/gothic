@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/09 (Wed)
+ * @date 2018/05/28 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1608,6 +1608,10 @@ void outputFundamentalInformation
   fprintf(fp, "%d\t%d\n", kind, skind);
   for(int ii = 0; ii < kind; ii++)
     fprintf(fp, "%zu\n", cfg[ii].num);
+#ifdef  HDF5_FOR_ZINDAIJI
+  for(int ii = 0; ii < kind; ii++)
+    fprintf(fp, "%d\n", ii & 3);
+#endif//HDF5_FOR_ZINDAIJI
 
   fclose(fp);
 

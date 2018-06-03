@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/03 (Tue)
+ * @date 2018/05/24 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -32,7 +32,6 @@
 #include "../misc/structure.h"
 #include "../misc/device.h"
 
-#include "macutil.h"
 #include "make.h"
 #include "buf_inc.h"
 #include "let.h"
@@ -238,7 +237,7 @@ __device__ __forceinline__ void copyData_g2s
   if( tidx < numHead )
     sbuf[dstHead + tidx] = gbuf[srcHead + tidx];
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
   dstHead += numHead;
   srcHead += numHead;
@@ -265,7 +264,7 @@ __device__ __forceinline__ void copyData_s2g
   if( tidx < numHead )
     gbuf[dstHead + tidx] = sbuf[srcHead + tidx];
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
   dstHead += numHead;
   srcHead += numHead;
@@ -312,25 +311,25 @@ __device__ __forceinline__ void copyData_g2g
     case 4:
       if(  grpIdx )	        local.i.x = temp;
 #   if  __CUDA_ARCH__ >= 700
-      __syncwarp();
+      __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead +  ldIdx                         ];
-      if( !grpIdx )      	local.i.x = temp;
-      else	                local.i.y = temp;
+      if(  grpIdx )      	local.i.y = temp;
+      else	                local.i.x = temp;
 #   if  __CUDA_ARCH__ >= 700
-      __syncwarp();
+      __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead + (ldIdx +     NTHREADS_MAKE_LET)];
-      if( !grpIdx )      	local.i.y = temp;
-      else	                local.i.z = temp;
+      if(  grpIdx )      	local.i.z = temp;
+      else	                local.i.y = temp;
 #   if  __CUDA_ARCH__ >= 700
-      __syncwarp();
+      __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead + (ldIdx + 2 * NTHREADS_MAKE_LET)];
-      if( !grpIdx )      	local.i.z = temp;
-      else	                local.i.w = temp;
+      if(  grpIdx )      	local.i.w = temp;
+      else	                local.i.z = temp;
 #   if  __CUDA_ARCH__ >= 700
-      __syncwarp();
+      __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead + (ldIdx + 3 * NTHREADS_MAKE_LET)];
       if( !grpIdx )      	local.i.w = temp;
@@ -343,19 +342,19 @@ __device__ __forceinline__ void copyData_g2g
     case 3:
       if(  grpIdx )      	local.i.x = temp;
 #   if  __CUDA_ARCH__ >= 700
-      __syncwarp();
+      __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead +  ldIdx                         ];
-      if( !grpIdx )      	local.i.x = temp;
-      else              	local.i.y = temp;
+      if(  grpIdx )      	local.i.y = temp;
+      else              	local.i.x = temp;
 #   if  __CUDA_ARCH__ >= 700
-      __syncwarp();
+      __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead + (ldIdx +     NTHREADS_MAKE_LET)];
-      if( !grpIdx )      	local.i.y = temp;
-      else              	local.i.z = temp;
+      if(  grpIdx )      	local.i.z = temp;
+      else              	local.i.y = temp;
 #   if  __CUDA_ARCH__ >= 700
-      __syncwarp();
+      __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead + (ldIdx + 2 * NTHREADS_MAKE_LET)];
       if( !grpIdx )      	local.i.z = temp;
@@ -367,13 +366,13 @@ __device__ __forceinline__ void copyData_g2g
     case 2:
       if(  grpIdx )      	local.i.x = temp;
 #   if  __CUDA_ARCH__ >= 700
-      __syncwarp();
+      __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead +  ldIdx                     ];
-      if( !grpIdx )      	local.i.x = temp;
-      else               	local.i.y = temp;
+      if(  grpIdx )      	local.i.y = temp;
+      else               	local.i.x = temp;
 #   if  __CUDA_ARCH__ >= 700
-      __syncwarp();
+      __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead + (ldIdx + NTHREADS_MAKE_LET)];
       if( !grpIdx )      	local.i.y = temp;
@@ -384,7 +383,7 @@ __device__ __forceinline__ void copyData_g2g
     case 1:
       if(  grpIdx )      	local.i.x = temp;
 #   if  __CUDA_ARCH__ >= 700
-      __syncwarp();
+      __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
       temp = gbuf[srcHead + ldIdx];
       if( !grpIdx )      	local.i.x = temp;
@@ -529,7 +528,7 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
   if( tidx == 0 )
     queue[0] = jcell;
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
   /** initialize queue for j-cells and interaction list by a representative thread */
@@ -558,7 +557,7 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
       cnum = 1 + (int)(jcell >> IDXBITS);
     }/* if( lane < rem ){ */
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
     jcell &= IDXMASK;
 
@@ -574,7 +573,7 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
       int unum = NTHREADS_MAKE_LET - hidx;
       if( cnum < unum )	  unum = cnum;
 #   if  __CUDA_ARCH__ >= 700
-      __syncwarp();
+      __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
       /** upload local data */
@@ -652,7 +651,7 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
 #endif//USE_ENCLOSING_BALL_FOR_LET
 #   if  defined(USE_RECTANGULAR_BOX_FOR_LET) && defined(USE_ENCLOSING_BALL_FOR_LET)
 #   if  __CUDA_ARCH__ >= 700
-      __syncwarp();
+      __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 #endif//defined(USE_RECTANGULAR_BOX_FOR_LET) && defined(USE_ENCLOSING_BALL_FOR_LET)
 
@@ -683,7 +682,7 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
 	    }/* else{ */
     }/* if( returnLET ){ */
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
 
@@ -719,7 +718,7 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
     if( childNum > 0 )
       more_tmp = ((uint)(childNum - 1) << IDXBITS) + (uint)(totNum + leafHead);
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
     totNum += smem[NTHREADS_MAKE_LET - 1];
 
@@ -729,7 +728,7 @@ __global__ void __launch_bounds__(NTHREADS_MAKE_LET, NBLOCKS_PER_SM) makeLET_ker
       more_let[hidx] = more_tmp;
     }/* if( returnLET ){ */
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
   }/* while( true ){ */
 
@@ -879,7 +878,15 @@ void setGlobalConstants_let_dev_cu
 #endif//!defined(GADGET_MAC) && !defined(WS93_MAC)
 
 #   if  SMPREF_LET == 1
+#   if  GPUGEN < 70
   checkCudaErrors(cudaFuncSetCacheConfig(makeLET_kernel, cudaFuncCachePreferShared));
+#else///GPUGEN < 70
+  checkCudaErrors(cudaFuncSetAttribute(makeLET_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_SM));
+#endif//GPUGEN < 70
+#else///SMPREF_LET == 1
+#   if  GPUGEN >= 70
+  checkCudaErrors(cudaFuncSetAttribute(makeLET_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_L1_32K));
+#endif//GPUGEN >= 70
 #endif//SMPREF_LET == 1
 
 

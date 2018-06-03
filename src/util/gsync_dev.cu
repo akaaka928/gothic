@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/05/23 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -28,6 +28,9 @@
 #include "cudalib.h"
 
 
+/* #define USE_ATOMIC_OPS_FOR_GSYNC */
+
+
 /**
  * @fn globalSync
  *
@@ -39,38 +42,65 @@
  * @param (gsync0) temporary array on the global memory
  * @param (gsync1) temporary array on the global memory
  */
+#ifdef  USE_ATOMIC_OPS_FOR_GSYNC
+__device__ __forceinline__ void globalSync(const int tidx, const int bidx, const int bnum, int * gsync0, int * gsync1)
+#else///USE_ATOMIC_OPS_FOR_GSYNC
 __device__ __forceinline__ void globalSync(const int tidx, const int bidx, const int bnum, volatile int * gsync0, volatile int * gsync1)
+#endif//USE_ATOMIC_OPS_FOR_GSYNC
 {
   /** Phase 0. tell */
   __syncthreads();
+#ifdef  USE_ATOMIC_OPS_FOR_GSYNC
+  if( tidx == 0 )
+    atomicOr(&gsync0[bidx], 1);
+#else///USE_ATOMIC_OPS_FOR_GSYNC
   if( tidx == 0 )
     gsync0[bidx] = 1;
+#endif//USE_ATOMIC_OPS_FOR_GSYNC
 
 
   /** Phase 1. watch */
   if( bidx == 0 ){
+#ifdef  USE_ATOMIC_OPS_FOR_GSYNC
     for(int ii = tidx; ii < bnum; ii += BLOCKDIM_X1D)
       while( true )
-  	if( gsync0[ii] ){
-  	  gsync0[ii] = 0;
-  	  break;
-  	}/* if( gsync0[ii] ){ */
+	if( atomicAnd(&gsync0[ii], 0) )
+	  break;
+#else///USE_ATOMIC_OPS_FOR_GSYNC
+    for(int ii = tidx; ii < bnum; ii += BLOCKDIM_X1D)
+      while( true )
+      	if( gsync0[ii] ){
+      	  gsync0[ii] = 0;
+      	  break;
+      	}/* if( gsync0[ii] ){ */
+#endif//USE_ATOMIC_OPS_FOR_GSYNC
 
     __syncthreads();
 
+#ifdef  USE_ATOMIC_OPS_FOR_GSYNC
+    for(int ii = tidx; ii < bnum; ii += BLOCKDIM_X1D)
+      atomicOr(&gsync1[ii], 1);
+#else///USE_ATOMIC_OPS_FOR_GSYNC
     for(int ii = tidx; ii < bnum; ii += BLOCKDIM_X1D)
       gsync1[ii] = 1;
+#endif//USE_ATOMIC_OPS_FOR_GSYNC
   }/* if( bidx == 0 ){ */
 
 
   /** Phase 2. check */
+#ifdef  USE_ATOMIC_OPS_FOR_GSYNC
+  if( tidx == 0 )
+    while( true )
+      if( atomicAnd(&gsync1[bidx], 1) )
+  	break;
+#else///USE_ATOMIC_OPS_FOR_GSYNC
   if( tidx == 0 )
     while( true )
       if( gsync1[bidx] ){
   	gsync1[bidx] = 0;
   	break;
       }/* if( gsync1[bidx] ){ */
-
+#endif//USE_ATOMIC_OPS_FOR_GSYNC
 
   __syncthreads();
 }

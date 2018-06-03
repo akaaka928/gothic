@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/13 (Fri)
+ * @date 2018/05/23 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -38,9 +38,9 @@
 #define USE_WARP_SHUFFLE_FUNC_TIME
 #endif//HUNT_TIME_PARAMETER
 
-#   if  defined(USE_WARP_SHUFFLE_FUNC_TIME) && (GPUGEN < 30)
+#   if  defined(USE_WARP_SHUFFLE_FUNC_TIME) && (GPUVER < 30)
 #undef          USE_WARP_SHUFFLE_FUNC_TIME
-#endif//defined(USE_WARP_SHUFFLE_FUNC_TIME) && (GPUGEN < 30)
+#endif//defined(USE_WARP_SHUFFLE_FUNC_TIME) && (GPUVER < 30)
 
 
 /**
@@ -49,19 +49,19 @@
  * @brief number of threads per block for setTimeStep_kernel, prediction_kernel, advPos_kernel, and advVel_kernel
  */
 #ifndef NTHREADS_TIME
-#   if  GPUGEN >= 60
+#   if  GPUVER >= 60
 #define NTHREADS_TIME (128)
-#else///GPUGEN >= 60
-#   if  GPUGEN >= 52
+#else///GPUVER >= 60
+#   if  GPUVER >= 52
 #define NTHREADS_TIME (512)
-#else///GPUGEN >= 52
-#   if  GPUGEN >= 30
+#else///GPUVER >= 52
+#   if  GPUVER >= 30
 #define NTHREADS_TIME (128)
-#else///GPUGEN >= 30
+#else///GPUVER >= 30
 #define NTHREADS_TIME (512)
-#endif//GPUGEN >= 30
-#endif//GPUGEN >= 52
-#endif//GPUGEN >= 60
+#endif//GPUVER >= 30
+#endif//GPUVER >= 52
+#endif//GPUVER >= 60
 #endif//NTHREADS_TIME
 
 /** NTHREADS_TIME must be equal or greater than NTHREADS, to set massless particles */
@@ -159,9 +159,9 @@ extern "C"
   void copyCounters_dev2hst(const int Ni, iparticle_treeinfo dev, iparticle_treeinfo hst);
 #endif//COUNT_INTERACTIONS
 
-#   if  GPUGEN >= 70
+#   if  GPUVER >= 70
   void setCacheConfig_adv_dev_cu(void);
-#endif//GPUGEN >= 70
+#endif//GPUVER >= 70
 
 #ifdef  __CUDACC__
 }

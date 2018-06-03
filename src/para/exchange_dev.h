@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/04 (Wed)
+ * @date 2018/05/23 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -36,35 +36,35 @@
  * @brief number of threads per block for getBoxSize_kernel
  */
 #ifndef NTHREADS_BOX
-#   if  (GPUGEN >= 30)
+#   if  (GPUVER >= 30)
 #define NTHREADS_BOX (1024)
-#else///(GPUGEN >= 30)
+#else///(GPUVER >= 30)
 #define NTHREADS_BOX (256)
-#endif//(GPUGEN >= 30)
+#endif//(GPUVER >= 30)
 #endif//NTHREADS_BOX
 
 
 /** tentative treatment for GTX TITAN X: (# of SM = 24) * (# of blocks per SM = 8) = 192 exceeds NTHREADS_BOX */
 #ifndef RUN_ON_PC
-/* #   if  GPUGEN == 52 */
+/* #   if  GPUVER == 52 */
 #   if  NTHREADS_BOX < 256
 #undef  NTHREADS_BOX
 #define NTHREADS_BOX  (256)
 #endif//NTHREADS_BOX < 256
-/* #endif//GPUGEN == 52 */
+/* #endif//GPUVER == 52 */
 #endif//RUN_ON_PC
 
 
 #ifndef USE_OCCUPANCY_CALCULATOR
-#   if  GPUGEN >= 60
+#   if  GPUVER >= 60
 /** capacity of shared memory is 64KiB per SM on newer GPUs */
 /** real4 smem[NTHREADS_BOX] corresponds 16 * NTHREADS_BOX bytes */
 #define NBLOCKS_PER_SM_BOX (4096 / NTHREADS_BOX)
-#else///GPUGEN >= 60
+#else///GPUVER >= 60
 /** in L1 cache preferred configuration, capacity of shared memory is 16KiB per SM on older GPUs */
 /** real4 smem[NTHREADS_BOX] corresponds 16 * NTHREADS_BOX bytes */
 #define NBLOCKS_PER_SM_BOX (1024 / NTHREADS_BOX)
-#endif//GPUGEN >= 60
+#endif//GPUVER >= 60
 
 #define REGISTERS_PER_THREAD_BOX (32)
 

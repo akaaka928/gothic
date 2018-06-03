@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/13 (Fri)
+ * @date 2018/05/24 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -114,7 +114,7 @@ __global__ void calc_r2max_kernel
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
   real r2 = ZERO;
@@ -130,7 +130,7 @@ __global__ void calc_r2max_kernel
     r2 = FLT_MIN + dx * dx + dy * dy + dz * dz;
   }/* if( lane < info.num ){ */
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
   r2 = GET_MAX_BLCK(r2, smem, tidx, tidx - lane);
@@ -160,7 +160,7 @@ __global__ void calc_amin_kernel
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
   real a2 = REAL_MAX;
@@ -172,7 +172,7 @@ __global__ void calc_amin_kernel
     a2 = FLT_MIN + ai.x * ai.x + ai.y * ai.y + ai.z * ai.z;
   }/* if( lane < info.num ){ */
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
   a2 = GET_MIN_BLCK(a2, smem, tidx, tidx - lane);
@@ -344,16 +344,16 @@ void  freeGeometricEnclosingBall_dev(real  *r2_dev)
 }
 
 
-#   if  GPUGEN >= 70
+#   if  GPUVER >= 70
 extern "C"
 void setCacheConfig_geo_dev_cu(void)
 {
   __NOTE__("%s\n", "start");
 
   /* remove shared memory if __global__ function does not use */
-  checkCudaErrors(cudaFuncSetCacheConfig(init_r2max_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-  checkCudaErrors(cudaFuncSetCacheConfig(init_amin_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetAttribute(init_r2max_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+  checkCudaErrors(cudaFuncSetAttribute(init_amin_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
 
   __NOTE__("%s\n", "end");
 }
-#endif//GPUGEN >= 70
+#endif//GPUVER >= 70

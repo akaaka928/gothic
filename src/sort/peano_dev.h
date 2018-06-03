@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/13 (Fri)
+ * @date 2018/06/01 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -35,30 +35,34 @@
  * @brief number of threads per block for calcPHkey_kernel
  */
 #ifndef NTHREADS_PH
-#   if  (GPUGEN >= 30)
+#   if  (GPUVER >= 70)
+#define NTHREADS_PH (512)
+#else///(GPUVER >= 70)
+#   if  (GPUVER >= 30)
 #define NTHREADS_PH (1024)
-#else///(GPUGEN >= 30)
+#else///(GPUVER >= 30)
 #define NTHREADS_PH (256)
-#endif//(GPUGEN >= 30)
+#endif//(GPUVER >= 30)
+#endif//(GPUVER >= 70)
 #endif//NTHREADS_PH
 
 
 /** tentative treatment for GTX TITAN X: (# of SM = 24) * (# of blocks per SM = 8) = 192 exceeds NTHREADS_PH */
-#   if  GPUGEN >= 52
+#   if  GPUVER >= 52
 #   if  NTHREADS_PH < 256
 #undef  NTHREADS_PH
 #define NTHREADS_PH  (256)
 #endif//NTHREADS_PH < 256
-#endif//GPUGEN >= 52
+#endif//GPUVER >= 52
 
 
 /** tentative treatment for Tesla P100: (# of SM = 56) * (# of blocks per SM = 6) = 336 exceeds NTHREADS_PH */
-#   if  GPUGEN >= 60
+#   if  GPUVER >= 60
 #   if  NTHREADS_PH < 512
 #undef  NTHREADS_PH
 #define NTHREADS_PH  (512)
 #endif//NTHREADS_PH < 512
-#endif//GPUGEN >= 60
+#endif//GPUVER >= 60
 
 
 /**
@@ -67,15 +71,19 @@
  * @brief number of threads per block for sortParticlesPHcurve_kernel
  */
 #ifndef NTHREADS_PHSORT
-#   if  (GPUGEN >= 52)
-#define NTHREADS_PHSORT (1024)
-#else///(GPUGEN >= 52)
-#   if  (GPUGEN >= 30)
+#   if  (GPUVER >= 70)
 #define NTHREADS_PHSORT (256)
-#else///(GPUGEN >= 30)
+#else///(GPUVER >= 70)
+#   if  (GPUVER >= 52)
 #define NTHREADS_PHSORT (1024)
-#endif//(GPUGEN >= 30)
-#endif//(GPUGEN >= 52)
+#else///(GPUVER >= 52)
+#   if  (GPUVER >= 30)
+#define NTHREADS_PHSORT (256)
+#else///(GPUVER >= 30)
+#define NTHREADS_PHSORT (1024)
+#endif//(GPUVER >= 30)
+#endif//(GPUVER >= 52)
+#endif//(GPUVER >= 70)
 #endif//NTHREADS_PHSORT
 
 

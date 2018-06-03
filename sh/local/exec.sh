@@ -46,8 +46,8 @@ EXE=bin/gothic
 # ABSERR=3.125000000e-2
 # ABSERR=1.562500000e-2
 # ABSERR=7.812500000e-3
-ABSERR=3.906250000e-3
-# ABSERR=1.953125000e-3
+# ABSERR=3.906250000e-3
+ABSERR=1.953125000e-3
 # ABSERR=9.765625000e-4
 # ABSERR=4.882812500e-4
 # ABSERR=2.441406250e-4
@@ -177,9 +177,12 @@ if [ $PROBLEM -eq 26 ]; then
 FILE=etg
 fi
 ###############################################################
-# dynamical stability of an M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk)
+# dynamical stability of an M31 model (NFW halo, Hernquist bulge, and exponential disk)
+# basically, this is Fardal et al. (2007) model
+# stellar halo: Gilbert et al. (2012): \Sigma \propto R^-2.2; Rmin = 9kpc, Rmax = 176kpc; Ibata et al. (2014, ApJ, 780, 128): total stellar mass of the smooth halo is ~8e+9 Msun
+# disk: Toomre's Q-value is set to reproduce Tenjes et al. (2017): Q_min = 1.8 @ 12-13 kpc
 if [ $PROBLEM -eq 27 ]; then
-FILE=m31_mod
+FILE=m31
 fi
 ###############################################################
 # dynamical stability of multi components galaxy model (NFW halo, King bulge, thick Sersic disk, and thin exponential disk)

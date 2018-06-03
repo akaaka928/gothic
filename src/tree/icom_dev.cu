@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/04 (Wed)
+ * @date 2018/05/24 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -192,7 +192,7 @@ __device__ __forceinline__ float findFarthestParticle
 	    cnum += (1 + (more[nodehead + jj] >> IDXBITS));
 	}/* if( target < Nsweep ){ */
 #   if  __CUDA_ARCH__ >= 700
-	__syncwarp();
+	__syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
 	PREFIX_SUM_BLCK(cnum, (int *)smem, lane, tidx);
@@ -250,7 +250,7 @@ __device__ __forceinline__ float findFarthestParticle
 	    }/* if( rjmax > rmin ){ */
 	  }/* for(int kk = 0; kk < NBUF_EB; kk++){ */
 #   if  __CUDA_ARCH__ >= 700
-	  __syncwarp();
+	  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
 	  /** share rmin within NTHREADS_EB threads */
@@ -316,7 +316,7 @@ __device__ __forceinline__ float findFarthestParticle
     if( (tidx == 0) && (Ntry > bufSize) )
       atomicAdd(overflow, 1);
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
     /** list up all child nodes that satisfy rjmax > rmin */
@@ -346,7 +346,7 @@ __device__ __forceinline__ float findFarthestParticle
 	  }/* if( rjbuf[cellIdx] > rmin ){ */
 	}/* if( cellIdx < krem ){ */
 #   if  __CUDA_ARCH__ >= 700
-	__syncwarp();
+	__syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
 	/** remove duplicated tree cells */
@@ -364,7 +364,7 @@ __device__ __forceinline__ float findFarthestParticle
 	  }/* if( ((smidx > 0) && (list0[smidx - 1] == cellIdx)) || ((Nbuf > 0) && (smidx == 0) && (more0Buf[Nbuf - 1] == cellIdx)) ){ */
 	}/* if( add ){ */
 #   if  __CUDA_ARCH__ >= 700
-	__syncwarp();
+	__syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
 	/** save tree cells on the local buffer */
@@ -417,7 +417,7 @@ __device__ __forceinline__ float findFarthestParticle
     if( (tidx == 0) && (Ntry > bufSize) )
       atomicAdd(overflow, 1);
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
   }/* while( inum > NI_R2MAX_ESTIMATE ){ */
 
@@ -433,7 +433,7 @@ __device__ __forceinline__ float findFarthestParticle
       pnum = cand.num;
     }/* if( tidx < Ntry ){ */
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
     PREFIX_SUM_BLCK(pnum, (int *)smem, lane, tidx);
@@ -464,7 +464,7 @@ __device__ __forceinline__ float findFarthestParticle
 
   }/* for(int jj = tidx; jj < Ncand; jj += NTHREADS_EB){ */
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
 
@@ -509,7 +509,7 @@ __global__ void getApproxEnclosingBall_kernel
   if( tidx == 0 )
     smem = *ebs;
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
   __syncthreads();
@@ -568,15 +568,15 @@ __global__ void getApproxEnclosingBall_kernel
 
 
 #ifndef USE_OCCUPANCY_CALCULATOR
-#   if  GPUGEN >= 60
+#   if  GPUVER >= 60
 /** capacity of shared memory is 64KiB per SM on newer GPUs */
 /** floc smem[NTHREADS_EB] corresponds 8 * NTHREADS_EB bytes */
 #define NBLOCKS_PER_SM_EB (8192 / NTHREADS_EB)
-#else///GPUGEN >= 60
+#else///GPUVER >= 60
 /** in L1 cache preferred configuration, capacity of shared memory is 16KiB per SM on older GPUs */
 /** floc smem[NTHREADS_EB] corresponds 8 * NTHREADS_EB bytes */
 #define NBLOCKS_PER_SM_EB (2048 / NTHREADS_EB)
-#endif//GPUGEN >= 60
+#endif//GPUVER >= 60
 
 #ifdef  ADOPT_EBS_FOR_LET
 #define REGISTERS_PER_THREAD_EB (29)
@@ -686,7 +686,7 @@ __device__ __forceinline__ float findFarthestParticle
     }/* if( ii < itail ){ */
   }/* for(int ih = ihead; ih < itail; ih += NTHREADS_EB){ */
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
   /** global reduction */

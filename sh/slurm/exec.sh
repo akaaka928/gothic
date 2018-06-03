@@ -201,7 +201,10 @@ if [ $PROBLEM -eq 26 ]; then
     FILE=etg
 fi
 ###############################################################
-# dynamical stability of an M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk)
+# dynamical stability of an M31 model (NFW halo, Hernquist bulge, and exponential disk)
+# basically, this is Fardal et al. (2007) model
+# stellar halo: Gilbert et al. (2012): \Sigma \propto R^-2.2; Rmin = 9kpc, Rmax = 176kpc; Ibata et al. (2014, ApJ, 780, 128): total stellar mass of the smooth halo is ~8e+9 Msun
+# disk: Toomre's Q-value is set to reproduce Tenjes et al. (2017): Q_min = 1.8 @ 12-13 kpc
 if [ $PROBLEM -eq 27 ]; then
     FILE=m31
 fi

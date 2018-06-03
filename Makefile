@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/05/15 (Tue) 11:28:45
+# last updated on 2018/06/03 (Sun) 11:00:08
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -37,7 +37,7 @@ DIVERT_GEOMETRIC_CENTER	:= 1
 ADOPT_BLOCK_TIME_STEP	:= 1
 ADOPT_VECTOR_ACC_MAC	:= 0
 ADOPT_GADGET_TYPE_MAC	:= 1
-ADOPT_WS93_TYPE_MAC	:= 1
+ADOPT_WS93_TYPE_MAC	:= 0
 IJ_PARALLELIZED_WALK	:= 1
 CLOCK_BASED_AUTO_TUNING	:= 1
 OMIT_VELOCITY_BASED_DT	:= 0
@@ -45,7 +45,7 @@ REPORT_COMPUTE_RATE	:= 1
 USE_COOPERATIVE_GROUPS	:= 0
 GET_NBLOCKS_PER_SM_AUTO	:= 1
 DATAFILE_FORMAT_HDF5	:= 1
-HDF5_FOR_ZINDAIJI	:= 0
+HDF5_FOR_ZINDAIJI	:= 1
 PREPARE_XDMF_FILES	:= 1
 DUMPFILE_IN_TIPSY	:= 0
 DUMPFILE_AS_GALACTICS	:= 0
@@ -64,8 +64,8 @@ EVALUATE_FORCE_ERROR	:= 0
 # Benchmark options
 REPORT_ELAPSED_TIME	:= 1
 REPORT_CLOCK_FREQUENCY	:= 1
-MEASURE_ELAPSED_TIME	:= 0
 MEASURE_EXEC_METRICS	:= 0
+MEASURE_ELAPSED_TIME	:= 0
 HUNT_OPTIMAL_WALK_TREE	:= 0
 HUNT_OPTIMAL_INTEGRATE	:= 0
 HUNT_OPTIMAL_MAKE_TREE	:= 0
@@ -105,6 +105,13 @@ ifeq ($(USE_MPI_GET_FOR_LET), 1)
 # tentative treatment to switch off one-sided communication on TSUBAME 3.0
 USE_MPI_GET_FOR_LET	:= 0
 endif
+endif
+#################################################################################################
+# Server at ITC
+ifeq ($(findstring pn, $(HOSTNAME)), pn)
+MYDIR	:= $(HOME)/pn
+MYINC	:= $(MYDIR)/inc
+MYLIB	:= $(MYDIR)/lib
 endif
 #################################################################################################
 include	$(MYINC)/common.mk
@@ -269,6 +276,7 @@ endif
 ifeq ($(ADOPT_GADGET_TYPE_MAC), 1)
 CCARG	+= -DGADGET_MAC
 CUARG	+= -DGADGET_MAC
+ADOPT_WS93_TYPE_MAC	:= 0
 endif
 #################################################################################################
 ifeq ($(ADOPT_WS93_TYPE_MAC), 1)
@@ -369,8 +377,6 @@ NUM_NLOOP	:= 1
 LEV_NEIGHBOR	:= 1
 USE_WARPSHUFFLE	:= 1
 PREF_SHARED_MEM	:= 1
-LENGTH_RMAX	:= 0.8
-LENGTH_FACTOR	:= 0.1
 #################################################################################################
 ifeq ($(MEASURE_ELAPSED_TIME), 1)
 #################################################################################################
@@ -547,6 +553,7 @@ GOTHIC	:= $(BINDIR)/gothic
 MKCOLD	:= $(BINDIR)/uniformsphere
 MAGI	:= $(BINDIR)/magi
 EDITOR	:= $(BINDIR)/editor
+ifneq ($(PLPLOT), 0)
 PLTENE	:= $(BINDIR)/energy
 PLTDST	:= $(BINDIR)/distribution
 PLTCDF	:= $(BINDIR)/cdf
@@ -559,6 +566,7 @@ PLTRAD	:= $(BINDIR)/ball
 PLTDF	:= $(BINDIR)/df
 PLTJET	:= $(BINDIR)/needle
 PLTDISK	:= $(BINDIR)/disk
+endif
 ANALACT	:= $(BINDIR)/action
 ANALERR	:= $(BINDIR)/error
 ANALPRF	:= $(BINDIR)/extract
@@ -632,7 +640,6 @@ FILELIB	:= io.c
 # TREESRC	:= peano.c
 UTILGPU	+= peano_dev.cu
 #################################################################################################
-# TREESRC	+= make.c macutil.c
 # TREESRC	:= make.c
 TREEGPU	:= neighbor_dev.cu
 ifeq ($(FORCE_SINGLE_GPU_RUN), 0)
@@ -937,142 +944,142 @@ ifeq ($(FORCE_SINGLE_GPU_RUN), 1)
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 $(GOTHIC):	$(OBJMPGT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)cudalib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(CU) $(CUFLAG) $(CUARG) $(DEBUG) $(CUDBG) $(CUOPT) $(CUINC) $(PREC) $(UNIT) $(PROFILE) --device-link $(OBJMPGT) --output-file $(OBJDIR)/gothic_link.o
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) $(OBJDIR)/gothic_link.o $(CCLIB) $(CULIB) -lcudadevrt -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)mpilib -l$(LIBPREC)cudalib -l$(LIBPREC)hdf5lib $(HDF5LIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) $(OBJDIR)/gothic_link.o -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)cudalib -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CULIB) -lcudadevrt $(CCLIB)
 else
 $(GOTHIC):	$(OBJMPGT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)cudalib.a
 	$(VERBOSE)$(CU) $(CUFLAG) $(CUARG) $(DEBUG) $(CUDBG) $(CUOPT) $(CUINC) $(PREC) $(UNIT) $(PROFILE) --device-link $(OBJMPGT) --output-file $(OBJDIR)/gothic_link.o
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) $(CCLIB) $(CULIB) -lcudadevrt -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)mpilib -l$(LIBPREC)cudalib
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)cudalib -l$(LIBPREC)mpilib $(CULIB) -lcudadevrt $(CCLIB)
 endif
 else
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 $(GOTHIC):	$(OBJMPGT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)cudalib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(CU) $(CUFLAG) $(CUARG) $(DEBUG) $(CUDBG) $(CUOPT) $(CUMPI) $(CUINC) $(MPIINC) $(PREC) $(UNIT) $(PROFILE) --device-link $(OBJMPGT) --output-file $(OBJDIR)/gothic_link.o
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) $(OBJDIR)/gothic_link.o $(CCLIB) $(CULIB) -lcudadevrt -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)mpilib -l$(LIBPREC)cudalib -l$(LIBPREC)hdf5lib $(HDF5LIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) $(OBJDIR)/gothic_link.o -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)cudalib -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CULIB) -lcudadevrt $(CCLIB)
 else
 $(GOTHIC):	$(OBJMPGT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)cudalib.a
 	$(VERBOSE)$(CU) $(CUFLAG) $(CUARG) $(DEBUG) $(CUDBG) $(CUOPT) $(CUMPI) $(CUINC) $(MPIINC) $(PREC) $(UNIT) $(PROFILE) --device-link $(OBJMPGT) --output-file $(OBJDIR)/gothic_link.o
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) $(CCLIB) $(CULIB) -lcudadevrt -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)mpilib -l$(LIBPREC)cudalib
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)cudalib -l$(LIBPREC)mpilib $(CULIB) -lcudadevrt $(CCLIB)
 endif
 endif
 else
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 $(GOTHIC):	$(OBJMPGT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)cudalib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) $(CCLIB) $(CULIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)mpilib -l$(LIBPREC)cudalib -l$(LIBPREC)hdf5lib $(HDF5LIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)cudalib -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CULIB) $(CCLIB)
 else
 $(GOTHIC):	$(OBJMPGT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)cudalib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) $(CCLIB) $(CULIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)mpilib -l$(LIBPREC)cudalib
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)cudalib -l$(LIBPREC)mpilib $(CULIB) $(CCLIB)
 endif
 endif
 #################################################################################################
 ## C code
 $(OPTCFG):	$(OBJFIND)	$(MYLIB)/lib$(LIBPREC)myutil.a
-	$(VERBOSE)$(CC)    $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJFIND) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil
+	$(VERBOSE)$(CC)    $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJFIND) -L$(MYLIB) -l$(LIBPREC)myutil $(CCLIB)
 $(SAMPLE):	$(OBJSMPL)
 	$(VERBOSE)$(CC)    $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJSMPL) $(CCLIB)
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 ifeq ($(USE_OFFICIAL_SFMT), 1)
 ifeq ($(USE_OFFICIAL_SFMT_JUMP), 1)
 $(MKCOLD):	$(OBJCOLD)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rand_sfmt$(SFMTPER).a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a	$(MYLIB)/libsfmt$(SFMTPER).a	$(MYLIB)/libsmtj$(SFMTPER).a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJCOLD) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)rand_sfmt$(SFMTPER) $(GSLLIB) -l$(LIBPREC)timer -l$(LIBPREC)hdf5lib $(HDF5LIB) $(SMTJLIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJCOLD) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rand_sfmt$(SFMTPER) -l$(LIBPREC)timer -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(SMTJLIB) $(GSLLIB) $(CCLIB)
 $(MAGI):	$(OBJMAGI)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)rand_sfmt$(SFMTPER).a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a	$(MYLIB)/libsfmt$(SFMTPER).a	$(MYLIB)/libsmtj$(SFMTPER).a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib -l$(LIBPREC)rand_sfmt$(SFMTPER) $(GSLLIB) $(LISLIB) -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib $(HDF5LIB) $(SMTJLIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rand_sfmt$(SFMTPER) -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)ompmpilib $(HDF5LIB) $(SMTJLIB) $(GSLLIB) $(LISLIB) $(OMPLIB) $(CCLIB)
 else
 $(MKCOLD):	$(OBJCOLD)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rand_sfmt$(SFMTPER).a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a	$(MYLIB)/libsfmt$(SFMTPER).a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJCOLD) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)rand_sfmt$(SFMTPER) $(GSLLIB) -l$(LIBPREC)timer -l$(LIBPREC)hdf5lib $(HDF5LIB) $(SFMTLIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJCOLD) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rand_sfmt$(SFMTPER) -l$(LIBPREC)timer -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(SFMTLIB) $(GSLLIB) $(CCLIB)
 $(MAGI):	$(OBJMAGI)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)rand_sfmt$(SFMTPER).a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a	$(MYLIB)/libsfmt$(SFMTPER).a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib -l$(LIBPREC)rand_sfmt$(SFMTPER) $(GSLLIB) $(LISLIB) -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib $(HDF5LIB) $(SFMTLIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rand_sfmt$(SFMTPER) -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)ompmpilib $(HDF5LIB) $(SFMTLIB) $(GSLLIB) $(LISLIB) $(OMPLIB) $(CCLIB)
 endif
 else
 $(MKCOLD):	$(OBJCOLD)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rand_gsl.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJCOLD) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)rand_gsl $(GSLLIB) -l$(LIBPREC)timer -l$(LIBPREC)hdf5lib $(HDF5LIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJCOLD) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rand_gsl -l$(LIBPREC)timer -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(GSLLIB) $(CCLIB)
 $(MAGI):	$(OBJMAGI)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)rand_gsl.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib -l$(LIBPREC)rand_gsl $(GSLLIB) $(LISLIB) -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib $(HDF5LIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rand_gsl -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)ompmpilib $(HDF5LIB) $(GSLLIB) $(LISLIB) $(OMPLIB) $(CCLIB)
 endif
 $(EDITOR):	$(OBJEDIT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEDIT) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib $(HDF5LIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEDIT) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)ompmpilib $(HDF5LIB) $(OMPLIB) $(CCLIB)
 $(PLTENE):	$(OBJPENE)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPENE) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib -l$(LIBPREC)hdf5lib $(HDF5LIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPENE) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)plplotlib -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CCLIB)
 $(PLTDST):	$(OBJDIST)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJDIST) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib $(GSLLIB) -l$(LIBPREC)hdf5lib $(HDF5LIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJDIST) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)plplotlib -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(GSLLIB) $(CCLIB)
 $(PLTCDF):	$(OBJPCDF)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPCDF) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib -l$(LIBPREC)hdf5lib $(HDF5LIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPCDF) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)plplotlib -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CCLIB)
 $(PLTMUL):	$(OBJPMUL)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPMUL) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib $(GSLLIB) -l$(LIBPREC)hdf5lib $(HDF5LIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPMUL) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)plplotlib -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(GSLLIB) $(CCLIB)
 $(ANALACT):	$(OBJAACT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAACT) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib $(GSLLIB) -l$(LIBPREC)hdf5lib $(HDF5LIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAACT) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(GSLLIB) $(CCLIB)
 $(ANALERR):	$(OBJAERR)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAERR) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)hdf5lib $(HDF5LIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAERR) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CCLIB)
 $(ANALPRF):	$(OBJAPRF)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAPRF) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)hdf5lib $(HDF5LIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAPRF) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CCLIB)
 $(M31OBS):	$(OBJAM31)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAM31) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)mpilib -l$(LIBPREC)hdf5lib $(HDF5LIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAM31) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CCLIB)
 else
 ifeq ($(USE_OFFICIAL_SFMT), 1)
 ifeq ($(USE_OFFICIAL_SFMT_JUMP), 1)
 $(MKCOLD):	$(OBJCOLD)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rand_sfmt$(SFMTPER).a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/libsfmt$(SFMTPER).a	$(MYLIB)/libsmtj$(SFMTPER).a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJCOLD) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)rand_sfmt$(SFMTPER) $(GSLLIB) -l$(LIBPREC)timer $(SMTJLIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJCOLD) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rand_sfmt$(SFMTPER) -l$(LIBPREC)timer -l$(LIBPREC)mpilib $(SMTJLIB) $(GSLLIB) $(CCLIB)
 $(MAGI):	$(OBJMAGI)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)rand_sfmt$(SFMTPER).a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/libsfmt$(SFMTPER).a	$(MYLIB)/libsmtj$(SFMTPER).a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib -l$(LIBPREC)rand_sfmt$(SFMTPER) $(GSLLIB) $(LISLIB) -l$(LIBPREC)timer -l$(LIBPREC)rotate $(SMTJLIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rand_sfmt$(SFMTPER) -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)ompmpilib $(SMTJLIB) $(GSLLIB) $(LISLIB) $(OMPLIB) $(CCLIB)
 else
 $(MKCOLD):	$(OBJCOLD)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rand_sfmt$(SFMTPER).a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/libsfmt$(SFMTPER).a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJCOLD) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)rand_sfmt$(SFMTPER) $(GSLLIB) -l$(LIBPREC)timer $(SFMTLIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJCOLD) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rand_sfmt$(SFMTPER) -l$(LIBPREC)timer -l$(LIBPREC)mpilib $(SFMTLIB) $(GSLLIB) $(CCLIB)
 $(MAGI):	$(OBJMAGI)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)rand_sfmt$(SFMTPER).a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/libsfmt$(SFMTPER).a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib -l$(LIBPREC)rand_sfmt$(SFMTPER) $(GSLLIB) $(LISLIB) -l$(LIBPREC)timer -l$(LIBPREC)rotate $(SFMTLIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rand_sfmt$(SFMTPER) -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)ompmpilib $(SFMTLIB) $(GSLLIB) $(LISLIB) $(OMPLIB) $(CCLIB)
 endif
 else
 $(MKCOLD):	$(OBJCOLD)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rand_gsl.a	$(MYLIB)/lib$(LIBPREC)timer.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJCOLD) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)rand_gsl $(GSLLIB) -l$(LIBPREC)timer
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJCOLD) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)rand_gsl -l$(LIBPREC)timer $(GSLLIB) $(CCLIB)
 $(MAGI):	$(OBJMAGI)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)rand_gsl.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib -l$(LIBPREC)rand_gsl $(GSLLIB) $(LISLIB) -l$(LIBPREC)timer -l$(LIBPREC)rotate
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMAGI) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rand_gsl -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)ompmpilib $(GSLLIB) $(LISLIB) $(OMPLIB) $(CCLIB)
 endif
 $(EDITOR):	$(OBJEDIT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEDIT) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib -l$(LIBPREC)timer -l$(LIBPREC)rotate
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEDIT) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)ompmpilib $(OMPLIB) $(CCLIB)
 $(PLTENE):	$(OBJPENE)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPENE) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPENE) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)plplotlib -l$(LIBPREC)mpilib $(CCLIB)
 $(PLTDST):	$(OBJDIST)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJDIST) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib $(GSLLIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJDIST) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)plplotlib -l$(LIBPREC)mpilib $(GSLLIB) $(CCLIB)
 $(PLTCDF):	$(OBJPCDF)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPCDF) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPCDF) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)plplotlib -l$(LIBPREC)mpilib $(CCLIB)
 $(PLTMUL):	$(OBJPMUL)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPMUL) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib $(GSLLIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPMUL) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)plplotlib -l$(LIBPREC)mpilib $(GSLLIB) $(CCLIB)
 $(ANALACT):	$(OBJAACT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAACT) $(CCLIB) $(OMPLIB) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib $(GSLLIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAACT) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib $(GSLLIB) $(OMPLIB) $(CCLIB)
 $(ANALERR):	$(OBJAERR)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAERR) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAERR) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib $(CCLIB)
 $(ANALPRF):	$(OBJAPRF)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAPRF) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAPRF) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib $(CCLIB)
 $(M31OBS):	$(OBJAM31)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAM31) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)mpilib
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAM31) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)mpilib $(CCLIB)
 endif
 $(PLTELP):	$(OBJPELP)	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)mpilib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPELP) $(CCLIB)           -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)mpilib -l$(LIBPREC)plplotlib
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPELP) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)plplotlib -l$(LIBPREC)mpilib $(CCLIB)
 $(PLTDEP):	$(OBJPDEP)	$(MYLIB)/lib$(LIBPREC)plplotlib.a
-	$(VERBOSE)$(CC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPDEP) $(CCLIB) -L$(MYLIB) -l$(LIBPREC)plplotlib
+	$(VERBOSE)$(CC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPDEP) -L$(MYLIB) -l$(LIBPREC)plplotlib $(CCLIB)
 $(PLTBRK):	$(OBJPBRK)	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)myutil.a
-	$(VERBOSE)$(CC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPBRK) $(CCLIB) -L$(MYLIB) -l$(LIBPREC)plplotlib -l$(LIBPREC)myutil
+	$(VERBOSE)$(CC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPBRK) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)plplotlib $(CCLIB)
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 $(PLTCMP):	$(OBJPCMP)	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPCMP) $(CCLIB) -L$(MYLIB) -l$(LIBPREC)plplotlib -l$(LIBPREC)hdf5lib $(HDF5LIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPCMP) -L$(MYLIB) -l$(LIBPREC)plplotlib -l$(LIBPREC)hdf5lib $(HDF5LIB) $(CCLIB)
 endif
 $(PLTFLP):	$(OBJPFLP)	$(MYLIB)/lib$(LIBPREC)plplotlib.a
-	$(VERBOSE)$(CC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPFLP) $(CCLIB) -L$(MYLIB) -l$(LIBPREC)plplotlib
+	$(VERBOSE)$(CC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPFLP) -L$(MYLIB) -l$(LIBPREC)plplotlib $(CCLIB)
 $(PLTRAD):	$(OBJPRAD)	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a
-	$(VERBOSE)$(CC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPRAD) $(CCLIB) -L$(MYLIB) -l$(LIBPREC)plplotlib -l$(LIBPREC)myutil -l$(LIBPREC)constants
+	$(VERBOSE)$(CC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPRAD) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)plplotlib $(CCLIB)
 $(PLTDF):	$(OBJPDF)	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a	$(MYLIB)/lib$(LIBPREC)constants.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPDF) $(CCLIB) -L$(MYLIB) -l$(LIBPREC)constants -l$(LIBPREC)plplotlib -l$(LIBPREC)hdf5lib $(HDF5LIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPDF) -L$(MYLIB) -l$(LIBPREC)constants -l$(LIBPREC)plplotlib -l$(LIBPREC)hdf5lib $(HDF5LIB) $(CCLIB)
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 $(PLTJET):	$(OBJPJET)	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPJET) $(CCLIB) -L$(MYLIB) -l$(LIBPREC)plplotlib -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib -l$(LIBPREC)hdf5lib $(HDF5LIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPJET) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)plplotlib -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CCLIB)
 else
 $(PLTJET):	$(OBJPJET)	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a
-	$(VERBOSE)$(CC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPJET) $(CCLIB) -L$(MYLIB) -l$(LIBPREC)plplotlib -l$(LIBPREC)myutil -l$(LIBPREC)constants
+	$(VERBOSE)$(CC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPJET) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)plplotlib $(CCLIB)
 endif
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 $(PLTDISK):	$(OBJPDSK)	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPDSK) $(CCLIB) -L$(MYLIB) -l$(LIBPREC)plplotlib -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)hdf5lib $(HDF5LIB)
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPDSK) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)plplotlib -l$(LIBPREC)hdf5lib $(HDF5LIB) $(CCLIB)
 else
 $(PLTDISK):	$(OBJPDSK)	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a
-	$(VERBOSE)$(CC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPDSK) $(CCLIB) -L$(MYLIB) -l$(LIBPREC)plplotlib -l$(LIBPREC)myutil -l$(LIBPREC)constants
+	$(VERBOSE)$(CC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPDSK) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)plplotlib $(CCLIB)
 endif
 #################################################################################################
 # sass file
@@ -1244,7 +1251,7 @@ GOTHIC_DEP	:=	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/name.h	$(MYINC)/constants
 GOTHIC_DEP	+=	$(MISCDIR)/device.h	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h	$(MISCDIR)/allocate_dev.h	$(MISCDIR)/convert.h	$(MISCDIR)/tune.h
 GOTHIC_DEP	+=	$(FILEDIR)/io.h
 GOTHIC_DEP	+=	$(SORTDIR)/peano.h
-GOTHIC_DEP	+=	$(TREEDIR)/macutil.h	$(TREEDIR)/make.h	$(TREEDIR)/let.h	$(TREEDIR)/buf_inc.h	$(TREEDIR)/make_dev.h	$(TREEDIR)/walk_dev.h
+GOTHIC_DEP	+=	$(TREEDIR)/make.h	$(TREEDIR)/let.h	$(TREEDIR)/buf_inc.h	$(TREEDIR)/make_dev.h	$(TREEDIR)/walk_dev.h
 GOTHIC_DEP	+=	$(TIMEDIR)/adv_dev.h
 ifeq ($(FORCE_SINGLE_GPU_RUN), 0)
 GOTHIC_DEP	+=	$(MYINC)/mpilib.h	$(PARADIR)/mpicfg.h	$(PARADIR)/exchange.h
@@ -1302,7 +1309,7 @@ $(OBJDIR)/io.mpi.o:		$(IO_DEP)
 ## $(SORTDIR)/*
 PEANO_DEP	:=	$(COMMON_DEP)	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(SORTDIR)/peano.h	$(TREEDIR)/make.h
 $(OBJDIR)/peano.o:	$(PEANO_DEP)
-$(OBJDIR)/peano_dev.o:	$(PEANO_DEP)	$(TREEDIR)/macutil.h	$(MYINC)/cudalib.h	$(UTILDIR)/gsync_dev.cu	$(SORTDIR)/peano_dev.h	$(PARADIR)/exchange_dev.h	$(UTILDIR)/compare_vec4_inc.cu	$(UTILDIR)/compare_vec4_inc.cuh	$(UTILDIR)/compare_vec4_del.cuh
+$(OBJDIR)/peano_dev.o:	$(PEANO_DEP)	$(MYINC)/cudalib.h	$(UTILDIR)/gsync_dev.cu	$(SORTDIR)/peano_dev.h	$(PARADIR)/exchange_dev.h	$(UTILDIR)/compare_vec4_inc.cu	$(UTILDIR)/compare_vec4_inc.cuh	$(UTILDIR)/compare_vec4_del.cuh
 #################################################################################################
 ## $(TIMEDIR)/*
 ADV_DEV_DEP	:=	$(COMMON_DEP)	$(MYINC)/timer.h	$(MYINC)/cudalib.h
@@ -1311,11 +1318,10 @@ $(OBJDIR)/adv_dev.mpi.o:	$(ADV_DEV_DEP)	$(MYINC)/mpilib.h	$(PARADIR)/mpicfg.h
 $(OBJDIR)/adv_dev.o:		$(ADV_DEV_DEP)
 #################################################################################################
 ## $(TREEDIR)/*
-$(OBJDIR)/macutil.o:	$(COMMON_DEP)	$(SORTDIR)/peano.h	$(TREEDIR)/macutil.h	$(TREEDIR)/make.h
 TREE_DEP	:=	$(COMMON_DEP)	$(MISCDIR)/benchmark.h	$(MISCDIR)/structure.h	$(TREEDIR)/make.h
 $(OBJDIR)/geo_dev.o:	$(TREE_DEP)	$(MYINC)/cudalib.h	$(TREEDIR)/walk_dev.h	$(TREEDIR)/geo_dev.h
 $(OBJDIR)/let.mpi.o:	$(TREE_DEP)	$(MYINC)/mpilib.h	$(TREEDIR)/let.h	$(PARADIR)/mpicfg.h
-TREE_DEV_DEP	:=	$(TREE_DEP)	$(MYINC)/cudalib.h	$(MISCDIR)/device.h	$(TREEDIR)/macutil.h
+TREE_DEV_DEP	:=	$(TREE_DEP)	$(MYINC)/cudalib.h	$(MISCDIR)/device.h
 TREE_BUF_DEP	:=	$(TREEDIR)/buf_inc.h	$(TREEDIR)/buf_inc.cu
 TREE_LET_DEP	:=	$(MYINC)/mpilib.h	$(TREEDIR)/let.h	$(TREEDIR)/let_dev.h
 $(OBJDIR)/let_dev.mpi.o:	$(TREE_DEV_DEP)	$(TREE_BUF_DEP)	$(TREE_LET_DEP)	$(MYINC)/timer.h	$(TREEDIR)/walk_dev.h
@@ -1325,7 +1331,7 @@ MAKE_DEV_DEP	+=	$(UTILDIR)/scan_tsub_inc.cu	$(UTILDIR)/scan_tsub_inc.cuh	$(UTILD
 MAKE_DEV_DEP	+=	$(UTILDIR)/compare_tsub_inc.cu	$(UTILDIR)/compare_tsub_inc.cuh	$(UTILDIR)/compare_tsub_del.cuh
 $(OBJDIR)/make_dev.mpi.o:	$(TREE_DEV_DEP)	$(SORTDIR)/peano.h	$(SORTDIR)/peano_dev.h	$(MAKE_DEV_DEP)	$(MYINC)/timer.h	$(MISCDIR)/device.h
 $(OBJDIR)/make_dev.o:		$(TREE_DEV_DEP)	$(SORTDIR)/peano.h	$(SORTDIR)/peano_dev.h	$(MAKE_DEV_DEP)
-$(OBJDIR)/make.o:		$(TREE_DEP)	$(SORTDIR)/peano.h	$(TREEDIR)/macutil.h
+$(OBJDIR)/make.o:		$(TREE_DEP)	$(SORTDIR)/peano.h
 TREE_RSORT_DEP	:=	$(UTILDIR)/gsync_dev.cu
 NEIGHBOR_DEV_DEP	:=	$(TREE_RSORT_DEP)	$(MYINC)/cudalib.h	$(TREEDIR)/make_dev.h	$(TREEDIR)/neighbor_dev.h
 $(OBJDIR)/neighbor_dev.mpi.o:	$(TREE_DEP)	$(NEIGHBOR_DEV_DEP)

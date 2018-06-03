@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/04 (Wed)
+ * @date 2018/06/01 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -28,6 +28,12 @@
 
 #ifndef SCAN_INC_CU_MULTI_CALL
 #define SCAN_INC_CU_MULTI_CALL
+
+#   if  (GPUGEN >= 70) && !defined(_COOPERATIVE_GROUPS_H_)
+#include <cooperative_groups.h>
+using namespace cooperative_groups;
+#endif//(GPUGEN >= 70) && !defined(_COOPERATIVE_GROUPS_H_)
+
 /**
  * @fn prefixSumWarp
  *
@@ -45,23 +51,23 @@ __device__ __forceinline__ Type prefixSumWarp
 #ifdef  USE_WARP_SHUFFLE_FUNC_SCAN_INC
 
   Type tmp;
-  tmp = __SHFL_UP(val,  1, warpSize);  if( lane >=  1 )    val += tmp;
+  tmp = __SHFL_UP(SHFL_MASK_32, val,  1, warpSize);  if( lane >=  1 )    val += tmp;
 #   if  __CUDA_ARCH__ >= 700
   __syncwarp();
 #endif//__CUDA_ARCH__ >= 700
-  tmp = __SHFL_UP(val,  2, warpSize);  if( lane >=  2 )    val += tmp;
+  tmp = __SHFL_UP(SHFL_MASK_32, val,  2, warpSize);  if( lane >=  2 )    val += tmp;
 #   if  __CUDA_ARCH__ >= 700
   __syncwarp();
 #endif//__CUDA_ARCH__ >= 700
-  tmp = __SHFL_UP(val,  4, warpSize);  if( lane >=  4 )    val += tmp;
+  tmp = __SHFL_UP(SHFL_MASK_32, val,  4, warpSize);  if( lane >=  4 )    val += tmp;
 #   if  __CUDA_ARCH__ >= 700
   __syncwarp();
 #endif//__CUDA_ARCH__ >= 700
-  tmp = __SHFL_UP(val,  8, warpSize);  if( lane >=  8 )    val += tmp;
+  tmp = __SHFL_UP(SHFL_MASK_32, val,  8, warpSize);  if( lane >=  8 )    val += tmp;
 #   if  __CUDA_ARCH__ >= 700
   __syncwarp();
 #endif//__CUDA_ARCH__ >= 700
-  tmp = __SHFL_UP(val, 16, warpSize);  if( lane >= 16 )    val += tmp;
+  tmp = __SHFL_UP(SHFL_MASK_32, val, 16, warpSize);  if( lane >= 16 )    val += tmp;
 #   if  __CUDA_ARCH__ >= 700
   __syncwarp();
 #endif//__CUDA_ARCH__ >= 700
@@ -113,12 +119,12 @@ __device__ __forceinline__ Type totalSumWarp
 #ifdef  USE_WARP_SHUFFLE_FUNC_SCAN_INC
 
   Type tmp;
-  tmp = __SHFL_XOR(val,  1, warpSize);  val += tmp;
-  tmp = __SHFL_XOR(val,  2, warpSize);  val += tmp;
-  tmp = __SHFL_XOR(val,  4, warpSize);  val += tmp;
-  tmp = __SHFL_XOR(val,  8, warpSize);  val += tmp;
-  tmp = __SHFL_XOR(val, 16, warpSize);  val += tmp;
-  val = __SHFL(val, 0, warpSize);
+  tmp = __SHFL_XOR(SHFL_MASK_32, val,  1, warpSize);  val += tmp;
+  tmp = __SHFL_XOR(SHFL_MASK_32, val,  2, warpSize);  val += tmp;
+  tmp = __SHFL_XOR(SHFL_MASK_32, val,  4, warpSize);  val += tmp;
+  tmp = __SHFL_XOR(SHFL_MASK_32, val,  8, warpSize);  val += tmp;
+  tmp = __SHFL_XOR(SHFL_MASK_32, val, 16, warpSize);  val += tmp;
+  val = __SHFL(SHFL_MASK_32, val, 0, warpSize);
 
 #else///USE_WARP_SHUFFLE_FUNC_SCAN_INC
 
@@ -157,6 +163,9 @@ __device__ __forceinline__ Type PREFIX_SUM_BLCK(Type val, volatile Type * __rest
 
 
   /** 2. prefix sum about tail of each warp */
+#   if  (__CUDA_ARCH__ >= 700) && (NTHREADS_SCAN_INC > 32)
+  thread_block_tile<NTHREADS_SCAN_INC >> 5> tile = tiled_partition<NTHREADS_SCAN_INC >> 5>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (NTHREADS_SCAN_INC > 32)
   __syncthreads();
 
   /** warpSize = 32 = 2^5; NTHREADS_SCAN_INC <= 1024 --> NTHREADS_SCAN_INC >> 5 <= 32 = warpSize */
@@ -167,29 +176,29 @@ __device__ __forceinline__ Type PREFIX_SUM_BLCK(Type val, volatile Type * __rest
     const int groupSize = NTHREADS_SCAN_INC >> 5;
     Type tmp;
 #   if  (NTHREADS_SCAN_INC >> 5) >=  2
-    tmp = __SHFL_UP(val,  1, groupSize);    if( lane >=  1 )      val += tmp;
+    tmp = __SHFL_UP(SHFL_MASK_SCAN_INC, val,  1, groupSize);    if( lane >=  1 )      val += tmp;
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    tile.sync();
 #endif//__CUDA_ARCH__ >= 700
 #   if  (NTHREADS_SCAN_INC >> 5) >=  4
-    tmp = __SHFL_UP(val,  2, groupSize);    if( lane >=  2 )      val += tmp;
+    tmp = __SHFL_UP(SHFL_MASK_SCAN_INC, val,  2, groupSize);    if( lane >=  2 )      val += tmp;
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    tile.sync();
 #endif//__CUDA_ARCH__ >= 700
 #   if  (NTHREADS_SCAN_INC >> 5) >=  8
-    tmp = __SHFL_UP(val,  4, groupSize);    if( lane >=  4 )      val += tmp;
+    tmp = __SHFL_UP(SHFL_MASK_SCAN_INC, val,  4, groupSize);    if( lane >=  4 )      val += tmp;
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    tile.sync();
 #endif//__CUDA_ARCH__ >= 700
 #   if  (NTHREADS_SCAN_INC >> 5) >= 16
-    tmp = __SHFL_UP(val,  8, groupSize);    if( lane >=  8 )      val += tmp;
+    tmp = __SHFL_UP(SHFL_MASK_SCAN_INC, val,  8, groupSize);    if( lane >=  8 )      val += tmp;
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    tile.sync();
 #endif//__CUDA_ARCH__ >= 700
 #   if  (NTHREADS_SCAN_INC >> 5) == 32
-    tmp = __SHFL_UP(val, 16, groupSize);    if( lane >= 16 )      val += tmp;
+    tmp = __SHFL_UP(SHFL_MASK_SCAN_INC, val, 16, groupSize);    if( lane >= 16 )      val += tmp;
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    tile.sync();
 #endif//__CUDA_ARCH__ >= 700
 #endif//(NTHREADS_SCAN_INC >> 5) == 32
 #endif//(NTHREADS_SCAN_INC >> 5) >= 16
@@ -202,31 +211,31 @@ __device__ __forceinline__ Type PREFIX_SUM_BLCK(Type val, volatile Type * __rest
 #   if  (NTHREADS_SCAN_INC >> 5) >=  2
     if( lane >=  1 )      val += smem[tidx -  1];
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    tile.sync();
 #endif//__CUDA_ARCH__ >= 700
     smem[tidx] = val;
 #   if  (NTHREADS_SCAN_INC >> 5) >=  4
     if( lane >=  2 )      val += smem[tidx -  2];
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    tile.sync();
 #endif//__CUDA_ARCH__ >= 700
     smem[tidx] = val;
 #   if  (NTHREADS_SCAN_INC >> 5) >=  8
     if( lane >=  4 )      val += smem[tidx -  4];
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    tile.sync();
 #endif//__CUDA_ARCH__ >= 700
     smem[tidx] = val;
 #   if  (NTHREADS_SCAN_INC >> 5) >= 16
     if( lane >=  8 )      val += smem[tidx -  8];
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    tile.sync();
 #endif//__CUDA_ARCH__ >= 700
     smem[tidx] = val;
 #   if  (NTHREADS_SCAN_INC >> 5) == 32
     if( lane >= 16 )      val += smem[tidx - 16];
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    tile.sync();
 #endif//__CUDA_ARCH__ >= 700
     smem[tidx] = val;
 #endif//(NTHREADS_SCAN_INC >> 5) == 32
@@ -432,15 +441,15 @@ __device__ __forceinline__ Type TOTAL_SUM_BLCK(Type val, volatile Type * __restr
     const int groupSize = NTHREADS_SCAN_INC >> 5;
     Type tmp;
 #   if  (NTHREADS_SCAN_INC >> 5) >=  2
-    tmp = __SHFL_XOR(val,  1, groupSize);    val += tmp;
+    tmp = __SHFL_XOR(SHFL_MASK_SCAN_INC, val,  1, groupSize);    val += tmp;
 #   if  (NTHREADS_SCAN_INC >> 5) >=  4
-    tmp = __SHFL_XOR(val,  2, groupSize);    val += tmp;
+    tmp = __SHFL_XOR(SHFL_MASK_SCAN_INC, val,  2, groupSize);    val += tmp;
 #   if  (NTHREADS_SCAN_INC >> 5) >=  8
-    tmp = __SHFL_XOR(val,  4, groupSize);    val += tmp;
+    tmp = __SHFL_XOR(SHFL_MASK_SCAN_INC, val,  4, groupSize);    val += tmp;
 #   if  (NTHREADS_SCAN_INC >> 5) >= 16
-    tmp = __SHFL_XOR(val,  8, groupSize);    val += tmp;
+    tmp = __SHFL_XOR(SHFL_MASK_SCAN_INC, val,  8, groupSize);    val += tmp;
 #   if  (NTHREADS_SCAN_INC >> 5) == 32
-    tmp = __SHFL_XOR(val, 16, groupSize);    val += tmp;
+    tmp = __SHFL_XOR(SHFL_MASK_SCAN_INC, val, 16, groupSize);    val += tmp;
 #endif//(NTHREADS_SCAN_INC >> 5) == 32
 #endif//(NTHREADS_SCAN_INC >> 5) >= 16
 #endif//(NTHREADS_SCAN_INC >> 5) >=  8

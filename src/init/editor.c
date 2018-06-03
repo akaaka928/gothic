@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/03/01 (Thu)
+ * @date 2018/05/28 (Mon)
  *
  * Copyright (C) 2018 Yohei Miki
  * All rights reserved.
@@ -658,6 +658,16 @@ int main(int argc, char **argv)
     for(int jj = obj[ii].head; jj < obj[ii].head + obj[ii].kind; jj++)
       if( cmp[jj].skip != 1 )
 	fprintf(fp, "%zu\n", cmp[jj].num);
+
+#ifdef  HDF5_FOR_ZINDAIJI
+  int type = 0;
+  for(int ii = 0; ii < Nobj; ii++)
+    for(int jj = obj[ii].head; jj < obj[ii].head + obj[ii].kind; jj++)
+      if( cmp[jj].skip != 1 ){
+	fprintf(fp, "%d\n", type & 3);
+	type++;
+      }/* if( cmp[jj].skip != 1 ){ */
+#endif//HDF5_FOR_ZINDAIJI
 
   fclose(fp);
 

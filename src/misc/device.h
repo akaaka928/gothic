@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/06/02 (Sat)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -78,6 +78,11 @@
 #define GLOBAL_MEMORY_SYSBUF (256 * 1048576)
 /* /\* for nvprof *\/ */
 /* #define GLOBAL_MEMORY_SYSBUF (512 * 1048576) */
+
+#   if  defined(CUB_AVAILABLE) && (GLOBAL_MEMORY_SYSBUF < (512 * 1048576))
+#undef  GLOBAL_MEMORY_SYSBUF
+#define GLOBAL_MEMORY_SYSBUF (512 * 1048576)
+#endif//defined(CUB_AVAILABLE) && (GLOBAL_MEMORY_SYSBUF < (512 * 1048576))
 
 
 #endif//DEVICE_H

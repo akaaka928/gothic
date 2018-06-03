@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/14 (Wed)
+ * @date 2018/05/24 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -26,7 +26,6 @@
 #include "cudalib.h"
 
 #include "../sort/peano.h"
-#include "../tree/macutil.h"
 #include "../tree/make.h"
 
 #ifndef SERIALIZED_EXECUTION

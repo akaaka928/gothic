@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/05/31 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -25,12 +25,13 @@
 #define COMPARE_INC_CUH
 
 
-#   if  defined(USE_WARP_SHUFFLE_FUNC_COMPARE_INC) && (GPUGEN < 30)
+#   if  defined(USE_WARP_SHUFFLE_FUNC_COMPARE_INC) && (GPUVER < 30)
 #undef          USE_WARP_SHUFFLE_FUNC_COMPARE_INC
-#endif//defined(USE_WARP_SHUFFLE_FUNC_COMPARE_INC) && (GPUGEN < 30)
+#endif//defined(USE_WARP_SHUFFLE_FUNC_COMPARE_INC) && (GPUVER < 30)
 
 
 #   if  NTHREADS_COMPARE_INC ==   32
+#define SHFL_MASK_COMPARE_INC SHFL_MASK_01
 #define GET_MIN_BLCK getMinBlck0032
 #define GET_MIN_GRID getMinGrid0032
 #define GET_MAX_BLCK getMaxBlck0032
@@ -50,6 +51,7 @@
 #endif//NTHREADS_COMPARE_INC ==   32
 
 #   if  NTHREADS_COMPARE_INC ==   64
+#define SHFL_MASK_COMPARE_INC SHFL_MASK_02
 #define GET_MIN_BLCK getMinBlck0064
 #define GET_MIN_GRID getMinGrid0064
 #define GET_MAX_BLCK getMaxBlck0064
@@ -69,6 +71,7 @@
 #endif//NTHREADS_COMPARE_INC ==   64
 
 #   if  NTHREADS_COMPARE_INC ==  128
+#define SHFL_MASK_COMPARE_INC SHFL_MASK_04
 #define GET_MIN_BLCK getMinBlck0128
 #define GET_MIN_GRID getMinGrid0128
 #define GET_MAX_BLCK getMaxBlck0128
@@ -88,6 +91,7 @@
 #endif//NTHREADS_COMPARE_INC ==  128
 
 #   if  NTHREADS_COMPARE_INC ==  256
+#define SHFL_MASK_COMPARE_INC SHFL_MASK_08
 #define GET_MIN_BLCK getMinBlck0256
 #define GET_MIN_GRID getMinGrid0256
 #define GET_MAX_BLCK getMaxBlck0256
@@ -107,6 +111,7 @@
 #endif//NTHREADS_COMPARE_INC ==  256
 
 #   if  NTHREADS_COMPARE_INC ==  512
+#define SHFL_MASK_COMPARE_INC SHFL_MASK_16
 #define GET_MIN_BLCK getMinBlck0512
 #define GET_MIN_GRID getMinGrid0512
 #define GET_MAX_BLCK getMaxBlck0512
@@ -126,6 +131,7 @@
 #endif//NTHREADS_COMPARE_INC ==  512
 
 #   if  NTHREADS_COMPARE_INC == 1024
+#define SHFL_MASK_COMPARE_INC SHFL_MASK_32
 #define GET_MIN_BLCK getMinBlck1024
 #define GET_MIN_GRID getMinGrid1024
 #define GET_MAX_BLCK getMaxBlck1024

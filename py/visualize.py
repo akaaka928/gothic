@@ -16,11 +16,23 @@ import utils as utils
 outputPDF = False
 
 
+# filename = "mw"
+# Nskip = 1
+# skip = [0]
+# init = 0
+# last = 127
+# # last = 0
+# fmin, fmax = 1.0e-3, 1.0e+1
+# xtics = [-10, -5, 0, 5, 10]
+# ytics = [-10, -5, 0, 5, 10]
+# lab = ["DM halo", "stellar halo", "bulge", "central BH", "thick disk", "thin disk"]
+
 # filename = "m31"
 # Nskip = 1
 # skip = [0]
 # init = 0
 # last = 47
+# last = 15
 # fmin, fmax = 1.0e-3, 1.0e+1
 # xtics = [-10, -5, 0, 5, 10]
 # ytics = [-10, -5, 0, 5, 10]
@@ -42,25 +54,25 @@ outputPDF = False
 # fmin, fmax = 1.0e-3, 1.0e+0
 # lab = ["halo", "disk"]
 
-# filename = "halocusp_run"
-# filename = "halocore1_run"
-filename = "halocore2_run"
-# filename = "halocore3_run"
-Nskip = 1
-skip = [0]
-init = 0
-last = 140
-# last = 0
-fmin, fmax = 1.0e-6, 1.0e-1
-lab = ["halo", "core", "GC"]
-
-# filename = "hernquist"
-# Nskip = 0
+# # filename = "halocusp_run"
+# # filename = "halocore1_run"
+# filename = "halocore2_run"
+# # filename = "halocore3_run"
+# Nskip = 1
+# skip = [0]
 # init = 0
-# last = 47
+# last = 140
 # # last = 0
-# fmin, fmax = 1.0e-3, 1.0e+1
-# lab = ["halo"]
+# fmin, fmax = 1.0e-6, 1.0e-1
+# lab = ["halo", "core", "GC"]
+
+filename = "hernquist"
+Nskip = 0
+init = 0
+last = 47
+# last = 0
+fmin, fmax = 1.0e-3, 1.0e+1
+lab = ["halo"]
 
 # filename = "etg"
 # Nskip = 1
@@ -68,21 +80,27 @@ lab = ["halo", "core", "GC"]
 # # Nskip = 0
 # init = 0
 # last = 47
+# last = 15
 # # last = 0
 # fmin, fmax = 1.0e-4, 1.0e-1
 # lab = ["DM halo", "bulge", "stellar halo", "central BH"]
 
 
-
-pt = ["o", "s", "^", "D"]
+Npt = 6
+pt = ["o", "s", "^", "D", "x", "*"]
+Nls = 4
 ls = ["-", ":", "-.", "--"]
-col = ["black", "red", "blue", "magenta"]
+Ncol = 8
+col = ["black", "red", "blue", "magenta", "green", "brown", "cyan", "yellow"]
 
+pt_mbh = "+"
+col_mbh = "black"
+ms_mbh = 8
 
 thicknessMeasure = 1.82
 
 
-def draw_figure(fileid, kind, radmin, radmax, rhomin, rhomax, encmin, encmax, sigmin, sigmax, hormin, hormax, Sigmin, Sigmax, sigRmin, sigRmax, sigpmin, sigpmax, sigzmin, sigzmax, diskmin, diskmax, add_ini_sphe, sphe_rad, sphe_rho, sphe_enc, sphe_Sig, sphe_sig):
+def draw_figure(fileid, kind, sphe, radmin, radmax, rhomin, rhomax, encmin, encmax, sigmin, sigmax, hormin, hormax, Sigmin, Sigmax, sigRmin, sigRmax, sigpmin, sigpmax, sigzmin, sigzmax, diskmin, diskmax, add_ini_sphe, sphe_rad, sphe_rho, sphe_enc, sphe_Sig, sphe_sig):
     snapshot = "{:03d}".format(fileid)
     input_file = "dat/" + filename + ".plt" + snapshot + ".h5"
 
@@ -110,6 +128,11 @@ def draw_figure(fileid, kind, radmin, radmax, rhomin, rhomax, encmin, encmax, si
     yy     = np.zeros((kind + 1, ny + 1))
     zz     = np.zeros((kind + 1, nz + 1))
 
+    # memory allocation for MBH location
+    mbh_x = [0] * sphe
+    mbh_y = [0] * sphe
+    mbh_z = [0] * sphe
+    Nmbh = 0
 
     fig_rho = utils.set_figure(1, 1)
     fig_enc = utils.set_figure(1, 1)
@@ -167,22 +190,32 @@ def draw_figure(fileid, kind, radmin, radmax, rhomin, rhomax, encmin, encmax, si
             ver *= thicknessMeasure
 
             if add_ini_sphe:
-                ax_rho[0].plot(sphe_rad[ii], sphe_rho[ii], linestyle = ls[ii], color = col[ii])
-                ax_enc[0].plot(sphe_rad[ii], sphe_enc[ii], linestyle = ls[ii], color = col[ii])
-                ax_sig[0].plot(sphe_rad[ii], sphe_sig[ii], linestyle = ls[ii], color = col[ii])
-                ax_Sig[0].plot(sphe_rad[ii], sphe_Sig[ii], linestyle = ls[ii], color = col[ii])
+                ax_rho[0].plot(sphe_rad[ii], sphe_rho[ii], linestyle = ls[ii % Nls], color = col[ii % Ncol])
+                ax_enc[0].plot(sphe_rad[ii], sphe_enc[ii], linestyle = ls[ii % Nls], color = col[ii % Ncol])
+                ax_sig[0].plot(sphe_rad[ii], sphe_sig[ii], linestyle = ls[ii % Nls], color = col[ii % Ncol])
+                ax_Sig[0].plot(sphe_rad[ii], sphe_Sig[ii], linestyle = ls[ii % Nls], color = col[ii % Ncol])
 
 
-            ax_rho[0].plot(rad, rho, pt[ii], linestyle = "None" if add_ini_sphe else ls[ii], color = col[ii], label = lab[ii])
-            ax_enc[0].plot(rad, enc, pt[ii], linestyle = "None" if add_ini_sphe else ls[ii], color = col[ii], label = lab[ii])
-            ax_sig[0].plot(rad, sig, pt[ii], linestyle = "None" if add_ini_sphe else ls[ii], color = col[ii], label = lab[ii])
-            ax_Sig[0].plot(hor, Sig, pt[ii], linestyle = "None" if add_ini_sphe else ls[ii], color = col[ii], label = lab[ii])
-            ax_ver[0].plot(hor, ver, pt[ii], linestyle = ls[ii], color = col[ii], label = lab[ii])
-            ax_sig2D[0].plot(hor, sigR, pt[0], linestyle = ls[ii], color = col[ii], label = r"$\sigma_R$" + " (" + lab[ii] + ")")
-            ax_sig2D[0].plot(hor, sigp, pt[1], linestyle = ls[ii], color = col[ii], label = r"$\sigma_p$" + " (" + lab[ii] + ")")
-            ax_sig2D[0].plot(hor, sigz, pt[2], linestyle = ls[ii], color = col[ii], label = r"$\sigma_z$" + " (" + lab[ii] + ")")
+            ax_rho[0].plot(rad, rho, pt[ii % Npt], linestyle = "None" if add_ini_sphe else ls[ii % Nls], color = col[ii % Ncol], label = lab[ii])
+            ax_enc[0].plot(rad, enc, pt[ii % Npt], linestyle = "None" if add_ini_sphe else ls[ii % Nls], color = col[ii % Ncol], label = lab[ii])
+            ax_sig[0].plot(rad, sig, pt[ii % Npt], linestyle = "None" if add_ini_sphe else ls[ii % Nls], color = col[ii % Ncol], label = lab[ii])
+            ax_Sig[0].plot(hor, Sig, pt[ii % Npt], linestyle = "None" if add_ini_sphe else ls[ii % Nls], color = col[ii % Ncol], label = lab[ii])
+            if ii >= sphe:
+                ax_ver[0].plot(hor, ver, pt[(ii - sphe) % Npt], linestyle = ls[(ii - sphe) % Nls], color = col[(ii - sphe) % Ncol], label = lab[ii])
+                ax_sig2D[0].plot(hor, sigR, pt[0 % Npt], linestyle = ls[(ii - sphe) % Nls], color = col[(ii - sphe) % Ncol], label = r"$\sigma_R$" + " (" + lab[ii] + ")")
+                ax_sig2D[0].plot(hor, sigp, pt[1 % Npt], linestyle = ls[(ii - sphe) % Nls], color = col[(ii - sphe) % Ncol], label = r"$\sigma_p$" + " (" + lab[ii] + ")")
+                ax_sig2D[0].plot(hor, sigz, pt[2 % Npt], linestyle = ls[(ii - sphe) % Nls], color = col[(ii - sphe) % Ncol], label = r"$\sigma_z$" + " (" + lab[ii] + ")")
 
 
+        else:
+            # read MBH location
+            # tmpfile = h5py.File("dat/" + filename + ".split" + snapshot + ".h5", "r")
+            # position = tmpfile["data" + str(ii) + "/position"].value
+            position = h5file["/attr" + str(ii)].attrs["com"]
+            mbh_x[Nmbh] = position[0]
+            mbh_y[Nmbh] = position[1]
+            mbh_z[Nmbh] = position[2]
+            Nmbh += 1
 
 
     # close the HDF5 file
@@ -217,6 +250,9 @@ def draw_figure(fileid, kind, radmin, radmax, rhomin, rhomax, encmin, encmax, si
     if summary:
         img = ax[1].imshow(xz_map[nxpanel - 1].T, extent = [xmin, xmax, zmin, zmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
         img = ax[0].imshow(xy_map[nxpanel - 1].T, extent = [xmin, xmax, ymin, ymax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
+        if Nmbh > 0:
+            ax[1].plot(mbh_x[:Nmbh], mbh_z[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh)
+            ax[0].plot(mbh_x[:Nmbh], mbh_y[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh)
         head = 1
 
     for ii in range(Ndata):
@@ -350,16 +386,18 @@ def draw_figure(fileid, kind, radmin, radmax, rhomin, rhomax, encmin, encmax, si
     fig_enc.savefig("fig/" + filename + "_enc" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
     fig_sig.savefig("fig/" + filename + "_sig" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
     fig_Sig.savefig("fig/" + filename + "_Sig" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
-    fig_ver.savefig("fig/" + filename + "_ver" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
-    fig_sig2D.savefig("fig/" + filename + "_sigRz" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
+    if kind > sphe:
+        fig_ver.savefig("fig/" + filename + "_ver" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
+        fig_sig2D.savefig("fig/" + filename + "_sigRz" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
     if outputPDF:
         fig.savefig(figname + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
         fig_rho.savefig("fig/" + filename + "_rho" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
         fig_enc.savefig("fig/" + filename + "_enc" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
         fig_sig.savefig("fig/" + filename + "_sig" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
         fig_Sig.savefig("fig/" + filename + "_Sig" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
-        fig_ver.savefig("fig/" + filename + "_ver" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
-        fig_sig2D.savefig("fig/" + filename + "_sigRz" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
+        if kind > sphe:
+            fig_ver.savefig("fig/" + filename + "_ver" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
+            fig_sig2D.savefig("fig/" + filename + "_sigRz" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
     plt.close("all")
 
 
@@ -422,7 +460,7 @@ unit = int(txtfile.readline())
 line = txtfile.readline()
 item = line.split("\t")
 Nkind = int(item[0])
-# Nsphe = int(item[1])
+Nsphe = int(item[1])
 txtfile.close()
 
 
@@ -462,6 +500,6 @@ my_cmap = utils.generate_cmap(["darkblue", "deepskyblue", "lime", "yellow", "red
 # cores = mp.cpu_count()
 cores = int(np.ceil(mp.cpu_count() / 2))
 pool = mp.Pool(cores)
-args = [(ii, Nkind, radmin, radmax, rhomin, rhomax, encmin, encmax, sigmin, sigmax, hormin, hormax, Sigmin, Sigmax, sigRmin, sigRmax, sigpmin, sigpmax, sigzmin, sigzmax, diskmin, diskmax, add_ini_sphe, sphe_rad, sphe_rho, sphe_enc, sphe_Sig, sphe_sig) for ii in range(init, last + 1, 1)]
+args = [(ii, Nkind, Nsphe, radmin, radmax, rhomin, rhomax, encmin, encmax, sigmin, sigmax, hormin, hormax, Sigmin, Sigmax, sigRmin, sigRmax, sigpmin, sigpmax, sigzmin, sigzmax, diskmin, diskmax, add_ini_sphe, sphe_rad, sphe_rho, sphe_enc, sphe_Sig, sphe_sig) for ii in range(init, last + 1, 1)]
 pool.map(wrapper, args)
 pool.close()

@@ -1,10 +1,11 @@
 #!/bin/bash
 ###############################################################
 #SBATCH -J analysis           # name of job
-#SBATCH -t 02:00:00           # upper limit of elapsed time
+#SBATCH -t 04:00:00           # upper limit of elapsed time
 #SBATCH -p normal             # partition name
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
-#SBATCH --ntasks=16           # number of total MPI processes, set to SLURM_NTASKS
+##SBATCH --ntasks=16           # number of total MPI processes, set to SLURM_NTASKS
+#SBATCH --ntasks=8            # number of total MPI processes, set to SLURM_NTASKS
 ##SBATCH --ntasks-per-socket=8 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET
 #SBATCH --ntasks-per-socket=16 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET
 #SBATCH --get-user-env        # retrieve the login environment variables
@@ -18,15 +19,16 @@ EXEC=bin/extract
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    # PROBLEM=2
+    PROBLEM=2
     # PROBLEM=14
     # PROBLEM=22
     # PROBLEM=26
+    # PROBLEM=27
     # PROBLEM=112
     # PROBLEM=130
     # PROBLEM=131
     # PROBLEM=132
-    PROBLEM=133
+    # PROBLEM=133
 fi
 ###############################################################
 # set number of N-body particles per bin to estimate density
@@ -95,11 +97,33 @@ fi
 # dynamical stability of multi components galaxy model (only spherical components)
 if [ $PROBLEM -eq 26 ]; then
     FILE=etg
-    FINISH=1175.0
+    # FINISH=75.0
+    FINISH=375.0
+    # FINISH=1175.0
+    # FINISH=3175.0
     INTERVAL=25.0
     XMAX=5.0
     YMAX=5.0
     ZMAX=5.0
+    XMIN=-$XMAX
+    YMIN=-$YMAX
+    ZMIN=-$ZMAX
+fi
+###############################################################
+# dynamical stability of an M31 model (NFW halo, Hernquist bulge, and exponential disk)
+# basically, this is Fardal et al. (2007) model
+# stellar halo: Gilbert et al. (2012): \Sigma \propto R^-2.2; Rmin = 9kpc, Rmax = 176kpc; Ibata et al. (2014, ApJ, 780, 128): total stellar mass of the smooth halo is ~8e+9 Msun
+# disk: Toomre's Q-value is set to reproduce Tenjes et al. (2017): Q_min = 1.8 @ 12-13 kpc
+if [ $PROBLEM -eq 27 ]; then
+    FILE=m31
+    # FINISH=75.0
+    FINISH=375.0
+    # FINISH=1175.0
+    # FINISH=3175.0
+    INTERVAL=25.0
+    XMAX=15.0
+    YMAX=15.0
+    ZMAX=15.0
     XMIN=-$XMAX
     YMIN=-$YMAX
     ZMIN=-$ZMAX

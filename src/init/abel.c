@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/09 (Fri)
+ * @date 2018/05/17 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -570,7 +570,6 @@ void readColumnDensityTable4Disk(profile *prf, const double rs, char *file, int 
   fclose(fp);
   if( success != true )
     writeColumnDensityProfileTableFormat(filename);
-
 
   /* scale the length to the computational unit */
   /* assume unity corresponds to the scale radius in the computational unit */

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/08 (Tue)
+ * @date 2018/05/24 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -124,10 +124,10 @@ muse allocParticleGroups
   __NOTE__("%s\n", "start");
 
 
-#   if  GPUGEN >= 70
+#   if  GPUVER >= 70
   /* remove shared memory if __global__ function does not use */
-  checkCudaErrors(cudaFuncSetCacheConfig(initLaneTime_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-#endif//GPUGEN >= 70
+  checkCudaErrors(cudaFuncSetAttribute(initLaneTime_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+#endif//GPUVER >= 70
 
   muse alloc = {0, 0};
 
@@ -224,7 +224,7 @@ __global__ void countContinuousNeighbor_kernel(const int Ni, position * RESTRICT
       }/* if( r2 > r2max ){ */
     }/* for(int ii = 0; ii < NEIGHBOR_NUM_LANE; ii++){ */
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
     /** commit the derived maximum number as neighbor particles within rmax */

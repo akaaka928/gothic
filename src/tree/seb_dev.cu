@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/04 (Wed)
+ * @date 2018/06/01 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -29,6 +29,11 @@
 #include "cudalib.h"
 
 #include "walk_dev.h"
+
+#   if  (GPUGEN >= 70) && !defined(_COOPERATIVE_GROUPS_H_) && (TSUB < 32)
+#include <cooperative_groups.h>
+using namespace cooperative_groups;
+#endif//(GPUGEN >= 70) && !defined(_COOPERATIVE_GROUPS_H_) && (TSUB < 32)
 
 
 #ifdef  DOUBLE_PRECISION
@@ -55,33 +60,60 @@ __device__ __forceinline__ real getMinLocRealTsub(const real min, int *loc)
 __device__ __forceinline__ real getMinLocRealTsub(      real min, int *loc, volatile uint_real * smem, volatile int * sidx, const int tidx, const int head)
 #endif//USE_WARP_SHUFFLE_FUNC
 {
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
 #ifdef  USE_WARP_SHUFFLE_FUNC
+#   if  TSUB < 32
+#   if  __CUDA_ARCH__ >= 700
+  const uint SHFL_MASK_TSUB = __activemask();
+#else///__CUDA_ARCH__ >= 700
+  const uint SHFL_MASK_TSUB = SHFL_MASK_32;
+#endif//__CUDA_ARCH__ >= 700
+#endif//TSUB < 32
   real val =  min;
   int  idx = *loc;
 #   if  TSUB >= ( 2 * NWARP)
   real tmp;
   int  buf;
-  tmp = __SHFL_XOR(val,      NWARP, TSUB);  buf = __SHFL_XOR(idx,      NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(SHFL_MASK_TSUB, val,      NWARP, TSUB);  buf = __SHFL_XOR(SHFL_MASK_TSUB, idx,      NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= ( 4 * NWARP)
-  tmp = __SHFL_XOR(val,  2 * NWARP, TSUB);  buf = __SHFL_XOR(idx,  2 * NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(SHFL_MASK_TSUB, val,  2 * NWARP, TSUB);  buf = __SHFL_XOR(SHFL_MASK_TSUB, idx,  2 * NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= ( 8 * NWARP)
-  tmp = __SHFL_XOR(val,  4 * NWARP, TSUB);  buf = __SHFL_XOR(idx,  4 * NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(SHFL_MASK_TSUB, val,  4 * NWARP, TSUB);  buf = __SHFL_XOR(SHFL_MASK_TSUB, idx,  4 * NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= (16 * NWARP)
-  tmp = __SHFL_XOR(val,  8 * NWARP, TSUB);  buf = __SHFL_XOR(idx,  8 * NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(SHFL_MASK_TSUB, val,  8 * NWARP, TSUB);  buf = __SHFL_XOR(SHFL_MASK_TSUB, idx,  8 * NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 #   if  TSUB == (32 * NWARP)
-  tmp = __SHFL_XOR(val, 16 * NWARP, TSUB);  buf = __SHFL_XOR(idx, 16 * NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(SHFL_MASK_TSUB, val, 16 * NWARP, TSUB);  buf = __SHFL_XOR(SHFL_MASK_TSUB, idx, 16 * NWARP, TSUB);  if( tmp < val ){    val = tmp;    idx = buf;  }
 #   if  __CUDA_ARCH__ >= 700
   __syncwarp();
 #endif//__CUDA_ARCH__ >= 700
@@ -90,8 +122,8 @@ __device__ __forceinline__ real getMinLocRealTsub(      real min, int *loc, vola
 #endif//TSUB >= ( 8 * NWARP)
 #endif//TSUB >= ( 4 * NWARP)
 #endif//TSUB >= ( 2 * NWARP)
-  *loc =  __SHFL(idx, 0, TSUB);
-  return (__SHFL(val, 0, TSUB));
+  *loc =  __SHFL(SHFL_MASK_TSUB, idx, 0, TSUB);
+  return (__SHFL(SHFL_MASK_TSUB, val, 0, TSUB));
 #else///USE_WARP_SHUFFLE_FUNC
   smem[tidx].r =  min;
   sidx[tidx]   = *loc;
@@ -99,22 +131,38 @@ __device__ __forceinline__ real getMinLocRealTsub(      real min, int *loc, vola
   real tmp;
   tmp = smem[tidx ^ (     NWARP)].r;  if( tmp < min ){    min = tmp;    sidx[tidx] = sidx[tidx ^ (     NWARP)];  }  smem[tidx].r = min;
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= ( 4 * NWARP)
   tmp = smem[tidx ^ ( 2 * NWARP)].r;  if( tmp < min ){    min = tmp;    sidx[tidx] = sidx[tidx ^ ( 2 * NWARP)];  }  smem[tidx].r = min;
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= ( 8 * NWARP)
   tmp = smem[tidx ^ ( 4 * NWARP)].r;  if( tmp < min ){    min = tmp;    sidx[tidx] = sidx[tidx ^ ( 4 * NWARP)];  }  smem[tidx].r = min;
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= (16 * NWARP)
   tmp = smem[tidx ^ ( 8 * NWARP)].r;  if( tmp < min ){    min = tmp;    sidx[tidx] = sidx[tidx ^ ( 8 * NWARP)];  }  smem[tidx].r = min;
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 #   if  TSUB == (32 * NWARP)
   tmp = smem[tidx ^ (16 * NWARP)].r;  if( tmp < min ){    min = tmp;    sidx[tidx] = sidx[tidx ^ (16 * NWARP)];  }  smem[tidx].r = min;
@@ -140,38 +188,62 @@ __device__ __forceinline__ real getMinLocRealTsub(      real min, int *loc, vola
  * continuous NWARP threads have the same value as input
  */
 #ifdef  USE_WARP_SHUFFLE_FUNC
-__device__ __forceinline__ real getMaxLocRealTsub(const real max, int *loc)
+__device__ __forceinline__ real getMaxLocRealTsub(const real max, int *loc
+#   if  TSUB < 32
+						  , const uint SHFL_MASK_TSUB
+#endif//TSUB < 32
+						  )
 #else///USE_WARP_SHUFFLE_FUNC
 __device__ __forceinline__ real getMaxLocRealTsub(      real max, int *loc, volatile uint_real * smem, volatile int * sidx, const int tidx, const int head)
 #endif//USE_WARP_SHUFFLE_FUNC
 {
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
 #ifdef  USE_WARP_SHUFFLE_FUNC
   real val =  max;
   int  idx = *loc;
 #   if  TSUB >= ( 2 * NWARP)
   real tmp;
   int  buf;
-  tmp = __SHFL_XOR(val,      NWARP, TSUB);  buf = __SHFL_XOR(idx,      NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(SHFL_MASK_TSUB, val,      NWARP, TSUB);  buf = __SHFL_XOR(SHFL_MASK_TSUB, idx,      NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= ( 4 * NWARP)
-  tmp = __SHFL_XOR(val,  2 * NWARP, TSUB);  buf = __SHFL_XOR(idx,  2 * NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(SHFL_MASK_TSUB, val,  2 * NWARP, TSUB);  buf = __SHFL_XOR(SHFL_MASK_TSUB, idx,  2 * NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= ( 8 * NWARP)
-  tmp = __SHFL_XOR(val,  4 * NWARP, TSUB);  buf = __SHFL_XOR(idx,  4 * NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(SHFL_MASK_TSUB, val,  4 * NWARP, TSUB);  buf = __SHFL_XOR(SHFL_MASK_TSUB, idx,  4 * NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= (16 * NWARP)
-  tmp = __SHFL_XOR(val,  8 * NWARP, TSUB);  buf = __SHFL_XOR(idx,  8 * NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(SHFL_MASK_TSUB, val,  8 * NWARP, TSUB);  buf = __SHFL_XOR(SHFL_MASK_TSUB, idx,  8 * NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 #   if  TSUB == (32 * NWARP)
-  tmp = __SHFL_XOR(val, 16 * NWARP, TSUB);  buf = __SHFL_XOR(idx, 16 * NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
+  tmp = __SHFL_XOR(SHFL_MASK_TSUB, val, 16 * NWARP, TSUB);  buf = __SHFL_XOR(SHFL_MASK_TSUB, idx, 16 * NWARP, TSUB);  if( tmp > val ){    val = tmp;    idx = buf;  }
 #   if  __CUDA_ARCH__ >= 700
   __syncwarp();
 #endif//__CUDA_ARCH__ >= 700
@@ -180,8 +252,8 @@ __device__ __forceinline__ real getMaxLocRealTsub(      real max, int *loc, vola
 #endif//TSUB >= ( 8 * NWARP)
 #endif//TSUB >= ( 4 * NWARP)
 #endif//TSUB >= ( 2 * NWARP)
-  *loc =  __SHFL(idx, 0, TSUB);
-  return (__SHFL(val, 0, TSUB));
+  *loc =  __SHFL(SHFL_MASK_TSUB, idx, 0, TSUB);
+  return (__SHFL(SHFL_MASK_TSUB, val, 0, TSUB));
 #else///USE_WARP_SHUFFLE_FUNC
   smem[tidx].r =  max;
   sidx[tidx]   = *loc;
@@ -189,22 +261,38 @@ __device__ __forceinline__ real getMaxLocRealTsub(      real max, int *loc, vola
   real tmp;
   tmp = smem[tidx ^ (     NWARP)].r;  if( tmp > max ){    max = tmp;    sidx[tidx] = sidx[tidx ^ (     NWARP)];  }  smem[tidx].r = max;
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= ( 4 * NWARP)
   tmp = smem[tidx ^ ( 2 * NWARP)].r;  if( tmp > max ){    max = tmp;    sidx[tidx] = sidx[tidx ^ ( 2 * NWARP)];  }  smem[tidx].r = max;
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= ( 8 * NWARP)
   tmp = smem[tidx ^ ( 4 * NWARP)].r;  if( tmp > max ){    max = tmp;    sidx[tidx] = sidx[tidx ^ ( 4 * NWARP)];  }  smem[tidx].r = max;
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 #   if  TSUB >= (16 * NWARP)
   tmp = smem[tidx ^ ( 8 * NWARP)].r;  if( tmp > max ){    max = tmp;    sidx[tidx] = sidx[tidx ^ ( 8 * NWARP)];  }  smem[tidx].r = max;
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 #   if  TSUB == (32 * NWARP)
   tmp = smem[tidx ^ (16 * NWARP)].r;  if( tmp > max ){    max = tmp;    sidx[tidx] = sidx[tidx ^ (16 * NWARP)];  }  smem[tidx].r = max;
@@ -243,9 +331,20 @@ __device__ __forceinline__ real findFurthestParticle(const int lane, const posit
   const real dy = pi.y - pj.y;
   const real dz = pi.z - pj.z;
 
+#   if  defined(USE_WARP_SHUFFLE_FUNC) && (TSUB < 32)
+#   if  __CUDA_ARCH__ >= 700
+  const uint SHFL_MASK_TSUB = __activemask();
+#else///__CUDA_ARCH__ >= 700
+  const uint SHFL_MASK_TSUB = SHFL_MASK_32;
+#endif//__CUDA_ARCH__ >= 700
+#endif//defined(USE_WARP_SHUFFLE_FUNC) && (TSUB < 32)
   const real r2max = getMaxLocRealTsub(SEB_TINY + dx * dx + dy * dy + dz * dz, idx
 #ifndef USE_WARP_SHUFFLE_FUNC
 				       , smem, sidx, tidx, head
+#else///USE_WARP_SHUFFLE_FUNC
+#   if  TSUB < 32
+				       , SHFL_MASK_TSUB
+#endif//TSUB < 32
 #endif//USE_WARP_SHUFFLE_FUNC
 				       );
 
@@ -273,9 +372,16 @@ __device__ __forceinline__ void approxSEB
 
   {
 #ifdef  USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_NWARP_INC
-    const real xmin = GET_MIN_TSUB_NWARP(pi.x                          );    const real xmax = GET_MAX_TSUB_NWARP(pi.x                          );
-    const real ymin = GET_MIN_TSUB_NWARP(pi.y                          );    const real ymax = GET_MAX_TSUB_NWARP(pi.y                          );
-    const real zmin = GET_MIN_TSUB_NWARP(pi.z                          );    const real zmax = GET_MAX_TSUB_NWARP(pi.z                          );
+#   if  TSUB < 32
+#   if  __CUDA_ARCH__ >= 700
+    const uint SHFL_MASK_TSUB = __activemask();
+#else///__CUDA_ARCH__ >= 700
+    const uint SHFL_MASK_TSUB = SHFL_MASK_32;
+#endif//__CUDA_ARCH__ >= 700
+#endif//TSUB < 32
+    const real xmin = GET_MIN_TSUB_NWARP(pi.x, SHFL_MASK_TSUB          );    const real xmax = GET_MAX_TSUB_NWARP(pi.x, SHFL_MASK_TSUB          );
+    const real ymin = GET_MIN_TSUB_NWARP(pi.y, SHFL_MASK_TSUB          );    const real ymax = GET_MAX_TSUB_NWARP(pi.y, SHFL_MASK_TSUB          );
+    const real zmin = GET_MIN_TSUB_NWARP(pi.z, SHFL_MASK_TSUB          );    const real zmax = GET_MAX_TSUB_NWARP(pi.z, SHFL_MASK_TSUB          );
 #else///USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_NWARP_INC
     const real xmin = GET_MIN_TSUB_NWARP(pi.x, (real *)smem, tidx, head);    const real xmax = GET_MAX_TSUB_NWARP(pi.x, (real *)smem, tidx, head);
     const real ymin = GET_MIN_TSUB_NWARP(pi.y, (real *)smem, tidx, head);    const real ymax = GET_MAX_TSUB_NWARP(pi.y, (real *)smem, tidx, head);
@@ -359,6 +465,10 @@ __device__ __forceinline__ void approxSEB
 __device__ __forceinline__ void initQR
 (const int lane, volatile real * RESTRICT qq, volatile real * RESTRICT rr, const int idx, pos4seb * RESTRICT seb, volatile int * RESTRICT mem, int * RESTRICT rank)
 {
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
   /** initialize Q to the identity matrix */
   /** initialize R to null */
   /** initialize uu and ww to null */
@@ -374,7 +484,11 @@ __device__ __forceinline__ void initQR
   if( lane == 0 )
     mem[0] = idx;
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
   *rank = 0;
 
@@ -398,9 +512,16 @@ __device__ __forceinline__ void initSEB
 {
   /** set a tentative center */
 #ifdef  USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_NWARP_INC
-  const real xmin = GET_MIN_TSUB_NWARP(pos->x                          );  const real xmax = GET_MAX_TSUB_NWARP(pos->x                          );
-  const real ymin = GET_MIN_TSUB_NWARP(pos->y                          );  const real ymax = GET_MAX_TSUB_NWARP(pos->y                          );
-  const real zmin = GET_MIN_TSUB_NWARP(pos->z                          );  const real zmax = GET_MAX_TSUB_NWARP(pos->z                          );
+#   if  TSUB < 32
+#   if  __CUDA_ARCH__ >= 700
+  const uint SHFL_MASK_TSUB = __activemask();
+#else///__CUDA_ARCH__ >= 700
+  const uint SHFL_MASK_TSUB = SHFL_MASK_32;
+#endif//__CUDA_ARCH__ >= 700
+#endif//TSUB < 32
+  const real xmin = GET_MIN_TSUB_NWARP(pos->x, SHFL_MASK_TSUB          );  const real xmax = GET_MAX_TSUB_NWARP(pos->x, SHFL_MASK_TSUB          );
+  const real ymin = GET_MIN_TSUB_NWARP(pos->y, SHFL_MASK_TSUB          );  const real ymax = GET_MAX_TSUB_NWARP(pos->y, SHFL_MASK_TSUB          );
+  const real zmin = GET_MIN_TSUB_NWARP(pos->z, SHFL_MASK_TSUB          );  const real zmax = GET_MAX_TSUB_NWARP(pos->z, SHFL_MASK_TSUB          );
 #else///USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_NWARP_INC
   const real xmin = GET_MIN_TSUB_NWARP(pos->x, (real *)smem, tidx, head);  const real xmax = GET_MAX_TSUB_NWARP(pos->x, (real *)smem, tidx, head);
   const real ymin = GET_MIN_TSUB_NWARP(pos->y, (real *)smem, tidx, head);  const real ymax = GET_MAX_TSUB_NWARP(pos->y, (real *)smem, tidx, head);
@@ -419,6 +540,10 @@ __device__ __forceinline__ void initSEB
   cen->w = getMaxLocRealTsub(dx * dx + dy * dy + dz * dz, &idx
 #ifndef USE_WARP_SHUFFLE_FUNC
 			     , smem, sidx, tidx, head
+#else///USE_WARP_SHUFFLE_FUNC
+#   if  TSUB < 32
+			     , SHFL_MASK_TSUB
+#endif//TSUB < 32
 #endif//USE_WARP_SHUFFLE_FUNC
 			     );
 
@@ -469,6 +594,10 @@ __device__ __forceinline__ void findAffineCoefficients
 (const int lane, jnode * RESTRICT pi, const pos4seb pos, const real4 cen, volatile real * RESTRICT aff,
  const int rank, volatile int * RESTRICT mem, volatile real * RESTRICT qq, volatile real * RESTRICT rr)
 {
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
   /** update uu and rr */
   if( lane < NDIM_SEB ){
     /** compute relative position of pos; i.e., uu = pos - origin */
@@ -483,7 +612,11 @@ __device__ __forceinline__ void findAffineCoefficients
     WW(lane) = QQ(lane, 0) * UU(0) + QQ(lane, 1) * UU(1) + QQ(lane, 2) * UU(2);
   }/* if( lane < NDIM_SEB ){ */
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
   /** calculate lambda by backward substitution */
@@ -493,7 +626,11 @@ __device__ __forceinline__ void findAffineCoefficients
     if( ((ii + 1) <= lane) && (lane < rank) )
       atomicAdd((real *)&WW(ii), -aff[lane] * RR(lane, ii));
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
     const real tmp = WW(ii) / RR(ii, ii);
@@ -501,14 +638,22 @@ __device__ __forceinline__ void findAffineCoefficients
     if( lane == 0 )
       aff[ii] = tmp;
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
   }/* for(int ii = rank - 1; ii >= 0; ii--){ */
 
   if( lane == 0 )
     aff[rank] = affRem;
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 }
 
@@ -522,6 +667,10 @@ __device__ __forceinline__ void findAffineCoefficients
  */
 __device__ __forceinline__ void givensRotation(const real ff, const real gg, real * RESTRICT cc, real * RESTRICT ss)
 {
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
   if( gg == ZERO ){
     *cc = COPYSIGN(UNITY, ff);
     *ss = ZERO;
@@ -541,7 +690,11 @@ __device__ __forceinline__ void givensRotation(const real ff, const real gg, rea
     *cc = (*ss) * tt;
   }/* else{ */
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 }
 
@@ -555,6 +708,10 @@ __device__ __forceinline__ void givensRotation(const real ff, const real gg, rea
 __device__ __forceinline__ void clearHessenberg
 (const int lane, const int rank, const int idx, volatile real * RESTRICT qq, volatile real * RESTRICT rr)
 {
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
   for(int ii = idx; ii < rank; ii++){
     /** compute Givens coefficients */
     real cc, ss;
@@ -564,7 +721,11 @@ __device__ __forceinline__ void clearHessenberg
     if( lane == ii )
       RR(ii, ii) = cc * RR(ii, ii) + ss * RR(ii, ii + 1);/**< the other one is an implicit zero */
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
     if( ((ii + 1) <= lane) && (lane < rank) ){
       const real ff = RR(lane, ii    );
@@ -574,7 +735,11 @@ __device__ __forceinline__ void clearHessenberg
       RR(lane, ii + 1) = cc * gg - ss * ff;
     }/* if( ((ii + 1) <= lane) && (lane < rank) ){ */
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
     /** rotate Q-columns */
@@ -586,7 +751,11 @@ __device__ __forceinline__ void clearHessenberg
       QQ(ii + 1, lane) = cc * gg - ss * ff;
     }/* if( lane < NDIM_SEB ){ */
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
   }/* for(int ii = idx; ii < qr->rank; ii++){ */
 }
@@ -600,11 +769,19 @@ __device__ __forceinline__ void clearHessenberg
  */
 __device__ __forceinline__ void updateQR(const int lane, const int rank, volatile real * RESTRICT qq, volatile real * RESTRICT rr)
 {
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
   /** compute w = Q^{-1} u */
   if( lane < NDIM_SEB )
     WW(lane) = QQ(lane, 0) * UU(0) + QQ(lane, 1) * UU(1) + QQ(lane, 2) * UU(2);
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
   /** rotate w */
@@ -617,7 +794,11 @@ __device__ __forceinline__ void updateQR(const int lane, const int rank, volatil
     if( lane == rank )
       WW(jj - 1) = cc * WW(jj - 1) + ss * WW(jj);
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
     /** rotate two R-rows */
@@ -626,7 +807,11 @@ __device__ __forceinline__ void updateQR(const int lane, const int rank, volatil
       RR(jj - 1, jj - 1) *=  cc;
     }/* if( lane == (jj - 1) ){ */
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
     if( (jj <= lane) && (lane < rank) ){
       const real ff = RR(lane, jj - 1);
@@ -636,7 +821,11 @@ __device__ __forceinline__ void updateQR(const int lane, const int rank, volatil
       RR(lane, jj    ) = cc * gg - ss * ff;
     }/* if( (jj <= lane) && (lane < rank) ){ */
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
     /** rotate two Q-columns */
@@ -648,7 +837,11 @@ __device__ __forceinline__ void updateQR(const int lane, const int rank, volatil
       QQ(jj    , lane) = cc * gg - ss * ff;
     }/* if( lane < NDIM_SEB ){ */
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
   }/* for(int jj = NDIM_SEB - 1; jj > 0; jj--){ */
 
@@ -656,7 +849,11 @@ __device__ __forceinline__ void updateQR(const int lane, const int rank, volatil
   if( lane < rank )
     RR(lane, 0) += WW(0);
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
   /** clear subdiagonal entries */
@@ -674,11 +871,19 @@ __device__ __forceinline__ void removePoint
 (const int lane, jnode * RESTRICT pi, const int idx, pos4seb * RESTRICT pos, volatile int * RESTRICT mem,
  int * RESTRICT rank, volatile real * RESTRICT qq, volatile real * RESTRICT rr)
 {
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
   /** remove the point and update Q and R */
   if( lane == mem[idx] )
     pos->support = false;
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
   if( idx == *rank ){
@@ -690,7 +895,11 @@ __device__ __forceinline__ void removePoint
       UU(2) = org.z - pos->z;
     }/* if( lane == mem.idx[*rank] ){ */
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
     (*rank)--;
@@ -707,21 +916,33 @@ __device__ __forceinline__ void removePoint
       if( lane == NDIM_SEB )
 	mem[ii - 1] = mem[ii];
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
       __syncwarp();
+#else///TSUB == 32
+      tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
     }/* for(int ii = idx + 1; ii < *rank; ii++){ */
 
     if( lane == NDIM_SEB )
       mem[(*rank) - 1] = mem[*rank];
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
     (*rank)--;
 
     if( lane < NDIM_SEB )
       RR(*rank, lane) = tmp;
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
     clearHessenberg(lane, *rank, idx, qq, rr);
@@ -739,6 +960,10 @@ __device__ __forceinline__ bool dropSupport
 (const int lane, jnode * RESTRICT pi, pos4seb * RESTRICT pos, const real4 cen, real * RESTRICT aff,
  int * RESTRICT rank, volatile int * RESTRICT mem, real * RESTRICT qq, real * RESTRICT rr)
 {
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
   /** find affine coefficients of the center */
   findAffineCoefficients(lane, pi, *pos, cen, aff, *rank, mem, qq, rr);
 
@@ -751,7 +976,11 @@ __device__ __forceinline__ bool dropSupport
       idx = ii;
     }/* if( aff[ii] < min ){ */
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
   /** drop a point with non-positive coefficient */
@@ -777,6 +1006,10 @@ __device__ __forceinline__ void findStopper
 #endif//USE_WARP_SHUFFLE_FUNC
  )
 {
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
   const real tinyVal = SEB_EPS * cen.w * cen2aff.w * RSQRT(SEB_TINY + cen.w * cen2aff.w);
   *idx  = -1;
   real bound = UNITY;/**< this is the maximum case; i.e., there is no stopper */
@@ -794,12 +1027,13 @@ __device__ __forceinline__ void findStopper
       bound = HALF * (cen.w - dx * dx - dy * dy - dz * dz) * RSQRT(SEB_TINY + diff * diff);
       *idx  = lane;
     }/* if( diff >= tinyVal ){ */
-#   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
   }/* if( !pos.support ){ */
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
   *frac = getMinLocRealTsub(bound, idx
@@ -819,9 +1053,20 @@ __device__ __forceinline__ void findStopper
 __device__ __forceinline__ void appendColumn
 (const int lane, const int rank, volatile real * RESTRICT qq, volatile real * RESTRICT rr)
 {
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
   /** compute new column appendend to R */
   if( lane < NDIM_SEB )
     RR(rank, lane) = QQ(lane, 0) * UU(0) + QQ(lane, 1) * UU(1) + QQ(lane, 2) * UU(2);
+#   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
+  __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
+#endif//__CUDA_ARCH__ >= 700
 
   /** update QR-decomposition */
 #pragma unroll
@@ -833,7 +1078,11 @@ __device__ __forceinline__ void appendColumn
     if( lane == 0 )
       RR(rank, jj - 1) = cc * RR(rank, jj - 1) + ss * RR(rank, jj);
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
     /** rotate two Q-columns */
@@ -845,7 +1094,11 @@ __device__ __forceinline__ void appendColumn
       QQ(jj    , lane) = cc * gg - ss * ff;
     }/* if( lane < NDIM_SEB ){ */
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
   }/* for(int jj = Ndim - 1; jj > rank; jj--){ */
 }
@@ -865,6 +1118,10 @@ __device__ __forceinline__ void addSupport
 #endif//USE_WARP_SHUFFLE_FUNC
  )
 {
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
   /** compute u := pos[idx] - origin */
   if( lane == idx ){
     const position org = pi[mem[*rank]].pi;
@@ -876,7 +1133,11 @@ __device__ __forceinline__ void addSupport
     mem[ *rank     ] = idx;
   }/* if( lane == idx ){ */
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
   /** append new column u to R and update QR-decomposition */
@@ -900,6 +1161,10 @@ __device__ __forceinline__ void findSEB
 #endif//USE_WARP_SHUFFLE_FUNC
 )
 {
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
   /** define variables */
   real4 cen2aff;/**< vector from the current center to the circumcenter of aff(T) */
   int rank;
@@ -966,7 +1231,11 @@ __device__ __forceinline__ void findSEB
 	return;
     }/* else{ */
 #   if  __CUDA_ARCH__ >= 700
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
   }/* while( true ){ */
 }

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/05/23 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -26,9 +26,9 @@
 
 
 /**# implement shared memory version only */
-/* #   if  defined(USE_WARP_SHUFFLE_FUNC_COMPARE_VEC4_INC) && (GPUGEN < 30) */
+/* #   if  defined(USE_WARP_SHUFFLE_FUNC_COMPARE_VEC4_INC) && (GPUVER < 30) */
 /* #undef          USE_WARP_SHUFFLE_FUNC_COMPARE_VEC4_INC */
-/* #endif//defined(USE_WARP_SHUFFLE_FUNC_COMPARE_VEC4_INC) && (GPUGEN < 30) */
+/* #endif//defined(USE_WARP_SHUFFLE_FUNC_COMPARE_VEC4_INC) && (GPUVER < 30) */
 #ifdef  USE_WARP_SHUFFLE_FUNC_COMPARE_VEC4_INC
 #undef  USE_WARP_SHUFFLE_FUNC_COMPARE_VEC4_INC
 #endif//USE_WARP_SHUFFLE_FUNC_COMPARE_VEC4_INC

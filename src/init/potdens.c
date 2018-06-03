@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/07 (Mon)
+ * @date 2018/05/17 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -450,7 +450,7 @@ void allocDiskProfile
     case EXP_DISK:      (*disk)[ii].getColumnDensity = getColumnDensityExp   ;      break;
     case   SERSIC:      (*disk)[ii].getColumnDensity = getColumnDensitySersic;      break;
     case TBL_DISK:      (*disk)[ii].getColumnDensity = getColumnDensitySpline;
-      readColumnDensityTable4Disk((*disk)[ii].prf, disk_cfg[ii].rs, disk_cfg[ii].file, &((*disk)[ii].util.num), &((*disk)[ii].util.xx), &((*disk)[ii].util.ff), &((*disk)[ii].util.f2), &((*disk)[ii].util.bp));
+      readColumnDensityTable4Disk((*disk)[ii].prf, disk_cfg[ii].rs, disk_cfg[ii].table, &((*disk)[ii].util.num), &((*disk)[ii].util.xx), &((*disk)[ii].util.ff), &((*disk)[ii].util.f2), &((*disk)[ii].util.bp));
       break;
     default:      __KILL__(stderr, "ERROR: undefined model(%d) is specified as disk profile\n", disk_cfg[ii].kind);      break;
     }/* switch( disk_cfg[ii].kind ){ */
@@ -468,7 +468,6 @@ void allocDiskProfile
 #else///NDIVIDE_GAUSSQD4DISK
     disk_cfg[ii].Sigma0 = disk_cfg[ii].Mtot / (2.0 * M_PI * gaussQD4encSigma(0.0, Rmax, (*disk)[ii]));
 #endif//NDIVIDE_GAUSSQD4DISK
-
 
     /** common arrays for all components */
     (*disk)[ii].hor = *hor;
@@ -1118,8 +1117,9 @@ static inline void setColumnDensityProfile(const int ndisk, const int maxLev, di
   for(int kk = 0; kk < ndisk; kk++)
     for(int ll = 0; ll < maxLev; ll++)
       for(int ii = 0; ii < NDISKBIN_HOR; ii++)
-	if( fpclassify(disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)]) == FP_NAN )
-	  fprintf(stdout, "Sigma = %e, zd = %e\n", disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)], disk[kk].zd[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)]);
+	if( fpclassify(disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)]) == FP_NAN ){
+	  __KILL__(stderr, "Sigma = %e, zd = %e; Sigma0 = %e\n", disk[kk].Sigma[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)], disk[kk].zd[INDEX2D(maxLev, NDISKBIN_HOR, ll, ii)], disk[kk].cfg->Sigma0);
+	}
 #endif
 
 

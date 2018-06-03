@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/01 (Tue)
+ * @date 2018/06/03 (Sun)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -29,7 +29,6 @@
 #include "../misc/structure.h"
 #include "../misc/device.h"
 
-#include "../tree/macutil.h"
 #include "../tree/make.h"
 #include "../tree/buf_inc.h"
 
@@ -135,11 +134,11 @@
  */
 
 
-#   if  GPUGEN >= 52
+#   if  GPUVER >= 52
 /* #define ADOPT_SMALLEST_ENCLOSING_BALL */
 #define ADOPT_APPROXIMATED_ENCLOSING_BALL
 /* #define COMPARE_ENCLOSING_BALLS */
-#endif//GPUGEN >= 52
+#endif//GPUVER >= 52
 
 
 #define ADOPT_ENCLOSING_BALL
@@ -163,9 +162,9 @@
 #define USE_WARP_SHUFFLE_FUNC
 #endif//HUNT_WALK_PARAMETER
 
-#   if  defined(USE_WARP_SHUFFLE_FUNC) && (GPUGEN < 30)
+#   if  defined(USE_WARP_SHUFFLE_FUNC) && (GPUVER < 30)
 #undef          USE_WARP_SHUFFLE_FUNC
-#endif//defined(USE_WARP_SHUFFLE_FUNC) && (GPUGEN < 30)
+#endif//defined(USE_WARP_SHUFFLE_FUNC) && (GPUVER < 30)
 
 
 /**
@@ -176,11 +175,15 @@
  */
 #ifdef  IJ_PARALLELIZATION
 #ifndef NWARP
-#   if  GPUGEN >= 52
+#   if  GPUVER >= 70
+#define NWARP (2)
+#else///GPUVER >= 70
+#   if  GPUVER >= 52
 #define NWARP (4)
-#else///GPUGEN >= 52
+#else///GPUVER >= 52
 #define NWARP (1)
-#endif//GPUGEN >= 52
+#endif//GPUVER >= 52
+#endif//GPUVER >= 70
 #endif//NWARP
 #else///IJ_PARALLELIZATION
 /** NWARP must be unity */
@@ -197,28 +200,67 @@
 
 
 /**
+ * @def NBLOCKS_PER_SM
+ *
+ * @brief number of blocks per SM
+ * @detail determined by capacity of the shared memory
+ */
+#ifndef NBLOCKS_PER_SM
+#define NBLOCKS_PER_SM (2)
+#endif//NBLOCKS_PER_SM
+
+
+/**
  * @def NTHREADS
  *
  * @brief number of threads per block for calcAcc_kernel
  */
 #ifndef NTHREADS
-#   if  GPUGEN >= 60
-#define NTHREADS (256)
-#else///GPUGEN >= 60
-#   if  GPUGEN >= 30
+#   if  GPUVER >= 70
 #define NTHREADS (512)
-#else///GPUGEN >= 30
+#else///GPUVER >= 70
+#   if  GPUVER >= 60
 #define NTHREADS (256)
-#endif//GPUGEN >= 30
-#endif//GPUGEN >= 60
+#else///GPUVER >= 60
+#   if  GPUVER >= 30
+#define NTHREADS (512)
+#else///GPUVER >= 30
+#define NTHREADS (256)
+#endif//GPUVER >= 30
+#endif//GPUVER >= 60
+#endif//GPUVER >= 70
 #endif//NTHREADS
 
 /** NTHREADS must be equal or smaller than 1024 (limitation comes from reduction defined in ../tree/geo_dev.cu) */
-/** NTHREADS must be equal or smaller than 512 (limitation comes from NLOOP, NQUEUE defined in ../tree/walk_dev.h) */
+#   if  GPUVER >= 70
+/** NTHREADS * NBLOCKS_PER_SM <= 2048 for V100 */
+#   if  NBLOCKS_PER_SM == 2
+#   if  NTHREADS > 1024
+#undef  NTHREADS
+#define NTHREADS  (1024)
+#endif//NTHREADS > 512
+#else///NBLOCKS_PER_SM == 2
+/** for NBLOCKS_PER_SM is 3 or 4 */
 #   if  NTHREADS > 512
 #undef  NTHREADS
 #define NTHREADS  (512)
 #endif//NTHREADS > 512
+#endif//NBLOCKS_PER_SM == 2
+#else///GPUVER >= 70
+/** NTHREADS must be equal or smaller than 512 (limitation comes from NLOOP defined in ../tree/walk_dev.h) */
+#   if  NBLOCKS_PER_SM == 2
+#   if  NTHREADS > 512
+#undef  NTHREADS
+#define NTHREADS  (512)
+#endif//NTHREADS > 512
+#else///NBLOCKS_PER_SM == 2
+/** for NBLOCKS_PER_SM is 3 or 4 */
+#   if  NTHREADS > 256
+#undef  NTHREADS
+#define NTHREADS  (256)
+#endif//NTHREADS > 256
+#endif//NBLOCKS_PER_SM == 2
+#endif//GPUVER >= 70
 
 #ifdef  DIV_NTHREADS
 #undef  DIV_NTHREADS
@@ -270,6 +312,7 @@
 #endif//DIV_TSUB
 #   if  TSUB == 32
 #define DIV_TSUB(a) ((a) >> 5)
+#define SHFL_MASK_TSUB SHFL_MASK_32
 #endif//TSUB == 32
 #   if  TSUB == 16
 #define DIV_TSUB(a) ((a) >> 4)
@@ -317,23 +360,16 @@
  * @brief a parameter to increase arithmetic intensity
  */
 #ifndef NLOOP
-#   if  GPUGEN >= 60
+#   if  GPUVER >= 70
+#define NLOOP (3)
+#else///GPUVER >= 70
+#   if  GPUVER >= 60
 #define NLOOP (4)
-#else///GPUGEN >= 60
+#else///GPUVER >= 60
 #define NLOOP (1)
-#endif//GPUGEN >= 60
+#endif//GPUVER >= 60
+#endif//GPUVER >= 70
 #endif//NLOOP
-
-
-/**
- * @def NBLOCKS_PER_SM
- *
- * @brief number of blocks per SM
- * @detail determined by capacity of the shared memory
- */
-#ifndef NBLOCKS_PER_SM
-#define NBLOCKS_PER_SM (2)
-#endif//NBLOCKS_PER_SM
 
 
 
@@ -343,13 +379,13 @@
 #   if  NBLOCKS_PER_SM == 2
 /** (capacity of shared memory / sizeof(float)) / NBLOCKS_PER_SM */
 #define NSM4TRAVERSAL (SMEM_SIZE_SM_PREF >> 3)
-/* #   if  GPUGEN >= 60 */
+/* #   if  GPUVER >= 60 */
 /* /\** 8192 = 8 * 1024 = 16 * 1024 / 2 = (64KiB / sizeof(float)) / NBLOCKS_PER_SM on newer GPUs *\/ */
 /* #define NSM4TRAVERSAL (8192) */
-/* #else///GPUGEN >= 60 */
+/* #else///GPUVER >= 60 */
 /* /\** 6144 = 6 * 1024 = 12 * 1024 / 2 = (48KiB / sizeof(float)) / NBLOCKS_PER_SM on older GPUs *\/ */
 /* #define NSM4TRAVERSAL (6144) */
-/* #endif//GPUGEN >= 60 */
+/* #endif//GPUVER >= 60 */
 #   if  NLOOP > ((NSM4TRAVERSAL / (5 * NTHREADS)) - 2)
 #undef  NLOOP
 #define NLOOP   ((NSM4TRAVERSAL / (5 * NTHREADS)) - 2)
@@ -362,13 +398,13 @@
 #else///NBLOCKS_PER_SM == 2
 /** capacity of shared memory / sizeof(float) */
 #define NSM4TRAVERSAL (SMEM_SIZE_SM_PREF >> 2)
-/* #   if  GPUGEN >= 60 */
+/* #   if  GPUVER >= 60 */
 /* /\** 16384 = 16 * 1024 = 64KiB / sizeof(float) on newer GPUs *\/ */
 /* #define NSM4TRAVERSAL (16384) */
-/* #else///GPUGEN >= 60 */
+/* #else///GPUVER >= 60 */
 /* /\** 12288 = 12 * 1024 = 48KiB / sizeof(float) on older GPUs *\/ */
 /* #define NSM4TRAVERSAL (12288) */
-/* #endif//GPUGEN >= 60 */
+/* #endif//GPUVER >= 60 */
 #   if  NLOOP > ((NSM4TRAVERSAL / (5 * NTHREADS * NBLOCKS_PER_SM)) - 2)
 #undef  NLOOP
 #define NLOOP   ((NSM4TRAVERSAL / (5 * NTHREADS * NBLOCKS_PER_SM)) - 2)
@@ -385,13 +421,13 @@
 #   if  NBLOCKS_PER_SM == 2
 /** (capacity of shared memory / sizeof(float)) / NBLOCKS_PER_SM */
 #define NSM4TRAVERSAL (SMEM_SIZE_SM_PREF >> 3)
-/* #   if  GPUGEN >= 60 */
+/* #   if  GPUVER >= 60 */
 /* /\** 8192 = 8 * 1024 = 16 * 1024 / 2 = (64KiB / sizeof(float)) / NBLOCKS_PER_SM on newer GPUs *\/ */
 /* #define NSM4TRAVERSAL (8192) */
-/* #else///GPUGEN >= 60 */
+/* #else///GPUVER >= 60 */
 /* /\** 6144 = 6 * 1024 = 12 * 1024 / 2 = (48KiB / sizeof(float)) / NBLOCKS_PER_SM on older GPUs *\/ */
 /* #define NSM4TRAVERSAL (6144) */
-/* #endif//GPUGEN >= 60 */
+/* #endif//GPUVER >= 60 */
 #   if  NLOOP > ((NSM4TRAVERSAL / (4 * NTHREADS)) - 2)
 #undef  NLOOP
 #define NLOOP   ((NSM4TRAVERSAL / (4 * NTHREADS)) - 2)
@@ -404,13 +440,13 @@
 #else///NBLOCKS_PER_SM == 2
 /** capacity of shared memory / sizeof(float) */
 #define NSM4TRAVERSAL (SMEM_SIZE_SM_PREF >> 2)
-/* #   if  GPUGEN >= 60 */
+/* #   if  GPUVER >= 60 */
 /* /\** 16384 = 16 * 1024 = 64KiB / sizeof(float) on newer GPUs *\/ */
 /* #define NSM4TRAVERSAL (16384) */
-/* #else///GPUGEN >= 60 */
+/* #else///GPUVER >= 60 */
 /* /\** 12288 = 12 * 1024 = 48KiB / sizeof(float) on older GPUs *\/ */
 /* #define NSM4TRAVERSAL (12288) */
-/* #endif//GPUGEN >= 60 */
+/* #endif//GPUVER >= 60 */
 #   if  NLOOP > ((NSM4TRAVERSAL / (4 * NTHREADS * NBLOCKS_PER_SM)) - 2)
 #undef  NLOOP
 #define NLOOP   ((NSM4TRAVERSAL / (4 * NTHREADS * NBLOCKS_PER_SM)) - 2)
@@ -690,9 +726,9 @@ extern "C"
    );
 
   void setGlobalConstants_walk_dev_cu(const real newton_hst, const real eps2_hst
-#ifndef WS93_MAC
+#   if  !defined(GADGET_MAC) && !defined(WS93_MAC)
 				      , const real theta2_hst
-#endif//WS93_MAC
+#endif//!defined(GADGET_MAC) && !defined(WS93_MAC)
 				      );
 #ifdef  __CUDACC__
 }

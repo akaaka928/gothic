@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/03 (Tue)
+ * @date 2018/05/29 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -49,28 +49,28 @@ __device__ __forceinline__ Type getVec3MinWarp
   Type tmp, loc;
 
   loc = val.x;
-  tmp = __SHFL_XOR(loc,  1, warpSize);  loc = getMinVal(loc, tmp);
-  tmp = __SHFL_XOR(loc,  2, warpSize);  loc = getMinVal(loc, tmp);
-  tmp = __SHFL_XOR(loc,  4, warpSize);  loc = getMinVal(loc, tmp);
-  tmp = __SHFL_XOR(loc,  8, warpSize);  loc = getMinVal(loc, tmp);
-  tmp = __SHFL_XOR(loc, 16, warpSize);  loc = getMinVal(loc, tmp);
-  val.x = __SHFL(loc, 0, warpSize);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  1, warpSize);  loc = getMinVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  2, warpSize);  loc = getMinVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  4, warpSize);  loc = getMinVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  8, warpSize);  loc = getMinVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc, 16, warpSize);  loc = getMinVal(loc, tmp);
+  val.x = __SHFL(SHFL_MASK_32, loc, 0, warpSize);
 
   loc = val.y;
-  tmp = __SHFL_XOR(loc,  1, warpSize);  loc = getMinVal(loc, tmp);
-  tmp = __SHFL_XOR(loc,  2, warpSize);  loc = getMinVal(loc, tmp);
-  tmp = __SHFL_XOR(loc,  4, warpSize);  loc = getMinVal(loc, tmp);
-  tmp = __SHFL_XOR(loc,  8, warpSize);  loc = getMinVal(loc, tmp);
-  tmp = __SHFL_XOR(loc, 16, warpSize);  loc = getMinVal(loc, tmp);
-  val.y = __SHFL(loc, 0, warpSize);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  1, warpSize);  loc = getMinVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  2, warpSize);  loc = getMinVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  4, warpSize);  loc = getMinVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  8, warpSize);  loc = getMinVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc, 16, warpSize);  loc = getMinVal(loc, tmp);
+  val.y = __SHFL(SHFL_MASK_32, loc, 0, warpSize);
 
   loc = val.z;
-  tmp = __SHFL_XOR(loc,  1, warpSize);  loc = getMinVal(loc, tmp);
-  tmp = __SHFL_XOR(loc,  2, warpSize);  loc = getMinVal(loc, tmp);
-  tmp = __SHFL_XOR(loc,  4, warpSize);  loc = getMinVal(loc, tmp);
-  tmp = __SHFL_XOR(loc,  8, warpSize);  loc = getMinVal(loc, tmp);
-  tmp = __SHFL_XOR(loc, 16, warpSize);  loc = getMinVal(loc, tmp);
-  val.z = __SHFL(loc, 0, warpSize);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  1, warpSize);  loc = getMinVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  2, warpSize);  loc = getMinVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  4, warpSize);  loc = getMinVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  8, warpSize);  loc = getMinVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc, 16, warpSize);  loc = getMinVal(loc, tmp);
+  val.z = __SHFL(SHFL_MASK_32, loc, 0, warpSize);
 
 #else///USE_WARP_SHUFFLE_FUNC_COMPARE_VEC3_INC
 
@@ -109,28 +109,28 @@ __device__ __forceinline__ Type getVec3MaxWarp
   Type tmp, loc;
 
   loc = val.x;
-  tmp = __SHFL_XOR(loc,  1, warpSize);  loc = getMaxVal(loc, tmp);
-  tmp = __SHFL_XOR(loc,  2, warpSize);  loc = getMaxVal(loc, tmp);
-  tmp = __SHFL_XOR(loc,  4, warpSize);  loc = getMaxVal(loc, tmp);
-  tmp = __SHFL_XOR(loc,  8, warpSize);  loc = getMaxVal(loc, tmp);
-  tmp = __SHFL_XOR(loc, 16, warpSize);  loc = getMaxVal(loc, tmp);
-  val.x = __SHFL(loc, 0, warpSize);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  1, warpSize);  loc = getMaxVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  2, warpSize);  loc = getMaxVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  4, warpSize);  loc = getMaxVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  8, warpSize);  loc = getMaxVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc, 16, warpSize);  loc = getMaxVal(loc, tmp);
+  val.x = __SHFL(SHFL_MASK_32, loc, 0, warpSize);
 
   loc = val.y;
-  tmp = __SHFL_XOR(loc,  1, warpSize);  loc = getMaxVal(loc, tmp);
-  tmp = __SHFL_XOR(loc,  2, warpSize);  loc = getMaxVal(loc, tmp);
-  tmp = __SHFL_XOR(loc,  4, warpSize);  loc = getMaxVal(loc, tmp);
-  tmp = __SHFL_XOR(loc,  8, warpSize);  loc = getMaxVal(loc, tmp);
-  tmp = __SHFL_XOR(loc, 16, warpSize);  loc = getMaxVal(loc, tmp);
-  val.y = __SHFL(loc, 0, warpSize);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  1, warpSize);  loc = getMaxVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  2, warpSize);  loc = getMaxVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  4, warpSize);  loc = getMaxVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  8, warpSize);  loc = getMaxVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc, 16, warpSize);  loc = getMaxVal(loc, tmp);
+  val.y = __SHFL(SHFL_MASK_32, loc, 0, warpSize);
 
   loc = val.z;
-  tmp = __SHFL_XOR(loc,  1, warpSize);  loc = getMaxVal(loc, tmp);
-  tmp = __SHFL_XOR(loc,  2, warpSize);  loc = getMaxVal(loc, tmp);
-  tmp = __SHFL_XOR(loc,  4, warpSize);  loc = getMaxVal(loc, tmp);
-  tmp = __SHFL_XOR(loc,  8, warpSize);  loc = getMaxVal(loc, tmp);
-  tmp = __SHFL_XOR(loc, 16, warpSize);  loc = getMaxVal(loc, tmp);
-  val.z = __SHFL(loc, 0, warpSize);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  1, warpSize);  loc = getMaxVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  2, warpSize);  loc = getMaxVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  4, warpSize);  loc = getMaxVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc,  8, warpSize);  loc = getMaxVal(loc, tmp);
+  tmp = __SHFL_XOR(SHFL_MASK_32, loc, 16, warpSize);  loc = getMaxVal(loc, tmp);
+  val.z = __SHFL(SHFL_MASK_32, loc, 0, warpSize);
 
 #else///USE_WARP_SHUFFLE_FUNC_COMPARE_VEC3_INC
 

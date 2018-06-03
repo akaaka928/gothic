@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/05/29 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -19,6 +19,8 @@
 
 
 #ifdef  SCAN_INC_CUH
+
+#undef  SHFL_MASK_SCAN_INC
 
 #undef  PREFIX_SUM_BLCK
 #undef  PREFIX_SUM_GRID

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/01 (Tue)
+ * @date 2018/06/01 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -42,7 +42,6 @@
 #include "../misc/structure.h"
 #include "../misc/device.h"
 
-#include "macutil.h"
 #include "make.h"
 #include "buf_inc.h"
 
@@ -69,16 +68,20 @@ nvmlDevice_t deviceHandler;
 #endif//(__CUDACC_VER_MINOR__ + 10 * __CUDACC_VER_MAJOR__) >= 80
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO) || defined(REPORT_GPU_CLOCK_FREQUENCY)
 
+#   if  (GPUGEN >= 70) && (TSUB < 32)
+#include <cooperative_groups.h>
+using namespace cooperative_groups;
+#endif//(GPUGEN >= 70) && (TSUB < 32)
+
 
 __constant__  real newton;
 __constant__  real epsinv;
 #ifndef INDIVIDUAL_GRAVITATIONAL_SOFTENING
 __constant__  real eps2;
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
-#ifndef WS93_MAC
+#   if  !defined(GADGET_MAC) && !defined(WS93_MAC)
 __constant__  real theta2;
-#endif//WS93_MAC
-__constant__ jnode jnode0;
+#endif//!defined(GADGET_MAC) && !defined(WS93_MAC)
 
 
 #ifndef SERIALIZED_EXECUTION
@@ -610,7 +613,7 @@ __global__ void initAcc_kernel
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
   if( lane < info.num ){
@@ -691,7 +694,7 @@ __global__ void trimAcc_kernel(acceleration * RESTRICT acc, READ_ONLY position *
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
   if( lane < info.num ){
@@ -813,23 +816,26 @@ __global__ void trimAcc_kernel(acceleration * RESTRICT acc, READ_ONLY position *
  */
 __device__ __forceinline__
   int prefixSumTsubMultiple(int psum, const int lane, const int Niter
-#ifndef USE_WARP_SHUFFLE_FUNC
+#ifdef  USE_WARP_SHUFFLE_FUNC
+			    , const uint shfl_mask_tsub
+#else///USE_WARP_SHUFFLE_FUNC
 			    , volatile uint_real * smem, const int tidx, const int tail
+			    , const uint shfl_mask_tsub
 #endif//USE_WARP_SHUFFLE_FUNC
 			    )
 {
 #ifdef  USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
-  int smem = PREFIX_SUM_TSUB(psum, lane);
+  int smem = PREFIX_SUM_TSUB(psum, lane, shfl_mask_tsub);
 #else///USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
   PREFIX_SUM_TSUB(psum, lane, (int *)smem, tidx);
 #endif//USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
 
   for(int iter = 1; iter < Niter; iter++){
 #ifdef  USE_WARP_SHUFFLE_FUNC
-    const uint inc = (__SHFL(smem, TSUB - 1, TSUB) >> (IDX_SHIFT_BITS * (iter - 1))) & IDX_SHIFT_MASK;
+    const uint inc = (__SHFL(shfl_mask_tsub, smem, TSUB - 1, TSUB) >> (IDX_SHIFT_BITS * (iter - 1))) & IDX_SHIFT_MASK;
     smem         += (inc << (IDX_SHIFT_BITS * iter));
 #else///USE_WARP_SHUFFLE_FUNC
-    const uint inc = (smem[tail].i                 >> (IDX_SHIFT_BITS * (iter - 1))) & IDX_SHIFT_MASK;
+    const uint inc = (smem[tail].i                                 >> (IDX_SHIFT_BITS * (iter - 1))) & IDX_SHIFT_MASK;
     smem[tidx].i += (inc << (IDX_SHIFT_BITS * iter));
 #endif//USE_WARP_SHUFFLE_FUNC
   }/* for(int iter = 1; iter < Niter; iter++){ */
@@ -858,6 +864,10 @@ __device__ __forceinline__
  */
 __device__ __forceinline__ void copyData_s2s(uint *src, int sidx, uint *dst, int didx, const int num, const int lane)
 {
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
   const int iter = DIV_TSUB(num);
   const int frac = num & (TSUB - 1);/**< Nload % TSUB */
 
@@ -870,7 +880,12 @@ __device__ __forceinline__ void copyData_s2s(uint *src, int sidx, uint *dst, int
   if( lane < frac )
     dst[didx] = src[sidx];
 #   if  __CUDA_ARCH__ >= 700
+  /** synchronization to reduce warp divergence */
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 }
 
@@ -881,13 +896,22 @@ __device__ __forceinline__ void copyData_s2s(uint *src, int sidx, uint *dst, int
  */
 __device__ __forceinline__ void copyData_g2s(uint * RESTRICT gbuf, size_t srcHead, uint * RESTRICT sbuf, int dstHead, int numCopy, const int lane)
 {
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
   /** fraction processing at loading from the head of destination array */
   const int numTemp = TSUB - (int)(srcHead & (TSUB - 1));/**< TSUB - (srcHead % TSUB) */
   const int numHead = (numTemp < numCopy) ? numTemp : numCopy;
   if( lane < numHead )
     sbuf[dstHead + lane] = gbuf[srcHead + lane];
 #   if  __CUDA_ARCH__ >= 700
+  /** synchronization to reduce warp divergence */
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
   dstHead += numHead;
   srcHead += numHead;
@@ -897,7 +921,12 @@ __device__ __forceinline__ void copyData_g2s(uint * RESTRICT gbuf, size_t srcHea
   for(int ii = lane; ii < numCopy; ii += TSUB)
     sbuf[dstHead + ii] = gbuf[srcHead + ii];
 #   if  __CUDA_ARCH__ >= 700
+  /** synchronization to reduce warp divergence */
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 }
 
@@ -908,13 +937,22 @@ __device__ __forceinline__ void copyData_g2s(uint * RESTRICT gbuf, size_t srcHea
  */
 __device__ __forceinline__ void copyData_s2g(uint * RESTRICT sbuf, int srcHead, uint * RESTRICT gbuf, size_t dstHead, int numCopy, const int lane)
 {
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
   /** fraction processing at storing to the head of destination array */
   const int numTemp = TSUB - (int)(dstHead & (TSUB - 1));/**< TSUB - (dstHead % TSUB) */
   const int numHead = (numTemp < numCopy) ? numTemp : numCopy;
   if( lane < numHead )
     gbuf[dstHead + lane] = sbuf[srcHead + lane];
 #   if  __CUDA_ARCH__ >= 700
+  /** synchronization to reduce warp divergence */
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
   dstHead += numHead;
   srcHead += numHead;
@@ -924,7 +962,12 @@ __device__ __forceinline__ void copyData_s2g(uint * RESTRICT sbuf, int srcHead, 
   for(int ii = lane; ii < numCopy; ii += TSUB)
     gbuf[dstHead + ii] = sbuf[srcHead + ii];
 #   if  __CUDA_ARCH__ >= 700
+  /** synchronization to reduce warp divergence */
+#   if  TSUB == 32
   __syncwarp();
+#else///TSUB == 32
+  tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 }
 
@@ -935,6 +978,10 @@ __device__ __forceinline__ void copyData_s2g(uint * RESTRICT sbuf, int srcHead, 
  */
 __device__ __forceinline__ void copyData_g2g(uint * RESTRICT gbuf, size_t srcHead, size_t dstHead, int Ncopy, const int Ndisp, const int lane)
 {
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
   /** configure the settings */
   const int Nfirst = Ndisp & (TSUB - 1);/**< Ndisp % TSUB */
   const int  ldIdx = (lane + Nfirst) & (TSUB - 1);  /**< ldIdx is Nfirst, Nfirst + 1, ..., TSUB - 1, 0, 1, ..., Nfirst - 1 for lane of 0, 1, 2, ..., TSUB - 1 */
@@ -959,7 +1006,12 @@ __device__ __forceinline__ void copyData_g2g(uint * RESTRICT gbuf, size_t srcHea
     if( !grpIdx )
       local = temp;
 #   if  __CUDA_ARCH__ >= 700
+    /** synchronization to reduce warp divergence */
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
     /** store to the destination array on the global memory */
@@ -983,6 +1035,9 @@ __device__ __forceinline__ void cpChildNodes
  uint leaf,                 const int lane,
  uint * RESTRICT smbuf, const    int hq, int *rem_sm, int *num_sm,
  uint * RESTRICT gmbuf, const size_t hb, int *rem_gm, int *num_gm, int *head_gm, int *tail_gm
+#   if  TSUB < 32
+			    , const uint SHFL_MASK_TSUB
+#endif//TSUB < 32
 			    )
 #else///USE_WARP_SHUFFLE_FUNC
 __device__ __forceinline__ void cpChildNodes
@@ -993,11 +1048,15 @@ __device__ __forceinline__ void cpChildNodes
  )
 #endif//USE_WARP_SHUFFLE_FUNC
 {
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
   int iter;
 
   /** 1. compact the given sparse tree nodes */
 #ifdef  USE_WARP_SHUFFLE_FUNC
-  int smem = prefixSumTsubMultiple(leaf, lane, NSTOCK);
+  int smem = prefixSumTsubMultiple(leaf, lane, NSTOCK, SHFL_MASK_TSUB);
   uint nadd = smem         - leaf;/**< exclusive prefix sum of leaf */
 #else///USE_WARP_SHUFFLE_FUNC
   uint nadd = prefixSumTsubMultiple(leaf, lane, NSTOCK, smem, tidx, tail) - leaf;/**< exclusive prefix sum of leaf */
@@ -1010,15 +1069,20 @@ __device__ __forceinline__ void cpChildNodes
       node[hidx] = jidx.idx[iter];
     }/* if( (leaf >> (IDX_SHIFT_BITS * iter)) & 1 ){ */
 #   if  __CUDA_ARCH__ >= 700
+    /** synchronization to reduce warp divergence */
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
     jidx.idx[iter] = NULL_NODE;
   }/* for(iter = 0; iter < NSTOCK; iter++){ */
 
 #ifdef  USE_WARP_SHUFFLE_FUNC
-  const int nold = (int)((__SHFL(smem, TSUB - 1, TSUB) >> (IDX_SHIFT_BITS * (NSTOCK - 1))) & IDX_SHIFT_MASK);
+  const int nold = (int)((__SHFL(SHFL_MASK_TSUB, smem, TSUB - 1, TSUB) >> (IDX_SHIFT_BITS * (NSTOCK - 1))) & IDX_SHIFT_MASK);
 #else///USE_WARP_SHUFFLE_FUNC
-  const int nold = (int)((       smem[tail].i          >> (IDX_SHIFT_BITS * (NSTOCK - 1))) & IDX_SHIFT_MASK);
+  const int nold = (int)((                       smem[tail].i          >> (IDX_SHIFT_BITS * (NSTOCK - 1))) & IDX_SHIFT_MASK);
 #endif//USE_WARP_SHUFFLE_FUNC
   for(int ii = nold + lane; ii < NSTOCK * TSUB; ii += TSUB)
     node[ii] = NULL_NODE;
@@ -1030,9 +1094,9 @@ __device__ __forceinline__ void cpChildNodes
   if( Niter != NSTOCK )
 #endif//MERGE_QUEUED_TREE_NODES
 #ifdef  USE_WARP_SHUFFLE_FUNC
-    Ntot = (int)((__SHFL(smem, TSUB - 1, TSUB) >> (IDX_SHIFT_BITS * (NSTOCK - 1))) & IDX_SHIFT_MASK);
+    Ntot = (int)((__SHFL(SHFL_MASK_TSUB, smem, TSUB - 1, TSUB) >> (IDX_SHIFT_BITS * (NSTOCK - 1))) & IDX_SHIFT_MASK);
 #else///USE_WARP_SHUFFLE_FUNC
-    Ntot = (int)((       smem[tail].i          >> (IDX_SHIFT_BITS * (NSTOCK - 1))) & IDX_SHIFT_MASK);
+    Ntot = (int)((                       smem[tail].i          >> (IDX_SHIFT_BITS * (NSTOCK - 1))) & IDX_SHIFT_MASK);
 #endif//USE_WARP_SHUFFLE_FUNC
 #ifdef  MERGE_QUEUED_TREE_NODES
   else{
@@ -1055,9 +1119,6 @@ __device__ __forceinline__ void cpChildNodes
 	jidx.idx[2 * iter    ] += (numLatter << IDXBITS);
 	jidx.idx[2 * iter + 1]  = NULL_NODE;
       }/* if( (tailFormer == headLatter) && ((numFormer + numLatter) <= NLEAF) ){ */
-#   if  __CUDA_ARCH__ >= 700
-      __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
 
       uint numNodes = 0;
 #pragma unroll
@@ -1067,19 +1128,27 @@ __device__ __forceinline__ void cpChildNodes
 
       iter++;
     }/* for(int ii = 2 * lane; ii < nold; ii += 2 * TSUB){ */
+#   if  __CUDA_ARCH__ >= 700
+    /** synchronization to reduce warp divergence */
+#   if  TSUB == 32
+    __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
+#endif//__CUDA_ARCH__ >= 700
 
     /** 4. count up number of reconstructed tree nodes */
     const int Nloop = BLOCKSIZE(nold, 2 * TSUB);
 #ifdef  USE_WARP_SHUFFLE_FUNC
-    smem = prefixSumTsubMultiple(leaf, lane, Nloop);
+    smem = prefixSumTsubMultiple(leaf, lane, Nloop, SHFL_MASK_TSUB);
 #else///USE_WARP_SHUFFLE_FUNC
     prefixSumTsubMultiple(leaf, lane, Nloop, smem, tidx, tail);
 #endif//USE_WARP_SHUFFLE_FUNC
 
 #ifdef  USE_WARP_SHUFFLE_FUNC
-    Ntot = (int)((__SHFL(smem, TSUB - 1, TSUB) >> (IDX_SHIFT_BITS * (Nloop - 1))) & IDX_SHIFT_MASK);
+    Ntot = (int)((__SHFL(SHFL_MASK_TSUB, smem, TSUB - 1, TSUB) >> (IDX_SHIFT_BITS * (Nloop - 1))) & IDX_SHIFT_MASK);
 #else///USE_WARP_SHUFFLE_FUNC
-    Ntot = (int)((       smem[tail].i          >> (IDX_SHIFT_BITS * (Nloop - 1))) & IDX_SHIFT_MASK);
+    Ntot = (int)((                       smem[tail].i          >> (IDX_SHIFT_BITS * (Nloop - 1))) & IDX_SHIFT_MASK);
 #endif//USE_WARP_SHUFFLE_FUNC
 
     for(int ii = Ntot + lane; ii < nold; ii += TSUB)
@@ -1458,6 +1527,10 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
   const int head = tidx - lane;
   const int tail = head + (TSUB - 1);
 
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB < 32)
+  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB < 32)
+
   /** shared quantities in the thread parallelized version */
   __shared__ jnode   pj[NTHREADS * (NLOOP + 1)];
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
@@ -1515,7 +1588,7 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 #endif//ADOPT_ENCLOSING_BALL
   }/* if( !skip ){ */
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
   int fail = hp + lane;
@@ -1532,7 +1605,7 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
   icom = pj[hp].pi;
   if( skip )    pi = icom;
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 #ifdef  ADOPT_SMALLEST_ENCLOSING_BALL
   /** adopt the smallest enclosing ball */
@@ -1640,7 +1713,9 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 
     /** calculate maximum of r squared */
     icom.m = GET_MAX_TSUB_NWARP(FLT_MIN + rx * rx + ry * ry + rz * rz
-#ifndef USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_NWARP_INC
+#ifdef  USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_NWARP_INC
+				, SHFL_MASK_32
+#else///USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_NWARP_INC
 				, (real *)smem, tidx, head
 #endif//USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_NWARP_INC
 				);
@@ -1650,12 +1725,14 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     if( !skip )
       ai_old = iacc_old[idx];
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
     /** calculate minimum of a squared */
     const real tmp = GET_MIN_TSUB_NWARP(FLT_MIN + ai_old.x * ai_old.x + ai_old.y * ai_old.y + ai_old.z * ai_old.z
-#ifndef USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_NWARP_INC
+#ifdef  USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_NWARP_INC
+					, SHFL_MASK_32
+#else///USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_NWARP_INC
 					, (real *)smem, tidx, head
 #endif//USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_NWARP_INC
 					);
@@ -1690,7 +1767,7 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     iacc[DIV_TSUB(GLOBALIDX_X1D)].pi = icom;
   }/* if( tidx == 0 ){ */
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 #endif//PRINT_PSEUDO_PARTICLE_INFO
 
@@ -1720,9 +1797,6 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 
     if( tidx == tail )
       queue[hq] += ((rem - TSUB) << IDXBITS);
-#   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
 
     rem = TSUB;
   }/* if( rem > TSUB ){ */
@@ -1731,10 +1805,10 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 
     if( lane < rem )
       queue[hq] = more[jcell + lane];
-#   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
   }/* else{ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
+#endif//__CUDA_ARCH__ >= 700
 
   if( info.num == 0 )
     rem = 0;
@@ -1774,12 +1848,24 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
       cnum = 1 + (jcell >> IDXBITS);
     }/* if( lane < rem ){ */
 #   if  __CUDA_ARCH__ >= 700
+    /** synchronization to reduce warp divergence */
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
     /** predict the head index on the shared memory by parallel prefix sum */
 #ifdef  USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
-    int hidx = PREFIX_SUM_TSUB(cnum, lane)                    - cnum;/**< exclusive prefix sum of cnum */
+#   if  TSUB < 32
+#   if  __CUDA_ARCH__ >= 700
+    const uint SHFL_MASK_TSUB = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
+#else///__CUDA_ARCH__ >= 700
+    const uint SHFL_MASK_TSUB = SHFL_MASK_32;
+#endif//__CUDA_ARCH__ >= 700
+#endif//TSUB < 32
+    int hidx = PREFIX_SUM_TSUB(cnum, lane, SHFL_MASK_TSUB)    - cnum;/**< exclusive prefix sum of cnum */
 #else///USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
     int hidx = PREFIX_SUM_TSUB(cnum, lane, (int *)smem, tidx) - cnum;/**< exclusive prefix sum of cnum */
 #endif//USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
@@ -1789,9 +1875,6 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
       /** local data can be uploaded to the shared memory */
       int unum = TSUB * NSTOCK - hidx;
       if( cnum < unum )	  unum = cnum;
-#   if  __CUDA_ARCH__ >= 700
-      __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
 
       /** upload local data */
       jcell &= IDXMASK;
@@ -1808,18 +1891,20 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 	jcell += ((cnum - unum - 1) << IDXBITS);
 	queue[hq] = jcell;
       }/* else{ */
-#   if  __CUDA_ARCH__ >= 700
-      __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
     }/* if( (cnum != 0) && (hidx < TSUB * NSTOCK) ){ */
 #   if  __CUDA_ARCH__ >= 700
+    /** synchronization to reduce warp divergence */
+#   if  TSUB == 32
     __syncwarp();
+#else///TSUB == 32
+    tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
     /** remove scanned j-cells if possible */
 #ifdef  USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
-    smem = PREFIX_SUM_TSUB(remove, lane);
-    remove = __SHFL(smem, TSUB - 1, TSUB);
+    smem = PREFIX_SUM_TSUB(remove, lane, SHFL_MASK_TSUB);
+    remove = __SHFL(SHFL_MASK_TSUB, smem, TSUB - 1, TSUB);
 #else///USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
     PREFIX_SUM_TSUB(remove, lane, (int *)smem, tidx);
     remove = smem[tail].i;
@@ -1897,13 +1982,18 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 	    }/* else{ */
       }/* if( target != NULL_NODE ){ */
 #   if  __CUDA_ARCH__ >= 700
+      /** synchronization to reduce warp divergence */
+#   if  TSUB == 32
       __syncwarp();
+#else///TSUB == 32
+      tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
 
       /** prefixSum to build a local interaction list */
 #ifdef  USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
-      smem = PREFIX_SUM_TSUB(calc, lane);
+      smem = PREFIX_SUM_TSUB(calc, lane, SHFL_MASK_TSUB);
       hidx = smem - calc;/**< exclusive prefix sum of calc */
 #else///USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
       hidx = PREFIX_SUM_TSUB(calc, lane, (int *)smem, tidx) - calc;/**< exclusive prefix sum of calc */
@@ -1918,11 +2008,16 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
       }
 #   if  __CUDA_ARCH__ >= 700
+      /** synchronization to reduce warp divergence */
+#   if  TSUB == 32
       __syncwarp();
+#else///TSUB == 32
+      tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
 
 #ifdef  USE_WARP_SHUFFLE_FUNC
-      Nj += __SHFL(smem, TSUB - 1, TSUB);/**< inclusive prefix sum of calc */
+      Nj += __SHFL(SHFL_MASK_TSUB, smem, TSUB - 1, TSUB);/**< inclusive prefix sum of calc */
 #else///USE_WARP_SHUFFLE_FUNC
       Nj += smem[tail].i;/**< inclusive prefix sum of calc */
 #endif//USE_WARP_SHUFFLE_FUNC
@@ -1979,7 +2074,11 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 
     /** copy child-cells of near tree-cells stored in the tentative stack to the stack on the shared memory and/or the global memory */
 #ifdef  USE_WARP_SHUFFLE_FUNC
-    cpChildNodes(      (uint *)(&pj[hp + NLOOP * TSUB]), jidx, leaf,       lane,       queue, hq, &Nsm_rem, &rem, buffer, buf0Head, &bufOpen, &bufUsed, &bufHead, &bufTail);
+    cpChildNodes(      (uint *)(&pj[hp + NLOOP * TSUB]), jidx, leaf,       lane,       queue, hq, &Nsm_rem, &rem, buffer, buf0Head, &bufOpen, &bufUsed, &bufHead, &bufTail
+#   if  TSUB < 32
+		       , SHFL_MASK_TSUB
+#endif//TSUB < 32
+		       );
 #else///USE_WARP_SHUFFLE_FUNC
     cpChildNodes(smem, (uint *)(&pj[hp + NLOOP * TSUB]), jidx, leaf, tidx, lane, tail, queue, hq, &Nsm_rem, &rem, buffer, buf0Head, &bufOpen, &bufUsed, &bufHead, &bufTail);
 #endif//USE_WARP_SHUFFLE_FUNC
@@ -1992,6 +2091,9 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 #endif//COUNT_INTERACTIONS
 
   }/* while( true ){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
+#endif//__CUDA_ARCH__ >= 700
 
 
   /** calculate body-body interaction for remained j-particles */
@@ -2008,7 +2110,12 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
       }/* if( addr < Ndummy ){ */
 #   if  __CUDA_ARCH__ >= 700
+      /** synchronization to reduce warp divergence */
+#   if  TSUB == 32
       __syncwarp();
+#else///TSUB == 32
+      tile.sync();
+#endif//TSUB == 32
 #endif//__CUDA_ARCH__ >= 700
     }/* for(int jj = 0; jj < NLOOP; jj++){ */
 
@@ -2029,6 +2136,9 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     Nj_tot += NLOOP * TSUB;
 #endif//COUNT_INTERACTIONS
   }/* if( Nj != 0 ){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
+#endif//__CUDA_ARCH__ >= 700
 
 
   /** accumulation of residuals in Kahan summation */
@@ -2053,20 +2163,20 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
   if( gtag < 4 )
     pj[itag].val[jtag] += pj[itag + 16].val[jtag];
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() for consistency */
 #endif//__CUDA_ARCH__ >= 700
 #endif//NWARP == 32
 #   if  NWARP >= 16
   if( gtag < 2 )
     pj[itag].val[jtag] += pj[itag + 8].val[jtag];
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() for consistency */
 #endif//__CUDA_ARCH__ >= 700
 #endif//NWARP >= 16
   if( gtag == 0 )
     pj[itag].val[jtag] += pj[itag + 4].val[jtag];
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() for consistency */
 #endif//__CUDA_ARCH__ >= 700
 #endif//NWARP >= 8
   res = pj[itag].ai;
@@ -2119,14 +2229,14 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
     if( gtag < 4 )
       pj[itag].val[jtag] += pj[itag + 16].val[jtag];
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    __syncwarp();/**< __syncwarp() for consistency */
 #endif//__CUDA_ARCH__ >= 700
 #endif//NWARP == 32
 #   if  NWARP >= 16
     if( gtag < 2 )
       pj[itag].val[jtag] += pj[itag + 8].val[jtag];
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    __syncwarp();/**< __syncwarp() for consistency */
 #endif//__CUDA_ARCH__ >= 700
 #endif//NWARP >= 16
     if( gtag == 0 ){
@@ -2141,7 +2251,7 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 #endif//defined(KAHAN_SUM_CORRECTION) && defined(ACCURATE_ACCUMULATION)
     }/* if( gtag == 0 ){ */
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    __syncwarp();/**< __syncwarp() for consistency */
 #endif//__CUDA_ARCH__ >= 700
 #endif//NWARP >= 8
 #else///NWARP > 1
@@ -3442,9 +3552,9 @@ void calcGravity_dev
 extern "C"
 void setGlobalConstants_walk_dev_cu
 (const real newton_hst, const real eps2_hst
-#ifndef WS93_MAC
+#   if  !defined(GADGET_MAC) && !defined(WS93_MAC)
  , const real theta2_hst
-#endif//WS93_MAC
+#endif//!defined(GADGET_MAC) && !defined(WS93_MAC)
 )
 {
   __NOTE__("%s\n", "start");
@@ -3452,39 +3562,32 @@ void setGlobalConstants_walk_dev_cu
 
   const real epsinv_hst = RSQRT(eps2_hst);
 
-  jnode jnode0_hst;
-#pragma unroll
-  for(int ii = 0; ii < NSTOCK; ii++)
-    jnode0_hst.idx[ii] = 0;
-
 #   if  CUDART_VERSION >= 5000
   cudaMemcpyToSymbol( newton , &newton_hst, sizeof( real), 0, cudaMemcpyHostToDevice);
 #ifndef INDIVIDUAL_GRAVITATIONAL_SOFTENING
   cudaMemcpyToSymbol( eps2   , &  eps2_hst, sizeof( real), 0, cudaMemcpyHostToDevice);
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
   cudaMemcpyToSymbol( epsinv , &epsinv_hst, sizeof( real), 0, cudaMemcpyHostToDevice);
-#ifndef WS93_MAC
+#   if  !defined(GADGET_MAC) && !defined(WS93_MAC)
   cudaMemcpyToSymbol( theta2 , &theta2_hst, sizeof( real), 0, cudaMemcpyHostToDevice);
-#endif//WS93_MAC
-  cudaMemcpyToSymbol( jnode0 , &jnode0_hst, sizeof(jnode), 0, cudaMemcpyHostToDevice);
+#endif//!defined(GADGET_MAC) && !defined(WS93_MAC)
 #else//CUDART_VERSION >= 5000
   cudaMemcpyToSymbol("newton", &newton_hst, sizeof( real), 0, cudaMemcpyHostToDevice);
 #ifndef INDIVIDUAL_GRAVITATIONAL_SOFTENING
   cudaMemcpyToSymbol("eps2"  , &  eps2_hst, sizeof( real), 0, cudaMemcpyHostToDevice);
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
   cudaMemcpyToSymbol("epsinv", &epsinv_hst, sizeof( real), 0, cudaMemcpyHostToDevice);
-#ifndef WS93_MAC
+#   if  !defined(GADGET_MAC) && !defined(WS93_MAC)
   cudaMemcpyToSymbol("theta2", &theta2_hst, sizeof( real), 0, cudaMemcpyHostToDevice);
-#endif//WS93_MAC
-  cudaMemcpyToSymbol("jnode0", &jnode0_hst, sizeof(jnode), 0, cudaMemcpyHostToDevice);
+#endif//!defined(GADGET_MAC) && !defined(WS93_MAC)
 #endif//CUDART_VERSION >= 5000
 
 #   if  SMPREF == 1
-#   if  GPUGEN < 70
+#   if  GPUVER < 70
   checkCudaErrors(cudaFuncSetCacheConfig(calcAcc_kernel, cudaFuncCachePreferShared));
-#else///GPUGEN < 70
-  checkCudaErrors(cudaFuncSetCacheConfig(calcAcc_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, SMEM_SIZE_SM_PREF));
-#endif//GPUGEN < 70
+#else///GPUVER < 70
+  checkCudaErrors(cudaFuncSetAttribute(calcAcc_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_SM));
+#endif//GPUVER < 70
 #endif//SMPREF == 1
 
 #   if  WIDEBANK == 0
@@ -3517,11 +3620,11 @@ void setGlobalConstants_walk_dev_cu
 
 
   /* remove shared memory if __global__ function does not use */
-#   if  GPUGEN >= 70
-  checkCudaErrors(cudaFuncSetCacheConfig(initFreeLst, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-  checkCudaErrors(cudaFuncSetCacheConfig(initAcc_Lst, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-  checkCudaErrors(cudaFuncSetCacheConfig(trimAcc_Lst, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-#endif//GPUGEN >= 70
+#   if  GPUVER >= 70
+  checkCudaErrors(cudaFuncSetAttribute(initFreeLst,    cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+  checkCudaErrors(cudaFuncSetAttribute(initAcc_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+  checkCudaErrors(cudaFuncSetAttribute(trimAcc_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+#endif//GPUVER >= 70
 
 
   __NOTE__("%s\n", "end");

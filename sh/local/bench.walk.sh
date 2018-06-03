@@ -37,14 +37,14 @@ echo "###############################################################" >> $LIST5
 echo "###############################################################" >> $LIST6
 echo "###############################################################" >> $LIST7
 ###############################################################
-echo "TARGET=nfw"       >> $LIST0
-echo "TARGET=king"      >> $LIST1
-echo "TARGET=hernquist" >> $LIST2
-echo "TARGET=plummer"   >> $LIST3
-echo "TARGET=hb"        >> $LIST4
-echo "TARGET=hbd"       >> $LIST5
-echo "TARGET=hbdd"      >> $LIST6
-echo "TARGET=ekes"      >> $LIST7
+echo "ulimit -t 3600" >> $LIST0
+echo "ulimit -t 3600" >> $LIST1
+echo "ulimit -t 3600" >> $LIST2
+echo "ulimit -t 3600" >> $LIST3
+echo "ulimit -t 3600" >> $LIST4
+echo "ulimit -t 3600" >> $LIST5
+echo "ulimit -t 3600" >> $LIST6
+echo "ulimit -t 3600" >> $LIST7
 ###############################################################
 echo "###############################################################" >> $LIST0
 echo "###############################################################" >> $LIST1
@@ -55,40 +55,75 @@ echo "###############################################################" >> $LIST5
 echo "###############################################################" >> $LIST6
 echo "###############################################################" >> $LIST7
 ###############################################################
-# compile initial condition generators
 make clean
-# make init
-# # clean up related object files
-# rm -f bin/obj/*.o
-# # generate initial conditions
-# # sh/local/init.sh 0
-# sh/local/init.sh 1
-# sh/local/init.sh 2
-# sh/local/init.sh 3
 ###############################################################
-# ACCERR=3.906250e-3
-# ABSERR=3.906250e-3
-ACCERR=7.812500e-3
-ABSERR=7.812500e-3
+FILE=m31
+ABSERR=1.953125000e-3
 ###############################################################
 INDEX=0
 ###############################################################
 for NTHREADS in 512 256 1024 128
 do
     ###########################################################
+    # for N_block = 2 with V100
     if [ $NTHREADS -eq  128 ]; then
-	# MAX_NLOOP=10
-	MAX_NLOOP=4
+	# MAX_NLOOP=22
+	MAX_NLOOP=6
     fi
     if [ $NTHREADS -eq  256 ]; then
-	MAX_NLOOP=4
+	# MAX_NLOOP=10
+	MAX_NLOOP=6
     fi
     if [ $NTHREADS -eq  512 ]; then
-	MAX_NLOOP=1
+	MAX_NLOOP=4
     fi
     if [ $NTHREADS -eq 1024 ]; then
 	MAX_NLOOP=1
     fi
+    ###########################################################
+    # # for N_block = 3 with V100
+    # if [ $NTHREADS -eq  128 ]; then
+    # 	# MAX_NLOOP=14
+    # 	MAX_NLOOP=6
+    # fi
+    # if [ $NTHREADS -eq  256 ]; then
+    # 	MAX_NLOOP=6
+    # fi
+    # if [ $NTHREADS -eq  512 ]; then
+    # 	MAX_NLOOP=2
+    # fi
+    # if [ $NTHREADS -eq 1024 ]; then
+    # 	MAX_NLOOP=2
+    # fi
+    ###########################################################
+    # # for N_block = 4 with V100
+    # if [ $NTHREADS -eq  128 ]; then
+    # 	# MAX_NLOOP=10
+    # 	MAX_NLOOP=6
+    # fi
+    # if [ $NTHREADS -eq  256 ]; then
+    # 	MAX_NLOOP=4
+    # fi
+    # if [ $NTHREADS -eq  512 ]; then
+    # 	MAX_NLOOP=1
+    # fi
+    # if [ $NTHREADS -eq 1024 ]; then
+    # 	MAX_NLOOP=1
+    # fi
+    ###########################################################
+    # # for N_block = 2 with Pascal or older GPUs
+    # if [ $NTHREADS -eq  128 ]; then
+    # 	MAX_NLOOP=10
+    # fi
+    # if [ $NTHREADS -eq  256 ]; then
+    # 	MAX_NLOOP=4
+    # fi
+    # if [ $NTHREADS -eq  512 ]; then
+    # 	MAX_NLOOP=1
+    # fi
+    # if [ $NTHREADS -eq 1024 ]; then
+    # 	MAX_NLOOP=1
+    # fi
     ###########################################################
     # pad 0s for NTHREADS
     digit=4
@@ -163,7 +198,7 @@ do
 		echo "## generate $EXEC" >> $ERR
 		###############################################
 		# compile the N-body code w/ neighbor searching
-		make -j gothic MEASURE_ELAPSED_TIME=1 LOCALIZE_I_PARTICLES=1 BRUTE_FORCE_LOCALIZER=1 FACILE_NEIGHBOR_SEARCH=1 HUNT_OPTIMAL_WALK_TREE=1 HUNT_OPTIMAL_INTEGRATE=1 HUNT_OPTIMAL_MAKE_TREE=0 HUNT_OPTIMAL_MAKE_NODE=0 HUNT_OPTIMAL_NEIGHBOUR=0 HUNT_OPTIMAL_SEPARATION=1 NUM_NTHREADS=$NTHREADS NUM_TSUB=$TSUB NUM_NLOOP=${NLOOP} NUM_NWARP=${NWARP} LENGTH_FACTOR=$INPUT_FACTOR ADOPT_GADGET_TYPE_MAC=1 ADOPT_WS93_TYPE_MAC=1 1>>$LOG 2>>$ERR
+		make -j gothic MEASURE_ELAPSED_TIME=1 HUNT_OPTIMAL_WALK_TREE=1 HUNT_OPTIMAL_INTEGRATE=1 HUNT_OPTIMAL_MAKE_TREE=0 HUNT_OPTIMAL_MAKE_NODE=0 HUNT_OPTIMAL_NEIGHBOUR=0 HUNT_OPTIMAL_SEPARATION=1 NUM_NTHREADS=$NTHREADS NUM_TSUB=$TSUB NUM_NLOOP=${NLOOP} NUM_NWARP=${NWARP} ADOPT_GADGET_TYPE_MAC=1 1>>$LOG 2>>$ERR
 		###############################################
 		# rename the executable
 		mv bin/gothic $EXEC
@@ -181,21 +216,31 @@ do
 		    # echo ${LINE%/*}  # $LINE のフォルダ名を取得
 		    # echo ${LINE##*/} # $LINE のファイル名を取得
 		    TARGET=log/${EXEC##*/}
-		    echo "$EXEC -accErr=$ACCERR -absErr=$ABSERR -file=\${TARGET} -jobID=$INDEX 1>>${TARGET}.${INDEX}.log 2>>${TARGET}.${INDEX}.err" >> $LIST0
-		    INDEX=`expr $INDEX + 1`
-		    echo "$EXEC -accErr=$ACCERR -absErr=$ABSERR -file=\${TARGET} -jobID=$INDEX 1>>${TARGET}.${INDEX}.log 2>>${TARGET}.${INDEX}.err" >> $LIST1
-		    INDEX=`expr $INDEX + 1`
-		    echo "$EXEC -accErr=$ACCERR -absErr=$ABSERR -file=\${TARGET} -jobID=$INDEX 1>>${TARGET}.${INDEX}.log 2>>${TARGET}.${INDEX}.err" >> $LIST2
-		    INDEX=`expr $INDEX + 1`
-		    echo "$EXEC -accErr=$ACCERR -absErr=$ABSERR -file=\${TARGET} -jobID=$INDEX 1>>${TARGET}.${INDEX}.log 2>>${TARGET}.${INDEX}.err" >> $LIST3
-		    INDEX=`expr $INDEX + 1`
-		    echo "$EXEC -accErr=$ACCERR -absErr=$ABSERR -file=\${TARGET} -jobID=$INDEX 1>>${TARGET}.${INDEX}.log 2>>${TARGET}.${INDEX}.err" >> $LIST4
-		    INDEX=`expr $INDEX + 1`
-		    echo "$EXEC -accErr=$ACCERR -absErr=$ABSERR -file=\${TARGET} -jobID=$INDEX 1>>${TARGET}.${INDEX}.log 2>>${TARGET}.${INDEX}.err" >> $LIST5
-		    INDEX=`expr $INDEX + 1`
-		    echo "$EXEC -accErr=$ACCERR -absErr=$ABSERR -file=\${TARGET} -jobID=$INDEX 1>>${TARGET}.${INDEX}.log 2>>${TARGET}.${INDEX}.err" >> $LIST6
-		    INDEX=`expr $INDEX + 1`
-		    echo "$EXEC -accErr=$ACCERR -absErr=$ABSERR -file=\${TARGET} -jobID=$INDEX 1>>${TARGET}.${INDEX}.log 2>>${TARGET}.${INDEX}.err" >> $LIST7
+		    kind=`expr $INDEX % 8`
+		    if [ "$kind" -eq "0" ]; then
+			echo "numactl --cpunodebind=0 --localalloc $EXEC -absErr=$ABSERR -file=${FILE} -deviceID=0 -jobID=$INDEX 1>>${TARGET}.${INDEX}.log 2>>${TARGET}.${INDEX}.err" >> $LIST0
+		    fi
+		    if [ "$kind" -eq "1" ]; then
+			echo "numactl --cpunodebind=0 --localalloc $EXEC -absErr=$ABSERR -file=${FILE} -deviceID=1 -jobID=$INDEX 1>>${TARGET}.${INDEX}.log 2>>${TARGET}.${INDEX}.err" >> $LIST1
+		    fi
+		    if [ "$kind" -eq "2" ]; then
+			echo "numactl --cpunodebind=8 --localalloc $EXEC -absErr=$ABSERR -file=${FILE} -deviceID=2 -jobID=$INDEX 1>>${TARGET}.${INDEX}.log 2>>${TARGET}.${INDEX}.err" >> $LIST2
+		    fi
+		    if [ "$kind" -eq "3" ]; then
+			echo "numactl --cpunodebind=8 --localalloc $EXEC -absErr=$ABSERR -file=${FILE} -deviceID=3 -jobID=$INDEX 1>>${TARGET}.${INDEX}.log 2>>${TARGET}.${INDEX}.err" >> $LIST3
+		    fi
+		    if [ "$kind" -eq "4" ]; then
+			echo "numactl --cpunodebind=0 --localalloc $EXEC -absErr=$ABSERR -file=${FILE} -deviceID=0 -jobID=$INDEX 1>>${TARGET}.${INDEX}.log 2>>${TARGET}.${INDEX}.err" >> $LIST4
+		    fi
+		    if [ "$kind" -eq "5" ]; then
+			echo "numactl --cpunodebind=0 --localalloc $EXEC -absErr=$ABSERR -file=${FILE} -deviceID=1 -jobID=$INDEX 1>>${TARGET}.${INDEX}.log 2>>${TARGET}.${INDEX}.err" >> $LIST5
+		    fi
+		    if [ "$kind" -eq "6" ]; then
+			echo "numactl --cpunodebind=8 --localalloc $EXEC -absErr=$ABSERR -file=${FILE} -deviceID=2 -jobID=$INDEX 1>>${TARGET}.${INDEX}.log 2>>${TARGET}.${INDEX}.err" >> $LIST6
+		    fi
+		    if [ "$kind" -eq "7" ]; then
+			echo "numactl --cpunodebind=8 --localalloc $EXEC -absErr=$ABSERR -file=${FILE} -deviceID=3 -jobID=$INDEX 1>>${TARGET}.${INDEX}.log 2>>${TARGET}.${INDEX}.err" >> $LIST7
+		    fi
 		    INDEX=`expr $INDEX + 1`
 		    ###########################################
 		fi

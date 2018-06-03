@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/04 (Wed)
+ * @date 2018/06/01 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -26,7 +26,6 @@
 #include "../misc/structure.h"
 
 #include "../sort/peano.h"
-#include "../tree/macutil.h"
 #include "../tree/make.h"
 
 #ifndef SERIALIZED_EXECUTION
@@ -44,9 +43,16 @@
 #define USE_WARP_SHUFFLE_FUNC_MAC
 #endif//HUNT_NODE_PARAMETER
 
-#   if  defined(USE_WARP_SHUFFLE_FUNC_MAC) && (GPUGEN < 30)
+
+/** for better performance on V100 GPUs */
+#   if  defined(USE_WARP_SHUFFLE_FUNC_MAC) && (GPUVER >= 70)
 #undef          USE_WARP_SHUFFLE_FUNC_MAC
-#endif//defined(USE_WARP_SHUFFLE_FUNC_MAC) && (GPUGEN < 30)
+#endif//defined(USE_WARP_SHUFFLE_FUNC_MAC) && (GPUVER >= 70)
+
+
+#   if  defined(USE_WARP_SHUFFLE_FUNC_MAC) && (GPUVER < 30)
+#undef          USE_WARP_SHUFFLE_FUNC_MAC
+#endif//defined(USE_WARP_SHUFFLE_FUNC_MAC) && (GPUVER < 30)
 
 
 /**
@@ -55,11 +61,11 @@
  * @brief number of threads per block for calcMultipole_kernel
  */
 #ifndef NTHREADS_MAC
-#   if  (GPUGEN == 52)
+#   if  (GPUVER == 52)
 #define NTHREADS_MAC (256)
-#else///(GPUGEN == 52)
+#else///(GPUVER == 52)
 #define NTHREADS_MAC (128)
-#endif//(GPUGEN == 52)
+#endif//(GPUVER == 52)
 #endif//NTHREADS_MAC
 
 /** NTHREADS_MAC must be equal or smaller than 512 due to the capacity of shared memory */
@@ -88,11 +94,11 @@
  * @brief number of threads that share a common tree node for calcMultipole_kernel
  */
 #ifndef TSUB_MAC
-#   if  (GPUGEN >= 60)
+#   if  (GPUVER == 60) || (GPUVER == 61)
 #define TSUB_MAC (16)
-#else///(GPUGEN >= 60)
+#else///(GPUVER == 60) || (GPUVER == 61)
 #define TSUB_MAC (32)
-#endif//(GPUGEN >= 60)
+#endif//(GPUVER == 60) || (GPUVER == 61)
 #endif//TSUB_MAC
 
 /** TSUB_MAC must be equal or smaller than NTHREADS_MAC */
@@ -139,6 +145,7 @@
 #endif//DIV_TSUB_MAC
 #   if  TSUB_MAC == 32
 #define DIV_TSUB_MAC(a) ((a) >> 5)
+#define SHFL_MASK_TSUB_MAC SHFL_MASK_32
 #endif//TSUB_MAC == 32
 #   if  TSUB_MAC == 16
 #define DIV_TSUB_MAC(a) ((a) >> 4)
@@ -172,9 +179,15 @@
 #endif//HUNT_MAKE_PARAMETER
 
 
-#   if  defined(USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE) && (GPUGEN < 30)
+/** for better performance on V100 GPUs */
+#   if  !defined(USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE) && (GPUVER >= 70)
+#define          USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE
+#endif//!defined(USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE) && (GPUVER >= 70)
+
+
+#   if  defined(USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE) && (GPUVER < 30)
 #undef          USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE
-#endif//defined(USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE) && (GPUGEN < 30)
+#endif//defined(USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE) && (GPUVER < 30)
 
 
 /**
@@ -183,11 +196,15 @@
  * @brief number of threads per block for makeTree_kernel
  */
 #ifndef NTHREADS_MAKE_TREE
-#   if  (GPUGEN >= 60)
+#   if  (GPUVER >= 70)
+#define NTHREADS_MAKE_TREE (512)
+#else///(GPUVER >= 70)
+#   if  (GPUVER >= 60)
 #define NTHREADS_MAKE_TREE (256)
-#else///(GPUGEN >= 60)
+#else///(GPUVER >= 60)
 #define NTHREADS_MAKE_TREE (128)
-#endif//(GPUGEN >= 60)
+#endif//(GPUVER >= 60)
+#endif//(GPUVER >= 70)
 #endif//NTHREADS_MAKE_TREE
 
 
@@ -197,11 +214,11 @@
  * @brief number of threads per block for linkTree_kernel
  */
 #ifndef NTHREADS_LINK_TREE
-#   if  (GPUGEN >= 30)
+#   if  (GPUVER >= 30)
 #define NTHREADS_LINK_TREE (256)
-#else///(GPUGEN >= 30)
+#else///(GPUVER >= 30)
 #define NTHREADS_LINK_TREE (128)
-#endif//(GPUGEN >= 30)
+#endif//(GPUVER >= 30)
 #endif//NTHREADS_LINK_TREE
 
 
@@ -211,7 +228,11 @@
  * @brief number of threads per block for trimTree_kernel
  */
 #ifndef NTHREADS_TRIM_TREE
+#   if  (GPUVER >= 70)
+#define NTHREADS_TRIM_TREE (256)
+#else///(GPUVER >= 70)
 #define NTHREADS_TRIM_TREE (128)
+#endif//(GPUVER >= 70)
 #endif//NTHREADS_TRIM_TREE
 
 
@@ -296,11 +317,11 @@
  * @brief number of threads per block for initTreeLink_kernel
  */
 #ifndef NTHREADS_INIT_LINK
-#   if  (GPUGEN >= 30)
+#   if  (GPUVER >= 30)
 #define NTHREADS_INIT_LINK (512)
-#else///(GPUGEN >= 30)
+#else///(GPUVER >= 30)
 #define NTHREADS_INIT_LINK (256)
-#endif//(GPUGEN >= 30)
+#endif//(GPUVER >= 30)
 #endif//NTHREADS_INIT_LINK
 
 
@@ -310,15 +331,19 @@
  * @brief number of threads per block for initTreeCell_kernel
  */
 #ifndef NTHREADS_INIT_CELL
-#   if  (GPUGEN >= 52)
-#define NTHREADS_INIT_CELL (256)
-#else///(GPUGEN >= 52)
-#   if  (GPUGEN >= 30)
-#define NTHREADS_INIT_CELL (128)
-#else///(GPUGEN >= 30)
+#   if  (GPUVER >= 70)
 #define NTHREADS_INIT_CELL (512)
-#endif//(GPUGEN >= 30)
-#endif//(GPUGEN >= 52)
+#else///(GPUVER >= 70)
+#   if  (GPUVER >= 52)
+#define NTHREADS_INIT_CELL (256)
+#else///(GPUVER >= 52)
+#   if  (GPUVER >= 30)
+#define NTHREADS_INIT_CELL (128)
+#else///(GPUVER >= 30)
+#define NTHREADS_INIT_CELL (512)
+#endif//(GPUVER >= 30)
+#endif//(GPUVER >= 52)
+#endif//(GPUVER >= 70)
 #endif//NTHREADS_INIT_CELL
 
 
@@ -328,11 +353,15 @@
  * @brief number of threads per block for initTreeNode_kernel
  */
 #ifndef NTHREADS_INIT_NODE
-#   if  (GPUGEN >= 30)
+#   if  (GPUVER >= 70)
+#define NTHREADS_INIT_NODE (512)
+#else///(GPUVER >= 70)
+#   if  (GPUVER >= 30)
 #define NTHREADS_INIT_NODE (256)
-#else///(GPUGEN >= 30)
+#else///(GPUVER >= 30)
 #define NTHREADS_INIT_NODE (128)
-#endif//(GPUGEN >= 30)
+#endif//(GPUVER >= 30)
+#endif//(GPUVER >= 70)
 #endif//NTHREADS_INIT_NODE
 
 
@@ -352,19 +381,19 @@
  * @brief number of threads per block for copyRealBody_kernel
  */
 #ifndef NTHREADS_COPY_BODY
-#   if  (GPUGEN >= 60)
+#   if  (GPUVER >= 60)
 #define NTHREADS_COPY_BODY (512)
-#else///(GPUGEN >= 60)
-#   if  (GPUGEN >= 52)
+#else///(GPUVER >= 60)
+#   if  (GPUVER >= 52)
 #define NTHREADS_COPY_BODY (1024)
-#else///(GPUGEN >= 52)
-#   if  (GPUGEN >= 30)
+#else///(GPUVER >= 52)
+#   if  (GPUVER >= 30)
 #define NTHREADS_COPY_BODY (512)
-#else///(GPUGEN >= 30)
+#else///(GPUVER >= 30)
 #define NTHREADS_COPY_BODY (128)
-#endif//(GPUGEN >= 30)
-#endif//(GPUGEN >= 52)
-#endif//(GPUGEN >= 60)
+#endif//(GPUVER >= 30)
+#endif//(GPUVER >= 52)
+#endif//(GPUVER >= 60)
 #endif//NTHREADS_COPY_BODY
 
 

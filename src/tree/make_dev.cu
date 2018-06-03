@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/01 (Tue)
+ * @date 2018/05/31 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -20,10 +20,10 @@
 #include <stdbool.h>
 #include <helper_cuda.h>
 
-#ifdef  USE_COOPERATIVE_GROUPS
+#   if  defined(USE_COOPERATIVE_GROUPS) || (GPUGEN >= 70)
 #include <cooperative_groups.h>
 using namespace cooperative_groups;
-#endif//USE_COOPERATIVE_GROUPS
+#endif//defined(USE_COOPERATIVE_GROUPS) || (GPUGEN >= 70)
 
 #include "macro.h"
 #include "cudalib.h"
@@ -40,7 +40,6 @@ using namespace cooperative_groups;
 
 #include "../sort/peano.h"
 
-#include "macutil.h"
 #include "make.h"
 #include "make_dev.h"
 #include "let.h"/**< necessary to read EXTEND_NUM_TREE_NODE */
@@ -59,22 +58,22 @@ using namespace cooperative_groups;
 /** in shared memory preferred configuration, capacity of shared memory is 48KiB per SM on older GPUs */
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
 #define NBLOCKS_PER_SM_MAC ( (SMEM_SIZE_SM_PREF >> 4) / (NTHREADS_MAC * (1 +     NBUF_MAC)))
-/* #   if  GPUGEN >= 60 */
+/* #   if  GPUVER >= 60 */
 /* /\* 4096 = 64 * 1024 / 16 *\/ */
 /* #define NBLOCKS_PER_SM_MAC ( 4096 / (NTHREADS_MAC * (1 +     NBUF_MAC))) */
-/* #else///GPUGEN >= 60 */
+/* #else///GPUVER >= 60 */
 /* /\* 3072 = 48 * 1024 / 16 *\/ */
 /* #define NBLOCKS_PER_SM_MAC ( 3072 / (NTHREADS_MAC * (1 +     NBUF_MAC))) */
-/* #endif//GPUGEN >= 60 */
+/* #endif//GPUVER >= 60 */
 #else///USE_WARP_SHUFFLE_FUNC_MAC
 #define NBLOCKS_PER_SM_MAC ((SMEM_SIZE_SM_PREF >> 2) / (NTHREADS_MAC * (5 + 4 * NBUF_MAC)))
-/* #   if  GPUGEN >= 60 */
+/* #   if  GPUVER >= 60 */
 /* /\* 16384 = 64 * 1024 / 4 *\/ */
 /* #define NBLOCKS_PER_SM_MAC (16384 / (NTHREADS_MAC * (5 + 4 * NBUF_MAC))) */
-/* #else///GPUGEN >= 60 */
+/* #else///GPUVER >= 60 */
 /* /\* 12288 = 48 * 1024 / 4 *\/ */
 /* #define NBLOCKS_PER_SM_MAC (12288 / (NTHREADS_MAC * (5 + 4 * NBUF_MAC))) */
-/* #endif//GPUGEN >= 60 */
+/* #endif//GPUVER >= 60 */
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
 
 #define REGISTERS_PER_THREAD_MAC (80)
@@ -321,12 +320,9 @@ using namespace cooperative_groups;
 #endif//USE_OCCUPANCY_CALCULATOR
 
 
-#ifdef  GADGET_MAC
-__constant__      real mac_delta;/**< G / alpha */
-#endif//GADGET_MAC
-#ifdef  WS93_MAC
-__constant__      real mac_delta;/**< sqrt(3 / accErr) */
-#endif//WS93_MAC
+#   if  defined(GADGET_MAC) || defined(WS93_MAC)
+__constant__ real mac_delta;/**< G / alpha or sqrt(3 / accErr) */
+#endif//defined(GADGET_MAC) || defined(WS93_MAC)
 __constant__  treecell null_cell_device;
 __constant__ jparticle zero_pj;
 __constant__ jmass     zero_mj;
@@ -402,9 +398,6 @@ __global__ void initPHhierarchy_kernel(PHinfo *level)
       phLev.head = 0;
       phLev.num  = 1;
     }/* if( ii == 0 ){ */
-#   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
 
     /** store initialized information on PH-key hierarchy */
     level[ii] = phLev;
@@ -422,21 +415,21 @@ __global__ void initTreeCellOffset_kernel
 {
   const int ii = cellHead + GLOBALIDX_X1D;
 
-  if( ii < cellNum ){
-    /** initialize tree-cell information */
-    treecell tmp_null_cell = {0, NULL_CELL};
-    int tmp_hkey = -1;
+  /** initialize tree-cell information */
+  treecell tmp_null_cell = {0, NULL_CELL};
+  int tmp_hkey = -1;
 
-    /** set a root cell */
-    if( ii == 0 ){
-      tmp_null_cell.head = 0;
-      tmp_null_cell.num  = piNum;
-      tmp_hkey           = 0;
-    }/* if( ii == 0 ){ */
+  /** set a root cell */
+  if( ii == 0 ){
+    tmp_null_cell.head = 0;
+    tmp_null_cell.num  = piNum;
+    tmp_hkey           = 0;
+  }/* if( ii == 0 ){ */
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
+  if( ii < cellNum ){
     /** store initialized information on tree-cell */
     cell    [ii] = tmp_null_cell;
     hkey    [ii] = tmp_hkey;
@@ -516,25 +509,25 @@ makeTree_kernel
 
   const int  idx = DIV_TSUB_MAKE_TREE(tidx);
 
-  /** shared quantities in the thread parallelized version */
-  __shared__ PHinfo lev_sm[NUM_PHKEY_LEVEL];
-  if( tidx < NUM_PHKEY_LEVEL )
-    lev_sm[tidx] = level[tidx];
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  thread_block_tile<TSUB_MAKE_TREE> tile = tiled_partition<TSUB_MAKE_TREE>(this_thread_block());
 #endif//__CUDA_ARCH__ >= 700
-  __shared__ treecell cell_sm[NTHREADS_MAKE_TREE];
-  __shared__ PHint    hkey_sm[NTHREADS_MAKE_TREE];
-
-  __shared__ int smem[NTHREADS_MAKE_TREE];
-
 
   /** initialize number of tree cells */
   int numCell = 1;
 
+  /** shared quantities in the thread parallelized version */
+  __shared__ int smem[NTHREADS_MAKE_TREE];
+  __shared__ treecell cell_sm[NTHREADS_MAKE_TREE];
+  __shared__ PHint    hkey_sm[NTHREADS_MAKE_TREE];
+
+  __shared__ PHinfo lev_sm[NUM_PHKEY_LEVEL];
+  if( tidx < NUM_PHKEY_LEVEL )
+    lev_sm[tidx] = level[tidx];
+  __syncthreads();
+
 
   /** make tree structure in a width-first manner */
-  __syncthreads();
   for(int levelIdx = 0; levelIdx < MAXIMUM_PHKEY_LEVEL; levelIdx++){
     /** set level of tree cells to examine in this procedure */
     const PHinfo lev = lev_sm[levelIdx];
@@ -573,15 +566,11 @@ makeTree_kernel
 	}/* if( (tidx < NGROUPS_MAKE_TREE) && (cidx < cellTail) ){ */
 	__syncthreads();
 
-	cidx = cellHead + gnum * iter + bidx * NGROUPS_MAKE_TREE + idx;
-	const treecell root = (cidx < cellTail) ? (cell_sm[idx]) : (null_cell_device);
-	const PHint keyHead = (cidx < cellTail) ? (hkey_sm[idx]) : ((PHint)(-1));
+	cidx = cellHead + gnum * iter + bidx * NGROUPS_MAKE_TREE + idx;/**< common in TSUB_MAKE_TREE (= CELL_UNIT = 8) threads */
+	const treecell root = (cidx < cellTail) ? (cell_sm[idx]) : (null_cell_device);/**< common in TSUB_MAKE_TREE (= CELL_UNIT = 8) threads */
+	const PHint keyHead = (cidx < cellTail) ? (hkey_sm[idx]) : ((PHint)(-1));/**< common in TSUB_MAKE_TREE (= CELL_UNIT = 8) threads */
 
-	const bool node = (root.num > NCRIT) ? (true) : (false);
-/* #ifndef NDEBUG */
-/* 	if( (bidx + tidx == 0) && (levelIdx > 12) ) */
-/* 	  printf("lev = %d, cidx = %d, root.head = %d, root.num = %d (%lu <= key <= %lu, leafScale = %lu)\n", levelIdx, cidx, root.head, root.num, peano[root.head], peano[root.head + root.num - 1], leafScale); */
-/* #endif//NDEBUG */
+	const bool node = (root.num > NCRIT) ? (true) : (false);/**< common in TSUB_MAKE_TREE (= CELL_UNIT = 8) threads */
 
 	/** divide the responsible tree cell if the cell is not a leaf cell */
 	__syncthreads();
@@ -589,11 +578,16 @@ makeTree_kernel
 	cell_sm[tidx].num = root.num;
 	int addChild = 0;
 	if( node ){
+	  int ihead = 0;
+	  int itail = root.num - 1;
+
 	  /** the responsible tree cell is a node cell */
-	  if( lane == 0 )
+	  if( lane == 0 ){
 	    leaf[cidx] = false;
+	    hkey_sm[tidx] = peano[root.head + itail];
+	  }/* if( lane == 0 ){ */
 #   if  __CUDA_ARCH__ >= 700
-	  __syncwarp();
+	  tile.sync();/**< tile.sync() to reduce warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
 	  /** find CELL_UNIT - 1 (== TSUB_MAKE_TREE - 1 == 7) boundaries (in maximum) */
@@ -601,15 +595,8 @@ makeTree_kernel
 	    /** properties of the PH-key of the focused child cell */
 	    /** NOTE: the child cell may not exist */
 	    const PHint ktail = keyHead + (1 + lane) * leafScale;
-	    int ihead = 0;
-	    int itail = root.num - 1;
 
 	    /** check whether the specified region contains keys between khead and ktail */
-	    if( lane == 0 )
-	      hkey_sm[tidx] = peano[root.head + itail];
-#   if  __CUDA_ARCH__ >= 700
-	    __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
 	    if( ktail <= hkey_sm[ghead] ){
 	      /** find the tail of the PH-key for the child cell using bisection method */
 	      while( true ){
@@ -619,30 +606,24 @@ makeTree_kernel
 		uint ihalf = (uint)(ihead + itail) >> 1;
 		if( peano[root.head + ihalf] <= ktail )		  ihead = (int)ihalf;
 		else		                                  itail = (int)ihalf;
-#   if  __CUDA_ARCH__ >= 700
-		__syncwarp();
-#endif//__CUDA_ARCH__ >= 700
 	      }/* while( true ){ */
 
 	      itail = ihead;
 	    }/* if( ktail <= hkey_sm[ghead] ){ */
-#   if  __CUDA_ARCH__ >= 700
-	    __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
 
 	    if( ((peano[root.head] - keyHead) / leafScale) <= lane )
 	      itail++;
 	    cell_sm[tidx].num = itail;
 	  }/* if( lane < (CELL_UNIT - 1) ){ */
 #   if  __CUDA_ARCH__ >= 700
-	  __syncwarp();
+	  tile.sync();/**< tile.sync() for consistency */
 #endif//__CUDA_ARCH__ >= 700
 
 	  /** assume implicit synchronization within a warp */
 	  if( lane > 0 )
 	    cell_sm[tidx].head = cell_sm[tidx - 1].num;
 #   if  __CUDA_ARCH__ >= 700
-	  __syncwarp();
+	  tile.sync();/**< tile.sync() to reduce warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 	  cell_sm[tidx].num -= cell_sm[tidx].head;
 	  cell_sm[tidx].head += root.head;
@@ -655,7 +636,7 @@ makeTree_kernel
 #endif//SPLIT_CHILD_CELL
 	}/* if( node ){ */
 #   if  __CUDA_ARCH__ >= 700
-	__syncwarp();
+	__syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
 	/** calculate prefix sum about addChild */
@@ -664,7 +645,7 @@ makeTree_kernel
 	if( bidx + tidx == 0 )
 	  *scanNum_gm = scanNum;
 #   if  __CUDA_ARCH__ >= 700
-	__syncwarp();
+	__syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
 	targetIdx += tail - addChild;/**< this must be an exclusive scan */
@@ -678,7 +659,7 @@ makeTree_kernel
 	if( (node) && (lane == 0) )
 	  children[cidx] = ((tag - 1) << IDXBITS) + targetIdx;
 #   if  __CUDA_ARCH__ >= 700
-	__syncwarp();
+	__syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
 #ifdef  SPLIT_CHILD_CELL
@@ -704,9 +685,6 @@ makeTree_kernel
 	  hkey  [targetIdx] = keyHead + lane * leafScale;
 	  parent[targetIdx] = cidx;
 	}/* if( addChild > 0 ){ */
-#   if  __CUDA_ARCH__ >= 700
-	__syncwarp();
-#endif//__CUDA_ARCH__ >= 700
 #endif//SPLIT_CHILD_CELL
       }/* if( bidx < bnumSub ){ */
 
@@ -719,10 +697,6 @@ makeTree_kernel
       const  int addCellNum = smem[0];
       tail    += addCellNum;
       numCell += addCellNum;
-/* #ifndef NDEBUG */
-/*       if( bidx + tidx == 0 ) */
-/* 	printf("scanNum = %d, bnum = %d, bnumSub = %d\n", *scanNum_gm, bnum, bnumSub); */
-/* #endif//NDEBUG */
     }/* for(int iter = 0; iter < Niter; iter++){ */
 
     daughter.head =        cellTail;
@@ -730,12 +704,10 @@ makeTree_kernel
     if( tidx == 0 )
       lev_sm[levelIdx + 1] = daughter;
 
-/* #ifndef NDEBUG */
-/*     if( bidx + tidx == 0 ) */
-/*       printf("level %d: numCell = %d, daughter.num = %d\n", levelIdx, numCell, daughter.num); */
-/* #endif//NDEBUG */
-    if( daughter.num == 0 )
+    if( daughter.num == 0 ){
+      __syncthreads();
       break;
+    }/* if( daughter.num == 0 ){ */
 
     globalSync(tidx, bidx, bnum, gsync0Ful, gsync1Ful);
   }/* for(int levelIdx = 0; levelIdx < MAXIMUM_PHKEY_LEVEL; levelIdx++){ */
@@ -791,7 +763,7 @@ __device__ __forceinline__ void linkNode
   if( nadd > 0 )
     *ptag = ((nadd - 1) << IDXBITS) + headIdx;
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
   /** when the tree cell is a leaf cell, then more index specifies the cell itself */
@@ -806,7 +778,7 @@ __device__ __forceinline__ void linkNode
     }/* for(int jj = 0; jj < nadd; jj++){ */
   }/* if( (head != NULL_CELL) && lear_cell ){ */
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
   *phead += scanNum;
@@ -992,6 +964,7 @@ void makeTreeStructure_dev
 #endif//HUNT_MAKE_PARAMETER
 
   Nrem = BLOCKSIZE(*nodeNum, NTHREADS_INIT_NODE);
+  __NOTE__("launch initTreeNode_kernel\n");
   if( Nrem <= MAX_BLOCKS_PER_GRID ){
     /* initTreeNode_kernel<<<Nrem, NTHREADS_INIT_NODE>>>(*nodeNum, node.more, node.node2cell); */
     initTreeNode_kernel<<<Nrem, NTHREADS_INIT_NODE>>>(node.more, node.node2cell);
@@ -1018,6 +991,7 @@ void makeTreeStructure_dev
   initStopwatch();
 #endif//HUNT_MAKE_PARAMETER
 
+  __NOTE__("launch initPHhierarchy_kernel\n");
   initPHhierarchy_kernel<<<1, NUM_PHKEY_LEVEL>>>(cell.level);
 
 #ifdef  HUNT_MAKE_PARAMETER
@@ -1030,6 +1004,7 @@ void makeTreeStructure_dev
 #ifdef  USE_OCCUPANCY_CALCULATOR
   const int NBLOCKS_PER_SM_MAKE_TREE = buf.numBlocksPerSM_make_tree;
 #endif//USE_OCCUPANCY_CALCULATOR
+  __NOTE__("launch makeTree_kernel: %d blocks per SM, %d SMs\n", NBLOCKS_PER_SM_MAKE_TREE, devProp.numSM);
   makeTree_kernel<<<devProp.numSM * NBLOCKS_PER_SM_MAKE_TREE, NTHREADS_MAKE_TREE>>>
     (leafLev_dev, cell.level, cellNum_dev, cell.cell, cell.hkey, cell.leaf, cell.children, cell.parent, peano,
      buf.gmem_make_tree, scanNum_dev, buf.gsync0_make_tree, buf.gsync1_make_tree, buf.gsync2_make_tree, buf.gsync3_make_tree);
@@ -1058,6 +1033,7 @@ void makeTreeStructure_dev
 #ifdef  USE_OCCUPANCY_CALCULATOR
   const int NBLOCKS_PER_SM_LINK_TREE = buf.numBlocksPerSM_link_tree;
 #endif//USE_OCCUPANCY_CALCULATOR
+  __NOTE__("launch linkTree_kernel: %d blocks per SM, %d SMs\n", NBLOCKS_PER_SM_LINK_TREE, devProp.numSM);
   linkTree_kernel<<<devProp.numSM * NBLOCKS_PER_SM_LINK_TREE, NTHREADS_LINK_TREE>>>
     (*cellNum, cell.cell, cell.leaf, cell.ptag,
      nodeNum_dev, node.more, node.jtag,
@@ -1078,6 +1054,7 @@ void makeTreeStructure_dev
   fflush(NULL);
   exit(0);
 #endif
+  __NOTE__("launch trimTree_kernel\n");
   if( Nrem <= MAX_BLOCKS_PER_GRID )
     trimTree_kernel<<<Nrem, NTHREADS_TRIM_TREE>>>(0, *cellNum, cell.cell, cell.leaf, cell.children, cell.ptag, node.node2cell, node.more);
   else{
@@ -1259,7 +1236,7 @@ __global__ void enforceBarnesHutMAC
     ai[gidx] = iacc;
   }/* if( gidx < Ni ){ */
 #   if  __CUDA_ARCH__ >= 700
-  __syncwarp();
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
   if( gidx < Nj ){
@@ -1541,6 +1518,10 @@ calcMultipole_kernel
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
   const int hbuf = DIV_TSUB_MAC(head) * TSUB_MAC * NBUF_MAC;/**< head index of the shared array close and queue within a thread group */
 
+#   if  (__CUDA_ARCH__ >= 700) && (TSUB_MAC < 32)
+  thread_block_tile<TSUB_MAC> tile = tiled_partition<TSUB_MAC>(this_thread_block());
+#endif//(__CUDA_ARCH__ >= 700) && (TSUB_MAC < 32)
+
 #ifdef  USE_COOPERATIVE_GROUPS
   grid_group grid = this_grid();
 #endif//USE_COOPERATIVE_GROUPS
@@ -1570,6 +1551,11 @@ calcMultipole_kernel
     /** if cidx is not less than tail, then the thread has a null leaf-cell */
     const PHinfo clev = level[levelIdx];
 
+/* #ifndef NDEBUG */
+/*     if( gidx == 0 ) */
+/*       printf("l%d: levelIdx = %d, bsize = %d, bnum = %d\n", __LINE__, levelIdx, BLOCKSIZE(clev.num, bnum * NGROUPS_MAC), bnum); */
+/* #endif//NDEBUG */
+
 #ifdef  USE_COOPERATIVE_GROUPS
     grid.sync();
 #else///USE_COOPERATIVE_GROUPS
@@ -1578,16 +1564,32 @@ calcMultipole_kernel
 
     /** loop to set a maximum number for # of blocks */
     for(int ii = 0; ii < BLOCKSIZE(clev.num, bnum * NGROUPS_MAC); ii++){
-      const      int cidx =  clev.head + DIV_TSUB_MAC(gidx + ii * bnum * NTHREADS_MAC);
-      const treecell root = (cidx < clev.head + clev.num) ? (cell[cidx]) : (null_cell_device);
+      const      int cidx =  clev.head + DIV_TSUB_MAC(gidx + ii * bnum * NTHREADS_MAC);/**< common in TSUB_MAC (<= 32) threads */
+      const treecell root = (cidx < clev.head + clev.num) ? (cell[cidx]) : (null_cell_device);/**< common in TSUB_MAC (<= 32) threads */
+/* #ifndef NDEBUG */
+/*       if( gidx == 0 ) */
+/* 	printf("l%d: cidx = %d\n", __LINE__, cidx); */
+/* #endif//NDEBUG */
 
       /** extend the pseudo particle chain */
-      if( root.head != NULL_CELL ){
+      if( root.head != NULL_CELL ){/**< common in TSUB_MAC (<= 32) threads */
 #ifdef  COUNT_INTERACTIONS
 	local.cellNum++;
 #endif//COUNT_INTERACTIONS
 
-	if( !leaf[cidx] ){
+	if( !leaf[cidx] ){/**< common in TSUB_MAC (<= 32) threads */
+/* #ifndef NDEBUG */
+/* 	  if( (lane == 0) && (levelIdx == 15)  && (ii > 3) && (bidx == 305) ) */
+/* 	    printf("l%d: %d; %d, %d: cidx = %d\n", __LINE__, ii, bidx, tidx, cidx); */
+/* #   if  __CUDA_ARCH__ >= 700 */
+/* 	  /\** synchronization to reduce warp divergence *\/ */
+/* #   if  TSUB_MAC == 32 */
+/* 	  __syncwarp(); */
+/* #else///TSUB_MAC == 32 */
+/* 	  tile.sync(); */
+/* #endif//TSUB_MAC == 32 */
+/* #endif//__CUDA_ARCH__ >= 700 */
+/* #endif//NDEBUG */
 	  /** when the tree cell is a node cell, then calculate multipole moment(s) of the cell */
 	  jparticle jcom = {ZERO, ZERO, ZERO, ZERO};
 #ifdef  WS93_MAC
@@ -1622,6 +1624,14 @@ calcMultipole_kernel
 	    mjrj2 += mr2[sidx];
 #endif//WS93_MAC
 	  }/* for(int jj = lane; jj < cnum; jj += TSUB_MAC){ */
+#   if  __CUDA_ARCH__ >= 700
+	  /** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
+	  __syncwarp();
+#else///TSUB_MAC == 32
+	  tile.sync();
+#endif//TSUB_MAC == 32
+#endif//__CUDA_ARCH__ >= 700
 
 	  /** sum up partial sums within TSUB_MAC threads */
 	  pj_sm[tidx] = jcom;
@@ -1644,15 +1654,29 @@ calcMultipole_kernel
 	  jcom = pj_sm[head];
 
 #ifdef  WS93_MAC
+#   if  defined(USE_WARP_SHUFFLE_FUNC_MAC) && (TSUB_MAC < 32)
+#   if  __CUDA_ARCH__ >= 700
+	  const uint SHFL_MASK_TSUB_MAC = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
+#else///__CUDA_ARCH__ >= 700
+	  const uint SHFL_MASK_TSUB_MAC = SHFL_MASK_32;
+#endif//__CUDA_ARCH__ >= 700
+#endif//defined(USE_WARP_SHUFFLE_FUNC_MAC) && (TSUB_MAC < 32)
 	  mjrj2 = TOTAL_SUM_TSUB(mjrj2
-#ifndef USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
+#ifdef  USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
+				 , SHFL_MASK_TSUB_MAC
+#else///USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
 				 , smem, tidx, head
 #endif//USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
 				 );
 	  if( lane == 0 )
 	    mr2[jidx] = mjrj2;
 #   if  __CUDA_ARCH__ >= 700
+	  /** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
 	  __syncwarp();
+#else///TSUB_MAC == 32
+	  tile.sync();
+#endif//TSUB_MAC == 32
 #endif//__CUDA_ARCH__ >= 700
 #endif//WS93_MAC
 
@@ -1679,7 +1703,12 @@ calcMultipole_kernel
 	    mj[jidx] =  mj_loc;
 	  }/* if( lane == 0 ){ */
 #   if  __CUDA_ARCH__ >= 700
+	  /** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
 	  __syncwarp();
+#else///TSUB_MAC == 32
+	  tile.sync();
+#endif//TSUB_MAC == 32
 #endif//__CUDA_ARCH__ >= 700
 
 #ifdef  COUNT_INTERACTIONS
@@ -1694,12 +1723,36 @@ calcMultipole_kernel
 	  int inum = root.num;
 	  int Ntry = 1;
 	  if( lane == 0 )	    list0[hbuf] = cidx;
+/* #ifndef NDEBUG */
+/* 	  /\* if( inum > NI_BMAX_ESTIMATE ) *\/ */
+/* 	  /\*   printf("l%d: inum = %d @ (%d, %d)\n", __LINE__, inum, bidx, tidx); *\/ */
+/* 	  if( (cidx == 3504557) || (cidx == 3504558) ) */
+/* 	    printf("l%d: inum = %d(%d) @ (%d, %d)\n", __LINE__, inum, NI_BMAX_ESTIMATE, bidx, tidx); */
+/* #endif//NDEBUG */
 #   if  __CUDA_ARCH__ >= 700
+	  /** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
 	  __syncwarp();
+#else///TSUB_MAC == 32
+	  tile.sync();
+#endif//TSUB_MAC == 32
 #endif//__CUDA_ARCH__ >= 700
 
 	  /** pick up NI_BMAX_ESTIMATE i-particles in maximum to estimate bmax */
 	  while( inum > NI_BMAX_ESTIMATE ){
+/* #ifndef NDEBUG */
+/* 	    /\* if( lane == 0 ) *\/ */
+/* 	    if( (lane == 0) && (levelIdx == 15) && (bidx == 305) && (ii > 3) && ((tidx == 80) || (tidx == 96)) ) */
+/* 	      printf("l%d: inum = %d @ (%d, %d)\n", __LINE__, inum, bidx, tidx); */
+/* #   if  __CUDA_ARCH__ >= 700 */
+/* 	    /\** synchronization to reduce warp divergence *\/ */
+/* #   if  TSUB_MAC == 32 */
+/* 	    __syncwarp(); */
+/* #else///TSUB_MAC == 32 */
+/* 	    tile.sync(); */
+/* #endif//TSUB_MAC == 32 */
+/* #endif//__CUDA_ARCH__ >= 700 */
+/* #endif//NDEBUG */
 	    real rmin = ZERO;
 	    int Nloc = 0;
 	    int Nbuf = 0;
@@ -1723,22 +1776,51 @@ calcMultipole_kernel
 		  for(int jj = 1; jj < nodenum; jj++)
 		    cnum += (1 + (more[nodehead + jj] >> IDXBITS));
 		}/* if( (lane + ibuf * TSUB_MAC) < Nsweep ){ */
+/* #ifndef NDEBUG */
+/* 		/\* if( lane == 0 ) *\/ */
+/* 		if( (cidx == 3504557) || (cidx == 3504558) ) */
+/* 		  printf("l%d: cnum = %d (%d/%d) @ (%d, %d)\n", __LINE__, cnum, iter, Niter, bidx, tidx); */
+/* #endif//NDEBUG */
 #   if  __CUDA_ARCH__ >= 700
+		/** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
 		__syncwarp();
+#else///TSUB_MAC == 32
+		tile.sync();
+#endif//TSUB_MAC == 32
 #endif//__CUDA_ARCH__ >= 700
 
+
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
-		smem = PREFIX_SUM_TSUB(cnum, lane);
+#   if  TSUB_MAC < 32
+#   if  __CUDA_ARCH__ >= 700
+		uint SHFL_MASK_TSUB_MAC = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
+#else///__CUDA_ARCH__ >= 700
+		const uint SHFL_MASK_TSUB_MAC = SHFL_MASK_32;
+#endif//__CUDA_ARCH__ >= 700
+#endif//TSUB_MAC < 32
+		smem = PREFIX_SUM_TSUB(cnum, lane, SHFL_MASK_TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
 		PREFIX_SUM_TSUB(cnum, lane, (int *)smem, tidx);
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
 
+/* #ifndef NDEBUG */
+/* 		if( (cidx == 3504557) || (cidx == 3504558) ) */
+/* 		  printf("l%d: smem = %d @ (%d, %d)\n", __LINE__, smem, bidx, tidx); */
+/* 		/\* if( lane == 0 ) *\/ */
+/* 		/\*   printf("l%d: cnum = %d @ (%d, %d)\n", __LINE__, cnum, bidx, tidx); *\/ */
+/* #endif//NDEBUG */
+
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
-		const int lend = BLOCKSIZE(__SHFL(smem, TSUB_MAC - 1, TSUB_MAC), NBUF_MAC * TSUB_MAC);
+		const int lend = BLOCKSIZE(__SHFL(SHFL_MASK_TSUB_MAC, smem, TSUB_MAC - 1, TSUB_MAC), NBUF_MAC * TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
-		const int lend = BLOCKSIZE(       smem[tail].i,                  NBUF_MAC * TSUB_MAC);
+		const int lend = BLOCKSIZE(                           smem[tail].i,                  NBUF_MAC * TSUB_MAC);
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
 
+/* #ifndef NDEBUG */
+/* 		if( (cidx == 3504557) || (cidx == 3504558) ) */
+/* 		  printf("l%d: lend = %d @ (%d, %d)\n", __LINE__, lend, bidx, tidx); */
+/* #endif//NDEBUG */
 
 		for(int ll = 0; ll < lend; ll++){
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
@@ -1757,6 +1839,14 @@ calcMultipole_kernel
 		    pjidx[shead + jj] = chead;
 		    chead++;
 		  }/* for(int jj = 0; jj < unum; jj++){ */
+#   if  __CUDA_ARCH__ >= 700
+		  /** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
+		  __syncwarp();
+#else///TSUB_MAC == 32
+		  tile.sync();
+#endif//TSUB_MAC == 32
+#endif//__CUDA_ARCH__ >= 700
 		  cnum -= unum;
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
 		  const int Ntmp = smem         - (NBUF_MAC * TSUB_MAC);/**< Ntmp is a temporal buffer */
@@ -1764,6 +1854,10 @@ calcMultipole_kernel
 		  const int Ntmp = smem[tidx].i - (NBUF_MAC * TSUB_MAC);/**< Ntmp is a temporal buffer */
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
 
+/* #ifndef NDEBUG */
+/* 		  if( (cidx == 3504557) || (cidx == 3504558) ) */
+/* 		    printf("l%d: cnum = %d (%d/%d) @ (%d, %d)\n", __LINE__, cnum, ll, lend, bidx, tidx); */
+/* #endif//NDEBUG */
 
 		  /** pick up candidate tree nodes */
 #   if  NBUF_MAC == 4
@@ -1774,11 +1868,20 @@ calcMultipole_kernel
 		  alignedFlt rjmax_loc = { REAL_MIN,  REAL_MIN};
 		  alignedInt pjidx_loc = {NULL_NODE, NULL_NODE};
 #endif//NBUF_MAC == 2
+
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
-		  const int stail = (__SHFL(smem, TSUB_MAC - 1, TSUB_MAC) < (TSUB_MAC * NBUF_MAC)) ? (__SHFL(smem, TSUB_MAC - 1, TSUB_MAC)) : (TSUB_MAC * NBUF_MAC);
+#   if  (TSUB_MAC < 32) && (__CUDA_ARCH__ >= 700)
+		  SHFL_MASK_TSUB_MAC = __activemask();/**< mask may be change from the previous one */
+#endif//(TSUB_MAC < 32) && (__CUDA_ARCH__ >= 700)
+		  int stail = __SHFL(SHFL_MASK_TSUB_MAC, smem, TSUB_MAC - 1, TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
-		  const int stail = (       smem[tail].i                  < (TSUB_MAC * NBUF_MAC)) ? (       smem[tail].i                 ) : (TSUB_MAC * NBUF_MAC);
+		  int stail =                            smem[tail].i                 ;
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
+		  stail = (stail < (TSUB_MAC * NBUF_MAC)) ? stail : (TSUB_MAC * NBUF_MAC);
+/* #ifndef NDEBUG */
+/* 		  if( (cidx == 3504557) || (cidx == 3504558) ) */
+/* 		    printf("l%d: stail = %d (%d/%d) @ (%d, %d)\n", __LINE__, stail, ll, lend, bidx, tidx); */
+/* #endif//NDEBUG */
 
 #pragma unroll
 		  for(int kk = 0; kk < NBUF_MAC; kk++){
@@ -1803,17 +1906,35 @@ calcMultipole_kernel
 		      pjidx_loc.ia[kk] = kidx;
 		      rjmax_loc.ra[kk] = rjmax;
 		    }/* if( rjmax > rmin ){ */
-#   if  __CUDA_ARCH__ >= 700
-		    __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
 		  }/* for(int kk = 0; kk < NBUF_MAC; kk++){ */
+/* #ifndef NDEBUG */
+/* 		  if( (cidx == 3504557) || (cidx == 3504558) ) */
+/* 		    printf("l%d: rmin = %e (%d/%d) @ (%d, %d)\n", __LINE__, rmin, ll, lend, bidx, tidx); */
+/* #endif//NDEBUG */
+#   if  __CUDA_ARCH__ >= 700
+		  /** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
+		  __syncwarp();
+#else///TSUB_MAC == 32
+		  tile.sync();
+#ifdef  USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
+		  SHFL_MASK_TSUB_MAC = __activemask();/**< mask may be change from the previous one */
+#endif//USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
+#endif//TSUB_MAC == 32
+#endif//__CUDA_ARCH__ >= 700
 
 		  /** share rmin within TSUB_MAC threads */
 		  rmin = GET_MAX_TSUB(rmin
-#ifndef USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
+#ifdef  USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
+				      , SHFL_MASK_TSUB_MAC
+#else///USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
 				      , (real *)smem, tidx, head
 #endif//USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
 				      );
+/* #ifndef NDEBUG */
+/* 		  if( (cidx == 3504557) || (cidx == 3504558) ) */
+/* 		    printf("l%d: rmin = %e (%d/%d) @ (%d, %d)\n", __LINE__, rmin, ll, lend, bidx, tidx); */
+/* #endif//NDEBUG */
 
 
 		  /** recheck local buffer (is really rjmax greater than rmin ?) */
@@ -1821,7 +1942,7 @@ calcMultipole_kernel
 		  for(int jj = 0; jj < NBUF_MAC; jj++){
 		    const int share = ( rjmax_loc.ra[jj] > rmin ) ? 1 : 0;
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
-		    smem = PREFIX_SUM_TSUB(share, lane);
+		    smem = PREFIX_SUM_TSUB(share, lane, SHFL_MASK_TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
 		    PREFIX_SUM_TSUB(share, lane, (int *)smem, tidx);
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
@@ -1836,12 +1957,20 @@ calcMultipole_kernel
 		      rjbuf[dst] = rjmax_loc.ra[jj];
 		    }/* if( share ){ */
 #   if  __CUDA_ARCH__ >= 700
+		    /** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
 		    __syncwarp();
+#else///TSUB_MAC == 32
+		    tile.sync();
+#ifdef  USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
+		    SHFL_MASK_TSUB_MAC = __activemask();/**< mask may be change from the previous one */
+#endif//USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
+#endif//TSUB_MAC == 32
 #endif//__CUDA_ARCH__ >= 700
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
-		    Nloc += __SHFL(smem, TSUB_MAC - 1, TSUB_MAC);
+		    Nloc += __SHFL(SHFL_MASK_TSUB_MAC, smem, TSUB_MAC - 1, TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
-		    Nloc +=        smem[tail].i;
+		    Nloc +=                            smem[tail].i;
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
 
 		    if( Nloc > ((NBUF_MAC - 1) * TSUB_MAC) ){
@@ -1854,7 +1983,15 @@ calcMultipole_kernel
 		      Nloc = 0;
 		    }/* if( Nloc > ((NBUF_MAC - 1) * TSUB_MAC) ){ */
 #   if  __CUDA_ARCH__ >= 700
+		    /** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
 		    __syncwarp();
+#else///TSUB_MAC == 32
+		    tile.sync();
+#ifdef  USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
+		    SHFL_MASK_TSUB_MAC = __activemask();/**< mask may be change from the previous one */
+#endif//USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
+#endif//TSUB_MAC == 32
 #endif//__CUDA_ARCH__ >= 700
 		  }/* for(int jj = 0; jj < NBUF_MAC; jj++){ */
 
@@ -1886,14 +2023,24 @@ calcMultipole_kernel
 	      }/* for(int ll = lane; ll < TSUB_MAC * NBUF_MAC; ll += TSUB_MAC){ */
 	    }/* if( Nbuf != 0 ){ */
 #   if  __CUDA_ARCH__ >= 700
+	    /** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
 	    __syncwarp();
+#else///TSUB_MAC == 32
+	    tile.sync();
+#endif//TSUB_MAC == 32
 #endif//__CUDA_ARCH__ >= 700
 
 	    Ntry = Nbuf + Nloc;
 	    if( (lane == 0) && (Ntry > NUM_ALLOC_MACBUF) )
 	      atomicAdd(overflow, 1);
 #   if  __CUDA_ARCH__ >= 700
+	    /** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
 	    __syncwarp();
+#else///TSUB_MAC == 32
+	    tile.sync();
+#endif//TSUB_MAC == 32
 #endif//__CUDA_ARCH__ >= 700
 
 
@@ -1925,12 +2072,25 @@ calcMultipole_kernel
 		  }/* if( rjbuf[cellIdx] > rmin ){ */
 		}/* if( cellIdx < krem ){ */
 #   if  __CUDA_ARCH__ >= 700
+		/** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
 		__syncwarp();
+#else///TSUB_MAC == 32
+		tile.sync();
+#endif//TSUB_MAC == 32
 #endif//__CUDA_ARCH__ >= 700
+
+#   if  defined(USE_WARP_SHUFFLE_FUNC_MAC) && (TSUB_MAC < 32)
+#   if  __CUDA_ARCH__ >= 700
+		uint SHFL_MASK_TSUB_MAC = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
+#else///__CUDA_ARCH__ >= 700
+		const uint SHFL_MASK_TSUB_MAC = SHFL_MASK_32;
+#endif//__CUDA_ARCH__ >= 700
+#endif//defined(USE_WARP_SHUFFLE_FUNC_MAC) && (TSUB_MAC < 32)
 
 		/** remove duplicated tree cells */
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
-		smem = PREFIX_SUM_TSUB(add, lane);
+		smem = PREFIX_SUM_TSUB(add, lane, SHFL_MASK_TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
 		PREFIX_SUM_TSUB(add, lane, (int *)smem, tidx);
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
@@ -1951,12 +2111,20 @@ calcMultipole_kernel
 		  }/* if( ((smidx > 0) && (list0[hbuf + smidx - 1] == cellIdx)) || ((Nbuf > 0) && (smidx == 0) && (more0Buf[bufHead + Nbuf - 1] == cellIdx)) ){ */
 		}/* if( add ){ */
 #   if  __CUDA_ARCH__ >= 700
+		/** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
 		__syncwarp();
+#else///TSUB_MAC == 32
+		tile.sync();
+#ifdef  USE_WARP_SHUFFLE_FUNC_MAC
+		SHFL_MASK_TSUB_MAC = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
+#endif//USE_WARP_SHUFFLE_FUNC_MAC
+#endif//TSUB_MAC == 32
 #endif//__CUDA_ARCH__ >= 700
 
 		/** save tree cells on the local buffer */
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
-		smem = PREFIX_SUM_TSUB(add, lane);
+		smem = PREFIX_SUM_TSUB(add, lane, SHFL_MASK_TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
 		PREFIX_SUM_TSUB(add, lane, (int *)smem, tidx);
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
@@ -1970,13 +2138,21 @@ calcMultipole_kernel
 		  list0[hbuf + smidx] = cellIdx;
 		}/* if( add ){ */
 #   if  __CUDA_ARCH__ >= 700
+		/** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
 		__syncwarp();
+#else///TSUB_MAC == 32
+		tile.sync();
+#ifdef  USE_WARP_SHUFFLE_FUNC_MAC
+		SHFL_MASK_TSUB_MAC = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
+#endif//USE_WARP_SHUFFLE_FUNC_MAC
+#endif//TSUB_MAC == 32
 #endif//__CUDA_ARCH__ >= 700
 
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
-		Nloc += __SHFL(smem, TSUB_MAC - 1, TSUB_MAC);
+		Nloc += __SHFL(SHFL_MASK_TSUB_MAC, smem, TSUB_MAC - 1, TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
-		Nloc +=        smem[tail].i;
+		Nloc +=                            smem[tail].i;
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
 
 		/** move data to the remote buffer if necessary */
@@ -1987,12 +2163,22 @@ calcMultipole_kernel
 		  Nloc  = 0;
 		}/* if( Nloc > ((NBUF_MAC - 1) * TSUB_MAC) ){ */
 #   if  __CUDA_ARCH__ >= 700
+		/** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
 		__syncwarp();
+#else///TSUB_MAC == 32
+		tile.sync();
+#ifdef  USE_WARP_SHUFFLE_FUNC_MAC
+		SHFL_MASK_TSUB_MAC = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
+#endif//USE_WARP_SHUFFLE_FUNC_MAC
+#endif//TSUB_MAC == 32
 #endif//__CUDA_ARCH__ >= 700
 
 		/** sum up iadd within TSUB_MAC threads */
 		iadd = TOTAL_SUM_TSUB(iadd
-#ifndef USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
+#ifdef  USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
+				      , SHFL_MASK_TSUB_MAC
+#else///USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
 				      , (int *)smem, tidx, head
 #endif//USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
 				      );
@@ -2017,17 +2203,26 @@ calcMultipole_kernel
 	      for(int ll = lane; ll < NBUF_MAC * TSUB_MAC; ll += TSUB_MAC)
 		list0[hbuf + ll] = more0Buf[bufHead + ll];
 	    }/* if( Nbuf != 0 ){ */
-#   if  __CUDA_ARCH__ >= 700
-	    __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
 
 	    Ntry = Nloc + Nbuf;
 	    if( (lane == 0) && (Ntry > NUM_ALLOC_MACBUF) )
 	      atomicAdd(overflow, 1);
-	  }/* while( inum > NI_BMAX_ESTIMATE ){ */
+
+/* #ifndef NDEBUG */
+/* 	    /\* if( lane == 0 ) *\/ */
+/* 	    if( (levelIdx == 15) && (ii > 3) && (bidx == 305) && ((head == 80) || (head == 96)) ) */
+/* 	      printf("l%d: inum = %d(%d) @ (%d, %d)\n", __LINE__, inum, NI_BMAX_ESTIMATE, bidx, tidx); */
+/* #endif//NDEBUG */
+
 #   if  __CUDA_ARCH__ >= 700
-	  __syncwarp();
+	    /** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
+	    __syncwarp();
+#else///TSUB_MAC == 32
+	    tile.sync();
+#endif//TSUB_MAC == 32
 #endif//__CUDA_ARCH__ >= 700
+	  }/* while( inum > NI_BMAX_ESTIMATE ){ */
 
 
 	  /** check positions of all the pick upped i-particles */
@@ -2043,12 +2238,29 @@ calcMultipole_kernel
 	      cand = cell[list0[hbuf + iter * TSUB_MAC + lane]];
 	      pnum = cand.num;
 	    }/* if( lane < Ntry ){ */
+/* #ifndef NDEBUG */
+/* 	  /\* if( lane == 0 ) *\/ */
+/* 	  if( (cidx == 3504557) || (cidx == 3504558) ) */
+/* 	    printf("l%d: pnum = %d @ (%d, %d)\n", __LINE__, pnum, bidx, tidx); */
+/* #endif//NDEBUG */
 #   if  __CUDA_ARCH__ >= 700
+	    /** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
 	    __syncwarp();
+#else///TSUB_MAC == 32
+	    tile.sync();
+#endif//TSUB_MAC == 32
 #endif//__CUDA_ARCH__ >= 700
 
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
-	    smem = PREFIX_SUM_TSUB(pnum, lane);
+#   if  TSUB_MAC < 32
+#   if  __CUDA_ARCH__ >= 700
+		uint SHFL_MASK_TSUB_MAC = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
+#else///__CUDA_ARCH__ >= 700
+		const uint SHFL_MASK_TSUB_MAC = SHFL_MASK_32;
+#endif//__CUDA_ARCH__ >= 700
+#endif//TSUB_MAC < 32
+	    smem = PREFIX_SUM_TSUB(pnum, lane, SHFL_MASK_TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
 	    PREFIX_SUM_TSUB(pnum, lane, (int *)smem, tidx);
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
@@ -2056,12 +2268,33 @@ calcMultipole_kernel
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
 	    for(int jj = 0; jj < pnum; jj++)
 	      list1[hbuf + Ncand + smem         - pnum + jj] = cand.head + jj;
-	    Ncand += __SHFL(smem, TSUB_MAC - 1, TSUB_MAC);
+#   if  __CUDA_ARCH__ >= 700
+	    /** synchronization for consistency */
+#   if  TSUB_MAC == 32
+	    __syncwarp();
+#else///TSUB_MAC == 32
+	    tile.sync();
+	    SHFL_MASK_TSUB_MAC = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
+#endif//TSUB_MAC == 32
+#endif//__CUDA_ARCH__ >= 700
+	    Ncand += __SHFL(SHFL_MASK_TSUB_MAC, smem, TSUB_MAC - 1, TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
 	    for(int jj = 0; jj < pnum; jj++)
 	      list1[hbuf + Ncand + smem[tidx].i - pnum + jj] = cand.head + jj;
-	    Ncand +=        smem[tail].i;
+#   if  __CUDA_ARCH__ >= 700
+	    /** synchronization for consistency */
+#   if  TSUB_MAC == 32
+	    __syncwarp();
+#else///TSUB_MAC == 32
+	    tile.sync();
+#endif//TSUB_MAC == 32
+#endif//__CUDA_ARCH__ >= 700
+	    Ncand += smem[tail].i;
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
+/* #ifndef NDEBUG */
+/* 	    if( lane == 0 ) */
+/* 	      printf("l%d: Ncand = %d @ (%d, %d)\n", __LINE__, Ncand, bidx, tidx); */
+/* #endif//NDEBUG */
 
 	    Ntry -= TSUB_MAC;
 	  }/* for(int iter = 0; iter < Niter; iter++){ */
@@ -2076,9 +2309,31 @@ calcMultipole_kernel
 
 	    jbmax = FMAX(jbmax, r2);
 	  }/* for(int jj = lane; jj < Ncand; jj += TSUB_MAC){ */
+/* #ifndef NDEBUG */
+/* 	  /\* if( lane == 0 ) *\/ */
+/* 	  if( (lane == 0) && (levelIdx == 15) && (ii > 3) && (bidx == 305) && ((tidx == 80) || (tidx == 96)) ) */
+/* 	    printf("l%d: jbmax = %e @ (%d, %d)\n", __LINE__, jbmax, bidx, tidx); */
+/* #endif//NDEBUG */
+#   if  __CUDA_ARCH__ >= 700
+	  /** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
+	  __syncwarp();
+#else///TSUB_MAC == 32
+	  tile.sync();
+#endif//TSUB_MAC == 32
+#endif//__CUDA_ARCH__ >= 700
 
+#   if  defined(USE_WARP_SHUFFLE_FUNC_MAC) && (TSUB_MAC < 32)
+#   if  __CUDA_ARCH__ >= 700
+	  uint SHFL_MASK_TSUB_MAC = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
+#else///__CUDA_ARCH__ >= 700
+	  const uint SHFL_MASK_TSUB_MAC = SHFL_MASK_32;
+#endif//__CUDA_ARCH__ >= 700
+#endif//defined(USE_WARP_SHUFFLE_FUNC_MAC) && (TSUB_MAC < 32)
 	  jbmax = GET_MAX_TSUB(jbmax
-#ifndef USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
+#ifdef  USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
+			       , SHFL_MASK_TSUB_MAC
+#else///USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
 			       , (real *)smem, tidx, head
 #endif//USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
 			       );
@@ -2086,8 +2341,18 @@ calcMultipole_kernel
 	  jbmax *= RSQRT(jbmax);
 	  if( lane == 0 )
 	    bmax[jidx] = jbmax;
+/* #ifndef NDEBUG */
+/* 	  /\* if( lane == 0 ) *\/ */
+/* 	  if( (cidx == 3504557) || (cidx == 3504558) ) */
+/* 	    printf("l%d: jbmax = %e @ (%d, %d)\n", __LINE__, jbmax, bidx, tidx); */
+/* #endif//NDEBUG */
 #   if  __CUDA_ARCH__ >= 700
+	  /** synchronization to reduce warp divergence */
+#   if  TSUB_MAC == 32
 	  __syncwarp();
+#else///TSUB_MAC == 32
+	  tile.sync();
+#endif//TSUB_MAC == 32
 #endif//__CUDA_ARCH__ >= 700
 
 #ifdef  GADGET_MAC
@@ -2109,9 +2374,10 @@ calcMultipole_kernel
 
 	  if( lane == 0 )
 	    pj[jidx] = jcom;
-#   if  __CUDA_ARCH__ >= 700
-	  __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+/* #ifndef NDEBUG */
+/* 	  if( (lane == 0) && (levelIdx == 15) && (ii > 3) && (bidx == 305) ) */
+/* 	    printf("l%d: %d; %d, %d\n", __LINE__, ii, bidx, tidx); */
+/* #endif//NDEBUG */
 
 #ifdef  COUNT_INTERACTIONS
 	  local.nodeNum++;
@@ -2121,7 +2387,7 @@ calcMultipole_kernel
 	}/* if( !leaf[cidx] ){ */
       }/* if( root.head != NULL_CELL ){ */
 #   if  __CUDA_ARCH__ >= 700
-      __syncwarp();
+      __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
     }/* for(int ii = 0; ii < BLOCKSIZE(clev.num, bnum * NGROUPS_MAC); ii++){ */
 
@@ -2136,7 +2402,7 @@ calcMultipole_kernel
       atomicAdd(&(stats[levelIdx].r2Sdev), local. r2Sdev);
     }/* if( lane == 0 ){ */
 #endif//COUNT_INTERACTIONS
-  }/* for(int levelIdx = (NUM_PHKEY_LEVEL - 2); levelIdx >= 0; levelIdx--){ */
+  }/* for(int levelIdx = bottomLev; levelIdx >= 0; levelIdx--){ */
 }
 
 
@@ -2212,9 +2478,9 @@ __device__ __forceinline__ void copyData_g2g
 #   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
       floc = ftmp;
 #endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
-    }
+    }/* if( !grpIdx ){ */
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
     /** store to the destination array on the global memory */
@@ -2264,6 +2530,10 @@ checkOutflow_kernel
   const int lane = tidx & (TSUB_OUTFLOW - 1);  /**< for local summation */
   const int lane32 = tidx & (warpSize - 1);  /**< for globalPrefixSum */
 
+/* #   if  (__CUDA_ARCH__ >= 700) && (TSUB_OUTFLOW < 32) */
+/*   thread_block_tile<TSUB_OUTFLOW> tile = tiled_partition<TSUB_OUTFLOW>(this_thread_block()); */
+/* #endif//(__CUDA_ARCH__ >= 700) && (TSUB_OUTFLOW < 32) */
+
   __shared__ int smem[NTHREADS_OUTFLOW];
 
 
@@ -2274,7 +2544,7 @@ checkOutflow_kernel
 
     for(int ii = 0; ii < BLOCKSIZE(clev.num, bnum * NGROUPS_OUTFLOW); ii++){
       /** pick up a tree cell */
-      const  int cidx = DIV_TSUB_OUTFLOW(gidx + ii * bnum * NTHREADS_OUTFLOW);
+      const  int cidx = DIV_TSUB_OUTFLOW(gidx + ii * bnum * NTHREADS_OUTFLOW);/**< common in TSUB_OUTFLOW (<= 32) threads */
       const uint node = (cidx < clev.num) ? (ptag[clev.head + cidx]) : (NULL_NODE);
 
       /** pick up tree nodes and check the position */
@@ -2290,10 +2560,10 @@ checkOutflow_kernel
 	      num++;
 	      list |= 1 << (DIV_TSUB_OUTFLOW(jj));
 	    }/* if( detectOuterParticle(pj[jhead + jj], CAST_R2F(bmax[jhead + jj])) ){ */
-#   if  __CUDA_ARCH__ >= 700
-	  __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
 	}/* for(uint jj = lane; jj < jnum; jj += TSUB_OUTFLOW){ */
+#   if  __CUDA_ARCH__ >= 700
+      __syncwarp();/**< __syncwarp() to remove warp divergence */
+#endif//__CUDA_ARCH__ >= 700
 
       /** exclusive scan within a grid */
       int scanNum;
@@ -2301,6 +2571,10 @@ checkOutflow_kernel
       headIdx -= num;/**< this must be an exclusive scan */
 
       /** store the picked tree nodes on the global memory */
+#if 1
+      the below if block contains a bug: every threads have individual num; therefore, lane should not be used in the for block;
+      careful revision is required;
+#endif
       if( num != 0 ){
 	int kk = 0;
 	for(uint jj = lane; jj < jnum; jj += TSUB_OUTFLOW){
@@ -2321,6 +2595,12 @@ checkOutflow_kernel
 #endif//__CUDA_ARCH__ >= 700
 	}/* for(int jj = 0; jj < DIV_TSUB_OUTFLOW(NLEAF); jj++){ */
       }/* if( num != 0 ){ */
+
+
+
+
+
+
       rem += scanNum;
     }/* for(int ii = 0; ii < BLOCKSIZE(clev.num, bnum * NTHREADS_OUTFLOW); ii++){ */
   }
@@ -2344,7 +2624,7 @@ checkOutflow_kernel
     if( (rem == 0) && (hbuf > (checked + bnum * NGROUPS_OUTFLOW)) )
       hbuf = tbuf = 0;
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
     /** pick up tree nodes and check the position */
@@ -2359,10 +2639,10 @@ checkOutflow_kernel
 	    num++;
 	    list |= 1 << (DIV_TSUB_OUTFLOW(jj));
 	  }/* if( detectOuterParticle(pj[jhead + jj], CAST_R2F(bmax[jhead + jj])) ){ */
-#   if  __CUDA_ARCH__ >= 700
-	__syncwarp();
-#endif//__CUDA_ARCH__ >= 700
       }/* for(uint jj = lane; jj < jnum; jj += TSUB_OUTFLOW){ */
+#   if  __CUDA_ARCH__ >= 700
+    __syncwarp();/**< __syncwarp() to remove warp divergence */
+#endif//__CUDA_ARCH__ >= 700
 
     /** exclusive scan within a grid */
     int scanNum;
@@ -2370,6 +2650,10 @@ checkOutflow_kernel
     headIdx -= num;/**< this must be an exclusive scan */
 
     /** edit MAC of the external tree nodes and commit their child nodes as next candidates */
+#if 1
+    the below if block contains a bug: every threads have individual num; therefore, lane should not be used in the for block;
+    careful revision is required;
+#endif
     if( num != 0 ){
 #ifdef  TIME_BASED_MODIFICATION
       const float base_inv = fbuf[nidx];
@@ -2423,7 +2707,7 @@ checkOutflow_kernel
     if( (gidx == 0) && (tbuf > bufSize) )
       atomicAdd(overflow, 1);
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
 
     globalSync(tidx, bidx, bnum, gsync0, gsync1);
@@ -2435,7 +2719,7 @@ checkOutflow_kernel
 #endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
 		   0, 0, tbuf - hbuf, hbuf, gidx, bnum * NTHREADS_OUTFLOW, tidx, bidx, bnum, gsync0, gsync1);
 #   if  __CUDA_ARCH__ >= 700
-    __syncwarp();
+    __syncwarp();/**< __syncwarp() to remove warp divergence */
 #endif//__CUDA_ARCH__ >= 700
   }/* while( true ){ */
 }
@@ -2598,10 +2882,10 @@ void calcMultipole_dev
 
 
   /** set pseudo j-particles */
-  __NOTE__("calcMultipole_kernel; bottomLev = %d\n", bottomLev);
 #ifdef  USE_OCCUPANCY_CALCULATOR
   const int NBLOCKS_PER_SM_MAC = buf.numBlocksPerSM_mac;
 #endif//USE_OCCUPANCY_CALCULATOR
+  __NOTE__("launch calcMultipole_kernel: %d blocks per SM, %d SMs; bottomLev = %d\n", NBLOCKS_PER_SM_MAC, devProp.numSM, bottomLev);
 #ifdef  USE_COOPERATIVE_GROUPS
   const int bottomLev_tmp = bottomLev - 1;
 #ifdef  COUNT_INTERACTIONS
@@ -3042,25 +3326,27 @@ void setGlobalConstants_make_dev_cu
 #endif//CUDART_VERSION >= 5000
 
 
-#   if  GPUGEN < 70
+#   if  GPUVER < 70
   checkCudaErrors(cudaFuncSetCacheConfig(calcMultipole_kernel, cudaFuncCachePreferShared));
-#else///GPUGEN < 70
-  checkCudaErrors(cudaFuncSetCacheConfig(calcMultipole_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, SMEM_SIZE_SM_PREF));
+#else///GPUVER < 70
+  checkCudaErrors(cudaFuncSetAttribute(calcMultipole_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_SM));
 
   /* remove shared memory if __global__ function does not use */
-  checkCudaErrors(cudaFuncSetCacheConfig(initPHhierarchy_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-  checkCudaErrors(cudaFuncSetCacheConfig(initTreeCellOffset_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-  checkCudaErrors(cudaFuncSetCacheConfig(initTreeNode_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-  checkCudaErrors(cudaFuncSetCacheConfig(initTreeLink_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-  checkCudaErrors(cudaFuncSetCacheConfig(trimTree_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-  checkCudaErrors(cudaFuncSetCacheConfig(initTreeBody_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-  checkCudaErrors(cudaFuncSetCacheConfig(copyRealBody_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetAttribute(initPHhierarchy_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+  checkCudaErrors(cudaFuncSetAttribute(initTreeCellOffset_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+  checkCudaErrors(cudaFuncSetAttribute(initTreeNode_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+  checkCudaErrors(cudaFuncSetAttribute(initTreeLink_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+  checkCudaErrors(cudaFuncSetAttribute(makeTree_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_L1_32K));
+  checkCudaErrors(cudaFuncSetAttribute(linkTree_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_L1_32K));
+  checkCudaErrors(cudaFuncSetAttribute(trimTree_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+  checkCudaErrors(cudaFuncSetAttribute(initTreeBody_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+  checkCudaErrors(cudaFuncSetAttribute(copyRealBody_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
 #ifdef  GADGET_MAC
-  checkCudaErrors(cudaFuncSetCacheConfig(enforceBarnesHutMAC, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
-  checkCudaErrors(cudaFuncSetCacheConfig(recoverGADGET_MAC, cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+  checkCudaErrors(cudaFuncSetAttribute(enforceBarnesHutMAC, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
+  checkCudaErrors(cudaFuncSetAttribute(recoverGADGET_MAC, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
 #endif//GADGET_MAC
 
-#endif//GPUGEN < 70
+#endif//GPUVER < 70
 
 
 #ifndef USE_OCCUPANCY_CALCULATOR

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/15 (Tue)
+ * @date 2018/06/01 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -4519,6 +4519,8 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
   hsize_t attr_dims = 1;
   dataspace = H5Screate_simple(1, &attr_dims, NULL);
   hid_t attribute;
+  hid_t str4format = H5Tcopy(H5T_C_S1);
+  chkHDF5err(H5Tset_size(str4format, CONSTANTS_H_CHAR_WORDS));
   /* write current time */
   double wtime = time * time2astro;
   attribute = H5Acreate(target, "time", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
@@ -4549,8 +4551,6 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
   chkHDF5err(H5Aclose(attribute));
 
-  hid_t str4format = H5Tcopy(H5T_C_S1);
-  chkHDF5err(H5Tset_size(str4format, CONSTANTS_H_CHAR_WORDS));
   attribute = H5Acreate(target, "length_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, str4format, length_astro_unit_name));
   chkHDF5err(H5Aclose(attribute));
@@ -4571,17 +4571,8 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
   chkHDF5err(H5Aclose(attribute));
 
 
-#ifdef  HDF5_FOR_ZINDAIJI
-  /* write additional attribute for Zindaiji */
-  static const char format_ver[CONSTANTS_H_CHAR_WORDS] = "0.0";
-  attribute = H5Acreate(target, "Format Version", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attribute, str4format, format_ver));
-  chkHDF5err(H5Aclose(attribute));
-  real *tmp;  tmp = (real *)malloc(num_ulong * 3 * sizeof(real));  if( tmp == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp");  }
-  const double vel2zin = length2astro / time2astro;
-  const double acc2zin = 0.5 * vel2zin / time2astro;
-#endif//HDF5_FOR_ZINDAIJI
   chkHDF5err(H5Tclose(str4format));
+  chkHDF5err(H5Sclose(dataspace));
 
 
   /* write particle data */
@@ -4622,23 +4613,11 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
     /* write particle position */
     for(int jj = 3 * head[ii]; jj < 3 * (head[ii] + num[ii]); jj++)
       body->pos[jj] = CAST_D2R(CAST_R2D(body->pos[jj]) * length2astro);
-#ifdef  HDF5_FOR_ZINDAIJI
-    dataset = H5Dcreate(group,      "xyz", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &body->pos[head[ii] * 3]));
-    chkHDF5err(H5Dclose(dataset));
-#endif//HDF5_FOR_ZINDAIJI
     /* coordinate transformation */
     dataset = H5Dcreate(group, "position", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &body->pos[head[ii] * 3]));
     chkHDF5err(H5Dclose(dataset));
     /* write particle velocity */
-#ifdef  HDF5_FOR_ZINDAIJI
-    for(int jj = 0; jj < 3 * num[ii]; jj++)
-      tmp[jj] = CAST_D2R(CAST_R2D(body->vel[jj + 3 * head[ii]]) * vel2zin);
-    dataset = H5Dcreate(group,   "vxvyvz", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp));
-    chkHDF5err(H5Dclose(dataset));
-#endif//HDF5_FOR_ZINDAIJI
     /* coordinate transformation */
     for(int jj = 3 * head[ii]; jj < 3 * (head[ii] + num[ii]); jj++)
       body->vel[jj] = CAST_D2R(CAST_R2D(body->vel[jj]) * velocity2astro);
@@ -4646,14 +4625,6 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &body->vel[head[ii] * 3]));
     chkHDF5err(H5Dclose(dataset));
     /* write particle acceleration */
-#ifdef  HDF5_FOR_ZINDAIJI
-    /* write particle acceleration for Zindaiji */
-    for(int jj = 0; jj < 3 * num[ii]; jj++)
-      tmp[jj] = CAST_D2R(CAST_R2D(body->acc[jj + 3 * head[ii]]) * acc2zin);
-    dataset = H5Dcreate(group, "axayaz", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp));
-    chkHDF5err(H5Dclose(dataset));
-#endif//HDF5_FOR_ZINDAIJI
     /* coordinate transformation */
     for(int jj = 3 * head[ii]; jj < 3 * (head[ii] + num[ii]); jj++)
       body->acc[jj] = CAST_D2R(CAST_R2D(body->acc[jj]) * accel2astro);
@@ -4749,28 +4720,12 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
     attribute = H5Acreate(group, "number", H5T_NATIVE_ULONG, dataspace, H5P_DEFAULT, H5P_DEFAULT);
     chkHDF5err(H5Awrite(attribute, H5T_NATIVE_ULONG, &num_ulong));
     chkHDF5err(H5Aclose(attribute));
-
-#ifdef  HDF5_FOR_ZINDAIJI
-    /* write current time */
-    float time_float = (float)(time * time2astro);
-    attribute = H5Acreate(group, "time", H5T_NATIVE_FLOAT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_FLOAT, &time_float));
-    chkHDF5err(H5Aclose(attribute));
-    /* write # of steps */
-    attribute = H5Acreate(group, "steps", H5T_NATIVE_ULONG, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_ULONG, &steps));
-    chkHDF5err(H5Aclose(attribute));
-#endif//HDF5_FOR_ZINDAIJI
-
+    /* close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
     chkHDF5err(H5Gclose(group));
   }/* for(int ii = 0; ii < kind; ii++){ */
-#ifdef  HDF5_FOR_ZINDAIJI
-  free(tmp);
-#endif//HDF5_FOR_ZINDAIJI
 
 
-  /* close the dataspace */
-  chkHDF5err(H5Sclose(dataspace));
   /* close the file */
   chkHDF5err(H5Fclose(target));
 #ifdef  PREPARE_XDMF_FILES
@@ -5098,7 +5053,7 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
     fprintf(fp, "#%s\t%s\t%s\t%s\n",
 	    "calcMultipole", "NTHREADS_MAC", "TSUB_MAC", "USE_WARP_SHUFFLE_FUNC_MAC");
   fprintf(fp, "%e\t%d\t%d\t%d\n",
-	  inv * mean.calcMultipole,
+	  inv * mean.calcMultipole_dev,
 	  NTHREADS_MAC, TSUB_MAC
 	  /* use warp shuffle instruction or not */
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC

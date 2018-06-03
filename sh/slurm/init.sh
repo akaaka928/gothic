@@ -20,6 +20,7 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=26
     # PROBLEM=27
     # PROBLEM=33
+    # PROBLEM=46
     # PROBLEM=60
     # PROBLEM=61
     # PROBLEM=90
@@ -29,6 +30,9 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=94
     # PROBLEM=95
     # PROBLEM=96
+    # PROBLEM=97
+    # PROBLEM=98
+    # PROBLEM=99
 fi
 ###############################################################
 # number of N-body particles
@@ -43,9 +47,9 @@ if [ -z "$NTOT" ]; then
     # NTOT=16384
     # NTOT=32768
     # NTOT=65536
-    # NTOT=131072
+    NTOT=131072
     # NTOT=262144
-    NTOT=524288
+    # NTOT=524288
     # NTOT=1048576
     # NTOT=2097152
     # NTOT=4194304
@@ -304,12 +308,11 @@ if [ $PROBLEM -eq 26 ]; then
     CONFIG=galaxy/etg.cfg
     EPS=1.5625e-2
     ETA=0.5
-    # FINISH=75.0
-    # INTERVAL=25.0
-    FINISH=1175.0
     INTERVAL=25.0
+    # FINISH=75.0
+    FINISH=375.0
+    # FINISH=1175.0
     # FINISH=3175.0
-    # INTERVAL=25.0
 fi
 ###############################################################
 # dynamical stability of an M31 model (NFW halo, Hernquist bulge, and exponential disk)
@@ -322,7 +325,9 @@ if [ $PROBLEM -eq 27 ]; then
     EPS=1.5625e-2
     # EPS=7.8125e-3
     ETA=0.5
-    FINISH=1175.0
+    # FINISH=75.0
+    FINISH=375.0
+    # FINISH=1175.0
     # FINISH=3175.0
     INTERVAL=25.0
 fi
@@ -521,6 +526,16 @@ if [ $PROBLEM -eq 45 ]; then
     ETA=0.5
     FINISH=1575.0
     INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of a disk in table form within NFW halo
+if [ $PROBLEM -eq 46 ]; then
+    FILE=thd
+    CONFIG=table/thd.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=23.5
+    INTERVAL=0.5
 fi
 ###############################################################
 # dynamical stability of a spherical Sersic profile
