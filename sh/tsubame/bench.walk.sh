@@ -21,60 +21,67 @@ make clean
 PROBLEM=27
 ABSERR=1.953125000e-3
 PREV=magi
+NBLOCK=2
 ###############################################################
 INDEX=0
 ###############################################################
 for NTHREADS in 512 256 1024 128
 do
     ###########################################################
-    # for N_block = 2 with P100
-    if [ $NTHREADS -eq  128 ]; then
-	# MAX_NLOOP=14
-	MAX_NLOOP=6
-    fi
-    if [ $NTHREADS -eq  256 ]; then
-	MAX_NLOOP=6
-    fi
-    if [ $NTHREADS -eq  512 ]; then
-	MAX_NLOOP=2
-    fi
-    if [ $NTHREADS -eq 1024 ]; then
-	# same with NTHREADS = 512
-	MAX_NLOOP=1
+    if [ $NBLOCK -eq 2 ]; then
+	# for N_block = 2 with P100
+	if [ $NTHREADS -eq  128 ]; then
+	    # MAX_NLOOP=14
+	    MAX_NLOOP=6
+	fi
+	if [ $NTHREADS -eq  256 ]; then
+	    MAX_NLOOP=6
+	fi
+	if [ $NTHREADS -eq  512 ]; then
+	    MAX_NLOOP=2
+	fi
+	if [ $NTHREADS -eq 1024 ]; then
+	    # same with NTHREADS = 512
+	    MAX_NLOOP=1
+	fi
     fi
     ###########################################################
-    # # for N_block = 3 with P100
-    # if [ $NTHREADS -eq  128 ]; then
-    # 	# MAX_NLOOP=8
-    # 	MAX_NLOOP=6
-    # fi
-    # if [ $NTHREADS -eq  256 ]; then
-    # 	MAX_NLOOP=3
-    # fi
-    # if [ $NTHREADS -eq  512 ]; then
-    # 	# same with NTHREADS = 256
-    # 	MAX_NLOOP=1
-    # fi
-    # if [ $NTHREADS -eq 1024 ]; then
-    # 	# same with NTHREADS = 256
-    # 	MAX_NLOOP=1
-    # fi
+    if [ $NBLOCK -eq 3 ]; then
+	# for N_block = 3 with P100
+	if [ $NTHREADS -eq  128 ]; then
+    	    # MAX_NLOOP=8
+    	    MAX_NLOOP=6
+	fi
+	if [ $NTHREADS -eq  256 ]; then
+    	    MAX_NLOOP=3
+	fi
+	if [ $NTHREADS -eq  512 ]; then
+    	    # same with NTHREADS = 256
+    	    MAX_NLOOP=1
+	fi
+	if [ $NTHREADS -eq 1024 ]; then
+    	    # same with NTHREADS = 256
+    	    MAX_NLOOP=1
+	fi
+    fi
     ###########################################################
-    # # for N_block = 4 with P100
-    # if [ $NTHREADS -eq  128 ]; then
-    # 	MAX_NLOOP=6
-    # fi
-    # if [ $NTHREADS -eq  256 ]; then
-    # 	MAX_NLOOP=2
-    # fi
-    # if [ $NTHREADS -eq  512 ]; then
-    # 	# same with NTHREADS = 256
-    # 	MAX_NLOOP=1
-    # fi
-    # if [ $NTHREADS -eq 1024 ]; then
-    # 	# same with NTHREADS = 256
-    # 	MAX_NLOOP=1
-    # fi
+    if [ $NBLOCK -eq 4 ]; then
+	# for N_block = 4 with P100
+	if [ $NTHREADS -eq  128 ]; then
+    	    MAX_NLOOP=6
+	fi
+	if [ $NTHREADS -eq  256 ]; then
+    	    MAX_NLOOP=2
+	fi
+	if [ $NTHREADS -eq  512 ]; then
+    	    # same with NTHREADS = 256
+    	    MAX_NLOOP=1
+	fi
+	if [ $NTHREADS -eq 1024 ]; then
+    	    # same with NTHREADS = 256
+    	    MAX_NLOOP=1
+	fi
+    fi
     ###########################################################
     # pad 0s for NTHREADS
     digit=4
@@ -167,8 +174,8 @@ do
 		    # echo ${LINE%/*}  # $LINE のフォルダ名を取得
 		    # echo ${LINE##*/} # $LINE のファイル名を取得
 		    TARGET=log/${EXEC##*/}
-		    echo "qsub -g jh180045 -N job_${INDEX} -v EXEC=${EXEC},PROBLEM=${PROBLEM},ABSERR=${ABSERR} -hold_jid ${PREV} sh/tsubame/gothic.sh" >> $LIST0
-		    PREV=job_${INDEX}
+		    echo "qsub -g jh180045 -N job${NBLOCK}_${INDEX} -v EXEC=${EXEC},PROBLEM=${PROBLEM},ABSERR=${ABSERR} -hold_jid ${PREV} sh/tsubame/gothic.sh" >> $LIST0
+		    PREV=job${NBLOCK}_${INDEX}
 		    INDEX=`expr $INDEX + 1`
 		    ###########################################
 		fi

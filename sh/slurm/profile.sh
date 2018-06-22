@@ -1,13 +1,13 @@
 #!/bin/bash
 ###############################################################
 #SBATCH -J gothic             # name of job
-#SBATCH -t 00:10:00           # upper limit of elapsed time
+#SBATCH -t 00:30:00           # upper limit of elapsed time
 #SBATCH -p normal             # partition name
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
-# #SBATCH --ntasks=1            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
-# #SBATCH --ntasks-per-socket=1 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
-#SBATCH --ntasks=2            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
-#SBATCH --ntasks-per-socket=2 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
+#SBATCH --ntasks=1            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
+#SBATCH --ntasks-per-socket=1 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
+# #SBATCH --ntasks=2            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
+# #SBATCH --ntasks-per-socket=2 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
 #SBATCH --get-user-env        # retrieve the login environment variables
 ###############################################################
 
@@ -19,14 +19,21 @@ EXEC=bin/gothic
 ###############################################################
 # upper limit of execution time for nvprof
 if [ -z "$NVPROF_TIMEOUT" ]; then
-    # NVPROF_TIMEOUT=30.0
-    NVPROF_TIMEOUT=5.0
+    # NVPROF_TIMEOUT=30
+    NVPROF_TIMEOUT=5
+fi
+###############################################################
+# upper limit of execution time for nvprof --metric
+if [ -z "$NVPROF_METRIC_TIMEOUT" ]; then
+    # NVPROF_METRIC_TIMEOUT=`expr $NVPROF_TIMEOUT \* 100`
+    NVPROF_METRIC_TIMEOUT=1500
+    # NVPROF_METRIC_TIMEOUT=50
 fi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=2
-    # PROBLEM=27
+    # PROBLEM=2
+    PROBLEM=27
 fi
 ###############################################################
 # topology of MPI processes
@@ -88,8 +95,8 @@ if [ -z "$ACCERR" ]; then
     # ACCERR=9.765625e-4
 fi
 ###############################################################
-REBUILD=8
-BRENT=0.95
+REBUILD=16
+BRENT=1.0
 ###############################################################
 
 
@@ -109,8 +116,6 @@ fi
 # dynamical stability of a Hernquist sphere
 if [ $PROBLEM -eq 2 ]; then
     FILE=hernquist
-    REBUILD=8
-    BRENT=0.99
 fi
 ###############################################################
 # dynamical stability of an NFW sphere small truncation radius
@@ -296,6 +301,9 @@ fi
 # set input arguments
 OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -rebuild_interval=$REBUILD -brent_frac=$BRENT -jobID=$SLURM_JOB_ID"
 ###############################################################
+# nvprof --query-metrics
+NVPROF_METRICS="--metrics flop_sp_efficiency,flop_dp_efficiency,gld_efficiency,gst_efficiency,shared_efficiency,sm_efficiency,branch_efficiency,warp_execution_efficiency,inst_fp_32,inst_fp_64,inst_integer,inst_bit_convert,inst_control,inst_compute_ld_st,inst_misc,inst_inter_thread_communication,flop_count_sp_fma,flop_count_sp_add,flop_count_sp_mul,flop_count_sp_special,flop_count_dp_fma,flop_count_dp_add,flop_count_dp_mul,single_precision_fu_utilization,double_precision_fu_utilization,special_fu_utilization,cf_fu_utilization,cf_issued,cf_executed,ldst_fu_utilization,ldst_issued,ldst_executed,tex_fu_utilization,shared_load_throughput,shared_store_throughput,shared_utilization,global_hit_rate,tex_cache_hit_rate,l2_tex_read_hit_rate,l2_tex_write_hit_rate,local_hit_rate,gld_requested_throughput,gld_throughput,gst_requested_throughput,gst_throughput,tex_cache_throughput,tex_utilization,l2_read_throughput,l2_tex_read_throughput,l2_write_throughput,l2_tex_write_throughput,l2_atomic_throughput,l2_utilization,local_memory_overhead,local_load_throughput,local_store_throughput,dram_read_throughput,dram_write_throughput,dram_utilization,ecc_throughput,sysmem_read_throughput,sysmem_read_utilization,sysmem_write_throughput,sysmem_write_utilization,sysmem_utilization,issue_slot_utilization,issue_slots,issued_ipc,ipc,stall_inst_fetch,stall_exec_dependency,stall_memory_dependency,stall_texture,stall_sync,stall_other,stall_constant_memory_dependency,stall_pipe_busy,stall_memory_throttle,stall_not_selected"
+###############################################################
 
 
 ###############################################################
@@ -320,12 +328,17 @@ else
     # set stdout and stderr
     STDOUT=log/${FILE}_$SLURM_JOB_NAME.o${SLURM_JOB_ID}
     STDERR=log/${FILE}_$SLURM_JOB_NAME.e${SLURM_JOB_ID}
+    PRFOUT=log/${FILE}_$SLURM_JOB_NAME.m${SLURM_JOB_ID}
     if [ `which numactl` ]; then
 	# run with numactl
+	echo "numactl --localalloc nvprof --timeout $NVPROF_METRIC_TIMEOUT --kernels \"::calcAcc_kernel:\" $NVPROF_METRICS --kernels \"::calcMultipole_kernel:\" $NVPROF_METRICS --kernels \"::makeTree_kernel:\" $NVPROF_METRICS --kernels \"::calcPHkey_kernel:\" $NVPROF_METRICS --kernels \"::adjustTimeStep_kernel:\" $NVPROF_METRICS --kernels \"::prediction_kernel:\" $NVPROF_METRICS $EXEC $OPTION 1>>${PRFOUT} 2>>&1"
+	numactl --localalloc nvprof --timeout $NVPROF_METRIC_TIMEOUT --kernels "::calcAcc_kernel:" $NVPROF_METRICS --kernels "::calcMultipole_kernel:" $NVPROF_METRICS --kernels "::makeTree_kernel:" $NVPROF_METRICS --kernels "::calcPHkey_kernel:" $NVPROF_METRICS --kernels "::adjustTimeStep_kernel:" $NVPROF_METRICS --kernels "::prediction_kernel:" $NVPROF_METRICS $EXEC $OPTION 1>>${PRFOUT} 2>>&1
 	echo "numactl --localalloc nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o log/${FILE}_${SLURM_JOB_NAME}.p${SLURM_JOB_ID}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
 	numactl --localalloc nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o log/${FILE}_${SLURM_JOB_NAME}.p${SLURM_JOB_ID}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
     else
 	# run without numactl
+	echo "nvprof --timeout $NVPROF_METRIC_TIMEOUT --kernels \"::calcAcc_kernel:\" $NVPROF_METRICS --kernels \"::calcMultipole_kernel:\" $NVPROF_METRICS --kernels \"::makeTree_kernel:\" $NVPROF_METRICS --kernels \"::calcPHkey_kernel:\" $NVPROF_METRICS --kernels \"::adjustTimeStep_kernel:\" $NVPROF_METRICS --kernels \"::prediction_kernel:\" $NVPROF_METRICS $EXEC $OPTION 1>>${PRFOUT} 2>>&1"
+	nvprof --timeout $NVPROF_METRIC_TIMEOUT --kernels "::calcAcc_kernel:" $NVPROF_METRICS --kernels "::calcMultipole_kernel:" $NVPROF_METRICS --kernels "::makeTree_kernel:" $NVPROF_METRICS --kernels "::calcPHkey_kernel:" $NVPROF_METRICS --kernels "::adjustTimeStep_kernel:" $NVPROF_METRICS --kernels "::prediction_kernel:" $NVPROF_METRICS $EXEC $OPTION 1>>${PRFOUT} 2>>&1
 	echo "nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o log/${FILE}_${SLURM_JOB_NAME}.p${SLURM_JOB_ID}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
 	nvprof --timeout $NVPROF_TIMEOUT --force-overwrite -o log/${FILE}_${SLURM_JOB_NAME}.p${SLURM_JOB_ID}.nvprof $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
     fi

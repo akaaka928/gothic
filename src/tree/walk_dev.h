@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/03 (Sun)
+ * @date 2018/06/06 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -178,11 +178,15 @@
 #   if  GPUVER >= 70
 #define NWARP (2)
 #else///GPUVER >= 70
+#   if  GPUVER >= 60
+#define NWARP (1)
+#else///GPUVER >= 60
 #   if  GPUVER >= 52
 #define NWARP (4)
 #else///GPUVER >= 52
 #define NWARP (1)
 #endif//GPUVER >= 52
+#endif//GPUVER >= 60
 #endif//GPUVER >= 70
 #endif//NWARP
 #else///IJ_PARALLELIZATION
@@ -216,19 +220,11 @@
  * @brief number of threads per block for calcAcc_kernel
  */
 #ifndef NTHREADS
-#   if  GPUVER >= 70
-#define NTHREADS (512)
-#else///GPUVER >= 70
-#   if  GPUVER >= 60
-#define NTHREADS (256)
-#else///GPUVER >= 60
 #   if  GPUVER >= 30
 #define NTHREADS (512)
 #else///GPUVER >= 30
 #define NTHREADS (256)
 #endif//GPUVER >= 30
-#endif//GPUVER >= 60
-#endif//GPUVER >= 70
 #endif//NTHREADS
 
 /** NTHREADS must be equal or smaller than 1024 (limitation comes from reduction defined in ../tree/geo_dev.cu) */
@@ -363,11 +359,7 @@
 #   if  GPUVER >= 70
 #define NLOOP (3)
 #else///GPUVER >= 70
-#   if  GPUVER >= 60
-#define NLOOP (4)
-#else///GPUVER >= 60
 #define NLOOP (1)
-#endif//GPUVER >= 60
 #endif//GPUVER >= 70
 #endif//NLOOP
 

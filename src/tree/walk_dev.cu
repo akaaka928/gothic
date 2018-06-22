@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/01 (Fri)
+ * @date 2018/06/11 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -60,12 +60,12 @@
 
 #   if  !defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO) || defined(REPORT_GPU_CLOCK_FREQUENCY)
 #define USE_GPU_BASE_CLOCK_FREQ
-#   if  (__CUDACC_VER_MINOR__ + 10 * __CUDACC_VER_MAJOR__) >= 80
+#   if  ((__CUDACC_VER_MINOR__ + 10 * __CUDACC_VER_MAJOR__) >= 80) && !defined(DISABLE_NVML_FOR_CLOCK_FREQ)
 #include <nvml.h>
 #undef  USE_GPU_BASE_CLOCK_FREQ
 #define USE_MEASURED_CLOCK_FREQ
 nvmlDevice_t deviceHandler;
-#endif//(__CUDACC_VER_MINOR__ + 10 * __CUDACC_VER_MAJOR__) >= 80
+#endif//((__CUDACC_VER_MINOR__ + 10 * __CUDACC_VER_MAJOR__) >= 80) && !defined(DISABLE_NVML_FOR_CLOCK_FREQ)
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO) || defined(REPORT_GPU_CLOCK_FREQUENCY)
 
 #   if  (GPUGEN >= 70) && (TSUB < 32)

@@ -66,13 +66,13 @@ outputPDF = False
 # fmin, fmax = 1.0e-6, 1.0e-1
 # lab = ["halo", "core", "GC"]
 
-filename = "hernquist"
-Nskip = 0
-init = 0
-last = 47
-# last = 0
-fmin, fmax = 1.0e-3, 1.0e+1
-lab = ["halo"]
+# filename = "hernquist"
+# Nskip = 0
+# init = 0
+# last = 47
+# # last = 0
+# fmin, fmax = 1.0e-3, 1.0e+1
+# lab = ["halo"]
 
 # filename = "etg"
 # Nskip = 1
@@ -84,6 +84,14 @@ lab = ["halo"]
 # # last = 0
 # fmin, fmax = 1.0e-4, 1.0e-1
 # lab = ["DM halo", "bulge", "stellar halo", "central BH"]
+
+filename = "satellite"
+Nskip = 0
+init = 0
+last = 140
+# last = 0
+fmin, fmax = 1.0e-4, 1.0e-1
+lab = ["bulge"]
 
 
 Npt = 6

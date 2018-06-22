@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/04/13 (Fri)
+ * @date 2018/06/18 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -26,19 +26,12 @@
  * @def BENCHMARK_STEPS
  *
  * @brief Number of time steps in benchmark
+ * @detail 256 steps for nvprof --metrics, 2048 steps for nvvp, 4096 steps for benchmarking, and 65536 steps for measuring dependence on N
  */
-/* #define BENCHMARK_STEPS (8) */
-/* #define BENCHMARK_STEPS (16) */
-/* #define BENCHMARK_STEPS (32) */
-/* #define BENCHMARK_STEPS (64) */
-/* #define BENCHMARK_STEPS (128) */
 /* #define BENCHMARK_STEPS (256) */
-/* #define BENCHMARK_STEPS (512) */
-/* #define BENCHMARK_STEPS (1024) */
 /* #define BENCHMARK_STEPS (2048) */
 #define BENCHMARK_STEPS (4096)
-/* #define BENCHMARK_STEPS (8192) */
-/* #define BENCHMARK_STEPS (16384) */
+/* #define BENCHMARK_STEPS (65536) */
 
 
 /* macro to specify the file name */

@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/06/03 (Sun) 11:00:08
+# last updated on 2018/06/22 (Fri) 16:30:08
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -20,6 +20,7 @@ DEBUG	:= -DNDEBUG
 #################################################################################################
 # Execution options
 FORCE_SINGLE_GPU_RUN	:= 1
+DISABLE_AUTO_TUNING	:= 0
 COMBINE_WITH_J_PARALLEL	:= 1
 MPI_AUTO_TUNE_FOR_RMAX	:= 0
 SKIP_UNUSED_LET_BUILD	:= 1
@@ -44,6 +45,7 @@ OMIT_VELOCITY_BASED_DT	:= 0
 REPORT_COMPUTE_RATE	:= 1
 USE_COOPERATIVE_GROUPS	:= 0
 GET_NBLOCKS_PER_SM_AUTO	:= 1
+DISABLE_NVML_FOR_CLOCK	:= 1
 DATAFILE_FORMAT_HDF5	:= 1
 HDF5_FOR_ZINDAIJI	:= 1
 PREPARE_XDMF_FILES	:= 1
@@ -63,7 +65,7 @@ EVALUATE_FORCE_ERROR	:= 0
 #################################################################################################
 # Benchmark options
 REPORT_ELAPSED_TIME	:= 1
-REPORT_CLOCK_FREQUENCY	:= 1
+REPORT_CLOCK_FREQUENCY	:= 0
 MEASURE_EXEC_METRICS	:= 0
 MEASURE_ELAPSED_TIME	:= 0
 HUNT_OPTIMAL_WALK_TREE	:= 0
@@ -142,6 +144,7 @@ USEDBG	:= 0
 USEPAPI	:= 0
 EVALUATE_FORCE_ERROR	:= 0
 # REPORT_ELAPSED_TIME	:= 0
+REPORT_CLOCK_FREQUENCY	:= 0
 endif
 #################################################################################################
 ifeq ($(EVALUATE_FORCE_ERROR), 1)
@@ -151,6 +154,15 @@ endif
 #################################################################################################
 ifeq ($(REPORT_ELAPSED_TIME), 1)
 CCARG	+= -DREPORT_TOTAL_ELAPSED_TIME
+endif
+#################################################################################################
+ifneq ($(USENVML), 1)
+DISABLE_NVML_FOR_CLOCK	:= 1
+endif
+ifeq ($(DISABLE_NVML_FOR_CLOCK), 1)
+REPORT_CLOCK_FREQUENCY	:= 0
+CCARG	+= -DDISABLE_NVML_FOR_CLOCK_FREQ
+CUARG	+= -DDISABLE_NVML_FOR_CLOCK_FREQ
 endif
 #################################################################################################
 ifeq ($(REPORT_CLOCK_FREQUENCY), 1)
@@ -207,8 +219,7 @@ USE_MPI_GET_FOR_LET	:= 0
 USE_MPI_GET_FOR_EXCG	:= 0
 CARE_EXTERNAL_PARTICLES	:= 0
 else
-CCARG	+= -DDISABLE_AUTO_TUNING
-CUARG	+= -DDISABLE_AUTO_TUNING
+DISABLE_AUTO_TUNING	:= 1
 # direct solver is not parallelized
 EVALUATE_FORCE_ERROR	:= 0
 ifeq ($(COMBINE_WITH_J_PARALLEL), 1)
@@ -257,6 +268,11 @@ CUARG	+= -DUSE_RECTANGULAR_BOX_FOR_LET
 # ENCLOSING_BALL_FOR_LET	:= 0
 # DIVERT_GEOMETRIC_CENTER	:= 0
 endif
+endif
+#################################################################################################
+ifeq ($(DISABLE_AUTO_TUNING), 1)
+CCARG	+= -DDISABLE_AUTO_TUNING
+CUARG	+= -DDISABLE_AUTO_TUNING
 endif
 #################################################################################################
 ifeq ($(ADOPT_BLOCK_TIME_STEP), 1)

@@ -285,8 +285,8 @@ if [ $PROBLEM -eq 27 ]; then
     EPS=1.5625e-2
     # EPS=7.8125e-3
     ETA=0.5
-    FINISH=75.0
-    # FINISH=1175.0
+    # FINISH=75.0
+    FINISH=1175.0
     # FINISH=3175.0
     INTERVAL=25.0
 fi

@@ -18,6 +18,10 @@ outputPDF = True
 # outputPDF = False
 
 
+monochrome = False
+# monochrome = True
+
+
 col_M31disk = "white"
 lw_M31disk = 0.5
 
@@ -37,19 +41,48 @@ ls = ["-", ":", "-.", "--"]
 col = ["black", "red", "blue", "magenta"]
 
 
-filename = "k17disk"
-Nskip = 2
-skip = [0, 2]
-Nmbh = 1
-wmbh = [2]
+col_frame = "black"
+col_grid  = "white"
+col_caption = "white"
+if monochrome:
+    col_M31disk = "black"
+    col_shell = "black"
+    col_field, col_gss, col_sc, col_sd = "black", "black", "black", "black"
+    col_grid  = "black"
+    col_caption = "black"
+
+
+
+# filename = "k17disk"
+# Nskip = 2
+# skip = [0, 2]
+# Nmbh = 1
+# wmbh = [2]
+# init = 0
+# last = 399
+# # init = 288
+# # last = 288
+# fmin, fmax = 1.0e+4, 1.0e+9
+# if monochrome:
+#     fmin, fmax = 1.0e+3, 1.0e+7
+# xtics = [-4.0, -2.0, 0.0, 2.0, 4.0, 6.0]
+# ytics = [-8.0, -6.0, -4.0, -2.0, 0.0, 2.0]
+# ztics = [700.0, 750.0, 800.0, 850.0, 900.0]
+# lab = ["halo", "bulge", "MBH", "disk", "retro"]
+
+filename = "k18nws"
+Nskip = 0
+Nmbh = 0
 init = 0
-last = 399
-# init = 285
-# last = 285
-fmin, fmax = 1.0e+4, 1.0e+9
-xtics = [-4.0, -2.0, 0.0, 2.0, 4.0, 6.0]
-ytics = [-8.0, -6.0, -4.0, -2.0, 0.0, 2.0]
-ztics = [700.0, 750.0, 800.0, 850.0, 900.0]
+last = 400
+# init = 350
+# last = 350
+fmin, fmax = 1.0e+3, 1.0e+6
+if monochrome:
+    fmin, fmax = 1.0e+3, 1.0e+7
+xtics = [-8.0, -6.0, -4.0, -2.0, 0.0, 2.0]
+ytics = [-2.0, 0.0, 2.0, 4.0, 6.0, 8.0]
+ztics = [750.0, 800.0, 850.0, 900.0, 950.0]
 lab = ["halo", "bulge", "MBH", "disk", "retro"]
 
 
@@ -155,8 +188,9 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
         # reference points of shells and GSS
         ax[idx].plot(Eshell_xi, Eshell_eta, "o", color = col_shell, markerfacecolor = "none", markersize = ms_shell)
         ax[idx].plot(Wshell_xi, Wshell_eta, "o", color = col_shell, markerfacecolor = "none", markersize = ms_shell)
-        for jj in range(Nfield):
-            ax[idx].plot(field_xi[jj], field_eta[jj], "-", color = col_field, linewidth = lw_field)
+        if not monochrome:
+            for jj in range(Nfield):
+                ax[idx].plot(field_xi[jj], field_eta[jj], "-", color = col_field, linewidth = lw_field)
 
         # distance measurements to GSS
         for jj in range(Ngss):
@@ -167,13 +201,13 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
         # distance measurements to Stream C
         for jj in range(NstreamC):
             ax[idx].plot(streamC_field_xi[jj], streamC_field_eta[jj], "-", color = col_sc, linewidth = lw_sc)
-        ax[idx + 1].plot(streamC_xi, streamC_D, "s", color = col_sc, markerfacecolor = "none", markersize = ms_sc)
+        ax[idx + 1].plot(streamC_xi, streamC_D, "D", color = col_sc, markerfacecolor = "none", markersize = ms_sc)
         ax[idx + 1].errorbar(streamC_xi, streamC_D, yerr = streamC_Derr, ls = "none", ecolor = col_sc, elinewidth = lw_sc)
 
         # distance measurements to Stream D
         for jj in range(NstreamD):
             ax[idx].plot(streamD_field_xi[jj], streamD_field_eta[jj], "-", color = col_sd, linewidth = lw_sd)
-        ax[idx + 1].plot(streamD_xi, streamD_D, "s", color = col_sd, markerfacecolor = "none", markersize = ms_sd)
+        ax[idx + 1].plot(streamD_xi, streamD_D, "o", color = col_sd, markerfacecolor = "none", markersize = ms_sd)
         ax[idx + 1].errorbar(streamD_xi, streamD_D, yerr = streamD_Derr, ls = "none", ecolor = col_sd, elinewidth = lw_sd)
 
 
@@ -187,11 +221,11 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
         ax[ii].set_xlim([xmin, xmax])
         ax[ii].set_xticks(xtics)
         # ax[ii].set_yticks(ytics)
-        ax[ii].tick_params(axis = "both", direction = "in", color = "white", bottom = True, top = True, left = True, right = True)
-        ax[ii].spines["bottom"].set_color("white")
-        ax[ii].spines[   "top"].set_color("white")
-        ax[ii].spines[  "left"].set_color("white")
-        ax[ii].spines[ "right"].set_color("white")
+        ax[ii].tick_params(axis = "both", direction = "in", color = col_grid, bottom = True, top = True, left = True, right = True)
+        ax[ii].spines["bottom"].set_color(col_grid)
+        ax[ii].spines[   "top"].set_color(col_grid)
+        ax[ii].spines[  "left"].set_color(col_grid)
+        ax[ii].spines[ "right"].set_color(col_grid)
 
     for ii in range(nxpanel):
         ax[ii * nypanel + 1].set_yticks(ztics)
@@ -199,16 +233,25 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
         ax[ii * nypanel + 1].set_ylim([zmin, zmax])
         ax[ii * nypanel    ].set_ylim([ymin, ymax])
         ax[ii * nypanel    ].set_xlabel(r"$\xi$ ({:<})".format("degree"))
-        ax[ii * nypanel + 1].spines[   "top"].set_color("black")
-        ax[ii * nypanel    ].spines["bottom"].set_color("black")
+        ax[ii * nypanel + 1].spines[   "top"].set_color(col_frame)
+        ax[ii * nypanel    ].spines["bottom"].set_color(col_frame)
 
 
     ax[0].set_ylabel(r"$\eta$ ({:<})".format("degree"))
     ax[1].set_ylabel(r"$D$ ({:<})".format("kpc"))
-    ax[0].spines["left"].set_color("black")
-    ax[1].spines["left"].set_color("black")
-    ax[(nxpanel - 1) * nypanel + 1].spines["right"].set_color("black")
-    ax[(nxpanel - 1) * nypanel    ].spines["right"].set_color("black")
+    ax[0].spines["left"].set_color(col_frame)
+    ax[1].spines["left"].set_color(col_frame)
+    ax[(nxpanel - 1) * nypanel + 1].spines["right"].set_color(col_frame)
+    ax[(nxpanel - 1) * nypanel    ].spines["right"].set_color(col_frame)
+
+    for ii in range(nxpanel):
+        for jj in range(nypanel):
+            caption  = "(" + "{:^c}".format(97 + ii + nxpanel * (nypanel - 1 - jj)) + ")"
+            idx = ii * nypanel + jj
+            if jj == 0:
+                ax[idx].text(xmin + 0.03 * (xmax - xmin), ymax - 0.12 * (ymax - ymin), caption, color = col_caption, fontsize = 11)
+            if jj == 1:
+                ax[idx].text(xmin + 0.03 * (xmax - xmin), zmax - 0.12 * (zmax - zmin), caption, color = col_caption, fontsize = 11)
 
 
     # add colorbar
@@ -231,12 +274,16 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
     cbar.solids.set_edgecolor("face")
 
     # add current time
-    fig.suptitle(r"$t = {:.2f}$ {:<}".format(time, "Myr"))
-    # fig.suptitle(r"$t = {:.3f}$ {:<}".format(time / 1000, "Gyr"))
+    if not monochrome:
+        fig.suptitle(r"$t = {:.2f}$ {:<}".format(time, "Myr"))
+        # fig.suptitle(r"$t = {:.3f}$ {:<}".format(time / 1000, "Gyr"))
 
 
     # save figures
-    figname = "fig/" + filename + "_map" + snapshot
+    figname = "fig/" + filename + "_map"
+    if monochrome:
+        figname += "_mono"
+    figname += snapshot
     fig.savefig(figname + ".png", format = "png", dpi =  96, bbox_inches = "tight")
     if outputPDF:
         fig.savefig(figname + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
@@ -296,6 +343,8 @@ for ii in range(NstreamD):
 
 
 my_cmap = utils.generate_cmap(["darkblue", "deepskyblue", "lime", "yellow", "red", "magenta", "white"])
+if monochrome:
+    my_cmap = "gray_r"
 # cores = mp.cpu_count()
 cores = int(np.ceil(mp.cpu_count() / 2))
 pool = mp.Pool(cores)

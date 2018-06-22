@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/28 (Mon)
+ * @date 2018/06/08 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -505,6 +505,7 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
   const double    Emin = df[          0].ene;
   const double    Emax = df[NENEBIN - 1].ene;
   const double invEbin = (double)(NENEBIN - 1) / (Emax - Emin);
+  __NOTE__("Emin = %e, Emax = %e, invEbin = %e\n", Emin, Emax, invEbin);
 
 #if 1
   const int iout = cfg.iout;
@@ -565,11 +566,12 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
     const double psi = (1.0 - alpha) * prf[ll].psi_tot + alpha * prf[rr].psi_tot;
     const double vesc = sqrt(2.0 * (psi - Ecut));
 
-#if 0
+#ifndef NDEBUG
     if( fpclassify(vesc) != FP_NORMAL ){
+      __FPRINTF__(stderr, "Mmin = %e, Mmax = %e, Menc = %e, ll = %d, iout = %d, Mout = %e\n", Mmin, Mmax, tmp, ll, iout, prf[iout].enc);
       __KILL__(stderr, "rad = %e, psi = %e, Ecut = %e, Emin = %e, rout = %e, vesc = %e\n", rad, psi, Ecut, Emin, cfg.rmax, vesc);
     }/* if( fpclassify(vesc) != FP_NORMAL ){ */
-#endif
+#endif//NDEBUG
 
     const double v2Fmax = vesc * vesc * getDF(psi, df, Emin, invEbin);
     double vel;
@@ -577,6 +579,11 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
       vel = vesc * UNIRAND_DBL(rand);
 
       const double ene = psi - 0.5 * vel * vel;
+#ifndef NDEBUG
+      if( fpclassify(ene) != FP_NORMAL ){
+	__FPRINTF__(stderr, "ene = %e, psi = %e, vel = %e\n", ene, psi, vel);
+      }/* if( fpclassify(ene) != FP_NORMAL ){ */
+#endif//NDEBUG
       const double val = vel * vel * getDF(ene, df, Emin, invEbin);
       const double try = v2Fmax * UNIRAND_DBL(rand);
 

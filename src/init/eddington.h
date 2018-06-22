@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/06/08 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -62,6 +62,11 @@ typedef struct
 static inline double getDF(const double ene, dist_func *df, const double Emin, const double invEbin)
 {
   const int ll = (int)((ene - Emin) * invEbin);
+#ifndef NDEBUG
+  if( (ll < 0) || (ll >= NENEBIN) ){
+    __FPRINTF__(stderr, "ll = %d: ene = %e, Emin = %e, invEbin = %e\n", ll, ene, Emin, invEbin);
+  }/* if( (ll < 0) || (ll >= NENEBIN) ){ */
+#endif//NDEBUG
   return (df[ll].val + (df[ll + 1].val - df[ll].val) * (ene - df[ll].ene) / (df[ll + 1].ene - df[ll].ene));
 }
 

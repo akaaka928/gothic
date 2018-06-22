@@ -1,27 +1,26 @@
 #!/bin/sh
-#$ -cwd
-#$ -l s_gpu=1
-#$ -l h_rt=0:20:00
-#$ -N gothic
-#$ -hold_jid magi,gothic
 ###############################################################
-
-
+if [ $# -lt 1 ]; then
+    echo "$# input(s) is/are detected while at least 1 input is required to specify <test problem>" 1>&2
+    exit 1
+fi
+JOB_ID=$$
+PROBLEM=$1
+###############################################################
+#
+#
 ###############################################################
 # global configurations
 ###############################################################
-if [ -z "$EXEC" ]; then
-    EXEC=bin/gothic
-fi
+EXEC=bin/gothic
+###############################################################
+#
+#
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
     # PROBLEM=2
-    # PROBLEM=20
-    # PROBLEM=26
     PROBLEM=27
-    # PROBLEM=80
-    # PROBLEM=81
 fi
 ###############################################################
 # value of accuracy controling parameter: GADGET MAC by Springel (2005)
@@ -39,31 +38,11 @@ if [ -z "$ABSERR" ]; then
     # ABSERR=1.220703125e-4
 fi
 ###############################################################
-# value of accuracy controling parameter: opening criterion by Barnes & Hut (1986)
-if [ -z "$THETA" ]; then
-    # THETA=0.9
-    # THETA=0.8
-    # THETA=0.7
-    # THETA=0.6
-    # THETA=0.5
-    THETA=0.4
-    # THETA=0.3
-fi
+REBUILD=16
+BRENT=1.0
 ###############################################################
-# value of accuracy controling parameter: multipole moment MAC by Warren & Salmon (1993)
-if [ -z "$ACCERR" ]; then
-    # ACCERR=1.250000e-1
-    # ACCERR=6.250000e-2
-    # ACCERR=3.125000e-2
-    ACCERR=1.562500e-2
-    # ACCERR=7.812500e-3
-    # ACCERR=3.906250e-3
-    # ACCERR=1.953125e-3
-    # ACCERR=9.765625e-4
-fi
-###############################################################
-
-
+#
+#
 ###############################################################
 # problem specific configurations
 ###############################################################
@@ -167,14 +146,9 @@ if [ $PROBLEM -eq 26 ]; then
     FILE=etg
 fi
 ###############################################################
-# dynamical stability of an M31 model (NFW halo, Hernquist bulge, and exponential disk)
-# basically, this is Fardal et al. (2007) model
-# stellar halo: Gilbert et al. (2012): \Sigma \propto R^-2.2; Rmin = 9kpc, Rmax = 176kpc; Ibata et al. (2014, ApJ, 780, 128): total stellar mass of the smooth halo is ~8e+9 Msun
-# disk: Toomre's Q-value is set to reproduce Tenjes et al. (2017): Q_min = 1.8 @ 12-13 kpc
+# dynamical stability of an M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk)
 if [ $PROBLEM -eq 27 ]; then
-    if [ -z "$FILE" ]; then
-	FILE=m31
-    fi
+    FILE=m31
 fi
 ###############################################################
 # dynamical stability of multi components galaxy model (NFW halo, King bulge, thick Sersic disk, and thin exponential disk)
@@ -268,40 +242,35 @@ if [ $PROBLEM -eq 81 ]; then
 fi
 ###############################################################
 # set input arguments
-OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$JOB_ID"
+OPTION="-absErr=$ABSERR -file=$FILE -rebuild_interval=$REBUILD -brent_frac=$BRENT -jobID=$JOB_ID"
 ###############################################################
-
-
+# nvprof --query-metrics
+NVPROF_METRICS="--metrics inst_fp_32,inst_integer,flop_count_sp_fma,flop_count_sp_add,flop_count_sp_mul,flop_count_sp_special"
+# NVPROF_METRICS="--metrics inst_fp_64,flop_count_dp_fma,flop_count_dp_add,flop_count_dp_mul"
 ###############################################################
-# job execution via UNIVA Grid Engine
+#
+#
 ###############################################################
-# set stdout and stderr
-STDOUT=log/${FILE}_$REQUEST.o$JOB_ID
-STDERR=log/${FILE}_$REQUEST.e$JOB_ID
+# execute numerical simulation
 ###############################################################
-# load modules
-. /etc/profile.d/modules.sh
-export MODULEPATH=$MODULEPATH:/gs/hs1/jh180045/share/opt/Modules
-module load intel cuda openmpi
-module load cub phdf5/ompi
-module list 1>>$STDOUT 2>>$STDERR
-###############################################################
-cat $PE_HOSTFILE 1>>$STDOUT 2>>$STDERR
+# start logging
+LOG=log/${FILE}.l
+PRFOUT=log/${FILE}_gothic.m${JOB_ID}
 TIME=`date`
-echo "start: $TIME" 1>>$STDOUT 2>>$STDERR
+echo "start: $TIME" >> $LOG
 ###############################################################
 # execute the job
 if [ `which numactl` ]; then
     # run with numactl
-    echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
-    numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    echo "numactl --cpunodebind=0 --localalloc nvprof --kernels \"::calcAcc_kernel:\" $NVPROF_METRICS $EXEC $OPTION 1>>$PRFOUT 2>>&1" >> $LOG
+    numactl --cpunodebind=0 --localalloc nvprof --kernels "::calcAcc_kernel:" $NVPROF_METRICS $EXEC $OPTION 1>>$PRFOUT 2?>&1
 else
     # run without numactl
-    echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
-    $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    echo "nvprof --kernels \"::calcAcc_kernel:\" $NVPROF_METRICS $EXEC $OPTION 1>>$PRFOUT 2>>&1" >> $LOG
+    nvprof --kernels "::calcAcc_kernel:" $NVPROF_METRICS $EXEC $OPTION 1>>$PRFOUT 2>>&1
 fi
 ###############################################################
 # finish logging
 TIME=`date`
-echo "finish: $TIME" 1>>$STDOUT 2>>$STDERR
+echo "finish: $TIME" >> $LOG
 ###############################################################

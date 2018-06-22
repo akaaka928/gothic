@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/03/27 (Tue)
+ * @date 2018/06/21 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -42,6 +42,10 @@
 #include <mpi.h>
 
 #ifdef  USE_HDF5_FORMAT
+#ifdef  HDF5_FOR_ZINDAIJI
+#include <unistd.h>
+#include <sys/stat.h>
+#endif//HDF5_FOR_ZINDAIJI
 #include <hdf5.h>
 #include "hdf5lib.h"
 /* The maximum number of elements in a chunk is 2^32-1 which is equal to 4,294,967,295 */
@@ -64,8 +68,8 @@
 
 
 
-/* const real zm31 = CAST_D2R(776.0);/\**< same with Komiyama et al. (2018); median of NED *\/ */
-const real zm31 = CAST_D2R(773.0);/**< M31 distance in Conn et al. (2016) */
+const real zm31 = CAST_D2R(776.0);/**< same with Komiyama et al. (2018); median of NED */
+/* const real zm31 = CAST_D2R(773.0);/\**< M31 distance in Conn et al. (2016) *\/ */
 
 const real vm31x = CAST_D2R(0.0);
 const real vm31y = CAST_D2R(0.0);
@@ -128,7 +132,15 @@ void writeM31coordinateData
 (const double time, const ulong steps, char file[], const uint id, hdf5struct type, const int kind, int * restrict bodyHead, int * restrict bodyNum,
  const int nx, real * restrict xx, const int ny, real * restrict yy, const int nz, real * restrict zz, real * restrict Sigma_xy, real * restrict Sigma_yz, real * restrict Sigma_zx,
  real * restrict rho_xx, real * restrict rho_yy, real * restrict rho_zz, real * restrict rho_map,
- real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vxi, real * restrict veta, real * restrict vlos);
+ real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vxi, real * restrict veta, real * restrict vlos
+#ifdef  HDF5_FOR_ZINDAIJI
+ , real rot[restrict][3], nbody_hdf5 hdf5, nbody_particle *body, int * restrict bodyType, const real eps
+#endif//HDF5_FOR_ZINDAIJI
+);
+
+#ifdef  HDF5_FOR_ZINDAIJI
+void writeZindaijiFile(const int Ntot, nbody_hdf5 hdf5, const real eps, const int kind, int *bodyHead, int *bodyNum, int *type, const double time, char file[], const uint id);
+#endif//HDF5_FOR_ZINDAIJI
 #endif//USE_HDF5_FORMAT
 
 
@@ -271,8 +283,16 @@ int main(int argc, char **argv)
   checker &= (1 == fscanf(fp, "%d\t%*d", &kind));
   bodyHead = (int *)malloc(sizeof(int) * kind);  if( bodyHead == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate bodyHead");  }
   bodyNum  = (int *)malloc(sizeof(int) * kind);  if( bodyNum  == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate bodyNum");  }
+#ifdef  HDF5_FOR_ZINDAIJI
+  int *bodyType;
+  bodyType = (int *)malloc(sizeof(int) * kind);  if( bodyType == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate bodyType");  }
+#endif//HDF5_FOR_ZINDAIJI
   for(int ii = 0; ii < kind; ii++)
     checker &= (1 == fscanf(fp, "%d", &bodyNum[ii]));
+#ifdef  HDF5_FOR_ZINDAIJI
+  for(int ii = 0; ii < kind; ii++)
+    checker &= (1 == fscanf(fp, "%d", &bodyType[ii]));
+#endif//HDF5_FOR_ZINDAIJI
   fclose(fp);
   if( !checker ){
     __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);
@@ -280,6 +300,10 @@ int main(int argc, char **argv)
   bodyHead[0] = 0;
   for(int ii = 1; ii < kind; ii++)
     bodyHead[ii] = bodyHead[ii - 1] + bodyNum[ii - 1];
+#ifdef  HDF5_FOR_ZINDAIJI
+  for(int ii = 0; ii < kind; ii++)
+    bodyType[ii] &= 3;
+#endif//HDF5_FOR_ZINDAIJI
 
   /** assume zone-centered mapping */
   real *rho_xx ;  rho_xx  = (real *)malloc(sizeof(real) * (nx + 1));  if( rho_xx == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate rho_xx");  }
@@ -358,9 +382,22 @@ int main(int argc, char **argv)
       (time, steps, file, filenum, hdf5type, kind, bodyHead, bodyNum,
        nx, xx, ny, yy, nz, zz, Sigma_xy, Sigma_yz, Sigma_zx,
        rho_xx, rho_yy, rho_zz, rho_map,
-       xi, eta, dist, vxi, veta, vlos);
+       xi, eta, dist, vxi, veta, vlos
+#ifdef  HDF5_FOR_ZINDAIJI
+       , rot, hdf5, body, bodyType, eps
+#endif//HDF5_FOR_ZINDAIJI
+       );
 #endif//USE_HDF5_FORMAT
   }/* for(int filenum = start + mpi.rank * interval; filenum < end + 1; filenum += interval * mpi.size){ */
+
+
+  if( mpi.rank == 0 ){
+    fprintf(stdout, "assumed value in the analysis:\n");
+    fprintf(stdout, "distance to M31 is %e kpc\n", zm31);
+    fprintf(stdout, "vM31_x = %e km/s\n", vm31x);
+    fprintf(stdout, "vM31_y = %e km/s\n", vm31y);
+    fprintf(stdout, "vM31_z = %e km/s\n", vm31z);
+  }/* if( mpi.rank == 0 ){ */
 
 
 #ifdef  USE_HDF5_FORMAT
@@ -538,9 +575,9 @@ void standard_coordinate(const int num, nbody_particle *body, real rot[restrict]
     const real vy = fin[1] + vm31y;
     const real vz = fin[2] + vm31z;
 
-    const real tmp = rad2deg / zz;
-    xi [ii] = xx * tmp;
-    eta[ii] = yy * tmp;
+    const real tmp = UNITY / zz;
+    xi [ii] = rad2deg * ATAN(xx * tmp);
+    eta[ii] = rad2deg * ATAN(yy * tmp);
     const real d2 = xx * xx + yy * yy + zz * zz;
     const real dinv = RSQRT(d2);
     dist[ii] = d2 * dinv;
@@ -769,7 +806,11 @@ void writeM31coordinateData
 (const double time, const ulong steps, char file[], const uint id, hdf5struct type, const int kind, int * restrict bodyHead, int * restrict bodyNum,
  const int nx, real * restrict xx, const int ny, real * restrict yy, const int nz, real * restrict zz, real * restrict Sigma_xy, real * restrict Sigma_yz, real * restrict Sigma_zx,
  real * restrict rho_xx, real * restrict rho_yy, real * restrict rho_zz, real * restrict rho_map,
- real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vxi, real * restrict veta, real * restrict vlos)
+ real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vxi, real * restrict veta, real * restrict vlos
+#ifdef  HDF5_FOR_ZINDAIJI
+ , real rot[restrict][3], nbody_hdf5 hdf5, nbody_particle *body, int * restrict bodyType, const real eps
+#endif//HDF5_FOR_ZINDAIJI
+)
 {
   __NOTE__("%s\n", "start");
 
@@ -1105,6 +1146,260 @@ void writeM31coordinateData
   /* close the file */
   chkHDF5err(H5Fclose(target));
 
+
+#ifdef  HDF5_FOR_ZINDAIJI
+  sprintf(filename, "%s/%s_%s%.3u.h5", DATAFOLDER, file, "zindaiji", id);
+  bool dump_file = (0 != access(filename, F_OK));
+  if( !dump_file ){
+    struct stat stat_file;
+    stat(filename, &stat_file);
+    char tmpname[128];
+    sprintf(tmpname, "%s/%s.%s%.3u.h5", DATAFOLDER, file, SNAPSHOT, id);
+    struct stat stat_snap;
+    stat(tmpname, &stat_snap);
+    if( stat_snap.st_ctime > stat_file.st_ctime )
+      dump_file = true;
+  }/* if( !dump_file ){ */
+  if( dump_file ){
+    int Ntot = 0;
+    for(int kk = 0; kk < kind; kk++)
+      Ntot += bodyNum[kk];
+    static real ini[3], fin[3];
+    /* execute coordinate rotation */
+    const double velocity2com = 1.0 / velocity2astro;
+    const double vm31x_com = vm31x * velocity2com;
+    const double vm31y_com = vm31y * velocity2com;
+    const double vm31z_com = vm31z * velocity2com;
+    for(int ii = 0; ii < Ntot; ii++){
+      hdf5.idx[ii    ] = body[ii].idx;	hdf5.  m[ii        ] = body[ii]. m;	hdf5.pot[ii        ] = body[ii].pot;
+      ini[0] = CAST_D2R(CAST_R2D(body[ii].x) * length2astro);      ini[1] = CAST_D2R(CAST_R2D(body[ii].y) * length2astro);      ini[2] = CAST_D2R(CAST_R2D(body[ii].z) * length2astro);
+      rotateVector(ini, rot, fin);
+      fin[2] += zm31;
+      hdf5.pos[ii * 3] = fin[0];	hdf5.pos[ii * 3 + 1] = fin[1];	hdf5.pos[ii * 3 + 2] = fin[2];
+      ini[0] = body[ii].vx;      ini[1] = body[ii].vy;      ini[2] = body[ii].vz;
+      fin[0] = CAST_D2R(CAST_R2D(fin[0]) + vm31x_com);
+      fin[1] = CAST_D2R(CAST_R2D(fin[1]) + vm31y_com);
+      fin[2] = CAST_D2R(CAST_R2D(fin[2]) + vm31z_com);
+      hdf5.vel[ii * 3] = fin[0];	hdf5.vel[ii * 3 + 1] = fin[1];	hdf5.vel[ii * 3 + 2] = fin[2];
+      ini[0] = body[ii].ax;      ini[1] = body[ii].ay;      ini[2] = body[ii].az;
+      hdf5.acc[ii * 3] = fin[0];	hdf5.acc[ii * 3 + 1] = fin[1];	hdf5.acc[ii * 3 + 2] = fin[2];
+    }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
+    writeZindaijiFile(Ntot, hdf5, eps, kind, bodyHead, bodyNum, bodyType, time, file, id);
+  }/* if( dump_file ){ */
+  else{
+    fprintf(stdout, "# \"%s\" was not updated for reducing the elapsed time.\n", filename);
+    fflush(stdout);
+  }/* else{ */
+#endif//HDF5_FOR_ZINDAIJI
+
+
   __NOTE__("%s\n", "end");
 }
+
+
+#ifdef  HDF5_FOR_ZINDAIJI
+void writeZindaijiFile(const int Ntot, nbody_hdf5 hdf5, const real eps, const int kind, int *bodyHead, int *bodyNum, int *type, const double time, char file[], const uint id)
+{
+  __NOTE__("%s\n", "start");
+
+
+  float *tmp_flt;  tmp_flt = (float *)malloc(Ntot * 3 * sizeof(float));  if( tmp_flt == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_flt");  }
+  int   *tmp_int;  tmp_int = (int   *)malloc(Ntot     * sizeof(int)  );  if( tmp_int == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_int");  }
+  const double vel2zin = length2astro / time2astro;
+  const double acc2zin = 0.5 * vel2zin / time2astro;
+
+
+
+  /* create a new file (if the file already exists, the file is opened with read-write access, new data will overwrite any existing data) */
+  char filename[128];
+  sprintf(filename, "%s/%s_%s%.3u.h5", DATAFOLDER, file, "zindaiji", id);
+  hid_t target = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+
+  /* create the data space for the dataset */
+  /* preparation for data compression */
+  hid_t dataset, dataspace, property;
+#ifdef  USE_FILE_COMPRESSION
+  const hsize_t cdims_max = (MAXIMUM_CHUNK_SIZE_4BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_4BIT : MAXIMUM_CHUNK_SIZE;
+  hsize_t cdims_loc[2];
+#   if  defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
+#ifdef  USE_SZIP_COMPRESSION
+  /* compression using szip */
+  const uint szip_options_mask = H5_SZIP_NN_OPTION_MASK;
+  const uint szip_pixels_per_block = 8;
+  hsize_t szip_cdims[2] = {32 * szip_pixels_per_block, 3};
+#else///USE_SZIP_COMPRESSION
+  /* compression using gzip */
+  const uint gzip_compress_level = 9;/**< 9 is the maximum compression ratio */
+  hsize_t gzip_cdims[2] = {512, 3};
+#endif//USE_SZIP_COMPRESSION
+#endif//defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
+#else///USE_FILE_COMPRESSION
+  property = H5P_DEFAULT;
+#endif//USE_FILE_COMPRESSION
+
+
+  /* write attribute data */
+  /* create the data space for the attribute */
+  hid_t str4format = H5Tcopy(H5T_C_S1);
+  chkHDF5err(H5Tset_size(str4format, CONSTANTS_H_CHAR_WORDS));
+  hsize_t attr_dims = 1;
+  dataspace = H5Screate_simple(1, &attr_dims, NULL);
+  hid_t attribute;
+  static const char format_ver[CONSTANTS_H_CHAR_WORDS] = "0.0";
+  attribute = H5Acreate(target, "Format Version", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format, format_ver));
+  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Tclose(str4format));
+
+
+  char grp[16];  sprintf(grp, "snap%d", 0);
+  hid_t group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+  /* write attribute data */
+  attr_dims = 1;
+  dataspace = H5Screate_simple(1, &attr_dims, NULL);
+  /* write # of N-body particles */
+  attribute = H5Acreate(group, "number", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &Ntot));
+  chkHDF5err(H5Aclose(attribute));
+  /* write current time */
+  float time_float = (float)(time * time2astro);
+  attribute = H5Acreate(group, "time", H5T_NATIVE_FLOAT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_FLOAT, &time_float));
+  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Sclose(dataspace));
+
+  /* write particle data */
+  /* 2D (num * 3) array */
+  hsize_t dims[2] = {Ntot, 3};
+  dataspace = H5Screate_simple(2, dims, NULL);
+#   if  defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
+#ifdef  USE_SZIP_COMPRESSION
+  cdims_loc[0] = szip_cdims[0];
+  cdims_loc[1] = szip_cdims[1];
+  if( dims[0] * dims[1] > (hsize_t)szip_pixels_per_block ){
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] * cdims_loc[1] > cdims_max )
+      cdims_loc[0] = cdims_max / cdims_loc[1];
+    chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
+    chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+  }/* if( dims[0] * dims[1] > (hsize_t)szip_pixels_per_block ){ */
+  else
+    property = H5P_DEFAULT;
+#else///USE_SZIP_COMPRESSION
+  cdims_loc[0] = gzip_cdims[0];
+  cdims_loc[1] = gzip_cdims[1];
+  property = H5Pcreate(H5P_DATASET_CREATE);
+  if( dims[0] < cdims_loc[0] )
+    cdims_loc[0] = dims[0];
+  if( cdims_loc[0] * cdims_loc[1] > cdims_max )
+    cdims_loc[0] = cdims_max / cdims_loc[1];
+  chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
+  chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_SZIP_COMPRESSION
+#endif//defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
+
+  /* write particle position */
+  for(int ii = 0; ii < Ntot * 3; ii++)
+    tmp_flt[ii] = (float)(CAST_R2D(hdf5.pos[ii]) * length2astro);
+  dataset = H5Dcreate(group, "xyz", H5T_NATIVE_FLOAT, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_flt));
+  chkHDF5err(H5Dclose(dataset));
+  /* write particle velocity */
+  for(int ii = 0; ii < Ntot * 3; ii++)
+    tmp_flt[ii] = (float)(CAST_R2D(hdf5.vel[ii]) * vel2zin);
+  dataset = H5Dcreate(group, "vxvyvz", H5T_NATIVE_FLOAT, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_flt));
+  chkHDF5err(H5Dclose(dataset));
+  /* write particle acceleration */
+  for(int ii = 0; ii < Ntot * 3; ii++)
+    tmp_flt[ii] = (float)(CAST_R2D(hdf5.acc[ii]) * acc2zin);
+  dataset = H5Dcreate(group, "axayaz", H5T_NATIVE_FLOAT, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_flt));
+  chkHDF5err(H5Dclose(dataset));
+
+#   if  defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
+#ifdef  USE_SZIP_COMPRESSION
+  if( dims[0] * dims[1] > (hsize_t)szip_pixels_per_block )
+#endif//USE_SZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
+  /* close the dataspace */
+  chkHDF5err(H5Sclose(dataspace));
+
+
+  /* 1D (num) arrays */
+  dataspace = H5Screate_simple(1, dims, NULL);
+#   if  defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
+  property = H5Pcreate(H5P_DATASET_CREATE);
+#ifdef  USE_SZIP_COMPRESSION
+  szip_cdims[0] = 128 * szip_pixels_per_block;
+  cdims_loc[0] = szip_cdims[0];
+  if( dims[0] < cdims_loc[0] )
+    cdims_loc[0] = dims[0];
+  if( dims[0] > (hsize_t)szip_pixels_per_block ){
+    if( cdims_loc[0] > cdims_max )
+      cdims_loc[0] = cdims_max;
+    chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
+    chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+  }/* if( (hsize_t)num[ii] > (hsize_t)szip_pixels_per_block ){ */
+  else
+    property = H5P_DEFAULT;
+#else///USE_SZIP_COMPRESSION
+  gzip_cdims[0] = 1024;
+  cdims_loc[0] = gzip_cdims[0];
+  if( dims[0] < cdims_loc[0] )
+    cdims_loc[0] = dims[0];
+  if( cdims_loc[0] > cdims_max )
+    cdims_loc[0] = cdims_max;
+  chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
+  chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_SZIP_COMPRESSION
+#endif//defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
+
+  /* write particle index */
+  for(int ii = 0; ii < Ntot; ii++)
+    tmp_int[ii] = (int)hdf5.idx[ii];
+  dataset = H5Dcreate(group, "ID", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_int));
+  chkHDF5err(H5Dclose(dataset));
+  dataset = H5Dcreate(group, "index", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_int));
+  chkHDF5err(H5Dclose(dataset));
+  /* write particle radius */
+  for(int ii = 0; ii < Ntot; ii++)
+    tmp_flt[ii] = CAST_R2F(eps);
+  dataset = H5Dcreate(group, "radius", H5T_NATIVE_FLOAT, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_int));
+  chkHDF5err(H5Dclose(dataset));
+  /* write particle type */
+  for(int kk = 0; kk < kind; kk++)
+    for(int ii = bodyHead[kk]; ii < bodyHead[kk] + bodyNum[kk]; ii++)
+      tmp_int[ii] = type[kk];
+  dataset = H5Dcreate(group, "type", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_int));
+  chkHDF5err(H5Dclose(dataset));
+
+#   if  defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
+#ifdef  USE_SZIP_COMPRESSION
+  if( dims[0] * dims[1] > (hsize_t)szip_pixels_per_block )
+#endif//USE_SZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
+  /* close the dataspace */
+  chkHDF5err(H5Sclose(dataspace));
+
+
+  chkHDF5err(H5Gclose(group));
+  chkHDF5err(H5Fclose(target));
+
+  free(tmp_flt);
+  free(tmp_int);
+
+  __NOTE__("%s\n", "end");
+}
+#endif//HDF5_FOR_ZINDAIJI
 #endif//USE_HDF5_FORMAT

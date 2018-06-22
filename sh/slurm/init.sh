@@ -14,15 +14,18 @@ EXEC=bin/magi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=2
+    # PROBLEM=2
     # PROBLEM=14
+    # PROBLEM=21
     # PROBLEM=23
     # PROBLEM=26
     # PROBLEM=27
     # PROBLEM=33
+    # PROBLEM=39
     # PROBLEM=46
     # PROBLEM=60
     # PROBLEM=61
+    PROBLEM=62
     # PROBLEM=90
     # PROBLEM=91
     # PROBLEM=92
@@ -46,8 +49,8 @@ if [ -z "$NTOT" ]; then
     # NTOT=8192
     # NTOT=16384
     # NTOT=32768
-    # NTOT=65536
-    NTOT=131072
+    NTOT=65536
+    # NTOT=131072
     # NTOT=262144
     # NTOT=524288
     # NTOT=1048576
@@ -468,6 +471,19 @@ if [ $PROBLEM -eq 38 ]; then
     # INTERVAL=8.0
 fi
 ###############################################################
+# dynamical stability of multi components galaxy model
+if [ $PROBLEM -eq 39 ]; then
+    if [ $NTOT -ne 200000 ]; then
+	NTOT=200000
+    fi
+    FILE=diskhalo
+    CONFIG=debug/galaxy.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1575.0
+    INTERVAL=25.0
+fi
+###############################################################
 # dynamical stability of a Plummer profile in table form
 if [ $PROBLEM -eq 40 ]; then
     FILE=tplummer
@@ -584,6 +600,21 @@ if [ $PROBLEM -eq 61 ]; then
     INTERVAL=25.0
     # FINISH=5175.0
     # INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of a progenitor model for NW stream determined by Komiyama et al. (2018)
+if [ $PROBLEM -eq 62 ]; then
+    FILE=sat
+    CONFIG=nws/k18.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    # INTERVAL=25.0
+    # FINISH=75.0
+    # FINISH=1575.0
+    # FINISH=5175.0
+    # FINISH=5175.0
+    INTERVAL=100.0
+    FINISH=14000.0
 fi
 ###############################################################
 # dynamical stability of Eridanus II (Crnojevic et al. 2016; Li et al. 2017)

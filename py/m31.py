@@ -1,19 +1,28 @@
 import numpy as np
 
-# zm31 = 776.0# same with Komiyama et al. (2018); median of NED
-zm31 = 773.0# M31 distance in Conn et al. (2016)
+zm31 = 776.0# same with Komiyama et al. (2018); median of NED
+# zm31 = 773.0# M31 distance in Conn et al. (2016)
 
 year = 3.15576e+7# year in units of sec
 kpc2km = 3.0856775975e+21 * 1.0e-5
 
-vm31x = zm31 * kpc2km * np.tan(np.deg2rad( 49.0 * 1.0e-6 / 3600.0)) / year# Gaia DR2 + HST (van der Marel et al. 2018)
-vm31y = zm31 * kpc2km * np.tan(np.deg2rad(-38.0 * 1.0e-6 / 3600.0)) / year# Gaia DR2 + HST (van der Marel et al. 2018)
-# vm31x = 0.0
-# vm31y = 0.0
+# vm31x = zm31 * kpc2km * np.tan(np.deg2rad( 49.0 * 1.0e-6 / 3600.0)) / year# Gaia DR2 + HST (van der Marel et al. 2018)
+# vm31y = zm31 * kpc2km * np.tan(np.deg2rad(-38.0 * 1.0e-6 / 3600.0)) / year# Gaia DR2 + HST (van der Marel et al. 2018)
+vm31x = 0.0
+vm31y = 0.0
 vm31z = -300.0
 
 def distance():
     return zm31
+
+def vx():
+    return vm31x
+
+def vy():
+    return vm31y
+
+def vz():
+    return vm31z
 
 def set_rodrigues_matrix(axis, sinx, cosx):
     rot = np.array([
@@ -82,22 +91,48 @@ def set_rotation_matrix():
     return rot, inv
 
 def standard_coordinate(xx, yy, zz):
-    tmp = 180.0 / (np.pi * (zm31 + zz))
-    xi = xx * tmp
-    eta = yy * tmp
+    xi = np.rad2deg(np.arctan(xx / (zm31 + zz)))
+    eta = np.rad2deg(np.arctan(yy / (zm31 + zz)))
     D = np.sqrt(xx ** 2 + yy ** 2 + (zm31 + zz) ** 2)
 
     return xi, eta, D
 
 
 def observed_velocity(xx, yy, zz, vx, vy, vz):
-    xi, eta, D = standard_coordinate(xx, yy, zz)
-
-    vlos = (xx * (vx + vm31x) + yy * (vy + vm31y) + (zm31 + zz) * (vz + vm31z)) / D
-    vxi = ((zm31 + zz) * vx - xx * vz) / D
-    veta = ((zm31 + zz) * vy - yy * vz) / D
+    zz += zm31
+    D = np.sqrt(xx ** 2 + yy ** 2 + zz ** 2)
+    vx += vm31x
+    vy += vm31y
+    vz += vm31z
+    vlos = (xx * vx + yy * vy + zz * vz) / D
+    vxi  = (zz * vx - xx * vz) / D
+    veta = (zz * vy - yy * vz) / D
 
     return vxi, veta, vlos
+
+
+def cartesian_coordinate(xi, eta, D):
+    tan_xi  = np.tan(np.deg2rad(xi))
+    tan_eta = np.tan(np.deg2rad(eta))
+    dist = D / np.sqrt(1.0 + tan_xi ** 2 + tan_eta ** 2)
+    xx = dist * tan_xi
+    yy = dist * tan_eta
+    zz = dist - zm31
+
+    return xx, yy, zz
+
+
+def cartesian_velocity(vxi, veta, vlos, xx, yy, zz):
+    zp = zz + zm31
+    dist = np.sqrt(xx ** 2 + yy ** 2 + zp ** 2)
+    vz = (zp * vlos - xx * vxi - yy * veta) / dist
+    vx = (dist * vxi  + xx * vz) / zp
+    vy = (dist * veta + yy * vz) / zp
+    vx -= vm31x
+    vy -= vm31y
+    vz -= vm31z
+
+    return vx, vy, vz
 
 
 def disk_ellipse():

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/01 (Fri)
+ * @date 2018/06/22 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -3907,11 +3907,11 @@ void writeSnapshot
 #endif//PREPARE_XDMF_FILES
 #endif//USE_HDF5_FORMAT
 
-#   if  defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR)
+#   if  defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR) && !defined(SET_EXTERNAL_POTENTIAL_FIELD)
   if( Eerr > 0.1 ){
     __KILL__(stderr, "detect too large energy error: Eerr = %e\n", Eerr);
   }/* if( Eerr > 0.1 ){ */
-#endif//defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR)
+#endif//defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR) && !defined(SET_EXTERNAL_POTENTIAL_FIELD)
 
 
   __NOTE__("%s\n", "end");
@@ -4386,11 +4386,11 @@ void writeSnapshotParallel
 #endif//PREPARE_XDMF_FILES
 #endif//USE_HDF5_FORMAT
 
-#   if  defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR)
+#   if  defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR) && !defined(SET_EXTERNAL_POTENTIAL_FIELD)
   if( Eerr > 0.1 ){
     __KILL__(stderr, "detect too large energy error: Eerr = %e\n", Eerr);
   }/* if( Eerr > 0.1 ){ */
-#endif//defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR)
+#endif//defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR) && !defined(SET_EXTERNAL_POTENTIAL_FIELD)
 
 
   __NOTE__("%s\n", "end");

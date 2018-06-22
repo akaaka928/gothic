@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/01 (Fri)
+ * @date 2018/06/05 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -61,11 +61,11 @@
  * @brief number of threads per block for calcMultipole_kernel
  */
 #ifndef NTHREADS_MAC
-#   if  (GPUVER == 52)
+#   if  (GPUVER == 52) || (GPUVER == 60) || (GPUVER == 61)
 #define NTHREADS_MAC (256)
-#else///(GPUVER == 52)
+#else///(GPUVER == 52) || (GPUVER == 60) || (GPUVER == 61)
 #define NTHREADS_MAC (128)
-#endif//(GPUVER == 52)
+#endif//(GPUVER == 52) || (GPUVER == 60) || (GPUVER == 61)
 #endif//NTHREADS_MAC
 
 /** NTHREADS_MAC must be equal or smaller than 512 due to the capacity of shared memory */
@@ -179,10 +179,10 @@
 #endif//HUNT_MAKE_PARAMETER
 
 
-/** for better performance on V100 GPUs */
-#   if  !defined(USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE) && (GPUVER >= 70)
+/** for better performance on P100 and V100 GPUs */
+#   if  !defined(USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE) && (GPUVER >= 60)
 #define          USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE
-#endif//!defined(USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE) && (GPUVER >= 70)
+#endif//!defined(USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE) && (GPUVER >= 60)
 
 
 #   if  defined(USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE) && (GPUVER < 30)
@@ -196,15 +196,11 @@
  * @brief number of threads per block for makeTree_kernel
  */
 #ifndef NTHREADS_MAKE_TREE
-#   if  (GPUVER >= 70)
-#define NTHREADS_MAKE_TREE (512)
-#else///(GPUVER >= 70)
 #   if  (GPUVER >= 60)
-#define NTHREADS_MAKE_TREE (256)
+#define NTHREADS_MAKE_TREE (512)
 #else///(GPUVER >= 60)
 #define NTHREADS_MAKE_TREE (128)
 #endif//(GPUVER >= 60)
-#endif//(GPUVER >= 70)
 #endif//NTHREADS_MAKE_TREE
 
 
@@ -318,7 +314,11 @@
  */
 #ifndef NTHREADS_INIT_LINK
 #   if  (GPUVER >= 30)
+#   if  (GPUGEN == 60) || (GPUGEN == 61)
+#define NTHREADS_INIT_LINK (256)
+#else///(GPUGEN == 60) || (GPUGEN == 61)
 #define NTHREADS_INIT_LINK (512)
+#endif//(GPUGEN == 60) || (GPUGEN == 61)
 #else///(GPUVER >= 30)
 #define NTHREADS_INIT_LINK (256)
 #endif//(GPUVER >= 30)
@@ -334,6 +334,9 @@
 #   if  (GPUVER >= 70)
 #define NTHREADS_INIT_CELL (512)
 #else///(GPUVER >= 70)
+#   if  (GPUGEN == 60) || (GPUGEN == 61)
+#define NTHREADS_INIT_CELL (128)
+#else///(GPUGEN == 60) || (GPUGEN == 61)
 #   if  (GPUVER >= 52)
 #define NTHREADS_INIT_CELL (256)
 #else///(GPUVER >= 52)
@@ -343,6 +346,7 @@
 #define NTHREADS_INIT_CELL (512)
 #endif//(GPUVER >= 30)
 #endif//(GPUVER >= 52)
+#endif//(GPUGEN == 60) || (GPUGEN == 61)
 #endif//(GPUVER >= 70)
 #endif//NTHREADS_INIT_CELL
 
@@ -381,8 +385,11 @@
  * @brief number of threads per block for copyRealBody_kernel
  */
 #ifndef NTHREADS_COPY_BODY
-#   if  (GPUVER >= 60)
+#   if  (GPUVER >= 70)
 #define NTHREADS_COPY_BODY (512)
+#else///(GPUVER >= 70)
+#   if  (GPUVER >= 60)
+#define NTHREADS_COPY_BODY (256)
 #else///(GPUVER >= 60)
 #   if  (GPUVER >= 52)
 #define NTHREADS_COPY_BODY (1024)
@@ -394,6 +401,7 @@
 #endif//(GPUVER >= 30)
 #endif//(GPUVER >= 52)
 #endif//(GPUVER >= 60)
+#endif//(GPUVER >= 70)
 #endif//NTHREADS_COPY_BODY
 
 

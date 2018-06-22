@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/28 (Wed)
+ * @date 2018/06/08 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -802,10 +802,10 @@ void integrateDensityProfile(profile *prf, profile_cfg *cfg
       iout = ii + 2;
       break;
     }
-  const double rmax = prf[iout].rad;
+  double rmax = prf[iout].rad;
 #else
-  const int iout = NRADBIN - 1;
-  const double rmax = prf[NRADBIN - 1].rad;
+  int iout = NRADBIN - 1;
+  double rmax = prf[NRADBIN - 1].rad;
 #endif
   cfg->iout = iout;
   cfg->rmax = rmax;
@@ -937,6 +937,23 @@ void integrateDensityProfile(profile *prf, profile_cfg *cfg
     prf[ii]. drho_dr  *= Mscale;
     prf[ii].d2rho_dr2 *= Mscale;
   }/* for(int ii = 0; ii < NRADBIN; ii++){ */
+
+
+#if 0
+  for(int ii = iout - 3; ii >= 0; ii--)
+    if( prf[ii].enc < Mtot ){
+      iout = ii + 2;
+      break;
+    }
+  rmax = prf[iout].rad;
+  cfg->iout = iout;
+  cfg->rmax = rmax;
+
+  for(int ii = 0; ii < NRADBIN; ii++)
+    fprintf(stderr, "%e\t%e\t%e\n", prf[ii].rad, prf[ii].rho, prf[ii].enc);
+  exit(0);
+#endif
+
 
 #if 0
   for(int ii = 0; ii < NRADBIN; ii++)

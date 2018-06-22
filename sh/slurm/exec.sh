@@ -20,10 +20,11 @@ EXEC=bin/gothic
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=2
+    # PROBLEM=2
     # PROBLEM=14
     # PROBLEM=26
     # PROBLEM=27
+    PROBLEM=62
 fi
 ###############################################################
 # topology of MPI processes
@@ -86,7 +87,7 @@ if [ -z "$ACCERR" ]; then
     # ACCERR=9.765625e-4
 fi
 ###############################################################
-REBUILD=8
+REBUILD=16
 BRENT=1.0
 ###############################################################
 
@@ -287,6 +288,11 @@ fi
 # dynamical stability of a projected Two-power model
 if [ $PROBLEM -eq 51 ]; then
     FILE=prjTwoPow
+fi
+###############################################################
+# dynamical stability of a progenitor model for NW stream determined by Komiyama et al. (2018)
+if [ $PROBLEM -eq 62 ]; then
+    FILE=satellite
 fi
 ###############################################################
 # dynamical stability of multi components galaxy model (based on Cole & Binney 2017)

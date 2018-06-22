@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/01 (Fri)
+ * @date 2018/06/05 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -71,19 +71,11 @@
  * @brief number of threads per block for sortParticlesPHcurve_kernel
  */
 #ifndef NTHREADS_PHSORT
-#   if  (GPUVER >= 70)
-#define NTHREADS_PHSORT (256)
-#else///(GPUVER >= 70)
-#   if  (GPUVER >= 52)
+#   if  (GPUVER == 52)
 #define NTHREADS_PHSORT (1024)
-#else///(GPUVER >= 52)
-#   if  (GPUVER >= 30)
+#else///(GPUVER == 52)
 #define NTHREADS_PHSORT (256)
-#else///(GPUVER >= 30)
-#define NTHREADS_PHSORT (1024)
-#endif//(GPUVER >= 30)
-#endif//(GPUVER >= 52)
-#endif//(GPUVER >= 70)
+#endif//(GPUVER == 52)
 #endif//NTHREADS_PHSORT
 
 

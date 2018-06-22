@@ -23,7 +23,8 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=0
     # PROBLEM=11
     # PROBLEM=12
-    PROBLEM=22
+    PROBLEM=13
+    # PROBLEM=22
 fi
 ###############################################################
 # topology of MPI processes
@@ -54,8 +55,8 @@ if [ -z "$ABSERR" ]; then
     # ABSERR=3.125000000e-2
     # ABSERR=1.562500000e-2
     # ABSERR=7.812500000e-3
-    ABSERR=3.906250000e-3
-    # ABSERR=1.953125000e-3
+    # ABSERR=3.906250000e-3
+    ABSERR=1.953125000e-3
     # ABSERR=9.765625000e-4
     # ABSERR=4.882812500e-4
     # ABSERR=2.441406250e-4
@@ -106,6 +107,13 @@ fi
 # reproduction of Kirihara et al. (2017) in the disk coordinate system
 if [ $PROBLEM -eq 12 ]; then
     FILE=k17disk
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# reproduction of Komiyama et al. (2018) in the disk coordinate system
+if [ $PROBLEM -eq 13 ]; then
+    FILE=k18nws
     SPHEPOT=m31
     DISKPOT=m31
 fi
