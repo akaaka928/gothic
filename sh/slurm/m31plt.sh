@@ -1,6 +1,6 @@
 #!/bin/bash
 ###############################################################
-#SBATCH -J visualize          # name of job
+#SBATCH -J m31plt             # name of job
 #SBATCH -t 02:00:00           # upper limit of elapsed time
 #SBATCH -p normal             # partition name
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
@@ -23,10 +23,8 @@ TIME=`date`
 echo "start: $TIME"
 ###############################################################
 # execute the job
-echo "/usr/bin/time -f 'wall clock time: %e s\nmemory usage: %M KiB' python py/plot.py 1>>$STDOUT 2>>$STDERR"
-/usr/bin/time -f "wall clock time: %e s\nmemory usage: %M KiB" python py/plot.py 1>>$STDOUT 2>>$STDERR
-echo "/usr/bin/time -f 'wall clock time: %e s\nmemory usage: %M KiB' python py/draw.py 1>>$STDOUT 2>>$STDERR"
-/usr/bin/time -f "wall clock time: %e s\nmemory usage: %M KiB" python py/draw.py 1>>$STDOUT 2>>$STDERR
+echo "/usr/bin/time -f 'wall clock time: %e s\nmemory usage: %M KiB' python py/shownws.py 1>>$STDOUT 2>>$STDERR"
+/usr/bin/time -f "wall clock time: %e s\nmemory usage: %M KiB" python py/shownws.py 1>>$STDOUT 2>>$STDERR
 ###############################################################
 # finish logging
 TIME=`date`

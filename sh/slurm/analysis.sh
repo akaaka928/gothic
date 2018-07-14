@@ -17,12 +17,12 @@ EXEC=bin/extract
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    # PROBLEM=2
+    PROBLEM=2
     # PROBLEM=14
     # PROBLEM=22
     # PROBLEM=26
     # PROBLEM=27
-    PROBLEM=62
+    # PROBLEM=62
     # PROBLEM=130
     # PROBLEM=131
     # PROBLEM=132
@@ -35,17 +35,26 @@ if [ -z "$NCRIT" ]; then
 fi
 ###############################################################
 # set number of grid points for density maps
+if [ -z "$NX3D" ]; then
+    NX3D=256
+fi
+if [ -z "$NY3D" ]; then
+    NY3D=256
+fi
+if [ -z "$NZ3D" ]; then
+    NZ3D=256
+fi
 if [ -z "$NX" ]; then
-    # NX=512
-    NX=256
+    NX=1024
 fi
 if [ -z "$NY" ]; then
-    # NY=512
-    NY=256
+    NY=1024
 fi
 if [ -z "$NZ" ]; then
-    # NZ=512
-    NZ=256
+    NZ=1024
+fi
+if [ -z "$NV" ]; then
+    NV=1024
 fi
 ###############################################################
 
@@ -61,9 +70,11 @@ if [ $PROBLEM -eq 2 ]; then
     XMAX=3.0
     YMAX=3.0
     ZMAX=3.0
+    VMAX=3.0
     XMIN=-$XMAX
     YMIN=-$YMAX
     ZMIN=-$ZMAX
+    VMIN=-$VMAX
 fi
 ###############################################################
 # dynamical stability of an exponential disk in an NFW sphere
@@ -74,9 +85,11 @@ if [ $PROBLEM -eq 14 ]; then
     XMAX=5.0
     YMAX=5.0
     ZMAX=5.0
+    VMAX=5.0
     XMIN=-$XMAX
     YMIN=-$YMAX
     ZMIN=-$ZMAX
+    VMIN=-$VMAX
 fi
 ###############################################################
 # dynamical stability of an exponential disk in an NFW sphere
@@ -87,9 +100,11 @@ if [ $PROBLEM -eq 22 ]; then
     XMAX=5.0
     YMAX=5.0
     ZMAX=5.0
+    VMAX=5.0
     XMIN=-$XMAX
     YMIN=-$YMAX
     ZMIN=-$ZMAX
+    VMIN=-$VMAX
 fi
 ###############################################################
 # dynamical stability of multi components galaxy model (only spherical components)
@@ -103,9 +118,11 @@ if [ $PROBLEM -eq 26 ]; then
     XMAX=5.0
     YMAX=5.0
     ZMAX=5.0
+    VMAX=5.0
     XMIN=-$XMAX
     YMIN=-$YMAX
     ZMIN=-$ZMAX
+    VMIN=-$VMAX
 fi
 ###############################################################
 # dynamical stability of an M31 model (NFW halo, Hernquist bulge, and exponential disk)
@@ -122,28 +139,11 @@ if [ $PROBLEM -eq 27 ]; then
     XMAX=15.0
     YMAX=15.0
     ZMAX=15.0
+    VMAX=300.0
     XMIN=-$XMAX
     YMIN=-$YMAX
     ZMIN=-$ZMAX
-fi
-###############################################################
-# dynamical stability of an M31 model (NFW halo, Hernquist bulge, and exponential disk)
-# basically, this is Fardal et al. (2007) model
-# stellar halo: Gilbert et al. (2012): \Sigma \propto R^-2.2; Rmin = 9kpc, Rmax = 176kpc; Ibata et al. (2014, ApJ, 780, 128): total stellar mass of the smooth halo is ~8e+9 Msun
-# disk: Toomre's Q-value is set to reproduce Tenjes et al. (2017): Q_min = 1.8 @ 12-13 kpc
-if [ $PROBLEM -eq 27 ]; then
-    FILE=m31
-    # FINISH=75.0
-    FINISH=375.0
-    # FINISH=1175.0
-    # FINISH=3175.0
-    INTERVAL=25.0
-    XMAX=15.0
-    YMAX=15.0
-    ZMAX=15.0
-    XMIN=-$XMAX
-    YMIN=-$YMAX
-    ZMIN=-$ZMAX
+    VMIN=-$VMAX
 fi
 ###############################################################
 # dynamical stability of a progenitor model for NW stream determined by Komiyama et al. (2018)
@@ -154,9 +154,11 @@ if [ $PROBLEM -eq 62 ]; then
     XMAX=3.0
     YMAX=3.0
     ZMAX=3.0
+    VMAX=5.0
     XMIN=-$XMAX
     YMIN=-$YMAX
     ZMIN=-$ZMAX
+    VMIN=-$VMAX
 fi
 ###############################################################
 # Fornax simulation
@@ -167,9 +169,11 @@ if [ $PROBLEM -eq 130 ]; then
     XMAX=3.0
     YMAX=3.0
     ZMAX=3.0
+    VMAX=3.0
     XMIN=-$XMAX
     YMIN=-$YMAX
     ZMIN=-$ZMAX
+    VMIN=-$VMAX
 fi
 ###############################################################
 # Fornax simulation
@@ -180,9 +184,11 @@ if [ $PROBLEM -eq 131 ]; then
     XMAX=3.0
     YMAX=3.0
     ZMAX=3.0
+    VMAX=3.0
     XMIN=-$XMAX
     YMIN=-$YMAX
     ZMIN=-$ZMAX
+    VMIN=-$VMAX
 fi
 ###############################################################
 # Fornax simulation
@@ -193,9 +199,11 @@ if [ $PROBLEM -eq 132 ]; then
     XMAX=3.0
     YMAX=3.0
     ZMAX=3.0
+    VMAX=3.0
     XMIN=-$XMAX
     YMIN=-$YMAX
     ZMIN=-$ZMAX
+    VMIN=-$VMAX
 fi
 ###############################################################
 # Fornax simulation
@@ -206,9 +214,11 @@ if [ $PROBLEM -eq 133 ]; then
     XMAX=3.0
     YMAX=3.0
     ZMAX=3.0
+    VMAX=3.0
     XMIN=-$XMAX
     YMIN=-$YMAX
     ZMIN=-$ZMAX
+    VMIN=-$VMAX
 fi
 ###############################################################
 # count up number of snapshot files
@@ -223,7 +233,7 @@ if [ -z "$INCREMENT" ]; then
 fi
 ###############################################################
 # set input arguments
-OPTION="-file=$FILE -start=$START -end=$END -interval=$INCREMENT -ncrit=$NCRIT -nx=$NX -xmin=$XMIN -xmax=$XMAX -ny=$NY -ymin=$YMIN -ymax=$YMAX -nz=$NZ -zmin=$ZMIN -zmax=$ZMAX"
+OPTION="-file=$FILE -start=$START -end=$END -interval=$INCREMENT -ncrit=$NCRIT -nx=$NX -xmin=$XMIN -xmax=$XMAX -ny=$NY -ymin=$YMIN -ymax=$YMAX -nz=$NZ -zmin=$ZMIN -zmax=$ZMAX -nv=$NV -vmin=$VMIN -vmax=$VMAX -nx3D=$NX3D -ny3D=$NY3D -nz3D=$NZ3D"
 ###############################################################
 
 

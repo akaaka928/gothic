@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/01 (Fri)
+ * @date 2018/07/14 (Sat)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -627,7 +627,7 @@ static inline void dumpSnapshot
  * @sa updateConfigFile
  */
 static inline void dumpRestarter
-(const int num, iparticle ibody_dev, iparticle ibody_hst, const double time, const double dt, const ulong steps, char *file, int *last, double *formerTime
+(const int num, iparticle ibody_dev, iparticle ibody_hst, const double time, const double dt, const ulong steps, const double elapsed, char *file, int *last, double *formerTime
 #ifdef  USE_HDF5_FORMAT
  , hdf5struct hdf5type, rebuildTree rebuild, measuredTime measured, autoTuningParam rebuildParam, brentStatus status, brentMemory memory
 #ifdef  MONITOR_ENERGY_ERROR
@@ -661,7 +661,7 @@ static inline void dumpRestarter
 
   /** output the dump file */
 #ifdef  SERIALIZED_EXECUTION
-  writeTentativeData        (time, dt, steps, num, ibody_hst, file, last
+  writeTentativeData        (time, dt, steps, elapsed, num, ibody_hst, file, last
 #ifdef  USE_HDF5_FORMAT
 			     , hdf5type, rebuild, measured, rebuildParam, status, memory
 #ifdef  MONITOR_ENERGY_ERROR
@@ -673,7 +673,7 @@ static inline void dumpRestarter
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 			     );
 #else///SERIALIZED_EXECUTION
-  writeTentativeDataParallel(time, dt, steps, num, ibody_hst, file, last, iocfg, Ntot
+  writeTentativeDataParallel(time, dt, steps, elapsed, num, ibody_hst, file, last, iocfg, Ntot
 #ifdef  USE_HDF5_FORMAT
 			     , hdf5type, rebuild, measured, rebuildParam, status, memory
 #ifdef  MONITOR_ENERGY_ERROR
@@ -1507,13 +1507,14 @@ int main(int argc, char **argv)
 #endif//defined(MONITOR_ENERGY_ERROR) && defined(USE_HDF5_FORMAT)
   static double time, dt;
   static ulong steps = 0;
+  static double prevElapsed = 0.0;
 #ifdef  USE_HDF5_FORMAT
   static hdf5struct hdf5type;
   createHDF5DataType(&hdf5type);
 #endif//USE_HDF5_FORMAT
 #ifdef  SERIALIZED_EXECUTION
   readTentativeData
-    (&time, &dt, &steps, num, ibody0, file, last
+    (&time, &dt, &steps, &prevElapsed, num, ibody0, file, last
 #ifdef  USE_HDF5_FORMAT
      , hdf5type, &dropPrevTune, &rebuild, &elapsed, &rebuildParam, &brentDistance, &brentHistory
 #ifdef  MONITOR_ENERGY_ERROR
@@ -1523,7 +1524,7 @@ int main(int argc, char **argv)
      );
 #else///SERIALIZED_EXECUTION
   readTentativeDataParallel
-    (&time, &dt, &steps, &num, ibody0, file, last, &iocfg, Ntot
+    (&time, &dt, &steps, &prevElapsed, &num, ibody0, file, last, &iocfg, Ntot
 #ifdef  USE_HDF5_FORMAT
      , hdf5type, &dropPrevTune, &rebuild, &elapsed, &rebuildParam, &brentDistance, &brentHistory
 #ifdef  MONITOR_ENERGY_ERROR
@@ -1536,10 +1537,6 @@ int main(int argc, char **argv)
   real *dt_dev;
   const muse alloc_dt_dev = allocTimeStep_dev(&dt_dev);
 #endif//BLOCK_TIME_STEP
-#ifdef  REPORT_TOTAL_ELAPSED_TIME
-  static ulong stepsInit;
-  stepsInit = steps;
-#endif//REPORT_TOTAL_ELAPSED_TIME
 #ifdef  REPORT_COMPUTE_RATE
   static struct timespec clock_prev;
   clock_gettime(CLOCK_MONOTONIC_RAW, &clock_prev);
@@ -3050,8 +3047,18 @@ int main(int argc, char **argv)
 
     if( currentTime > formerTime + saveInterval ){
 #ifndef COMPARE_WITH_DIRECT_SOLVER
+#ifndef SERIALIZED_EXECUTION
+      MPI_Barrier(mpi.comm);
+#endif//SERIALIZED_EXECUTION
+      static struct timespec timeDump;
+      clock_gettime(CLOCK_MONOTONIC_RAW, &timeDump);
+      double dumpElapsed = calcElapsedTimeInSec(timeInit, timeDump);
+#ifndef SERIALIZED_EXECUTION
+      chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &dumpElapsed, 1, MPI_DOUBLE, MPI_MAX, mpi.comm));
+#endif//SERIALIZED_EXECUTION
+      dumpElapsed += prevElapsed;
       dumpRestarter
-	(num, ibody0_dev, ibody0, time, dt, steps, file, &last, &formerTime
+	(num, ibody0_dev, ibody0, time, dt, steps, dumpElapsed, file, &last, &formerTime
 #ifdef  USE_HDF5_FORMAT
 	 , hdf5type, rebuild, elapsed, rebuildParam, brentDistance, brentHistory
 #ifdef  MONITOR_ENERGY_ERROR
@@ -3189,8 +3196,18 @@ int main(int argc, char **argv)
 
 #   if  !defined(EXEC_BENCHMARK) && !defined(COMPARE_WITH_DIRECT_SOLVER)
   /** output final stage of numerical results */
+#ifndef SERIALIZED_EXECUTION
+      MPI_Barrier(mpi.comm);
+#endif//SERIALIZED_EXECUTION
+      static struct timespec timeDump;
+      clock_gettime(CLOCK_MONOTONIC_RAW, &timeDump);
+      double dumpElapsed = calcElapsedTimeInSec(timeInit, timeDump);
+#ifndef SERIALIZED_EXECUTION
+      chkMPIerr(MPI_Allreduce(MPI_IN_PLACE, &dumpElapsed, 1, MPI_DOUBLE, MPI_MAX, mpi.comm));
+#endif//SERIALIZED_EXECUTION
+      dumpElapsed += prevElapsed;
   dumpRestarter
-    (num, ibody0_dev, ibody0, time, dt, steps, file, &last, &formerTime
+    (num, ibody0_dev, ibody0, time, dt, steps, dumpElapsed, file, &last, &formerTime
 #ifdef  USE_HDF5_FORMAT
      , hdf5type, rebuild, elapsed, rebuildParam, brentDistance, brentHistory
 #ifdef  MONITOR_ENERGY_ERROR
@@ -3586,7 +3603,6 @@ int main(int argc, char **argv)
 
 
 #ifdef  REPORT_TOTAL_ELAPSED_TIME
-  steps -= stepsInit;
 #ifndef SERIALIZED_EXECUTION
   MPI_Barrier(mpi.comm);
 #endif//SERIALIZED_EXECUTION
@@ -3598,6 +3614,7 @@ int main(int argc, char **argv)
   if( mpi.rank == 0 )
 #endif//SERIALIZED_EXECUTION
     {
+      totalElapsed += prevElapsed;
       fprintf(stdout, "# %s is used with accuracy controlling parameter of %e.\n",
 #ifdef  GADGET_MAC
 	      "Acceleration MAC", absErr

@@ -23,10 +23,11 @@ EXEC=bin/editor
 if [ -z "$PROBLEM" ]; then
     # PROBLEM=0
     # PROBLEM=1
-    PROBLEM=2
+    # PROBLEM=2
     # PROBLEM=10
     # PROBLEM=11
     # PROBLEM=12
+    PROBLEM=13
     # PROBLEM=21
     # PROBLEM=22
     # PROBLEM=23
@@ -109,6 +110,16 @@ if [ $PROBLEM -eq 12 ]; then
     # INTERVAL=1.5625
     FINISH=1246.875
     INTERVAL=3.125
+fi
+###############################################################
+# reproduction of Komiyama et al. (2018) in the disk coordinate system
+if [ $PROBLEM -eq 13 ]; then
+    FILE=k18nws
+    CFG=nws/satellite.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=25.0
 fi
 ###############################################################
 # GSS simulation in observed frame with live M31

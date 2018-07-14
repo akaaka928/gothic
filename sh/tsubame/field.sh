@@ -1,22 +1,18 @@
-#!/bin/bash
-###############################################################
-#SBATCH -J gothic_ext         # name of job
-#SBATCH -t 24:00:00           # upper limit of elapsed time
-##SBATCH -t 00:10:00           # upper limit of elapsed time
-#SBATCH -p normal             # partition name
-#SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
-#SBATCH --ntasks=1            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
-#SBATCH --ntasks-per-socket=1 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
-# #SBATCH --ntasks=2            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
-# #SBATCH --ntasks-per-socket=2 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
-#SBATCH --get-user-env        # retrieve the login environment variables
+#!/bin/sh
+#$ -cwd
+#$ -l s_gpu=1
+#$ -l h_rt=24:00:00
+#$ -N gothic_ext
+#$ -hold_jid magi,modify,gothic_ext
 ###############################################################
 
 
 ###############################################################
 # global configurations
 ###############################################################
-EXEC=bin/gothic
+if [ -z "$EXEC" ]; then
+    EXEC=bin/gothic
+fi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
@@ -25,27 +21,6 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=12
     PROBLEM=13
     # PROBLEM=22
-fi
-###############################################################
-# topology of MPI processes
-if [ -z "$NX" ]; then
-    NX=2
-fi
-if [ -z "$NY" ]; then
-    NY=1
-fi
-if [ -z "$NZ" ]; then
-    NZ=1
-fi
-if [ $SLURM_NTASKS -eq 1 ]; then
-    NX=1
-    NY=1
-    NZ=1
-fi
-PROCS=`expr $NX \* $NY \* $NZ`
-if [ $PROCS -ne $SLURM_NTASKS ]; then
-    echo "product of $NX, $NY, and $NZ must be equal to the number of total MPI processes ($SLURM_NTASKS)"
-    exit 1
 fi
 ###############################################################
 # value of accuracy controling parameter: GADGET MAC by Springel (2005)
@@ -102,43 +77,40 @@ if [ $PROBLEM -eq 22 ]; then
 fi
 ###############################################################
 # set input arguments
-OPTION="-absErr=$ABSERR -file=$FILE -pot_file_sphe=$SPHEPOT -pot_file_disk=$DISKPOT -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$SLURM_JOB_ID"
+OPTION="-absErr=$ABSERR -file=$FILE -pot_file_sphe=$SPHEPOT -pot_file_disk=$DISKPOT -jobID=$JOB_ID"
 ###############################################################
 
 
 ###############################################################
-# job execution via SLURM
+# job execution via UNIVA Grid Engine
 ###############################################################
-# set number of MPI processes per node
-PROCS_PER_NODE=`expr $SLURM_NTASKS / $SLURM_JOB_NUM_NODES`
+# set stdout and stderr
+STDOUT=log/${FILE}_$REQUEST.o$JOB_ID
+STDERR=log/${FILE}_$REQUEST.e$JOB_ID
 ###############################################################
-# start logging
-cd $SLURM_SUBMIT_DIR
-echo "use $SLURM_JOB_NUM_NODES nodes"
-echo "use $SLURM_JOB_CPUS_PER_NODE CPUs per node"
+# load modules
+. /etc/profile.d/modules.sh
+export MODULEPATH=$MODULEPATH:/gs/hs1/jh180045/share/opt/Modules
+module load intel cuda openmpi
+module load cub phdf5/ompi
+module list 1>>$STDOUT 2>>$STDERR
+###############################################################
+cat $PE_HOSTFILE 1>>$STDOUT 2>>$STDERR
 TIME=`date`
-echo "start: $TIME"
+echo "start: $TIME" 1>>$STDOUT 2>>$STDERR
 ###############################################################
 # execute the job
-if [ $PROCS -gt 1 ]; then
-    echo "mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION"
-    mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION
+if [ `which numactl` ]; then
+    # run with numactl
+    echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
+    numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 else
-    # set stdout and stderr
-    STDOUT=log/${FILE}_$SLURM_JOB_NAME.o${SLURM_JOB_ID}
-    STDERR=log/${FILE}_$SLURM_JOB_NAME.e${SLURM_JOB_ID}
-    if [ `which numactl` ]; then
-	# run with numactl
-	echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-	numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
-    else
-	# run without numactl
-	echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-	$EXEC $OPTION 1>>$STDOUT 2>>$STDERR
-    fi
+    # run without numactl
+    echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
+    $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 fi
 ###############################################################
 # finish logging
 TIME=`date`
-echo "finish: $TIME"
+echo "finish: $TIME" 1>>$STDOUT 2>>$STDERR
 ###############################################################

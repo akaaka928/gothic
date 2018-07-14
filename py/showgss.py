@@ -53,36 +53,21 @@ if monochrome:
 
 
 
-# filename = "k17disk"
-# Nskip = 2
-# skip = [0, 2]
-# Nmbh = 1
-# wmbh = [2]
-# init = 0
-# last = 399
-# # init = 288
-# # last = 288
-# fmin, fmax = 1.0e+4, 1.0e+9
-# if monochrome:
-#     fmin, fmax = 1.0e+3, 1.0e+7
-# xtics = [-4.0, -2.0, 0.0, 2.0, 4.0, 6.0]
-# ytics = [-8.0, -6.0, -4.0, -2.0, 0.0, 2.0]
-# ztics = [700.0, 750.0, 800.0, 850.0, 900.0]
-# lab = ["halo", "bulge", "MBH", "disk", "retro"]
-
-filename = "k18nws"
-Nskip = 0
-Nmbh = 0
+filename = "k17disk"
+Nskip = 2
+skip = [0, 2]
+Nmbh = 1
+wmbh = [2]
 init = 0
-last = 400
-# init = 350
-# last = 350
-fmin, fmax = 1.0e+3, 1.0e+6
+last = 399
+# init = 288
+# last = 288
+fmin, fmax = 1.0e+4, 1.0e+9
 if monochrome:
     fmin, fmax = 1.0e+3, 1.0e+7
-xtics = [-8.0, -6.0, -4.0, -2.0, 0.0, 2.0]
-ytics = [-2.0, 0.0, 2.0, 4.0, 6.0, 8.0]
-ztics = [750.0, 800.0, 850.0, 900.0, 950.0]
+xtics = [-4.0, -2.0, 0.0, 2.0, 4.0, 6.0]
+ytics = [-8.0, -6.0, -4.0, -2.0, 0.0, 2.0]
+ztics = [700.0, 750.0, 800.0, 850.0, 900.0]
 lab = ["halo", "bulge", "MBH", "disk", "retro"]
 
 
@@ -95,6 +80,7 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
 
     # read attributes
     time = h5file["/"].attrs["time"][0]
+    useDegree = h5file["/"].attrs["useDegree"][0]
 
     # kind = h5file["/"].attrs["kinds"][0]
     nx = h5file["/"].attrs["nx"][0]
@@ -270,7 +256,10 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
         if y1 < yt:
             y1 = yt
     colorbar_ax = fig.add_axes([x1, y0, 0.1 / nxpanel, y1 - y0])
-    cbar = fig.colorbar(img, cax = colorbar_ax, label = r"$\Sigma$ ($M_\odot$ deg$^{-2}$)")
+    if useDegree:
+        cbar = fig.colorbar(img, cax = colorbar_ax, label = r"$\Sigma$ ($M_\odot$ deg$^{-2}$)")
+    else:
+        cbar = fig.colorbar(img, cax = colorbar_ax, label = r"$\Sigma$ ($M_\odot$ kpc$^{-2}$)")
     cbar.solids.set_edgecolor("face")
 
     # add current time

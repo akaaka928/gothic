@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/05/28 (Mon)
+ * @date 2018/07/14 (Sat)
  *
  * Copyright (C) 2018 Yohei Miki
  * All rights reserved.
@@ -146,11 +146,12 @@ static inline void writeEditorCfgFormat(char *filename)
  * @return (obj) summary of the object(s)
  * @return (Ncmp) number of components
  * @return (cmp) summary of component(s) in the object(s)
+ * @return (eps_min) minimum value of softening length contained in all objects
  *
  * @sa writeEditorCfgFormat
  * @sa writeSystemCfgFormat
  */
-static inline void readEditorCfg(char *cfg, int *unit, int *Nobj, object **obj, int *Ncmp, component **cmp)
+static inline void readEditorCfg(char *cfg, int *unit, int *Nobj, object **obj, int *Ncmp, component **cmp, real *eps_min)
 {
   __NOTE__("%s\n", "start");
 
@@ -177,18 +178,29 @@ static inline void readEditorCfg(char *cfg, int *unit, int *Nobj, object **obj, 
 
 
   int kind = 0;
+  *eps_min = REAL_MAX;
   for(int ii = 0; ii < *Nobj; ii++){
     sprintf(filename, "%s/%s.summary.txt", DOCUMENTFOLDER, (*obj)[ii].file);
     fp = fopen(filename, "r");
     if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
 
-    int unit_tmp;
+    int unit_dummy;
     checker = 1;
-    checker &= (1 == fscanf(fp, "%d", &unit_tmp));
+    checker &= (1 == fscanf(fp, "%d", &unit_dummy));
     checker &= (1 == fscanf(fp, "%d\t%*d", &(*obj)[ii].kind));
 
     fclose(fp);
     if( !checker ){      __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);    }
+
+
+    /** read settings in each file */
+    static ulong Ntot;
+    static real eps, eta;
+    static double ft, snapshotInterval, saveInterval;
+    static int unit_tmp;
+    readSettings(&unit_tmp, &Ntot, &eps, &eta, &ft, &snapshotInterval, &saveInterval, (*obj)[ii].file);
+    *eps_min = FMIN(*eps_min, eps);
+
 
     (*obj)[ii].head = kind;
     kind += (*obj)[ii].kind;
@@ -365,6 +377,7 @@ static inline void addSystem(object obj, component *cmp, ulong *head, const ipar
   /**< read distribution of N-body particles */
   double time, dt;
   ulong steps;
+  double elapsed;
 #ifdef  USE_HDF5_FORMAT
 #ifndef RUN_WITHOUT_GOTHIC
 #ifdef  MONITOR_ENERGY_ERROR
@@ -378,7 +391,7 @@ static inline void addSystem(object obj, component *cmp, ulong *head, const ipar
   static brentMemory memory;
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
-  readTentativeData(&time, &dt, &steps, (int)num, tmp, obj.file, 0
+  readTentativeData(&time, &dt, &steps, &elapsed, (int)num, tmp, obj.file, 0
 #ifdef  USE_HDF5_FORMAT
 		    , hdf5type
 #ifndef RUN_WITHOUT_GOTHIC
@@ -485,6 +498,7 @@ int main(int argc, char **argv)
     __FPRINTF__(stderr, "          -file=<char *>\n");
     __FPRINTF__(stderr, "          -eps=<real> -eta=<real>\n");
     __FPRINTF__(stderr, "          -ft=<real> -snapshotInterval=<real> -saveInterval=<real>\n");
+    __FPRINTF__(stderr, "          -enforceInputSoftening=<int> (optional)\n");
     __KILL__(stderr, "%s\n", "insufficient command line arguments");
   }/* if( argc < 8 ){ */
 
@@ -501,15 +515,28 @@ int main(int argc, char **argv)
   int Nobj, Ncmp;
   object *obj;
   component *cmp;
-  readEditorCfg(fcfg, &unit, &Nobj, &obj, &Ncmp, &cmp);
+  real eps_min;
+  readEditorCfg(fcfg, &unit, &Nobj, &obj, &Ncmp, &cmp, &eps_min);
 
   /** read input arguments depend on the unit system adopted in the numerical simulation */
-  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "eps", &tmp));
-  const real eps = CAST_D2R(tmp * length_astro2com);
   requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv,  "ft", &tmp));
   const double ft = (tmp * time_astro2com);
   requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "snapshotInterval", &tmp));
   const double snapshotInterval = ldexp(1.0, (int)floor(log2(tmp * time_astro2com)));
+
+  /** set softening length */
+  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "eps", &tmp));
+  tmp *= length_astro2com;
+  real eps = CAST_D2R(ldexp(1.0, (int)floor(log2(fmin(CAST_R2D(eps_min), tmp)))));
+  static int enforceInputSoftening;
+  if( optionalCmdArg(getCmdArgInt(argc, (const char * const *)(void *)argv, "enforceInputSoftening", &enforceInputSoftening)) != myUtilAvail )
+    enforceInputSoftening = 0;
+  if( enforceInputSoftening )
+    eps = CAST_D2R(tmp);
+  if( eps != CAST_D2R(tmp) ){
+    __FPRINTF__(stderr, "NOTICE: softening length is automatically changed from %e to %e.\n", CAST_D2R(tmp), eps);
+    __FPRINTF__(stderr, "NOTICE: to enforce the input value, rerun bin/magi with -enforceInputSoftening=1\n");
+  }/* if( eps != tmp ){ */
 
 
   /** count up total number of N-body particles in the resultant system */
@@ -581,6 +608,7 @@ int main(int argc, char **argv)
   double  dt  = 0.0;
   int   last  = 1;
   ulong steps = 0;
+  double elapsed = 0.0;
   writeSettings(unit, Ntot, eps, eta, ft, snapshotInterval, saveInterval, file);
 
 #ifdef  USE_HDF5_FORMAT
@@ -596,7 +624,7 @@ int main(int argc, char **argv)
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
 
-  writeTentativeData(time, dt, steps, Ntot, body, file, &last
+  writeTentativeData(time, dt, steps, elapsed, Ntot, body, file, &last
 #ifdef  USE_HDF5_FORMAT
 		     , hdf5type
 #ifndef RUN_WITHOUT_GOTHIC

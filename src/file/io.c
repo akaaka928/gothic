@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/22 (Fri)
+ * @date 2018/07/14 (Sat)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -705,7 +705,7 @@ static inline void appendGPUclockInfoParallel
  * @return (memory) parameters for auto-tuning based on Brent method in the previous run (only for GOTHIC with HDF5)
  * @return (relEneErr) energy error in the previous run (only for GOTHIC with HDF5)
  */
-void  readTentativeData(double *time, double *dt, ulong *steps, int num, iparticle body, char file[], int  last
+void  readTentativeData(double *time, double *dt, ulong *steps, double *elapsed, int num, iparticle body, char file[], int  last
 #ifdef  USE_HDF5_FORMAT
 			, hdf5struct type
 #ifndef RUN_WITHOUT_GOTHIC
@@ -733,6 +733,7 @@ void  readTentativeData(double *time, double *dt, ulong *steps, int num, ipartic
   tmp =   1;  if( tmp != fread( time, sizeof(double), tmp, fp) )    success = false;
   tmp =   1;  if( tmp != fread(   dt, sizeof(double), tmp, fp) )    success = false;
   tmp =   1;  if( tmp != fread(steps, sizeof( ulong), tmp, fp) )    success = false;
+  tmp =   1;  if( tmp != fread(elapsed, sizeof(double), tmp, fp) )    success = false;
   tmp = num;  if( tmp != fread(body.pos, sizeof(    position), tmp, fp) )    success = false;
   tmp = num;  if( tmp != fread(body.acc, sizeof(acceleration), tmp, fp) )    success = false;
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
@@ -770,6 +771,10 @@ void  readTentativeData(double *time, double *dt, ulong *steps, int num, ipartic
   /* read # of steps */
   attribute = H5Aopen(group, "steps", H5P_DEFAULT);
   chkHDF5err(H5Aread(attribute, H5T_NATIVE_ULONG, steps));
+  chkHDF5err(H5Aclose(attribute));
+  /* read elapsed time */
+  attribute = H5Aopen(group, "elapsed", H5P_DEFAULT);
+  chkHDF5err(H5Aread(attribute, H5T_NATIVE_DOUBLE, elapsed));
   chkHDF5err(H5Aclose(attribute));
   /* read # of N-body particles */
   ulong num_ulong = 0;
@@ -980,7 +985,7 @@ void  readTentativeData(double *time, double *dt, ulong *steps, int num, ipartic
  * @param (relEneErr) energy error in the previous run (only for GOTHIC with HDF5)
  */
 void writeTentativeData
-(double  time, double  dt, ulong  steps, ulong num, iparticle body, char file[], int *last
+(double  time, double  dt, ulong  steps, double elapsed, ulong num, iparticle body, char file[], int *last
 #ifdef  USE_HDF5_FORMAT
  , hdf5struct type
 #ifndef RUN_WITHOUT_GOTHIC
@@ -1011,6 +1016,7 @@ void writeTentativeData
   tmp =   1;  if( tmp != fwrite(& time, sizeof(        double), tmp, fp) )    success = false;
   tmp =   1;  if( tmp != fwrite(&   dt, sizeof(        double), tmp, fp) )    success = false;
   tmp =   1;  if( tmp != fwrite(&steps, sizeof(         ulong), tmp, fp) )    success = false;
+  tmp =   1;  if( tmp != fwrite(&elapsed, sizeof(      double), tmp, fp) )    success = false;
   tmp = num;  if( tmp != fwrite(body.pos, sizeof(    position), tmp, fp) )    success = false;
   tmp = num;  if( tmp != fwrite(body.acc, sizeof(acceleration), tmp, fp) )    success = false;
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
@@ -1168,6 +1174,10 @@ void writeTentativeData
   /* write # of steps */
   attribute = H5Acreate(group, "steps", H5T_NATIVE_ULONG, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_ULONG, &steps));
+  chkHDF5err(H5Aclose(attribute));
+  /* write elapsed time */
+  attribute = H5Acreate(group, "elapsed", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &elapsed));
   chkHDF5err(H5Aclose(attribute));
   /* write # of N-body particles */
   ulong num_ulong = (ulong)num;
@@ -1332,7 +1342,7 @@ void writeTentativeData
  * @return (memory) parameters for auto-tuning based on Brent method in the previous run (only for GOTHIC with HDF5)
  * @return (relEneErr) energy error in the previous run (only for GOTHIC with HDF5)
  */
-void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int *num, iparticle body, char file[], int  last, MPIcfg_dataio *mpi, ulong Ntot
+void  readTentativeDataParallel(double *time, double *dt, ulong *steps, double *elapsed, int *num, iparticle body, char file[], int  last, MPIcfg_dataio *mpi, ulong Ntot
 #ifdef  USE_HDF5_FORMAT
 				, hdf5struct type
 #ifndef RUN_WITHOUT_GOTHIC
@@ -1359,24 +1369,30 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int *num
 
   MPI_Status status;
   MPI_Offset disp = 0;
-  /* the root process reads and broadcasts time, a real value */
+  /* the root process reads and broadcasts time, a double value */
   chkMPIerr(MPI_File_set_view(fh, disp, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL));
   if( mpi->rank == 0 )
     chkMPIerr(MPI_File_read(fh, time, 1, MPI_DOUBLE, &status));
   chkMPIerr(MPI_Bcast(time, 1, MPI_DOUBLE, 0, mpi->comm));
   disp += 1 * (MPI_Offset)sizeof(double);
-  /* the root process reads and broadcasts dt, a real value */
+  /* the root process reads and broadcasts dt, a double value */
   chkMPIerr(MPI_File_set_view(fh, disp, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL));
   if( mpi->rank == 0 )
     chkMPIerr(MPI_File_read(fh, dt, 1, MPI_DOUBLE, &status));
   chkMPIerr(MPI_Bcast(dt, 1, MPI_DOUBLE, 0, mpi->comm));
   disp += 1 * (MPI_Offset)sizeof(double);
-  /* the root process reads and broadcasts write steps, an unsigned long value */
+  /* the root process reads and broadcasts # of steps, an unsigned long value */
   chkMPIerr(MPI_File_set_view(fh, disp, MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG, "native", MPI_INFO_NULL));
   if( mpi->rank == 0 )
     chkMPIerr(MPI_File_read(fh, steps, 1, MPI_UNSIGNED_LONG, &status));
   chkMPIerr(MPI_Bcast(steps, 1, MPI_UNSIGNED_LONG, 0, mpi->comm));
   disp += 1 * (MPI_Offset)sizeof(ulong);
+  /* the root process reads and broadcasts elapsed time, a double value */
+  chkMPIerr(MPI_File_set_view(fh, disp, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL));
+  if( mpi->rank == 0 )
+    chkMPIerr(MPI_File_read(fh, elapsed, 1, MPI_DOUBLE, &status));
+  chkMPIerr(MPI_Bcast(elapsed, 1, MPI_DOUBLE, 0, mpi->comm));
+  disp += 1 * (MPI_Offset)sizeof(double);
   /* the whole processes read position */
   chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(position), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
   chkMPIerr(MPI_File_read(fh, body.pos, (*num) * 4, MPI_REALDAT, &status));
@@ -1448,6 +1464,10 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int *num
     attribute = H5Aopen(group, "steps", H5P_DEFAULT);
     chkHDF5err(H5Aread(attribute, H5T_NATIVE_ULONG, steps));
     chkHDF5err(H5Aclose(attribute));
+    /* read elapsed time */
+    attribute = H5Aopen(group, "elapsed", H5P_DEFAULT);
+    chkHDF5err(H5Aread(attribute, H5T_NATIVE_DOUBLE, elapsed));
+    chkHDF5err(H5Aclose(attribute));
     /* read # of N-body particles */
     attribute = H5Aopen(group, "number", H5P_DEFAULT);
     chkHDF5err(H5Aread(attribute, H5T_NATIVE_ULONG, &Nread));
@@ -1478,6 +1498,7 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int *num
   chkMPIerr(MPI_Bcast(  time, 1, MPI_DOUBLE       , 0, mpi->comm));
   chkMPIerr(MPI_Bcast(    dt, 1, MPI_DOUBLE       , 0, mpi->comm));
   chkMPIerr(MPI_Bcast( steps, 1, MPI_UNSIGNED_LONG, 0, mpi->comm));
+  chkMPIerr(MPI_Bcast(elapsed, 1, MPI_DOUBLE, 0, mpi->comm));
   chkMPIerr(MPI_Bcast(&Nread, 1, MPI_UNSIGNED_LONG, 0, mpi->comm));
 #ifdef  MONITOR_ENERGY_ERROR
   chkMPIerr(MPI_Bcast(&relEneErr->E0inv , 1, MPI_DOUBLE, 0, mpi->comm));
@@ -1826,7 +1847,7 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, int *num
  * @param (relEneErr) energy error in the previous run (only for GOTHIC with HDF5)
  */
 void writeTentativeDataParallel
-(double  time, double  dt, ulong  steps, int num, iparticle body, char file[], int *last, MPIcfg_dataio *mpi, ulong Ntot
+(double  time, double  dt, ulong  steps, double elapsed, int num, iparticle body, char file[], int *last, MPIcfg_dataio *mpi, ulong Ntot
 #ifdef  USE_HDF5_FORMAT
  , hdf5struct type
 #ifndef RUN_WITHOUT_GOTHIC
@@ -1860,13 +1881,13 @@ void writeTentativeDataParallel
 
   MPI_Status status;
   MPI_Offset disp = 0;
-  /* the root process writes time, a real value */
+  /* the root process writes time, a double value */
   chkMPIerr(MPI_File_set_view(fh, disp, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL));
   if( mpi->rank == 0 )
     chkMPIerr(MPI_File_write(fh, &time, 1, MPI_DOUBLE, &status));
   chkMPIerr(MPI_File_sync(fh));
   disp += 1 * (MPI_Offset)sizeof(double);
-  /* the root process writes dt, a real value */
+  /* the root process writes dt, a double value */
   chkMPIerr(MPI_File_set_view(fh, disp, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL));
   if( mpi->rank == 0 )
     chkMPIerr(MPI_File_write(fh, &dt, 1, MPI_DOUBLE, &status));
@@ -1878,6 +1899,12 @@ void writeTentativeDataParallel
     chkMPIerr(MPI_File_write(fh, &steps, 1, MPI_UNSIGNED_LONG, &status));
   chkMPIerr(MPI_File_sync(fh));
   disp += 1 * (MPI_Offset)sizeof(ulong);
+  /* the root process writes dt, a double value */
+  chkMPIerr(MPI_File_set_view(fh, disp, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL));
+  if( mpi->rank == 0 )
+    chkMPIerr(MPI_File_write(fh, &elapsed, 1, MPI_DOUBLE, &status));
+  chkMPIerr(MPI_File_sync(fh));
+  disp += 1 * (MPI_Offset)sizeof(double);
   /* the whole processes write position */
   chkMPIerr(MPI_File_set_view(fh, disp + mpi->head * (MPI_Offset)sizeof(position), MPI_REALDAT, MPI_REALDAT, "native", MPI_INFO_NULL));
   chkMPIerr(MPI_File_write(fh, body.pos, num * 4, MPI_REALDAT, &status));
@@ -2104,6 +2131,10 @@ void writeTentativeDataParallel
   /* write # of steps */
   attribute = H5Acreate(group, "steps", H5T_NATIVE_ULONG, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_ULONG, &steps));
+  chkHDF5err(H5Aclose(attribute));
+  /* write # of steps */
+  attribute = H5Acreate(group, "elapsed", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &elapsed));
   chkHDF5err(H5Aclose(attribute));
   /* write # of N-body particles */
   attribute = H5Acreate(group, "number", H5T_NATIVE_ULONG, dataspace, H5P_DEFAULT, H5P_DEFAULT);

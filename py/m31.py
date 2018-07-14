@@ -90,6 +90,13 @@ def set_rotation_matrix():
 
     return rot, inv
 
+
+def kpc2degree(kpc):
+    degree = np.rad2deg(np.arctan(kpc / zm31))
+
+    return degree
+
+
 def standard_coordinate(xx, yy, zz):
     xi = np.rad2deg(np.arctan(xx / (zm31 + zz)))
     eta = np.rad2deg(np.arctan(yy / (zm31 + zz)))
@@ -447,3 +454,63 @@ def StreamD_distance():
         streamD_field_eta[ii][4] = streamD_field_eta[ii][0]
 
     return NstreamD, streamD_xi, streamD_eta, streamD_D, streamD_Dep, streamD_Dem, streamD_field_xi, streamD_field_eta
+
+
+def NWS_obs_field():
+    # Table 1 in Komiyama et al. (2018)
+    Nhsc = 5
+    hsc_xi  = [0] * Nhsc
+    hsc_eta = [0] * Nhsc
+    hsc_rad = [0] * Nhsc
+
+    hsc_xi[0] = -4.653744156858361 ;    hsc_eta[0] = 3.635683362752261;    hsc_rad[0] = 0.75# f003
+    hsc_xi[1] = -5.7227710294896745;    hsc_eta[1] = 4.47091006650441 ;    hsc_rad[1] = 0.75# f004
+    hsc_xi[2] = -5.530826768687439 ;    hsc_eta[2] = 5.816784796173433;    hsc_rad[2] = 0.75# f009
+    hsc_xi[3] = -4.842739589150247 ;    hsc_eta[3] = 2.290423176281251;    hsc_rad[3] = 0.75# f022
+    hsc_xi[4] = -5.912437203950868 ;    hsc_eta[4] = 3.125050968157858;    hsc_rad[4] = 0.75# f023
+
+    return Nhsc, hsc_xi, hsc_eta, hsc_rad
+
+
+def NWS_distance():
+    # Table 4 in Komiyama et al. (2018)
+    Nnws = 4
+    nws_xi  = [0] * Nnws
+    nws_eta = [0] * Nnws
+    nws_D   = [0] * Nnws
+    nws_Dep = [0] * Nnws
+    nws_Dem = [0] * Nnws
+    nws_mod = [0] * Nnws
+    nws_ran = [0] * Nnws
+    nws_sys = [0] * Nnws
+
+    nws_xi[0] = -5.891761379732909;    nws_eta[0] = 5.934934874532188 ;    nws_mod[0] = 24.64;    nws_ran[0] = 0.196;    nws_sys[0] = 0.057# Stream 1
+    nws_xi[1] = -5.388266383737322;    nws_eta[1] = 4.426258888399156 ;    nws_mod[1] = 24.62;    nws_ran[1] = 0.186;    nws_sys[1] = 0.057# Stream 2
+    nws_xi[2] = -4.942619286035076;    nws_eta[2] = 3.18150303805077  ;    nws_mod[2] = 24.59;    nws_ran[2] = 0.183;    nws_sys[2] = 0.057# Stream 3
+    nws_xi[3] = -4.49814447496522 ;    nws_eta[3] = 1.9926453169853198;    nws_mod[3] = 24.58;    nws_ran[3] = 0.185;    nws_sys[3] = 0.057# Stream 4
+
+    for ii in range(Nnws):
+        nws_D[ii] = 10.0 ** (nws_mod[ii] / 5.0 - 2.0)
+        nws_Dep[ii] = 10.0 ** ((nws_mod[ii] + nws_ran[ii] + nws_sys[ii]) / 5.0 - 2.0) - nws_D[ii]
+        nws_Dem[ii] = nws_D[ii] - 10.0 ** ((nws_mod[ii] - nws_ran[ii] - nws_sys[ii]) / 5.0 - 2.0)
+        # print(nws_xi[ii], nws_eta[ii], nws_D[ii], nws_Dep[ii], nws_Dem[ii])
+
+    return Nnws, nws_xi, nws_eta, nws_D, nws_Dep, nws_Dem
+
+
+def NWS_velocity():
+    # Table 4 in Veljanoski et al. (2014)
+    Ngcs = 5
+    nws_gc_xi  = [0] * Ngcs
+    nws_gc_eta = [0] * Ngcs
+    nws_gc_vel = [0] * Ngcs
+    nws_gc_vep = [0] * Ngcs
+    nws_gc_vem = [0] * Ngcs
+
+    nws_gc_xi[0] = -6.436733608263167;    nws_gc_eta[0] = 6.4598886185030535;    nws_gc_vel[0] = -397;    nws_gc_vep[0] =  7;    nws_gc_vem[0] =  7;# PAndAS-04
+    nws_gc_xi[1] = -5.260959997771581;    nws_gc_eta[1] = 4.061434922115992 ;    nws_gc_vel[1] = -444;    nws_gc_vep[1] = 21;    nws_gc_vem[1] = 21;# PAndAS-09
+    nws_gc_xi[2] = -5.124223955350093;    nws_gc_eta[2] = 4.137743013677189 ;    nws_gc_vel[2] = -435;    nws_gc_vep[2] = 10;    nws_gc_vem[2] = 10;# PAndAS-10
+    nws_gc_xi[3] = -4.946180555295868;    nws_gc_eta[3] = 3.5546551505544537;    nws_gc_vel[3] = -447;    nws_gc_vep[3] = 13;    nws_gc_vem[3] = 13;# PAndAS-11
+    nws_gc_xi[4] = -4.557799679219338;    nws_gc_eta[4] = 2.2086054244275655;    nws_gc_vel[4] = -472;    nws_gc_vep[4] =  5;    nws_gc_vem[4] =  5;# PAndAS-12
+
+    return Ngcs, nws_gc_xi, nws_gc_eta, nws_gc_vel, nws_gc_vep, nws_gc_vem

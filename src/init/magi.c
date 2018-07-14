@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/08 (Fri)
+ * @date 2018/07/14 (Sat)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -681,6 +681,7 @@ int main(int argc, char **argv)
     __FPRINTF__(stderr, "          -config=<char *>\n");
     __FPRINTF__(stderr, "          -eps=<real> -eta=<real>\n");
     __FPRINTF__(stderr, "          -ft=<real> -snapshotInterval=<real> -saveInterval=<real>\n");
+    __FPRINTF__(stderr, "          -enforceInputSoftening=<int> (optional)\n");
     __KILL__(stderr, "%s\n", "insufficient command line arguments");
   }/* if( argc < 9 ){ */
 
@@ -701,8 +702,8 @@ int main(int argc, char **argv)
   double tmp;
   requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "snapshotInterval", &tmp));
   double snapshotInterval = ldexp(1.0, (int)floor(log2(tmp * time_astro2com)));
-  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "eps", &tmp));  real   eps = CAST_D2R(tmp * length_astro2com);
   requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "ft",  &tmp));  double  ft =         (tmp *   time_astro2com);
+
 
   static breakdown execTime;
 
@@ -772,6 +773,28 @@ int main(int argc, char **argv)
   if( addDisk )
     for(int ii = skind; ii < kind; ii++)
       if( cfg[ii].kind >= 0 ){      	__KILL__(stderr, "ERROR: disk component must be last component(s).\n\tModify \"%s/%s\".\n", CFGFOLDER, fcfg);      }
+
+
+  /** set softening length */
+  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "eps", &tmp));
+  tmp *= length_astro2com;
+  double rmin = tmp;
+  for(int ii = 0; ii < kind; ii++)
+    if( cfg[ii].num > 1 )
+      rmin = fmin(rmin, 0.1 * cfg[ii].rs);
+  for(int ii = skind; ii < kind; ii++)
+    rmin = fmin(rmin, 0.1 * cfg[ii].zd);
+  real eps = CAST_D2R(ldexp(1.0, (int)floor(log2(rmin))));
+  static int enforceInputSoftening;
+  if( optionalCmdArg(getCmdArgInt(argc, (const char * const *)(void *)argv, "enforceInputSoftening", &enforceInputSoftening)) != myUtilAvail )
+    enforceInputSoftening = 0;
+  if( enforceInputSoftening )
+    eps = CAST_D2R(tmp);
+  if( eps != CAST_D2R(tmp) ){
+    __FPRINTF__(stderr, "NOTICE: softening length is automatically changed from %e to %e.\n", CAST_D2R(tmp), eps);
+    __FPRINTF__(stderr, "NOTICE: to enforce the input value, rerun bin/magi with -enforceInputSoftening=1\n");
+  }/* if( eps != tmp ){ */
+
 
   double rmax = 0.0;
 #if 1
@@ -1262,6 +1285,7 @@ int main(int argc, char **argv)
   double  dt  = 0.0;
   int   last  = 1;
   ulong steps = 0;
+  double elapsed = 0.0;
 
 #ifdef  USE_HDF5_FORMAT
 #ifndef RUN_WITHOUT_GOTHIC
@@ -1278,7 +1302,7 @@ int main(int argc, char **argv)
 
   writeSettings(unit, Ntot, eps, eta, ft, snapshotInterval, saveInterval, file);
 
-  writeTentativeData(time, dt, steps, Ntot, body, file, &last
+  writeTentativeData(time, dt, steps, elapsed, Ntot, body, file, &last
 #ifdef  USE_HDF5_FORMAT
 		     , hdf5type
 #ifndef RUN_WITHOUT_GOTHIC

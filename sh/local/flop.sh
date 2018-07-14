@@ -262,12 +262,12 @@ echo "start: $TIME" >> $LOG
 # execute the job
 if [ `which numactl` ]; then
     # run with numactl
-    echo "numactl --cpunodebind=0 --localalloc nvprof --kernels \"::calcAcc_kernel:\" $NVPROF_METRICS $EXEC $OPTION 1>>$PRFOUT 2>>&1" >> $LOG
-    numactl --cpunodebind=0 --localalloc nvprof --kernels "::calcAcc_kernel:" $NVPROF_METRICS $EXEC $OPTION 1>>$PRFOUT 2?>&1
+    echo "numactl --cpunodebind=0 --localalloc nvprof --kernels \"::calcAcc_kernel:\" $NVPROF_METRICS $EXEC $OPTION 1>>$PRFOUT 2>>$PRFOUT" >> $LOG
+    numactl --cpunodebind=0 --localalloc nvprof --kernels "::calcAcc_kernel:" $NVPROF_METRICS $EXEC $OPTION 1>>$PRFOUT 2>>$PRFOUT
 else
     # run without numactl
-    echo "nvprof --kernels \"::calcAcc_kernel:\" $NVPROF_METRICS $EXEC $OPTION 1>>$PRFOUT 2>>&1" >> $LOG
-    nvprof --kernels "::calcAcc_kernel:" $NVPROF_METRICS $EXEC $OPTION 1>>$PRFOUT 2>>&1
+    echo "nvprof --kernels \"::calcAcc_kernel:\" $NVPROF_METRICS $EXEC $OPTION 1>>$PRFOUT 2>>$PRFOUT" >> $LOG
+    nvprof --kernels "::calcAcc_kernel:" $NVPROF_METRICS $EXEC $OPTION 1>>$PRFOUT 2>>$PRFOUT
 fi
 ###############################################################
 # finish logging

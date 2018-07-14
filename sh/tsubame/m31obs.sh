@@ -1,12 +1,12 @@
 #!/bin/bash
+#$ -cwd
+#$ -l f_node=1
+#$ -l h_rt=00:10:00
+#$ -N m31obs
 ###############################################################
-#SBATCH -J m31obs              # name of job
-#SBATCH -t 02:00:00            # upper limit of elapsed time
-#SBATCH -p normal              # partition name
-#SBATCH --nodes=1              # number of nodes, set to SLURM_JOB_NUM_NODES
-#SBATCH --ntasks=8             # number of total MPI processes, set to SLURM_NTASKS
-#SBATCH --ntasks-per-socket=16 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET
-#SBATCH --get-user-env         # retrieve the login environment variables
+NCPUS_PER_NODE=28
+# NGPUS_PER_NODE=14
+# NGPUS_PER_NODE=7
 ###############################################################
 
 
@@ -94,8 +94,6 @@ fi
 if [ -z "$INCREMENT" ]; then
     INCREMENT=1
 fi
-# START=325
-# END=325
 ###############################################################
 # set input arguments
 OPTION="-file=$FILE -start=$START -end=$END -interval=$INCREMENT -ncrit=$NCRIT -nxi=$NX -ximin=$XIMIN -ximax=$XIMAX -neta=$NY -etamin=$ETAMIN -etamax=$ETAMAX -nD=$NZ -Dmin=$DMIN -Dmax=$DMAX -nvlos=$NV -vlosmin=$VMIN -vlosmax=$VMAX -nx3D=$NX3D -ny3D=$NY3D -nz3D=$NZ3D"
@@ -103,21 +101,29 @@ OPTION="-file=$FILE -start=$START -end=$END -interval=$INCREMENT -ncrit=$NCRIT -
 
 
 ###############################################################
-# job execution via SLURM
+# job execution via UNIVA Grid Engine
 ###############################################################
-# set number of MPI processes per node
-PROCS_PER_NODE=`expr $SLURM_NTASKS / $SLURM_JOB_NUM_NODES`
+# set number of MPI processes
+PROCS=`expr $NQUEUES \* $NCPUS_PER_NODE`
 ###############################################################
-# start logging
-cd $SLURM_SUBMIT_DIR
-echo "use $SLURM_JOB_NUM_NODES nodes"
-echo "use $SLURM_JOB_CPUS_PER_NODE CPUs per node"
+# set stdout and stderr
+STDOUT=log/${FILE}_$REQUEST.o$JOB_ID
+STDERR=log/${FILE}_$REQUEST.e$JOB_ID
+###############################################################
 TIME=`date`
 echo "start: $TIME"
 ###############################################################
+# load modules
+. /etc/profile.d/modules.sh
+export MODULEPATH=$MODULEPATH:/gs/hs1/jh180045/share/opt/Modules
+module load intel cuda openmpi
+module load cub phdf5
+module list
+###############################################################
+cat $PE_HOSTFILE
+###############################################################
 # execute the job
-echo "mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION"
-mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION
+mpirun -n $PROCS -npernode $NCPUS_PER_NODE -x LD_LIBRARY_PATH $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 ###############################################################
 # finish logging
 TIME=`date`

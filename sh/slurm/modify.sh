@@ -108,11 +108,11 @@ fi
 ###############################################################
 # reproduction of Komiyama et al. (2018) in the disk coordinate system
 if [ $PROBLEM -eq 13 ]; then
-    FILE=k18nws
+    FILE=nws
     CFG=nws/satellite.cfg
     EPS=1.5625e-2
     ETA=0.5
-    FINISH=10000.0
+    FINISH=14000.0
     INTERVAL=25.0
 fi
 ###############################################################

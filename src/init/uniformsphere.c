@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/03/01 (Thu)
+ * @date 2018/07/14 (Sat)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -358,6 +358,7 @@ int main(int argc, char **argv)
   double   dt   = 0.0;
   int   last  = 1;
   ulong steps = 0;
+  double elapsed = 0.0;
 
 #ifdef  USE_HDF5_FORMAT
   static hdf5struct hdf5type;
@@ -371,7 +372,7 @@ int main(int argc, char **argv)
   static brentStatus status;
   static brentMemory memory;
   writeTentativeData
-    (time, dt, steps, Ntot, body, file, &last, hdf5type
+    (time, dt, steps, elapsed, Ntot, body, file, &last, hdf5type
      , rebuild, measured, rebuildParam, status, memory
 #ifdef  MONITOR_ENERGY_ERROR
      , relEneErr

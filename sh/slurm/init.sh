@@ -25,7 +25,9 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=46
     # PROBLEM=60
     # PROBLEM=61
-    PROBLEM=62
+    # PROBLEM=62
+    # PROBLEM=63
+    PROBLEM=64
     # PROBLEM=90
     # PROBLEM=91
     # PROBLEM=92
@@ -49,11 +51,11 @@ if [ -z "$NTOT" ]; then
     # NTOT=8192
     # NTOT=16384
     # NTOT=32768
-    NTOT=65536
+    # NTOT=65536
     # NTOT=131072
     # NTOT=262144
     # NTOT=524288
-    # NTOT=1048576
+    NTOT=1048576
     # NTOT=2097152
     # NTOT=4194304
     # NTOT=8388608
@@ -107,7 +109,8 @@ fi
 if [ $PROBLEM -eq 2 ]; then
     FILE=hernquist
     CONFIG=single/hernquist.cfg
-    EPS=1.5625e-2
+    # EPS=1.5625e-2
+    EPS=1.0
     ETA=0.5
     FINISH=23.5
     INTERVAL=0.5
@@ -613,6 +616,26 @@ if [ $PROBLEM -eq 62 ]; then
     # FINISH=1575.0
     # FINISH=5175.0
     # FINISH=5175.0
+    INTERVAL=100.0
+    FINISH=14000.0
+fi
+###############################################################
+# dynamical stability of a progenitor model for NW stream
+if [ $PROBLEM -eq 63 ]; then
+    FILE=sat
+    CONFIG=nws/core.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    INTERVAL=100.0
+    FINISH=14000.0
+fi
+###############################################################
+# dynamical stability of a progenitor model for NW stream
+if [ $PROBLEM -eq 64 ]; then
+    FILE=sat
+    CONFIG=nws/cusp.cfg
+    EPS=1.5625e-2
+    ETA=0.5
     INTERVAL=100.0
     FINISH=14000.0
 fi
