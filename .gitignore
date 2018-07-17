@@ -8,5 +8,8 @@ dat/
 doc/
 fig/
 log/
+bench/
+# directory for profiling
+.nvprof/
 # directory for zip
 pub/

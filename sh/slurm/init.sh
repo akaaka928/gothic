@@ -19,7 +19,7 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=21
     # PROBLEM=23
     # PROBLEM=26
-    # PROBLEM=27
+    PROBLEM=27
     # PROBLEM=33
     # PROBLEM=39
     # PROBLEM=46
@@ -27,7 +27,7 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=61
     # PROBLEM=62
     # PROBLEM=63
-    PROBLEM=64
+    # PROBLEM=64
     # PROBLEM=90
     # PROBLEM=91
     # PROBLEM=92
@@ -52,10 +52,10 @@ if [ -z "$NTOT" ]; then
     # NTOT=16384
     # NTOT=32768
     # NTOT=65536
-    # NTOT=131072
+    NTOT=131072
     # NTOT=262144
     # NTOT=524288
-    NTOT=1048576
+    # NTOT=1048576
     # NTOT=2097152
     # NTOT=4194304
     # NTOT=8388608

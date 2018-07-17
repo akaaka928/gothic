@@ -21,11 +21,11 @@ outputPDF = False
 # # last = 0
 # lab = ["DM halo", "stellar halo", "bulge", "central BH", "thick disk", "thin disk"]
 
-# filename = "m31"
-# init = 0
-# last = 47
-# last = 15
-# lab = ["DM halo", "stellar halo", "bulge", "disk"]
+filename = "m31"
+init = 0
+last = 47
+last = 15
+lab = ["DM halo", "stellar halo", "bulge", "disk"]
 
 # filename = "k17disk"
 # init = 0
@@ -47,11 +47,11 @@ outputPDF = False
 # # last = 0
 # lab = ["halo", "core", "GC"]
 
-filename = "hernquist"
-init = 0
-last = 47
-# last = 0
-lab = ["halo"]
+# filename = "hernquist"
+# init = 0
+# last = 47
+# # last = 0
+# lab = ["halo"]
 
 # filename = "etg"
 # # Nskip = 0

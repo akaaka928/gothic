@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/07/10 (Tue)
+ * @date 2018/07/17 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -1193,22 +1193,16 @@ void generateSurfaceDensityMaps(const int kind, int * restrict bodyHead, int * r
   __FPRINTF__(stdout, "dSxyinv = %e, dSyzinv = %e, dSzxinv = %e\n", dSxyinv, dSyzinv, dSzxinv);
 #endif
 
-  for(int kk = 0; kk < kind; kk++){
-    for(int ii = 0; ii < nx * ny; ii++)
-      Sigma_xy[INDEX2D(kind, nx * ny, kk, ii)] = ZERO;
-    for(int ii = 0; ii < ny * nz; ii++)
-      Sigma_yz[INDEX2D(kind, ny * nz, kk, ii)] = ZERO;
-    for(int ii = 0; ii < nz * nx; ii++)
-      Sigma_zx[INDEX2D(kind, nz * nx, kk, ii)] = ZERO;
-    for(int ii = 0; ii < nx * nv; ii++)
-      f_xv[INDEX2D(kind, nx * nv, kk, ii)] = ZERO;
-    for(int ii = 0; ii < ny * nv; ii++)
-      f_yv[INDEX2D(kind, ny * nv, kk, ii)] = ZERO;
-    for(int ii = 0; ii < nz * nv; ii++)
-      f_zv[INDEX2D(kind, nz * nv, kk, ii)] = ZERO;
+  for(int ii = 0; ii < kind * nx * ny; ii++)    Sigma_xy[ii] = ZERO;
+  for(int ii = 0; ii < kind * ny * nz; ii++)    Sigma_yz[ii] = ZERO;
+  for(int ii = 0; ii < kind * nz * nx; ii++)    Sigma_zx[ii] = ZERO;
+  for(int ii = 0; ii < kind * nx * nv; ii++)    f_xv[ii] = ZERO;
+  for(int ii = 0; ii < kind * ny * nv; ii++)    f_yv[ii] = ZERO;
+  for(int ii = 0; ii < kind * nz * nv; ii++)    f_zv[ii] = ZERO;
 
+  for(int kk = 0; kk < kind; kk++){
     for(int ii = bodyHead[kk]; ii < bodyHead[kk] + bodyNum[kk]; ii++){
-      const real mi = CAST_D2R(CAST_R2D(body[ii].m) * mass2astro);
+      const real mi = body[ii].m;
       const real xi = body[ii].x;
       const real yi = body[ii].y;
       const real zi = body[ii].z;
@@ -1281,21 +1275,14 @@ void generateSurfaceDensityMaps(const int kind, int * restrict bodyHead, int * r
       }/* for(int sz = 0; sz < 2 * nz_smooth + 1; sz++){ */
 
     }/* for(int ii = 0; ii < bodyNum[kk]; ii++){ */
-
-    for(int ii = 0; ii < nx * ny; ii++)
-      Sigma_xy[INDEX2D(kind, nx * ny, kk, ii)] *= dSxyinv;
-    for(int ii = 0; ii < ny * nz; ii++)
-      Sigma_yz[INDEX2D(kind, ny * nz, kk, ii)] *= dSyzinv;
-    for(int ii = 0; ii < nz * nx; ii++)
-      Sigma_zx[INDEX2D(kind, nz * nx, kk, ii)] *= dSzxinv;
-
-    for(int ii = 0; ii < nx * nv; ii++)
-      f_xv[INDEX2D(kind, nx * nv, kk, ii)] *= df_xvinv;
-    for(int ii = 0; ii < ny * nv; ii++)
-      f_yv[INDEX2D(kind, ny * nv, kk, ii)] *= df_yvinv;
-    for(int ii = 0; ii < nz * nv; ii++)
-      f_zv[INDEX2D(kind, nz * nv, kk, ii)] *= df_zvinv;
   }/* for(int kk = 0; kk < kind; kk++){ */
+
+  for(int ii = 0; ii < kind * nx * ny; ii++)    Sigma_xy[ii] *= dSxyinv;
+  for(int ii = 0; ii < kind * ny * nz; ii++)    Sigma_yz[ii] *= dSyzinv;
+  for(int ii = 0; ii < kind * nz * nx; ii++)    Sigma_zx[ii] *= dSzxinv;
+  for(int ii = 0; ii < kind * nx * nv; ii++)    f_xv[ii] *= df_xvinv;
+  for(int ii = 0; ii < kind * ny * nv; ii++)    f_yv[ii] *= df_yvinv;
+  for(int ii = 0; ii < kind * nz * nv; ii++)    f_zv[ii] *= df_zvinv;
 
   free(erfx);  free(erfy);  free(erfz);  free(erfv);
   free(psfx);  free(psfy);  free(psfz);  free(psfv);
@@ -1435,6 +1422,26 @@ void writeAnalyzedProfiles
 
   static bool firstCall = true;
   const double phase_space_density2astro = mass2astro / (length2astro * velocity2astro);
+
+  if( firstCall ){
+    for(int jj = 0; jj < nx + 1; jj++)      xx[jj] = CAST_D2R(CAST_R2D(xx[jj]) * length2astro);
+    for(int jj = 0; jj < ny + 1; jj++)      yy[jj] = CAST_D2R(CAST_R2D(yy[jj]) * length2astro);
+    for(int jj = 0; jj < nz + 1; jj++)      zz[jj] = CAST_D2R(CAST_R2D(zz[jj]) * length2astro);
+    for(int jj = 0; jj < nv + 1; jj++)      vv[jj] = CAST_D2R(CAST_R2D(vv[jj]) * velocity2astro);
+    for(int jj = 0; jj < nx3D + 1; jj++)      rho_xx[jj] = CAST_D2R(CAST_R2D(rho_xx[jj]) * length2astro);
+    for(int jj = 0; jj < ny3D + 1; jj++)      rho_yy[jj] = CAST_D2R(CAST_R2D(rho_yy[jj]) * length2astro);
+    for(int jj = 0; jj < nz3D + 1; jj++)      rho_zz[jj] = CAST_D2R(CAST_R2D(rho_zz[jj]) * length2astro);
+  }/* if( firstCall ){ */
+
+  for(int ii = 0; ii < kind * nx3D * ny3D * nz3D; ii++)
+    rho_map[ii] = CAST_D2R(CAST_R2D(rho_map[ii]) * density2astro);
+  for(int ii = 0; ii < kind * nx * ny; ii++)    Sigma_xy[ii] = CAST_D2R(CAST_R2D(Sigma_xy[ii]) * col_density2astro);
+  for(int ii = 0; ii < kind * ny * nz; ii++)    Sigma_yz[ii] = CAST_D2R(CAST_R2D(Sigma_yz[ii]) * col_density2astro);
+  for(int ii = 0; ii < kind * nz * nx; ii++)    Sigma_zx[ii] = CAST_D2R(CAST_R2D(Sigma_zx[ii]) * col_density2astro);
+  for(int ii = 0; ii < kind * nx * nv; ii++)    f_xv[ii] = CAST_D2R(CAST_R2D(f_xv[ii]) * phase_space_density2astro);
+  for(int ii = 0; ii < kind * ny * nv; ii++)    f_yv[ii] = CAST_D2R(CAST_R2D(f_yv[ii]) * phase_space_density2astro);
+  for(int ii = 0; ii < kind * nz * nv; ii++)    f_zv[ii] = CAST_D2R(CAST_R2D(f_zv[ii]) * phase_space_density2astro);
+
 
   /* create a new file (if the file already exists, the file is opened with read-write access, new data will overwrite any existing data) */
   char filename[128];
@@ -1601,8 +1608,6 @@ void writeAnalyzedProfiles
     chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_GZIP_COMPRESSION
 #endif//USE_SZIP_COMPRESSION
-    for(int jj = INDEX2D(kind, nx3D * ny3D * nz3D, ii, 0); jj < INDEX2D(kind, nx3D * ny3D * nz3D, ii + 1, 0); jj++)
-      rho_map[jj] = CAST_D2R(CAST_R2D(rho_map[jj]) * density2astro);
     dataset = H5Dcreate(group, "rho", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rho_map[INDEX2D(kind, nx3D * ny3D * nz3D, ii, 0)]));
     chkHDF5err(H5Dclose(dataset));
@@ -1632,8 +1637,6 @@ void writeAnalyzedProfiles
     chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
     chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_GZIP_COMPRESSION
-    for(int jj = INDEX2D(kind, nx * ny, ii, 0); jj < INDEX2D(kind, nx * ny, ii + 1, 0); jj++)
-      Sigma_xy[jj] = CAST_D2R(CAST_R2D(Sigma_xy[jj]) * col_density2astro);
     dataset = H5Dcreate(group, "Sigma_xy", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &Sigma_xy[INDEX2D(kind, nx * ny, ii, 0)]));
     chkHDF5err(H5Dclose(dataset));
@@ -1662,8 +1665,6 @@ void writeAnalyzedProfiles
     chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
     chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_GZIP_COMPRESSION
-    for(int jj = INDEX2D(kind, ny * nz, ii, 0); jj < INDEX2D(kind, ny * nz, ii + 1, 0); jj++)
-      Sigma_yz[jj] = CAST_D2R(CAST_R2D(Sigma_yz[jj]) * col_density2astro);
     dataset = H5Dcreate(group, "Sigma_yz", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &Sigma_yz[INDEX2D(kind, ny * nz, ii, 0)]));
     chkHDF5err(H5Dclose(dataset));
@@ -1692,8 +1693,6 @@ void writeAnalyzedProfiles
     chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
     chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_GZIP_COMPRESSION
-    for(int jj = INDEX2D(kind, nz * nx, ii, 0); jj < INDEX2D(kind, nz * nx, ii + 1, 0); jj++)
-      Sigma_zx[jj] = CAST_D2R(CAST_R2D(Sigma_zx[jj]) * col_density2astro);
     dataset = H5Dcreate(group, "Sigma_zx", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &Sigma_zx[INDEX2D(kind, nz * nx, ii, 0)]));
     chkHDF5err(H5Dclose(dataset));
@@ -1722,8 +1721,6 @@ void writeAnalyzedProfiles
     chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
     chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_GZIP_COMPRESSION
-    for(int jj = INDEX2D(kind, nx * nv, ii, 0); jj < INDEX2D(kind, nx * nv, ii + 1, 0); jj++)
-      f_xv[jj] = CAST_D2R(CAST_R2D(f_xv[jj]) * phase_space_density2astro);
     dataset = H5Dcreate(group, "f_xv", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &f_xv[INDEX2D(kind, nx * nv, ii, 0)]));
     chkHDF5err(H5Dclose(dataset));
@@ -1752,8 +1749,6 @@ void writeAnalyzedProfiles
     chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
     chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_GZIP_COMPRESSION
-    for(int jj = INDEX2D(kind, ny * nv, ii, 0); jj < INDEX2D(kind, ny * nv, ii + 1, 0); jj++)
-      f_yv[jj] = CAST_D2R(CAST_R2D(f_yv[jj]) * phase_space_density2astro);
     dataset = H5Dcreate(group, "f_yv", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &f_yv[INDEX2D(kind, ny * nv, ii, 0)]));
     chkHDF5err(H5Dclose(dataset));
@@ -1782,8 +1777,6 @@ void writeAnalyzedProfiles
     chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
     chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_GZIP_COMPRESSION
-    for(int jj = INDEX2D(kind, nz * nv, ii, 0); jj < INDEX2D(kind, nz * nv, ii + 1, 0); jj++)
-      f_zv[jj] = CAST_D2R(CAST_R2D(f_zv[jj]) * phase_space_density2astro);
     dataset = H5Dcreate(group, "f_zv", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &f_zv[INDEX2D(kind, nz * nv, ii, 0)]));
     chkHDF5err(H5Dclose(dataset));
@@ -1806,9 +1799,6 @@ void writeAnalyzedProfiles
     chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
     chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_GZIP_COMPRESSION
-    if( firstCall )
-      for(int jj = 0; jj < nx + 1; jj++)
-	xx[jj] = CAST_D2R(CAST_R2D(xx[jj]) * length2astro);
     dataset = H5Dcreate(group, "x", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, xx));
     chkHDF5err(H5Dclose(dataset));
@@ -1831,9 +1821,6 @@ void writeAnalyzedProfiles
     chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
     chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_GZIP_COMPRESSION
-    if( firstCall )
-      for(int jj = 0; jj < ny + 1; jj++)
-	yy[jj] = CAST_D2R(CAST_R2D(yy[jj]) * length2astro);
     dataset = H5Dcreate(group, "y", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, yy));
     chkHDF5err(H5Dclose(dataset));
@@ -1856,9 +1843,6 @@ void writeAnalyzedProfiles
     chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
     chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_GZIP_COMPRESSION
-    if( firstCall )
-      for(int jj = 0; jj < nz + 1; jj++)
-	zz[jj] = CAST_D2R(CAST_R2D(zz[jj]) * length2astro);
     dataset = H5Dcreate(group, "z", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, zz));
     chkHDF5err(H5Dclose(dataset));
@@ -1881,9 +1865,6 @@ void writeAnalyzedProfiles
     chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
     chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_GZIP_COMPRESSION
-    if( firstCall )
-      for(int jj = 0; jj < nv + 1; jj++)
-	vv[jj] = CAST_D2R(CAST_R2D(vv[jj]) * velocity2astro);
     dataset = H5Dcreate(group, "v", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, vv));
     chkHDF5err(H5Dclose(dataset));
@@ -1906,9 +1887,6 @@ void writeAnalyzedProfiles
     chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
     chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_GZIP_COMPRESSION
-    if( firstCall )
-      for(int jj = 0; jj < nx3D + 1; jj++)
-	rho_xx[jj] = CAST_D2R(CAST_R2D(rho_xx[jj]) * length2astro);
     dataset = H5Dcreate(group, "rho_x", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, rho_xx));
     chkHDF5err(H5Dclose(dataset));
@@ -1931,9 +1909,6 @@ void writeAnalyzedProfiles
     chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
     chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_GZIP_COMPRESSION
-    if( firstCall )
-      for(int jj = 0; jj < ny3D + 1; jj++)
-	rho_yy[jj] = CAST_D2R(CAST_R2D(rho_yy[jj]) * length2astro);
     dataset = H5Dcreate(group, "rho_y", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, rho_yy));
     chkHDF5err(H5Dclose(dataset));
@@ -1956,9 +1931,6 @@ void writeAnalyzedProfiles
     chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
     chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_GZIP_COMPRESSION
-    if( firstCall )
-      for(int jj = 0; jj < nz3D + 1; jj++)
-	rho_zz[jj] = CAST_D2R(CAST_R2D(rho_zz[jj]) * length2astro);
     dataset = H5Dcreate(group, "rho_z", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, rho_zz));
     chkHDF5err(H5Dclose(dataset));

@@ -21,19 +21,23 @@ outputPDF = True
 monochrome = False
 # monochrome = True
 
+fs_base = 16
+tl_base = 6.0
+tw_base = 1.0
+
 
 col_M31disk = "white"
-lw_M31disk = 0.5
+lw_M31disk_base = 0.5
 
 col_shell = "white"
-ms_shell = 3
+ms_shell_base = 3
 
 col_field, col_gss, col_sc, col_sd = "white", "red", "magenta", "yellow"
-lw_field, lw_gss, lw_sc, lw_sd = 0.5, 0.5, 0.5, 0.5
-ms_gss, ms_sc, ms_sd = 3, 3, 3
+lw_field_base, lw_gss_base, lw_sc_base, lw_sd_base = 0.5, 0.5, 0.5, 0.5
+ms_gss_base, ms_sc_base, ms_sd_base = 3, 3, 3
 
 col_wmbh = "black"
-ms_wmbh = 3
+ms_wmbh_base = 3
 
 
 pt = ["o", "s", "^", "D"]
@@ -123,15 +127,6 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
     # close the HDF5 file
     h5file.close()
 
-    summary = False
-    if nxpanel > 1:
-        for ii in range(nxpanel):
-            xy_map[nxpanel] += xy_map[ii]
-            xz_map[nxpanel] += xz_map[ii]
-
-        nxpanel += 1
-        summary = True
-
 
     xy_map = np.maximum(xy_map, fmin)
     xy_map = np.minimum(xy_map, fmax)
@@ -147,6 +142,21 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
     xmin, xmax = xx[0][0], xx[0][nx]
     ymin, ymax = yy[0][0], yy[0][ny]
     zmin, zmax = zz[0][0], zz[0][nz]
+
+    # adjust marker size and etcetra
+    fs = fs_base / np.sqrt(nxpanel)
+    tl = tl_base / np.sqrt(nxpanel)
+    tw = tw_base / np.sqrt(nxpanel)
+    lw_M31disk = lw_M31disk_base / nxpanel
+    ms_shell = ms_shell_base / nxpanel
+    lw_field = lw_field_base / nxpanel
+    lw_gss = lw_gss_base / nxpanel
+    lw_sc = lw_sc_base / nxpanel
+    lw_sd = lw_sd_base / nxpanel
+    ms_gss = ms_gss_base / nxpanel
+    ms_sc = ms_sc_base / nxpanel
+    ms_sd = ms_sd_base / nxpanel
+    ms_wmbh = ms_wmbh_base / nxpanel
 
     head = 0
     if summary:
@@ -207,7 +217,7 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
         ax[ii].set_xlim([xmin, xmax])
         ax[ii].set_xticks(xtics)
         # ax[ii].set_yticks(ytics)
-        ax[ii].tick_params(axis = "both", direction = "in", color = col_grid, bottom = True, top = True, left = True, right = True)
+        ax[ii].tick_params(axis = "both", direction = "in", color = col_grid, bottom = True, top = True, left = True, right = True, labelsize = fs, length = tl, width = tw)
         ax[ii].spines["bottom"].set_color(col_grid)
         ax[ii].spines[   "top"].set_color(col_grid)
         ax[ii].spines[  "left"].set_color(col_grid)
@@ -218,13 +228,13 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
         ax[ii * nypanel    ].set_yticks(ytics)
         ax[ii * nypanel + 1].set_ylim([zmin, zmax])
         ax[ii * nypanel    ].set_ylim([ymin, ymax])
-        ax[ii * nypanel    ].set_xlabel(r"$\xi$ ({:<})".format("degree"))
+        ax[ii * nypanel    ].set_xlabel(r"$\xi$ ({:<})".format("degree"), fontsize = fs)
         ax[ii * nypanel + 1].spines[   "top"].set_color(col_frame)
         ax[ii * nypanel    ].spines["bottom"].set_color(col_frame)
 
 
-    ax[0].set_ylabel(r"$\eta$ ({:<})".format("degree"))
-    ax[1].set_ylabel(r"$D$ ({:<})".format("kpc"))
+    ax[0].set_ylabel(r"$\eta$ ({:<})".format("degree"), fontsize = fs)
+    ax[1].set_ylabel(r"$D$ ({:<})".format("kpc"), fontsize = fs)
     ax[0].spines["left"].set_color(col_frame)
     ax[1].spines["left"].set_color(col_frame)
     ax[(nxpanel - 1) * nypanel + 1].spines["right"].set_color(col_frame)
@@ -235,9 +245,9 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
             caption  = "(" + "{:^c}".format(97 + ii + nxpanel * (nypanel - 1 - jj)) + ")"
             idx = ii * nypanel + jj
             if jj == 0:
-                ax[idx].text(xmin + 0.03 * (xmax - xmin), ymax - 0.12 * (ymax - ymin), caption, color = col_caption, fontsize = 11)
+                ax[idx].text(xmin + 0.03 * (xmax - xmin), ymax - 0.06 * (nxpanel ** 0.5) * (ymax - ymin), caption, color = col_caption, fontsize = fs)
             if jj == 1:
-                ax[idx].text(xmin + 0.03 * (xmax - xmin), zmax - 0.12 * (zmax - zmin), caption, color = col_caption, fontsize = 11)
+                ax[idx].text(xmin + 0.03 * (xmax - xmin), zmax - 0.06 * (nxpanel ** 0.5) * (zmax - zmin), caption, color = col_caption, fontsize = fs)
 
 
     # add colorbar
@@ -261,11 +271,14 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
     else:
         cbar = fig.colorbar(img, cax = colorbar_ax, label = r"$\Sigma$ ($M_\odot$ kpc$^{-2}$)")
     cbar.solids.set_edgecolor("face")
+    cbar.ax.set_yticklabels(cbar.ax.get_yticklabels(), fontsize=fs)
+    cbar.ax.set_ylabel(cbar.ax.get_ylabel(), fontsize=fs)
 
     # add current time
     if not monochrome:
-        fig.suptitle(r"$t = {:.2f}$ {:<}".format(time, "Myr"))
+        # fig.suptitle(r"$t = {:.2f}$ {:<}".format(time, "Myr"))
         # fig.suptitle(r"$t = {:.3f}$ {:<}".format(time / 1000, "Gyr"))
+        fig.suptitle(r"$t = {:.2f}$ {:<}".format(time, "Myr"), y = 1.0, fontsize = fs)
 
 
     # save figures
@@ -288,10 +301,6 @@ def wrapper(argv):
 plt.rcParams['ps.useafm'] = True
 plt.rcParams['pdf.use14corefonts'] = True
 plt.rcParams['text.usetex'] = True
-
-# set font size
-# plt.rcParams['font.size'] = 16
-plt.rcParams['font.size'] = 14
 
 # specify direction of ticks
 plt.rcParams['xtick.direction'] = 'in'
@@ -334,7 +343,6 @@ for ii in range(NstreamD):
 my_cmap = utils.generate_cmap(["darkblue", "deepskyblue", "lime", "yellow", "red", "magenta", "white"])
 if monochrome:
     my_cmap = "gray_r"
-# cores = mp.cpu_count()
 cores = int(np.ceil(mp.cpu_count() / 2))
 pool = mp.Pool(cores)
 args = [(ii, Nkind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi, Eshell_eta, Nwest, Wshell_xi, Wshell_eta, Nfield, field_xi, field_eta, Ngss, gss_xi, gss_eta, gss_D, gss_Derr, gss_field_xi, gss_field_eta, NstreamC, streamC_xi, streamC_eta, streamC_D, streamC_Derr, streamC_field_xi, streamC_field_eta, NstreamD, streamD_xi, streamD_eta, streamD_D, streamD_Derr, streamD_field_xi, streamD_field_eta) for ii in range(init, last + 1, 1)]

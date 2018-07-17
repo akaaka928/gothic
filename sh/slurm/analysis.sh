@@ -17,11 +17,11 @@ EXEC=bin/extract
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=2
+    # PROBLEM=2
     # PROBLEM=14
     # PROBLEM=22
     # PROBLEM=26
-    # PROBLEM=27
+    PROBLEM=27
     # PROBLEM=62
     # PROBLEM=130
     # PROBLEM=131
@@ -139,7 +139,7 @@ if [ $PROBLEM -eq 27 ]; then
     XMAX=15.0
     YMAX=15.0
     ZMAX=15.0
-    VMAX=300.0
+    VMAX=400.0
     XMIN=-$XMAX
     YMIN=-$YMAX
     ZMIN=-$ZMAX

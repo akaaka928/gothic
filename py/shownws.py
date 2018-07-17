@@ -21,15 +21,18 @@ outputPDF = True
 monochrome = False
 # monochrome = True
 
+fs_base = 16
+tl_base = 6.0
+tw_base = 1.0
 
 col_ref = "gray"
-lw_ref = 1.0
+lw_ref_base = 1.0
 
 col_M31disk = "white"
-lw_M31disk = 1.0
+lw_M31disk_base = 1.0
 
 col_wmbh = "black"
-ms_wmbh = 3
+ms_wmbh_base = 3
 
 
 pt = ["o", "s", "^", "D"]
@@ -37,8 +40,8 @@ ls = ["-", ":", "-.", "--"]
 col = ["black", "red", "blue", "magenta"]
 
 col_hsc, col_nws, col_gcs = "white", "orange", "cyan"
-lw_hsc, lw_nws, lw_gcs = 1.5, 1.5, 1.5
-ms_hsc, ms_nws, ms_gcs = 1, 4, 4
+lw_hsc_base, lw_nws_base, lw_gcs_base = 1.5, 1.5, 1.5
+ms_hsc_base, ms_nws_base, ms_gcs_base = 1, 4, 4
 
 col_frame = "black"
 col_grid  = "white"
@@ -51,7 +54,7 @@ if monochrome:
 
 
 
-filename = "k18nws"
+filename = "nws"
 Nskip = 0
 Nmbh = 0
 init = 0
@@ -64,7 +67,7 @@ phase_min, phase_max = 1.0e+4, 3.1e+6
 xtics = [-8.0, -6.0, -4.0, -2.0, 0.0, 2.0, 4.0, 6.0]
 ytics = [-2.0, 0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0]
 ztics = [750.0, 800.0, 850.0, 900.0, 950.0]
-lab = ["DM", "star", "MBH"]
+lab = ["star", "DM"]
 
 
 def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Nhsc, hsc_xi, hsc_eta, hsc_rad, Nnws, nws_xi, nws_eta, nws_D, nws_Derr, Ngcs, nws_gc_xi, nws_gc_eta, nws_gc_vel, nws_gc_verr):
@@ -126,16 +129,6 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Nhsc, hsc_xi, hs
     # close the HDF5 file
     h5file.close()
 
-    summary = False
-    if nypanel > 1:
-        for ii in range(nypanel):
-            xy_map[nypanel] += xy_map[ii]
-            yz_map[nypanel] += yz_map[ii]
-            yv_map[nypanel] += yv_map[ii]
-
-        nypanel += 1
-        summary = True
-
 
     xy_map = np.maximum(xy_map, Sigma_min)
     xy_map = np.minimum(xy_map, Sigma_max)
@@ -155,10 +148,25 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Nhsc, hsc_xi, hs
     zmin, zmax = zz[0][0], zz[0][nz]
     vmin, vmax = vv[0][0], vv[0][nv]
 
+    # adjust marker size and etcetra
+    fs = fs_base / np.sqrt(nypanel)
+    tl = tl_base / np.sqrt(nypanel)
+    tw = tw_base / np.sqrt(nypanel)
+    lw_ref = lw_ref_base / nypanel
+    lw_M31disk = lw_M31disk_base / nypanel
+    ms_wmbh = ms_wmbh_base / nypanel
+    lw_hsc = lw_hsc_base / nypanel
+    lw_nws = lw_nws_base / nypanel
+    lw_gcs = lw_gcs_base / nypanel
+    ms_hsc = ms_hsc_base / nypanel
+    ms_nws = ms_nws_base / nypanel
+    ms_gcs = ms_gcs_base / nypanel
+
+
     for jj in range(nypanel):
         img_Sigma = ax[              jj].imshow(xy_map[jj].T, extent = [xmin, xmax, ymin, ymax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = Sigma_min, vmax = Sigma_max), cmap = cmap_Sigma, aspect = "auto")
         img_depth = ax[    nypanel + jj].imshow(yz_map[jj]  , extent = [zmin, zmax, ymin, ymax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = depth_min, vmax = depth_max), cmap = cmap_depth, aspect = "auto")
-        img_phase = ax[2 * nypanel + jj].imshow(yv_map[ii]  , extent = [vmin, vmax, ymin, ymax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = phase_min, vmax = phase_max), cmap = cmap_phase, aspect = "auto")
+        img_phase = ax[2 * nypanel + jj].imshow(yv_map[jj]  , extent = [vmin, vmax, ymin, ymax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = phase_min, vmax = phase_max), cmap = cmap_phase, aspect = "auto")
 
 
     for jj in range(nypanel):
@@ -206,7 +214,7 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Nhsc, hsc_xi, hs
     for ii in range(nxpanel * nypanel):
         ax[ii].set_ylim([ymin, ymax])
         ax[ii].set_yticks(ytics)
-        ax[ii].tick_params(axis = "both", direction = "in", color = col_grid, bottom = True, top = True, left = True, right = True)
+        ax[ii].tick_params(axis = "both", direction = "in", color = col_grid, bottom = True, top = True, left = True, right = True, labelsize = fs, length = tl, width = tw)
         ax[ii].spines["bottom"].set_color(col_grid)
         ax[ii].spines[   "top"].set_color(col_grid)
         ax[ii].spines[  "left"].set_color(col_grid)
@@ -215,31 +223,32 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Nhsc, hsc_xi, hs
     for jj in range(nypanel):
         ax[              jj].set_xlim([xmin, xmax])
         ax[              jj].set_xticks(xtics)
-        ax[              jj].set_xlabel(r"$\xi$ ({:<})".format("degree"))
-        ax[              jj].set_ylabel(r"$\eta$ ({:<})".format("degree"))
         ax[              jj].spines["left"].set_color(col_frame)
+        ax[              jj].set_ylabel(r"$\eta$ ({:<})".format("degree"), fontsize = fs)
         ax[    nypanel + jj].set_xlim([zmin, zmax])
         ax[    nypanel + jj].set_xticks(ztics)
-        ax[    nypanel + jj].set_xlabel(r"$D$ ({:<})".format("kpc"))
         ax[2 * nypanel + jj].set_xlim([vmin, vmax])
         # ax[2 * nypanel + jj].set_xticks(vtics)
-        ax[2 * nypanel + jj].set_xlabel(r"$v_\mathrm{los}$ (km s$^{-1}$)")
         ax[(nxpanel - 1) * nypanel + jj].spines["right"].set_color(col_frame)
 
     for ii in range(nxpanel):
         ax[ii * nypanel                ].spines["bottom"].set_color(col_frame)
         ax[ii * nypanel + (nypanel - 1)].spines[   "top"].set_color(col_frame)
 
+    ax[0          ].set_xlabel(r"$\xi$ ({:<})".format("degree"), fontsize = fs)
+    ax[    nypanel].set_xlabel(r"$D$ ({:<})".format("kpc"), fontsize = fs)
+    ax[2 * nypanel].set_xlabel(r"$v_\mathrm{los}$ (km s$^{-1}$)", fontsize = fs)
+
     for ii in range(nxpanel):
         for jj in range(nypanel):
             caption  = "(" + "{:^c}".format(97 + ii + nxpanel * (nypanel - 1 - jj)) + ")"
             idx = ii * nypanel + jj
             if ii == 0:
-                ax[idx].text(xmin + 0.03 * (xmax - xmin), ymax - 0.06 * (ymax - ymin), caption, color = col_caption)
+                ax[idx].text(xmin + 0.03 * (xmax - xmin), ymax - 0.06 * (nypanel ** 0.5) * (ymax - ymin), caption + " " + lab[nypanel - 1 - jj], color = col_caption, fontsize = fs)
             if ii == 1:
-                ax[idx].text(zmin + 0.03 * (zmax - zmin), ymax - 0.06 * (ymax - ymin), caption, color = col_caption)
+                ax[idx].text(zmin + 0.03 * (zmax - zmin), ymax - 0.06 * (nypanel ** 0.5) * (ymax - ymin), caption, color = col_caption, fontsize = fs)
             if ii == 2:
-                ax[idx].text(vmin + 0.03 * (vmax - vmin), ymax - 0.06 * (ymax - ymin), caption, color = col_caption)
+                ax[idx].text(vmin + 0.03 * (vmax - vmin), ymax - 0.06 * (nypanel ** 0.5) * (ymax - ymin), caption, color = col_caption, fontsize = fs)
 
 
 
@@ -279,36 +288,18 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Nhsc, hsc_xi, hs
             else:
                 cbar = fig.colorbar(img_phase, cax = colorbar_ax, orientation = "horizontal", label = r"$f$ ($M_\odot$ kpc$^{-1}$ km$^{-1}$ s)")
         cbar.solids.set_edgecolor("face")
+        cbar.ax.set_xticklabels(cbar.ax.get_xticklabels(), fontsize=fs)
+        cbar.ax.set_xlabel(cbar.ax.get_xlabel(), fontsize=fs)
         colorbar_ax.get_xaxis().set_ticks_position("top")
         colorbar_ax.get_xaxis().set_label_position("top")
 
 
-    # # add colorbar
-    # x0, x1 = 1, 0
-    # y0, y1 = 1, 0
-    # for at in ax:
-    #     xl, xr = at.get_position().x0, at.get_position().x1
-    #     yb, yt = at.get_position().y0, at.get_position().y1
-
-    #     if x0 > xl:
-    #         x0 = xl
-    #     if x1 < xr:
-    #         x1 = xr
-    #     if y0 > yb:
-    #         y0 = yb
-    #     if y1 < yt:
-    #         y1 = yt
-    # colorbar_ax = fig.add_axes([x1, y0, 0.1 / nxpanel, y1 - y0])
-    # if useDegree:
-    #     cbar = fig.colorbar(img, cax = colorbar_ax, label = r"$\Sigma$ ($M_\odot$ deg$^{-2}$)")
-    # else:
-    #     cbar = fig.colorbar(img, cax = colorbar_ax, label = r"$\Sigma$ ($M_\odot$ kpc$^{-2}$)")
-    # cbar.solids.set_edgecolor("face")
-
     # add current time
     if not monochrome:
-        # fig.suptitle(r"$t = {:.2f}$ {:<}".format(time, "Myr"), x = 0.37, y = 1.0)
-        fig.suptitle(r"$t = {:.3f}$ {:<}".format(time / 1000, "Gyr"), x = 0.37, y = 1.0)
+        if nypanel == 1:
+            fig.suptitle(r"$t = {:.3f}$ {:<}".format(time / 1000, "Gyr"), x = 0.37, y = 1.0, fontsize = fs)
+        else:
+            fig.suptitle(r"$t = {:.3f}$ {:<}".format(time / 1000, "Gyr"), y = 1.0, fontsize = fs)
 
 
     # save figures
@@ -331,10 +322,6 @@ def wrapper(argv):
 plt.rcParams['ps.useafm'] = True
 plt.rcParams['pdf.use14corefonts'] = True
 plt.rcParams['text.usetex'] = True
-
-# set font size
-# plt.rcParams['font.size'] = 16
-plt.rcParams['font.size'] = 14
 
 # specify direction of ticks
 plt.rcParams['xtick.direction'] = 'in'

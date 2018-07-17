@@ -15,6 +15,10 @@ import utils as utils
 
 outputPDF = False
 
+fs_base = 24
+tl_base = 6.0
+tw_base = 1.0
+
 
 # filename = "mw"
 # Nskip = 1
@@ -23,20 +27,22 @@ outputPDF = False
 # last = 127
 # # last = 0
 # fmin, fmax = 1.0e-3, 1.0e+1
+# fvmin, fvmax = 1.0e+4, 1.0e+8
 # xtics = [-10, -5, 0, 5, 10]
 # ytics = [-10, -5, 0, 5, 10]
 # lab = ["DM halo", "stellar halo", "bulge", "central BH", "thick disk", "thin disk"]
 
-# filename = "m31"
-# Nskip = 1
-# skip = [0]
-# init = 0
-# last = 47
-# last = 15
-# fmin, fmax = 1.0e-3, 1.0e+1
-# xtics = [-10, -5, 0, 5, 10]
-# ytics = [-10, -5, 0, 5, 10]
-# lab = ["DM halo", "stellar halo", "bulge", "disk"]
+filename = "m31"
+Nskip = 1
+skip = [0]
+init = 0
+last = 47
+last = 15
+fmin, fmax = 1.0e-3, 1.0e+1
+fvmin, fvmax = 1.0e+4, 1.0e+8
+xtics = [-10, -5, 0, 5, 10]
+ytics = [-10, -5, 0, 5, 10]
+lab = ["DM halo", "stellar halo", "bulge", "disk"]
 
 # filename = "k17disk"
 # Nskip = 2
@@ -44,6 +50,7 @@ outputPDF = False
 # init = 0
 # last = 399
 # fmin, fmax = 1.0e-7, 1.0e-1
+# fvmin, fvmax = 1.0e+0, 1.0e+6
 # lab = ["halo", "bulge", "MBH", "disk"]
 
 # # filename = "hd"
@@ -52,6 +59,7 @@ outputPDF = False
 # init = 0
 # last = 13
 # fmin, fmax = 1.0e-3, 1.0e+0
+# fvmin, fvmax = 1.0e-3, 1.0e+0
 # lab = ["halo", "disk"]
 
 # # filename = "halocusp_run"
@@ -64,16 +72,17 @@ outputPDF = False
 # last = 140
 # # last = 0
 # fmin, fmax = 1.0e-6, 1.0e-1
+# fvmin, fvmax = 1.0e-6, 1.0e-1
 # lab = ["halo", "core", "GC"]
 
-filename = "hernquist"
-Nskip = 0
-init = 0
-last = 47
-# last = 0
-fmin, fmax = 1.0e-3, 1.0e+1
-fvmin, fvmax = 1.0e-3, 1.0e+1
-lab = ["halo"]
+# filename = "hernquist"
+# Nskip = 0
+# init = 0
+# last = 47
+# # last = 0
+# fmin, fmax = 1.0e-3, 1.0e+1
+# fvmin, fvmax = 1.0e-3, 1.0e+1
+# lab = ["halo"]
 
 # filename = "etg"
 # Nskip = 1
@@ -84,6 +93,7 @@ lab = ["halo"]
 # last = 15
 # # last = 0
 # fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
 # lab = ["DM halo", "bulge", "stellar halo", "central BH"]
 
 # filename = "satellite"
@@ -92,6 +102,7 @@ lab = ["halo"]
 # last = 140
 # # last = 0
 # fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
 # lab = ["bulge"]
 
 
@@ -104,7 +115,7 @@ col = ["black", "red", "blue", "magenta", "green", "brown", "cyan", "yellow"]
 
 pt_mbh = "+"
 col_mbh = "black"
-ms_mbh = 8
+ms_mbh_base = 8
 
 
 def draw_figure(fileid, kind, sphe):
@@ -227,6 +238,16 @@ def draw_figure(fileid, kind, sphe):
     zmin, zmax = zz[0][0], zz[0][nz]
     vmin, vmax = vv[0][0], vv[0][nv]
 
+    # adjust marker size and etcetra
+    fs = fs_base / np.sqrt(max([nxpanel, nypanel]))
+    tl = tl_base / np.sqrt(max([nxpanel, nypanel]))
+    tw = tw_base / np.sqrt(max([nxpanel, nypanel]))
+    ms_mbh = ms_mbh_base / max([nxpanel, nypanel])
+    fs_v = fs_base / np.sqrt(max([nvpanel, nxpanel]))
+    tl_v = tl_base / np.sqrt(max([nvpanel, nxpanel]))
+    tw_v = tw_base / np.sqrt(max([nvpanel, nxpanel]))
+    ms_mbh_v = ms_mbh_base / max([nvpanel, nxpanel])
+
     head = 0
     if summary:
         img = ax[1].imshow(xz_map[nxpanel - 1].T, extent = [xmin, xmax, zmin, zmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
@@ -237,9 +258,9 @@ def draw_figure(fileid, kind, sphe):
         if Nmbh > 0:
             ax[1].plot(mbh_x[:Nmbh], mbh_z[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh)
             ax[0].plot(mbh_x[:Nmbh], mbh_y[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh)
-            ax_v[    nxpanel - 1].plot(mbh_x[:Nmbh], mbh_vx[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh)
-            ax_v[2 * nxpanel - 1].plot(mbh_y[:Nmbh], mbh_vy[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh)
-            ax_v[3 * nxpanel - 1].plot(mbh_z[:Nmbh], mbh_vz[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh)
+            ax_v[    nxpanel - 1].plot(mbh_x[:Nmbh], mbh_vx[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh_v)
+            ax_v[2 * nxpanel - 1].plot(mbh_y[:Nmbh], mbh_vy[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh_v)
+            ax_v[3 * nxpanel - 1].plot(mbh_z[:Nmbh], mbh_vz[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh_v)
         head = 1
 
     for ii in range(Ndata):
@@ -253,7 +274,7 @@ def draw_figure(fileid, kind, sphe):
         ax[ii].set_xlim([xmin, xmax])
         # ax[ii].set_xticks(xtics)
         # ax[ii].set_yticks(ytics)
-        ax[ii].tick_params(axis = "both", direction = "in", color = "white", bottom = True, top = True, left = True, right = True)
+        ax[ii].tick_params(axis = "both", direction = "in", color = "white", bottom = True, top = True, left = True, right = True, labelsize = fs, length = tl, width = tw)
         ax[ii].spines["bottom"].set_color("white")
         ax[ii].spines[   "top"].set_color("white")
         ax[ii].spines[  "left"].set_color("white")
@@ -262,13 +283,13 @@ def draw_figure(fileid, kind, sphe):
     for ii in range(nxpanel):
         ax[ii * nypanel + 1].set_ylim([zmin, zmax])
         ax[ii * nypanel    ].set_ylim([ymin, ymax])
-        ax[ii * nypanel    ].set_xlabel(r"$x$ ({:<})".format(length_unit.decode("UTF-8")))
+        ax[ii * nypanel    ].set_xlabel(r"$x$" + r" ({:<})".format(length_unit.decode("UTF-8")), fontsize = fs)
         ax[ii * nypanel + 1].spines[   "top"].set_color("black")
         ax[ii * nypanel    ].spines["bottom"].set_color("black")
 
 
-    ax[0].set_ylabel(r"$y$ ({:<})".format(length_unit.decode("UTF-8")))
-    ax[1].set_ylabel(r"$z$ ({:<})".format(length_unit.decode("UTF-8")))
+    ax[0].set_ylabel(r"$y$" + r" ({:<})".format(length_unit.decode("UTF-8")), fontsize = fs)
+    ax[1].set_ylabel(r"$z$" + r" ({:<})".format(length_unit.decode("UTF-8")), fontsize = fs)
     ax[0].spines["left"].set_color("black")
     ax[1].spines["left"].set_color("black")
     ax[(nxpanel - 1) * nypanel + 1].spines[ "right"].set_color("black")
@@ -276,14 +297,14 @@ def draw_figure(fileid, kind, sphe):
 
     for ii in range(nvpanel * nxpanel):
         ax_v[ii].set_ylim([vmin, vmax])
-        ax_v[ii].tick_params(axis = "both", direction = "in", color = "white", bottom = True, top = True, left = True, right = True)
+        ax_v[ii].tick_params(axis = "both", direction = "in", color = "white", bottom = True, top = True, left = True, right = True, labelsize = fs_v, length = tl_v, width = tw_v)
         ax_v[ii].spines["bottom"].set_color("white")
         ax_v[ii].spines[   "top"].set_color("white")
         ax_v[ii].spines[  "left"].set_color("white")
         ax_v[ii].spines[ "right"].set_color("white")
 
     for jj in range(nxpanel):
-        ax_v[              jj].set_ylabel(r"$v$ ({:<})".format(velocity_unit.decode("UTF-8")))
+        ax_v[              jj].set_ylabel(r"$v$" + r" ({:<})".format(velocity_unit.decode("UTF-8")), fontsize = fs_v)
         ax_v[              jj].spines["left"].set_color("black")
         ax_v[              jj].set_xlim([xmin, xmax])
         ax_v[    nxpanel + jj].set_xlim([ymin, ymax])
@@ -294,9 +315,9 @@ def draw_figure(fileid, kind, sphe):
         ax_v[ ii      * nxpanel    ].spines["bottom"].set_color("black")
         ax_v[(ii + 1) * nxpanel - 1].spines["top"].set_color("black")
 
-    ax_v[0          ].set_xlabel(r"$x$ ({:<})".format(length_unit.decode("UTF-8")))
-    ax_v[    nxpanel].set_xlabel(r"$y$ ({:<})".format(length_unit.decode("UTF-8")))
-    ax_v[2 * nxpanel].set_xlabel(r"$z$ ({:<})".format(length_unit.decode("UTF-8")))
+    ax_v[0          ].set_xlabel(r"$x$" + r" ({:<})".format(length_unit.decode("UTF-8")), fontsize = fs_v)
+    ax_v[    nxpanel].set_xlabel(r"$y$" + r" ({:<})".format(length_unit.decode("UTF-8")), fontsize = fs_v)
+    ax_v[2 * nxpanel].set_xlabel(r"$z$" + r" ({:<})".format(length_unit.decode("UTF-8")), fontsize = fs_v)
 
 
 
@@ -315,9 +336,11 @@ def draw_figure(fileid, kind, sphe):
             y0 = yb
         if y1 < yt:
             y1 = yt
-    colorbar_ax = fig.add_axes([x1, y0, 0.1 / nxpanel, y1 - y0])
-    cbar = fig.colorbar(img, cax = colorbar_ax, label = r"$\Sigma$ ({:<})".format(col_density_unit.decode("UTF-8")))
+    colorbar_ax = fig.add_axes([x1, y0, 0.05 / nxpanel, y1 - y0])
+    cbar = fig.colorbar(img, cax = colorbar_ax, label = r"$\Sigma$" + r" ({:<})".format(col_density_unit.decode("UTF-8")))
     cbar.solids.set_edgecolor("face")
+    cbar.ax.set_yticklabels(cbar.ax.get_yticklabels(), fontsize=fs)
+    cbar.ax.set_ylabel(cbar.ax.get_ylabel(), fontsize=fs)
 
     x0, x1 = 1, 0
     y0, y1 = 1, 0
@@ -333,15 +356,17 @@ def draw_figure(fileid, kind, sphe):
             y0 = yb
         if y1 < yt:
             y1 = yt
-    colorbar_ax = fig_v.add_axes([x1, y0, 0.1 / nvpanel, y1 - y0])
-    cbar = fig_v.colorbar(img_v, cax = colorbar_ax, label = r"$f$ (" + r"{:<}".format(mass_unit.decode("UTF-8")) + r" {:<}".format(mass_unit.decode("UTF-8")) + r"$^{-1}$" + r" {:<}".format(velocity_unit.decode("UTF-8")) + r"$^{-1}$" + r")")
+    colorbar_ax = fig_v.add_axes([x1, y0, 0.05 / nvpanel, y1 - y0])
+    cbar = fig_v.colorbar(img_v, cax = colorbar_ax, label = r"$f$ (" + r"{:<}".format(mass_unit.decode("UTF-8")) + r" {:<}".format(length_unit.decode("UTF-8")) + r"$^{-1}$" + r" {:<}".format(velocity_unit.decode("UTF-8")) + r"$^{-1}$" + r")")
     cbar.solids.set_edgecolor("face")
+    cbar.ax.set_yticklabels(cbar.ax.get_yticklabels(), fontsize=fs_v)
+    cbar.ax.set_ylabel(cbar.ax.get_ylabel(), fontsize=fs_v)
 
 
 
     # add current time
-    fig.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
-    fig_v.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
+    fig.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")), fontsize = fs)
+    fig_v.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")), fontsize = fs_v)
 
 
     # save figures
@@ -365,10 +390,6 @@ def wrapper(argv):
 plt.rcParams['ps.useafm'] = True
 plt.rcParams['pdf.use14corefonts'] = True
 plt.rcParams['text.usetex'] = True
-
-# set font size
-# plt.rcParams['font.size'] = 16
-plt.rcParams['font.size'] = 14
 
 # specify direction of ticks
 plt.rcParams['xtick.direction'] = 'in'
