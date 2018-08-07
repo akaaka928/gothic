@@ -39,7 +39,8 @@ pt = ["o", "s", "^", "D"]
 ls = ["-", ":", "-.", "--"]
 col = ["black", "red", "blue", "magenta"]
 
-col_hsc, col_nws, col_gcs = "white", "orange", "cyan"
+# col_hsc, col_nws, col_gcs = "white", "orange", "cyan"
+col_hsc, col_nws, col_gcs = "white", "brown", "cyan"
 lw_hsc_base, lw_nws_base, lw_gcs_base = 1.5, 1.5, 1.5
 ms_hsc_base, ms_nws_base, ms_gcs_base = 1, 4, 4
 
@@ -54,13 +55,13 @@ if monochrome:
 
 
 
-filename = "nws"
+filename = "k18nws"
 Nskip = 0
 Nmbh = 0
 init = 0
 last = 560
-# init = 325
-# last = 325
+init = 325
+last = 325
 Sigma_min, Sigma_max = 3.1e+4, 1.0e+8
 depth_min, depth_max = 3.1e+3, 3.1e+6
 phase_min, phase_max = 1.0e+4, 3.1e+6
@@ -70,7 +71,7 @@ ztics = [750.0, 800.0, 850.0, 900.0, 950.0]
 lab = ["star", "DM"]
 
 
-def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Nhsc, hsc_xi, hsc_eta, hsc_rad, Nnws, nws_xi, nws_eta, nws_D, nws_Derr, Ngcs, nws_gc_xi, nws_gc_eta, nws_gc_vel, nws_gc_verr):
+def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Nhsc, hsc_xi, hsc_eta, hsc_rad, Nnws, nws_xi, nws_eta, nws_D, nws_Derr, nws_s1_xi, nws_s1_eta, nws_s2_xi, nws_s2_eta, nws_s3_xi, nws_s3_eta, nws_s4_xi, nws_s4_eta, Ngcs, nws_gc_xi, nws_gc_eta, nws_gc_vel, nws_gc_verr):
     snapshot = "{:03d}".format(fileid)
     input_file = "dat/" + filename + ".m31obs" + snapshot + ".h5"
 
@@ -194,7 +195,10 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Nhsc, hsc_xi, hs
             ax[jj].add_patch(circle)
 
         # distance measurements to NW stream
-        ax[              jj].plot(nws_xi, nws_eta, "s", color = col_nws, markerfacecolor = "none", markersize = ms_nws)
+        ax[              jj].plot(nws_s1_xi, nws_s1_eta, "-", color = col_nws, linewidth = lw_nws)
+        ax[              jj].plot(nws_s2_xi, nws_s2_eta, "-", color = col_nws, linewidth = lw_nws)
+        ax[              jj].plot(nws_s3_xi, nws_s3_eta, "-", color = col_nws, linewidth = lw_nws)
+        ax[              jj].plot(nws_s4_xi, nws_s4_eta, "-", color = col_nws, linewidth = lw_nws)
         ax[    nypanel + jj].plot(nws_D , nws_eta, "s", color = col_nws, markerfacecolor = "none", markersize = ms_nws)
         ax[    nypanel + jj].errorbar(nws_D, nws_eta, xerr = nws_Derr, ls = "none", ecolor = col_nws, elinewidth = lw_nws)
 
@@ -204,7 +208,7 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Nhsc, hsc_xi, hs
         ax[2 * nypanel + jj].errorbar(nws_gc_vel, nws_gc_eta, xerr = nws_gc_verr, ls = "none", ecolor = col_gcs, elinewidth = lw_gcs)
 
 
-        # incidate wandering MBH location
+        # indicate wandering MBH location
         if Nmbh == 1:
             ax[              jj].plot(mbh_obs[0], mbh_obs[1], "+", color = col_wmbh, markersize = ms_wmbh)
             ax[    nypanel + jj].plot(mbh_obs[2], mbh_obs[1], "+", color = col_wmbh, markersize = ms_wmbh)
@@ -339,13 +343,8 @@ txtfile.close()
 # set reference ellipse of M31 disk
 Ndisk, disk_xi, disk_eta, disk_D = m31.disk_ellipse()
 
-# set reference circle of PAndAS region
-
-# set reference points of NW stream observations
-Nhsc, hsc_xi, hsc_eta, hsc_rad = m31.NWS_obs_field()
-
-# set reference points of distance measurements by Komiyama et al. (2018)
-Nnws, nws_xi, nws_eta, nws_D, nws_Dep, nws_Dem = m31.NWS_distance()
+# set reference points of observations by Komiyama et al. (2018)
+Nhsc, hsc_xi, hsc_eta, hsc_rad, Nnws, nws_xi, nws_eta, nws_D, nws_Dep, nws_Dem, nws_s1_xi, nws_s1_eta, nws_s2_xi, nws_s2_eta, nws_s3_xi, nws_s3_eta, nws_s4_xi, nws_s4_eta = m31.NWS_Komiyama2018()
 nws_Derr = np.zeros((2, Nnws))
 for ii in range(Nnws):
     nws_Derr[0][ii] = nws_Dem[ii]
@@ -367,6 +366,6 @@ if monochrome:
     cmap_phase = "gray_r"
 cores = int(np.ceil(mp.cpu_count() / 2))
 pool = mp.Pool(cores)
-args = [(ii, Nkind, Ndisk, disk_xi, disk_eta, disk_D, Nhsc, hsc_xi, hsc_eta, hsc_rad, Nnws, nws_xi, nws_eta, nws_D, nws_Derr, Ngcs, nws_gc_xi, nws_gc_eta, nws_gc_vel, nws_gc_verr) for ii in range(init, last + 1, 1)]
+args = [(ii, Nkind, Ndisk, disk_xi, disk_eta, disk_D, Nhsc, hsc_xi, hsc_eta, hsc_rad, Nnws, nws_xi, nws_eta, nws_D, nws_Derr, nws_s1_xi, nws_s1_eta, nws_s2_xi, nws_s2_eta, nws_s3_xi, nws_s3_eta, nws_s4_xi, nws_s4_eta, Ngcs, nws_gc_xi, nws_gc_eta, nws_gc_vel, nws_gc_verr) for ii in range(init, last + 1, 1)]
 pool.map(wrapper, args)
 pool.close()

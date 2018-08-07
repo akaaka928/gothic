@@ -245,8 +245,8 @@ fi
 OPTION="-absErr=$ABSERR -file=$FILE -rebuild_interval=$REBUILD -brent_frac=$BRENT -jobID=$JOB_ID"
 ###############################################################
 # nvprof --query-metrics
-NVPROF_METRICS="--metrics inst_fp_32,inst_integer,flop_count_sp_fma,flop_count_sp_add,flop_count_sp_mul,flop_count_sp_special"
-# NVPROF_METRICS="--metrics inst_fp_64,flop_count_dp_fma,flop_count_dp_add,flop_count_dp_mul"
+NVPROF_METRICS="--metrics inst_integer,flop_count_sp_fma,flop_count_sp_add,flop_count_sp_mul,flop_count_sp_special"
+# NVPROF_METRICS="--metrics flop_count_dp_fma,flop_count_dp_add,flop_count_dp_mul"
 ###############################################################
 #
 #

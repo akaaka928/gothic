@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/03/08 (Thu)
+ * @date 2018/07/23 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -285,8 +285,8 @@ int idxAscendingOrder(const void *a, const void *b)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
-  if(          ((const nbody_particle *)a)->idx > ((const nbody_particle *)b)->idx ){    return ( 1);  }
-  else{    if( ((const nbody_particle *)a)->idx < ((const nbody_particle *)b)->idx ){    return (-1);  }
+  if(          ((const nbody_aos *)a)->idx > ((const nbody_aos *)b)->idx ){    return ( 1);  }
+  else{    if( ((const nbody_aos *)a)->idx < ((const nbody_aos *)b)->idx ){    return (-1);  }
     else{                                                                    return ( 0);  }  }
 #   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
@@ -300,8 +300,8 @@ int radAscendingOrder(const void *a, const void *b)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
-  if(          ((const nbody_particle *)a)->ax > ((const nbody_particle *)b)->ax ){    return ( 1);  }
-  else{    if( ((const nbody_particle *)a)->ax < ((const nbody_particle *)b)->ax ){    return (-1);  }
+  if(          ((const nbody_aos *)a)->ax > ((const nbody_aos *)b)->ax ){    return ( 1);  }
+  else{    if( ((const nbody_aos *)a)->ax < ((const nbody_aos *)b)->ax ){    return (-1);  }
     else{                                                                  return ( 0);  }  }
 #   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
@@ -315,8 +315,8 @@ int horAscendingOrder(const void *a, const void *b)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
-  if(          ((const nbody_particle *)a)->ay > ((const nbody_particle *)b)->ay ){    return ( 1);  }
-  else{    if( ((const nbody_particle *)a)->ay < ((const nbody_particle *)b)->ay ){    return (-1);  }
+  if(          ((const nbody_aos *)a)->ay > ((const nbody_aos *)b)->ay ){    return ( 1);  }
+  else{    if( ((const nbody_aos *)a)->ay < ((const nbody_aos *)b)->ay ){    return (-1);  }
     else{                                                                  return ( 0);  }  }
 #   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
@@ -330,8 +330,8 @@ int verAscendingOrder(const void *a, const void *b)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
-  if(          ((const nbody_particle *)a)->az > ((const nbody_particle *)b)->az ){    return ( 1);  }
-  else{    if( ((const nbody_particle *)a)->az < ((const nbody_particle *)b)->az ){    return (-1);  }
+  if(          ((const nbody_aos *)a)->az > ((const nbody_aos *)b)->az ){    return ( 1);  }
+  else{    if( ((const nbody_aos *)a)->az < ((const nbody_aos *)b)->az ){    return (-1);  }
     else{                                                                  return ( 0);  }  }
 #   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
@@ -345,7 +345,7 @@ int verAscendingOrder(const void *a, const void *b)
 
 
 void plotDistributionMaps
-(ulong Np, const int ngroup, model *group, nbody_particle *body, PLFLT time,
+(ulong Np, const int ngroup, model *group, nbody_aos *body, PLFLT time,
  PLplotPltRange xybox, PLplotPltRange xzbox, PLplotPltRange zybox,
  char file[], const int filenum, int argc, char **argv);
 
@@ -378,13 +378,13 @@ void plotVerticalProfile
  char *file, const int filenum, int argc, char **argv);
 
 void analyzeRadialProfile
-(int Np, nbody_particle *body_tot, const int kind, model *group, int *num, int *rem, real **rad, real **rho, real **enc,
+(int Np, nbody_aos *body_tot, const int kind, model *group, int *num, int *rem, real **rad, real **rho, real **enc,
 #ifdef  PLOT_VELOCITY_DISPERSION
  real **sigr,
 #endif//PLOT_VELOCITY_DISPERSION
  const real r2max);
 void analyzeDecomposedProfile
-(nbody_particle *body_tot, const int kind, model *group,
+(nbody_aos *body_tot, const int kind, model *group,
  int *numHor, int *remHor, real **hor_pos, real **hor_rho, real **hor_zdisp,
  int *numVer, int *remVer, real **ver_pos, real **ver_rho
 #ifdef  PLOT_VELOCITY_DISPERSION
@@ -604,9 +604,9 @@ int main(int argc, char **argv)
   real eta, eps;
   double ft, snapshotInterval, saveInterval;
   readSettingsParallel(&unit, &Ntot, &eps, &eta, &ft, &snapshotInterval, &saveInterval, file, mpi);
-  nbody_particle *body;
+  nbody_aos *body;
   /* allocParticleDataAoS((int)Ntot, &body); */
-  body = (nbody_particle *)malloc(sizeof(nbody_particle) * Ntot);
+  body = (nbody_aos *)malloc(sizeof(nbody_aos) * Ntot);
   if( body == NULL ){    __KILL__(stderr, "ERROR: failure to allocate body\n");  }
 #ifdef  USE_HDF5_FORMAT
   static hdf5struct hdf5type;
@@ -1498,7 +1498,7 @@ int main(int argc, char **argv)
       __KILL__(stderr, "ERROR: conflict about unit system detected (unit = %d, unit_read = %d)\n", unit, unit_read);
     }/* if( unit_read != unit ){ */
     /* sort by particle index */
-    qsort(body, Ntot, sizeof(nbody_particle), idxAscendingOrder);
+    qsort(body, Ntot, sizeof(nbody_aos), idxAscendingOrder);
 
 #ifdef  OUTPUT_BULK_MOTION
     for(int kk = 0; kk < kind; kk++){
@@ -1790,7 +1790,7 @@ int main(int argc, char **argv)
 
 
 void plotDistributionMaps
-(ulong Np, const int ngroup, model *group, nbody_particle *body, PLFLT time,
+(ulong Np, const int ngroup, model *group, nbody_aos *body, PLFLT time,
  PLplotPltRange xybox, PLplotPltRange xzbox, PLplotPltRange zybox,
  char *file, const int filenum, int argc, char **argv)
 {
@@ -3106,7 +3106,7 @@ void plotVerticalProfile
 
 
 void analyzeRadialProfile
-(int Np, nbody_particle *body_tot, const int kind, model *group, int *num, int *rem, real **rad, real **rho, real **enc,
+(int Np, nbody_aos *body_tot, const int kind, model *group, int *num, int *rem, real **rad, real **rho, real **enc,
 #ifdef  PLOT_VELOCITY_DISPERSION
  real **sigr,
 #endif//PLOT_VELOCITY_DISPERSION
@@ -3174,9 +3174,9 @@ void analyzeRadialProfile
     group[kk].prf_head = *num;
 
     /* sort the array in ascending distance from the center */
-    nbody_particle *body;
+    nbody_aos *body;
     body = &body_tot[group[kk].head];
-    qsort(body, group[kk].num, sizeof(nbody_particle), radAscendingOrder);
+    qsort(body, group[kk].num, sizeof(nbody_aos), radAscendingOrder);
 
     real *prad, *prho, *penc;
 #ifdef  PLOT_VELOCITY_DISPERSION
@@ -3262,7 +3262,7 @@ void analyzeRadialProfile
 }
 
 
-void analyzeDecomposedProfile(nbody_particle *body_tot, const int kind, model *group,
+void analyzeDecomposedProfile(nbody_aos *body_tot, const int kind, model *group,
 			      int *numHor, int *remHor, real **hor_pos, real **hor_rho, real **hor_zdisp,
 			      int *numVer, int *remVer, real **ver_pos, real **ver_rho
 #ifdef  PLOT_VELOCITY_DISPERSION
@@ -3291,9 +3291,9 @@ void analyzeDecomposedProfile(nbody_particle *body_tot, const int kind, model *g
 
     /** make horizontal profile on the midplane */
     /* sort the array in ascending distance from the center on the midplane */
-    nbody_particle *body;
+    nbody_aos *body;
     body = &body_tot[group[kk].head];
-    qsort(body, group[kk].num, sizeof(nbody_particle), horAscendingOrder);
+    qsort(body, group[kk].num, sizeof(nbody_aos), horAscendingOrder);
 
     group[kk].prf_hor_head = *numHor;
     real inner = ZERO;
@@ -3465,12 +3465,12 @@ void analyzeDecomposedProfile(nbody_particle *body_tot, const int kind, model *g
     const int numSub = (int)group[kk].num / NUM_HORIZONTAL_BIN;
     for(int ii = 0; ii < NUM_HORIZONTAL_BIN; ii++){
       /** sort the array in ascending distance from the the midplane */
-      nbody_particle *data;
+      nbody_aos *data;
       data = &body_tot[numSub * ii + (int)group[kk].head];
       const real R2inner = data[         0].x * data[         0].x + data[         0].y * data[         0].y;
       const real R2outer = data[numSub - 1].x * data[numSub - 1].x + data[numSub - 1].y * data[numSub - 1].y;
       const real piR2 = (real)(M_PI * (double)(R2outer - R2inner));
-      qsort(data, numSub, sizeof(nbody_particle), verAscendingOrder);
+      qsort(data, numSub, sizeof(nbody_aos), verAscendingOrder);
 
       group[kk].prf_ver_head[ii] = *numVer;
       real lower = ZERO;

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/24 (Thu)
+ * @date 2018/08/07 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -885,7 +885,7 @@ void setGlobalConstants_let_dev_cu
 #endif//GPUGEN < 70
 #else///SMPREF_LET == 1
 #   if  GPUGEN >= 70
-  checkCudaErrors(cudaFuncSetAttribute(makeLET_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_L1_32K));
+  checkCudaErrors(cudaFuncSetAttribute(makeLET_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_SM_32K));
 #endif//GPUGEN >= 70
 #endif//SMPREF_LET == 1
 

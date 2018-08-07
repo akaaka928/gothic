@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/07/10 (Tue)
+ * @date 2018/07/23 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -72,34 +72,13 @@
 #include "../misc/structure.h"
 #include "../misc/allocate.h"
 #include "../file/io.h"
-
-
-
-const real zm31 = CAST_D2R(776.0);/**< same with Komiyama et al. (2018); median of NED */
-/* const real zm31 = CAST_D2R(773.0);/\**< M31 distance in Conn et al. (2016) *\/ */
-
-const real vm31x = CAST_D2R(0.0);
-const real vm31y = CAST_D2R(0.0);
-const real vm31z = CAST_D2R(-300.0);
+#include "../anal/m31coord.h"
 
 
 extern const double      length2astro;
 extern const double        time2astro;
 extern const double        mass2astro;
 extern const double    velocity2astro;
-
-
-typedef struct
-{
-  ulong idx;
-  real  x,  y,  z;
-  real vx, vy, vz;
-  real ax, ay, az;
-  real m, pot;
-#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-  real ax_ext, ay_ext, az_ext, pot_ext;
-#endif//SET_EXTERNAL_POTENTIAL_FIELD
-} nbody_particle;
 
 
 #ifdef __ICC
@@ -114,9 +93,9 @@ int idxAscendingOrder(const void *a, const void *b)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
-  if(          ((const nbody_particle *)a)->idx > ((const nbody_particle *)b)->idx ){    return ( 1);  }
-  else{    if( ((const nbody_particle *)a)->idx < ((const nbody_particle *)b)->idx ){    return (-1);  }
-    else{                                                                    return ( 0);  }  }
+  if(          ((const nbody_aos *)a)->idx > ((const nbody_aos *)b)->idx ){    return ( 1);  }
+  else{    if( ((const nbody_aos *)a)->idx < ((const nbody_aos *)b)->idx ){    return (-1);  }
+    else{                                                                      return ( 0);  }  }
 #   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
@@ -128,11 +107,8 @@ int idxAscendingOrder(const void *a, const void *b)
 
 
 
-void setRotationMatrix(real rot[restrict][3], real inv[restrict][3]);
-void standard_coordinate(const int num, nbody_particle *body, real rot[restrict][3], real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vxi, real * restrict veta, real * restrict vlos);
-
-void generateMassDistributionMaps(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_particle *body, real rot[restrict][3], const real eps, const int nx, const real xmin, const real dx, const int ny, const real ymin, const real dy, const int nz, const real zmin, const real dz, real * restrict rho_map);
-void generateSurfaceDensityMaps(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_particle *body, real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vlos, const real eps, const int nx, const real xmin, const real dx, const int ny, const real ymin, const real dy, const int nz, const real zmin, const real dz, real * restrict Sigma_xy, real * restrict Sigma_yz, real * restrict Sigma_zx, const int nv, const real vmin, const real dv, real * restrict f_xv, real * restrict f_yv, real * restrict f_zv);
+void generateMassDistributionMaps(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_aos *body, real rot[restrict][3], const real eps, const int nx, const real xmin, const real dx, const int ny, const real ymin, const real dy, const int nz, const real zmin, const real dz, real * restrict rho_map);
+void generateSurfaceDensityMaps(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_aos *body, real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vlos, const real eps, const int nx, const real xmin, const real dx, const int ny, const real ymin, const real dy, const int nz, const real zmin, const real dz, real * restrict Sigma_xy, real * restrict Sigma_yz, real * restrict Sigma_zx, const int nv, const real vmin, const real dv, real * restrict f_xv, real * restrict f_yv, real * restrict f_zv);
 
 #ifdef  USE_HDF5_FORMAT
 void writeM31coordinateData
@@ -142,7 +118,7 @@ void writeM31coordinateData
  const int nx3D, real * restrict rho_xx, const int ny3D, real * restrict rho_yy, const int nz3D, real * restrict rho_zz, real * restrict rho_map,
  real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vxi, real * restrict veta, real * restrict vlos
 #ifdef  HDF5_FOR_ZINDAIJI
- , real rot[restrict][3], nbody_hdf5 hdf5, nbody_particle *body, int * restrict bodyType, const real eps
+ , real rot[restrict][3], nbody_hdf5 hdf5, nbody_aos *body, int * restrict bodyType, const real eps
 #endif//HDF5_FOR_ZINDAIJI
 );
 
@@ -209,9 +185,9 @@ int main(int argc, char **argv)
   setPhysicalConstantsAndUnitSystem(unit, 1);
   eps = CAST_D2R(CAST_R2D(eps) * length2astro);
 
-  nbody_particle *body;
+  nbody_aos *body;
   /* allocParticleDataAoS((int)Ntot, &body); */
-  body = (nbody_particle *)malloc(sizeof(nbody_particle) * Ntot);
+  body = (nbody_aos *)malloc(sizeof(nbody_aos) * Ntot);
   if( body == NULL ){    __KILL__(stderr, "ERROR: failure to allocate body\n");  }
 #ifdef  USE_HDF5_FORMAT
   static hdf5struct hdf5type;
@@ -369,7 +345,7 @@ int main(int argc, char **argv)
 
 
     /** sort particle data by index */
-    qsort(body, Ntot, sizeof(nbody_particle), idxAscendingOrder);
+    qsort(body, Ntot, sizeof(nbody_aos), idxAscendingOrder);
 
     /** obtain mass distribution map for volume rendering */
     generateMassDistributionMaps(kind, bodyHead, bodyNum, body, rot, eps, nx3D, rho_xmin, rho_dx, ny3D, rho_ymin, rho_dy, nz3D, rho_zmin, rho_dz, rho_map);
@@ -447,162 +423,11 @@ int main(int argc, char **argv)
 }
 
 
-/**
- * @fn scalarProd
- *
- * @brief Calculate scalar product.
- *
- * @param (aa) vector A
- * @param (bb) vector B
- * @return scalar product of A and B
- */
-static inline real scalarProd(real aa[], real bb[])
-{
-  return (aa[0] * bb[0] + aa[1] * bb[1] + aa[2] * bb[2]);
-}
-/**
- * @fn vectorProd
- *
- * @brief Calculate vector product.
- *
- * @param (aa) vector A
- * @param (bb) vector B
- * @return (ans) vector product of A and B
- */
-static inline void vectorProd(real aa[], real bb[], real ans[])
-{
-  ans[0] = aa[1] * bb[2] - aa[2] * bb[1];
-  ans[1] = aa[2] * bb[0] - aa[0] * bb[2];
-  ans[2] = aa[0] * bb[1] - aa[1] * bb[0];
-}
-
-static inline void rgemm(real aa[restrict][3], real bb[restrict][3], real ans[restrict][3])
-{
-  for(int ii = 0; ii < 3; ii++)
-    for(int jj = 0; jj < 3; jj++)
-      ans[ii][jj] = ZERO;
-
-  for(int ii = 0; ii < 3; ii++)
-    for(int kk = 0; kk < 3; kk++)
-      for(int jj = 0; jj < 3; jj++)
-	ans[ii][jj] += aa[ii][kk] * bb[kk][jj];
-}
-
-static inline void transpose(real ini[restrict][3], real fin[restrict][3])
-{
-  for(int ii = 0; ii < 3; ii++)
-    for(int jj = 0; jj < 3; jj++)
-      fin[jj][ii] = ini[ii][jj];
-}
-
-
-void setRotationMatrix(real rot[restrict][3], real inv[restrict][3])
-{
-  __NOTE__("%s\n", "start");
-
-  const real theta = -37.0 * CAST_D2R(M_PI / 180.0);/**< position angle */
-  const real   phi = -77.0 * CAST_D2R(M_PI / 180.0);/**< inclination */
-
-  const real cost = COS(theta);  const real cosp = COS(phi);
-  const real sint = SIN(theta);  const real sinp = SIN(phi);
-
-  /* 1st rotation: rotation axis is z-axis, rotation angle is theta */
-  static real rot1[3][3], inv1[3][3];
-  static real axis1[3] = {ZERO, ZERO, UNITY};
-  setRodriguesRotationMatrix(axis1, sint, cost, rot1, inv1);
-
-  /* 2nd rotation: rotation axis is rotated y-axis (rot1 * (0, 1, 0)), rotation angle is phi */
-  static real rot2[3][3], inv2[3][3];
-  static real axis2[3];
-  axis1[0] = ZERO;
-  axis1[1] = UNITY;
-  axis1[2] = ZERO;
-  rotateVector(axis1, rot1, axis2);
-  setRodriguesRotationMatrix(axis2, sinp, cosp, rot2, inv2);
-
-  /* get rotation axis of M31's disk in observed frame */
-  static real axis3[3], spin[3];
-  spin[0] = ZERO;
-  spin[1] = ZERO;
-  spin[2] = -UNITY;
-  rotateVector(spin, rot1, axis3);
-  rotateVector(axis3, rot2, spin);
-
-  /* rotate spin axis of M31's disk */
-  axis3[0] = ZERO;
-  axis3[1] = ZERO;
-  axis3[2] = UNITY;
-  static real rot3[3][3], inv3[3][3];
-  initRotationMatrices(spin, axis3, rot3, inv3);
-
-  /* major axis in M31's disk frame */
-  static real major_disk[3] = {ZERO, UNITY, ZERO};
-  static real major_tmp[3];
-  rotateVector(major_disk, rot1, major_tmp);
-  static real major_obs[3];
-  rotateVector(major_tmp, rot2, major_obs);
-  rotateVector(major_disk, inv3, major_tmp);
-  static real rot4[3][3], inv4[3][3];
-  static real axis[3];
-  vectorProd(major_tmp, major_obs, axis);
-  const real sintheta = -SQRT(scalarProd(axis, axis));
-  const real costheta = scalarProd(major_tmp, major_obs);
-  setRodriguesRotationMatrix(spin, sintheta, costheta, rot4, inv4);
-
-  rgemm(rot4, inv3, inv);
-  transpose(inv, rot);
-
-  __NOTE__("%s\n", "end");
-}
-
-
-void standard_coordinate(const int num, nbody_particle *body, real rot[restrict][3], real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vxi, real * restrict veta, real * restrict vlos)
-{
-  __NOTE__("%s\n", "start");
-
-  const real rad2deg = CAST_D2R(180.0 * M_1_PI);
-  static real ini[3], fin[3];
-
-  for(int ii = 0; ii < num; ii++){
-    /* coordinate rotation of particle position */
-    ini[0] = CAST_D2R(CAST_R2D(body[ii].x) * length2astro);
-    ini[1] = CAST_D2R(CAST_R2D(body[ii].y) * length2astro);
-    ini[2] = CAST_D2R(CAST_R2D(body[ii].z) * length2astro);
-    rotateVector(ini, rot, fin);
-    const real xx = fin[0];
-    const real yy = fin[1];
-    const real zz = fin[2] + zm31;
-
-    /* coordinate rotation of particle velocity */
-    ini[0] = CAST_D2R(CAST_R2D(body[ii].vx) * velocity2astro);
-    ini[1] = CAST_D2R(CAST_R2D(body[ii].vy) * velocity2astro);
-    ini[2] = CAST_D2R(CAST_R2D(body[ii].vz) * velocity2astro);
-    rotateVector(ini, rot, fin);
-    const real vx = fin[0] + vm31x;
-    const real vy = fin[1] + vm31y;
-    const real vz = fin[2] + vm31z;
-
-    const real tmp = UNITY / zz;
-    xi [ii] = rad2deg * ATAN(xx * tmp);
-    eta[ii] = rad2deg * ATAN(yy * tmp);
-    const real d2 = xx * xx + yy * yy + zz * zz;
-    const real dinv = RSQRT(d2);
-    dist[ii] = d2 * dinv;
-
-    vxi [ii] = (zz * vx - xx * vz) * dinv;
-    veta[ii] = (zz * vy - yy * vz) * dinv;
-    vlos[ii] = (xx * vx + yy * vy + zz * vz) * dinv;
-  }/* for(int ii = 0; ii < num; ii++){ */
-
-  __NOTE__("%s\n", "end");
-}
-
-
 /* 3 sigma means that neglecting component of 0.26% */
 /* 5 sigma means that neglecting component of 6e-7 */
 /* #define SPREAD (3) */
 #define SPREAD (5)
-void generateMassDistributionMaps(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_particle *body, real rot[restrict][3], const real eps, const int nx, const real xmin, const real dx, const int ny, const real ymin, const real dy, const int nz, const real zmin, const real dz, real * restrict rho_map)
+void generateMassDistributionMaps(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_aos *body, real rot[restrict][3], const real eps, const int nx, const real xmin, const real dx, const int ny, const real ymin, const real dy, const int nz, const real zmin, const real dz, real * restrict rho_map)
 {
   __NOTE__("%s\n", "start");
 
@@ -686,7 +511,7 @@ void generateMassDistributionMaps(const int kind, int * restrict bodyHead, int *
 
 #define SMOOTHING_FOR_VISUALIZATION TWO
 /* #define SMOOTHING_FOR_VISUALIZATION THREE */
-void generateSurfaceDensityMaps(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_particle *body, real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vlos, const real eps, const int nx, const real xmin, const real dx, const int ny, const real ymin, const real dy, const int nz, const real zmin, const real dz, real * restrict Sigma_xy, real * restrict Sigma_yz, real * restrict Sigma_zx, const int nv, const real vmin, const real dv, real * restrict f_xv, real * restrict f_yv, real * restrict f_zv)
+void generateSurfaceDensityMaps(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_aos *body, real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vlos, const real eps, const int nx, const real xmin, const real dx, const int ny, const real ymin, const real dy, const int nz, const real zmin, const real dz, real * restrict Sigma_xy, real * restrict Sigma_yz, real * restrict Sigma_zx, const int nv, const real vmin, const real dv, real * restrict f_xv, real * restrict f_yv, real * restrict f_zv)
 {
   __NOTE__("%s\n", "start");
 
@@ -887,7 +712,7 @@ void writeM31coordinateData
  const int nx3D, real * restrict rho_xx, const int ny3D, real * restrict rho_yy, const int nz3D, real * restrict rho_zz, real * restrict rho_map,
  real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vxi, real * restrict veta, real * restrict vlos
 #ifdef  HDF5_FOR_ZINDAIJI
- , real rot[restrict][3], nbody_hdf5 hdf5, nbody_particle *body, int * restrict bodyType, const real eps
+ , real rot[restrict][3], nbody_hdf5 hdf5, nbody_aos *body, int * restrict bodyType, const real eps
 #endif//HDF5_FOR_ZINDAIJI
 )
 {

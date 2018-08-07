@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/03/08 (Thu)
+ * @date 2018/07/23 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -54,28 +54,20 @@ typedef struct
   ulong head, num;/**< data for N-body particles */
 } model;
 
-typedef struct
-{
-  ulong idx;
-  real  x,  y,  z;
-  real vx, vy, vz;
-  real ax, ay, az;
-  real m, pot;
-} nbody_particle;
-
 
 #ifdef __ICC
 /** Disable ICC's remark #161: unrecognized #pragma */
 #     pragma warning (disable:161)
 #endif//__ICC
+int idxAscendingOrder(const void *a, const void *b);
 int idxAscendingOrder(const void *a, const void *b)
 {
 #   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
-  if(          ((nbody_particle *)a)->idx > ((nbody_particle *)b)->idx ){    return ( 1);  }
-  else{    if( ((nbody_particle *)a)->idx < ((nbody_particle *)b)->idx ){    return (-1);  }
+  if(          ((nbody_aos *)a)->idx > ((nbody_aos *)b)->idx ){    return ( 1);  }
+  else{    if( ((nbody_aos *)a)->idx < ((nbody_aos *)b)->idx ){    return (-1);  }
     else{                                                                    return ( 0);  }  }
 #   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
@@ -88,7 +80,7 @@ int idxAscendingOrder(const void *a, const void *b)
 
 
 void plotDistributionMaps
-(const int ngroup, model *group, nbody_particle *body0, nbody_particle *body1, PLFLT time,
+(const int ngroup, model *group, nbody_aos *body0, nbody_aos *body1, PLFLT time,
  PLplotPltRange xybox, PLplotPltRange xzbox, PLplotPltRange zybox,
  char *file, int argc, char **argv);
 
@@ -120,12 +112,12 @@ int main(int argc, char **argv)
   real eta, eps;
   double ft, snapshotInterval, saveInterval;
   readSettings(&unit, &Ntot, &eps, &eta, &ft, &snapshotInterval, &saveInterval, file0);
-  nbody_particle *body0, *body1;
+  nbody_aos *body0, *body1;
   /* allocParticleDataAoS((int)Ntot, &body0); */
   /* allocParticleDataAoS((int)Ntot, &body1); */
-  body0 = (nbody_particle *)malloc(sizeof(nbody_particle) * Ntot);
+  body0 = (nbody_aos *)malloc(sizeof(nbody_aos) * Ntot);
   if( body0 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate body0\n");  }
-  body1 = (nbody_particle *)malloc(sizeof(nbody_particle) * Ntot);
+  body1 = (nbody_aos *)malloc(sizeof(nbody_aos) * Ntot);
   if( body1 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate body1\n");  }
 #ifdef  USE_HDF5_FORMAT
   static hdf5struct hdf5type;
@@ -265,7 +257,7 @@ int main(int argc, char **argv)
   if( unit_read != unit ){
     __KILL__(stderr, "ERROR: conflict about unit system detected (unit = %d, unit_read = %d)\n", unit, unit_read);
   }/* if( unit_read != unit ){ */
-  qsort(body1, Ntot, sizeof(nbody_particle), idxAscendingOrder);
+  qsort(body1, Ntot, sizeof(nbody_aos), idxAscendingOrder);
 
 
   /** disk galaxy w/o needle like structure */
@@ -289,7 +281,7 @@ int main(int argc, char **argv)
   if( unit_read != unit ){
     __KILL__(stderr, "ERROR: conflict about unit system detected (unit = %d, unit_read = %d)\n", unit, unit_read);
   }/* if( unit_read != unit ){ */
-  qsort(body0, Ntot, sizeof(nbody_particle), idxAscendingOrder);
+  qsort(body0, Ntot, sizeof(nbody_aos), idxAscendingOrder);
 
   plotDistributionMaps(kind, group, body0, body1, time, xybox, xzbox, zybox, file0, argc, argv);
 
@@ -315,7 +307,7 @@ int main(int argc, char **argv)
 
 
 void plotDistributionMaps
-(const int ngroup, model *group, nbody_particle *body0, nbody_particle *body1, PLFLT time,
+(const int ngroup, model *group, nbody_aos *body0, nbody_aos *body1, PLFLT time,
  PLplotPltRange xybox, PLplotPltRange xzbox, PLplotPltRange yzbox,
  char *file, int argc, char **argv)
 {

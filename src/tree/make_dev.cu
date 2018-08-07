@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/31 (Thu)
+ * @date 2018/08/07 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -3329,15 +3329,16 @@ void setGlobalConstants_make_dev_cu
 #   if  GPUVER < 70
   checkCudaErrors(cudaFuncSetCacheConfig(calcMultipole_kernel, cudaFuncCachePreferShared));
 #else///GPUVER < 70
-  checkCudaErrors(cudaFuncSetAttribute(calcMultipole_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_SM));
+  /* checkCudaErrors(cudaFuncSetAttribute(calcMultipole_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_SM)); */
+  checkCudaErrors(cudaFuncSetAttribute(calcMultipole_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_SM_64K));
 
   /* remove shared memory if __global__ function does not use */
   checkCudaErrors(cudaFuncSetAttribute(initPHhierarchy_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
   checkCudaErrors(cudaFuncSetAttribute(initTreeCellOffset_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
   checkCudaErrors(cudaFuncSetAttribute(initTreeNode_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
   checkCudaErrors(cudaFuncSetAttribute(initTreeLink_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
-  checkCudaErrors(cudaFuncSetAttribute(makeTree_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_L1_32K));
-  checkCudaErrors(cudaFuncSetAttribute(linkTree_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_L1_32K));
+  checkCudaErrors(cudaFuncSetAttribute(makeTree_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_SM_32K));
+  checkCudaErrors(cudaFuncSetAttribute(linkTree_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_SM_08K));
   checkCudaErrors(cudaFuncSetAttribute(trimTree_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
   checkCudaErrors(cudaFuncSetAttribute(initTreeBody_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));
   checkCudaErrors(cudaFuncSetAttribute(copyRealBody_kernel, cudaFuncAttributePreferredSharedMemoryCarveout, CARVEOUT_MAX_L1));

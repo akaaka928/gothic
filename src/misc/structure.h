@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/13 (Tue)
+ * @date 2018/07/23 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -318,6 +318,24 @@ typedef struct
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+
+
+/**
+ * @struct nbody_aos
+ *
+ * @brief structure for analyzing results of N-body simulations (AoS)
+ */
+typedef struct
+{
+  ulong idx;
+  real  x,  y,  z;
+  real vx, vy, vz;
+  real ax, ay, az;
+  real m, pot;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  real ax_ext, ay_ext, az_ext, pot_ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+} nbody_aos;
 
 
 #endif//STRUCTURE_H

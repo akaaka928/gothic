@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/03/08 (Thu)
+ * @date 2018/07/23 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -50,15 +50,6 @@
 #include "../misc/allocate.h"
 #define ERRFILE "err"
 FILE *fp;
-typedef struct
-{
-  ulong idx;
-  real  x,  y,  z;
-  real vx, vy, vz;
-  real ax, ay, az;
-  real m, pot;
-} nbody_particle;
-nbody_particle *body;
 #endif//defined(PRINT_VALUES) || defined(ERROR_DETECT)
 
 
@@ -83,9 +74,9 @@ int idxAscendingOrder(const void *a, const void *b)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
-  if(          ((nbody_particle *)a)->idx > ((nbody_particle *)b)->idx ){    return ( 1);  }
-  else{    if( ((nbody_particle *)a)->idx < ((nbody_particle *)b)->idx ){    return (-1);  }
-    else{                                                                    return ( 0);  }  }
+  if(          ((nbody_aos *)a)->idx > ((nbody_aos *)b)->idx ){    return ( 1);  }
+  else{    if( ((nbody_aos *)a)->idx < ((nbody_aos *)b)->idx ){    return (-1);  }
+    else{                                                          return ( 0);  }  }
 #   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
@@ -148,7 +139,7 @@ int main(int argc, char **argv)
   allocPercentile(&percentage);
 
 #   if  defined(PRINT_VALUES) || defined(ERROR_DETECT)
-  body = (nbody_particle *)malloc(sizeof(nbody_particle) * Ntot);
+  body = (nbody_aos *)malloc(sizeof(nbody_aos) * Ntot);
   if( body == NULL ){    __KILL__(stderr, "ERROR: failure to allocate body\n");  }
 #ifdef  USE_HDF5_FORMAT
   static hdf5struct hdf5type;
@@ -276,7 +267,7 @@ int main(int argc, char **argv)
 
       if( unit_read != unit ){	__KILL__(stderr, "ERROR: conflict about unit system detected (unit = %d, unit_read = %d)\n", unit, unit_read);      }
 
-      qsort(body, (int)Ntot, sizeof(nbody_particle), idxAscendingOrder);
+      qsort(body, (int)Ntot, sizeof(nbody_aos), idxAscendingOrder);
 
 #endif//defined(PRINT_VALUES) || defined(ERROR_DETECT)
 

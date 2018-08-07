@@ -456,6 +456,95 @@ def StreamD_distance():
     return NstreamD, streamD_xi, streamD_eta, streamD_D, streamD_Dep, streamD_Dem, streamD_field_xi, streamD_field_eta
 
 
+def NWS_Komiyama2018():
+    # Subaru/HSC files: Table 1 in Komiyama et al. (2018)
+    Nhsc = 5
+    hsc_xi  = [0] * Nhsc
+    hsc_eta = [0] * Nhsc
+    hsc_rad = [0] * Nhsc
+    hsc_fov = 0.75# degree
+
+    hsc_xi[0] = -4.653744156858361 ;    hsc_eta[0] = 3.635683362752261;    hsc_rad[0] = hsc_fov# f003
+    hsc_xi[1] = -5.7227710294896745;    hsc_eta[1] = 4.47091006650441 ;    hsc_rad[1] = hsc_fov# f004
+    hsc_xi[2] = -5.530826768687439 ;    hsc_eta[2] = 5.816784796173433;    hsc_rad[2] = hsc_fov# f009
+    hsc_xi[3] = -4.842739589150247 ;    hsc_eta[3] = 2.290423176281251;    hsc_rad[3] = hsc_fov# f022
+    hsc_xi[4] = -5.912437203950868 ;    hsc_eta[4] = 3.125050968157858;    hsc_rad[4] = hsc_fov# f023
+
+    # Distances to NW Stream measured by RC stars: Table 4 in Komiyama et al. (2018)
+    Nnws = 4
+    nws_xi  = [0] * Nnws
+    nws_eta = [0] * Nnws
+    nws_D   = [0] * Nnws
+    nws_Dep = [0] * Nnws
+    nws_Dem = [0] * Nnws
+    nws_mod = [0] * Nnws
+    nws_ran = [0] * Nnws
+    nws_sys = [0] * Nnws
+
+    nws_xi[0] = -5.891761379732909;    nws_eta[0] = 5.934934874532188 ;    nws_mod[0] = 24.64;    nws_ran[0] = 0.196;    nws_sys[0] = 0.057# Stream 1
+    nws_xi[1] = -5.388266383737322;    nws_eta[1] = 4.426258888399156 ;    nws_mod[1] = 24.62;    nws_ran[1] = 0.186;    nws_sys[1] = 0.057# Stream 2
+    nws_xi[2] = -4.942619286035076;    nws_eta[2] = 3.18150303805077  ;    nws_mod[2] = 24.59;    nws_ran[2] = 0.183;    nws_sys[2] = 0.057# Stream 3
+    nws_xi[3] = -4.49814447496522 ;    nws_eta[3] = 1.9926453169853198;    nws_mod[3] = 24.58;    nws_ran[3] = 0.185;    nws_sys[3] = 0.057# Stream 4
+
+    for ii in range(Nnws):
+        nws_D[ii] = 10.0 ** (nws_mod[ii] / 5.0 - 2.0)
+        nws_Dep[ii] = 10.0 ** ((nws_mod[ii] + nws_ran[ii] + nws_sys[ii]) / 5.0 - 2.0) - nws_D[ii]
+        nws_Dem[ii] = nws_D[ii] - 10.0 ** ((nws_mod[ii] - nws_ran[ii] - nws_sys[ii]) / 5.0 - 2.0)
+
+    # Stream fields in Komiyama et al. (2018): Table 4 in Komiyama et al. (2018) and private communications with Komiyama-san
+    # Stream 1
+    Nnws_s1 = 5 + 64
+    nws_s1_xi  = [0] * Nnws_s1
+    nws_s1_eta = [0] * Nnws_s1
+    nws_s1_xi[0], nws_s1_eta[0] = -5.7055741988006705, 6.546142963104346
+    nws_s1_xi[1], nws_s1_eta[1] = -5.186841492207897 , 5.101772155015601
+    nws_s1_xi[2], nws_s1_eta[2] = -5.907773581780884 , 5.101772155015601
+    nws_s1_xi[3], nws_s1_eta[3] = -6.239719954692477 , 6.061673446044403
+    nws_s1_min = np.pi - np.arcsin((nws_s1_eta[3] - hsc_eta[2]) / hsc_fov)
+    nws_s1_max =         np.arccos((nws_s1_xi[0]  - hsc_xi[2] ) / hsc_fov)
+    dtheta = (nws_s1_max - nws_s1_min) / 64
+    for ii in range(64):
+        nws_s1_xi[4 + ii]  = hsc_xi[2]  + hsc_fov * np.cos(nws_s1_min + float(ii) * dtheta)
+        nws_s1_eta[4 + ii] = hsc_eta[2] + hsc_fov * np.sin(nws_s1_min + float(ii) * dtheta)
+    # Stream 2
+    Nnws_s2 = 5
+    nws_s2_xi  = [0] * Nnws_s2
+    nws_s2_eta = [0] * Nnws_s2
+    nws_s2_xi[0], nws_s2_eta[0] = -5.186841492207897 , 5.101772155015601
+    nws_s2_xi[1], nws_s2_eta[1] = -4.701958106244509 , 3.7516521430870844
+    nws_s2_xi[2], nws_s2_eta[2] = -5.4408844910550105, 3.7516521430870844
+    nws_s2_xi[3], nws_s2_eta[3] = -5.907773581780884 , 5.101772155015601
+    # Stream 3
+    Nnws_s3 = 5
+    nws_s3_xi  = [0] * Nnws_s3
+    nws_s3_eta = [0] * Nnws_s3
+    nws_s3_xi[0], nws_s3_eta[0] = -4.701958106244509 , 3.7516521430870844
+    nws_s3_xi[1], nws_s3_eta[1] = -4.292884147430157 , 2.612617574895511
+    nws_s3_xi[2], nws_s3_eta[2] = -5.046991496988008 , 2.612617574895511
+    nws_s3_xi[3], nws_s3_eta[3] = -5.4408844910550105, 3.7516521430870844
+    # Stream 4
+    Nnws_s4 = 5 + 64
+    nws_s4_xi  = [0] * Nnws_s4
+    nws_s4_eta = [0] * Nnws_s4
+    nws_s4_xi[0], nws_s4_eta[0] = -4.6822224216441475, 1.5578016922010893
+    nws_s4_xi[1], nws_s4_eta[1] = -5.046991496988008 , 2.612617574895511
+    nws_s4_xi[2], nws_s4_eta[2] = -4.292884147430157 , 2.612617574895511
+    nws_s4_xi[3], nws_s4_eta[3] = -4.113795100125332 , 2.1139580751416602
+    nws_s4_min = 2.0 * np.pi + np.arcsin((nws_s4_eta[3] - hsc_eta[3]) / hsc_fov)
+    nws_s4_max = 2.0 * np.pi - np.arccos((nws_s4_xi[0]  - hsc_xi[3] ) / hsc_fov)
+    dtheta = (nws_s4_max - nws_s4_min) / 64
+    for ii in range(64):
+        nws_s4_xi[4 + ii]  = hsc_xi[3]  + hsc_fov * np.cos(nws_s4_min + float(ii) * dtheta)
+        nws_s4_eta[4 + ii] = hsc_eta[3] + hsc_fov * np.sin(nws_s4_min + float(ii) * dtheta)
+
+    nws_s1_xi[Nnws_s1 - 1] = nws_s1_xi[0];    nws_s1_eta[Nnws_s1 - 1] = nws_s1_eta[0]
+    nws_s2_xi[Nnws_s2 - 1] = nws_s2_xi[0];    nws_s2_eta[Nnws_s2 - 1] = nws_s2_eta[0]
+    nws_s3_xi[Nnws_s3 - 1] = nws_s3_xi[0];    nws_s3_eta[Nnws_s3 - 1] = nws_s3_eta[0]
+    nws_s4_xi[Nnws_s4 - 1] = nws_s4_xi[0];    nws_s4_eta[Nnws_s4 - 1] = nws_s4_eta[0]
+
+    return Nhsc, hsc_xi, hsc_eta, hsc_rad, Nnws, nws_xi, nws_eta, nws_D, nws_Dep, nws_Dem, nws_s1_xi, nws_s1_eta, nws_s2_xi, nws_s2_eta, nws_s3_xi, nws_s3_eta, nws_s4_xi, nws_s4_eta
+
+
 def NWS_obs_field():
     # Table 1 in Komiyama et al. (2018)
     Nhsc = 5
@@ -470,6 +559,40 @@ def NWS_obs_field():
     hsc_xi[4] = -5.912437203950868 ;    hsc_eta[4] = 3.125050968157858;    hsc_rad[4] = 0.75# f023
 
     return Nhsc, hsc_xi, hsc_eta, hsc_rad
+
+
+def NWS_anl_field():
+    # Table 4 in Komiyama et al. (2018), details are given by Komiyama-san via private communication
+    Nfield = 4
+    field_xi  = np.zeros((Nfield, 4 + 1))
+    field_eta = np.zeros((Nfield, 4 + 1))
+    # Stream 1
+    field_xi[0][0], field_eta[0][0] = -5.7055741988006705, 6.546142963104346
+    field_xi[0][1], field_eta[0][1] = -5.186841492207897 , 5.101772155015601
+    field_xi[0][2], field_eta[0][2] = -5.907773581780884 , 5.101772155015601
+    field_xi[0][3], field_eta[0][3] = -6.239719954692477 , 6.061673446044403
+    # Stream 2
+    field_xi[1][0], field_eta[1][0] = -5.186841492207897 , 5.101772155015601
+    field_xi[1][1], field_eta[1][1] = -4.701958106244509 , 3.7516521430870844
+    field_xi[1][2], field_eta[1][2] = -5.4408844910550105, 3.7516521430870844
+    field_xi[1][3], field_eta[1][3] = -5.907773581780884 , 5.101772155015601
+    # Stream 3
+    field_xi[2][0], field_eta[2][0] = -4.701958106244509 , 3.7516521430870844
+    field_xi[2][1], field_eta[2][1] = -4.292884147430157 , 2.612617574895511
+    field_xi[2][2], field_eta[2][2] = -5.046991496988008 , 2.612617574895511
+    field_xi[2][3], field_eta[2][3] = -5.4408844910550105, 3.7516521430870844
+    # Stream 4
+    field_xi[3][0], field_eta[3][0] = -4.292884147430157 , 2.612617574895511
+    field_xi[3][1], field_eta[3][1] = -4.113795100125332 , 2.1139580751416602
+    field_xi[3][2], field_eta[3][2] = -4.6822224216441475, 1.5578016922010893
+    field_xi[3][3], field_eta[3][3] = -5.046991496988008 , 2.612617574895511
+
+    for ii in range(Nfield):
+        field_xi[ii][4]  = field_xi[ii][0]
+        field_eta[ii][4] = field_eta[ii][0]
+
+    return Nfield, field_xi, field_eta
+
 
 
 def NWS_distance():

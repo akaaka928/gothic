@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/07/17 (Tue)
+ * @date 2018/07/23 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -173,7 +173,7 @@ int idxAscendingOrder(const void *a, const void *b)
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
   if(          ((const nbody_particle *)a)->idx > ((const nbody_particle *)b)->idx ){    return ( 1);  }
   else{    if( ((const nbody_particle *)a)->idx < ((const nbody_particle *)b)->idx ){    return (-1);  }
-    else{                                                                    return ( 0);  }  }
+    else{                                                                                return ( 0);  }  }
 #   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
