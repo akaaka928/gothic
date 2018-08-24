@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/08/07 (Tue) 16:57:13
+# last updated on 2018/08/24 (Fri) 12:06:47
 # Makefile for C Programming
 # Calculation Code for OcTree Collisionless N-body Simulation on GPUs
 #################################################################################################
@@ -346,7 +346,7 @@ ifeq ($(USELIS), 0)
 USE_LIS_FOR_MAGI	:= 0
 endif
 ifeq ($(USE_LIS_FOR_MAGI), 1)
-CCARG	+= -DUSE_LIS
+CCARG	+= -DUSE_LIS -DDISABLE_MPI_LIS
 endif
 #################################################################################################
 ifeq ($(USESFMT), 0)

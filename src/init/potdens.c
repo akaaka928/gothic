@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/17 (Thu)
+ * @date 2018/08/15 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -24,6 +24,12 @@
 #include <gsl/gsl_integration.h>
 
 #ifdef  USE_LIS
+#ifndef DISABLE_MPI_LIS
+#include <mpi.h>
+#define LIS_MPI_COMM_WORLD (MPI_COMM_WORLD)
+#else///DISABLE_MPI_LIS
+#define LIS_MPI_COMM_WORLD (0)
+#endif//DISABLE_MPI_LIS
 #include "lis.h"
 #endif//USE_LIS
 
@@ -3169,12 +3175,12 @@ void makeDiskPotentialTable(const int ndisk, const int maxLev, disk_data * restr
   /** sparse matrix in CRS format */
 #ifdef  USE_LIS
   LIS_MATRIX lis_mat;
-  lis_matrix_create(0, &lis_mat);
+  lis_matrix_create(LIS_MPI_COMM_WORLD, &lis_mat);
   lis_matrix_set_size(lis_mat, 0, NROW_CG);
   setSparseMatrix(lis_mat);
 
   LIS_VECTOR lis_b, lis_x;
-  lis_vector_create(0, &lis_b);
+  lis_vector_create(LIS_MPI_COMM_WORLD, &lis_b);
   lis_vector_set_size(lis_b, 0, NCOL_CG);
   lis_vector_duplicate(lis_b, &lis_x);
 

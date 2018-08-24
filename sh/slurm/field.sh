@@ -21,9 +21,9 @@ EXEC=bin/gothic
 # problem ID
 if [ -z "$PROBLEM" ]; then
     # PROBLEM=0
-    # PROBLEM=11
+    PROBLEM=11
     # PROBLEM=12
-    PROBLEM=13
+    # PROBLEM=13
     # PROBLEM=22
 fi
 ###############################################################

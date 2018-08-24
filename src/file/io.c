@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/07/14 (Sat)
+ * @date 2018/08/23 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2988,7 +2988,7 @@ void writeFixedPotentialTable
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 		  pot_tbl[kk].rad[ii],
 #else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-	          LOG10(pot_tbl[kk].logrmin + pot_tbl[kk].logrbin * (real)ii),
+	          POW10(pot_tbl[kk].logrmin + pot_tbl[kk].logrbin * (real)ii),
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 		  pot_tbl[kk].Phi[ii].Phi, pot_tbl[kk].Phi[ii].Fr);
       }/* else{ */
@@ -3024,6 +3024,13 @@ void writeFixedDiskPotential
  , char *file)
 {
   __NOTE__("%s\n", "start");
+#if 0
+  for(int ii = 0; ii < disk.NR + 1; ii++){
+    for(int jj = 0; jj < disk.Nz + 1; jj++)
+      fprintf(stderr, "%e\t%e\t%e\t%e\t%e\n", disk.hh * (real)ii, disk.hh * (real)jj, disk.Phi[INDEX2D(disk.NR + 1, disk.Nz + 1, ii, jj)], disk.FRz[INDEX2D(disk.NR + 1, disk.Nz + 1, ii, jj)].R, disk.FRz[INDEX2D(disk.NR + 1, disk.Nz + 1, ii, jj)].z);
+    fprintf(stderr, "\n");
+  }/* for(int ii = 0; ii < disk.NR + 1; ii++){ */
+#endif
 
   char filename[128];
 #ifdef  USE_HDF5_FORMAT

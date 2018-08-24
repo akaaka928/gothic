@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/15 (Thu)
+ * @date 2018/08/23 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -368,6 +368,9 @@ int extractDiskPotential(const int maxLev, const int ndisk, disk_data *data, con
   const real hh   = disk->hh   = LDEXP(UNITY,  log2hmin);
   const real hinv = disk->hinv = LDEXP(UNITY, -log2hmin);
   const int levTarget = (int)nearbyint(log2(data[0].hh * disk->hinv));
+#if 0
+  fprintf(stderr, "levTarget = %d\n", levTarget);
+#endif
 
   if( ((hh * (double)NR_EXT_POT_DISK) > data[0].Rmax) || ((hh * (double)NZ_EXT_POT_DISK) > data[0].zmax) ){
     __FPRINTF__(stderr, "ERROR: shrink domain size (Rmax = %e, zmax = %e) by reducing NZ_EXT_POT_DISK(%d) or EXT_POT_DISK_MIN_LENGTH(%e) to fit the size of numerical potential field (Rmax = %e, zmax = %e)\n", hh * (double)NR_EXT_POT_DISK, hh * (double)NZ_EXT_POT_DISK, NZ_EXT_POT_DISK, EXT_POT_DISK_MIN_LENGTH, data[0].Rmax, data[0].zmax);
@@ -379,7 +382,84 @@ int extractDiskPotential(const int maxLev, const int ndisk, disk_data *data, con
     const real h0 = data[0].hh;
     const real h0inv = UNITY / h0;
 
+
     /** set gravitational potential field */
+#if 1
+
+    /* ii <= NDISKBIN_HOR - 1 (NR_EXT_POT_DISK > NDISKBIN_HOR) */
+#pragma omp parallel for
+    for(int ii = 0; ii < NDISKBIN_HOR; ii++){
+      const real RR = hh * (real)ii;
+      const int im = (ii > 0) ? (ii - 1) : 0;/**< Phi[-0, jj] = Phi[0, jj] */
+
+      /* jj <= NDISKBIN_VER - 1 (NZ_EXT_POT_DISK > NDISKBIN_VER) */
+      for(int jj = 0; jj < NDISKBIN_VER; jj++){
+	const int jm = (jj > 0) ? (jj - 1) : 0;/**< Phi[ii, -0] = Phi[ii, 0] */
+	disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii, jj)] =
+	  CAST_D2R(0.25 * (data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levTarget, im, jm)] + data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levTarget, im, jj)] + data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levTarget, ii, jm)] + data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levTarget, ii, jj)]));
+      }/* for(int jj = 0; jj < NDISKBIN_VER; jj++){ */
+
+      for(int jj = NDISKBIN_VER; jj < NZ_EXT_POT_DISK + 1; jj++){
+	/* find the nested level */
+	const real zz = hh * (real)jj;
+	const int levz = (int)FMAX(FMIN(FLOOR(LOG2(h0 * ((real)NDISKBIN_VER - THREE * HALF) / zz)), maxLev - 1), 0);
+	const real dh = LDEXP(h0, -levz);
+	const real dhinv = UNITY / dh;
+#if 0
+	if( ii == 0 )
+	  fprintf(stderr, "jj = %d: levz = %d\n", jj, levz);
+#endif
+
+	/* find the nearest grid */
+	int ic = (int)NEARBYINT(LDEXP(RR * h0inv, levz) - HALF);	ic = (ic < (NDISKBIN_HOR - 1)) ? ic : (NDISKBIN_HOR - 2);
+	int jc = (int)NEARBYINT(LDEXP(zz * h0inv, levz) - HALF);	jc = (jc < (NDISKBIN_VER - 1)) ? jc : (NDISKBIN_VER - 2);
+
+	/* estimate the gradient */
+	const real dPhidR = CAST_D2R(data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levz, ic + 1, jc)] - data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levz, (ic > 0) ? (ic - 1) : 0, jc)]) * HALF * dhinv;
+	const real dPhidz = CAST_D2R(data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levz, ic, jc + 1)] - data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levz, ic, (jc > 0) ? (jc - 1) : 0)]) * HALF * dhinv;
+
+	/* set the optimal value */
+	disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii, jj)] =
+	  CAST_D2R(data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levz, ic, jc)]) + dPhidR * (RR - (dh * (HALF + (real)ic))) + dPhidz * (zz - (dh * (HALF + (real)jc)));
+#if 0
+	if( (ii == 0) && (jj >= 2040) && (jj <= 2048) )
+	  fprintf(stderr, "jj = %d: levz = %d, jc = %d, dPhidR = %e, dPhidz = %e, Phi = %e; Phi_- = %e, Phi_0 = %e, Phi_+ = %e\n", jj, levz, jc, dPhidR, dPhidz, disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii, jj)], data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levz, ic, (jc > 0) ? (jc - 1) : 0)], data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levz, ic, jc)], data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levz, ic, jc + 1)]);
+#endif
+      }/* for(int jj = NDISKBIN_VER; jj < NZ_EXT_POT_DISK + 1; jj++){ */
+    }/* for(int ii = 0; ii < NDISKBIN_HOR; ii++){ */
+
+#pragma omp parallel for
+    for(int ii = NDISKBIN_HOR; ii < NR_EXT_POT_DISK + 1; ii++){
+      const real RR = hh * (real)ii;
+      const int levR = (int)FMAX(FMIN(FLOOR(LOG2(h0 * ((real)NDISKBIN_HOR - THREE * HALF) / RR)), maxLev - 1), 0);
+
+      for(int jj = 0; jj < NZ_EXT_POT_DISK + 1; jj++){
+	/* find the nested level */
+	const real zz = hh * (real)jj;
+	const int levz = (int)FMAX(FMIN(FLOOR(LOG2(h0 * ((real)NDISKBIN_VER - THREE * HALF) / zz)), maxLev - 1), 0);
+	const int lev = (levR < levz) ? levR : levz;
+	const real dh = LDEXP(h0, -lev);
+	const real dhinv = UNITY / dh;
+
+	/* find the nearest grid */
+	int ic = (int)NEARBYINT(LDEXP(RR * h0inv, lev) - HALF);	ic = (ic < (NDISKBIN_HOR - 1)) ? ic : (NDISKBIN_HOR - 2);
+	int jc = (int)NEARBYINT(LDEXP(zz * h0inv, lev) - HALF);	jc = (jc < (NDISKBIN_VER - 1)) ? jc : (NDISKBIN_VER - 2);
+
+	/* estimate the gradient */
+	const real dPhidR = CAST_D2R(data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ic + 1, jc)] - data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, (ic > 0) ? (ic - 1) : 0, jc)]) * HALF * dhinv;
+	const real dPhidz = CAST_D2R(data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ic, jc + 1)] - data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ic, (jc > 0) ? (jc - 1) : 0)]) * HALF * dhinv;
+
+	/* set the optimal value */
+	disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii, jj)] =
+	  CAST_D2R(data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, lev, ic, jc)]) + dPhidR * (RR - (dh * (HALF + (real)ic))) + dPhidz * (zz - (dh * (HALF + (real)jc)));
+      }/* for(int jj = 0; jj < NZ_EXT_POT_DISK + 1; jj++){ */
+
+
+
+    }/* for(int ii = NDISKBIN_HOR; ii < NR_EXT_POT_DISK + 1; ii++){ */
+
+#else
+
     /* ii = 0 (R-symmetry); jj = 0 (z-symmetry) */
     /* disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, 0, 0)] = CAST_D2R(data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, maxLev - 1, 0, 0)]);/\**< (Phi[-0, -0] + Phi[-0, 0] + Phi[0, -0] + Phi[0, 0]) / 4 *\/ */
     {
@@ -406,7 +486,7 @@ int extractDiskPotential(const int maxLev, const int ndisk, disk_data *data, con
 
       if( levz >= levTarget ){
 	disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, 0, jj)] =
-	  CAST_D2R(0.5 * (data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levz, 0, jc)] + data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levz, 0, jp)]));/**< (Phi[-0, jm] + Phi[-0, jp] + Phi[0, jm] + Phi[0, jp]) / 4 */
+	  CAST_D2R(0.5 * (data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levz, 0, jm)] + data[0].pot[INDEX(maxLev, NDISKBIN_HOR, NDISKBIN_VER, levz, 0, jp)]));/**< (Phi[-0, jm] + Phi[-0, jp] + Phi[0, jm] + Phi[0, jp]) / 4 */
       }/* if( levz >= levTarget ){ */
       else{
 	const real dh = LDEXP(h0, -levz);
@@ -487,6 +567,8 @@ int extractDiskPotential(const int maxLev, const int ndisk, disk_data *data, con
       }/* for(int jj = 1; jj < NZ_EXT_POT_DISK + 1; jj++){ */
     }/* for(int ii = 1; ii < NR_EXT_POT_DISK + 1; ii++){ */
 
+#endif
+
 
     /** set gravitational force field */
     /* ii = 0 (R-symmetry); jj = 0 (z-symmetry) */
@@ -494,18 +576,24 @@ int extractDiskPotential(const int maxLev, const int ndisk, disk_data *data, con
     disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, 0, 0)] = FRz;
 
     /* ii = 0 (R-symmetry); jj >= 1 */
-#pragma omp parallel for
+#pragma omp parallel for private(FRz)
     for(int jj = 1; jj < NZ_EXT_POT_DISK; jj++){
+      FRz.R = ZERO;
       FRz.z = -(disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, 0, jj + 1)] - disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, 0, jj - 1)]) * HALF * hinv;
       disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, 0, jj)] = FRz;
+#if 0
+      if( FRz.z > 60.0 )
+	fprintf(stderr, "jj = %d: FRz.z = %e, phi_- = %e, phi_0 = %e, phi_+ = %e\n", jj, FRz.z, disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, 0, jj - 1)], disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, 0, jj)], disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, 0, jj + 1)]);
+#endif
     }/* for(int jj = 1; jj < NZ_EXT_POT_DISK; jj++){ */
 
     /* ii = 0 (R-symmetry); jj = Nz (z-edge) */
+    FRz.R = ZERO;
     FRz.z = -(disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, 0, NZ_EXT_POT_DISK)] - disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, 0, NZ_EXT_POT_DISK - 1)]) * hinv;
     disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, 0, NZ_EXT_POT_DISK)] = FRz;
 
     /* ii >= 1 */
-#pragma omp parallel for
+#pragma omp parallel for private(FRz)
     for(int ii = 1; ii < NR_EXT_POT_DISK; ii++){
       /* jj = 0 (z-symmetry) */
       FRz.R = -(disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii + 1, 0)] - disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii - 1, 0)]) * HALF * hinv;
@@ -531,7 +619,7 @@ int extractDiskPotential(const int maxLev, const int ndisk, disk_data *data, con
     disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, NR_EXT_POT_DISK, 0)] = FRz;
 
     /* ii = NR (R-edge); jj >= 1 */
-#pragma omp parallel for
+#pragma omp parallel for private(FRz)
     for(int jj = 1; jj < NZ_EXT_POT_DISK; jj++){
       FRz.R = -(disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, NR_EXT_POT_DISK, jj)] - disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, NR_EXT_POT_DISK - 1, jj)]) * hinv;
       FRz.z = -(disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, NR_EXT_POT_DISK, jj + 1)] - disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, NR_EXT_POT_DISK, jj - 1)]) * HALF * hinv;
@@ -542,6 +630,71 @@ int extractDiskPotential(const int maxLev, const int ndisk, disk_data *data, con
     FRz.R = -(disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, NR_EXT_POT_DISK, NZ_EXT_POT_DISK)] - disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, NR_EXT_POT_DISK - 1, NZ_EXT_POT_DISK)]) * hinv;
     FRz.z = -(disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, NR_EXT_POT_DISK, NZ_EXT_POT_DISK)] - disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, NR_EXT_POT_DISK, NZ_EXT_POT_DISK - 1)]) * hinv;
     disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, NR_EXT_POT_DISK, NZ_EXT_POT_DISK)] = FRz;
+
+
+#if 1
+    /** smoothing out the gravitational force field */
+#pragma omp parallel for
+    for(int ii = 0; ii < NR_EXT_POT_DISK + 1; ii++){
+      real p0 = disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii, 0)].z;
+      real p1 = disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii, 1)].z;
+      real p2 = disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii, 2)].z;
+      for(int jj = 1; jj < NZ_EXT_POT_DISK - 2; jj++){
+	const real p3 = disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii, jj + 2)].z;
+
+	/** 2 continuous oscillation */
+	if( ((p1 - p0) * (p3 - p1) < ZERO) && ((p2 - p0) * (p3 - p2) < ZERO) && (FABS(p1 - p0) > FABS(p3 - p0)) && (FABS(p2 - p0) > FABS(p3 - p0)) ){
+	  const real grad = (p3 - p0) * ONE_SIXTH;
+	  const real base = HALF * (p0 + p3);
+	  p1 = base - grad;	    disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii, jj	  )].z = p1;
+	  p2 = base + grad;	    disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii, jj + 1)].z = p2;
+	}/* if( ((p1 - p0) * (p3 - p1) < ZERO) && ((p2 - p0) * (p3 - p2) < ZERO) && (FABS(p1 - p0) > FABS(p3 - p0)) && (FABS(p2 - p0) > FABS(p3 - p0)) ){ */
+
+	p0 = p1;
+	p1 = p2;
+	p2 = p3;
+      }/* for(int jj = 1; jj < NZ_EXT_POT_DISK - 2; jj++){ */
+    }/* for(int ii = 0; ii < NR_EXT_POT_DISK + 1; ii++){ */
+
+#pragma omp parallel for
+    for(int jj = 0; jj < NZ_EXT_POT_DISK + 1; jj++){
+      real p0 = disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, 0, jj)].R;
+      real p1 = disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, 1, jj)].R;
+      real p2 = disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, 2, jj)].R;
+      for(int ii = 1; ii < NR_EXT_POT_DISK - 2; ii++){
+	const real p3 = disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii + 2, jj)].R;
+
+	/** 2 continuous oscillation */
+	if( ((p1 - p0) * (p3 - p1) < ZERO) && ((p2 - p0) * (p3 - p2) < ZERO) && (FABS(p1 - p0) > FABS(p3 - p0)) && (FABS(p2 - p0) > FABS(p3 - p0)) ){
+	  const real grad = (p3 - p0) * ONE_SIXTH;
+	  const real base = HALF * (p0 + p3);
+	  p1 = base - grad;	    disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii    , jj)].R = p1;
+	  p2 = base + grad;	    disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii + 1, jj)].R = p2;
+	}/* if( ((p1 - p0) * (p3 - p1) < ZERO) && ((p2 - p0) * (p3 - p2) < ZERO) && (FABS(p1 - p0) > FABS(p3 - p0)) && (FABS(p2 - p0) > FABS(p3 - p0)) ){ */
+
+	p0 = p1;
+	p1 = p2;
+	p2 = p3;
+      }/* for(int ii = 1; ii < NR_EXT_POT_DISK - 2; ii++){ */
+    }/* for(int jj = 0; jj < NZ_EXT_POT_DISK + 1; jj++){ */
+#endif
+
+
+#if 0
+    for(int ii = 0; ii < NR_EXT_POT_DISK + 1; ii++)
+      for(int jj = 0; jj < NZ_EXT_POT_DISK + 1; jj++)
+	if( (disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii, jj)].R > ZERO) || (disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii, jj)].z > ZERO) )
+	  fprintf(stderr, "# warning: ii = %d, jj = %d: FR_R = %e, FR_z = %e\n", ii, jj, disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii, jj)].R, disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii, jj)].z);
+
+#endif
+#if 0
+    for(int jj = 0; jj < NZ_EXT_POT_DISK + 1; jj++)
+      fprintf(stderr, "%d\t%e\t%e\n", jj, disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, 744, jj)], disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, 744, jj)].z);
+#endif
+#if 0
+    for(int ii = 0; ii < NR_EXT_POT_DISK + 1; ii++)
+      fprintf(stderr, "%d\t%e\t%e\n", ii, disk->Phi[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii, 0)], disk->FRz[INDEX2D(NR_EXT_POT_DISK + 1, NZ_EXT_POT_DISK + 1, ii, 0)].R);
+#endif
   }/* if( result == EXT_DISK_POT_FIELD_AVAILABLE ){ */
 
   __NOTE__("%s\n", "end");

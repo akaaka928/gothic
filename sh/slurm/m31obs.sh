@@ -17,8 +17,9 @@ EXEC=bin/m31obs
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
+    PROBLEM=111
     # PROBLEM=112
-    PROBLEM=113
+    # PROBLEM=113
 fi
 ###############################################################
 # set number of N-body particles per bin to estimate density
@@ -53,6 +54,21 @@ fi
 
 ###############################################################
 # problem specific configurations
+###############################################################
+# reproduction of Miki et al. (2016) in the disk coordinate system
+if [ $PROBLEM -eq 111 ]; then
+    FILE=m16king
+    FINISH=1246.875
+    INTERVAL=3.125
+    XIMIN=-5.0
+    XIMAX=7.0
+    ETAMIN=-8.5
+    ETAMAX=3.5
+    DMIN=-80.0
+    DMAX=130.0
+    VMIN=-700.0
+    VMAX=-100.0
+fi
 ###############################################################
 # reproduction of Kirihara et al. (2017) in the disk coordinate system
 if [ $PROBLEM -eq 112 ]; then

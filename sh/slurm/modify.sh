@@ -19,9 +19,9 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=1
     # PROBLEM=2
     # PROBLEM=10
-    # PROBLEM=11
+    PROBLEM=11
     # PROBLEM=12
-    PROBLEM=13
+    # PROBLEM=13
     # PROBLEM=21
     # PROBLEM=22
     # PROBLEM=23

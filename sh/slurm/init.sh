@@ -109,8 +109,7 @@ fi
 if [ $PROBLEM -eq 2 ]; then
     FILE=hernquist
     CONFIG=single/hernquist.cfg
-    # EPS=1.5625e-2
-    EPS=1.0
+    EPS=1.5625e-2
     ETA=0.5
     FINISH=23.5
     INTERVAL=0.5
@@ -763,6 +762,7 @@ if [ $PROBLEM -eq 96 ]; then
     FILE=halocusp
     CONFIG=fornax/halocusp.cfg
     NTOT=11000000
+    EPS=1.5625e-2
     ETA=0.5
     FINISH=14000.0
     INTERVAL=100.0
@@ -773,6 +773,7 @@ if [ $PROBLEM -eq 97 ]; then
     FILE=halocore1
     CONFIG=fornax/halocore1.cfg
     NTOT=11000000
+    EPS=1.5625e-2
     ETA=0.5
     FINISH=14000.0
     INTERVAL=100.0
@@ -783,6 +784,7 @@ if [ $PROBLEM -eq 98 ]; then
     FILE=halocore2
     CONFIG=fornax/halocore2.cfg
     NTOT=11000000
+    EPS=1.5625e-2
     ETA=0.5
     FINISH=14000.0
     INTERVAL=100.0
@@ -793,6 +795,7 @@ if [ $PROBLEM -eq 99 ]; then
     FILE=halocore3
     CONFIG=fornax/halocore3.cfg
     NTOT=11000000
+    EPS=1.5625e-2
     ETA=0.5
     FINISH=14000.0
     INTERVAL=100.0
