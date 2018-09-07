@@ -9,6 +9,7 @@ doc/
 fig/
 log/
 bench/
+html/
 # directory for profiling
 .nvprof/
 # directory for zip

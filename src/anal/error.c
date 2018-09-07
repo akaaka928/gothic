@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/08 (Thu)
+ * @date 2018/09/07 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -83,8 +83,20 @@ int main(int argc, char **argv)
   createHDF5DataType(&hdf5type);
   nbody_hdf5 body0;  real *pos0, *vel0, *acc0, *m0, *pot0;  ulong *idx0;
   nbody_hdf5 body1;  real *pos1, *vel1, *acc1, *m1, *pot1;  ulong *idx1;
-  allocSnapshotArray(&pos0, &vel0, &acc0, &m0, &pot0, &idx0, (int)Ntot, &body0);
-  allocSnapshotArray(&pos1, &vel1, &acc1, &m1, &pot1, &idx1, (int)Ntot, &body1);
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+  real *acc0_ext, *pot0_ext;
+  real *acc1_ext, *pot1_ext;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+  allocSnapshotArray(&pos0, &vel0, &acc0, &m0, &pot0, &idx0,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+		     &acc0_ext, &pot0_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+		     (int)Ntot, &body0);
+  allocSnapshotArray(&pos1, &vel1, &acc1, &m1, &pot1, &idx1,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+		     &acc1_ext, &pot1_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+		     (int)Ntot, &body1);
 #else///USE_HDF5_FORMAT
   iparticle body0, body1;
   ulong *idx0, *idx1;
@@ -415,8 +427,16 @@ int main(int argc, char **argv)
 
 #ifdef  USE_HDF5_FORMAT
   removeHDF5DataType(hdf5type);
-  freeSnapshotArray(pos0, vel0, acc0, m0, pot0, idx0);
-  freeSnapshotArray(pos1, vel1, acc1, m1, pot1, idx1);
+  freeSnapshotArray(pos0, vel0, acc0, m0, pot0, idx0
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+		    , acc0_ext, pot0_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+		    );
+  freeSnapshotArray(pos1, vel1, acc1, m1, pot1, idx1
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+		    , acc1_ext, pot1_ext
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+		    );
 #else///USE_HDF5_FORMAT
   freeParticleData(idx, pos, iacc,
 #ifdef  BLOCK_TIME_STEP
