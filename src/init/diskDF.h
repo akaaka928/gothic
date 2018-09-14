@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/01/24 (Wed)
+ * @date 2018/09/14 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -45,7 +45,7 @@
 #define SPEEDUP_CONVERGENCE
 /* #define USE_POTENTIAL_SCALING_SCHEME */
 
-#define SUBDIVIDE_NUM (4)
+#define SUBDIVIDE_NUM (16)
 
 
 #ifdef  ENFORCE_EPICYCLIC_APPROXIMATION

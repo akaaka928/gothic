@@ -8,7 +8,7 @@
   * Released under the MIT license, see LICENSE.txt for detail.
   * Copyright (c) 2017 Yohei Miki and Masayuki Umemura, All rights reserved.
 
-# MAGI (version 1.1.0)
+# MAGI (version 1.1.1)
   * MAny-component Galaxy Initializer
   * Developed by
     * Yohei Miki (Information Technology Center, University of Tokyo)
