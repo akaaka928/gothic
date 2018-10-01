@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/11 (Mon)
+ * @date 2018/10/01 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -64,7 +64,6 @@
 #include <nvml.h>
 #undef  USE_GPU_BASE_CLOCK_FREQ
 #define USE_MEASURED_CLOCK_FREQ
-nvmlDevice_t deviceHandler;
 #endif//((__CUDACC_VER_MINOR__ + 10 * __CUDACC_VER_MAJOR__) >= 80) && !defined(DISABLE_NVML_FOR_CLOCK_FREQ)
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO) || defined(REPORT_GPU_CLOCK_FREQUENCY)
 
@@ -425,9 +424,11 @@ void  freeTreeBuffer_dev
   mycudaFreeHost(cycles_let_hst);
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
 
-#ifdef  USE_MEASURED_CLOCK_FREQ
-  nvmlShutdown();
-#endif//USE_MEASURED_CLOCK_FREQ
+/* #ifdef  USE_MEASURED_CLOCK_FREQ */
+#   if  ((__CUDACC_VER_MINOR__ + 10 * __CUDACC_VER_MAJOR__) >= 80) && !defined(DISABLE_NVML)
+  checkNVMLErrors(nvmlShutdown());
+#endif//((__CUDACC_VER_MINOR__ + 10 * __CUDACC_VER_MAJOR__) >= 80) && !defined(DISABLE_NVML)
+/* #endif//USE_MEASURED_CLOCK_FREQ */
 
   __NOTE__("%s\n", "end");
 }
@@ -515,10 +516,10 @@ muse allocTreeBuffer_dev
   mycudaMallocHost((void **)cycles_let_hst, sizeof(unsigned long long int));  alloc.host   += sizeof(unsigned long long int);
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MONITOR_LETGEN_TIME)
 
-#ifdef  USE_MEASURED_CLOCK_FREQ
-  nvmlInit();
-  nvmlDeviceGetHandleByIndex(gpu.idx, &deviceHandler);
-#endif//USE_MEASURED_CLOCK_FREQ
+/* #ifdef  USE_MEASURED_CLOCK_FREQ */
+/*   nvmlInit(); */
+/*   nvmlDeviceGetHandleByIndex(gpu.idx, &deviceHandler); */
+/* #endif//USE_MEASURED_CLOCK_FREQ */
 
 
   size_t unused, total;
@@ -3248,11 +3249,11 @@ void calcGravity_dev
 
 #ifdef  USE_MEASURED_CLOCK_FREQ
       /** measure clock frequency as a reference value */
-      nvmlDeviceGetClock(deviceHandler, NVML_CLOCK_SM, NVML_CLOCK_ID_CURRENT, &clockWalk);
+      checkNVMLErrors(nvmlDeviceGetClock(devProp.devHandler, NVML_CLOCK_SM, NVML_CLOCK_ID_CURRENT, &clockWalk));
 #ifdef  REPORT_GPU_CLOCK_FREQUENCY
       /** measure temperature and power usage */
-      nvmlDeviceGetTemperature(deviceHandler, NVML_TEMPERATURE_GPU, &temperature);
-      nvmlDeviceGetPowerUsage(deviceHandler, &power);
+      checkNVMLErrors(nvmlDeviceGetTemperature(devProp.devHandler, NVML_TEMPERATURE_GPU, &temperature));
+      checkNVMLErrors(nvmlDeviceGetPowerUsage(devProp.devHandler, &power));
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #endif//USE_MEASURED_CLOCK_FREQ
 
