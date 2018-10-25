@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -J magi               # name of job
-#SBATCH -t 00:30:00           # upper limit of elapsed time
+#SBATCH -t 00:10:00           # upper limit of elapsed time
 #SBATCH -p comq               # partition name
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
 #SBATCH --get-user-env        # retrieve the login environment variables
@@ -14,7 +14,30 @@ EXEC=bin/magi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=20
+    PROBLEM=2
+    # PROBLEM=14
+    # PROBLEM=21
+    # PROBLEM=23
+    # PROBLEM=26
+    # PROBLEM=27
+    # PROBLEM=33
+    # PROBLEM=39
+    # PROBLEM=46
+    # PROBLEM=60
+    # PROBLEM=61
+    # PROBLEM=62
+    # PROBLEM=63
+    # PROBLEM=64
+    # PROBLEM=90
+    # PROBLEM=91
+    # PROBLEM=92
+    # PROBLEM=93
+    # PROBLEM=94
+    # PROBLEM=95
+    # PROBLEM=96
+    # PROBLEM=97
+    # PROBLEM=98
+    # PROBLEM=99
 fi
 ###############################################################
 # number of N-body particles
@@ -29,13 +52,13 @@ if [ -z "$NTOT" ]; then
     # NTOT=16384
     # NTOT=32768
     # NTOT=65536
-    # NTOT=131072
+    NTOT=131072
     # NTOT=262144
     # NTOT=524288
     # NTOT=1048576
     # NTOT=2097152
     # NTOT=4194304
-    NTOT=8388608
+    # NTOT=8388608
     # NTOT=16777216
     # NTOT=33554432
     # NTOT=67108864
@@ -50,8 +73,6 @@ fi
 ###############################################################
 # dump file generation interval (in units of minute)
 if [ -z "$SAVE" ]; then
-    # SAVE=2.0
-    # SAVE=60.0
     SAVE=25.0
 fi
 ###############################################################
@@ -200,6 +221,17 @@ if [ $PROBLEM -eq 13 ]; then
     # INTERVAL=8.0
 fi
 ###############################################################
+# dynamical stability of an exponential disk in an NFW sphere
+if [ $PROBLEM -eq 14 ]; then
+    FILE=hd
+    CONFIG=multi/hd.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=104.0
+    INTERVAL=8.0
+    NTOT=600034
+fi
+###############################################################
 # dynamical stability of an M31 model determined by Fardal et al. (2007)
 if [ $PROBLEM -eq 20 ]; then
     FILE=m31
@@ -242,9 +274,9 @@ if [ $PROBLEM -eq 23 ]; then
     CONFIG=galaxy/mw.cfg
     EPS=1.5625e-2
     ETA=0.5
-    FINISH=75.0
+    # FINISH=75.0
     INTERVAL=25.0
-    # FINISH=3175.0
+    FINISH=3175.0
     # INTERVAL=25.0
 fi
 ###############################################################
@@ -281,24 +313,28 @@ if [ $PROBLEM -eq 26 ]; then
     CONFIG=galaxy/etg.cfg
     EPS=1.5625e-2
     ETA=0.5
-    # FINISH=75.0
-    # INTERVAL=25.0
-    FINISH=1175.0
     INTERVAL=25.0
+    # FINISH=75.0
+    FINISH=375.0
+    # FINISH=1175.0
     # FINISH=3175.0
-    # INTERVAL=25.0
 fi
 ###############################################################
-# dynamical stability of an M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk)
+# dynamical stability of an M31 model (NFW halo, Hernquist bulge, and exponential disk)
+# basically, this is Fardal et al. (2007) model
+# stellar halo: Gilbert et al. (2012): \Sigma \propto R^-2.2; Rmin = 9kpc, Rmax = 176kpc; Ibata et al. (2014, ApJ, 780, 128): total stellar mass of the smooth halo is ~8e+9 Msun
+# disk: Toomre's Q-value is set to reproduce Tenjes et al. (2017): Q_min = 1.8 @ 12-13 kpc
 if [ $PROBLEM -eq 27 ]; then
-    FILE=m31_mod
+    FILE=m31
     CONFIG=galaxy/m31.cfg
     EPS=1.5625e-2
+    # EPS=7.8125e-3
     ETA=0.5
-    FINISH=75.0
-    INTERVAL=25.0
+    # FINISH=75.0
+    FINISH=375.0
+    # FINISH=1175.0
     # FINISH=3175.0
-    # INTERVAL=25.0
+    INTERVAL=25.0
 fi
 ###############################################################
 # dynamical stability of multi components galaxy model (NFW halo, King bulge, thick Sersic disk, and thin exponential disk)
@@ -437,6 +473,19 @@ if [ $PROBLEM -eq 38 ]; then
     # INTERVAL=8.0
 fi
 ###############################################################
+# dynamical stability of multi components galaxy model
+if [ $PROBLEM -eq 39 ]; then
+    if [ $NTOT -ne 200000 ]; then
+	NTOT=200000
+    fi
+    FILE=diskhalo
+    CONFIG=debug/galaxy.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1575.0
+    INTERVAL=25.0
+fi
+###############################################################
 # dynamical stability of a Plummer profile in table form
 if [ $PROBLEM -eq 40 ]; then
     FILE=tplummer
@@ -497,6 +546,16 @@ if [ $PROBLEM -eq 45 ]; then
     INTERVAL=25.0
 fi
 ###############################################################
+# dynamical stability of a disk in table form within NFW halo
+if [ $PROBLEM -eq 46 ]; then
+    FILE=thd
+    CONFIG=table/thd.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=23.5
+    INTERVAL=0.5
+fi
+###############################################################
 # dynamical stability of a spherical Sersic profile
 if [ $PROBLEM -eq 50 ]; then
     FILE=deVaucouleurs
@@ -517,10 +576,10 @@ if [ $PROBLEM -eq 51 ]; then
     INTERVAL=25.0
 fi
 ###############################################################
-# dynamical stability of a progenitor model for GSS determined by Kirihara et al. (2017)
+# dynamical stability of a progenitor model for GSS determined by Miki et al. (2016)
 if [ $PROBLEM -eq 60 ]; then
-    FILE=satellite
-    CONFIG=galaxy/satellite.cfg
+    FILE=sat
+    CONFIG=gss/m16.cfg
     EPS=1.5625e-2
     ETA=0.5
     # FINISH=75.0
@@ -529,6 +588,55 @@ if [ $PROBLEM -eq 60 ]; then
     INTERVAL=25.0
     # FINISH=5175.0
     # INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of a progenitor model for GSS determined by Kirihara et al. (2017)
+if [ $PROBLEM -eq 61 ]; then
+    FILE=sat
+    CONFIG=gss/k17.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    # FINISH=75.0
+    # INTERVAL=25.0
+    FINISH=1575.0
+    INTERVAL=25.0
+    # FINISH=5175.0
+    # INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of a progenitor model for NW stream determined by Komiyama et al. (2018)
+if [ $PROBLEM -eq 62 ]; then
+    FILE=sat
+    CONFIG=nws/k18.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    # INTERVAL=25.0
+    # FINISH=75.0
+    # FINISH=1575.0
+    # FINISH=5175.0
+    # FINISH=5175.0
+    INTERVAL=100.0
+    FINISH=14000.0
+fi
+###############################################################
+# dynamical stability of a progenitor model for NW stream
+if [ $PROBLEM -eq 63 ]; then
+    FILE=sat
+    CONFIG=nws/core.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    INTERVAL=100.0
+    FINISH=14000.0
+fi
+###############################################################
+# dynamical stability of a progenitor model for NW stream
+if [ $PROBLEM -eq 64 ]; then
+    FILE=sat
+    CONFIG=nws/cusp.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    INTERVAL=100.0
+    FINISH=14000.0
 fi
 ###############################################################
 # dynamical stability of Eridanus II (Crnojevic et al. 2016; Li et al. 2017)
@@ -583,6 +691,116 @@ if [ $PROBLEM -eq 81 ]; then
     # INTERVAL=25.0
 fi
 ###############################################################
+# Fornax simulation (globular cluster model 0)
+if [ $PROBLEM -eq 90 ]; then
+    FILE=gc0
+    CONFIG=fornax/gc0.cfg
+    NTOT=100000
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax 1 (globular cluster)
+if [ $PROBLEM -eq 91 ]; then
+    FILE=for1
+    CONFIG=fornax/gc1.cfg
+    NTOT=100000
+    EPS=9.765625000e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax 2 (globular cluster)
+if [ $PROBLEM -eq 92 ]; then
+    FILE=for2
+    CONFIG=fornax/gc2.cfg
+    NTOT=100000
+    EPS=4.882812500e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax 3 (globular cluster)
+if [ $PROBLEM -eq 93 ]; then
+    FILE=for3
+    CONFIG=fornax/gc3.cfg
+    NTOT=100000
+    EPS=1.220703125e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax 4 (globular cluster)
+if [ $PROBLEM -eq 94 ]; then
+    FILE=for4
+    CONFIG=fornax/gc4.cfg
+    NTOT=100000
+    EPS=6.103515625e-5
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax 5 (globular cluster)
+if [ $PROBLEM -eq 95 ]; then
+    FILE=for5
+    CONFIG=fornax/gc5.cfg
+    NTOT=100000
+    EPS=2.441406250e-4
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 96 ]; then
+    FILE=halocusp
+    CONFIG=fornax/halocusp.cfg
+    NTOT=11000000
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 97 ]; then
+    FILE=halocore1
+    CONFIG=fornax/halocore1.cfg
+    NTOT=11000000
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 98 ]; then
+    FILE=halocore2
+    CONFIG=fornax/halocore2.cfg
+    NTOT=11000000
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Fornax simulation
+if [ $PROBLEM -eq 99 ]; then
+    FILE=halocore3
+    CONFIG=fornax/halocore3.cfg
+    NTOT=11000000
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
 # set input arguments
 if [ $PROBLEM -ge 1 ]; then
     OPTION="-file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE"
@@ -596,8 +814,8 @@ fi
 # job execution via SLURM
 ###############################################################
 # set stdout and stderr
-STDOUT=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.out
-STDERR=log/$SLURM_JOB_NAME.$SLURM_JOB_ID.err
+STDOUT=log/${FILE}_$SLURM_JOB_NAME.o${SLURM_JOB_ID}
+STDERR=log/${FILE}_$SLURM_JOB_NAME.e${SLURM_JOB_ID}
 ###############################################################
 # start logging
 cd $SLURM_SUBMIT_DIR

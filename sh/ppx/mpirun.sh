@@ -20,12 +20,15 @@ PROCS=`expr $NX \* $NY \* $NZ`
 # ABSERR=3.125000000e-2
 # ABSERR=1.562500000e-2
 # ABSERR=7.812500000e-3
-ABSERR=3.906250000e-3
-# ABSERR=1.953125000e-3
+# ABSERR=3.906250000e-3
+ABSERR=1.953125000e-3
 # ABSERR=9.765625000e-4
 # ABSERR=4.882812500e-4
 # ABSERR=2.441406250e-4
 # ABSERR=1.220703125e-4
+
+REBUILD=16
+BRENT=1.0
 
 
 # problem specific configurations
@@ -90,7 +93,7 @@ if [ $PROBLEM -eq 26 ]; then
     FILE=etg
 fi
 if [ $PROBLEM -eq 27 ]; then
-    FILE=m31_mod
+    FILE=m31
 fi
 if [ $PROBLEM -eq 28 ]; then
     FILE=ltg
@@ -148,7 +151,7 @@ if [ $PROBLEM -eq 81 ]; then
 fi
 
 # set input arguments
-OPTION="-absErr=$ABSERR -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$SLURM_JOB_ID"
+OPTION="-absErr=$ABSERR -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -rebuild_interval=$REBUILD -brent_frac=$BRENT -jobID=$SLURM_JOB_ID"
 
 export MV2_USE_CUDA=1
 

@@ -1,11 +1,13 @@
 #!/bin/bash
 ###############################################################
-# #SBATCH -J gothic             # name of job
+#SBATCH -J gothic             # name of job
 #SBATCH -t 00:30:00           # upper limit of elapsed time
 #SBATCH -p comq               # partition name
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
 #SBATCH --ntasks=1            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
 #SBATCH --ntasks-per-socket=1 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
+# #SBATCH --ntasks=2            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
+# #SBATCH --ntasks-per-socket=2 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
 #SBATCH --get-user-env        # retrieve the login environment variables
 ###############################################################
 
@@ -19,7 +21,11 @@ fi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=20
+    PROBLEM=2
+    # PROBLEM=14
+    # PROBLEM=26
+    # PROBLEM=27
+    # PROBLEM=62
 fi
 ###############################################################
 # topology of MPI processes
@@ -50,36 +56,16 @@ if [ -z "$ABSERR" ]; then
     # ABSERR=3.125000000e-2
     # ABSERR=1.562500000e-2
     # ABSERR=7.812500000e-3
-    ABSERR=3.906250000e-3
-    # ABSERR=1.953125000e-3
+    # ABSERR=3.906250000e-3
+    ABSERR=1.953125000e-3
     # ABSERR=9.765625000e-4
     # ABSERR=4.882812500e-4
     # ABSERR=2.441406250e-4
     # ABSERR=1.220703125e-4
 fi
 ###############################################################
-# value of accuracy controling parameter: opening criterion by Barnes & Hut (1986)
-if [ -z "$THETA" ]; then
-    # THETA=0.9
-    # THETA=0.8
-    # THETA=0.7
-    # THETA=0.6
-    # THETA=0.5
-    THETA=0.4
-    # THETA=0.3
-fi
-###############################################################
-# value of accuracy controling parameter: multipole moment MAC by Warren & Salmon (1993)
-if [ -z "$ACCERR" ]; then
-    # ACCERR=1.250000e-1
-    # ACCERR=6.250000e-2
-    # ACCERR=3.125000e-2
-    ACCERR=1.562500e-2
-    # ACCERR=7.812500e-3
-    # ACCERR=3.906250e-3
-    # ACCERR=1.953125e-3
-    # ACCERR=9.765625e-4
-fi
+REBUILD=16
+BRENT=1.0
 ###############################################################
 
 
@@ -186,9 +172,12 @@ if [ $PROBLEM -eq 26 ]; then
     FILE=etg
 fi
 ###############################################################
-# dynamical stability of an M31 model (NFW halo, de Vaucouleurs bulge, and exponential disk)
+# dynamical stability of an M31 model (NFW halo, Hernquist bulge, and exponential disk)
+# basically, this is Fardal et al. (2007) model
+# stellar halo: Gilbert et al. (2012): \Sigma \propto R^-2.2; Rmin = 9kpc, Rmax = 176kpc; Ibata et al. (2014, ApJ, 780, 128): total stellar mass of the smooth halo is ~8e+9 Msun
+# disk: Toomre's Q-value is set to reproduce Tenjes et al. (2017): Q_min = 1.8 @ 12-13 kpc
 if [ $PROBLEM -eq 27 ]; then
-    FILE=m31_mod
+    FILE=m31
 fi
 ###############################################################
 # dynamical stability of multi components galaxy model (NFW halo, King bulge, thick Sersic disk, and thin exponential disk)
@@ -282,7 +271,7 @@ if [ $PROBLEM -eq 81 ]; then
 fi
 ###############################################################
 # set input arguments
-OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$SLURM_JOB_ID"
+OPTION="-absErr=$ABSERR -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -rebuild_interval=$REBUILD -brent_frac=$BRENT -jobID=$SLURM_JOB_ID"
 ###############################################################
 
 
@@ -304,15 +293,32 @@ TIME=`date`
 echo "start: $TIME"
 ###############################################################
 # execute the job
-if [ `which numactl` ]; then
-    # mpiexec with numactl
-    echo "numactl --cpunodebind=0 --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-    numactl --cpunodebind=0 --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+if [ $PROCS -gt 1 ]; then
+    echo "mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION"
+    mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION
 else
-    # mpiexec without numactl
-    echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-    $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    # set stdout and stderr
+    STDOUT=log/${FILE}_$SLURM_JOB_NAME.o${SLURM_JOB_ID}
+    STDERR=log/${FILE}_$SLURM_JOB_NAME.e${SLURM_JOB_ID}
+    if [ `which numactl` ]; then
+	# run with numactl
+	echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+	numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    else
+	# run without numactl
+	echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+	$EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    fi
 fi
+# if [ `which numactl` ]; then
+#     # mpiexec with numactl
+#     echo "numactl --cpunodebind=0 --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+#     numactl --cpunodebind=0 --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+# else
+#     # mpiexec without numactl
+#     echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+#     $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+# fi
 ###############################################################
 # finish logging
 TIME=`date`

@@ -6,6 +6,9 @@
 #PBS -l walltime=01:00:00
 #PBS -N gothic
 ###############################################################
+PROCS_PER_NODE=4
+PROCS_PER_SOCKET=2
+###############################################################
 
 
 ###############################################################
@@ -288,13 +291,9 @@ OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$N
 ###############################################################
 # job execution via PBS
 ###############################################################
-# set number of MPI processes per node
-PROCS_PER_NODE=4
-PROCS_PER_SOCKET=2
-###############################################################
-export MV2_ENABLE_AFFINITY=0
-export MV2_USE_CUDA=1
-export MV2_USE_GPUDIRECT=1
+# export MV2_ENABLE_AFFINITY=0
+# export MV2_USE_CUDA=1
+# export MV2_USE_GPUDIRECT=1
 ###############################################################
 # start logging
 cd $PBS_O_WORKDIR
@@ -313,11 +312,10 @@ module load cub
 ###############################################################
 # execute the job
 if [ $PROCS -gt 1 ]; then
-    echo "mpirun -n $PROCS -f ${PBS_NODEFILE} sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION"
-    mpirun -n $PROCS -f ${PBS_NODEFILE} sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION
-    # STDOUT=log/${FILE}_$PBS_JOBNAME.o${PBS_JOBID}
-    # STDERR=log/${FILE}_$PBS_JOBNAME.e${PBS_JOBID}
-    # mpirun -tag-output -np $PROCS -mca btl_openib_want_cuda_gdr 1 sh/wrapper.sh $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    # echo "mpirun -n $PROCS -f ${PBS_NODEFILE} sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION"
+    # mpirun -n $PROCS -f ${PBS_NODEFILE} sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION
+    echo "mpirun -np $PROCS -mca btl_openib_want_cuda_gdr 1 sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION"
+    mpirun -np $PROCS -mca btl_openib_want_cuda_gdr 1 sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION
 else
     # set stdout and stderr
     STDOUT=log/${FILE}_$PBS_JOBNAME.o${PBS_JOBID}
