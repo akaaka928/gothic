@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2017/10/26 (Thu)
+ * @date 2018/11/13 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -48,7 +48,11 @@ extern const real newton;
  * @param (prf) radial profile of the component
  * @return (ret) second derivative of the mass density w.r.t. the relative potential
  */
-static inline void get_d2rho_dPsi2(const int skind, profile **prf, double *ret)
+static inline void get_d2rho_dPsi2(const int skind, profile **prf, double *ret
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+				   , const double ra2inv
+#endif//USE_OSIPKOV_MERRITT_METHOD
+)
 {
 #pragma omp parallel for
   for(int ii = 0; ii < NRADBIN; ii++){
@@ -57,16 +61,27 @@ static inline void get_d2rho_dPsi2(const int skind, profile **prf, double *ret)
     const double rad = prf[0][jj].rad;
     const double enc = prf[0][jj].enc_tot;
     const double rho = prf[0][jj].rho_tot;
-    const double fac = 2.0 * (enc - 2.0 * M_PI * rho * rad * rad * rad) / (rad * enc);
+    const double r2 = rad * rad;
+    const double fac = 2.0 * (enc - 2.0 * M_PI * rho * r2 * rad) / (rad * enc);
 
-    double common = rad * rad / enc;
+    double common = r2 / enc;
     common *= common;
+
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+    const double fac1 = 2.0 * ra2inv;
+    const double fac2 = 1.0 + r2 * ra2inv;
+#endif//USE_OSIPKOV_MERRITT_METHOD
 
     for(int kk = 0; kk < skind; kk++){
       const double  drho_dr  = prf[kk][jj]. drho_dr;
       const double d2rho_dr2 = prf[kk][jj].d2rho_dr2;
 
+#ifndef USE_OSIPKOV_MERRITT_METHOD
       ret[ii + kk * NRADBIN] = (d2rho_dr2 + fac * drho_dr) * common;
+#else///USE_OSIPKOV_MERRITT_METHOD
+      const double rhoi = fac1 * prf[kk][jj].rho;
+      ret[ii + kk * NRADBIN] = (rhoi + 2.0 * rad * drho_dr + fac2 * d2rho_dr2 + fac * (rad * rhoi + fac2 * drho_dr)) * common;
+#endif//USE_OSIPKOV_MERRITT_METHOD
     }/* for(int kk = 0; kk < skind; kk++){ */
 
   }/* for(int ii = 0; ii < NRADBIN; ii++){ */
@@ -280,7 +295,12 @@ void integrateEddingtonFormula(const int skind, profile **prf, profile_cfg *cfg,
 
   /** set integration range */
   const double Emax = prf[0][   0].psi_tot;
+#ifndef USE_OSIPKOV_MERRITT_METHOD
   const double Emin = prf[0][iout].psi_tot;
+#else///USE_OSIPKOV_MERRITT_METHOD
+  /**# note: if the below implementation leads nan or inf, then set Emin as prf[0][iout].psi_tot; */
+  const double Emin = 0.0;/**< Q = \mathcal{E} - L^2 / (2 r_a^2) */
+#endif//USE_OSIPKOV_MERRITT_METHOD
   const double Ebin = (Emax - Emin) / (double)(NENEBIN - 1);
 
   /** memory allocation for cubic spline interpolation */
@@ -295,7 +315,11 @@ void integrateEddingtonFormula(const int skind, profile **prf, profile_cfg *cfg,
   for(int ii = 0; ii < NRADBIN; ii++)
     xx[ii] = prf[0][NRADBIN - 1 - ii].psi_tot;
 
-  get_d2rho_dPsi2(skind, prf, yy);
+  get_d2rho_dPsi2(skind, prf, yy
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+    , cfg[kk].ra2inv
+#endif//USE_OSIPKOV_MERRITT_METHOD
+    );
 
   /** execute cubic spline interpolation */
 #pragma omp parallel for
@@ -665,7 +689,11 @@ static inline void findIdx(const double psi, profile *prf, int *ll, int *rr)
  *
  * @sa findIdx
  */
-static inline void getEddingtonFormula(const double ene, const double psi, const int kind, profile **prf, double *val)
+static inline void getEddingtonFormula(const double ene, const double psi, const int kind, profile **prf, double *val
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+				       , profile_cfg *cfg
+#endif//USE_OSIPKOV_MERRITT_METHOD
+				       )
 {
   int ll, rr;
   findIdx(psi, prf[0], &ll, &rr);
@@ -691,7 +719,16 @@ static inline void getEddingtonFormula(const double ene, const double psi, const
     const double  drho_dr  = (1.0 - r_dr) * prf[kk][ll]. drho_dr  + r_dr * prf[kk][rr]. drho_dr;
     const double d2rho_dr2 = (1.0 - r_dr) * prf[kk][ll].d2rho_dr2 + r_dr * prf[kk][rr].d2rho_dr2;
 
+#ifndef USE_OSIPKOV_MERRITT_METHOD
     val[kk] = common * (d2rho_dr2 + drho_dr * fac);
+#else///USE_OSIPKOV_MERRITT_METHOD
+    const double ra2inv = cfg[kk].ra2inv;
+    const double fac1 = 2.0 * ra2inv;
+    const double fac2 = 1.0 + rad * rad * ra2inv;
+
+    const double rhoi = fac1 * ((1.0 - r_dr) * prf[kk][ll].rho + r_dr * prf[kk][rr].rho);
+    val[kk] = (rhoi + 2.0 * rad * drho_dr + fac2 * d2rho_dr2 + fac * (rad * rhoi + fac2 * drho_dr)) * common;
+#endif//USE_OSIPKOV_MERRITT_METHOD
   }/* for(int kk = 0; kk < kind; kk++){ */
 }
 
@@ -714,7 +751,11 @@ static inline void getEddingtonFormula(const double ene, const double psi, const
  */
 static inline void gaussQuad1dEddington
 (const int num, const double xmin, const double xmax,
- const int kind, profile **prf, double * restrict sum, double * restrict fm, double * restrict fp)
+ const int kind, profile **prf, double * restrict sum, double * restrict fm, double * restrict fp
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+ , profile_cfg *cfg
+#endif//USE_OSIPKOV_MERRITT_METHOD
+ )
 {
   const double mns = 0.5 * (xmax - xmin);
   const double pls = 0.5 * (xmax + xmin);
@@ -723,7 +764,11 @@ static inline void gaussQuad1dEddington
   if( num & 1 ){
     const double ww = gsl_gaussQD_weight[(num >> 1)];
     const double xx = pls + mns * gsl_gaussQD_pos[(num >> 1)];
-    getEddingtonFormula(xmax, xx, kind, prf, fm);
+    getEddingtonFormula(xmax, xx, kind, prf, fm
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+			, cfg
+#endif//USE_OSIPKOV_MERRITT_METHOD
+			);
     for(int kk = 0; kk < kind; kk++)
       sum[kk] = ww * fm[kk];
   }/* if( num & 1 ){ */
@@ -732,8 +777,16 @@ static inline void gaussQuad1dEddington
     const double ww = gsl_gaussQD_weight[ii];
     const double xp = pls + mns * gsl_gaussQD_pos[ii];
     const double xm = pls - mns * gsl_gaussQD_pos[ii];
-    getEddingtonFormula(xmax, xp, kind, prf, fp);
-    getEddingtonFormula(xmax, xm, kind, prf, fm);
+    getEddingtonFormula(xmax, xp, kind, prf, fp
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+			, cfg
+#endif//USE_OSIPKOV_MERRITT_METHOD
+			);
+    getEddingtonFormula(xmax, xm, kind, prf, fm
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+			, cfg
+#endif//USE_OSIPKOV_MERRITT_METHOD
+			);
 
     for(int kk = 0; kk < kind; kk++)
       sum[kk] += ww * (fm[kk] + fp[kk]);
@@ -755,14 +808,23 @@ static inline void gaussQuad1dEddington
  *
  * @sa gaussQuad1dEddington
  */
-void integrateEddingtonFormula(const int skind, profile **prf, dist_func **fene)
+void integrateEddingtonFormula(const int skind, profile **prf
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+			       , profile_cfg *cfg
+#endif//USE_OSIPKOV_MERRITT_METHOD
+			       , dist_func **fene)
 {
   __NOTE__("%s\n", "start");
 
 
   /** set integration range */
   const double Emax = prf[0][          0].psi_tot;
+#ifndef USE_OSIPKOV_MERRITT_METHOD
   const double Emin = prf[0][NRADBIN - 1].psi_tot;
+#else///USE_OSIPKOV_MERRITT_METHOD
+  /**# note: if the below implementation leads nan or inf, then set Emin as prf[0][NRADBIN - 1].psi_tot; */
+  const double Emin = 0.0;/**< Q = \mathcal{E} - L^2 / (2 r_a^2) */
+#endif//USE_OSIPKOV_MERRITT_METHOD
   const double Ebin = (Emax - Emin) / (double)(NENEBIN - 1);
 
   double common = M_1_PI / CAST_R2D(newton);
@@ -805,7 +867,11 @@ void integrateEddingtonFormula(const int skind, profile **prf, dist_func **fene)
 #pragma omp for schedule(dynamic, 4)
     for(int ii = 0; ii < NENEBIN; ii++){
       const double ene = Emin + Ebin * (double)ii;
-      gaussQuad1dEddington(NINTBIN, 0.0, ene, skind, prf, sum, fm, fp);
+      gaussQuad1dEddington(NINTBIN, 0.0, ene, skind, prf, sum, fm, fp
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+			   , cfg
+#endif//USE_OSIPKOV_MERRITT_METHOD
+			   );
 
       for(int kk = 0; kk < skind; kk++){
 	fene[kk][ii].ene = CAST_D2R(ene);
@@ -838,6 +904,7 @@ void integrateEddingtonFormula(const int skind, profile **prf, dist_func **fene)
  *
  * @sa getDF
  */
+#ifndef USE_OSIPKOV_MERRITT_METHOD
 void gaussQuadVelocity(const int num, const double psi, const double vmin, const double vmax, dist_func *df, const double Emin, const double invEbin, double * restrict v2f, double * restrict v4f);
 void gaussQuadVelocity(const int num, const double psi, const double vmin, const double vmax, dist_func *df, const double Emin, const double invEbin, double * restrict v2f, double * restrict v4f)
 {
@@ -871,6 +938,40 @@ void gaussQuadVelocity(const int num, const double psi, const double vmin, const
   (*v2f) *= mns;
   (*v4f) *= mns;
 }
+#else///USE_OSIPKOV_MERRITT_METHOD
+void gaussQuadVelocity(const int num, const double psi, const double Emin, const double Emax, dist_func *df, const double Emin, const double invEbin, double * restrict v2f, double * restrict v4f)
+{
+  const double mns = 0.5 * (Emax - Emin);
+  const double pls = 0.5 * (Emax + Emin);
+
+  (*v2f) = (*v4f) = 0.0;
+
+  if( num & 1 ){
+    const double weight =             gsl_gaussQD_weight[(num >> 1)];
+    const double  value = pls + mns * gsl_gaussQD_pos   [(num >> 1)];
+
+    const double v2 = value * value;    const double v2df = v2 * getDF(psi - 0.5 * v2, df, Emin, invEbin);
+
+    (*v2f) = weight * v2df;
+    (*v4f) = weight * v2df * v2;
+  }/* if( num & 1 ){ */
+
+  for(int ii = (num >> 1) - 1; ii >= 0; ii--){
+    const double weight = gsl_gaussQD_weight[ii];
+    const double vp = pls + mns * gsl_gaussQD_pos[ii];
+    const double vm = pls - mns * gsl_gaussQD_pos[ii];
+
+    const double vp2 = vp * vp;    const double vp2df = vp2 * getDF(psi - 0.5 * vp2, df, Emin, invEbin);
+    const double vm2 = vm * vm;    const double vm2df = vm2 * getDF(psi - 0.5 * vm2, df, Emin, invEbin);
+
+    (*v2f) += weight * (      vp2df +       vm2df);
+    (*v4f) += weight * (vp2 * vp2df + vm2 * vm2df);
+  }/* for(int ii = (num >> 1) - 1; ii >= 0; ii--){ */
+
+  (*v2f) *= mns;
+  (*v4f) *= mns;
+}
+#endif//USE_OSIPKOV_MERRITT_METHOD
 
 
 /**
@@ -898,21 +999,31 @@ void calcVelocityDispersionProfile(const int skind, profile **prf, dist_func **d
 
 #pragma omp parallel for schedule(dynamic, 4)
   for(int ii = 0; ii < NRADBIN; ii += SKIP_INTERVAL_FOR_VELOCITY_DISPERSION){
+#ifndef USE_OSIPKOV_MERRITT_METHOD
     /** initialization */
     for(int kk = 0; kk < skind; kk++)
       prf[kk][ii].v2f = prf[kk][ii].v4f = 0.0;
+#endif//USE_OSIPKOV_MERRITT_METHOD
 
     const double psi = prf[0][ii].psi_tot;
     for(int kk = 0; kk < skind; kk++){
-      const double vesc = sqrt(2.0 * (psi - Emin[kk]));
-
+#ifndef USE_OSIPKOV_MERRITT_METHOD
       /** numerical quadrature of v2f and v4f in vel [0, vesc] */
       double v2f, v4f;
+      const double vesc = sqrt(2.0 * (psi - Emin[kk]));
       gaussQuadVelocity(NINTBIN, psi, 0.0, vesc, df[kk], Emin[kk], invEbin[kk], &v2f, &v4f);
 
       prf[kk][ii].sigr = sqrt(v4f / (3.0 * v2f));
       prf[kk][ii].v2f  = v2f;
       prf[kk][ii].v4f  = v4f;
+#else///USE_OSIPKOV_MERRITT_METHOD
+      /** numerical quadrature of sigr in Q [Emin, Psi] */
+
+
+      prf[kk][ii].sigr = hoge;
+
+
+#endif//USE_OSIPKOV_MERRITT_METHOD
     }/* for(int kk = 0; kk < skind; kk++){ */
   }/* for(int ii = 0; ii < NRADBIN; ii += SKIP_INTERVAL_FOR_VELOCITY_DISPERSION){ */
 
@@ -922,20 +1033,28 @@ void calcVelocityDispersionProfile(const int skind, profile **prf, dist_func **d
   for(int ii = 0; ii < NRADBIN - SKIP_INTERVAL_FOR_VELOCITY_DISPERSION; ii += SKIP_INTERVAL_FOR_VELOCITY_DISPERSION)
     for(int kk = 0; kk < skind; kk++){
       const double sigr0 = prf[kk][ii                                        ].sigr;
+#ifndef USE_OSIPKOV_MERRITT_METHOD
       const double  v2f0 = prf[kk][ii                                        ]. v2f;
       const double  v4f0 = prf[kk][ii                                        ]. v4f;
+#endif//USE_OSIPKOV_MERRITT_METHOD
       const double sigr1 = prf[kk][ii + SKIP_INTERVAL_FOR_VELOCITY_DISPERSION].sigr;
+#ifndef USE_OSIPKOV_MERRITT_METHOD
       const double  v2f1 = prf[kk][ii + SKIP_INTERVAL_FOR_VELOCITY_DISPERSION]. v2f;
       const double  v4f1 = prf[kk][ii + SKIP_INTERVAL_FOR_VELOCITY_DISPERSION]. v4f;
+#endif//USE_OSIPKOV_MERRITT_METHOD
 
       double sigr_slope = (sigr1 - sigr0) / (double)SKIP_INTERVAL_FOR_VELOCITY_DISPERSION;
+#ifndef USE_OSIPKOV_MERRITT_METHOD
       double  v2f_slope = ( v2f1 -  v2f0) / (double)SKIP_INTERVAL_FOR_VELOCITY_DISPERSION;
       double  v4f_slope = ( v4f1 -  v4f0) / (double)SKIP_INTERVAL_FOR_VELOCITY_DISPERSION;
+#endif//USE_OSIPKOV_MERRITT_METHOD
 
       for(int jj = 1; jj < SKIP_INTERVAL_FOR_VELOCITY_DISPERSION; jj++){
 	prf[kk][ii + jj].sigr = sigr0 + sigr_slope * (double)jj;
+#ifndef USE_OSIPKOV_MERRITT_METHOD
 	prf[kk][ii + jj]. v2f =  v2f0 +  v2f_slope * (double)jj;
 	prf[kk][ii + jj]. v4f =  v4f0 +  v4f_slope * (double)jj;
+#endif//USE_OSIPKOV_MERRITT_METHOD
       }/* for(int jj = 1; jj < SKIP_INTERVAL_FOR_VELOCITY_DISPERSION; jj++){ */
     }/* for(int kk = 0; kk < skind; kk++){ */
 #endif//SKIP_INTERVAL_FOR_VELOCITY_DISPERSION != 1

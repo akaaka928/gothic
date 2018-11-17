@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/08 (Fri)
+ * @date 2018/11/13 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1256,10 +1256,10 @@ void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg)
  */
 static inline void get_DEformula
 (const double tt, const double R2, const double zmax, const int skind, double ret[restrict], double * restrict xx, double * restrict yy, double * restrict y2
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
  , double v2f[restrict], double * restrict f2, double * restrict d2
  , double v4f[restrict], double * restrict f4, double * restrict d4
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 )
 {
   const double sinh_t = M_PI_2 * sinh(tt);
@@ -1273,10 +1273,10 @@ static inline void get_DEformula
 
   for(int kk = 0; kk < skind; kk++){
     ret[kk] += common * getCubicSpline1D(rr, NRADBIN, xx, &yy[kk * NRADBIN], &y2[kk * NRADBIN]);
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     v2f[kk] += common * getCubicSpline1D(rr, NRADBIN, xx, &f2[kk * NRADBIN], &d2[kk * NRADBIN]);
     v4f[kk] += common * getCubicSpline1D(rr, NRADBIN, xx, &f4[kk * NRADBIN], &d4[kk * NRADBIN]);
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
   }/* for(int ii = 0; ii < skind; ii++){ */
 
 }
@@ -1284,47 +1284,47 @@ static inline void get_DEformula
 
 static inline void update_trapezoidal
 (const double hh, const double tmin, const double tmax, const int skind, double sum[restrict], const double R2, const double zmax, double * restrict xx, double * restrict yy, double * restrict y2, double sub[restrict]
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
  , double v2f[restrict], double * restrict f2, double * restrict d2, double sub2[restrict]
  , double v4f[restrict], double * restrict f4, double * restrict d4, double sub4[restrict]
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 )
 {
   /** initialization */
   for(int kk = 0; kk < skind; kk++){
     sub[kk] = 0.0;
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     sub2[kk] = sub4[kk] = 0.0;
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
   }/* for(int kk = 0; kk < skind; kk++){ */
   double tt = tmin + hh;
 
   /** employ mid-point rule */
   while( tt < tmax ){
     get_DEformula(tt, R2, zmax, skind, sub, xx, yy, y2
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 		  , sub2, f2, d2, sub4, f4, d4
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 		  );
     tt += 2.0 * hh;
   }/* while( tt < tmax ){ */
 
   for(int kk = 0; kk < skind; kk++){
     sum[kk] = 0.5 * sum[kk] + hh * sub[kk];
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     v2f[kk] = 0.5 * v2f[kk] + hh * sub2[kk];
     v4f[kk] = 0.5 * v4f[kk] + hh * sub4[kk];
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
   }/* for(int kk = 0; kk < skind; kk++){ */
 }
 
 
 static inline void set_domain_boundary
 (const double hh, double * restrict tmin, double * restrict tmax, const double R2, const double zmax, const int skind, double sum[restrict], double * restrict xx, double * restrict yy, double * restrict y2, double fp[restrict], double ft[restrict], double f0[restrict]
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
  , double v2f[restrict], double * restrict f2, double * restrict d2, double v2fp[restrict], double v2ft[restrict], double v2f0[restrict]
  , double v4f[restrict], double * restrict f4, double * restrict d4, double v4fp[restrict], double v4ft[restrict], double v4f0[restrict]
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
  )
 {
   const double converge = 1.0e-16;
@@ -1333,26 +1333,26 @@ static inline void set_domain_boundary
   double tt = 0.0;
   for(int kk = 0; kk < skind; kk++){
     fp[kk] = 0.0;
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     v2fp[kk] = v4fp[kk] = 0.0;
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
   }/* for(int kk = 0; kk < skind; kk++){ */
   get_DEformula(tt, R2, zmax, skind, fp, xx, yy, y2
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 		, v2fp, f2, d2, v4fp, f4, d4
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 		);
   for(int kk = 0; kk < skind; kk++){
     const double tmp = fp[kk];
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     const double tmp2 = v2fp[kk];
     const double tmp4 = v4fp[kk];
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     f0[kk] = tmp;    sum[kk] = hh * tmp;
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     v2f0[kk] = tmp2;    v2f[kk] = hh * tmp2;
     v4f0[kk] = tmp4;    v4f[kk] = hh * tmp4;
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
   }/* for(int ii = 0; ii < skind; ii++){ */
 
 
@@ -1362,26 +1362,26 @@ static inline void set_domain_boundary
   while( (damp > converge) && (boundary < maximum) ){
     for(int kk = 0; kk < skind; kk++){
       ft[kk] = fp[kk];      fp[kk] = 0.0;
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       v2ft[kk] = v2fp[kk];      v2fp[kk] = 0.0;
       v4ft[kk] = v4fp[kk];      v4fp[kk] = 0.0;
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     }/* for(int kk = 0; kk < skind; kk++){ */
 
     tt += hh;    boundary = tt;
     get_DEformula(tt, R2, zmax, skind, fp, xx, yy, y2
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 		  , v2fp, f2, d2, v4fp, f4, d4
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 		  );
 
     damp = -1.0;
     for(int kk = 0; kk < skind; kk++){
       sum[kk] += hh * fp[kk];      damp = fmax(damp, fabs(ft[kk]) + fabs(fp[kk]));
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       v2f[kk] += hh * v2fp[kk];      damp = fmax(damp, fabs(v2ft[kk]) + fabs(v2fp[kk]));
       v4f[kk] += hh * v4fp[kk];      damp = fmax(damp, fabs(v4ft[kk]) + fabs(v4fp[kk]));
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     }/* for(int ii = 0; ii < skind; ii++){ */
 
   }/* while( (damp > converge) && (boundary < maximum) ){ */
@@ -1392,10 +1392,10 @@ static inline void set_domain_boundary
   const double RR = sqrt(R2);
   for(int kk = 0; kk < skind; kk++){
     fp[kk] = f0[kk];
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     v2fp[kk] = v2f0[kk];
     v4fp[kk] = v4f0[kk];
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
   }/* for(int kk = 0; kk < skind; kk++){ */
   tt = 0.0;
   boundary = 0.0;
@@ -1403,26 +1403,26 @@ static inline void set_domain_boundary
   while( (damp > converge) && (boundary > -maximum) ){
     for(int kk = 0; kk < skind; kk++){
       ft[kk] = fp[kk];      fp[kk] = 0.0;
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       v2ft[kk] = v2fp[kk];      v2fp[kk] = 0.0;
       v4ft[kk] = v4fp[kk];      v4fp[kk] = 0.0;
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     }/* for(int kk = 0; kk < skind; kk++){ */
 
     tt -= hh;    boundary = tt;
     get_DEformula(tt, R2, zmax, skind, fp, xx, yy, y2
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 		  , v2fp, f2, d2, v4fp, f4, d4
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 		  );
 
     damp = -1.0;
     for(int kk = 0; kk < skind; kk++){
       sum[kk] += hh * fp[kk];      damp = fmax(damp, fabs(ft[kk]) + fabs(fp[kk]));
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       v2f[kk] += hh * v2fp[kk];      damp = fmax(damp, fabs(v2ft[kk]) + fabs(v2fp[kk]));
       v4f[kk] += hh * v4fp[kk];      damp = fmax(damp, fabs(v4ft[kk]) + fabs(v4fp[kk]));
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     }/* for(int ii = 0; ii < skind; ii++){ */
 
     const double yy = M_PI_2 * sinh(tt);
@@ -1435,10 +1435,10 @@ static inline void set_domain_boundary
 
 static inline void integrate_DEformula
 (const double R2, const double zmax, const int skind, double sum[restrict], double * restrict xx, double * restrict yy, double * restrict y2, double sub[restrict], double ft[restrict], double f0[restrict]
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
  , double v2f[restrict], double * restrict f2, double * restrict d2, double v2fs[restrict], double v2ft[restrict], double v2f0[restrict]
  , double v4f[restrict], double * restrict f4, double * restrict d4, double v4fs[restrict], double v4ft[restrict], double v4f0[restrict]
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 )
 {
   const double criteria_abs = 1.0e-12;
@@ -1449,26 +1449,26 @@ static inline void integrate_DEformula
   double hh = 1.0;
   double tmin, tmax;
   set_domain_boundary(hh, &tmin, &tmax, R2, zmax, skind, sum, xx, yy, y2, sub, ft, f0
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 		      , v2f, f2, d2, v2fs, v2ft, v2f0, v4f, f4, d4, v4fs, v4ft, v4f0
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 		      );
 
 
   while( true ){
     for(int kk = 0; kk < skind; kk++){
       f0[kk] = sum[kk];
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       v2f0[kk] = v2f[kk];
       v4f0[kk] = v4f[kk];
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     }/* for(int kk = 0; kk < skind; kk++){ */
 
     hh *= 0.5;
     update_trapezoidal(hh, tmin, tmax, skind, sum, R2, zmax, xx, yy, y2, sub
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 		       , v2f, f2, d2, v2fs, v4f, f4, d4, v4fs
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 		       );
 
     bool converge = true;
@@ -1543,12 +1543,12 @@ void calcColumnDensityProfile(const int skind, profile **prf,
   double *bp;  bp = (double *)malloc(sizeof(double) * skind * NRADBIN);  if( bp == NULL ){    __KILL__(stderr, "ERROR: failure to allocate bp\n");  }
   double *yy;  yy = (double *)malloc(sizeof(double) * skind * NRADBIN);  if( yy == NULL ){    __KILL__(stderr, "ERROR: failure to allocate yy\n");  }
   double *y2;  y2 = (double *)malloc(sizeof(double) * skind * NRADBIN);  if( y2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate y2\n");  }
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
   double *f2;  f2 = (double *)malloc(sizeof(double) * skind * NRADBIN);  if( f2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate f2\n");  }
   double *d2;  d2 = (double *)malloc(sizeof(double) * skind * NRADBIN);  if( d2 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate d2\n");  }
   double *f4;  f4 = (double *)malloc(sizeof(double) * skind * NRADBIN);  if( f4 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate f4\n");  }
   double *d4;  d4 = (double *)malloc(sizeof(double) * skind * NRADBIN);  if( d4 == NULL ){    __KILL__(stderr, "ERROR: failure to allocate d4\n");  }
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 
 #pragma omp parallel for
   for(int ii = 0; ii < NRADBIN; ii++)
@@ -1558,20 +1558,20 @@ void calcColumnDensityProfile(const int skind, profile **prf,
 #pragma omp parallel for
     for(int ii = 0; ii < NRADBIN; ii++){
       yy[ii + kk * NRADBIN] = prf[kk][ii].rho;
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       f2[ii + kk * NRADBIN] = prf[kk][ii].v2f;
       f4[ii + kk * NRADBIN] = prf[kk][ii].v4f;
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
   /** execute cubic spline interpolation */
 #pragma omp parallel for
   for(int kk = 0; kk < skind; kk++){
     genCubicSpline1D(NRADBIN, xx, &yy[kk * NRADBIN], bp, NATURAL_CUBIC_SPLINE, NATURAL_CUBIC_SPLINE, &y2[kk * NRADBIN]);
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     genCubicSpline1D(NRADBIN, xx, &f2[kk * NRADBIN], bp, NATURAL_CUBIC_SPLINE, NATURAL_CUBIC_SPLINE, &d2[kk * NRADBIN]);
     genCubicSpline1D(NRADBIN, xx, &f4[kk * NRADBIN], bp, NATURAL_CUBIC_SPLINE, NATURAL_CUBIC_SPLINE, &d4[kk * NRADBIN]);
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
   }/* for(int kk = 0; kk < skind; kk++){ */
 
 
@@ -1584,10 +1584,10 @@ void calcColumnDensityProfile(const int skind, profile **prf,
 #pragma omp parallel
   {
     double Sig[NKIND_MAX], Sig0[NKIND_MAX], Sig1[NKIND_MAX], Sig2[NKIND_MAX];
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     double v2f[NKIND_MAX], v2f0[NKIND_MAX], v2f1[NKIND_MAX], v2f2[NKIND_MAX];
     double v4f[NKIND_MAX], v4f0[NKIND_MAX], v4f1[NKIND_MAX], v4f2[NKIND_MAX];
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 
 #pragma omp for schedule(dynamic, 8) nowait
     for(int ii = 0; ii < iout + 1; ii += SKIP_INTERVAL_FOR_COLUMN_DENSITY){
@@ -1596,17 +1596,17 @@ void calcColumnDensityProfile(const int skind, profile **prf,
 
       /* call DE formula */
       integrate_DEformula(R2, zmax, skind, Sig, xx, yy, y2, Sig0, Sig1, Sig2
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			  , v2f, f2, d2, v2f0, v2f1, v2f2
 			  , v4f, f4, d4, v4f0, v4f1, v4f2
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			  );
 
       for(int kk = 0; kk < skind; kk++){
 	prf[kk][ii].Sigma = M_PI_2 * zmax * Sig[kk];
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 	prf[kk][ii].slos  = sqrt(v4f[kk] / (DBL_MIN + 3.0 * v2f[kk]));
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       }/* for(int kk = 0; kk < skind; kk++){ */
 
     }/* for(int ii = 0; ii < iout + 1; ii += SKIP_INTERVAL_FOR_COLUMN_DENSITY){ */
@@ -1641,17 +1641,17 @@ void calcColumnDensityProfile(const int skind, profile **prf,
 	const double S0 = prf[kk][ii                                   ].Sigma;
 	const double S1 = prf[kk][ii + SKIP_INTERVAL_FOR_COLUMN_DENSITY].Sigma;
 	const double Slope = (S1 - S0) / (double)SKIP_INTERVAL_FOR_COLUMN_DENSITY;
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 	const double s0 = prf[kk][ii                                   ].slos;
 	const double s1 = prf[kk][ii + SKIP_INTERVAL_FOR_COLUMN_DENSITY].slos;
 	const double slope = (s1 - s0) / (double)SKIP_INTERVAL_FOR_COLUMN_DENSITY;
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 
 	for(int jj = 1; jj < SKIP_INTERVAL_FOR_COLUMN_DENSITY; jj++){
 	  prf[kk][ii + jj].Sigma = S0 + Slope * (double)jj;
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 	  prf[kk][ii + jj].slos  = s0 + slope * (double)jj;
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 	}/* for(int jj = 1; jj < SKIP_INTERVAL_FOR_COLUMN_DENSITY; jj++){ */
       }/* for(int ii = 0; ii < iout + 1; ii += SKIP_INTERVAL_FOR_COLUMN_DENSITY){ */
 
@@ -1662,10 +1662,10 @@ void calcColumnDensityProfile(const int skind, profile **prf,
 
   free(xx);  free(bp);
   free(yy);  free(y2);
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
   free(f2);  free(d2);
   free(f4);  free(d4);
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 
 
   __NOTE__("%s\n", "end");
@@ -1725,9 +1725,9 @@ static inline void findIdx(const double rad, profile * restrict prf, int * restr
  */
 static inline void getInterpolatedDensity
 (const double RR, const double zz, const int skind, profile * restrict * prf, double * restrict val
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
  , double * restrict v2f, double * restrict v4f
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
  )
 {
   const double rad = sqrt(RR * RR + zz * zz);
@@ -1740,10 +1740,10 @@ static inline void getInterpolatedDensity
 
   for(int kk = 0; kk < skind; kk++){
     val[kk] = (1.0 - alpha) * prf[kk][ll].rho + alpha * prf[kk][rr].rho;
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     v2f[kk] = (1.0 - alpha) * prf[kk][ll].v2f + alpha * prf[kk][rr].v2f;
     v4f[kk] = (1.0 - alpha) * prf[kk][ll].v4f + alpha * prf[kk][rr].v4f;
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
   }/* for(int kk = 0; kk < skind; kk++){ */
 }
 
@@ -1772,17 +1772,17 @@ static inline void getInterpolatedDensity
  */
 void gaussQuadVertical
 (const double RR, const int num, const double zmin, const double zmax, const int skind, profile * restrict * prf, double * restrict sum, double * restrict fm, double * restrict fp
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
  , double * restrict v2f, double * restrict v2fm, double * restrict v2fp
  , double * restrict v4f, double * restrict v4fm, double * restrict v4fp
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
  );
 void gaussQuadVertical
 (const double RR, const int num, const double zmin, const double zmax, const int skind, profile * restrict * prf, double * restrict sum, double * restrict fm, double * restrict fp
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
  , double * restrict v2f, double * restrict v2fm, double * restrict v2fp
  , double * restrict v4f, double * restrict v4fm, double * restrict v4fp
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
  )
 {
   const double mns = 0.5 * (zmax - zmin);
@@ -1790,25 +1790,25 @@ void gaussQuadVertical
 
   for(int kk = 0; kk < skind; kk++){
     sum[kk] = 0.0;
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     v2f[kk] = v4f[kk] = 0.0;
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
   }/* for(int kk = 0; kk < skind; kk++){ */
 
   if( num & 1 ){
     const double weight =             gsl_gaussQD_weight[(num >> 1)];
     const double  value = pls + mns * gsl_gaussQD_pos   [(num >> 1)];
     getInterpolatedDensity(RR, value, skind, prf, fm
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			   , v2fm, v4fm
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			   );
     for(int kk = 0; kk < skind; kk++){
       sum[kk] = weight * fm[kk];
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       v2f[kk] = weight * v2fm[kk];
       v4f[kk] = weight * v4fm[kk];
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     }/* for(int kk = 0; kk < skind; kk++){ */
   }/* if( num & 1 ){ */
 
@@ -1817,31 +1817,31 @@ void gaussQuadVertical
     const double zp = pls + mns * gsl_gaussQD_pos[ii];
     const double zm = pls - mns * gsl_gaussQD_pos[ii];
     getInterpolatedDensity(RR, zp, skind, prf, fp
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			   , v2fp, v4fp
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			   );
     getInterpolatedDensity(RR, zm, skind, prf, fm
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			   , v2fm, v4fm
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			   );
 
     for(int kk = 0; kk < skind; kk++){
       sum[kk] += weight * (fm[kk] + fp[kk]);
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       v2f[kk] += weight * (v2fm[kk] + v2fp[kk]);
       v4f[kk] += weight * (v4fm[kk] + v4fp[kk]);
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     }/* for(int kk = 0; kk < skind; kk++){ */
   }/* for(int ii = (num >> 1) - 1; ii >= 0; ii--){ */
 
   for(int kk = 0; kk < skind; kk++){
     sum[kk] *= mns;
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     v2f[kk] *= mns;
     v4f[kk] *= mns;
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
   }/* for(int kk = 0; kk < skind; kk++){ */
 }
 
@@ -1874,7 +1874,7 @@ void calcColumnDensityProfile(const int skind, profile **prf, const double logrm
     double *tfp;    tfp = (double *)malloc(skind * sizeof(double));    if( tfp == NULL ){      __KILL__(stderr, "ERROR: failure to allocate tfp\n");    }
     double *tfm;    tfm = (double *)malloc(skind * sizeof(double));    if( tfm == NULL ){      __KILL__(stderr, "ERROR: failure to allocate tfm\n");    }
 
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     double *v2f;    v2f = (double *)malloc(skind * sizeof(double));    if( v2f == NULL ){      __KILL__(stderr, "ERROR: failure to allocate v2f\n");    }
     double *v2p;    v2p = (double *)malloc(skind * sizeof(double));    if( v2p == NULL ){      __KILL__(stderr, "ERROR: failure to allocate v2p\n");    }
     double *v2m;    v2m = (double *)malloc(skind * sizeof(double));    if( v2m == NULL ){      __KILL__(stderr, "ERROR: failure to allocate v2m\n");    }
@@ -1885,16 +1885,16 @@ void calcColumnDensityProfile(const int skind, profile **prf, const double logrm
 
     double *numer;    numer = (double *)malloc(skind * sizeof(double));    if( numer == NULL ){      __KILL__(stderr, "ERROR: failure to allocate numer\n");    }
     double *denom;    denom = (double *)malloc(skind * sizeof(double));    if( denom == NULL ){      __KILL__(stderr, "ERROR: failure to allocate denom\n");    }
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 
 #pragma omp for schedule(dynamic, 8) nowait
     for(int ii = 0; ii < NRADBIN; ii += SKIP_INTERVAL_FOR_COLUMN_DENSITY){
       /** initialization */
       for(int kk = 0; kk < skind; kk++){
 	prf[kk][ii].Sigma = 0.0;
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 	numer[kk] = denom[kk] = 0.0;
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       }/* for(int kk = 0; kk < skind; kk++){ */
 
       const double RR = prf[0][ii].rad;
@@ -1903,98 +1903,98 @@ void calcColumnDensityProfile(const int skind, profile **prf, const double logrm
       const double R1 = 0.5 * (R0 + R2);
 
       gaussQuadVertical(RR, NINTBIN,  0.0     ,          R0, skind, prf, sum, tfm, tfp
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			, v2f, v2m, v2p, v4f, v4m, v4p
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			);
       for(int kk = 0; kk < skind; kk++){
 	prf[kk][ii].Sigma += sum[kk];
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 	numer[kk] += v4f[kk];
 	denom[kk] += v2f[kk];
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       }/* for(int kk = 0; kk < skind; kk++){ */
 
       gaussQuadVertical(RR, NINTBIN,	    R0,		 R1, skind, prf, sum, tfm, tfp
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			, v2f, v2m, v2p, v4f, v4m, v4p
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			);
       for(int kk = 0; kk < skind; kk++){
 	prf[kk][ii].Sigma += sum[kk];
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 	numer[kk] += v4f[kk];
 	denom[kk] += v2f[kk];
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       }/* for(int kk = 0; kk < skind; kk++){ */
 
       gaussQuadVertical(RR, NINTBIN,	    R1,		 R2, skind, prf, sum, tfm, tfp
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			, v2f, v2m, v2p, v4f, v4m, v4p
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			);
       for(int kk = 0; kk < skind; kk++){
 	prf[kk][ii].Sigma += sum[kk];
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 	numer[kk] += v4f[kk];
 	denom[kk] += v2f[kk];
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       }/* for(int kk = 0; kk < skind; kk++){ */
 
       gaussQuadVertical(RR, NINTBIN,	    R2,	 2.0 *	 R2, skind, prf, sum, tfm, tfp
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			, v2f, v2m, v2p, v4f, v4m, v4p
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			);
       for(int kk = 0; kk < skind; kk++){
 	prf[kk][ii].Sigma += sum[kk];
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 	numer[kk] += v4f[kk];
 	denom[kk] += v2f[kk];
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       }/* for(int kk = 0; kk < skind; kk++){ */
 
       gaussQuadVertical(RR, NINTBIN,  2.0 * R2, 10.0 *	 R2, skind, prf, sum, tfm, tfp
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			, v2f, v2m, v2p, v4f, v4m, v4p
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			);
       for(int kk = 0; kk < skind; kk++){
 	prf[kk][ii].Sigma += sum[kk];
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 	numer[kk] += v4f[kk];
 	denom[kk] += v2f[kk];
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       }/* for(int kk = 0; kk < skind; kk++){ */
 
       gaussQuadVertical(RR, NINTBIN, 10.0 * R2,	 2.0 * Rmax, skind, prf, sum, tfm, tfp
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			, v2f, v2m, v2p, v4f, v4m, v4p
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 			);
       for(int kk = 0; kk < skind; kk++){
 	prf[kk][ii].Sigma += sum[kk];
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 	numer[kk] += v4f[kk];
 	denom[kk] += v2f[kk];
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       }/* for(int kk = 0; kk < skind; kk++){ */
 
 
       for(int kk = 0; kk < skind; kk++){
 	prf[kk][ii].Sigma *= 2.0;
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 	prf[kk][ii].slos = sqrt(numer[kk] / (3.0 * denom[kk]));
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       }/* for(int kk = 0; kk < skind; kk++){ */
     }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
     free(sum);    free(tfp);    free(tfm);
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     free(v2f);    free(v2p);    free(v2m);
     free(v4f);    free(v4p);    free(v4m);
     free(numer);    free(denom);
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
   }
 
 #   if  SKIP_INTERVAL_FOR_COLUMN_DENSITY != 1
@@ -2003,18 +2003,18 @@ void calcColumnDensityProfile(const int skind, profile **prf, const double logrm
     for(int kk = 0; kk < skind; kk++){
       const double S0 = prf[kk][ii                                   ].Sigma;
       const double S1 = prf[kk][ii + SKIP_INTERVAL_FOR_COLUMN_DENSITY].Sigma;
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       const double s0 = prf[kk][ii                                   ].slos;
       const double s1 = prf[kk][ii + SKIP_INTERVAL_FOR_COLUMN_DENSITY].slos;
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 
       double Slope = (S1 - S0) / (double)SKIP_INTERVAL_FOR_COLUMN_DENSITY;
       double slope = (s1 - s0) / (double)SKIP_INTERVAL_FOR_COLUMN_DENSITY;
       for(int jj = 1; jj < SKIP_INTERVAL_FOR_COLUMN_DENSITY; jj++){
 	prf[kk][ii + jj].Sigma = S0 + Slope * (double)jj;
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 	prf[kk][ii + jj].slos  = s0 + slope * (double)jj;
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       }/* for(int jj = 1; jj < SKIP_INTERVAL_FOR_COLUMN_DENSITY; jj++){ */
     }/* for(int kk = 0; kk < skind; kk++){ */
 #endif//SKIP_INTERVAL_FOR_COLUMN_DENSITY != 1

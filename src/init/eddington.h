@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/08 (Fri)
+ * @date 2018/11/13 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -73,9 +73,9 @@ static inline double getDF(const double ene, dist_func *df, const double Emin, c
 
 /* list of functions appeared in ``eddington.c'' */
 void integrateEddingtonFormula(const int skind, profile **prf,
-#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+#   if  defined(ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF) || defined(USE_OSIPKOV_MERRITT_METHOD)
 			       profile_cfg *cfg,
-#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+#endif//defined(ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF) || defined(USE_OSIPKOV_MERRITT_METHOD)
 			       dist_func **fene);
 
 #ifdef  MAKE_VELOCITY_DISPERSION_PROFILE

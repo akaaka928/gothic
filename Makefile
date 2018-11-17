@@ -58,6 +58,7 @@ USE_LIS_FOR_MAGI	:= 1
 SET_EXTERNAL_FIELD	:= 0
 SET_EXTERNAL_FIELD_DISK	:= 1
 ADAPTIVE_EXTERNAL_FIELD	:= 0
+USE_OSIPKOV_MERRITT	:= 1
 USE_ZH78_RETROGRADING	:= 0
 #################################################################################################
 # Debugging options
@@ -380,6 +381,10 @@ endif
 ifeq ($(ADAPTIVE_EXTERNAL_FIELD), 1)
 CCARG	+= -DADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 CUARG	+= -DADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
+endif
+#################################################################################################
+ifeq ($(USE_OSIPKOV_MERRITT), 1)
+CCARG	+= -DUSE_OSIPKOV_MERRITT_METHOD
 endif
 #################################################################################################
 ifeq ($(USE_ZH78_RETROGRADING), 1)

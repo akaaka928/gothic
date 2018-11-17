@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/07/14 (Sat)
+ * @date 2018/11/13 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -146,6 +146,31 @@ static inline void isotropicDistribution(const real rad, real *vecx, real *vecy,
   *vecx = Rproj * COS(theta);
   *vecy = Rproj * SIN(theta);
 }
+
+
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+static inline void anisotropicDistribution(const real rr, const real vr, const real vt, real *xx, real *yy, real *zz, real *vx, real *vy, real *vz, rand_state *rand)
+{
+  const real theta =       CAST_D2R(M_PI) * UNIRAND(rand);
+  const real   phi = TWO * CAST_D2R(M_PI) * UNIRAND(rand);
+
+  const real sint = SIN(theta);
+  const real cost = COS(theta);
+  const real sinp = SIN(phi);
+  const real cosp = COS(phi);
+
+  *xx = rr * sint * cosp;
+  *yy = rr * sint * sinp;
+  *zz = rr * cost;
+
+  const real eta = TWO * CAST_D2R(M_PI) * UNIRAND(rand);
+  const real vtheta = vt * COS(eta);
+  const real vphi   = vt * SIN(eta);
+  *vx = vr * sint * cosp + vtheta * cost * cosp - vphi * sinp;
+  *vy = vr * sint * sinp + vtheta * cost * sinp + vphi * cosp;
+  *vz = vr * cost        - vtheta * sint;
+}
+#endif//USE_OSIPKOV_MERRITT_METHOD
 
 
 #   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
@@ -523,6 +548,9 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 
   const double Mmax = cfg.Mtot;
   const double Mmin = prf[0].enc;
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+  const double ra2inv = cfg.ra2inv;
+#endif//USE_OSIPKOV_MERRITT_METHOD
 
 #if 0
 #pragma omp single
@@ -556,7 +584,9 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 
     const double alpha = (tmp - prf[ll].enc) / (prf[rr].enc - prf[ll].enc);
     const double rad = (1.0 - alpha) * prf[ll].rad + alpha * prf[rr].rad;
+#ifndef USE_OSIPKOV_MERRITT_METHOD
     isotropicDistribution(CAST_D2R(rad), &(body.pos[ii].x), &(body.pos[ii].y), &(body.pos[ii].z), rand);
+#endif//USE_OSIPKOV_MERRITT_METHOD
 
 #if 0
     __FPRINTF__(stderr, "ii = %zu, rad = %e\n", ii, rad);
@@ -574,17 +604,36 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 #endif//NDEBUG
 
     const double v2Fmax = vesc * vesc * getDF(psi, df, Emin, invEbin);
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+    const double r2_ra2 = rad * rad * ra2inv;
+    double vr, vt;
+#else///USE_OSIPKOV_MERRITT_METHOD
     double vel;
+#endif//USE_OSIPKOV_MERRITT_METHOD
     while( true ){
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+      double ene, v2;
+      while( true ){
+	vr = vesc * UNIRAND_DBL(rand);
+	vt = vesc * UNIRAND_DBL(rand);
+	const double vt2 = vt * vt;
+	v2 = vr * vr + vt2;
+	ene = psi - 0.5 * (v2 + vt2 * r2_ra2);
+	if( ene >= Emin )
+	  break;
+      }/* while( true ){ */
+#else///USE_OSIPKOV_MERRITT_METHOD
       vel = vesc * UNIRAND_DBL(rand);
+      const double v2 = vel * vel;
+      const double ene = psi - 0.5 * v2;
+#endif//USE_OSIPKOV_MERRITT_METHOD
 
-      const double ene = psi - 0.5 * vel * vel;
 #ifndef NDEBUG
       if( fpclassify(ene) != FP_NORMAL ){
-	__FPRINTF__(stderr, "ene = %e, psi = %e, vel = %e\n", ene, psi, vel);
+	__FPRINTF__(stderr, "ene = %e, psi = %e, vel = %e\n", ene, psi, sqrt(v2));
       }/* if( fpclassify(ene) != FP_NORMAL ){ */
 #endif//NDEBUG
-      const double val = vel * vel * getDF(ene, df, Emin, invEbin);
+      const double val = v2 * getDF(ene, df, Emin, invEbin);
       const double try = v2Fmax * UNIRAND_DBL(rand);
 
       if( val > try )	break;
@@ -595,11 +644,19 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 #endif
 
 
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+#ifdef  BLOCK_TIME_STEP
+    anisotropicDistribution(CAST_D2R(rad), CAST_D2R(vr), CAST_D2R(vt), &(body.pos[ii].x), &(body.pos[ii].y), &(body.pos[ii].z), &(body.vel[ii].x), &(body.vel[ii].y), &(body.vel[ii].z), rand);
+#else///BLOCK_TIME_STEP
+    anisotropicDistribution(CAST_D2R(rad), CAST_D2R(vr), CAST_D2R(vt), &(body.pos[ii].x), &(body.pos[ii].y), &(body.pos[ii].z), &(body.vx[ii]), &(body.vy[ii]), &(body.vz[ii]), rand);
+#endif//BLOCK_TIME_STEP
+#else///USE_OSIPKOV_MERRITT_METHOD
 #ifdef  BLOCK_TIME_STEP
     isotropicDistribution(CAST_D2R(vel), &(body.vel[ii].x), &(body.vel[ii].y), &(body.vel[ii].z), rand);
 #else///BLOCK_TIME_STEP
     isotropicDistribution(CAST_D2R(vel), &(body.vx[ii]), &(body.vy[ii]), &(body.vz[ii]), rand);
 #endif//BLOCK_TIME_STEP
+#endif//USE_OSIPKOV_MERRITT_METHOD
 
     body.acc[ii].x   = body.acc[ii].y = body.acc[ii].z = ZERO;
     body.pos[ii].m   = mass;
@@ -957,9 +1014,9 @@ int main(int argc, char **argv)
   for(int ii = 0; ii < nsphere; ii++)
     fene[ii] = _fene + ii * NENEBIN;
   integrateEddingtonFormula(nsphere, prf,
-#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+#   if  defined(ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF) || defined(USE_OSIPKOV_MERRITT_METHOD)
 			    cfg,
-#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+#endif//defined(ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF) || defined(USE_OSIPKOV_MERRITT_METHOD)
 			    fene);
   stopBenchmark_cpu(&execTime.eddington);
 

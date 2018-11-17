@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/02/12 (Mon)
+ * @date 2018/11/13 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -133,14 +133,19 @@ typedef struct
   double rho_tot, enc_tot, psi_tot;
   double drho_dr, d2rho_dr2;
 #ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#ifndef USE_OSIPKOV_MERRITT_METHOD
   double v2f, v4f;/**< integral of v^2 f and v^4 f */
+#else///USE_OSIPKOV_MERRITT_METHOD
+  double sigt;/**< velocity dispersion in the tangential direction */
+  double bet;/**< anisotropic parameter beta */
+#endif//USE_OSIPKOV_MERRITT_METHOD
   double sigr;/**< velocity dispersion in the radial direction */
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   double Sigma;
-#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
   double slos;/**< velocity dispersion along the line-of-sight */
-#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 #endif//MAKE_COLUMN_DENSITY_PROFILE
 } profile;
 
@@ -155,6 +160,10 @@ typedef struct
   char file[128];
   char table[128];/**< parameter for reading density profile in table form */
   double Mtot, rs;/**< parameters for all profiles */
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+  double ra;/**< parameter to set an anisotropy radius */
+  double ra2inv;/**< inverse of squared anisotropy radius */
+#endif//USE_OSIPKOV_MERRITT_METHOD
   double rho0;/**< parameter to set a fixed potential field */
   double einasto_alpha;/**< parameter for Einasto profile */
   double king_W0, king_rt, king_c;/**< parameter for King sphere */
