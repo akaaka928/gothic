@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/05 (Tue)
+ * @date 2018/11/21 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -475,9 +475,9 @@
  */
 typedef struct
 {
-  int *more0, *more1;
-  real *rjmax;
   size_t Nbuf;
+  real *rjmax;
+  int *more0, *more1;
   int *fail;
   int *gsync0, *gsync1;
   int *gmem_make_tree, *gmem_link_tree;
@@ -485,13 +485,13 @@ typedef struct
   int *gsync0_link_tree, *gsync1_link_tree;
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 #   if  defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
-  int  *ibuf_external;
   real *rbuf_external;
+  int  *ibuf_external;
 #else///defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
   uint *ubuf_external;
 #endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
-  int *gmem_external, *gsync0_external, *gsync1_external;
   size_t Nbuf_external;
+  int *gmem_external, *gsync0_external, *gsync1_external;
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 #ifdef  USE_OCCUPANCY_CALCULATOR
   int numBlocksPerSM_mac;
@@ -524,10 +524,10 @@ extern "C"
    );
 
   muse allocTreeNode_dev
-  (soaTreeNode *dev, uint **more_dev, jparticle **pj_dev, jmass **mj_dev, real **bmax_dev, int **n2c_dev, int **gsync0, int **gsync1, deviceProp devProp,
-#       ifdef  WS93_MAC
+  (soaTreeNode *dev, uint **more_dev, jparticle **pj_dev, jmass **mj_dev, real **bmax_dev, int **n2c_dev, int **gsync0, int **gsync1,
+#ifdef  WS93_MAC
    real **mr2_dev,
-#       endif//WS93_MAC
+#endif//WS93_MAC
 #   if  !defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
    soaTreeNode *hst, uint **more_hst, jparticle **pj_hst, jmass **mj_hst,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(MPI_VIA_HOST)
@@ -539,7 +539,7 @@ extern "C"
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
    int **gmem_external, int **gsync0_external, int **gsync1_external, float **diameter_dev, float **diameter_hst, domainLocation *location, const float eps, const float eta,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-   int **more0Buf, int **more1Buf, real **rjmaxBuf, int **fail_dev, soaMakeTreeBuf *buf);
+   int **more0Buf, int **more1Buf, real **rjmaxBuf, int **fail_dev, soaMakeTreeBuf *buf, const deviceProp devProp);
 
   void  freeTreeNode_dev
   (uint  *more_dev, jparticle  *pj_dev, jmass  *mj_dev, real  *bmax_dev, int  *n2c_dev, int  *gsync0, int  *gsync1,

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/11/13 (Tue)
+ * @date 2018/11/22 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -997,8 +997,13 @@ static inline void writeProfileCfgFormat(char *filename, const profile_cfg cfg)
   fprintf(stderr, "ERROR: data written in \"%s\" does not match with format of specified model id \"%d\"\n", filename, cfg.kind);
   fprintf(stderr, "Expected format is below:\n");
   fprintf(stderr, "\tMtot<real>: total mass of the model in astrophysical units\n");
-  if( cfg.kind != CENTRALBH )
+  if( cfg.kind != CENTRALBH ){
     fprintf(stderr, "\trs<real>: scale length of the model in astrophysical units\n");
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+    if( (cfg.kind != EXP_DISK) && (cfg.kind != SERSIC) && (cfg.kind != TBL_DISK) )
+      fprintf(stderr, "\tra<real>: anisotropy radius of the model in astrophysical units (set 10000 rs as ra when a negative value is specified)\n");
+#endif//USE_OSIPKOV_MERRITT_METHOD
+  }/* if( cfg.kind != CENTRALBH ){ */
 
   /** some models require more information */
   if( cfg.kind == KING )
@@ -1127,6 +1132,16 @@ void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg)
     checker &= (1 == fscanf(fp, "%le", &(*cfg)[ii].Mtot));    (*cfg)[ii].Mtot *= mass_astro2com;
     if( (*cfg)[ii].kind != CENTRALBH ){
       checker &= (1 == fscanf(fp, "%le", &(*cfg)[ii].rs));      (*cfg)[ii].rs *= length_astro2com;
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+      if( ((*cfg)[ii].kind != EXP_DISK) && ((*cfg)[ii].kind != SERSIC) && ((*cfg)[ii].kind != TBL_DISK) ){
+	(*cfg)[ii].ra = -1.0;
+	checker &= (1 == fscanf(fp, "%le", &(*cfg)[ii].ra));
+	(*cfg)[ii].ra *= length_astro2com;
+	if( (*cfg)[ii].ra <= 0.0 )
+	  (*cfg)[ii].ra  = 10000.0 * (*cfg)[ii].rs;
+	(*cfg)[ii].ra2inv = 1.0 / (DBL_MIN + (*cfg)[ii].ra * (*cfg)[ii].ra);
+      }/* if( ((*cfg)[ii].kind != EXP_DISK) && ((*cfg)[ii].kind != SERSIC) && ((*cfg)[ii].kind != TBL_DISK) ){ */
+#endif//USE_OSIPKOV_MERRITT_METHOD
     }/* if( (*cfg)[ii].kind != CENTRALBH ){ */
     else
       if( ((*cfg)[ii].forceNum != 1) || ((*cfg)[ii].num != 1) ){
@@ -1483,6 +1498,7 @@ static inline void integrate_DEformula
 	    converge = false;
       }
 
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       if( converge ){
 	if( fabs(v2f[kk]) > DBL_EPSILON ){
 	  if( fabs(1.0 - v2f0[kk] / v2f[kk]) > criteria_rel )
@@ -1502,6 +1518,7 @@ static inline void integrate_DEformula
 	  if( fabs(v4f[kk] - v4f0[kk]) > criteria_abs )
 	    converge = false;
       }
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
     }/* for(int kk = 0; kk < skind; kk++){ */
 
     if( converge )
@@ -2009,7 +2026,9 @@ void calcColumnDensityProfile(const int skind, profile **prf, const double logrm
 #endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 
       double Slope = (S1 - S0) / (double)SKIP_INTERVAL_FOR_COLUMN_DENSITY;
+#   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       double slope = (s1 - s0) / (double)SKIP_INTERVAL_FOR_COLUMN_DENSITY;
+#endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
       for(int jj = 1; jj < SKIP_INTERVAL_FOR_COLUMN_DENSITY; jj++){
 	prf[kk][ii + jj].Sigma = S0 + Slope * (double)jj;
 #   if  defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)

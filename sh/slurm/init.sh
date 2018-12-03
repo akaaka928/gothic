@@ -14,8 +14,11 @@ EXEC=bin/magi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=2
+    # PROBLEM=2
+    # PROBLEM=3
+    PROBLEM=10
     # PROBLEM=14
+    # PROBLEM=15
     # PROBLEM=21
     # PROBLEM=23
     # PROBLEM=26
@@ -56,6 +59,7 @@ if [ -z "$NTOT" ]; then
     # NTOT=262144
     # NTOT=524288
     # NTOT=1048576
+    # NTOT=1900000
     # NTOT=2097152
     # NTOT=4194304
     # NTOT=8388608
@@ -108,7 +112,8 @@ fi
 # dynamical stability of a Hernquist sphere
 if [ $PROBLEM -eq 2 ]; then
     FILE=hernquist
-    CONFIG=single/hernquist.cfg
+    # CONFIG=single/hernquist.cfg
+    CONFIG=anisotropy/hernquist_beta.cfg
     EPS=1.5625e-2
     ETA=0.5
     FINISH=23.5
@@ -118,7 +123,8 @@ fi
 # dynamical stability of an NFW sphere with small truncation radius
 if [ $PROBLEM -eq 3 ]; then
     FILE=nfw
-    CONFIG=single/nfw.cfg
+    # CONFIG=single/nfw.cfg
+    CONFIG=anisotropy/nfw_beta.cfg
     EPS=1.5625e-2
     ETA=0.5
     FINISH=23.5
@@ -178,7 +184,8 @@ fi
 # dynamical stability of a King sphere within an Einasto profile
 if [ $PROBLEM -eq 10 ]; then
     FILE=hb
-    CONFIG=multi/hb.cfg
+    # CONFIG=multi/hb.cfg
+    CONFIG=anisotropy/hb_beta.cfg
     EPS=1.5625e-2
     ETA=0.5
     FINISH=23.5
@@ -230,6 +237,16 @@ if [ $PROBLEM -eq 14 ]; then
     FINISH=104.0
     INTERVAL=8.0
     NTOT=600034
+fi
+###############################################################
+# dynamical stability of a Hernquist bulge with a central MBH
+if [ $PROBLEM -eq 15 ]; then
+    FILE=hernquist_bh
+    CONFIG=anisotropy/hernquist_beta_bh.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=23.5
+    INTERVAL=0.5
 fi
 ###############################################################
 # dynamical stability of an M31 model determined by Fardal et al. (2007)

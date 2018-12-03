@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/24 (Thu)
+ * @date 2018/11/21 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -642,6 +642,7 @@ muse allocPeanoHilbertKey_dev
 #ifdef  USE_OCCUPANCY_CALCULATOR
   checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&dev->numBlocksPerSM_peano, calcPHkey_kernel, NTHREADS_PH, 0));
   const int NBLOCKS_PER_SM_PH = dev->numBlocksPerSM_peano;
+  __NOTE__("NBLOCKS_PER_SM_PH = %d\n", NBLOCKS_PER_SM_PH);
 #endif//USE_OCCUPANCY_CALCULATOR
 
   /** Peano--Hilbert key of N-body particles */
@@ -665,6 +666,7 @@ muse allocPeanoHilbertKey_dev
 #else///SERIALIZED_EXECUTION
 #ifdef  USE_OCCUPANCY_CALCULATOR
   const int NBLOCKS_PER_SM_BOX = dev->numBlocksPerSM_box;
+  __NOTE__("num_ph = %zu, devProp.numSM = %d, NBLOCKS_PER_SM_PH = %d, dev->numBlocksPerSM_peano = %d\n", num_ph, devProp.numSM, NBLOCKS_PER_SM_PH, dev->numBlocksPerSM_peano);
 #endif//USE_OCCUPANCY_CALCULATOR
   const size_t num_ph = devProp.numSM * ((NBLOCKS_PER_SM_PH > NBLOCKS_PER_SM_BOX) ? (NBLOCKS_PER_SM_PH) : (NBLOCKS_PER_SM_BOX));
   mycudaMalloc    ((void **)box_min, sizeof(float4));  alloc.device += sizeof(float4);  dev->box_min = *box_min;

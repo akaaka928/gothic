@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/11/13 (Tue)
+ * @date 2018/11/27 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -24,6 +24,9 @@
 
 
 /* #define ADOPT_DOUBLE_EXPONENTIAL_FORMULA */
+#   if  defined(USE_OSIPKOV_MERRITT_METHOD) && !defined(ADOPT_DOUBLE_EXPONENTIAL_FORMULA)
+#define ADOPT_DOUBLE_EXPONENTIAL_FORMULA
+#endif//defined(USE_OSIPKOV_MERRITT_METHOD) && !defined(ADOPT_DOUBLE_EXPONENTIAL_FORMULA)
 
 
 /* #define KING_CENTRAL_CUSP */
@@ -36,6 +39,17 @@
  * disable: adopt tangent hyperbolic based smoother
  */
 #define ERFC_SMOOTHING
+
+
+/**
+ * @def CHECK_RADIAL_ORBIT_INSTABILITY
+ *
+ * @brief activate analysis of radial-orbit instability
+ */
+#define CHECK_RADIAL_ORBIT_INSTABILITY
+#   if  !defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
+#undef  CHECK_RADIAL_ORBIT_INSTABILITY
+#endif//!defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
 
 
 /**

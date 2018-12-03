@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/11/13 (Tue)
+ * @date 2018/11/19 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -80,9 +80,9 @@ void integrateEddingtonFormula(const int skind, profile **prf,
 
 #ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
 void calcVelocityDispersionProfile(const int skind, profile **prf,
-#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+#   if  defined(ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF) || defined(USE_OSIPKOV_MERRITT_METHOD)
 				   profile_cfg *cfg,
-#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+#endif//defined(ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF) || defined(USE_OSIPKOV_MERRITT_METHOD)
 				   dist_func **df);
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
 

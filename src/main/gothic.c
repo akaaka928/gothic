@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/07/14 (Sat)
+ * @date 2018/11/21 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -871,9 +871,6 @@ int main(int argc, char **argv)
 #     endif//WS93_MAC
 #endif//GADGET_MAC
 				 );
-#   if  !defined(WS93_MAC) && !defined(GADGET_MAC)
-  setGlobalConstants_macutil_c(theta);
-#endif//!defined(WS93_MAC) && !defined(GADGET_MAC)
 #ifdef  SMEM_PREF_FOR_NEIGHBOR_SEARCH
   setGlobalConstants_neighbor_dev_cu();
 #endif//SMEM_PREF_FOR_NEIGHBOR_SEARCH
@@ -1241,8 +1238,46 @@ int main(int argc, char **argv)
   int  *more0Buf, *more1Buf, *makeFail;
   real *rjmaxBuf;
   soaMakeTreeBuf soaMakeBuf;
+
+/* #ifdef  WS93_MAC */
+/*   __NOTE__("WS93_MAC is defined\n"); */
+/* #endif//WS93_MAC */
+/* #ifdef  GADGET_MAC */
+/*   __NOTE__("GADGET_MAC is defined\n"); */
+/* #endif//GADGET_MAC */
+/* #ifdef  SERIALIZED_EXECUTION */
+/*   __NOTE__("SERIALIZED_EXECUTION is defined\n"); */
+/* #endif//SERIALIZED_EXECUTION */
+/* #ifdef  MPI_VIA_HOST */
+/*   __NOTE__("MPI_VIA_HOST is defined\n"); */
+/* #endif//MPI_VIA_HOST */
+/* #ifdef  CARE_EXTERNAL_PARTICLES */
+/*   __NOTE__("CARE_EXTERNAL_PARTICLES is defined\n"); */
+/* #endif//CARE_EXTERNAL_PARTICLES */
+  /* __NOTE__("address of dev is %p\n", &soaNode_dev); */
+  /* __NOTE__("address of more_dev is %p\n", &more_dev); */
+  /* __NOTE__("address of pj_dev is %p\n", &pj_dev); */
+  /* __NOTE__("address of mj_dev is %p\n", &mj_dev); */
+  /* __NOTE__("address of bmax_dev is %p\n", &bmax_dev); */
+  /* __NOTE__("address of n2c_dev is %p\n", &node2cell_dev); */
+  /* __NOTE__("address of gsync0 is %p\n", &gsync0); */
+  /* __NOTE__("address of gsync1 is %p\n", &gsync1); */
+  /* __NOTE__("address of gmem_make_tree is %p\n", &gmem_make_tree_dev); */
+  /* __NOTE__("address of gsync0_make_tree is %p\n", &gsync0_make_tree_dev); */
+  /* __NOTE__("address of gsync1_make_tree is %p\n", &gsync1_make_tree_dev); */
+  /* __NOTE__("address of gsync2_make_tree is %p\n", &gsync2_make_tree_dev); */
+  /* __NOTE__("address of gsync3_make_tree is %p\n", &gsync3_make_tree_dev); */
+  /* __NOTE__("address of gmem_link_tree is %p\n", &gmem_link_tree_dev); */
+  /* __NOTE__("address of gsync0_link_tree is %p\n", &gsync0_link_tree_dev); */
+  /* __NOTE__("address of gsync1_link_tree is %p\n", &gsync1_link_tree_dev); */
+  /* __NOTE__("address of mac_dev is %p\n", &mac_dev); */
+  /* __NOTE__("address of more0Buf is %p\n", &more0Buf); */
+  /* __NOTE__("address of more1Buf is %p\n", &more1Buf); */
+  /* __NOTE__("address of rjmaxBuf is %p\n", &rjmaxBuf); */
+  /* __NOTE__("address of fail_dev is %p\n", &makeFail); */
+  /* __NOTE__("address of buf is %p\n", &soaMakeBuf); */
   const muse alloc_node_dev = allocTreeNode_dev
-    (&soaNode_dev, &more_dev, &pj_dev, &mj_dev, &bmax_dev, &node2cell_dev, &gsync0, &gsync1, devProp,
+    (&soaNode_dev, &more_dev, &pj_dev, &mj_dev, &bmax_dev, &node2cell_dev, &gsync0, &gsync1,
 #ifdef  WS93_MAC
      &mr2_dev,
 #endif//WS93_MAC
@@ -1257,7 +1292,7 @@ int main(int argc, char **argv)
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
      &gmem_external_dev, &gsync0_external_dev, &gsync1_external_dev, &diameter_dev, &diameter_hst, &location, CAST_R2F(eps), CAST_R2F(eta),
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
-     &more0Buf, &more1Buf, &rjmaxBuf, &makeFail, &soaMakeBuf);
+     &more0Buf, &more1Buf, &rjmaxBuf, &makeFail, &soaMakeBuf, devProp);
   soaNode_dev.jtag = jtag_dev;
 
 

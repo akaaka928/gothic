@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/07/23 (Mon)
+ * @date 2018/11/22 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -93,7 +93,7 @@ typedef struct
 } nbody_particle;
 
 
-static inline void allocProfileArray(int num, real **rad, real **rho, real **enc, real **sig)
+static inline void allocProfileArray(int num, real **rad, real **rho, real **enc, real **sig, real **sgt, real **bet)
 {
   __NOTE__("%s\n", "start");
 
@@ -101,14 +101,16 @@ static inline void allocProfileArray(int num, real **rad, real **rho, real **enc
   *rho = (real *)malloc(sizeof(real) * num);
   *enc = (real *)malloc(sizeof(real) * num);
   *sig = (real *)malloc(sizeof(real) * num);
-  if( (*rad == NULL) || (*rho == NULL) || (*enc == NULL) || (*sig == NULL) ){
+  *sgt = (real *)malloc(sizeof(real) * num);
+  *bet = (real *)malloc(sizeof(real) * num);
+  if( (*rad == NULL) || (*rho == NULL) || (*enc == NULL) || (*sig == NULL) || (*sgt == NULL) || (*bet == NULL) ){
     __KILL__(stderr, "%s\n", "ERROR: memory allocation failed.");
   }
 
   __NOTE__("%s\n", "end");
 }
 
-static inline void enlargeProfileArray(int num, real **rad, real **rho, real **enc, real **sig)
+static inline void enlargeProfileArray(int num, real **rad, real **rho, real **enc, real **sig, real **sgt, real **bet)
 {
   __NOTE__("%s\n", "start");
 
@@ -116,7 +118,9 @@ static inline void enlargeProfileArray(int num, real **rad, real **rho, real **e
   *rho = realloc(*rho, sizeof(real) * num);
   *enc = realloc(*enc, sizeof(real) * num);
   *sig = realloc(*sig, sizeof(real) * num);
-  if( (*rad == NULL) || (*rho == NULL) || (*enc == NULL) || (*sig == NULL) ){
+  *sgt = realloc(*sgt, sizeof(real) * num);
+  *bet = realloc(*bet, sizeof(real) * num);
+  if( (*rad == NULL) || (*rho == NULL) || (*enc == NULL) || (*sig == NULL) || (*sgt == NULL) || (*bet == NULL) ){
     __KILL__(stderr, "%s\n", "ERROR: memory allocation failed.");
   }
 
@@ -231,7 +235,7 @@ int verAscendingOrder(const void *a, const void *b)
 
 
 real getCenter(const int num, nbody_particle *body, real com[restrict], real vel[restrict]);
-void analyzeRadialProfile(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_particle *body_tot, int *num, int *rem, int * restrict prfHead, int * restrict prfNum, real **rad, real **rho, real **enc, real **sig, real com_tot[restrict], real vel_tot[restrict]);
+void analyzeRadialProfile(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_particle *body_tot, int *num, int *rem, int * restrict prfHead, int * restrict prfNum, real **rad, real **rho, real **enc, real **sig, real **sgt, real **bet, real com_tot[restrict], real vel_tot[restrict]);
 void analyzeHorizontalProfile(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_particle *body_tot, int *num, int *rem, int * restrict prfHead, int * restrict prfNum, real **pos, real **Sigma, real **height, real **sigR, real **sigp, real **sigz, real com_tot[restrict], real vel_tot[restrict]);
 void generateMassDistributionMaps(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_particle *body_tot, const real eps, const int nx, const real xmin, const real dx, const int ny, const real ymin, const real dy, const int nz, const real zmin, const real dz, real * restrict rho_map);
 void generateSurfaceDensityMaps(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_particle *body, const real eps, const int nx, const real xmin, const real dx, const int ny, const real ymin, const real dy, const int nz, const real zmin, const real dz, real * restrict Sigma_xy, real * restrict Sigma_yz, real * restrict Sigma_zx, const int nv, const real vmin, const real dv, real * restrict f_xv, real * restrict f_yv, real * restrict f_zv);
@@ -242,7 +246,7 @@ void writeAnalyzedProfiles
  const int nx, real * restrict xx, const int ny, real * restrict yy, const int nz, real * restrict zz, real * restrict Sigma_xy, real * restrict Sigma_yz, real * restrict Sigma_zx,
  const int nv, real * restrict vv, real * restrict f_xv, real * restrict f_yv, real * restrict f_zv,
  const int nx3D, real * restrict rho_xx, const int ny3D, real * restrict rho_yy, const int nz3D, real * restrict rho_zz, real * restrict rho_map,
- int * restrict prfHead, int * restrict prfNum, real * restrict rad, real * restrict rho, real * restrict enc, real * restrict sig,
+ int * restrict prfHead, int * restrict prfNum, real * restrict rad, real * restrict rho, real * restrict enc, real * restrict sig, real * restrict sgt, real * restrict bet,
    int * restrict prfHead_hor, int * restrict prfNum_hor, real * restrict hor, real * restrict Sigma, real * restrict height, real * restrict sigR, real * restrict sigp, real * restrict sigz,
    real * restrict rhalf, real * restrict com, real * restrict vel);
 
@@ -403,8 +407,8 @@ int main(int argc, char **argv)
 
   int num = 0;
   int rem = NAllocUnit;
-  real *rad, *rho, *enc, *sig;
-  allocProfileArray(rem, &rad, &rho, &enc, &sig);
+  real *rad, *rho, *enc, *sig, *sgt, *bet;
+  allocProfileArray(rem, &rad, &rho, &enc, &sig, &sgt, &bet);
   int *prfHead, *prfNum;
   prfHead = (int *)malloc(sizeof(int) * kind);  if( prfHead == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate prfHead");  }
   prfNum  = (int *)malloc(sizeof(int) * kind);  if( prfNum  == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate prfNum");  }
@@ -461,6 +465,7 @@ int main(int argc, char **argv)
   double rhomin = DBL_MAX, rhomax = 0.0;
   double encmin = DBL_MAX, encmax = 0.0;
   double                   sigmax = 0.0;
+  double betmin = DBL_MAX, betmax = 0.0;
   double hormin = DBL_MAX, hormax = 0.0;
   double Sigmin = DBL_MAX, Sigmax = 0.0;
   double sigRmax = 0.0, sigpmax = 0.0, sigzmax = 0.0;
@@ -554,7 +559,7 @@ int main(int argc, char **argv)
 
 
     /** obtain radial profile */
-    analyzeRadialProfile(kind, bodyHead, bodyNum, body, &num, &rem, prfHead, prfNum, &rad, &rho, &enc, &sig, &comPos[INDEX(nfile, kind, 3, (filenum - start) / interval, 0, 0)], &comVel[INDEX(nfile, kind, 3, (filenum - start) / interval, 0, 0)]);
+    analyzeRadialProfile(kind, bodyHead, bodyNum, body, &num, &rem, prfHead, prfNum, &rad, &rho, &enc, &sig, &sgt, &bet, &comPos[INDEX(nfile, kind, 3, (filenum - start) / interval, 0, 0)], &comVel[INDEX(nfile, kind, 3, (filenum - start) / interval, 0, 0)]);
     rem += num;
     num = 0;
 
@@ -576,7 +581,7 @@ int main(int argc, char **argv)
        nx, xx, ny, yy, nz, zz, Sigma_xy, Sigma_yz, Sigma_zx,
        nv, vv, f_xv, f_yv, f_zv,
        nx3D, rho_xx, ny3D, rho_yy, nz3D, rho_zz, rho_map,
-       prfHead, prfNum, rad, rho, enc, sig,
+       prfHead, prfNum, rad, rho, enc, sig, sgt, bet,
        prfHead_hor, prfNum_hor, hor, Sigma, height, sigR, sigp, sigz,
        &rhalf[INDEX2D(nfile, kind, (filenum - start) / interval, 0)], &comPos[INDEX(nfile, kind, 3, (filenum - start) / interval, 0, 0)], &comVel[INDEX(nfile, kind, 3, (filenum - start) / interval, 0, 0)]);
 
@@ -595,6 +600,9 @@ int main(int argc, char **argv)
       rhomin = fmin(rhomin, rho[ii]);
       rhomax = fmax(rhomax, rho[ii]);
       sigmax = fmax(sigmax, sig[ii]);
+      sigmax = fmax(sigmax, sgt[ii]);
+      betmin = fmin(betmin, bet[ii]);
+      betmax = fmax(betmax, bet[ii]);
     }/* for(int ii = prfHead[0]; ii < prfHead[kind - 1] + prfNum[kind - 1]; ii++){ */
 
     for(int ii = prfHead_hor[0]; ii < prfHead_hor[kind - 1] + prfNum_hor[kind - 1]; ii++){
@@ -628,6 +636,8 @@ int main(int argc, char **argv)
   chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & Sigmin: MPI_IN_PLACE, & Sigmin, 1, MPI_DOUBLE, MPI_MIN, 0, mpi.comm));
   chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & Sigmax: MPI_IN_PLACE, & Sigmax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
   chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & sigmax: MPI_IN_PLACE, & sigmax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & betmin: MPI_IN_PLACE, & betmin, 1, MPI_DOUBLE, MPI_MIN, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & betmax: MPI_IN_PLACE, & betmax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
   chkMPIerr(MPI_Reduce((mpi.rank != 0) ? &sigRmax: MPI_IN_PLACE, &sigRmax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
   chkMPIerr(MPI_Reduce((mpi.rank != 0) ? &sigpmax: MPI_IN_PLACE, &sigpmax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
   chkMPIerr(MPI_Reduce((mpi.rank != 0) ? &sigzmax: MPI_IN_PLACE, &sigzmax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
@@ -677,6 +687,7 @@ int main(int argc, char **argv)
     fprintf(fp, "%e\t%e\n", rhomin, rhomax);
     fprintf(fp, "%e\t%e\n", encmin, encmax);
     fprintf(fp, "%e\t%e\n",    0.0, sigmax);
+    fprintf(fp, "%e\t%e\n", betmin, betmax);
     fprintf(fp, "%e\t%e\n", hormin, hormax);
     fprintf(fp, "%e\t%e\n", Sigmin, Sigmax);
     fprintf(fp, "%e\t%e\n",    0.0, sigRmax);
@@ -721,7 +732,7 @@ int main(int argc, char **argv)
 #endif//HDF5_FOR_ZINDAIJI
 
   free(prfHead);  free(prfNum);
-  free(rad);  free(rho);  free(enc);  free(sig);
+  free(rad);  free(rho);  free(enc);  free(sig);  free(sgt);  free(bet);
 
   free(prfHead_hor);  free(prfNum_hor);
   free(hor);  free(Sigma);  free(height);  free(sigR);  free(sigp);  free(sigz);
@@ -856,7 +867,7 @@ real getCenter(const int num, nbody_particle *body, real com[restrict], real vel
 }
 
 
-void analyzeRadialProfile(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_particle *body_tot, int *num, int *rem, int * restrict prfHead, int * restrict prfNum, real **rad, real **rho, real **enc, real **sig, real com_tot[restrict], real vel_tot[restrict])
+void analyzeRadialProfile(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_particle *body_tot, int *num, int *rem, int * restrict prfHead, int * restrict prfNum, real **rad, real **rho, real **enc, real **sig, real **sgt, real **bet, real com_tot[restrict], real vel_tot[restrict])
 {
   __NOTE__("%s\n", "start");
 
@@ -875,25 +886,29 @@ void analyzeRadialProfile(const int kind, int * restrict bodyHead, int * restric
       /* /\* sort the array in ascending distance from the center *\/ */
       /* qsort(body, bodyNum[kk], sizeof(nbody_particle), radAscendingOrder); */
 
-      real *prad, *prho, *penc, *psig;
+      real *prad, *prho, *penc, *psig, *psgt, *pbet;
       real inner = ZERO;
       real Menc  = ZERO;
       prad = *rad;
       prho = *rho;
       penc = *enc;
       psig = *sig;
+      psgt = *sgt;
+      pbet = *bet;
       const int ncrit = ((int)(bodyNum[kk] / ncrit_base) > Nminimum) ? ncrit_base : (int)(bodyNum[kk] / Nminimum);
       const real inv_ncrit = UNITY / (real)ncrit;
 
       for(int head = 0; head < bodyNum[kk]; head += ncrit){
 	/** check # of unused elements */
 	if( *rem == 0 ){
-	  enlargeProfileArray(*num + NAllocUnit, rad, rho, enc, sig);
+	  enlargeProfileArray(*num + NAllocUnit, rad, rho, enc, sig, sgt, bet);
 	  *rem += NAllocUnit;
 	  prad = *rad;
 	  prho = *rho;
 	  penc = *enc;
 	  psig = *sig;
+	  psgt = *sgt;
+	  pbet = *bet;
 	}/* if( *rem == 0 ){ */
 
 	int tail = head + ncrit;
@@ -903,16 +918,31 @@ void analyzeRadialProfile(const int kind, int * restrict bodyHead, int * restric
 	real outer = body[tail - 1].rad;
 	prad[*num] = (ncrit & 1) ? (body[head + (ncrit >> 1)].rad) : (HALF * (body[head + (ncrit >> 1) - 1].rad + body[head + (ncrit >> 1)].rad));/**< use median of particle location */
 
-	real vr2 = ZERO;
-	real vrm = ZERO;
+	real vr2 = ZERO;	real vt2 = ZERO;	real vp2 = ZERO;
+	real vrm = ZERO;	real vtm = ZERO;	real vpm = ZERO;
 	for(int ii = head; ii < tail; ii++){
+#if 0
 	  const real vr = ((body[ii].vx - vel[0]) * (body[ii].x - com[0]) + (body[ii].vy - vel[1]) * (body[ii].y - com[1]) + (body[ii].vz - vel[2]) * (body[ii].z - com[2])) / body[ii].rad;
-	  vrm += vr;
-	  vr2 += vr * vr;
+#else
+	  const real cost = (body[ii].z - com[2]) / body[ii].rad;
+	  const real sint = SQRT(UNITY - cost * cost);
+	  const real cosp = (body[ii].x - com[0]) / (body[ii].rad * sint);
+	  const real sinp = (body[ii].y - com[1]) / (body[ii].rad * sint);
+
+	  const real vr =  (body[ii].vx - vel[0]) * sint * cosp + (body[ii].vy - vel[1]) * sint * sinp + (body[ii].vz - vel[2]) * cost;
+	  const real vt =  (body[ii].vx - vel[0]) * cost * cosp + (body[ii].vy - vel[1]) * cost * sinp - (body[ii].vz - vel[2]) * sint;
+	  const real vp = -(body[ii].vx - vel[0])        * sinp + (body[ii].vy - vel[1])        * cosp;
+#endif
+	  vrm += vr;	  vr2 += vr * vr;
+	  vtm += vt;	  vt2 += vt * vt;
+	  vpm += vp;	  vp2 += vp * vp;
 	}/* for(int ii = head; ii < tail; ii++){ */
-	vrm *= inv_ncrit;
-	vr2 *= inv_ncrit;
+	vrm *= inv_ncrit;	vr2 *= inv_ncrit;
+	vtm *= inv_ncrit;	vt2 *= inv_ncrit;
+	vpm *= inv_ncrit;	vp2 *= inv_ncrit;
 	psig[*num] = SQRT(vr2 - vrm * vrm);
+	psgt[*num] = SQRT((vt2 - vtm * vtm) + (vp2 - vpm * vpm));
+	pbet[*num] = UNITY - HALF * psgt[*num] * psgt[*num] / (psig[*num] * psig[*num]);
 
 	real mass = ZERO;
 	for(int ii = head; ii < tail; ii++)
@@ -1414,7 +1444,7 @@ void writeAnalyzedProfiles
  const int nx, real * restrict xx, const int ny, real * restrict yy, const int nz, real * restrict zz, real * restrict Sigma_xy, real * restrict Sigma_yz, real * restrict Sigma_zx,
  const int nv, real * restrict vv, real * restrict f_xv, real * restrict f_yv, real * restrict f_zv,
  const int nx3D, real * restrict rho_xx, const int ny3D, real * restrict rho_yy, const int nz3D, real * restrict rho_zz, real * restrict rho_map,
- int * restrict prfHead, int * restrict prfNum, real * restrict rad, real * restrict rho, real * restrict enc, real * restrict sig,
+ int * restrict prfHead, int * restrict prfNum, real * restrict rad, real * restrict rho, real * restrict enc, real * restrict sig, real * restrict sgt, real * restrict bet,
  int * restrict prfHead_hor, int * restrict prfNum_hor, real * restrict hor, real * restrict Sigma, real * restrict height, real * restrict sigR, real * restrict sigp, real * restrict sigz,
  real * restrict rhalf, real * restrict com, real * restrict vel)
 {
@@ -1963,6 +1993,7 @@ void writeAnalyzedProfiles
 	rho[jj] = CAST_D2R(CAST_R2D(rho[jj]) *  density2astro);
 	enc[jj] = CAST_D2R(CAST_R2D(enc[jj]) *     mass2astro);
 	sig[jj] = CAST_D2R(CAST_R2D(sig[jj]) * velocity2astro);
+	sgt[jj] = CAST_D2R(CAST_R2D(sgt[jj]) * velocity2astro);
       }/* for(int jj = prfHead[ii]; jj < prfHead[ii] + prfNum[ii]; jj++){ */
       dataset = H5Dcreate(group, "rad", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
       chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rad[prfHead[ii]]));
@@ -1975,6 +2006,12 @@ void writeAnalyzedProfiles
       chkHDF5err(H5Dclose(dataset));
       dataset = H5Dcreate(group, "sig", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
       chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &sig[prfHead[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "tan", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &sgt[prfHead[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "bet", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &bet[prfHead[ii]]));
       chkHDF5err(H5Dclose(dataset));
 #ifdef  USE_GZIP_COMPRESSION
       chkHDF5err(H5Pclose(property));

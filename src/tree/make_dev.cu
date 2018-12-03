@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/08/07 (Tue)
+ * @date 2018/11/21 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -3048,7 +3048,7 @@ void calcMultipole_dev
  */
 extern "C"
 muse allocTreeNode_dev
-(soaTreeNode *dev, uint **more_dev, jparticle **pj_dev, jmass **mj_dev, real **bmax_dev, int **n2c_dev, int **gsync0, int **gsync1, deviceProp devProp,
+(soaTreeNode *dev, uint **more_dev, jparticle **pj_dev, jmass **mj_dev, real **bmax_dev, int **n2c_dev, int **gsync0, int **gsync1,
 #ifdef  WS93_MAC
  real **mr2_dev,
 #endif//WS93_MAC
@@ -3063,7 +3063,7 @@ muse allocTreeNode_dev
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
  int **gmem_external, int **gsync0_external, int **gsync1_external, float **diameter_dev, float **diameter_hst, domainLocation *location, const float eps, const float eta,
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
- int **more0Buf, int **more1Buf, real **rjmaxBuf, int **fail_dev, soaMakeTreeBuf *buf)
+ int **more0Buf, int **more1Buf, real **rjmaxBuf, int **fail_dev, soaMakeTreeBuf *buf, const deviceProp devProp)
 {
   __NOTE__("%s\n", "start");
 
@@ -3071,20 +3071,62 @@ muse allocTreeNode_dev
   muse alloc = {0, 0};
 
 #ifdef  USE_OCCUPANCY_CALCULATOR
+/* #ifdef  WS93_MAC */
+/*   __NOTE__("WS93_MAC is defined\n"); */
+/* #endif//WS93_MAC */
+/* #ifdef  GADGET_MAC */
+/*   __NOTE__("GADGET_MAC is defined\n"); */
+/* #endif//GADGET_MAC */
+/* #ifdef  SERIALIZED_EXECUTION */
+/*   __NOTE__("SERIALIZED_EXECUTION is defined\n"); */
+/* #endif//SERIALIZED_EXECUTION */
+/* #ifdef  MPI_VIA_HOST */
+/*   __NOTE__("MPI_VIA_HOST is defined\n"); */
+/* #endif//MPI_VIA_HOST */
+/* #ifdef  CARE_EXTERNAL_PARTICLES */
+/*   __NOTE__("CARE_EXTERNAL_PARTICLES is defined\n"); */
+/* #endif//CARE_EXTERNAL_PARTICLES */
+  /* __NOTE__("address of dev is %p\n", dev); */
+  /* __NOTE__("address of more_dev is %p\n", more_dev); */
+  /* __NOTE__("address of pj_dev is %p\n", pj_dev); */
+  /* __NOTE__("address of mj_dev is %p\n", mj_dev); */
+  /* __NOTE__("address of bmax_dev is %p\n", bmax_dev); */
+  /* __NOTE__("address of n2c_dev is %p\n", n2c_dev); */
+  /* __NOTE__("address of gsync0 is %p\n", gsync0); */
+  /* __NOTE__("address of gsync1 is %p\n", gsync1); */
+  /* __NOTE__("address of gmem_make_tree is %p\n", gmem_make_tree); */
+  /* __NOTE__("address of gsync0_make_tree is %p\n", gsync0_make_tree); */
+  /* __NOTE__("address of gsync1_make_tree is %p\n", gsync1_make_tree); */
+  /* __NOTE__("address of gsync2_make_tree is %p\n", gsync2_make_tree); */
+  /* __NOTE__("address of gsync3_make_tree is %p\n", gsync3_make_tree); */
+  /* __NOTE__("address of gmem_link_tree is %p\n", gmem_link_tree); */
+  /* __NOTE__("address of gsync0_link_tree is %p\n", gsync0_link_tree); */
+  /* __NOTE__("address of gsync1_link_tree is %p\n", gsync1_link_tree); */
+  /* __NOTE__("address of mac_dev is %p\n", mac_dev); */
+  /* __NOTE__("address of more0Buf is %p\n", more0Buf); */
+  /* __NOTE__("address of more1Buf is %p\n", more1Buf); */
+  /* __NOTE__("address of rjmaxBuf is %p\n", rjmaxBuf); */
+  /* __NOTE__("address of fail_dev is %p\n", fail_dev); */
+  /* __NOTE__("address of buf is %p\n", buf); */
   checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&buf->numBlocksPerSM_mac, calcMultipole_kernel, NTHREADS_MAC, 0));
   const int NBLOCKS_PER_SM_MAC = buf->numBlocksPerSM_mac;
+  __NOTE__("NBLOCKS_PER_SM_MAC = %d\n", NBLOCKS_PER_SM_MAC);
   checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&buf->numBlocksPerSM_make_tree, makeTree_kernel, NTHREADS_MAKE_TREE, 0));
   const int NBLOCKS_PER_SM_MAKE_TREE = buf->numBlocksPerSM_make_tree;
+  __NOTE__("NBLOCKS_PER_SM_MAKE_TREE = %d\n", NBLOCKS_PER_SM_MAKE_TREE);
   checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&buf->numBlocksPerSM_link_tree, linkTree_kernel, NTHREADS_LINK_TREE, 0));
   const int NBLOCKS_PER_SM_LINK_TREE = buf->numBlocksPerSM_link_tree;
+  __NOTE__("NBLOCKS_PER_SM_LINK_TREE = %d\n", NBLOCKS_PER_SM_LINK_TREE);
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
   checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&buf->numBlocksPerSM_outflow, checkOutflow_kernel, NTHREADS_OUTFLOW, 0));
   const int NBLOCKS_PER_SM_OUTFLOW = buf->numBlocksPerSM_outflow;
+  __NOTE__("NBLOCKS_PER_SM_OUTFLOW = %d\n", NBLOCKS_PER_SM_OUTFLOW);
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 #endif//USE_OCCUPANCY_CALCULATOR
 
 
   const size_t num = (size_t)ceilf(EXTEND_NUM_TREE_NODE * (float)NUM_ALLOC_TREE_NODE);
+  __NOTE__("num = %zu\n", num);
   mycudaMalloc    ((void **) more_dev, num * sizeof(uint     ));  alloc.device += num * sizeof(uint     );  dev->more      = * more_dev;
   mycudaMalloc    ((void **)   pj_dev, num * sizeof(jparticle));  alloc.device += num * sizeof(jparticle);  dev->jpos      = *   pj_dev;
   mycudaMalloc    ((void **)   mj_dev, num * sizeof(jmass    ));  alloc.device += num * sizeof(jmass    );  dev->mj        = *   mj_dev;

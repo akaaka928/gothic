@@ -1,16 +1,22 @@
-#!/bin/bash
+#!/bin/sh
 ###############################################################
-#SBATCH -J analysis            # name of job
-#SBATCH -t 04:00:00            # upper limit of elapsed time
-#SBATCH -p normal              # partition name
-#SBATCH --nodes=1              # number of nodes, set to SLURM_JOB_NUM_NODES
-#SBATCH --ntasks=8             # number of total MPI processes, set to SLURM_NTASKS
-#SBATCH --ntasks-per-socket=8  # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET
-##SBATCH --ntasks-per-socket=16 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET
-#SBATCH --get-user-env         # retrieve the login environment variables
+if [ $# -lt 1 ]; then
+    echo "$# input(s) is/are detected while at least 1 input is required to specify <test problem>" 1>&2
+    exit 1
+fi
+JOB_ID=$$
+PROBLEM=$1
 ###############################################################
-
-
+# set number of MPI processes per node
+PROCS=8
+if [ $# -gt 2 ]; then
+    PROCS=$2
+fi
+PROCS_PER_NODE=16
+PROCS_PER_SOCKET=8
+###############################################################
+#
+#
 ###############################################################
 # global configurations
 ###############################################################
@@ -252,24 +258,16 @@ fi
 # set input arguments
 OPTION="-file=$FILE -start=$START -end=$END -interval=$INCREMENT -ncrit=$NCRIT -nx=$NX -xmin=$XMIN -xmax=$XMAX -ny=$NY -ymin=$YMIN -ymax=$YMAX -nz=$NZ -zmin=$ZMIN -zmax=$ZMAX -nv=$NV -vmin=$VMIN -vmax=$VMAX -nx3D=$NX3D -ny3D=$NY3D -nz3D=$NZ3D"
 ###############################################################
-
-
-###############################################################
-# job execution via SLURM
-###############################################################
-# set number of MPI processes per node
-PROCS_PER_NODE=`expr $SLURM_NTASKS / $SLURM_JOB_NUM_NODES`
+#
+#
 ###############################################################
 # start logging
-cd $SLURM_SUBMIT_DIR
-echo "use $SLURM_JOB_NUM_NODES nodes"
-echo "use $SLURM_JOB_CPUS_PER_NODE CPUs per node"
 TIME=`date`
 echo "start: $TIME"
 ###############################################################
 # execute the job
-echo "mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION"
-mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION
+echo "mpiexec -n $PROCS sh/wrapper.sh $EXEC log/${FILE}_analysis $JOB_ID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION"
+mpiexec -n $PROCS sh/wrapper.sh $EXEC log/${FILE}_analysis $JOB_ID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION
 ###############################################################
 # finish logging
 TIME=`date`

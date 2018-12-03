@@ -20,7 +20,8 @@ EXEC=bin/gothic
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=2
+    # PROBLEM=2
+    PROBLEM=10
     # PROBLEM=14
     # PROBLEM=26
     # PROBLEM=27

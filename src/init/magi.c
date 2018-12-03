@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/11/13 (Tue)
+ * @date 2018/12/03 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -142,7 +142,7 @@ static inline void isotropicDistribution(const real rad, real *vecx, real *vecy,
   *vecz = rad * proj;
   real Rproj = rad * SQRT(UNITY - proj * proj);
 
-  real theta = TWO * CAST_D2R(M_PI) * UNIRAND(rand);
+  real theta = CAST_D2R(2.0 * M_PI) * UNIRAND(rand);
   *vecx = Rproj * COS(theta);
   *vecy = Rproj * SIN(theta);
 }
@@ -151,11 +151,13 @@ static inline void isotropicDistribution(const real rad, real *vecx, real *vecy,
 #ifdef  USE_OSIPKOV_MERRITT_METHOD
 static inline void anisotropicDistribution(const real rr, const real vr, const real vt, real *xx, real *yy, real *zz, real *vx, real *vy, real *vz, rand_state *rand)
 {
-  const real theta =       CAST_D2R(M_PI) * UNIRAND(rand);
-  const real   phi = TWO * CAST_D2R(M_PI) * UNIRAND(rand);
+  /* const real theta =       CAST_D2R(M_PI) * UNIRAND(rand); */
+  const real   phi = CAST_D2R(2.0 * M_PI) * UNIRAND(rand);
 
-  const real sint = SIN(theta);
-  const real cost = COS(theta);
+  /* const real sint = SIN(theta); */
+  /* const real cost = COS(theta); */
+  const real cost = RANDVAL(rand);
+  const real sint = SQRT(UNITY - cost * cost);
   const real sinp = SIN(phi);
   const real cosp = COS(phi);
 
@@ -163,12 +165,15 @@ static inline void anisotropicDistribution(const real rr, const real vr, const r
   *yy = rr * sint * sinp;
   *zz = rr * cost;
 
-  const real eta = TWO * CAST_D2R(M_PI) * UNIRAND(rand);
+  const real eta = CAST_D2R(2.0 * M_PI) * UNIRAND(rand);
   const real vtheta = vt * COS(eta);
   const real vphi   = vt * SIN(eta);
   *vx = vr * sint * cosp + vtheta * cost * cosp - vphi * sinp;
   *vy = vr * sint * sinp + vtheta * cost * sinp + vphi * cosp;
   *vz = vr * cost        - vtheta * sint;
+#if 0
+  fprintf(stderr, "vscale = %e\n", SQRT(((*vx) * (*vx) + (*vy) * (*vy) + (*vz) * (*vz)) / (vr * vr + vt * vt)));
+#endif
 }
 #endif//USE_OSIPKOV_MERRITT_METHOD
 
@@ -502,8 +507,16 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
  * @sa isotropicDistribution
  * @sa getDF
  */
-double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass, profile_cfg cfg, profile *prf, dist_func *df, rand_state *rand);
-double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass, profile_cfg cfg, profile *prf, dist_func *df, rand_state *rand)
+double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass, profile_cfg cfg, profile *prf, dist_func *df, rand_state *rand
+#   if  defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
+				   , double *Trad, double *Ttan
+#endif//defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
+				   );
+double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass, profile_cfg cfg, profile *prf, dist_func *df, rand_state *rand
+#   if  defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
+				   , double *Trad, double *Ttan
+#endif//defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
+				   )
 {
   __NOTE__("%s\n", "start");
 
@@ -532,6 +545,9 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
   const double invEbin = (double)(NENEBIN - 1) / (Emax - Emin);
   __NOTE__("Emin = %e, Emax = %e, invEbin = %e\n", Emin, Emax, invEbin);
 
+  const double Mmin = prf[0].enc;
+  const double Mmax = cfg.Mtot;
+
 #if 1
   const int iout = cfg.iout;
   const double Ecut = prf[iout].psi_tot;
@@ -546,10 +562,20 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
   const double Ecut = (iout != 0) ? prf[iout].psi_tot : Emin;
 #endif
 
-  const double Mmax = cfg.Mtot;
-  const double Mmin = prf[0].enc;
 #ifdef  USE_OSIPKOV_MERRITT_METHOD
   const double ra2inv = cfg.ra2inv;
+  /* const double rainv = 1.0 / cfg.ra; */
+
+#ifdef  CHECK_RADIAL_ORBIT_INSTABILITY
+  double Trad_loc = 0.0;
+  double Ttan_loc = 0.0;
+#endif//CHECK_RADIAL_ORBIT_INSTABILITY
+
+/* #if 1 */
+/*   if( omp_get_thread_num() == 0 ){ */
+/*     __FPRINTF__(stderr, "Qmin = %e, imax = %d, NENEBIN = %d, Mmax = %e, iout = %d\n", Qmin, imax, NENEBIN, Mmax, iout); */
+/*   } */
+/* #endif */
 #endif//USE_OSIPKOV_MERRITT_METHOD
 
 #if 0
@@ -569,10 +595,19 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
     __FPRINTF__(stderr, "ii = %zu\n", ii);
 #endif
     /** set spatial distribution by table search */
+/* #ifndef USE_OSIPKOV_MERRITT_METHOD */
     const double tmp = Mmin + (Mmax - Mmin) * UNIRAND_DBL(rand);
     int ll = 0;
     /* int rr = NRADBIN - 1; */
     int rr = iout;
+/* #else///USE_OSIPKOV_MERRITT_METHOD */
+/*     double alpha, psi, tmp; */
+/*     int ll, rr; */
+/*     while( true ){ */
+/*       tmp = Mmin + (Mmax - Mmin) * UNIRAND_DBL(rand); */
+/*       ll = 0; */
+/*       rr = iout; */
+/* #endif//USE_OSIPKOV_MERRITT_METHOD */
     while( true ){
       uint cc = (ll + rr) >> 1;
 
@@ -581,8 +616,15 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 
       if( (ll + 1) == rr )	break;
     }/* while( true ){ */
-
+/* #ifdef  USE_OSIPKOV_MERRITT_METHOD */
+/*     alpha = (tmp - prf[ll].enc) / (prf[rr].enc - prf[ll].enc); */
+/*     psi = (1.0 - alpha) * prf[ll].psi_tot + alpha * prf[rr].psi_tot; */
+/*     if( psi >= Qmin ) */
+/*       break; */
+/*     }/\* while( true ){ *\/ */
+/* #else///USE_OSIPKOV_MERRITT_METHOD */
     const double alpha = (tmp - prf[ll].enc) / (prf[rr].enc - prf[ll].enc);
+/* #endif//USE_OSIPKOV_MERRITT_METHOD */
     const double rad = (1.0 - alpha) * prf[ll].rad + alpha * prf[rr].rad;
 #ifndef USE_OSIPKOV_MERRITT_METHOD
     isotropicDistribution(CAST_D2R(rad), &(body.pos[ii].x), &(body.pos[ii].y), &(body.pos[ii].z), rand);
@@ -594,69 +636,120 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 
     /** determine velocity distribution by rejection method */
     const double psi = (1.0 - alpha) * prf[ll].psi_tot + alpha * prf[rr].psi_tot;
+#ifndef USE_OSIPKOV_MERRITT_METHOD
     const double vesc = sqrt(2.0 * (psi - Ecut));
-
 #ifndef NDEBUG
     if( fpclassify(vesc) != FP_NORMAL ){
       __FPRINTF__(stderr, "Mmin = %e, Mmax = %e, Menc = %e, ll = %d, iout = %d, Mout = %e\n", Mmin, Mmax, tmp, ll, iout, prf[iout].enc);
       __KILL__(stderr, "rad = %e, psi = %e, Ecut = %e, Emin = %e, rout = %e, vesc = %e\n", rad, psi, Ecut, Emin, cfg.rmax, vesc);
     }/* if( fpclassify(vesc) != FP_NORMAL ){ */
 #endif//NDEBUG
-
     const double v2Fmax = vesc * vesc * getDF(psi, df, Emin, invEbin);
-#ifdef  USE_OSIPKOV_MERRITT_METHOD
-    const double r2_ra2 = rad * rad * ra2inv;
-    double vr, vt;
-#else///USE_OSIPKOV_MERRITT_METHOD
+
+    /** rejection method in velocity space */
     double vel;
-#endif//USE_OSIPKOV_MERRITT_METHOD
     while( true ){
-#ifdef  USE_OSIPKOV_MERRITT_METHOD
-      double ene, v2;
-      while( true ){
-	vr = vesc * UNIRAND_DBL(rand);
-	vt = vesc * UNIRAND_DBL(rand);
-	const double vt2 = vt * vt;
-	v2 = vr * vr + vt2;
-	ene = psi - 0.5 * (v2 + vt2 * r2_ra2);
-	if( ene >= Emin )
-	  break;
-      }/* while( true ){ */
-#else///USE_OSIPKOV_MERRITT_METHOD
       vel = vesc * UNIRAND_DBL(rand);
       const double v2 = vel * vel;
       const double ene = psi - 0.5 * v2;
-#endif//USE_OSIPKOV_MERRITT_METHOD
-
 #ifndef NDEBUG
       if( fpclassify(ene) != FP_NORMAL ){
 	__FPRINTF__(stderr, "ene = %e, psi = %e, vel = %e\n", ene, psi, sqrt(v2));
       }/* if( fpclassify(ene) != FP_NORMAL ){ */
 #endif//NDEBUG
+
       const double val = v2 * getDF(ene, df, Emin, invEbin);
       const double try = v2Fmax * UNIRAND_DBL(rand);
+#if 0
+      if( omp_get_thread_num() == 1 )
+	fprintf(stderr, "rad = %e: val = %e, try = %e\n", rad, val, try);
+#endif
 
       if( val > try )	break;
     }/* while( true ){ */
-
 #if 0
     __FPRINTF__(stderr, "ii = %zu, vel = %e\n", ii, vel);
 #endif
 
-
-#ifdef  USE_OSIPKOV_MERRITT_METHOD
-#ifdef  BLOCK_TIME_STEP
-    anisotropicDistribution(CAST_D2R(rad), CAST_D2R(vr), CAST_D2R(vt), &(body.pos[ii].x), &(body.pos[ii].y), &(body.pos[ii].z), &(body.vel[ii].x), &(body.vel[ii].y), &(body.vel[ii].z), rand);
-#else///BLOCK_TIME_STEP
-    anisotropicDistribution(CAST_D2R(rad), CAST_D2R(vr), CAST_D2R(vt), &(body.pos[ii].x), &(body.pos[ii].y), &(body.pos[ii].z), &(body.vx[ii]), &(body.vy[ii]), &(body.vz[ii]), rand);
-#endif//BLOCK_TIME_STEP
-#else///USE_OSIPKOV_MERRITT_METHOD
 #ifdef  BLOCK_TIME_STEP
     isotropicDistribution(CAST_D2R(vel), &(body.vel[ii].x), &(body.vel[ii].y), &(body.vel[ii].z), rand);
 #else///BLOCK_TIME_STEP
     isotropicDistribution(CAST_D2R(vel), &(body.vx[ii]), &(body.vy[ii]), &(body.vz[ii]), rand);
 #endif//BLOCK_TIME_STEP
+#else///USE_OSIPKOV_MERRITT_METHOD
+
+    /** rejection method in velocity space */
+#if 0
+    const double vesc = sqrt(2.0 * psi);
+    const double v2Fmax = vesc * vesc * getDF(psi, df, Emin, invEbin);
+    const double r2_ra2 = rad * rad * ra2inv;
+
+    double vr, vt;
+    while( true ){
+      double QQ, vel, eta;
+      while( true ){
+	vel = vesc * UNIRAND_DBL(rand);
+	eta = M_PI * UNIRAND_DBL(rand);
+
+	vt = vel * sin(eta);
+	QQ = psi - 0.5 * (vel * vel + r2_ra2 * vt * vt);
+
+	if( QQ >= Emin )
+	  break;
+      }/* while( true ){ */
+
+      const double val = vel * vt * getDF(QQ, df, Emin, invEbin);
+      const double try = v2Fmax * UNIRAND_DBL(rand);
+      if( val > try ){
+	vr = vel * cos(eta);
+	break;
+      }/* if( val > try ){ */
+    }/* while( true ){ */
+#else
+    const double vesc = sqrt(2.0 * psi);
+    const double Fmax = getDF(psi, df, Emin, invEbin);
+    const double r2_ra2 = rad * rad * ra2inv;
+    const double vtmax = vesc / sqrt(1.0 + r2_ra2);
+
+    double vr, vt;
+    while( true ){
+      double QQ, v2;
+      while( true ){
+	vr = vesc * RANDVAL_DBL(rand);
+	vt = vtmax * UNIRAND_DBL(rand);
+	const double v0 = vtmax * UNIRAND_DBL(rand);
+	const double v1 = vtmax * UNIRAND_DBL(rand);
+	const double vt2 = v0 * v0 + v1 * v1;
+	v2 = vt2 + vr * vr;
+	QQ = psi - 0.5 * (v2 + r2_ra2 * vt2);
+	if( QQ >= Emin ){
+	  vt = sqrt(vt2);
+	  break;
+	}/* if( QQ >= Emin ){ */
+      }/* while( true ){ */
+
+      const double val = getDF(QQ, df, Emin, invEbin);
+      const double try = Fmax * UNIRAND_DBL(rand);
+      if( val > try )	break;
+    }/* while( true ){ */
+#endif
+
+#if 0
+    __FPRINTF__(stderr, "ii = %zu, vr = %e, vt = %e\n", ii, vr, vt);
+#endif
+
+#ifdef  BLOCK_TIME_STEP
+    anisotropicDistribution(CAST_D2R(rad), CAST_D2R(vr), CAST_D2R(vt), &(body.pos[ii].x), &(body.pos[ii].y), &(body.pos[ii].z), &(body.vel[ii].x), &(body.vel[ii].y), &(body.vel[ii].z), rand);
+#else///BLOCK_TIME_STEP
+    anisotropicDistribution(CAST_D2R(rad), CAST_D2R(vr), CAST_D2R(vt), &(body.pos[ii].x), &(body.pos[ii].y), &(body.pos[ii].z), &(body.vx[ii]), &(body.vy[ii]), &(body.vz[ii]), rand);
+#endif//BLOCK_TIME_STEP
+
+#ifdef  CHECK_RADIAL_ORBIT_INSTABILITY
+    Trad_loc += mass * vr * vr;
+    Ttan_loc += mass * vt * vt;
+#endif//CHECK_RADIAL_ORBIT_INSTABILITY
 #endif//USE_OSIPKOV_MERRITT_METHOD
+
 
     body.acc[ii].x   = body.acc[ii].y = body.acc[ii].z = ZERO;
     body.pos[ii].m   = mass;
@@ -681,6 +774,13 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
   }/* for(ulong ii = *Nuse; ii < *Nuse + num; ii++){ */
 
   *Nuse += num;
+
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+#ifdef  CHECK_RADIAL_ORBIT_INSTABILITY
+  *Trad = 0.5 * Trad_loc;
+  *Ttan = 0.5 * Ttan_loc;
+#endif//CHECK_RADIAL_ORBIT_INSTABILITY
+#endif//USE_OSIPKOV_MERRITT_METHOD
 
 #ifdef  PROGRESS_REPORT_ON
 #ifdef  USE_SFMTJUMP
@@ -1020,12 +1120,45 @@ int main(int argc, char **argv)
 			    fene);
   stopBenchmark_cpu(&execTime.eddington);
 
+#if 1
+  /** check that obtained distribution function is non-zero */
+#pragma omp parallel for
+  for(int ii = 0; ii < nsphere; ii++){
+    int jmax = NENEBIN - 1;
+    for(int jj = jmax; jj >= 0; jj--)
+      if( fene[ii][jj].val > ZERO ){
+	jmax = jj;
+	break;
+      }/* if( fene[ii][jj].val > ZERO ){ */
+
+    int jmin = 0;
+    for(int jj = jmin; jj < jmax; jj++)
+      if( fene[ii][jj].val > ZERO ){
+	jmin = jj;
+	break;
+      }/* if( fene[ii][jj].val > ZERO ){ */
+
+    bool single_component = true;
+    for(int jj = jmin; jj < jmax + 1; jj++)
+      if( fene[ii][jj].val <= ZERO ){
+	single_component = false;
+	break;
+      }/* if( fene[ii][jj].val <= ZERO ){ */
+
+#pragma omp critical
+    if( !single_component ){
+      __FPRINTF__(stderr, "warning: DF of %d-th component contains f = 0 regions in [Emin:Emax]; consider adopting wider smoothing scale about the cut-off radius (current value is %e = %e %s)\n", ii, cfg[ii].rc_width, cfg[ii].rc_width * length2astro, length_astro_unit_name);
+    }/* if( !single_component ){ */
+
+  }/* for(int ii = 0; ii < nsphere; ii++){ */
+#endif
+
 #ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
   initBenchmark_cpu();
   calcVelocityDispersionProfile(nsphere, prf,
-#ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+#   if  defined(ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF) || defined(USE_OSIPKOV_MERRITT_METHOD)
 				cfg,
-#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF
+#endif//defined(ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_DF) || defined(USE_OSIPKOV_MERRITT_METHOD)
 				fene);
   stopBenchmark_cpu(&execTime.vdisp);
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
@@ -1100,6 +1233,10 @@ int main(int argc, char **argv)
 #endif//USE_SFMTJUMP
 
     /** create spherical particle distribution */
+#   if  defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
+    double Trad_loc = 0.0;
+    double Ttan_loc = 0.0;
+#endif//defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
 #ifdef  USE_SFMTJUMP
 #pragma omp barrier
 #pragma omp master
@@ -1109,7 +1246,11 @@ int main(int argc, char **argv)
     for(int ii = 0; ii < skind; ii++){
       /** distribute spheroid particles */
       if( cfg[ii].kind != CENTRALBH )
-	cfg[ii].Ecut = distributeSpheroidParticles(&Nuse, body, CAST_D2R(cfg[ii].Mtot / (double)cfg[ii].num), cfg[ii], &prf[ii][2], fene[ii], rand);
+	cfg[ii].Ecut = distributeSpheroidParticles(&Nuse, body, CAST_D2R(cfg[ii].Mtot / (double)cfg[ii].num), cfg[ii], &prf[ii][2], fene[ii], rand
+#   if  defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
+						   , &Trad_loc, &Ttan_loc
+#endif//defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
+						   );
       else{
 #ifdef  USE_SFMTJUMP
 #pragma omp single nowait
@@ -1139,6 +1280,33 @@ int main(int argc, char **argv)
 #pragma omp master
 #endif//USE_SFMTJUMP
     stopBenchmark_cpu(&execTime.spheDist);
+
+#   if  defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
+    static double Trad, Ttan;
+#ifdef  USE_SFMTJUMP
+#pragma omp single nowait
+#endif//USE_SFMTJUMP
+    Trad = 0.0;
+#ifdef  USE_SFMTJUMP
+#pragma omp single
+#endif//USE_SFMTJUMP
+    Ttan = 0.0;
+#ifdef  USE_SFMTJUMP
+#pragma omp atomic
+#endif//USE_SFMTJUMP
+    Trad += Trad_loc;
+#ifdef  USE_SFMTJUMP
+#pragma omp atomic
+#endif//USE_SFMTJUMP
+    Ttan += Ttan_loc;
+#ifdef  USE_SFMTJUMP
+#pragma omp barrier
+#pragma omp single
+#endif//USE_SFMTJUMP
+    {
+      fprintf(stdout, "#\t2 T_rad / T_tan = %e; i.e., the system %s to radial-orbit instability\n", 2.0 * Trad / Ttan, (2.0 * Trad >= 2.3 * Ttan) ? "may be unstable" : "would be stable");
+    }
+#endif//defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
 
     /** add disk component if required */
     if( addDisk ){
@@ -1187,7 +1355,9 @@ int main(int argc, char **argv)
       }/* for(int ii = 0; ii < ndisk; ii++){ */
 
 #ifdef  CHECK_OSTRIKER_PEEBLES_CRITERION
+#ifdef  USE_SFMTJUMP
 #pragma omp single
+#endif//USE_SFMTJUMP
       {
 	double Tdisk = 0.0;
 
@@ -1783,6 +1953,11 @@ void outputFundamentalInformation
     fprintf(fp, "Total mass of the component Mtot is %e (= %e %s)\n", cfg[ii].Mtot, cfg[ii].Mtot * mass2astro, mass_astro_unit_name);
     if( cfg[ii].kind != CENTRALBH )
       fprintf(fp, "Scale radius of the component rs is %e (= %e %s)\n", cfg[ii].rs, cfg[ii].rs * length2astro, length_astro_unit_name);
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+    if( cfg[ii].kind != CENTRALBH )
+      if( (cfg[ii].kind != EXP_DISK) && (cfg[ii].kind != SERSIC) && (cfg[ii].kind != TBL_DISK) )
+      fprintf(fp, "Anisotropy radius of the component ra is %e (= %e %s)\n", cfg[ii].ra, cfg[ii].ra * length2astro, length_astro_unit_name);
+#endif//USE_OSIPKOV_MERRITT_METHOD
     if( cfg[ii].kind == KING ){
       fprintf(fp, "Dimensionless King parameter  W0 is %e\n", cfg[ii].king_W0);
 #ifdef  KING_CENTRAL_CUSP
@@ -1898,9 +2073,14 @@ void outputFundamentalInformation
 #endif//MAKE_COLUMN_DENSITY_PROFILE
 #ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
 	fprintf(fp, "Velocity dispersion      sigma_r is %e (= %e %s)\n", prf[ii][0].sigr, prf[ii][0].sigr * velocity2astro, velocity_astro_unit_name);
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+	fprintf(fp, "Velocity dispersion      sigma_t is %e (= %e %s)\n", prf[ii][0].sigt, prf[ii][0].sigt * velocity2astro, velocity_astro_unit_name);
+	fprintf(fp, "Anisotropy parameter        beta is %e\n", prf[ii][0].bet);
+#else///USE_OSIPKOV_MERRITT_METHOD
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
 	fprintf(fp, "LoS velocity dispersion  sig_los is %e (= %e %s)\n", prf[ii][0].slos, prf[ii][0].slos * velocity2astro, velocity_astro_unit_name);
 #endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//USE_OSIPKOV_MERRITT_METHOD
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
 
 	int ll, rr;
@@ -1930,10 +2110,17 @@ void outputFundamentalInformation
 #ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
 	val = (1.0 - alpha) * prf[ii][ll].sigr + alpha * prf[ii][rr].sigr;
 	fprintf(fp, "Velocity dispersion      sigma_r is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+	val = (1.0 - alpha) * prf[ii][ll].sigt + alpha * prf[ii][rr].sigt;
+	fprintf(fp, "Velocity dispersion      sigma_t is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+	val = (1.0 - alpha) * prf[ii][ll].bet  + alpha * prf[ii][rr].bet;
+	fprintf(fp, "Anisotropy parameter        beta is %e\n", val);
+#else///USE_OSIPKOV_MERRITT_METHOD
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
 	val = (1.0 - alpha) * prf[ii][ll].slos + alpha * prf[ii][rr].slos;
 	fprintf(fp, "LoS velocity dispersion  sig_los is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
 #endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//USE_OSIPKOV_MERRITT_METHOD
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
 
       /* physical quantities @ r = r_{1/2} */
@@ -1960,10 +2147,17 @@ void outputFundamentalInformation
 #ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
 	val = (1.0 - alpha) * prf[ii][ll].sigr + alpha * prf[ii][rr].sigr;
 	fprintf(fp, "Velocity dispersion      sigma_r is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+	val = (1.0 - alpha) * prf[ii][ll].sigt + alpha * prf[ii][rr].sigt;
+	fprintf(fp, "Velocity dispersion      sigma_t is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+	val = (1.0 - alpha) * prf[ii][ll].bet  + alpha * prf[ii][rr].bet;
+	fprintf(fp, "Anisotropy parameter        beta is %e\n", val);
+#else///USE_OSIPKOV_MERRITT_METHOD
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
 	val = (1.0 - alpha) * prf[ii][ll].slos + alpha * prf[ii][rr].slos;
 	fprintf(fp, "LoS velocity dispersion  sig_los is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
 #endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//USE_OSIPKOV_MERRITT_METHOD
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
 
       /* physical quantities @ r = R_{eff} */
@@ -1990,10 +2184,17 @@ void outputFundamentalInformation
 #ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
 	val = (1.0 - alpha) * prf[ii][ll].sigr + alpha * prf[ii][rr].sigr;
 	fprintf(fp, "Velocity dispersion      sigma_r is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+	val = (1.0 - alpha) * prf[ii][ll].sigt + alpha * prf[ii][rr].sigt;
+	fprintf(fp, "Velocity dispersion      sigma_t is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+	val = (1.0 - alpha) * prf[ii][ll].bet  + alpha * prf[ii][rr].bet;
+	fprintf(fp, "Anisotropy parameter        beta is %e\n", val);
+#else///USE_OSIPKOV_MERRITT_METHOD
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
 	val = (1.0 - alpha) * prf[ii][ll].slos + alpha * prf[ii][rr].slos;
 	fprintf(fp, "LoS velocity dispersion  sig_los is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
 #endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//USE_OSIPKOV_MERRITT_METHOD
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
       }/* if( ii < skind ){ */
 
@@ -2090,9 +2291,14 @@ void outputRadialProfiles
   real *tmp_t2r;  tmp_t2r = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_t2r == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_t2r\n");  }
 #ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
   real *tmp_sig;  tmp_sig = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_sig\n");  }
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+  real *tmp_tan;  tmp_tan = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_tan == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_tan\n");  }
+  real *tmp_bet;  tmp_bet = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_bet == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_bet\n");  }
+#else///USE_OSIPKOV_MERRITT_METHOD
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   real *tmp_los;  tmp_los = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_los == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_los\n");  }
 #endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//USE_OSIPKOV_MERRITT_METHOD
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   real *tmp_Sig;  tmp_Sig = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_Sig == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_Sig\n");  }
@@ -2145,9 +2351,14 @@ void outputRadialProfiles
       tmp_psi[ii] = CAST_D2R(prf[kk][ii].psi * senergy2astro);
 #ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
       tmp_sig[ii] = CAST_D2R(prf[kk][ii].sigr * velocity2astro);
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+      tmp_tan[ii] = CAST_D2R(prf[kk][ii].sigt * velocity2astro);
+      tmp_bet[ii] = CAST_D2R(prf[kk][ii].bet);
+#else///USE_OSIPKOV_MERRITT_METHOD
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
       tmp_los[ii] = CAST_D2R(prf[kk][ii].slos * velocity2astro);
 #endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//USE_OSIPKOV_MERRITT_METHOD
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
       tmp_Sig[ii] = CAST_D2R(prf[kk][ii].Sigma * col_density2astro);
@@ -2184,12 +2395,22 @@ void outputRadialProfiles
     dataset = H5Dcreate(group, "sigma_r", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_sig));
     chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+    dataset = H5Dcreate(group, "sigma_t", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_tan));
+    chkHDF5err(H5Dclose(dataset));
+    /** write anisotropy parameter */
+    dataset = H5Dcreate(group, "beta", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_bet));
+    chkHDF5err(H5Dclose(dataset));
+#else///USE_OSIPKOV_MERRITT_METHOD
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
     /** write velocity dispersion along the line-of-sight */
     dataset = H5Dcreate(group, "sigma_los", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_los));
     chkHDF5err(H5Dclose(dataset));
 #endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//USE_OSIPKOV_MERRITT_METHOD
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
     /** write column density */
@@ -2387,9 +2608,14 @@ void outputRadialProfiles
   free(tmp_t2r);
 #ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
   free(tmp_sig);
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+  free(tmp_tan);
+  free(tmp_bet);
+#else///USE_OSIPKOV_MERRITT_METHOD
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   free(tmp_los);
 #endif//MAKE_COLUMN_DENSITY_PROFILE
+#endif//USE_OSIPKOV_MERRITT_METHOD
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
   free(tmp_Sig);
@@ -2435,6 +2661,10 @@ void outputDistributionFunction(const int skind, dist_func **df, char file[])
       tmp_ene[ii] = CAST_D2R(CAST_R2D(df[kk][ii].ene) * senergy2astro);
       tmp_val[ii] =                   df[kk][ii].val;
     }/* for(int ii = 0; ii < NENEBIN; ii++){ */
+#if 0
+    for(int ii = 0; ii < NENEBIN; ii++)
+      fprintf(stderr, "%e\t%e\n", df[kk][ii].ene, df[kk][ii].val);
+#endif
 
     char grp[16];    sprintf(grp,  "series%d", kk);
     hid_t group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -2641,12 +2871,15 @@ static inline void writeVals_at_givenRad
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, attr));
   chkHDF5err(H5Aclose(attribute));
 
+
+#   if  defined(MAKE_COLUMN_DENSITY_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
   /** write velocity dispersion along the line-of-sight */
   for(int jj = 0; jj < skind; jj++)
     attr[jj] = ((1.0 - alp) * prf[jj][ll].slos + alp * prf[jj][rr].slos) * velocity2astro;
   attribute = H5Acreate(sub, "sigma_los", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, attr));
   chkHDF5err(H5Aclose(attribute));
+#endif//defined(MAKE_COLUMN_DENSITY_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 
   chkHDF5err(H5Sclose(dataspace));
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
@@ -2703,6 +2936,10 @@ void outputRepresentativeQuantities
       writeVals_at_givenRad(group, cfg[kk].rs   , "rs"   , tmp_attr, kind, skind, prf, maxLev, disk);
       writeVals_at_givenRad(group, cfg[kk].rhalf, "rhalf", tmp_attr, kind, skind, prf, maxLev, disk);
       writeVals_at_givenRad(group, cfg[kk].Reff , "Reff" , tmp_attr, kind, skind, prf, maxLev, disk);
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+      if( (cfg[kk].kind != EXP_DISK) && (cfg[kk].kind != SERSIC) && (cfg[kk].kind != TBL_DISK) )
+	writeVals_at_givenRad(group, cfg[kk].ra   , "ra"   , tmp_attr, kind, skind, prf, maxLev, disk);
+#endif//USE_OSIPKOV_MERRITT_METHOD
     }/* if( cfg[kk].kind != CENTRALBH ){ */
 
     if( kk >= skind ){

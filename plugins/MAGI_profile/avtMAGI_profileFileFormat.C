@@ -211,6 +211,11 @@ avtMAGI_profileFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
     avtScalarMetaData *sig = new avtScalarMetaData;    sig->meshName = meshname;    sig->centering = AVT_NODECENT;    sig->hasUnits = true;
     var << meshname << "/sigma_r";    sig->name = var.str();    sig->units = velocity_unit;    md->Add(sig);    var.str("");
 
+    avtScalarMetaData *tan = new avtScalarMetaData;    tan->meshName = meshname;    tan->centering = AVT_NODECENT;    tan->hasUnits = true;
+    var << meshname << "/sigma_t";    tan->name = var.str();    tan->units = velocity_unit;    md->Add(tan);    var.str("");
+    avtScalarMetaData *bet = new avtScalarMetaData;    bet->meshName = meshname;    bet->centering = AVT_NODECENT;    bet->hasUnits = false;
+    var << meshname << "/beta";    bet->name = var.str();    md->Add(bet);    var.str("");
+
     avtScalarMetaData *los = new avtScalarMetaData;    los->meshName = meshname;    los->centering = AVT_NODECENT;    los->hasUnits = true;
     var << meshname << "/sigma_los";    los->name = var.str();    los->units = velocity_unit;    md->Add(los);    var.str("");
   }// for(int ii = 0; ii < kind; ii++){
