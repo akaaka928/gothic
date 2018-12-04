@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/11/19 (Mon)
+ * @date 2018/12/04 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -68,6 +68,11 @@ static inline double getDF(const double ene, dist_func *df, const double Emin, c
   }/* if( (ll < 0) || (ll >= NENEBIN) ){ */
 #endif//NDEBUG
   return (df[ll].val + (df[ll + 1].val - df[ll].val) * (ene - df[ll].ene) / (df[ll + 1].ene - df[ll].ene));
+}
+static inline real getDFmax(const double ene, real *dfmax, const double Emin, const double invEbin)
+{
+  const int ll = (int)ceil((ene - Emin) * invEbin);
+  return (dfmax[(ll < NENEBIN) ? ll : (NENEBIN - 1)]);
 }
 
 

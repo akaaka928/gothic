@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/03 (Mon)
+ * @date 2018/12/04 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -507,12 +507,12 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
  * @sa isotropicDistribution
  * @sa getDF
  */
-double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass, profile_cfg cfg, profile *prf, dist_func *df, rand_state *rand
+double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass, profile_cfg cfg, profile *prf, dist_func *df, real *dfmax, rand_state *rand
 #   if  defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
 				   , double *Trad, double *Ttan
 #endif//defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
 				   );
-double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass, profile_cfg cfg, profile *prf, dist_func *df, rand_state *rand
+double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass, profile_cfg cfg, profile *prf, dist_func *df, real *dfmax, rand_state *rand
 #   if  defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
 				   , double *Trad, double *Ttan
 #endif//defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
@@ -543,14 +543,18 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
   const double    Emin = df[          0].ene;
   const double    Emax = df[NENEBIN - 1].ene;
   const double invEbin = (double)(NENEBIN - 1) / (Emax - Emin);
-  __NOTE__("Emin = %e, Emax = %e, invEbin = %e\n", Emin, Emax, invEbin);
+  __NOTE__("kind = %d: Emin = %e, Emax = %e, invEbin = %e\n", cfg.kind, Emin, Emax, invEbin);
 
   const double Mmin = prf[0].enc;
   const double Mmax = cfg.Mtot;
 
+  const double Qmin = cfg.Emin;
+  const double Qmax = cfg.Emax;
+
 #if 1
   const int iout = cfg.iout;
   const double Ecut = prf[iout].psi_tot;
+  __NOTE__("iout = %d, Ecut = %e\n", iout, Ecut);
 #else
   /* no more required or something wrong... */
   double fmax = 0.0;
@@ -570,6 +574,32 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
   double Trad_loc = 0.0;
   double Ttan_loc = 0.0;
 #endif//CHECK_RADIAL_ORBIT_INSTABILITY
+
+#if 0
+#pragma omp single
+  {
+    double rmax = DBL_MAX;
+    double mmax = Mmax;
+    for(int ii = iout; ii >= 0; ii--)
+      if( cfg.Emin > prf[ii].psi_tot ){
+	rmax = prf[ii].rad;
+	mmax = prf[ii].enc;
+	break;
+      }
+    double rmin = -DBL_MAX;
+    double mmin = Mmin;
+    for(int ii = 0; ii < iout; ii++)
+      if( cfg.Emax < prf[ii].psi_tot ){
+	rmin = prf[ii].rad;
+	mmin = prf[ii].enc;
+	break;
+      }
+
+    fprintf(stderr, "kind = %d: rmin = %e, enc = %e while Mmin = %e\n", cfg.kind, rmin, mmin, Mmin);
+    fprintf(stderr, "kind = %d: rmax = %e, enc = %e while Mmax = %e\n", cfg.kind, rmax, mmax, Mmax);
+  }
+#endif
+
 
 /* #if 1 */
 /*   if( omp_get_thread_num() == 0 ){ */
@@ -644,11 +674,14 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
       __KILL__(stderr, "rad = %e, psi = %e, Ecut = %e, Emin = %e, rout = %e, vesc = %e\n", rad, psi, Ecut, Emin, cfg.rmax, vesc);
     }/* if( fpclassify(vesc) != FP_NORMAL ){ */
 #endif//NDEBUG
-    const double v2Fmax = vesc * vesc * getDF(psi, df, Emin, invEbin);
+    /* const double v2Fmax = vesc * vesc * getDF(psi, df, Emin, invEbin); */
+    const double v2Fmax = vesc * vesc * getDFmax(psi, dfmax, Emin, invEbin);
 
     /** rejection method in velocity space */
     double vel;
     while( true ){
+#if 0
+      /** original implementation */
       vel = vesc * UNIRAND_DBL(rand);
       const double v2 = vel * vel;
       const double ene = psi - 0.5 * v2;
@@ -657,6 +690,17 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 	__FPRINTF__(stderr, "ene = %e, psi = %e, vel = %e\n", ene, psi, sqrt(v2));
       }/* if( fpclassify(ene) != FP_NORMAL ){ */
 #endif//NDEBUG
+#else
+      /** more conservative implementation */
+      double v2, ene;
+      while( true ){
+	vel = vesc * UNIRAND_DBL(rand);
+	v2 = vel * vel;
+	ene = psi - 0.5 * v2;
+	if( (ene >= Qmin) && (ene <= Qmax) )
+	  break;
+      }/* while( true ){ */
+#endif
 
       const double val = v2 * getDF(ene, df, Emin, invEbin);
       const double try = v2Fmax * UNIRAND_DBL(rand);
@@ -681,7 +725,8 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
     /** rejection method in velocity space */
 #if 0
     const double vesc = sqrt(2.0 * psi);
-    const double v2Fmax = vesc * vesc * getDF(psi, df, Emin, invEbin);
+    /* const double v2Fmax = vesc * vesc * getDF(psi, df, Emin, invEbin); */
+    const double v2Fmax = vesc * vesc * getDFmax(psi, dfmax, Emin, invEbin);
     const double r2_ra2 = rad * rad * ra2inv;
 
     double vr, vt;
@@ -694,7 +739,7 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 	vt = vel * sin(eta);
 	QQ = psi - 0.5 * (vel * vel + r2_ra2 * vt * vt);
 
-	if( QQ >= Emin )
+	if( (QQ >= Qmin) && (QQ <= Qmax) )
 	  break;
       }/* while( true ){ */
 
@@ -707,7 +752,9 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
     }/* while( true ){ */
 #else
     const double vesc = sqrt(2.0 * psi);
-    const double Fmax = getDF(psi, df, Emin, invEbin);
+    /* const double Fmax = getDF(psi, df, Emin, invEbin); */
+    const double Fmax = getDFmax(psi, dfmax, Emin, invEbin);
+    __NOTE__("Fmax = %e\n", Fmax);
     const double r2_ra2 = rad * rad * ra2inv;
     const double vtmax = vesc / sqrt(1.0 + r2_ra2);
 
@@ -722,15 +769,22 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 	const double vt2 = v0 * v0 + v1 * v1;
 	v2 = vt2 + vr * vr;
 	QQ = psi - 0.5 * (v2 + r2_ra2 * vt2);
-	if( QQ >= Emin ){
+	if( (QQ >= Qmin) && (QQ <= Qmax) ){
 	  vt = sqrt(vt2);
 	  break;
-	}/* if( QQ >= Emin ){ */
+	}/* if( (QQ >= Qmin) && (QQ <= Qmax) ){ */
       }/* while( true ){ */
 
       const double val = getDF(QQ, df, Emin, invEbin);
       const double try = Fmax * UNIRAND_DBL(rand);
-      if( val > try )	break;
+      if( val > try ){
+#if 1
+	if( (QQ < Qmin) || (QQ > Qmax) ){
+	  fprintf(stderr, "kind = %d: QQ = %e @ r = %e while [%e:%e]; val = %e, try = %e, Fmax = %e\n", cfg.kind, QQ, rad, Qmin, Qmax, val, try, Fmax);
+	}/* if( (QQ < Qmin) || (QQ > Qmax) ){ */
+#endif
+	break;
+      }
     }/* while( true ){ */
 #endif
 
@@ -839,6 +893,7 @@ int main(int argc, char **argv)
     __FPRINTF__(stderr, "          -eps=<real> -eta=<real>\n");
     __FPRINTF__(stderr, "          -ft=<real> -snapshotInterval=<real> -saveInterval=<real>\n");
     __FPRINTF__(stderr, "          -enforceInputSoftening=<int> (optional)\n");
+    __FPRINTF__(stderr, "          -denoisingDistributionFunction=<int> (optional)\n");
     __KILL__(stderr, "%s\n", "insufficient command line arguments");
   }/* if( argc < 9 ){ */
 
@@ -860,6 +915,10 @@ int main(int argc, char **argv)
   requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "snapshotInterval", &tmp));
   double snapshotInterval = ldexp(1.0, (int)floor(log2(tmp * time_astro2com)));
   requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "ft",  &tmp));  double  ft =         (tmp *   time_astro2com);
+
+  static int denoisingDistributionFunction;
+  if( optionalCmdArg(getCmdArgInt(argc, (const char * const *)(void *)argv, "denoisingDistributionFunction", &denoisingDistributionFunction)) != myUtilAvail )
+    denoisingDistributionFunction = 0;
 
 
   static breakdown execTime;
@@ -1120,7 +1179,6 @@ int main(int argc, char **argv)
 			    fene);
   stopBenchmark_cpu(&execTime.eddington);
 
-#if 1
   /** check that obtained distribution function is non-zero */
 #pragma omp parallel for
   for(int ii = 0; ii < nsphere; ii++){
@@ -1130,6 +1188,7 @@ int main(int argc, char **argv)
 	jmax = jj;
 	break;
       }/* if( fene[ii][jj].val > ZERO ){ */
+    const real Emax = fene[ii][jmax].ene;
 
     int jmin = 0;
     for(int jj = jmin; jj < jmax; jj++)
@@ -1137,6 +1196,7 @@ int main(int argc, char **argv)
 	jmin = jj;
 	break;
       }/* if( fene[ii][jj].val > ZERO ){ */
+    real Emin = fene[ii][jmin].ene;
 
     bool single_component = true;
     for(int jj = jmin; jj < jmax + 1; jj++)
@@ -1145,13 +1205,67 @@ int main(int argc, char **argv)
 	break;
       }/* if( fene[ii][jj].val <= ZERO ){ */
 
-#pragma omp critical
     if( !single_component ){
-      __FPRINTF__(stderr, "warning: DF of %d-th component contains f = 0 regions in [Emin:Emax]; consider adopting wider smoothing scale about the cut-off radius (current value is %e = %e %s)\n", ii, cfg[ii].rc_width, cfg[ii].rc_width * length2astro, length_astro_unit_name);
+      for(int jj = jmax; jj >= jmin; jj--)
+	if( fene[ii][jj].val <= ZERO ){
+	  jmin = jj + 1;
+	  break;
+	}
+      Emin = fene[ii][jmin].ene;
+
+      if( denoisingDistributionFunction )
+	for(int jj = 0; jj < jmin; jj++)
+	  fene[ii][jj].val = ZERO;
+
+#pragma omp critical
+      {
+	__FPRINTF__(stderr, "WARNING: DF of %d-th component contains f = 0 regions in [Emin:Emax] = [%e:%e]; consider adopting wider smoothing scale about the cut-off radius (current value is %e = %e %s)\n", ii, Emin, Emax, cfg[ii].rc_width, cfg[ii].rc_width * length2astro, length_astro_unit_name);
+
+	if( !denoisingDistributionFunction ){
+	  __FPRINTF__(stderr, "WARNING: recomend to rerun MAGI with additional input argument of \"-denoisingDistributionFunction=1\" to denoise distribution function\n");
+	}/* if( !denoisingDistributionFunction ){ */
+      }
     }/* if( !single_component ){ */
 
+    cfg[ii].Emin = Emin;
+    cfg[ii].Emax = Emax;
+
+    jmax = cfg[ii].iout;
+    for(int jj = jmax; jj >= 0; jj--)
+      if( Emin <= prf[ii][jj].psi_tot ){
+	jmax = jj;
+	break;
+      }/* if( Emin <= prf[ii][jj].psi_tot ){ */
+
+/*     jmin = 0; */
+/*     for(int jj = 0; jj < jmax; jj++) */
+/*       if( Emax >= prf[ii][jj].psi_tot ){ */
+/* 	jmin = jj; */
+/* 	break; */
+/*       }/\* if( Emax >= prf[ii][jj].psi_tot ){ *\/ */
+
+/* #pragma omp critical */
+/*     { */
+/*       __FPRINTF__(stderr, "memo: iout = %d -->> imin = %d (rad = %e, enc = %e, psi_tot = %e; %e), imax = %d (rad = %e, enc = %e, psi_tot = %e)\n", cfg[ii].iout, jmin, prf[ii][jmin].rad, prf[ii][jmin].enc, prf[ii][jmin].psi_tot, prf[ii][(jmin > 0) ? (jmin - 1) : 0].psi_tot, jmax, prf[ii][jmax].rad, prf[ii][jmax].enc, prf[ii][jmax].psi_tot); */
+/*     } */
+
+    cfg[ii].iout = jmax;
   }/* for(int ii = 0; ii < nsphere; ii++){ */
-#endif
+
+  real **fene_max, *_fene_max;
+  _fene_max = (real  *)malloc(sizeof(real  ) * nsphere * NENEBIN);  if( _fene_max == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _fene_max\n");  }
+  fene_max  = (real **)malloc(sizeof(real *) * nsphere          );  if(  fene_max == NULL ){    __KILL__(stderr, "ERROR: failure to allocate  fene_max\n");  }
+  for(int ii = 0; ii < nsphere; ii++)
+    fene_max[ii] = _fene_max + ii * NENEBIN;
+#pragma omp parallel for
+  for(int ii = 0; ii < nsphere; ii++){
+    real fmax_tmp = ZERO;
+    for(int jj = 0; jj < NENEBIN; jj++){
+      fmax_tmp = FMAX(fmax_tmp, fene[ii][jj].val);
+      fene_max[ii][jj] = fmax_tmp;
+    }/* for(int jj = 0; jj < NENEBIN; jj++){ */
+  }/* for(int ii = 0; ii < nsphere; ii++){ */
+
 
 #ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
   initBenchmark_cpu();
@@ -1246,7 +1360,7 @@ int main(int argc, char **argv)
     for(int ii = 0; ii < skind; ii++){
       /** distribute spheroid particles */
       if( cfg[ii].kind != CENTRALBH )
-	cfg[ii].Ecut = distributeSpheroidParticles(&Nuse, body, CAST_D2R(cfg[ii].Mtot / (double)cfg[ii].num), cfg[ii], &prf[ii][2], fene[ii], rand
+	cfg[ii].Ecut = distributeSpheroidParticles(&Nuse, body, CAST_D2R(cfg[ii].Mtot / (double)cfg[ii].num), cfg[ii], &prf[ii][2], fene[ii], fene_max[ii], rand
 #   if  defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
 						   , &Trad_loc, &Ttan_loc
 #endif//defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
@@ -1757,10 +1871,9 @@ int main(int argc, char **argv)
 #endif//BLOCK_TIME_STEP
      );
   free(cfg);
-  free(prf);
-  free(_prf);
-  free(fene);
-  free(_fene);
+  free(prf);  free(_prf);
+  free(fene);  free(_fene);
+  free(fene_max);  free(_fene_max);
   if( addDisk )
     freeDiskProfile
       (ndisk, disk_info,

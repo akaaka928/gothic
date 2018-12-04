@@ -55,7 +55,7 @@ if [ -z "$NTOT" ]; then
     # NTOT=16384
     # NTOT=32768
     # NTOT=65536
-    NTOT=131072
+    # NTOT=131072
     # NTOT=262144
     # NTOT=524288
     # NTOT=1048576
@@ -63,7 +63,7 @@ if [ -z "$NTOT" ]; then
     # NTOT=2097152
     # NTOT=4194304
     # NTOT=8388608
-    # NTOT=16777216
+    NTOT=16777216
     # NTOT=33554432
     # NTOT=67108864
     # NTOT=134217728
@@ -78,6 +78,11 @@ fi
 # dump file generation interval (in units of minute)
 if [ -z "$SAVE" ]; then
     SAVE=55.0
+fi
+###############################################################
+# denoise distribution function
+if [ -z "$DENOISE_DF" ]; then
+    DENOISE_DF=1
 fi
 ###############################################################
 
@@ -820,7 +825,7 @@ fi
 ###############################################################
 # set input arguments
 if [ $PROBLEM -ge 1 ]; then
-    OPTION="-file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE"
+    OPTION="-file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE -denoisingDistributionFunction=$DENOISE_DF"
 else
     OPTION="-file=$FILE -unit=$UNIT -Ntot=$NTOT -Mtot=$MTOT -virial=$VIRIAL -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE"
 fi

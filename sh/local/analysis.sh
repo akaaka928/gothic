@@ -8,12 +8,12 @@ JOB_ID=$$
 PROBLEM=$1
 ###############################################################
 # set number of MPI processes per node
-PROCS=8
+PROCS=16
 if [ $# -gt 2 ]; then
     PROCS=$2
 fi
-PROCS_PER_NODE=16
-PROCS_PER_SOCKET=8
+PROCS_PER_NODE=32
+PROCS_PER_SOCKET=16
 ###############################################################
 #
 #

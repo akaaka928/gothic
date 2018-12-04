@@ -27,8 +27,8 @@ INI=bin/magi
 # NTOT=1048576
 # NTOT=2097152
 # NTOT=4194304
-NTOT=8388608
-# NTOT=16777216
+# NTOT=8388608
+NTOT=16777216
 # NTOT=33554432
 # NTOT=67108864
 # NTOT=134217728
@@ -38,6 +38,8 @@ NTOT=8388608
 # NTOT=2147483648
 # NTOT=4294967296
 # NTOT=8589934592
+###############################################################
+DENOISE_DF=1
 ###############################################################
 SAVE=55.0
 ###############################################################
@@ -143,7 +145,8 @@ fi
 # dynamical stability of a King sphere within an Einasto profile
 if [ $PROBLEM -eq 10 ]; then
 FILE=hb
-CONFIG=multi/hb.cfg
+# CONFIG=multi/hb.cfg
+CONFIG=anisotropy/hb_beta.cfg
 EPS=1.5625e-2
 ETA=0.5
 FINISH=23.5
@@ -546,12 +549,12 @@ fi
 if [ $PROBLEM -ge 1 ]; then
 if [ `which numactl` ]; then
     # run with numactl
-    echo "numactl --localalloc $INI -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR" >> $LOG
-    numactl --localalloc $INI -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+    echo "numactl --localalloc $INI -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE -denoisingDistributionFunction=$DENOISE_DF 1>>$STDOUT 2>>$STDERR" >> $LOG
+    numactl --localalloc $INI -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE -denoisingDistributionFunction=$DENOISE_DF 1>>$STDOUT 2>>$STDERR
 else
     # run without numactl
-    echo "$INI -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR" >> $LOG
-    $INI -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE 1>>$STDOUT 2>>$STDERR
+    echo "$INI -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE -denoisingDistributionFunction=$DENOISE_DF 1>>$STDOUT 2>>$STDERR" >> $LOG
+    $INI -file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE -denoisingDistributionFunction=$DENOISE_DF 1>>$STDOUT 2>>$STDERR
 fi
 fi
 TIME=`date`

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/11/27 (Tue)
+ * @date 2018/12/04 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -204,7 +204,8 @@ typedef struct
   double Ecut;
   ulong num;
   double rmax;/**< radius where the rho becomes zero */
-  int iout;/**< index corresponding to the rmax */
+  real Emin, Emax;/**< minimum and maximum of non-zero distribution function */
+  int iout;/**< index corresponding to the rmax or Emin */
   int forceNum;/**< parameter to specify number of N-body particles for the component */
   int kind;
   bool passed;/**< variable to estimate Toomre's Q-value */
