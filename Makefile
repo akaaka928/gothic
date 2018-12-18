@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/11/22 (Thu) 09:58:39
+# last updated on 2018/12/17 (Mon) 18:22:58
 # Makefile for C Programming
 # Gravitational octree code for collisionless N-body simulations on GPUs
 #################################################################################################
@@ -32,6 +32,7 @@ USE_MPI_GET_FOR_EXCG	:= 0
 CARE_EXTERNAL_PARTICLES	:= 0
 ACC_ACCUMULATION_IN_DP	:= 0
 KAHAN_SUM_CORRECTION	:= 0
+SET_SINK_PARTICLES	:= 1
 MONITOR_ENERGY_ERROR	:= 1
 MONITOR_LETGEN_TIME	:= 1
 DIVERT_GEOMETRIC_CENTER	:= 1
@@ -205,6 +206,12 @@ endif
 ifeq ($(KAHAN_SUM_CORRECTION), 1)
 CCARG	+= -DKAHAN_SUM_CORRECTION
 CUARG	+= -DKAHAN_SUM_CORRECTION
+endif
+#################################################################################################
+ifeq ($(SET_SINK_PARTICLES), 1)
+FORCE_SINGLE_GPU_RUN	:= 1
+CCARG	+= -DSET_SINK_PARTICLES
+CUARG	+= -DSET_SINK_PARTICLES
 endif
 #################################################################################################
 ifeq ($(FORCE_SINGLE_GPU_RUN), 1)
@@ -593,6 +600,10 @@ endif
 ANALACT	:= $(BINDIR)/action
 ANALERR	:= $(BINDIR)/error
 ANALPRF	:= $(BINDIR)/extract
+ANALMBH	:= $(BINDIR)/accretion
+DMHALO	:= $(BINDIR)/dmhalo
+BULGE	:= $(BINDIR)/spheroid
+BHMASS	:= $(BINDIR)/blackhole
 M31OBS	:= $(BINDIR)/m31obs
 OPTCFG	:= $(BINDIR)/showOptConfig
 SAMPLE	:= $(BINDIR)/sample
@@ -712,6 +723,10 @@ EXCGGPU	:= exchange_dev.cu
 AACTSRC	:= action.c
 AERRSRC	:= error.c
 APRFSRC	:= extract.c
+AMBHSRC	:= accretion.c
+HALOSRC	:= dmhalo.c
+SPHESRC	:= spheroid.c
+SMBHSRC	:= blackhole.c
 AM31SRC	:= m31obs.c
 M31LIB	:= m31coord.c
 #################################################################################################
@@ -891,6 +906,17 @@ OBJAPRF	+= $(patsubst %.c, $(OBJDIR)/%.o,          $(notdir $(ALLCLIB)))
 endif
 #################################################################################################
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
+OBJAMBH	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.hdf5.o, $(notdir $(AMBHSRC)))
+else
+OBJAMBH	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.o,      $(notdir $(AMBHSRC)))
+endif
+OBJAMBH	+= $(patsubst %.c, $(OBJDIR)/%.omp.o,         $(notdir profile.c spline.c))
+#################################################################################################
+OBJHALO	:= $(patsubst %.c, $(OBJDIR)/%.o, $(notdir $(HALOSRC)))
+OBJSPHE	:= $(patsubst %.c, $(OBJDIR)/%.o, $(notdir $(SPHESRC)))
+OBJSMBH	:= $(patsubst %.c, $(OBJDIR)/%.o, $(notdir $(SMBHSRC)))
+#################################################################################################
+ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 OBJAM31	:= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o, $(notdir $(AM31SRC) $(FILELIB) $(ALLCLIB)))
 else
 OBJAM31	:= $(patsubst %.c, $(OBJDIR)/%.mpi.o,      $(notdir $(AM31SRC) $(FILELIB)))
@@ -905,7 +931,7 @@ OBJAM31	+= $(patsubst %.c, $(OBJDIR)/%.o,          $(notdir $(M31LIB)))
 #################################################################################################
 all:	TAGS $(GOTHIC) $(MAGI) $(EDITOR) $(PLTENE) $(PLTDST) $(ANALPRF)
 #################################################################################################
-.PHONY:	gothic init magi cold editor plot bench sample disk anal
+.PHONY:	gothic init magi cold editor plot bench sample disk anal mbh halo bulge m31 sass
 gothic:	TAGS $(GOTHIC)
 init:	TAGS $(MAGI) $(MKCOLD) $(EDITOR)
 magi:	TAGS $(MAGI)
@@ -916,6 +942,9 @@ bench:	TAGS $(OPTCFG) $(PLTELP) $(PLTDEP) $(PLTBRK) $(PLTCMP) $(PLTFLP) $(PLTRAD
 sample:	TAGS $(SAMPLE) $(PLTDF)
 disk:	TAGS $(PLTJET) $(PLTDISK)
 anal:	TAGS $(ANALACT) $(ANALERR) $(ANALPRF)
+mbh:	TAGS $(ANALMBH)
+halo:	TAGS $(DMHALO)
+bulge:	TAGS $(BULGE) $(BHMASS)
 m31:	TAGS $(M31OBS)
 sass:	TAGS $(GOTHIC).sass
 #################################################################################################
@@ -988,6 +1017,12 @@ $(OPTCFG):	$(OBJFIND)	$(MYLIB)/lib$(LIBPREC)myutil.a
 	$(VERBOSE)$(CC)    $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJFIND) -L$(MYLIB) -l$(LIBPREC)myutil $(CCLIB)
 $(SAMPLE):	$(OBJSMPL)
 	$(VERBOSE)$(CC)    $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJSMPL) $(CCLIB)
+$(DMHALO):	$(OBJHALO)	$(MYLIB)/lib$(LIBPREC)myutil.a
+	$(VERBOSE)$(CC)    $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJHALO) -L$(MYLIB) -l$(LIBPREC)myutil $(CCLIB)
+$(BULGE):	$(OBJSPHE)	$(MYLIB)/lib$(LIBPREC)myutil.a
+	$(VERBOSE)$(CC)    $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJSPHE) -L$(MYLIB) -l$(LIBPREC)myutil $(CCLIB)
+$(BHMASS):	$(OBJSMBH)	$(MYLIB)/lib$(LIBPREC)myutil.a
+	$(VERBOSE)$(CC)    $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJSMBH) -L$(MYLIB) -l$(LIBPREC)myutil $(CCLIB)
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 ifeq ($(USE_OFFICIAL_SFMT), 1)
 ifeq ($(USE_OFFICIAL_SFMT_JUMP), 1)
@@ -1021,6 +1056,8 @@ $(ANALERR):	$(OBJAERR)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)cons
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAERR) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CCLIB)
 $(ANALPRF):	$(OBJAPRF)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAPRF) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CCLIB)
+$(ANALMBH):	$(OBJAMBH)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAMBH) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)hdf5lib -l$(LIBPREC)ompmpilib $(HDF5LIB) $(OMPLIB) $(CCLIB)
 $(M31OBS):	$(OBJAM31)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAM31) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CCLIB)
 else
@@ -1056,6 +1093,8 @@ $(ANALERR):	$(OBJAERR)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)cons
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAERR) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib $(CCLIB)
 $(ANALPRF):	$(OBJAPRF)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAPRF) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib $(CCLIB)
+$(ANALMBH):	$(OBJAMBH)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAMBH) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib $(OMPLIB) $(CCLIB)
 $(M31OBS):	$(OBJAM31)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAM31) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)mpilib $(CCLIB)
 endif
@@ -1134,6 +1173,9 @@ ifneq ($(PLPLOT), 0)
 endif
 	$(VERBOSE)rm -f $(OPTCFG)
 	$(VERBOSE)rm -f $(ANALACT) $(ANALERR) $(ANALPRF)
+	$(VERBOSE)rm -f $(ANALMBH)
+	$(VERBOSE)rm -f $(DMHALO)
+	$(VERBOSE)rm -f $(BULGE) $(BHMASS)
 	$(VERBOSE)rm -f $(M31OBS)
 	$(VERBOSE)rm -f $(SAMPLE)
 #################################################################################################
@@ -1437,6 +1479,8 @@ $(OBJDIR)/mpicfg.mpi.o:		$(PARA_DEP)	$(TREEDIR)/make.h
 #################################################################################################
 # ## $(ANALDIR)/*
 ANAL_DEP	:=	$(COMMON_DEP)	$(MYINC)/constants.h	$(MYINC)/name.h	$(MYINC)/mpilib.h	$(MYINC)/myutil.h
+$(OBJDIR)/accretion.ompmpi.hdf5.o:	$(ANAL_DEP)	$(INITDIR)/profile.h	$(MYINC)/hdf5lib.h
+$(OBJDIR)/accretion.ompmpi.o:		$(ANAL_DEP)	$(INITDIR)/profile.h
 ANAL_DEP	+=	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h	$(FILEDIR)/io.h
 M31_DEP	:=	$(ANALDIR)/m31coord.h
 $(OBJDIR)/action.mpi.gsl.pl.hdf5.o:	$(ANAL_DEP)	$(INITDIR)/spline.h	$(MYINC)/hdf5lib.h
@@ -1444,9 +1488,12 @@ $(OBJDIR)/action.mpi.gsl.pl.o:		$(ANAL_DEP)	$(INITDIR)/spline.h
 $(OBJDIR)/error.mpi.hdf5.o:	$(ANAL_DEP)	$(MYINC)/hdf5lib.h
 $(OBJDIR)/error.mpi.o:		$(ANAL_DEP)
 $(OBJDIR)/extract.mpi.hdf5.o:	$(ANAL_DEP)	$(MYINC)/hdf5lib.h
-$(OBJDIR)/extract.mpi.o:		$(ANAL_DEP)
+$(OBJDIR)/extract.mpi.o:	$(ANAL_DEP)
 $(OBJDIR)/m31obs.mpi.hdf5.o:	$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/rotate.h	$(MYINC)/hdf5lib.h
 $(OBJDIR)/m31obs.mpi.o:		$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/rotate.h
 $(OBJDIR)/m31coord.o:		$(COMMON_DEP)	$(MYINC)/constants.h	$(MYINC)/rotate.h	$(MISCDIR)/structure.h	$(M31_DEP)
+$(OBJDIR)/dmhalo.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/myutil.h
+$(OBJDIR)/spheroid.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/myutil.h
+$(OBJDIR)/blackhole.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/myutil.h
 #################################################################################################
 #################################################################################################

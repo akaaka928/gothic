@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/04 (Tue)
+ * @date 2018/12/18 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1265,6 +1265,11 @@ int main(int argc, char **argv)
       fene_max[ii][jj] = fmax_tmp;
     }/* for(int jj = 0; jj < NENEBIN; jj++){ */
   }/* for(int ii = 0; ii < nsphere; ii++){ */
+#if 0
+  for(int ii = 0; ii < NENEBIN; ii++)
+    fprintf(stderr, "%e\t%e\n", fene[0][ii].ene, fene[0][ii].val);
+  exit(0);
+#endif
 
 
 #ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
@@ -2552,6 +2557,16 @@ void outputRadialProfiles
     attribute = H5Acreate(group, "rs", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
     chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &cfg[kk].rs));
     chkHDF5err(H5Aclose(attribute));
+    /** write cutoff radius */
+    attribute = H5Acreate(group, "rc", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &cfg[kk].rc));
+    chkHDF5err(H5Aclose(attribute));
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+    /** write anisotropy radius */
+    attribute = H5Acreate(group, "ra", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &cfg[kk].ra));
+    chkHDF5err(H5Aclose(attribute));
+#endif//USE_OSIPKOV_MERRITT_METHOD
     /** write total mass */
     attribute = H5Acreate(group, "Mtot", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
     chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &cfg[kk].Mtot));
@@ -2857,6 +2872,17 @@ void outputDistributionFunction(const int skind, dist_func **df, char file[])
   attribute = H5Acreate(target, "useDP", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
   chkHDF5err(H5Aclose(attribute));
+
+  /** write flag about velocity distribution */
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+  const int anisotropy = 1;
+#else///USE_OSIPKOV_MERRITT_METHOD
+  const int anisotropy = 0;
+#endif//USE_OSIPKOV_MERRITT_METHOD
+  attribute = H5Acreate(target, "anisotropy", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &anisotropy));
+  chkHDF5err(H5Aclose(attribute));
+
 
   /** close the dataspace */
   chkHDF5err(H5Sclose(dataspace));

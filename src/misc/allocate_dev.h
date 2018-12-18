@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/03/12 (Mon)
+ * @date 2018/12/17 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -87,9 +87,14 @@ extern "C"
 		      , acceleration  *old_dev
 #endif//GADGET_MAC
 		      );
+
+#ifdef  SET_SINK_PARTICLES
+  muse allocSinkParticleSoA_dev(position **pold, velocity **vold, position **pnew, velocity **vnew, velocity **mom, ulong **tag, int **list, real **lmax, ulong **tag_hst, const int Nsink, sinkparticle *sink);
+  void  freeSinkParticleSoA_dev(position  *pold, velocity  *vold, position  *pnew, velocity  *vnew, velocity  *mom, ulong  *tag, int  *list, real  *lmax, ulong  *tag_hst);
+#endif//SET_SINK_PARTICLES
+
 #ifdef  __CUDACC__
 }
 #endif//__CUDACC__
-
 
 #endif//ALLOCATE_DEV_H

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/23 (Wed)
+ * @date 2018/12/17 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -104,12 +104,18 @@ extern "C"
 #endif//BLOCK_TIME_STEP
 
 #ifdef  BLOCK_TIME_STEP
+#ifdef  SET_SINK_PARTICLES
+  void set_sink_particle_dev(const int Nsink, const sinkparticle sink, ulong *tag_hst);
+#endif//SET_SINK_PARTICLES
   void prediction_dev(const int Nj, const double tnew, const iparticle pi
 #ifdef  EXEC_BENCHMARK
 		      , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
 		      );
   void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTRICT laneTime, const real eps, const real eta, const iparticle pi, const int reuseTree
+#ifdef  SET_SINK_PARTICLES
+		      , const int Nbh, const sinkparticle bh, const double time
+#endif//SET_SINK_PARTICLES
 #ifdef  EXEC_BENCHMARK
 		      , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK

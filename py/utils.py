@@ -132,6 +132,33 @@ def set_shared_ylabel(ax, ylabel):
     ax[-1].yaxis.set_label_coords((x0 + x1) / 2, (y0 + y1) / 2, transform = fig.transFigure)
 
 
+def set_color_palette_for_color_universal_design():
+    Ncol = 6
+    col = [0] * Ncol
+
+    col[0] = "#000000"# black
+    col[1] = "#ff4b00"# red
+    col[2] = "#005aff"# blue
+    col[3] = "#f6aa00"# orange
+    col[4] = "#03af7a"# green
+    col[5] = "#4dc4ff"# sky blue
+    # col[5] = "#fff100"# yellow
+
+    return Ncol, col
+
+
+def set_color_palette_for_monochrome_color():
+    Ncol = 4
+    col = [0] * Ncol
+
+    col[0] = "#000000"# black
+    col[1] = "#84919e"# dark gray
+    col[2] = "#c8c8cb"# light gray
+    col[3] = "#ffffff"# white
+
+    return Ncol, col
+
+
 # for scientific notation in coutour plot
 # based on http://stackoverflow.com/questions/25983218/scientific-notation-colorbar-in-matplotlib
 import matplotlib.ticker as ticker
@@ -151,6 +178,7 @@ def generate_cmap(cols):
     for vv, cc in zip(vals, cols):
         color_list.append((vv / vmax, cc))
     return LinearSegmentedColormap.from_list("custom_cmap", color_list)
+
 
 def generate_cmap_comp(cols, loci):
     if len(cols) != len(loci):

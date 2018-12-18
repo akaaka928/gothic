@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/11/21 (Wed)
+ * @date 2018/12/17 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -327,6 +327,23 @@ __global__ void sortParticlesPHcurve_kernel_offset
 }
 
 
+#ifdef  SET_SINK_PARTICLES
+__global__ void findSinkParticles(const int offset, const int num, ulong * RESTRICT idx, const int Nsink, READ_ONLY ulong * RESTRICT tag, int * RESTRICT list)
+{
+  const int ii = offset + GLOBALIDX_X1D;
+
+  if( ii < num ){
+    const ulong pidx = idx[ii];
+    for(int jj = 0; jj < Nsink; jj++)
+      if( pidx == tag[jj] ){
+	list[jj] = ii;
+	break;
+      }/* if( pidx == tag[jj] ){ */
+  }/* if( ii < num ){ */
+}
+#endif//SET_SINK_PARTICLES
+
+
 /**
  * @fn sortParticlesPHcurve_dev
  *
@@ -341,6 +358,9 @@ void sortParticlesPHcurve_dev(const int num, iparticle * RESTRICT src, iparticle
 #ifdef  CUB_AVAILABLE
 			      , soaPHsort pre
 #endif//CUB_AVAILABLE
+#ifdef  SET_SINK_PARTICLES
+			      , const int Nbh, const sinkparticle bh
+#endif//SET_SINK_PARTICLES
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 			      , domainLocation *location
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
@@ -488,6 +508,27 @@ void sortParticlesPHcurve_dev(const int num, iparticle * RESTRICT src, iparticle
   _tmp = *src;
   *src = *dst;
   *dst = _tmp;
+
+#ifdef  SET_SINK_PARTICLES
+  Nrem = BLOCKSIZE(num, NTHREADS_PHSORT);
+  if( Nrem <= MAX_BLOCKS_PER_GRID )
+    findSinkParticles<<<Nrem, NTHREADS_PHSORT>>>(0, num, (*src).idx, Nbh, bh.tag, bh.list);
+  else{
+    const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
+    int hidx = 0;
+    for(int iter = 0; iter < Niter; iter++){
+      int Nblck = MAX_BLOCKS_PER_GRID;
+      if( Nblck > Nrem )	Nblck = Nrem;
+
+      int Nsub = Nblck * NTHREADS_PHSORT;
+      findSinkParticles<<<Nblck, NTHREADS_PHSORT>>>(hidx, num, (*src).idx, Nbh, bh.tag, bh.list);
+
+      hidx += Nsub;
+      Nrem -= Nblck;
+    }/* for(int iter = 0; iter < Niter; iter++){ */
+  }/* else{ */
+  getLastCudaError("findSinkParticles");
+#endif//SET_SINK_PARTICLES
 
 
 #ifdef  EXEC_BENCHMARK

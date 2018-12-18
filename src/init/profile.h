@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/04 (Tue)
+ * @date 2018/12/18 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -96,7 +96,7 @@
 #define MINRAD (1.220703125e-4)
 #else///ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
 #define NRADBIN (4194304)
-#define MINRAD  (1.0 / 1048576.0)
+#define MINRAD (9.5367431640625e-7)
 #endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
 
 

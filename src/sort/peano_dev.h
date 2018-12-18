@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/05 (Tue)
+ * @date 2018/12/17 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -139,6 +139,9 @@ extern "C"
 #ifdef  CUB_AVAILABLE
 				, soaPHsort pre
 #endif//CUB_AVAILABLE
+#ifdef  SET_SINK_PARTICLES
+				, const int Nbh, const sinkparticle bh
+#endif//SET_SINK_PARTICLES
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 				, domainLocation *location
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)

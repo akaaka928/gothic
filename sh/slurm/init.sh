@@ -16,7 +16,7 @@ EXEC=bin/magi
 if [ -z "$PROBLEM" ]; then
     # PROBLEM=2
     # PROBLEM=3
-    PROBLEM=10
+    # PROBLEM=10
     # PROBLEM=14
     # PROBLEM=15
     # PROBLEM=21
@@ -41,6 +41,7 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=97
     # PROBLEM=98
     # PROBLEM=99
+    PROBLEM=100
 fi
 ###############################################################
 # number of N-body particles
@@ -128,8 +129,8 @@ fi
 # dynamical stability of an NFW sphere with small truncation radius
 if [ $PROBLEM -eq 3 ]; then
     FILE=nfw
-    # CONFIG=single/nfw.cfg
-    CONFIG=anisotropy/nfw_beta.cfg
+    CONFIG=single/nfw.cfg
+    # CONFIG=anisotropy/nfw_beta.cfg
     EPS=1.5625e-2
     ETA=0.5
     FINISH=23.5
@@ -823,12 +824,176 @@ if [ $PROBLEM -eq 99 ]; then
     INTERVAL=100.0
 fi
 ###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 100 ]; then
+    FILE=m12iso
+    CONFIG=losscone/m12iso.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 101 ]; then
+    FILE=m12ra1
+    CONFIG=losscone/m12ra1.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 102 ]; then
+    FILE=m12ra2
+    CONFIG=losscone/m12ra2.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 103 ]; then
+    FILE=m12ra3
+    CONFIG=losscone/m12ra3.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 104 ]; then
+    FILE=m12ra4
+    CONFIG=losscone/m12ra4.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 105 ]; then
+    FILE=m12ra5
+    CONFIG=losscone/m12ra5.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 106 ]; then
+    FILE=m12ra3_4
+    CONFIG=losscone/m12ra3_4.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 107 ]; then
+    FILE=m12ra1_2
+    CONFIG=losscone/m12ra1_2.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 108 ]; then
+    FILE=m12ra1_4
+    CONFIG=losscone/m12ra1_4.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 110 ]; then
+    FILE=m13iso
+    CONFIG=losscone/m13iso.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 120 ]; then
+    FILE=m14iso
+    CONFIG=losscone/m14iso.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 130 ]; then
+    FILE=m15iso
+    CONFIG=losscone/m15iso.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 140 ]; then
+    FILE=m11iso
+    CONFIG=losscone/m11iso.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 150 ]; then
+    FILE=m10iso
+    CONFIG=losscone/m10iso.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 160 ]; then
+    FILE=m09iso
+    CONFIG=losscone/m09iso.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 170 ]; then
+    FILE=m08iso
+    CONFIG=losscone/m08iso.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
 # set input arguments
 if [ $PROBLEM -ge 1 ]; then
     OPTION="-file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE -denoisingDistributionFunction=$DENOISE_DF"
 else
     OPTION="-file=$FILE -unit=$UNIT -Ntot=$NTOT -Mtot=$MTOT -virial=$VIRIAL -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE"
 fi
+###############################################################
+# set environmental variables for OpenMP
+OMP_OPT_ENV="env OMP_DISPLAY_ENV=verbose OMP_PLACES=cores"
+# OMP_OPT_ENV="env KMP_AFFINITY=verbose,granularity=core,scatter"
 ###############################################################
 
 
@@ -848,12 +1013,12 @@ echo "start: $TIME"
 # execute the job
 if [ `which numactl` ]; then
     # run with numactl
-    echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-    numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    echo "$OMP_OPT_ENV numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+    $OMP_OPT_ENV numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 else
     # run without numactl
-    echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-    $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+    echo "$OMP_OPT_ENV $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
+    $OMP_OPT_ENV $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 fi
 ###############################################################
 # finish logging

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/07/23 (Mon)
+ * @date 2018/12/17 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -225,6 +225,17 @@ typedef struct
 #endif//defined(MPI_ONE_SIDED_FOR_EXCG) && !defined(SERIALIZED_EXECUTION)
 } iparticle;
 
+#ifdef  SET_SINK_PARTICLES
+typedef struct
+{
+  position *pold, *pnew;
+  velocity *vold, *vnew;
+  velocity *mom;
+  ulong *tag;
+  int *list;
+  real *lmax2;
+} sinkparticle;
+#endif//SET_SINK_PARTICLES
 
 /**
  * @struct iparticle_treeinfo

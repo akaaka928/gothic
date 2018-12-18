@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/11/21 (Wed)
+ * @date 2018/12/17 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -297,6 +297,9 @@ static inline void buildTreeStructure
 #ifdef  CUB_AVAILABLE
  const soaPHsort soaPH_pre,
 #endif//CUB_AVAILABLE
+#ifdef  SET_SINK_PARTICLES
+ const int Nsink, const sinkparticle sink,
+#endif//SET_SINK_PARTICLES
 #ifndef SERIALIZED_EXECUTION
  int *numOld,
 #endif//SERIALIZED_EXECUTION
@@ -322,6 +325,9 @@ static inline void buildTreeStructure
 #ifdef  CUB_AVAILABLE
 			   , soaPH_pre
 #endif//CUB_AVAILABLE
+#ifdef  SET_SINK_PARTICLES
+			   , Nsink, sink
+#endif//SET_SINK_PARTICLES
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 			   , location
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
@@ -705,6 +711,24 @@ static inline void dumpRestarter
 void analyzeWalkStatistics(int Ni, const int Ngrp, int * restrict results, walk_stats *stats);
 void analyzeTreeMetrics(tree_metrics *metric);
 #endif//COUNT_INTERACTIONS
+
+
+#ifdef  SET_SINK_PARTICLES
+static inline void read_sink_particle_indexes(const int Nsink, ulong *tag, char *file)
+{
+  /** read global settings */
+  char filename[128];
+  FILE *fp;
+  sprintf(filename, "%s/%s.sinklist.txt", DOCUMENTFOLDER, file);
+  fp = fopen(filename, "r");
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
+  int checker = 1;
+  for(int ii = 0; ii < Nsink; ii++)
+    checker &= (1 == fscanf(fp, "%lu", &tag[ii]));
+  fclose(fp);
+  if( !checker ){    __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);  }
+}
+#endif//SET_SINK_PARTICLES
 
 
 int main(int argc, char **argv)
@@ -1181,6 +1205,24 @@ int main(int argc, char **argv)
     allocParticleGroups(&laneInfo_ext_hst, &laneInfo_ext_dev, NULL, NULL, NULL, false, &inumPerLane_ext, &maxNgrp_ext, NMAX_J_PARALLELIZATION);
 #endif//SWITCH_WITH_J_PARALLELIZATION
 
+#ifdef  SET_SINK_PARTICLES
+  /** declarations of arrays to contain information of sink particle(s) */
+  static int Nsink = 0;
+  requiredCmdArg(getCmdArgInt(argc, (const char * const *)(void *)argv, "Nsink", &Nsink));
+
+  static sinkparticle sink;
+  position *pold_sink, *pnew_sink;
+  velocity *vold_sink, *vnew_sink, *mom_sink;
+  ulong *tag_sink, *tag_sink_hst;
+  int *list_sink;
+  real *lmax2_sink;
+  const muse alloc_sinkparticle_dev =
+    allocSinkParticleSoA_dev(&pold_sink, &vold_sink, &pnew_sink, &vnew_sink, &mom_sink, &tag_sink, &list_sink, &lmax2_sink, &tag_sink_hst, Nsink, &sink);
+
+  read_sink_particle_indexes(Nsink, tag_sink_hst, file);
+  set_sink_particle_dev(Nsink, sink, tag_sink_hst);
+#endif//SET_SINK_PARTICLES
+
   /** declarations of arrays to contain information of tree-cells */
   PHint    *hkey_dev;
   uint     *parent_dev, *children_dev;
@@ -1650,6 +1692,10 @@ int main(int argc, char **argv)
   const muse tree_mem = {alloc_jtag.host   + alloc_jtag_dev.host   + alloc_cell_dev.host   + alloc_node_dev.host,
 			 alloc_jtag.device + alloc_jtag_dev.device + alloc_cell_dev.device + alloc_node_dev.device};
   muse       misc_mem = {alloc_lane_dev.host, alloc_lane_dev.device};
+#ifdef  SET_SINK_PARTICLES
+  misc_mem.host   += alloc_sinkparticle_dev.host;
+  misc_mem.device += alloc_sinkparticle_dev.device;
+#endif//SET_SINK_PARTICLES
 #ifdef  USE_HDF5_FORMAT
   body_mem.host   += alloc_snap.host;
   body_mem.device += alloc_snap.device;
@@ -1895,6 +1941,9 @@ int main(int argc, char **argv)
 #ifdef  CUB_AVAILABLE
      soaPH_pre,
 #endif//CUB_AVAILABLE
+#ifdef  SET_SINK_PARTICLES
+     Nsink, sink,
+#endif//SET_SINK_PARTICLES
 #ifndef SERIALIZED_EXECUTION
      &numOld,
 #endif//SERIALIZED_EXECUTION
@@ -1910,6 +1959,11 @@ int main(int argc, char **argv)
 #ifdef  REPORT_COMPUTE_RATE
   rebuild_freq++;
 #endif//REPORT_COMPUTE_RATE
+
+#ifdef  SET_SINK_PARTICLES
+  extern const real lightspeed;
+  set_loss_cone_dev(Nsink, sink, ibody0_dev, lightspeed);
+#endif//SET_SINK_PARTICLES
 
 #ifdef  BLOCK_TIME_STEP
   prediction_dev
@@ -2560,6 +2614,9 @@ int main(int argc, char **argv)
 #ifdef  CUB_AVAILABLE
 	 soaPH_pre,
 #endif//CUB_AVAILABLE
+#ifdef  SET_SINK_PARTICLES
+	 Nsink, sink,
+#endif//SET_SINK_PARTICLES
 #ifndef SERIALIZED_EXECUTION
 	 &numOld,
 #endif//SERIALIZED_EXECUTION
@@ -3028,6 +3085,9 @@ int main(int argc, char **argv)
 #ifdef  BLOCK_TIME_STEP
     correction_dev
       (grpNum, laneInfo_dev, laneTime_dev, eps, eta, ibody0_dev, rebuild.reuse
+#ifdef  SET_SINK_PARTICLES
+       , Nsink, sink, time
+#endif//SET_SINK_PARTICLES
 #ifdef  EXEC_BENCHMARK
        , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
@@ -3508,6 +3568,10 @@ int main(int argc, char **argv)
 #ifdef  SWITCH_WITH_J_PARALLELIZATION
   freeParticleGroups(laneInfo_ext_hst, laneInfo_ext_dev, NULL, NULL, NULL, false);
 #endif//SWITCH_WITH_J_PARALLELIZATION
+
+#ifdef  SET_SINK_PARTICLES
+  freeSinkParticleSoA_dev(pold_sink, vold_sink, pnew_sink, vnew_sink, mom_sink, tag_sink, list_sink, lmax2_sink, tag_sink_hst);
+#endif//SET_SINK_PARTICLES
 
   freeTreeCell_dev
     (cell_dev, leaf_dev, node_dev, list_dev,

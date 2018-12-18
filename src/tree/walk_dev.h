@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/06 (Wed)
+ * @date 2018/12/17 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -722,6 +722,11 @@ extern "C"
 				      , const real theta2_hst
 #endif//!defined(GADGET_MAC) && !defined(WS93_MAC)
 				      );
+
+#ifdef  SET_SINK_PARTICLES
+  void set_loss_cone_dev(const int Nbh, const sinkparticle bh, const iparticle pi, const real lightspeed);
+#endif//SET_SINK_PARTICLES
+
 #ifdef  __CUDACC__
 }
 #endif//__CUDACC__

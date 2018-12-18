@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/11/28 (Wed)
+ * @date 2018/12/17 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -3637,3 +3637,27 @@ void setGlobalConstants_walk_dev_cu
 
   __NOTE__("%s\n", "end");
 }
+
+
+#ifdef  SET_SINK_PARTICLES
+__global__ void set_loss_cone_kernel(READ_ONLY int * RESTRICT list, READ_ONLY position * RESTRICT ipos, real * RESTRICT lmax2, const real lightspeed)
+{
+  const int tidx = THREADIDX_X1D;
+
+  const position pi = ipos[list[tidx]];
+
+  const real lmax = M_SQRT3 * TWO * newton * pi.m / lightspeed;
+  lmax2[tidx] = lmax * lmax;
+}
+
+extern "C"
+void set_loss_cone_dev(const int Nbh, const sinkparticle bh, const iparticle pi, const real lightspeed)
+{
+  __NOTE__("%s\n", "start");
+
+  set_loss_cone_kernel<<<1, Nbh>>>(bh.list, pi.pos, bh.lmax2, lightspeed);
+  getLastCudaError("set_loss_cone_kernel");
+
+  __NOTE__("%s\n", "end");
+}
+#endif//SET_SINK_PARTICLES

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/11/26 (Mon)
+ * @date 2018/12/12 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -564,7 +564,7 @@ static inline void get_DEformula_vdisp(const double tt, const int skind, double 
   const double one_pls_x = exp( sinh_t) * inv_cosh_t;
   const double one_mns_x = exp(-sinh_t) * inv_cosh_t;
 
-  const double common = cosh_t * inv_cosh_t * inv_cosh_t * one_mns_x * sqrt(one_mns_x);
+  const double common = cosh(tt) * inv_cosh_t * inv_cosh_t * one_mns_x * sqrt(one_mns_x);
   const double QQ = 0.5 * psi * one_pls_x;
 
   for(int kk = 0; kk < skind; kk++)

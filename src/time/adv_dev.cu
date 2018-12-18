@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/29 (Tue)
+ * @date 2018/12/17 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -441,7 +441,7 @@ void setTimeStep_dev(const int Ni, iparticle ibody, const real eta, const real e
 /**
  * @fn prediction_kernel
  *
- * @brief Time integratino (prediction phase: pi, vi, ai --> pj, vj).
+ * @brief Time integration (prediction phase: pi, vi, ai --> pj, vj).
  */
 __global__ void prediction_kernel
 (const int Nj, const double tnew,
@@ -560,10 +560,80 @@ __device__ __forceinline__ real setParticleTime
 }
 
 
+#ifdef  SET_SINK_PARTICLES
+extern "C"
+void set_sink_particle_dev(const int Nsink, const sinkparticle sink, ulong *tag_hst)
+{
+  __NOTE__("%s\n", "start");
+  checkCudaErrors(cudaMemcpy(sink.tag, tag_hst, sizeof(ulong) * Nsink, cudaMemcpyHostToDevice));
+  __NOTE__("%s\n", "end");
+}
+
+
+__global__ void correct_MBH_kernel
+(const int Nbh, READ_ONLY int * RESTRICT list, position * RESTRICT pold, velocity * RESTRICT vold, position * RESTRICT pnew, velocity * RESTRICT vnew, velocity * RESTRICT BHsum, READ_ONLY real * RESTRICT lmax2,
+ READ_ONLY position * RESTRICT ipos, READ_ONLY velocity * RESTRICT ivel, READ_ONLY acceleration * RESTRICT iacc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+ READ_ONLY acceleration * RESTRICT iacc_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+ READ_ONLY position * RESTRICT jpos, READ_ONLY velocity * RESTRICT jvel
+)
+{
+  const int tidx = THREADIDX_X1D;
+
+  const int idx = list[tidx];
+  pold[tidx] = ipos[idx];
+  vold[tidx] = ivel[idx];
+  pnew[tidx] = jpos[idx];
+
+  velocity vinew = jvel[idx];
+#ifndef SET_EXTERNAL_POTENTIAL_FIELD
+  const acceleration ai = iacc[idx];
+#else///SET_EXTERNAL_POTENTIAL_FIELD
+  const acceleration slf = iacc    [idx];
+  const acceleration ext = iacc_ext[idx];
+  const acceleration ai = {slf.x + ext.x, slf.y + ext.y, slf.z + ext.z, slf.pot + ext.pot};
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+  vinew.dt *= HALF;
+  vinew.x += vinew.dt * ai.x;
+  vinew.y += vinew.dt * ai.y;
+  vinew.z += vinew.dt * ai.z;
+
+  vinew.dt = lmax2[tidx];
+  vnew[tidx] = vinew;
+
+  const velocity zero_mom = {ZERO, ZERO, ZERO, ZERO};
+  BHsum[tidx] = zero_mom;
+}
+__global__ void update_MBH_kernel(const int Nbh, READ_ONLY int * RESTRICT list, READ_ONLY velocity * RESTRICT BHsum, position * RESTRICT ipos, velocity * RESTRICT ivel, const double time)
+{
+  const int tidx = THREADIDX_X1D;
+
+  const velocity mom = BHsum[tidx];
+  if( mom.dt > ZERO ){/**< mom.dt contains accreted mass in this time step */
+    const int idx = list[tidx];
+    position pi = ipos[idx];
+    velocity vi = ivel[idx];
+
+    const real minv = UNITY / (FLT_MIN + pi.m + mom.dt);
+    vi.x = (mom.x + pi.m * vi.x) * minv;
+    vi.y = (mom.y + pi.m * vi.y) * minv;
+    vi.z = (mom.z + pi.m * vi.z) * minv;
+    pi.m += mom.dt;
+
+    ipos[idx] = pi;
+    ivel[idx] = vi;
+
+    printf("%e\t%d\t\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n", time, idx, pi.m, pi.x, pi.y, pi.z, vi.x, vi.y, vi.z);
+  }/* if( mom.m > ZERO ){ */
+}
+#endif//SET_SINK_PARTICLES
+
+
 /**
  * @fn correction_kernel
  *
- * @brief Time integratino (correction phase: pj, vj, ai --> pi, vi).
+ * @brief Time integration (correction phase: pj, vj, ai --> pi, vi).
  */
 __global__ void correction_kernel
 (const int laneNum, READ_ONLY laneinfo * RESTRICT laneInfo, double * RESTRICT laneTime, const real eps, const real eta,
@@ -571,6 +641,9 @@ __global__ void correction_kernel
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
  READ_ONLY acceleration * RESTRICT iacc_ext,
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  SET_SINK_PARTICLES
+ const int Nsink, READ_ONLY position * RESTRICT spold, READ_ONLY velocity * RESTRICT svold, READ_ONLY position * RESTRICT spnew, READ_ONLY velocity * RESTRICT svnew, velocity * RESTRICT BHsum,
+#endif//SET_SINK_PARTICLES
  READ_ONLY position * RESTRICT jpos, READ_ONLY velocity * RESTRICT jvel,
  const int reuseTree)
 {
@@ -605,8 +678,16 @@ __global__ void correction_kernel
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
     velocity vi = jvel[idx];
     ti = time[idx];
+
     /** store pi */
+#ifndef SET_SINK_PARTICLES
     ipos[idx] = jpos[idx];
+#else///SET_SINK_PARTICLES
+    position pinew = jpos[idx];
+    const position piold = ipos[idx];
+    const velocity viold = ivel[idx];
+    ipos[idx] = pinew;
+#endif//SET_SINK_PARTICLES
 
     /** update vi */
     vi.dt *= HALF;
@@ -628,6 +709,44 @@ __global__ void correction_kernel
     ti.t0 = ti.t1;
     ti.t1 += (double)vi.dt;
     time[idx] = ti;
+
+#ifdef  SET_SINK_PARTICLES
+#pragma unroll
+    for(int ii = 0; ii < Nsink; ii++){
+      bool accrete = true;
+      const position psink = spold[ii];
+      const velocity vsink = svold[ii];
+      const position psnew = spnew[ii];
+      const velocity vsnew = svnew[ii];/**< vsnew.dt contains l_max^2 */
+      const real dx = piold.x - psink.x;
+      const real dy = piold.y - psink.y;
+      const real dz = piold.z - psink.z;
+      const real vx = viold.x - vsink.x;
+      const real vy = viold.y - vsink.y;
+      const real vz = viold.z - vsink.z;
+      const real lx = dy * vz - dz * vy;
+      const real ly = dz * vx - dx * vz;
+      const real lz = dx * vy - dy * vx;
+
+      /** pick up (1) separation is less than epsilon \varDelta t_i, (2) specific angular momentum is less than l_max, (3) particle is approaching to MBH in the previous time step, and (4) particle is going away from the MBH in the current time step */
+      accrete =
+	((dx * dx + dy * dy + dz * dz) <= (eps * vi.dt * eps * vi.dt)) &&
+	((lx * lx + ly * ly + lz * lz) <= vsnew.dt) &&
+	((dx * vx + dy * vy + dz * vz) < ZERO) &&
+	(((pinew.x - psnew.x) * (vi.x - vsnew.x) + (pinew.y - psnew.y) * (vi.y - vsnew.y) + (pinew.z - psnew.z) * (vi.z - vsnew.z)) >= ZERO);
+
+      if( accrete ){
+	const real mass = pinew.m;
+	pinew.m = ZERO;
+	ipos[idx] = pinew;
+	atomicAdd(&(BHsum[ii].dt), mass       );
+	atomicAdd(&(BHsum[ii].x ), mass * vi.x);
+	atomicAdd(&(BHsum[ii].y ), mass * vi.y);
+	atomicAdd(&(BHsum[ii].z ), mass * vi.z);
+      }/* if( accrete ){ */
+    }/* for(int ii = 0; ii < Nsink; ii++){ */
+
+#endif//SET_SINK_PARTICLES
   }/* if( lane < info.num ){ */
 #   if  __CUDA_ARCH__ >= 700
   __syncwarp();/**< __syncwarp() to remove warp divergence */
@@ -769,7 +888,7 @@ __global__ void setLaneTime_kernel(const int laneNum, READ_ONLY laneinfo * RESTR
 /**
  * @fn prediction_dev
  *
- * @brief Time integratino (prediction phase: pi, vi, ai --> pj, vj).
+ * @brief Time integration (prediction phase: pi, vi, ai --> pj, vj).
  *
  * @sa prediction_kernel
  */
@@ -831,12 +950,15 @@ void prediction_dev(const int Nj, const double tnew, const iparticle pi
 /**
  * @fn correction_dev
  *
- * @brief Time integratino (correction phase: pj, vj, ai --> pi, vi).
+ * @brief Time integration (correction phase: pj, vj, ai --> pi, vi).
  *
  * @sa correction_kernel
  */
 extern "C"
 void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTRICT laneTime, const real eps, const real eta, const iparticle pi, const int reuseTree
+#ifdef  SET_SINK_PARTICLES
+		    , const int Nbh, const sinkparticle bh, const double time
+#endif//SET_SINK_PARTICLES
 #ifdef  EXEC_BENCHMARK
 		    , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
@@ -848,6 +970,17 @@ void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTR
 #ifdef  EXEC_BENCHMARK
   initStopwatch();
 #endif//EXEC_BENCHMARK
+
+#ifdef  SET_SINK_PARTICLES
+  /** remember BH position and velocity in the previous and current time step */
+  correct_MBH_kernel<<<1, Nbh>>>(Nbh, bh.list, bh.pold, bh.vold, bh.pnew, bh.vnew, bh.mom, bh.lmax2,
+				 pi.pos, pi.vel, pi.acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+				 pi.acc_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+				 pi.jpos, pi.jvel);
+  getLastCudaError("correct_MBH_kernel");
+#endif//SET_SINK_PARTICLES
 
   /** thread-block structure must be identical to tree traversal */
 #ifndef SERIALIZED_EXECUTION
@@ -862,6 +995,9 @@ void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTR
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
 	   pi.acc_ext,
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  SET_SINK_PARTICLES
+	   Nbh, bh.pold, bh.vold, bh.pnew, bh.vnew, bh.mom,
+#endif//SET_SINK_PARTICLES
 	   pi.jpos, pi.jvel, reuseTree);
       else{
 	const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
@@ -877,6 +1013,9 @@ void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTR
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
 	     pi.acc_ext,
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  SET_SINK_PARTICLES
+	     Nbh, bh.pold, bh.vold, bh.pnew, bh.vnew, bh.mom,
+#endif//SET_SINK_PARTICLES
 	     pi.jpos, pi.jvel, reuseTree);
 
 	  hidx += Nsub;
@@ -886,6 +1025,12 @@ void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTR
 
       getLastCudaError("correction_kernel");
     }
+
+#ifdef  SET_SINK_PARTICLES
+  /** update BH mass and velocity */
+  update_MBH_kernel<<<1, Nbh>>>(Nbh, bh.list, bh.mom, pi.pos, pi.vel, time);
+  getLastCudaError("update_MBH_kernel");
+#endif//SET_SINK_PARTICLES
 
 #ifdef  EXEC_BENCHMARK
   stopStopwatch(&(elapsed->correction_dev));
