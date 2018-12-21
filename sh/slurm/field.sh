@@ -63,6 +63,14 @@ if [ -z "$ABSERR" ]; then
     # ABSERR=1.220703125e-4
 fi
 ###############################################################
+if [ -z "$REBUILD" ]; then
+    REBUILD=16
+fi
+###############################################################
+if [ -z "$BRENT" ]; then
+    BRENT=1.0
+fi
+###############################################################
 
 
 ###############################################################
@@ -102,7 +110,7 @@ if [ $PROBLEM -eq 22 ]; then
 fi
 ###############################################################
 # set input arguments
-OPTION="-absErr=$ABSERR -file=$FILE -pot_file_sphe=$SPHEPOT -pot_file_disk=$DISKPOT -Nx=$NX -Ny=$NY -Nz=$NZ -jobID=$SLURM_JOB_ID"
+OPTION="-absErr=$ABSERR -file=$FILE -pot_file_sphe=$SPHEPOT -pot_file_disk=$DISKPOT -Nx=$NX -Ny=$NY -Nz=$NZ -rebuild_interval=$REBUILD -brent_frac=$BRENT -jobID=$SLURM_JOB_ID"
 ###############################################################
 
 

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/18 (Tue)
+ * @date 2018/12/20 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -666,6 +666,11 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 
     /** determine velocity distribution by rejection method */
     const double psi = (1.0 - alpha) * prf[ll].psi_tot + alpha * prf[rr].psi_tot;
+#ifndef NDEBUG
+    if( psi < Qmin ){
+      __KILL__(stderr, "ERROR: Psi = %e @ r = %e while Qmin = %e, rs = %e, and rc = %e\n", psi, rad, Qmin, cfg.rs, cfg.rc);
+    }/* if( psi < Qmin ){ */
+#endif//NDEBUG
 #ifndef USE_OSIPKOV_MERRITT_METHOD
     const double vesc = sqrt(2.0 * (psi - Ecut));
 #ifndef NDEBUG
@@ -754,7 +759,11 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
     const double vesc = sqrt(2.0 * psi);
     /* const double Fmax = getDF(psi, df, Emin, invEbin); */
     const double Fmax = getDFmax(psi, dfmax, Emin, invEbin);
-    __NOTE__("Fmax = %e\n", Fmax);
+#ifndef NDEBUG
+    if( Fmax <= 0.0 ){
+      __NOTE__("Fmax = %e\n", Fmax);
+    }/* if( Fmax == 0.0 ){ */
+#endif//NDEBUG
     const double r2_ra2 = rad * rad * ra2inv;
     const double vtmax = vesc / sqrt(1.0 + r2_ra2);
 
@@ -1227,6 +1236,20 @@ int main(int argc, char **argv)
       }
     }/* if( !single_component ){ */
 
+    int jc = cfg[ii].iout;
+    for(int jj = jc; jj >= 0; jj--)
+      if( prf[ii][jj].rad <= cfg[ii].rc ){
+	jc = jj;
+	break;
+      }
+
+#pragma omp critical
+    {
+      if( prf[ii][jc].psi_tot < Emin ){
+	__KILL__(stderr, "ERROR: %d-th component: Psi_tot(r = %e; rc = %e) = %e is contained in f = 0 regions (E <= %e); consider adopting wider smoothing scale about the cut-off radius (current value is %e = %e %s)\n", ii, prf[ii][jc].rad, cfg[ii].rc, prf[ii][jc].psi_tot, Emin, cfg[ii].rc_width, cfg[ii].rc_width * length2astro, length_astro_unit_name);
+      }/* if( prf[cfg[ii].iout].psi_tot < Emin ){ */
+    }
+
     cfg[ii].Emin = Emin;
     cfg[ii].Emax = Emax;
 
@@ -1236,18 +1259,6 @@ int main(int argc, char **argv)
 	jmax = jj;
 	break;
       }/* if( Emin <= prf[ii][jj].psi_tot ){ */
-
-/*     jmin = 0; */
-/*     for(int jj = 0; jj < jmax; jj++) */
-/*       if( Emax >= prf[ii][jj].psi_tot ){ */
-/* 	jmin = jj; */
-/* 	break; */
-/*       }/\* if( Emax >= prf[ii][jj].psi_tot ){ *\/ */
-
-/* #pragma omp critical */
-/*     { */
-/*       __FPRINTF__(stderr, "memo: iout = %d -->> imin = %d (rad = %e, enc = %e, psi_tot = %e; %e), imax = %d (rad = %e, enc = %e, psi_tot = %e)\n", cfg[ii].iout, jmin, prf[ii][jmin].rad, prf[ii][jmin].enc, prf[ii][jmin].psi_tot, prf[ii][(jmin > 0) ? (jmin - 1) : 0].psi_tot, jmax, prf[ii][jmax].rad, prf[ii][jmax].enc, prf[ii][jmax].psi_tot); */
-/*     } */
 
     cfg[ii].iout = jmax;
   }/* for(int ii = 0; ii < nsphere; ii++){ */
@@ -2220,7 +2231,7 @@ void outputFundamentalInformation
 #endif//MAKE_COLUMN_DENSITY_PROFILE
 
 	val = (1.0 - alpha) * prf[ii][ll].enc + alpha * prf[ii][rr].enc;
-	fprintf(fp, "Enclosed mass of this component  is %e (= %e %s)\n", val, val * mass2astro, mass_astro_unit_name);
+	fprintf(fp, "Enclosed mass of this component  is %e (= %e %s); fraction is %e\n", val, val * mass2astro, mass_astro_unit_name, val / cfg[ii].Mtot);
 
 	val = (1.0 - alpha) * prf[ii][ll].enc_tot + alpha * prf[ii][rr].enc_tot;
 	fprintf(fp, "Enclosed mass of  all components is %e (= %e %s)\n", val, val * mass2astro, mass_astro_unit_name);
@@ -2241,6 +2252,98 @@ void outputFundamentalInformation
 #endif//USE_OSIPKOV_MERRITT_METHOD
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
 
+#ifdef  USE_OSIPKOV_MERRITT_METHOD
+	/* physical quantities @ r = ra */
+	findIdx_rad(cfg[ii].ra, prf[ii], &ll, &rr);
+	alpha = (cfg[ii].ra - prf[ii][ll].rad) / (prf[ii][rr].rad - prf[ii][ll].rad);
+
+	fprintf(fp, "#########\n");
+	fprintf(fp, "Representative quantities at the anisotropy radius:\n");
+
+	val = (1.0 - alpha) * prf[ii][ll].rho + alpha * prf[ii][rr].rho;
+	fprintf(fp, "Volume density               rho is %e (= %e %s)\n", val, val * density2astro, density_astro_unit_name);
+
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+	val = (1.0 - alpha) * prf[ii][ll].Sigma + alpha * prf[ii][rr].Sigma;
+	fprintf(fp, "Column density             Sigma is %e (= %e %s)\n", val, val * col_density2astro, col_density_astro_unit_name);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+
+	val = (1.0 - alpha) * prf[ii][ll].enc + alpha * prf[ii][rr].enc;
+	fprintf(fp, "Enclosed mass of this component  is %e (= %e %s); fraction is %e\n", val, val * mass2astro, mass_astro_unit_name, val / cfg[ii].Mtot);
+
+	val = (1.0 - alpha) * prf[ii][ll].enc_tot + alpha * prf[ii][rr].enc_tot;
+	fprintf(fp, "Enclosed mass of  all components is %e (= %e %s)\n", val, val * mass2astro, mass_astro_unit_name);
+
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	val = (1.0 - alpha) * prf[ii][ll].sigr + alpha * prf[ii][rr].sigr;
+	fprintf(fp, "Velocity dispersion      sigma_r is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+	val = (1.0 - alpha) * prf[ii][ll].sigt + alpha * prf[ii][rr].sigt;
+	fprintf(fp, "Velocity dispersion      sigma_t is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+	val = (1.0 - alpha) * prf[ii][ll].bet  + alpha * prf[ii][rr].bet;
+	fprintf(fp, "Anisotropy parameter        beta is %e\n", val);
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+
+	/* physical quantities @ r = 2 ra */
+	findIdx_rad(2.0 * cfg[ii].ra, prf[ii], &ll, &rr);
+	alpha = (2.0 * cfg[ii].ra - prf[ii][ll].rad) / (prf[ii][rr].rad - prf[ii][ll].rad);
+
+	fprintf(fp, "#########\n");
+	fprintf(fp, "Representative quantities at r = 2 r_a:\n");
+
+	val = (1.0 - alpha) * prf[ii][ll].rho + alpha * prf[ii][rr].rho;
+	fprintf(fp, "Volume density               rho is %e (= %e %s)\n", val, val * density2astro, density_astro_unit_name);
+
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+	val = (1.0 - alpha) * prf[ii][ll].Sigma + alpha * prf[ii][rr].Sigma;
+	fprintf(fp, "Column density             Sigma is %e (= %e %s)\n", val, val * col_density2astro, col_density_astro_unit_name);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+
+	val = (1.0 - alpha) * prf[ii][ll].enc + alpha * prf[ii][rr].enc;
+	fprintf(fp, "Enclosed mass of this component  is %e (= %e %s); fraction is %e\n", val, val * mass2astro, mass_astro_unit_name, val / cfg[ii].Mtot);
+
+	val = (1.0 - alpha) * prf[ii][ll].enc_tot + alpha * prf[ii][rr].enc_tot;
+	fprintf(fp, "Enclosed mass of  all components is %e (= %e %s)\n", val, val * mass2astro, mass_astro_unit_name);
+
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	val = (1.0 - alpha) * prf[ii][ll].sigr + alpha * prf[ii][rr].sigr;
+	fprintf(fp, "Velocity dispersion      sigma_r is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+	val = (1.0 - alpha) * prf[ii][ll].sigt + alpha * prf[ii][rr].sigt;
+	fprintf(fp, "Velocity dispersion      sigma_t is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+	val = (1.0 - alpha) * prf[ii][ll].bet  + alpha * prf[ii][rr].bet;
+	fprintf(fp, "Anisotropy parameter        beta is %e\n", val);
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+
+	/* physical quantities @ r = 3 ra */
+	findIdx_rad(3.0 * cfg[ii].ra, prf[ii], &ll, &rr);
+	alpha = (3.0 * cfg[ii].ra - prf[ii][ll].rad) / (prf[ii][rr].rad - prf[ii][ll].rad);
+
+	fprintf(fp, "#########\n");
+	fprintf(fp, "Representative quantities at r = 3 r_a:\n");
+
+	val = (1.0 - alpha) * prf[ii][ll].rho + alpha * prf[ii][rr].rho;
+	fprintf(fp, "Volume density               rho is %e (= %e %s)\n", val, val * density2astro, density_astro_unit_name);
+
+#ifdef  MAKE_COLUMN_DENSITY_PROFILE
+	val = (1.0 - alpha) * prf[ii][ll].Sigma + alpha * prf[ii][rr].Sigma;
+	fprintf(fp, "Column density             Sigma is %e (= %e %s)\n", val, val * col_density2astro, col_density_astro_unit_name);
+#endif//MAKE_COLUMN_DENSITY_PROFILE
+
+	val = (1.0 - alpha) * prf[ii][ll].enc + alpha * prf[ii][rr].enc;
+	fprintf(fp, "Enclosed mass of this component  is %e (= %e %s); fraction is %e\n", val, val * mass2astro, mass_astro_unit_name, val / cfg[ii].Mtot);
+
+	val = (1.0 - alpha) * prf[ii][ll].enc_tot + alpha * prf[ii][rr].enc_tot;
+	fprintf(fp, "Enclosed mass of  all components is %e (= %e %s)\n", val, val * mass2astro, mass_astro_unit_name);
+
+#ifdef  MAKE_VELOCITY_DISPERSION_PROFILE
+	val = (1.0 - alpha) * prf[ii][ll].sigr + alpha * prf[ii][rr].sigr;
+	fprintf(fp, "Velocity dispersion      sigma_r is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+	val = (1.0 - alpha) * prf[ii][ll].sigt + alpha * prf[ii][rr].sigt;
+	fprintf(fp, "Velocity dispersion      sigma_t is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+	val = (1.0 - alpha) * prf[ii][ll].bet  + alpha * prf[ii][rr].bet;
+	fprintf(fp, "Anisotropy parameter        beta is %e\n", val);
+#endif//MAKE_VELOCITY_DISPERSION_PROFILE
+#endif//USE_OSIPKOV_MERRITT_METHOD
+
       /* physical quantities @ r = r_{1/2} */
 	findIdx_rad(cfg[ii].rhalf, prf[ii], &ll, &rr);
 	alpha = (cfg[ii].rhalf - prf[ii][ll].rad) / (prf[ii][rr].rad - prf[ii][ll].rad);
@@ -2257,7 +2360,7 @@ void outputFundamentalInformation
 #endif//MAKE_COLUMN_DENSITY_PROFILE
 
 	val = (1.0 - alpha) * prf[ii][ll].enc + alpha * prf[ii][rr].enc;
-	fprintf(fp, "Enclosed mass of this component  is %e (= %e %s)\n", val, val * mass2astro, mass_astro_unit_name);
+	fprintf(fp, "Enclosed mass of this component  is %e (= %e %s); fraction is %e\n", val, val * mass2astro, mass_astro_unit_name, val / cfg[ii].Mtot);
 
 	val = (1.0 - alpha) * prf[ii][ll].enc_tot + alpha * prf[ii][rr].enc_tot;
 	fprintf(fp, "Enclosed mass of  all components is %e (= %e %s)\n", val, val * mass2astro, mass_astro_unit_name);
@@ -2294,7 +2397,7 @@ void outputFundamentalInformation
 #endif//MAKE_COLUMN_DENSITY_PROFILE
 
 	val = (1.0 - alpha) * prf[ii][ll].enc + alpha * prf[ii][rr].enc;
-	fprintf(fp, "Enclosed mass of this component  is %e (= %e %s)\n", val, val * mass2astro, mass_astro_unit_name);
+	fprintf(fp, "Enclosed mass of this component  is %e (= %e %s); fraction is %e\n", val, val * mass2astro, mass_astro_unit_name, val / cfg[ii].Mtot);
 
 	val = (1.0 - alpha) * prf[ii][ll].enc_tot + alpha * prf[ii][rr].enc_tot;
 	fprintf(fp, "Enclosed mass of  all components is %e (= %e %s)\n", val, val * mass2astro, mass_astro_unit_name);

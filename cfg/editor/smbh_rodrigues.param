@@ -1,0 +1,7 @@
+1
+<x-component of rotation axis> <y-component of rotation axis> <z-component of rotation axis>
+<sine of rotation angle> <cosine of rotation angle>
+<x-component of initial position> <y-component of initial position> <z-component of initial position>
+<x-component of initial velocity> <y-component of initial velocity> <z-component of initial velocity>
+-1
+<mass of the BH particle>

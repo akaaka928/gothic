@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/07/14 (Sat)
+ * @date 2018/12/21 (Fri)
  *
  * Copyright (C) 2018 Yohei Miki
  * All rights reserved.
@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <math.h>
+#include <string.h>
 
 #ifdef  USE_HDF5_FORMAT
 #include <hdf5.h>
@@ -46,6 +47,7 @@
 extern const double   length_astro2com,   length2astro;extern const char   length_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
 extern const double     time_astro2com,     time2astro;extern const char     time_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
 extern const double velocity_astro2com, velocity2astro;extern const char velocity_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
+extern const double     mass_astro2com;
 
 
 /**
@@ -74,6 +76,7 @@ typedef struct
   real rot[3][3];/**< rotation matrix */
   real xx, yy, zz;/**< position of center-of-mass */
   real vx, vy, vz;/**< bulk velocity of the system */
+  real BHmass;/**< mass of black hole mass in astrophysical unit system */
   int kind;/**< number of components */
   int head;/**< head index of components */
 } object;
@@ -180,37 +183,43 @@ static inline void readEditorCfg(char *cfg, int *unit, int *Nobj, object **obj, 
   int kind = 0;
   *eps_min = REAL_MAX;
   for(int ii = 0; ii < *Nobj; ii++){
-    sprintf(filename, "%s/%s.summary.txt", DOCUMENTFOLDER, (*obj)[ii].file);
-    fp = fopen(filename, "r");
-    if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
+    if( strncmp((*obj)[ii].file, "throw_BH_particle", 17) != 0 ){
+      sprintf(filename, "%s/%s.summary.txt", DOCUMENTFOLDER, (*obj)[ii].file);
+      fp = fopen(filename, "r");
+      if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
 
-    int unit_dummy;
-    checker = 1;
-    checker &= (1 == fscanf(fp, "%d", &unit_dummy));
-    checker &= (1 == fscanf(fp, "%d\t%*d", &(*obj)[ii].kind));
+      int unit_dummy;
+      checker = 1;
+      checker &= (1 == fscanf(fp, "%d", &unit_dummy));
+      checker &= (1 == fscanf(fp, "%d\t%*d", &(*obj)[ii].kind));
 
-    fclose(fp);
-    if( !checker ){      __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);    }
+      fclose(fp);
+      if( !checker ){      __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);    }
 
 
-    /** read settings in each file */
-    static ulong Ntot;
-    static real eps, eta;
-    static double ft, snapshotInterval, saveInterval;
-    static int unit_tmp;
-    readSettings(&unit_tmp, &Ntot, &eps, &eta, &ft, &snapshotInterval, &saveInterval, (*obj)[ii].file);
-    *eps_min = FMIN(*eps_min, eps);
+      /** read settings in each file */
+      static ulong Ntot;
+      static real eps, eta;
+      static double ft, snapshotInterval, saveInterval;
+      static int unit_tmp;
+      readSettings(&unit_tmp, &Ntot, &eps, &eta, &ft, &snapshotInterval, &saveInterval, (*obj)[ii].file);
+      if( ii > 0 ){
+	if( unit_tmp != *unit ){
+	  __KILL__(stderr, "ERROR: unit system of all objects listed in \"%s/%s\" must be identical.\n", CFGFOLDER, cfg);
+	}/* if( unit_tmp != unit ){ */
+      }/* if( ii > 0 ){ */
+      else
+	*unit = unit_tmp;
+      *eps_min = FMIN(*eps_min, eps);
+    }/* if( strncmp((*obj)[ii].file, "throw_BH_particle", 17) != 0 ){ */
+    else{
+      /** insert a BH particle */
+      (*obj)[ii].kind = 1;
+    }/* else{ */
 
 
     (*obj)[ii].head = kind;
     kind += (*obj)[ii].kind;
-    if( ii > 0 ){
-      if( unit_tmp != *unit ){
-	__KILL__(stderr, "ERROR: unit system of all objects listed in \"%s/%s\" must be identical.\n", CFGFOLDER, cfg);
-      }/* if( unit_tmp != unit ){ */
-    }/* if( ii > 0 ){ */
-    else
-      *unit = unit_tmp;
   }/* for(int ii = 0; ii < *Nobj; ii++){ */
 
   setPhysicalConstantsAndUnitSystem(*unit, 1);
@@ -265,44 +274,53 @@ static inline void readEditorCfg(char *cfg, int *unit, int *Nobj, object **obj, 
     int skip = 0;
     checker &= (1 == fscanf(fp, "%d", &skip));
 
-    FILE *sfp;
-    char sfile[128];
-    sprintf(sfile, "%s/%s.summary.txt", DOCUMENTFOLDER, (*obj)[ii].file);
-    sfp = fopen(sfile, "r");
-    if( sfp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", sfile);    }
-    int success = 1;
-    int skind/* , ndisk */;
-    success &= (0 == fscanf(sfp, "%*d"));
-    success &= (1 == fscanf(sfp, "%*d\t%d", &skind));
-    /* ndisk = (*obj)[ii].kind - skind; */
+    if( skip >= 0 ){
+      FILE *sfp;
+      char sfile[128];
+      sprintf(sfile, "%s/%s.summary.txt", DOCUMENTFOLDER, (*obj)[ii].file);
+      sfp = fopen(sfile, "r");
+      if( sfp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", sfile);    }
+      int success = 1;
+      int skind/* , ndisk */;
+      success &= (0 == fscanf(sfp, "%*d"));
+      success &= (1 == fscanf(sfp, "%*d\t%d", &skind));
+      /* ndisk = (*obj)[ii].kind - skind; */
 
-    ulong head = 0;
-    for(int jj = 0; jj < (*obj)[ii].kind; jj++){
-      success &= (1 == fscanf(sfp, "%zu", &(*cmp)[(*obj)[ii].head + jj].num));
+      ulong head = 0;
+      for(int jj = 0; jj < (*obj)[ii].kind; jj++){
+	success &= (1 == fscanf(sfp, "%zu", &(*cmp)[(*obj)[ii].head + jj].num));
 
-      (*cmp)[(*obj)[ii].head + jj].head = head;
-      head += (*cmp)[(*obj)[ii].head + jj].num;
+	(*cmp)[(*obj)[ii].head + jj].head = head;
+	head += (*cmp)[(*obj)[ii].head + jj].num;
 
-      (*cmp)[(*obj)[ii].head + jj].skip = 0;
+	(*cmp)[(*obj)[ii].head + jj].skip = 0;
 
-      if( jj >= skind )
-	(*cmp)[(*obj)[ii].head + jj].disk = 1;
-    }/* for(int jj = 0; jj < (*obj)[ii].kind; jj++){ */
+	if( jj >= skind )
+	  (*cmp)[(*obj)[ii].head + jj].disk = 1;
+      }/* for(int jj = 0; jj < (*obj)[ii].kind; jj++){ */
 
-    fclose(sfp);
-    if( !success ){      __KILL__(stderr, "ERROR: failure to read \"%s\"\n", sfile);    }
+      fclose(sfp);
+      if( !success ){      __KILL__(stderr, "ERROR: failure to read \"%s\"\n", sfile);    }
 
-    for(int jj = 0; jj < skip; jj++){
-      int idx;
-      checker &= (1 == fscanf(fp, "%d", &idx));
+      for(int jj = 0; jj < skip; jj++){
+	int idx;
+	checker &= (1 == fscanf(fp, "%d", &idx));
 
-      (*cmp)[(*obj)[ii].head + idx].skip = 1;
-    }/* for(int jj = 0; jj < skip; jj++){ */
+	(*cmp)[(*obj)[ii].head + idx].skip = 1;
+      }/* for(int jj = 0; jj < skip; jj++){ */
+    }/* if( skip >= 0 ){ */
+    else{
+      double BHmass;
+      checker &= (1 == fscanf(fp, "%le", &BHmass));
+      (*obj)[ii].BHmass = CAST_D2R(BHmass * mass_astro2com);
+      (*cmp)[(*obj)[ii].head].num = 1;
+      (*cmp)[(*obj)[ii].head].skip = 0;
+    }/* else{ */
 
     fclose(fp);
     if( !checker )
       writeSystemCfgFormat(filename);
-  }
+  }/* for(int ii = 0; ii < *Nobj; ii++){ */
 
   __NOTE__("%s\n", "end");
 }
@@ -391,17 +409,28 @@ static inline void addSystem(object obj, component *cmp, ulong *head, const ipar
   static brentMemory memory;
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
-  readTentativeData(&time, &dt, &steps, &elapsed, (int)num, tmp, obj.file, 0
+  if( strncmp(obj.file, "throw_BH_particle", 17) != 0 )
+    readTentativeData(&time, &dt, &steps, &elapsed, (int)num, tmp, obj.file, 0
 #ifdef  USE_HDF5_FORMAT
-		    , hdf5type
+		      , hdf5type
 #ifndef RUN_WITHOUT_GOTHIC
-		    , &dropPrevTune, &rebuild, &measured, &rebuildParam, &status, &memory
+		      , &dropPrevTune, &rebuild, &measured, &rebuildParam, &status, &memory
 #ifdef  MONITOR_ENERGY_ERROR
-		    , &relEneErr
+		      , &relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
-		    );
+		      );
+  else{
+    tmp.pos[0].m = obj.BHmass;
+    tmp.pos[0].x = tmp.pos[0].y = tmp.pos[0].z = ZERO;
+#ifdef  BLOCK_TIME_STEP
+    tmp.vel[0].x = tmp.vel[0].y = tmp.vel[0].z = ZERO;
+#else///BLOCK_TIME_STEP
+    tmp.vx[0] = tmp.vy[0] = tmp.vz[0] = ZERO;
+#endif//BLOCK_TIME_STEP
+    tmp.idx[0] = 0;
+  }/* else{ */
 
   static real rot[3][3];
   for(int ii = 0; ii < 3; ii++)
@@ -511,7 +540,7 @@ int main(int argc, char **argv)
   double saveInterval;  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "saveInterval", &saveInterval));
 
   /** read system configuration and set unit system */
-  int unit;
+  int unit = UnityValueSystem;
   int Nobj, Ncmp;
   object *obj;
   component *cmp;

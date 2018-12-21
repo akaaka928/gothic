@@ -65,31 +65,13 @@ if [ -z "$ABSERR" ]; then
     # ABSERR=6.103515625e-5
 fi
 ###############################################################
-# value of accuracy controling parameter: opening criterion by Barnes & Hut (1986)
-if [ -z "$THETA" ]; then
-    # THETA=0.9
-    # THETA=0.8
-    # THETA=0.7
-    # THETA=0.6
-    # THETA=0.5
-    THETA=0.4
-    # THETA=0.3
+if [ -z "$REBUILD" ]; then
+    REBUILD=16
 fi
 ###############################################################
-# value of accuracy controling parameter: multipole moment MAC by Warren & Salmon (1993)
-if [ -z "$ACCERR" ]; then
-    # ACCERR=1.250000e-1
-    # ACCERR=6.250000e-2
-    # ACCERR=3.125000e-2
-    ACCERR=1.562500e-2
-    # ACCERR=7.812500e-3
-    # ACCERR=3.906250e-3
-    # ACCERR=1.953125e-3
-    # ACCERR=9.765625e-4
+if [ -z "$BRENT" ]; then
+    BRENT=1.0
 fi
-###############################################################
-REBUILD=16
-BRENT=1.0
 ###############################################################
 
 
@@ -306,8 +288,203 @@ if [ $PROBLEM -eq 81 ]; then
     FILE=cb17_core
 fi
 ###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 100 ]; then
+    FILE=m12iso
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 101 ]; then
+    FILE=m12ra1
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 102 ]; then
+    FILE=m12ra2
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 103 ]; then
+    FILE=m12ra1_2
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 104 ]; then
+    FILE=m12ra1_4
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 105 ]; then
+    FILE=m12ra1_8
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 110 ]; then
+    FILE=m13iso
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 111 ]; then
+    FILE=m13ra1
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 112 ]; then
+    FILE=m13ra2
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 113 ]; then
+    FILE=m13ra1_2
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 114 ]; then
+    FILE=m13ra1_4
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 120 ]; then
+    FILE=m14iso
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 121 ]; then
+    FILE=m14ra1
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 122 ]; then
+    FILE=m14ra2
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 123 ]; then
+    FILE=m14ra1_2
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 124 ]; then
+    FILE=m14ra1_4
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 130 ]; then
+    FILE=m15iso
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 131 ]; then
+    FILE=m15ra1
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 132 ]; then
+    FILE=m15ra2
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 133 ]; then
+    FILE=m15ra1_2
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 134 ]; then
+    FILE=m15ra1_4
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 140 ]; then
+    FILE=m11iso
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 141 ]; then
+    FILE=m11ra1
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 142 ]; then
+    FILE=m11ra2
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 143 ]; then
+    FILE=m11ra1_2
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 144 ]; then
+    FILE=m11ra1_4
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 145 ]; then
+    FILE=m11ra1_8
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 150 ]; then
+    FILE=m10iso
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 151 ]; then
+    FILE=m10ra1
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 152 ]; then
+    FILE=m10ra2
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 153 ]; then
+    FILE=m10ra1_2
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 154 ]; then
+    FILE=m10ra1_4
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 155 ]; then
+    FILE=m10ra1_8
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 160 ]; then
+    FILE=m09iso
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 161 ]; then
+    FILE=m09ra1
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 162 ]; then
+    FILE=m09ra2
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 163 ]; then
+    FILE=m09ra1_2
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 164 ]; then
+    FILE=m09ra1_4
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 165 ]; then
+    FILE=m09ra1_8
+fi
+###############################################################
 # set input arguments
-OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -rebuild_interval=$REBUILD -brent_frac=$BRENT -jobID=$SLURM_JOB_ID"
+OPTION="-absErr=$ABSERR -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -rebuild_interval=$REBUILD -brent_frac=$BRENT -jobID=$SLURM_JOB_ID"
 ###############################################################
 
 

@@ -62,36 +62,22 @@ fi
 ###############################################################
 # DM accretion onto central MBH
 if [ $PROBLEM -eq 103 ]; then
-    FILE=m12ra3
-    CONFIG=losscone/m12ra3.cfg
+    FILE=m12ra1_2
+    CONFIG=losscone/m12ra1_2.cfg
     BH_MASS=2.926550e+8
 fi
 ###############################################################
 # DM accretion onto central MBH
 if [ $PROBLEM -eq 104 ]; then
-    FILE=m12ra4
-    CONFIG=losscone/m12ra4.cfg
+    FILE=m12ra1_4
+    CONFIG=losscone/m12ra1_4.cfg
     BH_MASS=2.926550e+8
 fi
 ###############################################################
 # DM accretion onto central MBH
 if [ $PROBLEM -eq 105 ]; then
-    FILE=m12ra5
-    CONFIG=losscone/m12ra5.cfg
-    BH_MASS=2.926550e+8
-fi
-###############################################################
-# DM accretion onto central MBH
-if [ $PROBLEM -eq 106 ]; then
-    FILE=m12ra3_4
-    CONFIG=losscone/m12ra3_4.cfg
-    BH_MASS=2.926550e+8
-fi
-###############################################################
-# DM accretion onto central MBH
-if [ $PROBLEM -eq 107 ]; then
-    FILE=m12ra1_2
-    CONFIG=losscone/m12ra1_2.cfg
+    FILE=m12ra1_8
+    CONFIG=losscone/m12ra1_8.cfg
     BH_MASS=2.926550e+8
 fi
 ###############################################################
@@ -103,9 +89,79 @@ if [ $PROBLEM -eq 110 ]; then
 fi
 ###############################################################
 # DM accretion onto central MBH
+if [ $PROBLEM -eq 111 ]; then
+    FILE=m13ra1
+    CONFIG=losscone/m13ra1.cfg
+    BH_MASS=1.316911e+9
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 112 ]; then
+    FILE=m13ra2
+    CONFIG=losscone/m13ra2.cfg
+    BH_MASS=1.316911e+9
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 113 ]; then
+    FILE=m13ra1_2
+    CONFIG=losscone/m13ra1_2.cfg
+    BH_MASS=1.316911e+9
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 114 ]; then
+    FILE=m13ra1_4
+    CONFIG=losscone/m13ra1_4.cfg
+    BH_MASS=1.316911e+9
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 115 ]; then
+    FILE=m13ra1_8
+    CONFIG=losscone/m13ra1_8.cfg
+    BH_MASS=1.316911e+9
+fi
+###############################################################
+# DM accretion onto central MBH
 if [ $PROBLEM -eq 120 ]; then
     FILE=m14iso
     CONFIG=losscone/m14iso.cfg
+    BH_MASS=3.703017e+9
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 121 ]; then
+    FILE=m14ra1
+    CONFIG=losscone/m14ra1.cfg
+    BH_MASS=3.703017e+9
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 122 ]; then
+    FILE=m14ra2
+    CONFIG=losscone/m14ra2.cfg
+    BH_MASS=3.703017e+9
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 123 ]; then
+    FILE=m14ra1_2
+    CONFIG=losscone/m14ra1_2.cfg
+    BH_MASS=3.703017e+9
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 124 ]; then
+    FILE=m14ra1_4
+    CONFIG=losscone/m14ra1_4.cfg
+    BH_MASS=3.703017e+9
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 125 ]; then
+    FILE=m14ra1_8
+    CONFIG=losscone/m14ra1_8.cfg
     BH_MASS=3.703017e+9
 fi
 ###############################################################
@@ -117,9 +173,86 @@ if [ $PROBLEM -eq 130 ]; then
 fi
 ###############################################################
 # DM accretion onto central MBH
+if [ $PROBLEM -eq 131 ]; then
+    FILE=m15ra1
+    CONFIG=losscone/m15ra1.cfg
+    BH_MASS=1.030934e+10
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 132 ]; then
+    FILE=m15ra2
+    CONFIG=losscone/m15ra2.cfg
+    BH_MASS=1.030934e+10
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 133 ]; then
+    FILE=m15ra1_2
+    CONFIG=losscone/m15ra1_2.cfg
+    BH_MASS=1.030934e+10
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 134 ]; then
+    FILE=m15ra1_4
+    CONFIG=losscone/m15ra1_4.cfg
+    BH_MASS=1.030934e+10
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 135 ]; then
+    FILE=m15ra1_8
+    CONFIG=losscone/m15ra1_8.cfg
+    BH_MASS=1.030934e+10
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 136 ]; then
+    FILE=m15ra1_3
+    CONFIG=losscone/m15ra1_3.cfg
+    BH_MASS=1.030934e+10
+fi
+###############################################################
+# DM accretion onto central MBH
 if [ $PROBLEM -eq 140 ]; then
     FILE=m11iso
     CONFIG=losscone/m11iso.cfg
+    BH_MASS=1.525018e+6
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 141 ]; then
+    FILE=m11ra1
+    CONFIG=losscone/m11ra1.cfg
+    BH_MASS=1.525018e+6
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 142 ]; then
+    FILE=m11ra2
+    CONFIG=losscone/m11ra2.cfg
+    BH_MASS=1.525018e+6
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 143 ]; then
+    FILE=m11ra1_2
+    CONFIG=losscone/m11ra1_2.cfg
+    BH_MASS=1.525018e+6
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 144 ]; then
+    FILE=m11ra1_4
+    CONFIG=losscone/m11ra1_4.cfg
+    BH_MASS=1.525018e+6
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 145 ]; then
+    FILE=m11ra1_8
+    CONFIG=losscone/m11ra1_8.cfg
     BH_MASS=1.525018e+6
 fi
 ###############################################################
@@ -131,6 +264,41 @@ if [ $PROBLEM -eq 150 ]; then
 fi
 ###############################################################
 # DM accretion onto central MBH
+if [ $PROBLEM -eq 151 ]; then
+    FILE=m10ra1
+    CONFIG=losscone/m10ra1.cfg
+    BH_MASS=2.685220e+4
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 152 ]; then
+    FILE=m10ra2
+    CONFIG=losscone/m10ra2.cfg
+    BH_MASS=2.685220e+4
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 153 ]; then
+    FILE=m10ra1_2
+    CONFIG=losscone/m10ra1_2.cfg
+    BH_MASS=2.685220e+4
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 154 ]; then
+    FILE=m10ra1_4
+    CONFIG=losscone/m10ra1_4.cfg
+    BH_MASS=2.685220e+4
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 155 ]; then
+    FILE=m10ra1_8
+    CONFIG=losscone/m10ra1_8.cfg
+    BH_MASS=2.685220e+4
+fi
+###############################################################
+# DM accretion onto central MBH
 if [ $PROBLEM -eq 160 ]; then
     FILE=m09iso
     CONFIG=losscone/m09iso.cfg
@@ -138,10 +306,38 @@ if [ $PROBLEM -eq 160 ]; then
 fi
 ###############################################################
 # DM accretion onto central MBH
-if [ $PROBLEM -eq 170 ]; then
-    FILE=m08iso
-    CONFIG=losscone/m08iso.cfg
-    BH_MASS=8.298123
+if [ $PROBLEM -eq 161 ]; then
+    FILE=m09ra1
+    CONFIG=losscone/m09ra1.cfg
+    BH_MASS=4.712758e+2
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 162 ]; then
+    FILE=m09ra2
+    CONFIG=losscone/m09ra2.cfg
+    BH_MASS=4.712758e+2
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 163 ]; then
+    FILE=m09ra1_2
+    CONFIG=losscone/m09ra1_2.cfg
+    BH_MASS=4.712758e+2
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 164 ]; then
+    FILE=m09ra1_4
+    CONFIG=losscone/m09ra1_4.cfg
+    BH_MASS=4.712758e+2
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 165 ]; then
+    FILE=m09ra1_8
+    CONFIG=losscone/m09ra1_8.cfg
+    BH_MASS=4.712758e+2
 fi
 ###############################################################
 # set input arguments

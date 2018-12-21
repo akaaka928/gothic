@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/12/18 (Tue)
+ * @date 2018/12/19 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -77,12 +77,6 @@ static inline double getDF(const double QQ, real * restrict ene, real * restrict
   if( QQ < Qmin )
     return (0.0);
   const int ii = (int)((QQ - Qmin) * invQbin);
-/* #ifndef NDEBUG */
-/*   if( (ii < 0) || (ii >= NENEBIN) ){ */
-/*     __FPRINTF__(stderr, "ii = %d: Q = %e, Qmin = %e, invQbin = %e\n", ii, QQ, Qmin, invQbin); */
-/*   }/\* if( (ii < 0) || (ii >= NENEBIN) ){ *\/ */
-/* #endif//NDEBUG */
-  /* __NOTE__("QQ = %e, Qmin = %e, invQbin = %e, ii = %d\n", QQ, Qmin, invQbin, ii); */
   return (CAST_R2D(df[ii] + (df[ii + 1] - df[ii]) * (QQ - ene[ii]) / (ene[ii + 1] - ene[ii])));
 }
 static inline double getPsi(const double rad, const double logrmin, const double invlogrbin, real * restrict Psi)
@@ -92,13 +86,6 @@ static inline double getPsi(const double rad, const double logrmin, const double
   if( ii < 0 )
     return (CAST_R2D(Psi[0]));
   return (CAST_R2D(Psi[ii]) + (CAST_R2D(Psi[ii + 1]) - CAST_R2D(Psi[ii])) * (rr - (double)ii));
-
-  /* const double rr = log10(rad) - logrmin; */
-  /* const int ii = (int)(rr * invlogrbin); */
-  /* const int im = (ii >= 0) ? (ii) : 0; */
-  /* const int ip = im + 1; */
-  /* /\* __NOTE__("rad = %e, ii = %d, im = %d, ip = %d, rr = %e; Psi = %e\n", rad, ii, im, ip, rr, CAST_R2D(Psi[im] + (Psi[ip] - Psi[im]) * (rr - (double)im))); *\/ */
-  /* return (CAST_R2D(Psi[im] + (Psi[ip] - Psi[im]) * (rr - (double)im))); */
 }
 
 
@@ -179,7 +166,6 @@ static inline double integrate_DEformula_azimuthal(const double lmax, const doub
     __KILL__(stderr, "ERROR: alp_2 = %e: lmax = %e, rad = %e, vel = %e; x = %e\n", alp_2, lmax, rad, vel, lmax / (rad * vel));
   }/* if( fpclassify(alp_2) != FP_NORMAL ){ */
 #endif//NDEBUG
-  /* __NOTE__("alp_2 = %e: lmax = %e, rad = %e, vel = %e; x = %e\n", alp_2, lmax, rad, vel, lmax / (DBL_MIN + rad * vel)); */
   const double v2_2 = 0.5 * vel * vel;
 
   double hh = 1.0;
@@ -204,7 +190,6 @@ static inline double integrate_DEformula_azimuthal(const double lmax, const doub
     if( converge )
       break;
   }/* while( true ){ */
-  /* __NOTE__("tmin = %e, tmax = %e, hh = %e\n", tmin, tmax, hh); */
 
   return (alp_2 * sum);
 }
@@ -306,7 +291,6 @@ static inline double integrate_DEformula_velocity(const double rad, const double
     if( converge )
       break;
   }/* while( true ){ */
-  /* __NOTE__("tmin = %e, tmax = %e, hh = %e\n", tmin, tmax, hh); */
 
   return (vesc_2 * sum);
 }
@@ -314,7 +298,6 @@ static inline double integrate_DEformula_velocity(const double rad, const double
 
 static inline double get_DEformula_radial(const double tt, const double rr, const double drp_4, const double drm_4, const double logrmin, const double invlogrbin, real * restrict Psi_tot, const double lmax, const double ra2inv, real * restrict ene, real * restrict df, const double Qmin, const double invQbin)
 {
-  /* __NOTE__("tt = %e, rr = %e\n", tt, rr); */
   const double sinh_t = M_PI_2 * sinh(tt);
   const double cosh_t = cosh(sinh_t);
   const double inv_cosh_t = 1.0 / cosh_t;
@@ -405,7 +388,6 @@ static inline double integrate_DEformula_radial(const double rr, const double dr
     if( converge )
       break;
   }/* while( true ){ */
-  /* __NOTE__("tmin = %e, tmax = %e, hh = %e\n", tmin, tmax, hh); */
 
   return ((drp_4 + drm_4) * sum);
 }
@@ -669,27 +651,46 @@ int main(int argc, char **argv)
   loss  = (real **)malloc(sizeof(real) * kind       );  if(  loss == NULL ){    __KILL__(stderr, "ERROR: failure to allocate  loss\n");  }
   for(int ii = 0; ii < skind; ii++)
     loss[ii] = _loss + ii * nrad;
+  int *head;  head = (int *)malloc(sizeof(int) * kind);  if( head == NULL ){    __KILL__(stderr, "ERROR: failure to allocate head\n");  }
+  int *tail;  tail = (int *)malloc(sizeof(int) * kind);  if( tail == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tail\n");  }
+
   const double factor = M_PI * M_PI * 2.0 * M_PI * M_PI * M_PI;
   for(int ii = 0; ii < skind; ii++){
     const double Qmin = CAST_R2D(ene[ii][0]);
     const double invQbin = (double)(num - 1) / (ene[ii][num - 1] - Qmin);
-    /* __FPRINTF__(stdout, "num = %d, Qmin = %e, Qmax = %e, invQbin = %e; Psi_max = %e\n", num, Qmin, ene[ii][num - 1], invQbin, Psi_tot[0]); */
+
     const double rmin = rs[ii] * 9.765625e-4 * 0.5;
     const double rmax = rc[ii] * 1.5;
-#pragma omp parallel for schedule(dynamic,4)
+    int jhead = 0;
     for(int jj = 0; jj < nrad; jj++){
       const double rr = CAST_R2D(rad[jj]);
       if( (rr >= rmin) && (rr <= rmax) && (rho[ii][jj] > ZERO) ){
-	/* __NOTE__("DE formula for ii = %d, jj = %d\n", ii, jj); */
-	/* calculate mass in loss cone */
-	const double drp_4 = rr * fac_drp * 0.125;
-	const double drm_4 = (jj > 0) ? (rr * fac_drm * 0.125) : (0.0);
-	__NOTE__("ii = %d, jj = %d, rr = %e\n", ii, jj, rr);
-	loss[ii][jj] = CAST_D2R(factor * integrate_DEformula_radial(rr, drp_4, drm_4, logrmin, invlogrbin, Psi_tot, lmax, ra2inv[ii], ene[ii], df[ii], Qmin, invQbin) * mass2astro);
-      }/* if( (rr >= rmin) && (rr <= rmax) && (rho[ii][jj] > ZERO) ){ */
-      else
-	loss[ii][jj] = ZERO;
+	jhead = jj;
+	break;
+      }
+      loss[ii][jj] = ZERO;
     }/* for(int jj = 0; jj < nrad; jj++){ */
+    int jtail = nrad - 1;
+    for(int jj = jhead; jj < nrad; jj++){
+      const double rr = CAST_R2D(rad[jj]);
+      if( (rr < rmin) || (rr > rmax) || (rho[ii][jj] <= ZERO) ){
+	jtail = jj - 1;
+	break;
+      }/* if( (rr < rmin) || (rr > rmax) || (rho[ii][jj] <= ZERO) ){ */
+    }/* for(int jj = jhead; jj < nrad; jj++){ */
+    for(int jj = jtail + 1; jj < nrad; jj++)
+      loss[ii][jj] = ZERO;
+    head[ii] = jhead;
+    tail[ii] = jtail;
+
+#pragma omp parallel for schedule(dynamic,4)
+    for(int jj = jhead; jj < jtail + 1; jj++){
+      const double rr = CAST_R2D(rad[jj]);
+      /* calculate mass in loss cone */
+      const double drp_4 = rr * fac_drp * 0.125;
+      const double drm_4 = (jj > 0) ? (rr * fac_drm * 0.125) : (0.0);
+      loss[ii][jj] = CAST_D2R(factor * integrate_DEformula_radial(rr, drp_4, drm_4, logrmin, invlogrbin, Psi_tot, lmax, ra2inv[ii], ene[ii], df[ii], Qmin, invQbin) * mass2astro);
+    }/* for(int jj = jhead; jj < jtail + 1; jj++){ */
   }/* for(int ii = 0; ii < skind; ii++){ */
 
 
@@ -725,8 +726,15 @@ int main(int argc, char **argv)
   attribute = H5Acreate(target, "kind", H5T_NATIVE_INT, attrspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &skind));
   chkHDF5err(H5Aclose(attribute));
+  int minhead = head[0];
+  int maxtail = tail[0];
+  for(int ii = 1; ii < skind; ii++){
+    if( minhead > head[ii] )      minhead = head[ii];
+    if( maxtail < tail[ii] )      maxtail = tail[ii];
+  }/* for(int ii = 1; ii < skind; ii++){ */
+  const int ntot = maxtail + 1 - minhead;
   attribute = H5Acreate(target, "nrad", H5T_NATIVE_INT, attrspace, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &nrad));
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &ntot));
   chkHDF5err(H5Aclose(attribute));
 
   hid_t str4format = H5Tcopy(H5T_C_S1);
@@ -764,7 +772,7 @@ int main(int argc, char **argv)
   property = H5P_DEFAULT;
 #endif//USE_FILE_COMPRESSION
 
-  hsize_t dims = nrad;
+  hsize_t dims = ntot;
   dataspace = H5Screate_simple(1, &dims, NULL);
 #   if  defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
   property = H5Pcreate(H5P_DATASET_CREATE);
@@ -794,34 +802,55 @@ int main(int argc, char **argv)
 #endif//defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
 
   dataset = H5Dcreate(target, "rad", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-  chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, rad));
+  chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rad[minhead]));
   chkHDF5err(H5Dclose(dataset));
   dataset = H5Dcreate(target, "tff", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-  chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tff));
+  chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &tff[minhead]));
   chkHDF5err(H5Dclose(dataset));
+  for(int ii = 0; ii < skind; ii++){
+    for(int jj = 0; jj < nrad; jj++)
+      enc[ii][jj] = CAST_D2R(CAST_R2D(enc[ii][jj]) * mass2astro);
+
+    char tag[16];
+    sprintf(tag, "Menc_%d", ii);
+    dataset = H5Dcreate(target, tag, hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &enc[ii][minhead]));
+    chkHDF5err(H5Dclose(dataset));
+  }/* for(int ii = 0; ii < skind; ii++){ */
+
+#   if  defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
+#ifdef  USE_SZIP_COMPRESSION
+  if( dims > (hsize_t)szip_pixels_per_block )
+#endif//USE_SZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
+  chkHDF5err(H5Sclose(dataspace));
 
 
   for(int ii = 0; ii < skind; ii++){
+    const int jhead = head[ii];
+    const int jtail = tail[ii];
     double Mloss = 0.0;
-    double Min = 0.0;
-    for(int jj = 0; jj < nrad; jj++){
+    double Min = CAST_R2D(enc[ii][jhead - 1]);
+    for(int jj = jhead; jj < jtail + 1; jj++){
       const double Mtmp = CAST_R2D(loss[ii][jj]);
       Mloss += Mtmp;
       Msum[ii][jj] = CAST_D2R(Mloss);
-      const double Mhere = CAST_R2D(enc[ii][jj]) * mass2astro;
-      enc[ii][jj] = CAST_D2R(Mhere);
+      const double Mhere = CAST_R2D(enc[ii][jj]);
       frac[ii][jj] = Mtmp / (DBL_MIN + Mhere - Min);
       Min = Mhere;
-    }/* for(int jj = 0; jj < nrad; jj++){ */
+    }/* for(int jj = jhead; jj < jtail + 1; jj++){ */
 
     const real Mhalf = CAST_D2R(0.5 * Mloss);
     real rhalf = ZERO;
     real thalf = ZERO;
-    for(int jj = 0; jj < nrad; jj++)
+    real Mdot = ZERO;
+    for(int jj = jhead; jj < jtail + 1; jj++)
       if( Msum[ii][jj] > Mhalf ){
 	rhalf = CAST_D2R(CAST_R2D(rad[jj]) * length2astro);
 	thalf = tff[jj];
-	fprintf(stdout, "%d-th component: Mloss = %e %s, Mhalf = %e %s, rhalf = %e %s, thalf = %e %s\n", ii, Mloss, mass_astro_unit_name, Mhalf, mass_astro_unit_name, rhalf, length_astro_unit_name, thalf, time_astro_unit_name);
+	Mdot = Mhalf / thalf;
+	fprintf(stdout, "%d-th component: Mloss = %e %s, Mhalf = %e %s, rhalf = %e %s, thalf = %e %s; mean accretion rate = %e %s/%s\n", ii, Mloss, mass_astro_unit_name, Mhalf, mass_astro_unit_name, rhalf, length_astro_unit_name, thalf, time_astro_unit_name, Mdot, mass_astro_unit_name, time_astro_unit_name);
 	break;
       }/* if( Msum[ii][jj] > Mhalf ){ */
 
@@ -831,21 +860,55 @@ int main(int argc, char **argv)
     sprintf(grp, "data%d", ii);
     hid_t group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
+    const int jnum = jtail + 1 - jhead;
+    dims = jnum;
+    dataspace = H5Screate_simple(1, &dims, NULL);
+#   if  defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
+    property = H5Pcreate(H5P_DATASET_CREATE);
+#ifdef  USE_SZIP_COMPRESSION
+    szip_cdims = 128 * szip_pixels_per_block;
+    cdims_loc = szip_cdims;
+    if( dims < cdims_loc )
+      cdims_loc = dims;
+    if( dims > (hsize_t)szip_pixels_per_block ){
+      if( cdims_loc > cdims_max )
+	cdims_loc = cdims_max;
+      chkHDF5err(H5Pset_chunk(property, 1, &cdims_loc));
+      chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+    }/* if( dims > (hsize_t)szip_pixels_per_block ){ */
+    else
+      property = H5P_DEFAULT;
+#else///USE_SZIP_COMPRESSION
+    gzip_cdims = 1024;
+    cdims_loc = gzip_cdims;
+    if( dims < cdims_loc )
+      cdims_loc = dims;
+    if( cdims_loc > cdims_max )
+      cdims_loc = cdims_max;
+    chkHDF5err(H5Pset_chunk(property, 1, &cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_SZIP_COMPRESSION
+#endif//defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
+
+
     /** 1D (nrad) arrays */
+    dataset = H5Dcreate(group, "rad", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rad[jhead]));
+    chkHDF5err(H5Dclose(dataset));
     dataset = H5Dcreate(group, "Mloc", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, loss[ii]));
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &loss[ii][jhead]));
     chkHDF5err(H5Dclose(dataset));
     dataset = H5Dcreate(group, "Msum", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, Msum[ii]));
-    chkHDF5err(H5Dclose(dataset));
-    dataset = H5Dcreate(group, "Menc", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, enc[ii]));
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &Msum[ii][jhead]));
     chkHDF5err(H5Dclose(dataset));
     dataset = H5Dcreate(group, "frac", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, frac[ii]));
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &frac[ii][jhead]));
     chkHDF5err(H5Dclose(dataset));
 
     /** attributes */
+    attribute = H5Acreate(group, "nrad", H5T_NATIVE_INT, attrspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &jnum));
+    chkHDF5err(H5Aclose(attribute));
     attribute = H5Acreate(group, "ra", H5T_NATIVE_DOUBLE, attrspace, H5P_DEFAULT, H5P_DEFAULT);
     chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &ra[ii]));
     chkHDF5err(H5Aclose(attribute));
@@ -861,18 +924,22 @@ int main(int argc, char **argv)
     attribute = H5Acreate(group, "thalf", hdf5_real, attrspace, H5P_DEFAULT, H5P_DEFAULT);
     chkHDF5err(H5Awrite(attribute, hdf5_real, &thalf));
     chkHDF5err(H5Aclose(attribute));
-
-    chkHDF5err(H5Gclose(group));
-  }/* for(int ii = 0; ii < skind; ii++){ */
+    attribute = H5Acreate(group, "Mdot", hdf5_real, attrspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, hdf5_real, &Mdot));
+    chkHDF5err(H5Aclose(attribute));
 
 #   if  defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
 #ifdef  USE_SZIP_COMPRESSION
-  if( dims > (hsize_t)szip_pixels_per_block )
+    if( dims > (hsize_t)szip_pixels_per_block )
 #endif//USE_SZIP_COMPRESSION
-    chkHDF5err(H5Pclose(property));
+      chkHDF5err(H5Pclose(property));
 #endif//defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
+
+    chkHDF5err(H5Sclose(dataspace));
+    chkHDF5err(H5Gclose(group));
+  }/* for(int ii = 0; ii < skind; ii++){ */
+
   /** close the dataspace */
-  chkHDF5err(H5Sclose(dataspace));
   chkHDF5err(H5Sclose(attrspace));
 
   /** close the file */
@@ -892,6 +959,7 @@ int main(int argc, char **argv)
   free(rs);  free(rc);
 
   free(loss);  free(_loss);
+  free(head);  free(tail);
 
   free(tff);
   free(Msum);  free(_Msum);

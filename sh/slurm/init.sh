@@ -828,7 +828,7 @@ fi
 if [ $PROBLEM -eq 100 ]; then
     FILE=m12iso
     CONFIG=losscone/m12iso.cfg
-    EPS=7.8125e-3
+    EPS=6.25e-2
     ETA=0.5
     FINISH=1000.0
     INTERVAL=25.0
@@ -838,7 +838,7 @@ fi
 if [ $PROBLEM -eq 101 ]; then
     FILE=m12ra1
     CONFIG=losscone/m12ra1.cfg
-    EPS=7.8125e-3
+    EPS=6.25e-2
     ETA=0.5
     FINISH=1000.0
     INTERVAL=25.0
@@ -848,7 +848,7 @@ fi
 if [ $PROBLEM -eq 102 ]; then
     FILE=m12ra2
     CONFIG=losscone/m12ra2.cfg
-    EPS=7.8125e-3
+    EPS=6.25e-2
     ETA=0.5
     FINISH=1000.0
     INTERVAL=25.0
@@ -856,61 +856,31 @@ fi
 ###############################################################
 # DM accretion onto central MBH
 if [ $PROBLEM -eq 103 ]; then
-    FILE=m12ra3
-    CONFIG=losscone/m12ra3.cfg
-    EPS=7.8125e-3
+    FILE=m12ra1_2
+    CONFIG=losscone/m12ra1_2.cfg
+    EPS=6.25e-2
     ETA=0.5
-    FINISH=1000.0
+    FINISH=2000.0
     INTERVAL=25.0
 fi
 ###############################################################
 # DM accretion onto central MBH
 if [ $PROBLEM -eq 104 ]; then
-    FILE=m12ra4
-    CONFIG=losscone/m12ra4.cfg
-    EPS=7.8125e-3
+    FILE=m12ra1_4
+    CONFIG=losscone/m12ra1_4.cfg
+    EPS=6.25e-2
     ETA=0.5
-    FINISH=1000.0
+    FINISH=2000.0
     INTERVAL=25.0
 fi
 ###############################################################
 # DM accretion onto central MBH
 if [ $PROBLEM -eq 105 ]; then
-    FILE=m12ra5
-    CONFIG=losscone/m12ra5.cfg
-    EPS=7.8125e-3
+    FILE=m12ra1_8
+    CONFIG=losscone/m12ra1_8.cfg
+    EPS=6.25e-2
     ETA=0.5
-    FINISH=1000.0
-    INTERVAL=25.0
-fi
-###############################################################
-# DM accretion onto central MBH
-if [ $PROBLEM -eq 106 ]; then
-    FILE=m12ra3_4
-    CONFIG=losscone/m12ra3_4.cfg
-    EPS=7.8125e-3
-    ETA=0.5
-    FINISH=1000.0
-    INTERVAL=25.0
-fi
-###############################################################
-# DM accretion onto central MBH
-if [ $PROBLEM -eq 107 ]; then
-    FILE=m12ra1_2
-    CONFIG=losscone/m12ra1_2.cfg
-    EPS=7.8125e-3
-    ETA=0.5
-    FINISH=1000.0
-    INTERVAL=25.0
-fi
-###############################################################
-# DM accretion onto central MBH
-if [ $PROBLEM -eq 108 ]; then
-    FILE=m12ra1_4
-    CONFIG=losscone/m12ra1_4.cfg
-    EPS=7.8125e-3
-    ETA=0.5
-    FINISH=1000.0
+    FINISH=2000.0
     INTERVAL=25.0
 fi
 ###############################################################
@@ -918,39 +888,239 @@ fi
 if [ $PROBLEM -eq 110 ]; then
     FILE=m13iso
     CONFIG=losscone/m13iso.cfg
-    EPS=7.8125e-3
+    EPS=2.5e-1
     ETA=0.5
     FINISH=1000.0
     INTERVAL=25.0
 fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 111 ]; then
+    FILE=m13ra1
+    CONFIG=losscone/m13ra1.cfg
+    EPS=2.5e-1
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 112 ]; then
+    FILE=m13ra2
+    CONFIG=losscone/m13ra2.cfg
+    EPS=2.5e-1
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 113 ]; then
+    FILE=m13ra1_2
+    CONFIG=losscone/m13ra1_2.cfg
+    EPS=2.5e-1
+    ETA=0.5
+    FINISH=2000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 114 ]; then
+    FILE=m13ra1_4
+    CONFIG=losscone/m13ra1_4.cfg
+    EPS=2.5e-1
+    ETA=0.5
+    FINISH=2000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# # DM accretion onto central MBH
+# if [ $PROBLEM -eq 115 ]; then
+#     FILE=m13ra1_8
+#     CONFIG=losscone/m13ra1_8.cfg
+#     EPS=7.8125e-3
+#     ETA=0.5
+#     FINISH=1000.0
+#     INTERVAL=25.0
+# fi
 ###############################################################
 # DM accretion onto central MBH
 if [ $PROBLEM -eq 120 ]; then
     FILE=m14iso
     CONFIG=losscone/m14iso.cfg
-    EPS=7.8125e-3
+    EPS=5.0e-1
     ETA=0.5
     FINISH=1000.0
     INTERVAL=25.0
 fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 121 ]; then
+    FILE=m14ra1
+    CONFIG=losscone/m14ra1.cfg
+    EPS=5.0e-1
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 122 ]; then
+    FILE=m14ra2
+    CONFIG=losscone/m14ra2.cfg
+    EPS=5.0e-1
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 123 ]; then
+    FILE=m14ra1_2
+    CONFIG=losscone/m14ra1_2.cfg
+    EPS=5.0e-1
+    ETA=0.5
+    FINISH=2000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 124 ]; then
+    FILE=m14ra1_4
+    CONFIG=losscone/m14ra1_4.cfg
+    EPS=5.0e-1
+    ETA=0.5
+    FINISH=2000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# # DM accretion onto central MBH
+# if [ $PROBLEM -eq 125 ]; then
+#     FILE=m14ra1_8
+#     CONFIG=losscone/m14ra1_8.cfg
+#     EPS=7.8125e-3
+#     ETA=0.5
+#     FINISH=1000.0
+#     INTERVAL=25.0
+# fi
 ###############################################################
 # DM accretion onto central MBH
 if [ $PROBLEM -eq 130 ]; then
     FILE=m15iso
     CONFIG=losscone/m15iso.cfg
-    EPS=7.8125e-3
+    EPS=1.0
     ETA=0.5
     FINISH=1000.0
     INTERVAL=25.0
 fi
 ###############################################################
 # DM accretion onto central MBH
+if [ $PROBLEM -eq 131 ]; then
+    FILE=m15ra1
+    CONFIG=losscone/m15ra1.cfg
+    EPS=1.0
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 132 ]; then
+    FILE=m15ra2
+    CONFIG=losscone/m15ra2.cfg
+    EPS=1.0
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 133 ]; then
+    FILE=m15ra1_2
+    CONFIG=losscone/m15ra1_2.cfg
+    EPS=1.0
+    ETA=0.5
+    FINISH=2000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 134 ]; then
+    FILE=m15ra1_4
+    CONFIG=losscone/m15ra1_4.cfg
+    EPS=1.0
+    ETA=0.5
+    FINISH=2000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# # DM accretion onto central MBH
+# if [ $PROBLEM -eq 135 ]; then
+#     FILE=m15ra1_8
+#     CONFIG=losscone/m15ra1_8.cfg
+#     EPS=7.8125e-3
+#     ETA=0.5
+#     FINISH=1000.0
+#     INTERVAL=25.0
+# fi
+###############################################################
+# DM accretion onto central MBH
 if [ $PROBLEM -eq 140 ]; then
     FILE=m11iso
     CONFIG=losscone/m11iso.cfg
-    EPS=7.8125e-3
+    EPS=3.125e-2
     ETA=0.5
     FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 141 ]; then
+    FILE=m11ra1
+    CONFIG=losscone/m11ra1.cfg
+    EPS=3.125e-2
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 142 ]; then
+    FILE=m11ra2
+    CONFIG=losscone/m11ra2.cfg
+    EPS=3.125e-2
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 143 ]; then
+    FILE=m11ra1_2
+    CONFIG=losscone/m11ra1_2.cfg
+    EPS=3.125e-2
+    ETA=0.5
+    FINISH=2000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 144 ]; then
+    FILE=m11ra1_4
+    CONFIG=losscone/m11ra1_4.cfg
+    EPS=3.125e-2
+    ETA=0.5
+    FINISH=2000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 145 ]; then
+    FILE=m11ra1_8
+    CONFIG=losscone/m11ra1_8.cfg
+    EPS=3.125e-2
+    ETA=0.5
+    FINISH=2000.0
     INTERVAL=25.0
 fi
 ###############################################################
@@ -958,9 +1128,59 @@ fi
 if [ $PROBLEM -eq 150 ]; then
     FILE=m10iso
     CONFIG=losscone/m10iso.cfg
-    EPS=7.8125e-3
+    EPS=1.5625e-2
     ETA=0.5
     FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 151 ]; then
+    FILE=m10ra1
+    CONFIG=losscone/m10ra1.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 152 ]; then
+    FILE=m10ra2
+    CONFIG=losscone/m10ra2.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 153 ]; then
+    FILE=m10ra1_2
+    CONFIG=losscone/m10ra1_2.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=2000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 154 ]; then
+    FILE=m10ra1_4
+    CONFIG=losscone/m10ra1_4.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=2000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 155 ]; then
+    FILE=m10ra1_8
+    CONFIG=losscone/m10ra1_8.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=2000.0
     INTERVAL=25.0
 fi
 ###############################################################
@@ -975,12 +1195,52 @@ if [ $PROBLEM -eq 160 ]; then
 fi
 ###############################################################
 # DM accretion onto central MBH
-if [ $PROBLEM -eq 170 ]; then
-    FILE=m08iso
-    CONFIG=losscone/m08iso.cfg
+if [ $PROBLEM -eq 161 ]; then
+    FILE=m09ra1
+    CONFIG=losscone/m09ra1.cfg
     EPS=7.8125e-3
     ETA=0.5
     FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 162 ]; then
+    FILE=m09ra2
+    CONFIG=losscone/m09ra2.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 163 ]; then
+    FILE=m09ra1_2
+    CONFIG=losscone/m09ra1_2.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=2000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 164 ]; then
+    FILE=m09ra1_4
+    CONFIG=losscone/m09ra1_4.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=2000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 165 ]; then
+    FILE=m09ra1_8
+    CONFIG=losscone/m09ra1_8.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=2000.0
     INTERVAL=25.0
 fi
 ###############################################################
