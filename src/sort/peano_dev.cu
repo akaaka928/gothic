@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/17 (Mon)
+ * @date 2018/12/28 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -327,6 +327,75 @@ __global__ void sortParticlesPHcurve_kernel_offset
 }
 
 
+static inline void sortNbodyParticles(const int head, const int num, iparticle * RESTRICT src, iparticle * RESTRICT dst, soaPHsort dev)
+{
+  __NOTE__("%s\n", "start");
+
+
+  /** sort N-body particles */
+  int Nrem = BLOCKSIZE(num, NTHREADS_PHSORT);
+  if( Nrem <= MAX_BLOCKS_PER_GRID )
+    sortParticlesPHcurve_kernel_offset<<<Nrem, NTHREADS_PHSORT>>>
+      (num, dev.idx,
+       (*dst).idx , (*src).idx,
+       (*dst).pos , (*src).pos,
+       (*dst).acc , (*src).acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+       (*dst).acc_ext, (*src).acc_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  BLOCK_TIME_STEP
+       (*dst).vel , (*src).vel,
+       (*dst).time, (*src).time,
+#else///BLOCK_TIME_STEP
+       (*dst).vx  , (*src).vx,
+       (*dst).vy  , (*src).vy,
+       (*dst).vz  , (*src).vz,
+#endif//BLOCK_TIME_STEP
+       head);
+  else{
+    const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
+    int hidx = head;
+    for(int iter = 0; iter < Niter; iter++){
+      int Nblck = MAX_BLOCKS_PER_GRID;
+      if( Nblck > Nrem )	Nblck = Nrem;
+
+      int Nsub = Nblck * NTHREADS_PHSORT;
+      sortParticlesPHcurve_kernel_offset<<<Nblck, NTHREADS_PHSORT>>>
+	(num, dev.idx,
+	 (*dst).idx , (*src).idx,
+	 (*dst).pos , (*src).pos,
+	 (*dst).acc , (*src).acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+	 (*dst).acc_ext, (*src).acc_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  BLOCK_TIME_STEP
+	 (*dst).vel , (*src).vel,
+	 (*dst).time, (*src).time,
+#else///BLOCK_TIME_STEP
+	 (*dst).vx  , (*src).vx,
+	 (*dst).vy  , (*src).vy,
+	 (*dst).vz  , (*src).vz,
+#endif//BLOCK_TIME_STEP
+	 hidx);
+
+      hidx += Nsub;
+      Nrem -= Nblck;
+    }/* for(int iter = 0; iter < Niter; iter++){ */
+  }/* else{ */
+  getLastCudaError("sortParticlesPHcurve_kernel");
+
+  /** swap the list structure */
+  iparticle _tmp;
+  _tmp = *src;
+  *src = *dst;
+  *dst = _tmp;
+
+
+  __NOTE__("%s\n", "end");
+}
+
+
+
 #ifdef  SET_SINK_PARTICLES
 __global__ void findSinkParticles(const int offset, const int num, ulong * RESTRICT idx, const int Nsink, READ_ONLY ulong * RESTRICT tag, int * RESTRICT list)
 {
@@ -342,6 +411,186 @@ __global__ void findSinkParticles(const int offset, const int num, ulong * RESTR
   }/* if( ii < num ){ */
 }
 #endif//SET_SINK_PARTICLES
+
+
+#ifdef  RESET_CENTER_OF_MASS
+__global__ void set_original_order_kernel(const int num, READ_ONLY ulong * RESTRICT tag, int * RESTRICT idx, PHint * RESTRICT key, const int offset)
+{
+  const int ii = offset + GLOBALIDX_X1D;
+  if( ii < num ){
+    idx[ii] = ii;
+    key[ii] = tag[ii];
+  }/* if( ii < num ){ */
+}
+
+
+#define NTHREADS_SCAN_VEC4_INC NTHREADS_RESET_COM
+#include "../util/scan_vec4_inc.cu"
+#define NTHREADS_SCAN_VEC3_INC NTHREADS_RESET_COM
+#include "../util/scan_vec3_inc.cu"
+__global__ void get_center_kernel(const int num, position * RESTRICT ipos, velocity * RESTRICT ivel, double4 * RESTRICT com_all, double3 * RESTRICT vel_all, bool * RESTRICT converge, int * RESTRICT gsync0, int * RESTRICT gsync1)
+{
+  /** identify thread properties */
+  const int tidx = THREADIDX_X1D;
+  const int bidx =  BLOCKIDX_X1D;
+  const int bnum =   GRIDDIM_X1D;
+
+  const int hidx = tidx - (tidx & (warpSize - 1));
+
+  const int nhalf = num >> 1;
+  const int ihead = (nhalf *      bidx ) / bnum;
+  const int itail = (nhalf * (1 + bidx)) / bnum;
+
+  /** calculate center-of-mass and bulk velocity of particles (within half-mass radius) in the local domain */
+  double4 com_loc = {0.0, 0.0, 0.0, 0.0};
+  double3 vel_loc = {0.0, 0.0, 0.0};
+  for(int ih = ihead; ih < itail; ih += NTHREADS_RESET_COM){
+    const int ii = ih + tidx;
+    if( ii < nhalf ){
+      const position pi = ipos[ii];
+      const velocity vi = ivel[ii];
+
+      const double mass = CAST_R2D(pi.m);
+      com_loc.w += mass;
+
+      const double xx = CAST_R2D(pi.x);
+      const double yy = CAST_R2D(pi.y);
+      const double zz = CAST_R2D(pi.z);
+
+      const double vx = CAST_R2D(vi.x);
+      const double vy = CAST_R2D(vi.y);
+      const double vz = CAST_R2D(vi.z);
+
+      com_loc.x += mass * xx;
+      com_loc.y += mass * yy;
+      com_loc.z += mass * zz;
+
+      vel_loc.x += mass * vx;
+      vel_loc.y += mass * vy;
+      vel_loc.z += mass * vz;
+    }/* if( ii < nhalf ){ */
+  }/* for(int ih = ihead; ih < itail; ih += NTHREADS_RESET_COM){ */
+#   if  __CUDA_ARCH__ >= 700
+  __syncwarp();/**< __syncwarp() to remove warp divergence */
+#endif//__CUDA_ARCH__ >= 700
+
+  __shared__ double4 smem[NTHREADS_RESET_COM];
+  com_loc = TOTAL_SUM_VEC4_GRID(com_loc,            smem, tidx, hidx, com_all, bidx, bnum, gsync0, gsync1);
+  vel_loc = TOTAL_SUM_VEC3_GRID(vel_loc, (double3 *)smem, tidx, hidx, vel_all, bidx, bnum, gsync0, gsync1);
+
+  const double minv = 1.0 / com_loc.w;
+  com_loc.x *= minv;
+  com_loc.y *= minv;
+  com_loc.z *= minv;
+  vel_loc.x *= minv;
+  vel_loc.y *= minv;
+  vel_loc.z *= minv;
+
+  if( (tidx + bidx) == 0 ){
+    *converge = (com_loc.x * com_loc.x + com_loc.y * com_loc.y + com_loc.z * com_loc.z) < 1.0e-6;
+    *com_all = com_loc;
+    *vel_all = vel_loc;
+  }/* if( (tidx + bidx) == 0 ){ */
+}
+__global__ void set_squared_distance_kernel(const int num, READ_ONLY position * RESTRICT ipos, int * RESTRICT idx, float * RESTRICT r2, const int offset)
+{
+  const int ii = offset + GLOBALIDX_X1D;
+  if( ii < num ){
+    position pi = ipos[ii];
+    idx[ii] = ii;
+    r2[ii] = CAST_R2F(pi.x * pi.x + pi.y * pi.y + pi.z * pi.z);
+  }/* if( ii < num ){ */
+}
+__global__ void reset_system_center_kernel(const int num, position * RESTRICT ipos, velocity * RESTRICT ivel, double4 * RESTRICT com_all, double3 * RESTRICT vel_all)
+{
+  const int ii = GLOBALIDX_X1D;
+
+  const double4 com = *com_all;
+  const double3 vel = *vel_all;
+
+  if( ii < num ){
+    position pi = ipos[ii];
+    velocity vi = ivel[ii];
+
+    pi.x = CAST_D2R(CAST_R2D(pi.x) - com.x);
+    pi.y = CAST_D2R(CAST_R2D(pi.y) - com.y);
+    pi.z = CAST_D2R(CAST_R2D(pi.z) - com.z);
+    vi.x = CAST_D2R(CAST_R2D(vi.x) - vel.x);
+    vi.y = CAST_D2R(CAST_R2D(vi.y) - vel.y);
+    vi.z = CAST_D2R(CAST_R2D(vi.z) - vel.z);
+
+    ipos[ii] = pi;
+    ivel[ii] = vi;
+  }/* if( ii < num ){ */
+}
+
+
+void reset_system_center_dev(const int num, iparticle * RESTRICT src, iparticle * RESTRICT dst, soaPHsort dev, const deviceProp devProp, const int com_group_head, const int com_group_num
+#ifdef  CUB_AVAILABLE
+			     , soaPHsort pre
+#endif//CUB_AVAILABLE
+			     )
+{
+  __NOTE__("%s\n", "start");
+
+
+  /** sort particle array in index-order */
+#ifdef  CUB_AVAILABLE
+  set_original_order_kernel<<<BLOCKSIZE(num, NTHREADS_RESET_COM), NTHREADS_RESET_COM>>>(num, (*src).idx, pre.idx, pre.key, 0);
+#else///CUB_AVAILABLE
+  set_original_order_kernel<<<BLOCKSIZE(num, NTHREADS_RESET_COM), NTHREADS_RESET_COM>>>(num, (*src).idx, dev.idx, dev.key, 0);
+#endif//CUB_AVAILABLE
+  getLastCudaError("set_original_order_kernel");
+
+#ifdef  CUB_AVAILABLE
+  cub::DeviceRadixSort::SortPairs(dev.temp_storage, dev.temp_storage_size, pre.key, dev.key, pre.idx, dev.idx, num);
+#else///CUB_AVAILABLE
+  thrust::stable_sort_by_key((thrust::device_ptr<PHint>)dev.key, (thrust::device_ptr<PHint>)(dev.key + num), (thrust::device_ptr<int>)dev.idx);
+#endif//CUB_AVAILABLE
+
+  /** sort N-body particles */
+  sortNbodyParticles(0, num, src, dst, dev);
+
+
+#ifdef  USE_OCCUPANCY_CALCULATOR
+  const int NBLOCKS_PER_SM_RESET_CENTER = dev.numBlocksPerSM_reset;
+#endif//USE_OCCUPANCY_CALCULATOR
+
+  while( true ){
+  /** set idx and r2 */
+#ifdef  CUB_AVAILABLE
+  set_squared_distance_kernel<<<BLOCKSIZE(num, NTHREADS_RESET_COM), NTHREADS_RESET_COM>>>(num, (*src).pos, pre.idx, pre.r2, 0);
+#else///CUB_AVAILABLE
+  set_squared_distance_kernel<<<BLOCKSIZE(num, NTHREADS_RESET_COM), NTHREADS_RESET_COM>>>(num, (*src).pos, dev.idx, dev.r2, 0);
+#endif//CUB_AVAILABLE
+  getLastCudaError("set_squared_distance_kernel");
+
+    /** sort particle sub-array in distance-order */
+#ifdef  CUB_AVAILABLE
+    cub::DeviceRadixSort::SortPairs(dev.temp_storage, dev.temp_storage_size, &(pre.r2[com_group_head]), &(dev.r2[com_group_head]), &(pre.idx[com_group_head]), &(dev.idx[com_group_head]), com_group_num);
+#else///CUB_AVAILABLE
+    thrust::stable_sort_by_key((thrust::device_ptr<float>)(&(dev.r2[com_group_head])), (thrust::device_ptr<float>)((&(dev.r2[com_group_head])) + com_group_num), (thrust::device_ptr<int>)(&(dev.idx[com_group_head])));
+#endif//CUB_AVAILABLE
+
+    /** sort N-body particles */
+    sortNbodyParticles(com_group_head, com_group_num, src, dst, dev);
+
+    get_center_kernel<<<devProp.numSM * NBLOCKS_PER_SM_RESET_CENTER, NTHREADS_RESET_COM>>>(com_group_num, &((*src).pos[com_group_head]), &((*src).vel[com_group_head]), dev.com_all, dev.vel_all, dev.converge, dev.gsync0_com, dev.gsync1_com);
+    getLastCudaError("get_center_kernel");
+
+    reset_system_center_kernel<<<BLOCKSIZE(num, NTHREADS_RESET_COM), NTHREADS_RESET_COM>>>(num, (*src).pos, (*src).vel, dev.com_all, dev.vel_all);
+    getLastCudaError("reset_system_center_kernel");
+
+    checkCudaErrors(cudaMemcpy(dev.converge_hst, dev.converge, sizeof(bool), cudaMemcpyDeviceToHost));
+    if( *(dev.converge_hst) )
+      break;
+
+  }/* while( true ){ */
+
+
+  __NOTE__("%s\n", "end");
+}
+#endif//RESET_CENTER_OF_MASS
 
 
 /**
@@ -361,6 +610,9 @@ void sortParticlesPHcurve_dev(const int num, iparticle * RESTRICT src, iparticle
 #ifdef  SET_SINK_PARTICLES
 			      , const int Nbh, const sinkparticle bh
 #endif//SET_SINK_PARTICLES
+#ifdef  RESET_CENTER_OF_MASS
+			      , const int com_group_head, const int com_group_num
+#endif//RESET_CENTER_OF_MASS
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 			      , domainLocation *location
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
@@ -371,6 +623,15 @@ void sortParticlesPHcurve_dev(const int num, iparticle * RESTRICT src, iparticle
 )
 {
   __NOTE__("%s\n", "start");
+
+
+#ifdef  RESET_CENTER_OF_MASS
+  reset_system_center_dev(num, src, dst, dev, devProp, com_group_head, com_group_num
+#ifdef  CUB_AVAILABLE
+			  , pre
+#endif//CUB_AVAILABLE
+			  );
+#endif//RESET_CENTER_OF_MASS
 
 
 #ifndef EXEC_BENCHMARK
@@ -446,71 +707,15 @@ void sortParticlesPHcurve_dev(const int num, iparticle * RESTRICT src, iparticle
 
 
   /** sort N-body particles using Peano--Hilbert key */
-  int Nrem = BLOCKSIZE(num, NTHREADS_PHSORT);
-  if( Nrem <= MAX_BLOCKS_PER_GRID )
-    sortParticlesPHcurve_kernel_offset<<<Nrem, NTHREADS_PHSORT>>>
-      (num, dev.idx,
-       (*dst).idx , (*src).idx,
-       (*dst).pos , (*src).pos,
-       (*dst).acc , (*src).acc,
-#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-       (*dst).acc_ext, (*src).acc_ext,
-#endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  BLOCK_TIME_STEP
-       (*dst).vel , (*src).vel,
-       (*dst).time, (*src).time,
-#else///BLOCK_TIME_STEP
-       (*dst).vx  , (*src).vx,
-       (*dst).vy  , (*src).vy,
-       (*dst).vz  , (*src).vz,
-#endif//BLOCK_TIME_STEP
-       0);
-  else{
-    const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
-    int hidx = 0;
-    for(int iter = 0; iter < Niter; iter++){
-      int Nblck = MAX_BLOCKS_PER_GRID;
-      if( Nblck > Nrem )	Nblck = Nrem;
-
-      int Nsub = Nblck * NTHREADS_PHSORT;
-      sortParticlesPHcurve_kernel_offset<<<Nblck, NTHREADS_PHSORT>>>
-	(num, dev.idx,
-	 (*dst).idx , (*src).idx,
-	 (*dst).pos , (*src).pos,
-	 (*dst).acc , (*src).acc,
-#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-	 (*dst).acc_ext, (*src).acc_ext,
-#endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  BLOCK_TIME_STEP
-	 (*dst).vel , (*src).vel,
-	 (*dst).time, (*src).time,
-#else///BLOCK_TIME_STEP
-	 (*dst).vx  , (*src).vx,
-	 (*dst).vy  , (*src).vy,
-	 (*dst).vz  , (*src).vz,
-#endif//BLOCK_TIME_STEP
-	 hidx);
-
-      hidx += Nsub;
-      Nrem -= Nblck;
-    }/* for(int iter = 0; iter < Niter; iter++){ */
-  }/* else{ */
-
-  getLastCudaError("sortParticlesPHcurve_kernel");
+  sortNbodyParticles(0, num, src, dst, dev);
 
 #ifdef  HUNT_MAKE_PARAMETER
   stopStopwatch(&(elapsed->sortBody_kernel));
 #endif//HUNT_MAKE_PARAMETER
 
 
-  /** swap the list structure */
-  iparticle _tmp;
-  _tmp = *src;
-  *src = *dst;
-  *dst = _tmp;
-
 #ifdef  SET_SINK_PARTICLES
-  Nrem = BLOCKSIZE(num, NTHREADS_PHSORT);
+  int Nrem = BLOCKSIZE(num, NTHREADS_PHSORT);
   if( Nrem <= MAX_BLOCKS_PER_GRID )
     findSinkParticles<<<Nrem, NTHREADS_PHSORT>>>(0, num, (*src).idx, Nbh, bh.tag, bh.list);
   else{
@@ -656,12 +861,18 @@ void initPHinfo_dev(PHinfo *info)
 extern "C"
 muse allocPeanoHilbertKey_dev
 (const int num, int **idx_dev, PHint **key_dev, PHint **key_hst, float4 **minall, float4 **maxall, int **gsync0, int **gsync1,
+#ifdef  RESET_CENTER_OF_MASS
+ float **r2_dev, double4 **com_all, double3 **vel_all, int **gsync0_com, int **gsync1_com, bool **converge, bool **converge_hst,
+#endif//RESET_CENTER_OF_MASS
 #ifndef SERIALIZED_EXECUTION
  float4 **box_min, float4 **box_max, float4 **min_hst, float4 **max_hst,
 #endif//SERIALIZED_EXECUTION
  soaPHsort *dev, soaPHsort *hst,
 #ifdef  CUB_AVAILABLE
  soaPHsort *pre, void **temp_storage, int **idx_pre, PHint **key_pre,
+#ifdef  RESET_CENTER_OF_MASS
+ float **r2_pre,
+#endif//RESET_CENTER_OF_MASS
 #endif//CUB_AVAILABLE
  const deviceProp devProp)
 {
@@ -684,6 +895,11 @@ muse allocPeanoHilbertKey_dev
   checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&dev->numBlocksPerSM_peano, calcPHkey_kernel, NTHREADS_PH, 0));
   const int NBLOCKS_PER_SM_PH = dev->numBlocksPerSM_peano;
   __NOTE__("NBLOCKS_PER_SM_PH = %d\n", NBLOCKS_PER_SM_PH);
+#ifdef  RESET_CENTER_OF_MASS
+  checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&dev->numBlocksPerSM_reset, get_center_kernel, NTHREADS_RESET_COM, 0));
+  const int NBLOCKS_PER_SM_RESET_CENTER = dev->numBlocksPerSM_reset;
+  __NOTE__("NBLOCKS_PER_SM_RESET_CENTER = %d\n", NBLOCKS_PER_SM_RESET_CENTER);
+#endif//RESET_CENTER_OF_MASS
 #endif//USE_OCCUPANCY_CALCULATOR
 
   /** Peano--Hilbert key of N-body particles */
@@ -701,6 +917,13 @@ muse allocPeanoHilbertKey_dev
   mycudaMalloc    ((void **)idx_pre, num * sizeof(  int));  alloc.device += num * sizeof(  int);
   mycudaMalloc    ((void **)key_pre, num * sizeof(PHint));  alloc.device += num * sizeof(PHint);
 #endif//CUB_AVAILABLE
+
+#ifdef  RESET_CENTER_OF_MASS
+  mycudaMalloc((void **)r2_dev, num * sizeof(float));  alloc.device += num * sizeof(float);
+#ifdef  CUB_AVAILABLE
+  mycudaMalloc((void **)r2_pre, num * sizeof(float));  alloc.device += num * sizeof(float);
+#endif//CUB_AVAILABLE
+#endif//RESET_CENTER_OF_MASS
 
 #ifdef  SERIALIZED_EXECUTION
   const size_t num_ph = devProp.numSM * NBLOCKS_PER_SM_PH;
@@ -722,6 +945,36 @@ muse allocPeanoHilbertKey_dev
 
   initGsync_kernel<<<1, num_ph>>>(num_ph, *gsync0, *gsync1);
   getLastCudaError("initGsync_kernel");
+
+#ifdef  RESET_CENTER_OF_MASS
+  const size_t num_com = devProp.numSM * NBLOCKS_PER_SM_RESET_CENTER;
+  mycudaMalloc((void **)com_all, num_com * sizeof(double4));  alloc.device += num_com * sizeof(double4);
+  mycudaMalloc((void **)vel_all, num_com * sizeof(double3));  alloc.device += num_com * sizeof(double3);
+  mycudaMalloc((void **)gsync0_com, num_com * sizeof(int));  alloc.device += num_com * sizeof(int);
+  mycudaMalloc((void **)gsync1_com, num_com * sizeof(int));  alloc.device += num_com * sizeof(int);
+  mycudaMalloc    ((void **)converge    , sizeof(bool));  alloc.device += sizeof(bool);
+  mycudaMallocHost((void **)converge_hst, sizeof(bool));  alloc.host   += sizeof(bool);
+
+  initGsync_kernel<<<1, num_com>>>(num_com, *gsync0_com, *gsync1_com);
+  getLastCudaError("initGsync_kernel");
+
+  dev->r2 = *r2_dev;
+  dev->com_all = *com_all;
+  dev->vel_all = *vel_all;
+  dev->gsync0_com = *gsync0_com;
+  dev->gsync1_com = *gsync1_com;
+  dev->converge = *converge;
+  dev->converge_hst = *converge_hst;
+#ifdef  CUB_AVAILABLE
+  pre->r2 = *r2_pre;
+  pre->com_all = *com_all;
+  pre->vel_all = *vel_all;
+  pre->gsync0_com = *gsync0_com;
+  pre->gsync1_com = *gsync1_com;
+  pre->converge = *converge;
+  pre->converge_hst = *converge_hst;
+#endif//CUB_AVAILABLE
+#endif//RESET_CENTER_OF_MASS
 
   dev->idx = *idx_dev;
   dev->key = *key_dev;  hst->key = *key_hst;
@@ -755,7 +1008,7 @@ muse allocPeanoHilbertKey_dev
     fprintf(stderr, "warning: # of registers used (%d) in calcPHkey_kernel() is not match with the predicted value (%d).\n", funcAttr.numRegs, REGISTERS_PER_THREAD_PH);
     fprintf(stderr, "note: GPUGEN = %d, GPUVER = %d, NTHREADS_PH = %d.\n", GPUGEN, GPUVER, NTHREADS_PH);
     fflush (stderr);
-  }/* if( funcAttr.numRegs != REGISTERS_PER_THREAD_MAC ){ */
+  }/* if( funcAttr.numRegs != REGISTERS_PER_THREAD_PH ){ */
 
   int regLimit = MAX_REGISTERS_PER_SM / (funcAttr.numRegs * NTHREADS_PH);
   if( regLimit > (MAX_REGISTERS_PER_SM / NTHREADS_PH) )
@@ -773,6 +1026,33 @@ muse allocPeanoHilbertKey_dev
   if( (devProp.numSM * NBLOCKS_PER_SM_PH) > NTHREADS_PH ){
     __KILL__(stderr, "ERROR: product (%d) of devProp.numSM(%d) * NBLOCKS_PER_SM_PH(%d) must be smaller than NTHREADS_PH(%d) to use shared memory.\n", devProp.numSM * NBLOCKS_PER_SM_PH, devProp.numSM, NBLOCKS_PER_SM_PH, NTHREADS_PH);
   }/* if( (devProp.numSM * NBLOCKS_PER_SM_PH) > NTHREADS_PH ){ */
+
+#ifdef  RESET_CENTER_OF_MASS
+  checkCudaErrors(cudaFuncGetAttributes(&funcAttr, get_center_kernel));
+  if( funcAttr.numRegs != REGISTERS_PER_THREAD_RESET_CENTER ){
+    fprintf(stderr, "%s(%d): %s\n", __FILE__, __LINE__, __func__);
+    fprintf(stderr, "warning: # of registers used (%d) in get_center_kernel() is not match with the predicted value (%d).\n", funcAttr.numRegs, REGISTERS_PER_THREAD_RESET_CENTER);
+    fprintf(stderr, "note: GPUGEN = %d, GPUVER = %d, NTHREADS_PH = %d.\n", GPUGEN, GPUVER, NTHREADS_RESET_COM);
+    fflush (stderr);
+  }/* if( funcAttr.numRegs != REGISTERS_PER_THREAD_RESET_CENTER ){ */
+
+  regLimit = MAX_REGISTERS_PER_SM / (funcAttr.numRegs * NTHREADS_RESET_COM);
+  if( regLimit > (MAX_REGISTERS_PER_SM / NTHREADS_RESET_COM) )
+    regLimit = (MAX_REGISTERS_PER_SM / NTHREADS_RESET_COM);
+  memLimit = SMEM_SIZE_L1_PREF / funcAttr.sharedSizeBytes;
+  Nblck = (regLimit <= memLimit) ? regLimit : memLimit;
+  if( Nblck > (MAX_THREADS_PER_SM       / NTHREADS_RESET_COM) )    Nblck = MAX_THREADS_PER_SM / NTHREADS_RESET_COM;
+  if( Nblck >   MAX_BLOCKS_PER_SM                             )    Nblck = MAX_BLOCKS_PER_SM;
+  if( Nblck > (( MAX_WARPS_PER_SM * 32) / NTHREADS_RESET_COM) )    Nblck = ((MAX_WARPS_PER_SM * 32) / NTHREADS_RESET_COM);
+
+  if( Nblck != NBLOCKS_PER_SM_RESET_COM ){
+    __KILL__(stderr, "ERROR: # of blocks per SM for get_center_kernel() is mispredicted (%d).\n\tThe limits come from register and shared memory are %d and %d, respectively.\n\tHowever, the expected value of NBLOCKS_PER_SM_RESET_COM defined in src/sort/peano_dev.cu is %d.\n\tAdditional information: # of registers per thread is %d while predicted as %d (GPUGEN = %d, GPUVER = %d).\n", Nblck, regLimit, memLimit, NBLOCKS_PER_SM_RESET_COM, funcAttr.numRegs, REGISTERS_PER_THREAD_RESET_COM, GPUGEN, GPUVER);
+  }/* if( Nblck != NBLOCKS_PER_SM ){ */
+
+  if( (devProp.numSM * NBLOCKS_PER_SM_RESET_COM) > NTHREADS_RESET_COM ){
+    __KILL__(stderr, "ERROR: product (%d) of devProp.numSM(%d) * NBLOCKS_PER_SM_RESET_COM(%d) must be smaller than NTHREADS_RESET_COM(%d) to use shared memory.\n", devProp.numSM * NBLOCKS_PER_SM_RESET_COM, devProp.numSM, NBLOCKS_PER_SM_RESET_COM, NTHREADS_RESET_COM);
+  }/* if( (devProp.numSM * NBLOCKS_PER_SM_RESET_COM) > NTHREADS_RESET_COM ){ */
+#endif//RESET_CENTER_OF_MASS
 #endif//USE_OCCUPANCY_CALCULATOR
 
 
@@ -788,12 +1068,18 @@ muse allocPeanoHilbertKey_dev
  */
 extern "C"
 void  freePeanoHilbertKey_dev
-(int  *idx_dev, PHint  *key_dev, PHint  *key_hst, float4  *minall, float4  *maxall, int  *gsync0, int  *gsync1
+  (int  *idx_dev, PHint  *key_dev, PHint  *key_hst, float4  *minall, float4  *maxall, int  *gsync0, int  *gsync1
+#ifdef  RESET_CENTER_OF_MASS
+    , float  *r2_dev, double4  *com_all, double3  *vel_all, int  *gsync0_com, int  *gsync1_com, bool  *converge, bool  *converge_hst
+#endif//RESET_CENTER_OF_MASS
 #ifndef SERIALIZED_EXECUTION
- , float4  *box_min, float4  *box_max, float4  *min_hst, float4  *max_hst
+    , float4  *box_min, float4  *box_max, float4  *min_hst, float4  *max_hst
 #endif//SERIALIZED_EXECUTION
 #ifdef  CUB_AVAILABLE
- , void  *temp_storage, int  *idx_pre, PHint  *key_pre
+    , void  *temp_storage, int  *idx_pre, PHint  *key_pre
+#ifdef  RESET_CENTER_OF_MASS
+    , float  *r2_pre
+#endif//RESET_CENTER_OF_MASS
 #endif//CUB_AVAILABLE
  )
 {
@@ -820,7 +1106,20 @@ void  freePeanoHilbertKey_dev
   mycudaFree(temp_storage);
   mycudaFree(idx_pre);
   mycudaFree(key_pre);
+#ifdef  RESET_CENTER_OF_MASS
+  mycudaFree(r2_pre);
+#endif//RESET_CENTER_OF_MASS
 #endif//CUB_AVAILABLE
+
+#ifdef  RESET_CENTER_OF_MASS
+  mycudaFree(r2_dev);
+  mycudaFree(com_all);
+  mycudaFree(vel_all);
+  mycudaFree(gsync0_com);
+  mycudaFree(gsync1_com);
+  mycudaFree    (converge);
+  mycudaFreeHost(converge_hst);
+#endif//RESET_CENTER_OF_MASS
 
 
   __NOTE__("%s\n", "end");

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/20 (Thu)
+ * @date 2019/01/29 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -284,6 +284,7 @@ void retrograder(const ulong num, const ulong head, iparticle body, const double
 #endif//USE_ZANG_HOHL_1978_EQ5
 
 
+#ifndef  DISABLE_SHIFT_CENTER
 /**
  * @fn shiftCenter
  *
@@ -487,6 +488,7 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
 
   __NOTE__("%s\n", "end");
 }
+#endif//DISABLE_SHIFT_CENTER
 
 
 /**
@@ -666,11 +668,9 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 
     /** determine velocity distribution by rejection method */
     const double psi = (1.0 - alpha) * prf[ll].psi_tot + alpha * prf[rr].psi_tot;
-#ifndef NDEBUG
     if( psi < Qmin ){
       __KILL__(stderr, "ERROR: Psi = %e @ r = %e while Qmin = %e, rs = %e, and rc = %e\n", psi, rad, Qmin, cfg.rs, cfg.rc);
     }/* if( psi < Qmin ){ */
-#endif//NDEBUG
 #ifndef USE_OSIPKOV_MERRITT_METHOD
     const double vesc = sqrt(2.0 * (psi - Ecut));
 #ifndef NDEBUG
@@ -1245,7 +1245,7 @@ int main(int argc, char **argv)
 
 #pragma omp critical
     {
-      if( prf[ii][jc].psi_tot < Emin ){
+      if( (prf[ii][jc].psi_tot < Emin) && (cfg[ii].kind != KING) ){
 	__KILL__(stderr, "ERROR: %d-th component: Psi_tot(r = %e; rc = %e) = %e is contained in f = 0 regions (E <= %e); consider adopting wider smoothing scale about the cut-off radius (current value is %e = %e %s)\n", ii, prf[ii][jc].rad, cfg[ii].rc, prf[ii][jc].psi_tot, Emin, cfg[ii].rc_width, cfg[ii].rc_width * length2astro, length_astro_unit_name);
       }/* if( prf[cfg[ii].iout].psi_tot < Emin ){ */
     }
@@ -1402,8 +1402,10 @@ int main(int argc, char **argv)
 	Nuse++;
       }/* else{ */
 
+#ifndef DISABLE_SHIFT_CENTER
       /** shift center-of-mass, remove bulk motion */
       shiftCenter(cfg[ii].num, Nuse - cfg[ii].num, body, cfg[ii]);
+#endif//DISABLE_SHIFT_CENTER
     }/* for(int ii = 0; ii < skind; ii++){ */
 #ifdef  USE_SFMTJUMP
 #pragma omp barrier
@@ -1468,8 +1470,10 @@ int main(int argc, char **argv)
 	  retrograder(disk_info[ii].cfg->num, Nuse - disk_info[ii].cfg->num, body, disk_info[ii].cfg->retrogradeFrac);
 #endif//USE_ZANG_HOHL_1978_EQ5
 
+#ifndef DISABLE_SHIFT_CENTER
 	/** shift center-of-mass, remove bulk motion */
 	shiftCenter(disk_info[ii].cfg->num, Nuse - disk_info[ii].cfg->num, body, *disk_info[ii].cfg);
+#endif//DISABLE_SHIFT_CENTER
 
 	/** analyze retrograding fraction */
 	int Nret = 0;

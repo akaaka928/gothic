@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/17 (Mon)
+ * @date 2019/01/25 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -300,6 +300,9 @@ static inline void buildTreeStructure
 #ifdef  SET_SINK_PARTICLES
  const int Nsink, const sinkparticle sink,
 #endif//SET_SINK_PARTICLES
+#ifdef  RESET_CENTER_OF_MASS
+ const int com_group_head, const int com_group_num,
+#endif//RESET_CENTER_OF_MASS
 #ifndef SERIALIZED_EXECUTION
  int *numOld,
 #endif//SERIALIZED_EXECUTION
@@ -328,6 +331,9 @@ static inline void buildTreeStructure
 #ifdef  SET_SINK_PARTICLES
 			   , Nsink, sink
 #endif//SET_SINK_PARTICLES
+#ifdef  RESET_CENTER_OF_MASS
+			   , com_group_head, com_group_num
+#endif//RESET_CENTER_OF_MASS
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 			   , location
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
@@ -946,17 +952,33 @@ int main(int argc, char **argv)
   int *tag_pre;
   void *phsort_temp_storage;
 #endif//CUB_AVAILABLE
+#ifdef  RESET_CENTER_OF_MASS
+  float *r2_dev;
+  double4 *com_all;
+  double3 *vel_all;
+  int *gsync_reset_com0, *gsync_reset_com1;
+  bool *converge_dev, *converge_hst;
+#ifdef  CUB_AVAILABLE
+  float *r2_pre;
+#endif//CUB_AVAILABLE
+#endif//RESET_CENTER_OF_MASS
 #   if  !defined(SERIALIZED_EXECUTION) && defined(USE_OCCUPANCY_CALCULATOR)
   checkBoxSize_dev(&soaPH_dev);
 #endif//!defined(SERIALIZED_EXECUTION) && defined(USE_OCCUPANCY_CALCULATOR)
   const muse alloc_phkey = allocPeanoHilbertKey_dev
     (num_max, &tag_dev, &peano_dev, &peano, &min_dev, &max_dev, &gsync_ph0, &gsync_ph1,
+#ifdef  RESET_CENTER_OF_MASS
+     &r2_dev, &com_all, &vel_all, &gsync_reset_com0, &gsync_reset_com1, &converge_dev, &converge_hst,
+#endif//RESET_CENTER_OF_MASS
 #ifndef SERIALIZED_EXECUTION
     &box_min, &box_max, &min_hst, &max_hst,
 #endif//SERIALIZED_EXECUTION
      &soaPH_dev, &soaPH_hst,
 #ifdef  CUB_AVAILABLE
      &soaPH_pre, &phsort_temp_storage, &tag_pre, &peano_pre,
+#ifdef  RESET_CENTER_OF_MASS
+     &r2_pre,
+#endif//RESET_CENTER_OF_MASS
 #endif//CUB_AVAILABLE
      devProp);
 
@@ -1211,17 +1233,36 @@ int main(int argc, char **argv)
   requiredCmdArg(getCmdArgInt(argc, (const char * const *)(void *)argv, "Nsink", &Nsink));
 
   static sinkparticle sink;
-  position *pold_sink, *pnew_sink;
-  velocity *vold_sink, *vnew_sink, *mom_sink;
+  position *pos_sink;
+  velocity *vel_sink, *mom_sink;
   ulong *tag_sink, *tag_sink_hst;
   int *list_sink;
   real *lmax2_sink;
   const muse alloc_sinkparticle_dev =
-    allocSinkParticleSoA_dev(&pold_sink, &vold_sink, &pnew_sink, &vnew_sink, &mom_sink, &tag_sink, &list_sink, &lmax2_sink, &tag_sink_hst, Nsink, &sink);
+    allocSinkParticleSoA_dev(&pos_sink, &vel_sink, &mom_sink, &tag_sink, &list_sink, &lmax2_sink, &tag_sink_hst, Nsink, &sink);
 
   read_sink_particle_indexes(Nsink, tag_sink_hst, file);
   set_sink_particle_dev(Nsink, sink, tag_sink_hst);
 #endif//SET_SINK_PARTICLES
+
+#ifdef  RESET_CENTER_OF_MASS
+  static int com_group_head = -1;
+  static int com_group_num  = 0;
+  requiredCmdArg(getCmdArgInt(argc, (const char * const *)(void *)argv, "com_group_head", &com_group_head));
+  requiredCmdArg(getCmdArgInt(argc, (const char * const *)(void *)argv, "com_group_num" , &com_group_num ));
+  static int com_reset_interval = 8;
+  requiredCmdArg(getCmdArgInt(argc, (const char * const *)(void *)argv, "com_reset_interval" , &com_reset_interval));
+#ifdef  SET_SINK_PARTICLES
+  static bool replace_central_bh = false;
+  requiredCmdArg(getCmdArgBol(argc, (const char * const *)(void *)argv, "replace_central_bh" , &replace_central_bh));
+  ulong central_bh_id = Ntot + 1;
+  if( replace_central_bh ){
+    requiredCmdArg(getCmdArgUlg(argc, (const char * const *)(void *)argv, "central_bh_id" , &central_bh_id));
+  }/* if( replace_central_bh ){ */
+  if( central_bh_id >= Ntot )
+    replace_central_bh = false;
+#endif//SET_SINK_PARTICLES
+#endif//RESET_CENTER_OF_MASS
 
   /** declarations of arrays to contain information of tree-cells */
   PHint    *hkey_dev;
@@ -1610,7 +1651,7 @@ int main(int argc, char **argv)
 #endif//USE_HDF5_FORMAT
      );
 #endif//SERIALIZED_EXECUTION
-#ifndef  BLOCK_TIME_STEP
+#ifndef BLOCK_TIME_STEP
   real *dt_dev;
   const muse alloc_dt_dev = allocTimeStep_dev(&dt_dev);
 #endif//BLOCK_TIME_STEP
@@ -1944,6 +1985,9 @@ int main(int argc, char **argv)
 #ifdef  SET_SINK_PARTICLES
      Nsink, sink,
 #endif//SET_SINK_PARTICLES
+#ifdef  RESET_CENTER_OF_MASS
+     com_group_head, com_group_num,
+#endif//RESET_CENTER_OF_MASS
 #ifndef SERIALIZED_EXECUTION
      &numOld,
 #endif//SERIALIZED_EXECUTION
@@ -1961,13 +2005,19 @@ int main(int argc, char **argv)
 #endif//REPORT_COMPUTE_RATE
 
 #ifdef  SET_SINK_PARTICLES
-  extern const real lightspeed;
-  set_loss_cone_dev(Nsink, sink, ibody0_dev, lightspeed);
+  extern const double lightspeed;
+#if 0
+  fprintf(stdout, "c = %e\n", lightspeed);
+#endif
+  set_loss_cone_dev(Nsink, sink, ibody0_dev, CAST_D2R(lightspeed));
 #endif//SET_SINK_PARTICLES
 
 #ifdef  BLOCK_TIME_STEP
   prediction_dev
     (num, time, ibody0_dev
+#   if  defined(SET_SINK_PARTICLES) && defined(RESET_CENTER_OF_MASS)
+     , Nsink, sink, replace_central_bh, central_bh_id
+#endif//defined(SET_SINK_PARTICLES) && defined(RESET_CENTER_OF_MASS)
 #ifdef  EXEC_BENCHMARK
      , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
@@ -2617,6 +2667,9 @@ int main(int argc, char **argv)
 #ifdef  SET_SINK_PARTICLES
 	 Nsink, sink,
 #endif//SET_SINK_PARTICLES
+#ifdef  RESET_CENTER_OF_MASS
+	 com_group_head, com_group_num,
+#endif//RESET_CENTER_OF_MASS
 #ifndef SERIALIZED_EXECUTION
 	 &numOld,
 #endif//SERIALIZED_EXECUTION
@@ -2763,6 +2816,10 @@ int main(int argc, char **argv)
 #endif//EXEC_BENCHMARK
        );
     int grpNum = 0;
+#ifdef  RESET_CENTER_OF_MASS
+    if( (steps % com_reset_interval) == 0 )
+      rebuild.adjust = true;
+#endif//RESET_CENTER_OF_MASS
     setTimeStep_dev
       (Ngrp, laneInfo_dev, laneTime_dev, &grpNum, ibody0_dev,
        time, &time, &dt, rebuild.adjust, invSnapshotInterval, previous, &present
@@ -2803,6 +2860,9 @@ int main(int argc, char **argv)
 #ifdef  BLOCK_TIME_STEP
     prediction_dev
       (num, time, ibody0_dev
+#   if  defined(SET_SINK_PARTICLES) && defined(RESET_CENTER_OF_MASS)
+       , Nsink, sink, replace_central_bh, central_bh_id
+#endif//defined(SET_SINK_PARTICLES) && defined(RESET_CENTER_OF_MASS)
 #ifdef  EXEC_BENCHMARK
        , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
@@ -3080,6 +3140,11 @@ int main(int argc, char **argv)
 #endif//USE_PARABOLIC_GROWTH_MODEL
 #endif//DISABLE_AUTO_TUNING
 
+#ifdef  RESET_CENTER_OF_MASS
+    if( (steps % com_reset_interval) == 0 )
+      rebuild.reuse = 0;
+#endif//RESET_CENTER_OF_MASS
+
 
     /** orbit integration (correct step) */
 #ifdef  BLOCK_TIME_STEP
@@ -3087,6 +3152,9 @@ int main(int argc, char **argv)
       (grpNum, laneInfo_dev, laneTime_dev, eps, eta, ibody0_dev, rebuild.reuse
 #ifdef  SET_SINK_PARTICLES
        , Nsink, sink, time
+#ifdef  RESET_CENTER_OF_MASS
+       , replace_central_bh, central_bh_id
+#endif//RESET_CENTER_OF_MASS
 #endif//SET_SINK_PARTICLES
 #ifdef  EXEC_BENCHMARK
        , &execTime[steps - bench_begin]
@@ -3402,11 +3470,17 @@ int main(int argc, char **argv)
 
   freePeanoHilbertKey_dev
     (tag_dev, peano_dev, peano, min_dev, max_dev, gsync_ph0, gsync_ph1
+#ifdef  RESET_CENTER_OF_MASS
+     , r2_dev, com_all, vel_all, gsync_reset_com0, gsync_reset_com1, converge_dev, converge_hst
+#endif//RESET_CENTER_OF_MASS
 #ifndef SERIALIZED_EXECUTION
      , box_min, box_max, min_hst, max_hst
 #endif//SERIALIZED_EXECUTION
 #ifdef  CUB_AVAILABLE
      , phsort_temp_storage, tag_pre, peano_pre
+#ifdef  RESET_CENTER_OF_MASS
+     , r2_pre
+#endif//RESET_CENTER_OF_MASS
 #endif//CUB_AVAILABLE
      );
 
@@ -3570,7 +3644,7 @@ int main(int argc, char **argv)
 #endif//SWITCH_WITH_J_PARALLELIZATION
 
 #ifdef  SET_SINK_PARTICLES
-  freeSinkParticleSoA_dev(pold_sink, vold_sink, pnew_sink, vnew_sink, mom_sink, tag_sink, list_sink, lmax2_sink, tag_sink_hst);
+  freeSinkParticleSoA_dev(pos_sink, vel_sink, mom_sink, tag_sink, list_sink, lmax2_sink, tag_sink_hst);
 #endif//SET_SINK_PARTICLES
 
   freeTreeCell_dev

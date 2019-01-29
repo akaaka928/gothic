@@ -192,6 +192,11 @@ fi
 if [ $PROBLEM -eq 134 ]; then
     FILE=m15ra1_4_run
     SINK=1
+    COM_GROUP_HEAD=0
+    COM_GROUP_NUM=16777216
+    COM_RESET_INTERVAL=8
+    REPLACE_CENTRAL_BH=1
+    CENTRAL_BH_ID=16777216
 fi
 ###############################################################
 # DM accretion onto central MBH
@@ -303,7 +308,7 @@ if [ $PROBLEM -eq 165 ]; then
 fi
 ###############################################################
 # set input arguments
-OPTION="-absErr=$ABSERR -file=$FILE -Nsink=$SINK -Nx=$NX -Ny=$NY -Nz=$NZ -rebuild_interval=$REBUILD -brent_frac=$BRENT -jobID=$JOB_ID"
+OPTION="-absErr=$ABSERR -file=$FILE -Nsink=$SINK -Nx=$NX -Ny=$NY -Nz=$NZ -rebuild_interval=$REBUILD -brent_frac=$BRENT -jobID=$JOB_ID -com_group_head=$COM_GROUP_HEAD -com_group_num=$COM_GROUP_NUM -com_reset_interval=$COM_RESET_INTERVAL -replace_central_bh=$REPLACE_CENTRAL_BH -central_bh_id=$CENTRAL_BH_ID"
 ###############################################################
 #
 #

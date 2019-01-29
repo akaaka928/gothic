@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/17 (Mon)
+ * @date 2018/12/25 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -89,8 +89,8 @@ extern "C"
 		      );
 
 #ifdef  SET_SINK_PARTICLES
-  muse allocSinkParticleSoA_dev(position **pold, velocity **vold, position **pnew, velocity **vnew, velocity **mom, ulong **tag, int **list, real **lmax, ulong **tag_hst, const int Nsink, sinkparticle *sink);
-  void  freeSinkParticleSoA_dev(position  *pold, velocity  *vold, position  *pnew, velocity  *vnew, velocity  *mom, ulong  *tag, int  *list, real  *lmax, ulong  *tag_hst);
+  muse allocSinkParticleSoA_dev(position **pos, velocity **vel, velocity **mom, ulong **tag, int **list, real **lmax, ulong **tag_hst, const int Nsink, sinkparticle *sink);
+  void  freeSinkParticleSoA_dev(position  *pos, velocity  *vel, velocity  *mom, ulong  *tag, int  *list, real  *lmax, ulong  *tag_hst);
 #endif//SET_SINK_PARTICLES
 
 #ifdef  __CUDACC__

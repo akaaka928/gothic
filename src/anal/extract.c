@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/11/22 (Thu)
+ * @date 2019/01/07 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -71,6 +71,7 @@ extern const double        mass2astro;extern const char        mass_astro_unit_n
 extern const double    velocity2astro;extern const char    velocity_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
 extern const double     density2astro;extern const char     density_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
 extern const double col_density2astro;extern const char col_density_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
+extern const double     senergy2astro;extern const char     senergy_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
 
 static int ncrit_base;
 static const int Nminimum = 16;
@@ -239,6 +240,7 @@ void analyzeRadialProfile(const int kind, int * restrict bodyHead, int * restric
 void analyzeHorizontalProfile(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_particle *body_tot, int *num, int *rem, int * restrict prfHead, int * restrict prfNum, real **pos, real **Sigma, real **height, real **sigR, real **sigp, real **sigz, real com_tot[restrict], real vel_tot[restrict]);
 void generateMassDistributionMaps(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_particle *body_tot, const real eps, const int nx, const real xmin, const real dx, const int ny, const real ymin, const real dy, const int nz, const real zmin, const real dz, real * restrict rho_map);
 void generateSurfaceDensityMaps(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_particle *body, const real eps, const int nx, const real xmin, const real dx, const int ny, const real ymin, const real dy, const int nz, const real zmin, const real dz, real * restrict Sigma_xy, real * restrict Sigma_yz, real * restrict Sigma_zx, const int nv, const real vmin, const real dv, real * restrict f_xv, real * restrict f_yv, real * restrict f_zv);
+void generatePhaseSpaceDistribution(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_particle *body, real * restrict Etot, real * restrict Jtot, const int nE, const real Emin, const real dE, const int nJ, const real dJful, const real dJsml, real * restrict EJful, real * restrict EJsml);
 
 #ifdef  USE_HDF5_FORMAT
 void writeAnalyzedProfiles
@@ -248,7 +250,9 @@ void writeAnalyzedProfiles
  const int nx3D, real * restrict rho_xx, const int ny3D, real * restrict rho_yy, const int nz3D, real * restrict rho_zz, real * restrict rho_map,
  int * restrict prfHead, int * restrict prfNum, real * restrict rad, real * restrict rho, real * restrict enc, real * restrict sig, real * restrict sgt, real * restrict bet,
    int * restrict prfHead_hor, int * restrict prfNum_hor, real * restrict hor, real * restrict Sigma, real * restrict height, real * restrict sigR, real * restrict sigp, real * restrict sigz,
-   real * restrict rhalf, real * restrict com, real * restrict vel);
+ int * restrict bodyHead, real * restrict Etot, real * restrict Jtot,
+ const int nJ, real * restrict JJful, real * restrict JJsml, const int nE, real * restrict EE, real * restrict EJful, real * restrict EJsml,
+ real * restrict rhalf, real * restrict com, real * restrict vel);
 
 #ifdef  HDF5_FOR_ZINDAIJI
 void writeZindaijiFile(const int Ntot, nbody_hdf5 hdf5, const real eps, const int kind, int *bodyHead, int *bodyNum, int *type, const double time, char file[], const uint id);
@@ -263,8 +267,8 @@ int main(int argc, char **argv)
   initMPI(&mpi, &argc, &argv);
 
   /** initialization */
-  if( argc < 21 ){
-    __FPRINTF__(stderr, "insufficient number of input parameters of %d (at least %d inputs are required).\n", argc, 21);
+  if( argc < 27 ){
+    __FPRINTF__(stderr, "insufficient number of input parameters of %d (at least %d inputs are required).\n", argc, 27);
     __FPRINTF__(stderr, "Usage is: %s\n", argv[0]);
     __FPRINTF__(stderr, "          -file=<char *>\n");
     __FPRINTF__(stderr, "          -start=<int> -end=<int> -interval=<int>\n");
@@ -274,8 +278,10 @@ int main(int argc, char **argv)
     __FPRINTF__(stderr, "          -nz=<int> -zmin=<real> -zmax=<real>\n");
     __FPRINTF__(stderr, "          -nv=<int> -vmin=<real> -vmax=<real>\n");
     __FPRINTF__(stderr, "          -nx3D=<int> -ny3D=<int> -nz3D=<int>\n");
+    __FPRINTF__(stderr, "          -nE=<int> -Emin=<real> -Emax=<real>\n");
+    __FPRINTF__(stderr, "          -nJ=<int> -Jmin=<real> -Jmax=<real>\n");
     __KILL__(stderr, "%s\n", "insufficient command line arguments");
-  }/* if( argc < 21 ){ */
+  }/* if( argc < 27 ){ */
 
   char   *file;  requiredCmdArg(getCmdArgStr(argc, (const char * const *)argv,     "file", &file));
   int    start;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv,    "start", &start));
@@ -299,6 +305,14 @@ int main(int argc, char **argv)
   int nv;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv, "nv", &nv));
   real vmin;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "vmin", &vmin));
   real vmax;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "vmax", &vmax));
+
+  int nE;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv, "nE", &nE));
+  int nJ;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv, "nJ", &nJ));
+  real Emin;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "Emin", &Emin));
+  real Emax;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "Emax", &Emax));
+  real Jmin;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "Jmin", &Jmin));
+  real Jmax;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "Jmax", &Jmax));
+
 
   /** load global settings of particle distribution */
   int last;
@@ -353,6 +367,11 @@ int main(int argc, char **argv)
 #endif//BLOCK_TIME_STEP
      );
 #endif//USE_HDF5_FORMAT
+
+  real *Etot;  Etot = (real *)malloc(sizeof(real) * Ntot);  if( Etot == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate Etot");  }
+  real *Jtot;  Jtot = (real *)malloc(sizeof(real) * Ntot);  if( Jtot == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate Jtot");  }
+
+
 
   setPhysicalConstantsAndUnitSystem(unit, 1);
 
@@ -457,6 +476,20 @@ int main(int argc, char **argv)
   real *f_yv;  f_yv = (real *)malloc(sizeof(real) * kind * ny * nv);  if( f_yv == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate f_yv");  }
   real *f_zv;  f_zv = (real *)malloc(sizeof(real) * kind * nz * nv);  if( f_zv == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate f_zv");  }
 
+  Emin = CAST_D2R(CAST_R2D(Emin) / senergy2astro);
+  Emax = CAST_D2R(CAST_R2D(Emax) / senergy2astro);
+  real *EE;  EE = (real *)malloc(sizeof(real) * (nE + 1));  if( EE == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate EE");  }
+  const real dE = (Emax - Emin) / (real)nE;  for(int ii = 0; ii < nE + 1; ii++)    EE[ii] = Emin + dE * (real)ii;
+  Jmin = CAST_D2R(CAST_R2D(Jmin) / (length2astro * velocity2astro));
+  Jmax = CAST_D2R(CAST_R2D(Jmax) / (length2astro * velocity2astro));
+  real *JJful;  JJful = (real *)malloc(sizeof(real) * (nJ + 1));  if( JJful == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate JJful");  }
+  real *JJsml;  JJsml = (real *)malloc(sizeof(real) * (nJ + 1));  if( JJsml == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate JJsml");  }
+  const real dJful = Jmax / (real)nJ;
+  const real dJsml = (POW10(ONE_EIGHTH * (LOG10(Jmax) + LOG10(Jmin)))) / (real)nJ;
+  for(int ii = 0; ii < nJ + 1; ii++)    JJful[ii] = dJful * (real)ii;
+  for(int ii = 0; ii < nJ + 1; ii++)    JJsml[ii] = dJsml * (real)ii;
+  real *EJful;  EJful = (real *)malloc(sizeof(real) * kind * nE * nJ);  if( EJful == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate EJful");  }
+  real *EJsml;  EJsml = (real *)malloc(sizeof(real) * kind * nE * nJ);  if( EJsml == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate EJsml");  }
 
 
 #ifdef  USE_HDF5_FORMAT
@@ -470,6 +503,8 @@ int main(int argc, char **argv)
   double Sigmin = DBL_MAX, Sigmax = 0.0;
   double sigRmax = 0.0, sigpmax = 0.0, sigzmax = 0.0;
   double diskmax = 0.0;
+  double enemin = DBL_MAX, enemax = -DBL_MAX;
+  double sammin = DBL_MAX, sammax = -DBL_MAX;
 #endif//USE_HDF5_FORMAT
 
 
@@ -557,6 +592,36 @@ int main(int argc, char **argv)
     for(int kk = 0; kk < kind; kk++)
       rhalf[INDEX2D(nfile, kind, (filenum - start) / interval, kk)] = getCenter(bodyNum[kk], &body[bodyHead[kk]], &comPos[INDEX(nfile, kind, 3, (filenum - start) / interval, kk, 0)], &comVel[INDEX(nfile, kind, 3, (filenum - start) / interval, kk, 0)]);
 
+    /** obtain energy and angular momentum */
+    for(int kk = 0; kk < kind; kk++){
+      const int ihead = bodyHead[kk];
+      const int inum  = bodyNum [kk];
+      for(int ii = ihead; ii < ihead + inum; ii++){
+	const double xx = CAST_R2D(body[ii]. x) - CAST_R2D(comPos[INDEX(nfile, kind, 3, (filenum - start) / interval, kk, 0)]);
+	const double yy = CAST_R2D(body[ii]. y) - CAST_R2D(comPos[INDEX(nfile, kind, 3, (filenum - start) / interval, kk, 1)]);
+	const double zz = CAST_R2D(body[ii]. z) - CAST_R2D(comPos[INDEX(nfile, kind, 3, (filenum - start) / interval, kk, 2)]);
+	const double vx = CAST_R2D(body[ii].vx) - CAST_R2D(comVel[INDEX(nfile, kind, 3, (filenum - start) / interval, kk, 0)]);
+	const double vy = CAST_R2D(body[ii].vy) - CAST_R2D(comVel[INDEX(nfile, kind, 3, (filenum - start) / interval, kk, 1)]);
+	const double vz = CAST_R2D(body[ii].vz) - CAST_R2D(comVel[INDEX(nfile, kind, 3, (filenum - start) / interval, kk, 2)]);
+	const double ene = CAST_R2D(body[ii].pot) + 0.5 * (vx * vx + vy * vy + vz * vz);
+	Etot[ii] = CAST_D2R(ene);
+
+	const double jx = yy * vz - zz * vy;
+	const double jy = zz * vx - xx * vz;
+	const double jz = xx * vy - yy * vx;
+	const double oam = sqrt(jx * jx + jy * jy + jz * jz);
+	Jtot[ii] = CAST_D2R(oam);
+#ifdef  USE_HDF5_FORMAT
+	enemin = fmin(enemin, ene);
+	enemax = fmax(enemax, ene);
+	if( oam > 0.0 )
+	  sammin = fmin(sammin, oam);
+	sammax = fmax(sammax, oam);
+#endif//USE_HDF5_FORMAT
+      }/* for(int ii = ihead; ii < ihead + inum; ii++){ */
+    }/* for(int kk = 0; kk < kind; kk++){ */
+    generatePhaseSpaceDistribution(kind, bodyHead, bodyNum, body, Etot, Jtot, nE, Emin, dE, nJ, dJful, dJsml, EJful, EJsml);
+
 
     /** obtain radial profile */
     analyzeRadialProfile(kind, bodyHead, bodyNum, body, &num, &rem, prfHead, prfNum, &rad, &rho, &enc, &sig, &sgt, &bet, &comPos[INDEX(nfile, kind, 3, (filenum - start) / interval, 0, 0)], &comVel[INDEX(nfile, kind, 3, (filenum - start) / interval, 0, 0)]);
@@ -583,6 +648,8 @@ int main(int argc, char **argv)
        nx3D, rho_xx, ny3D, rho_yy, nz3D, rho_zz, rho_map,
        prfHead, prfNum, rad, rho, enc, sig, sgt, bet,
        prfHead_hor, prfNum_hor, hor, Sigma, height, sigR, sigp, sigz,
+       bodyHead, Etot, Jtot,
+       nJ, JJful, JJsml, nE, EE, EJful, EJsml,
        &rhalf[INDEX2D(nfile, kind, (filenum - start) / interval, 0)], &comPos[INDEX(nfile, kind, 3, (filenum - start) / interval, 0, 0)], &comVel[INDEX(nfile, kind, 3, (filenum - start) / interval, 0, 0)]);
 
 
@@ -642,6 +709,11 @@ int main(int argc, char **argv)
   chkMPIerr(MPI_Reduce((mpi.rank != 0) ? &sigpmax: MPI_IN_PLACE, &sigpmax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
   chkMPIerr(MPI_Reduce((mpi.rank != 0) ? &sigzmax: MPI_IN_PLACE, &sigzmax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
   chkMPIerr(MPI_Reduce((mpi.rank != 0) ? &diskmax: MPI_IN_PLACE, &diskmax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
+
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & enemin: MPI_IN_PLACE, & enemin, 1, MPI_DOUBLE, MPI_MIN, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & enemax: MPI_IN_PLACE, & enemax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & sammin: MPI_IN_PLACE, & sammin, 1, MPI_DOUBLE, MPI_MIN, 0, mpi.comm));
+  chkMPIerr(MPI_Reduce((mpi.rank != 0) ? & sammax: MPI_IN_PLACE, & sammax, 1, MPI_DOUBLE, MPI_MAX, 0, mpi.comm));
 #endif//USE_HDF5_FORMAT
 
   if( mpi.rank == 0 ){
@@ -694,6 +766,8 @@ int main(int argc, char **argv)
     fprintf(fp, "%e\t%e\n",    0.0, sigpmax);
     fprintf(fp, "%e\t%e\n",    0.0, sigzmax);
     fprintf(fp, "%e\t%e\n",    0.0, diskmax);
+    fprintf(fp, "%e\t%e\n", enemin, enemax);
+    fprintf(fp, "%e\t%e\n", sammin, sammax);
     fclose(fp);
   }/* if( mpi.rank == 0 ){ */
 
@@ -731,6 +805,8 @@ int main(int argc, char **argv)
   free(bodyType);
 #endif//HDF5_FOR_ZINDAIJI
 
+  free(Etot);  free(Jtot);
+
   free(prfHead);  free(prfNum);
   free(rad);  free(rho);  free(enc);  free(sig);  free(sgt);  free(bet);
 
@@ -744,6 +820,8 @@ int main(int argc, char **argv)
   free(rho_map);
 
   free(vv);  free(f_xv);  free(f_yv);  free(f_zv);
+
+  free(EE);  free(JJful);  free(JJsml);  free(EJful);  free(EJsml);
 
   exitMPI();
 
@@ -1322,6 +1400,90 @@ void generateSurfaceDensityMaps(const int kind, int * restrict bodyHead, int * r
 }
 
 
+void generatePhaseSpaceDistribution(const int kind, int * restrict bodyHead, int * restrict bodyNum, nbody_particle *body, real * restrict Etot, real * restrict Jtot, const int nE, const real Emin, const real dE, const int nJ, const real dJful, const real dJsml, real * restrict EJful, real * restrict EJsml)
+{
+  __NOTE__("%s\n", "start");
+
+  const real dEinv = UNITY / dE;
+  const real dJfulinv = UNITY / dJful;
+  const real dJsmlinv = UNITY / dJsml;
+
+  const real Esig = SMOOTHING_FOR_VISUALIZATION * FABS(dE);
+  const real Jfulsig = SMOOTHING_FOR_VISUALIZATION * FABS(dJful);
+  const real Jsmlsig = SMOOTHING_FOR_VISUALIZATION * FABS(dJsml);
+
+  const real invEsig = UNITY / Esig;
+  const real invJfulsig = UNITY / Jfulsig;
+  const real invJsmlsig = UNITY / Jsmlsig;
+
+  const int nE_smooth = (int)CEIL(SPREAD * FABS(dEinv) * Esig);
+  const int nJful_smooth = (int)CEIL(SPREAD * FABS(dJfulinv) * Jfulsig);
+  const int nJsml_smooth = (int)CEIL(SPREAD * FABS(dJsmlinv) * Jsmlsig);
+  real *erfE;  erfE = (real *)malloc(sizeof(real) * (2 * nE_smooth + 2));  if( erfE == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate erfE");  }
+  real *erfJful;  erfJful = (real *)malloc(sizeof(real) * (2 * nJful_smooth + 2));  if( erfJful == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate erfJful");  }
+  real *erfJsml;  erfJsml = (real *)malloc(sizeof(real) * (2 * nJsml_smooth + 2));  if( erfJsml == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate erfJsml");  }
+  for(int ii = 0; ii < 2 * nE_smooth + 2; ii++)    erfE[ii] = ERF((dE * ((real)(ii - nE_smooth) - HALF)) * invEsig);
+  for(int ii = 0; ii < 2 * nJful_smooth + 2; ii++)    erfJful[ii] = ERF((dJful * ((real)(ii - nJful_smooth) - HALF)) * invJfulsig);
+  for(int ii = 0; ii < 2 * nJsml_smooth + 2; ii++)    erfJsml[ii] = ERF((dJsml * ((real)(ii - nJsml_smooth) - HALF)) * invJsmlsig);
+
+  real *psfE;  psfE = (real *)malloc(sizeof(real) * (2 * nE_smooth + 1));  if( psfE == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate psfE");  }
+  real *psfJful;  psfJful = (real *)malloc(sizeof(real) * (2 * nJful_smooth + 1));  if( psfJful == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate psfJful");  }
+  real *psfJsml;  psfJsml = (real *)malloc(sizeof(real) * (2 * nJsml_smooth + 1));  if( psfJsml == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate psfJsml");  }
+  for(int ii = 0; ii < 2 * nE_smooth + 1; ii++)    psfE[ii] = HALF * (erfE[ii + 1] - erfE[ii]);
+  for(int ii = 0; ii < 2 * nJful_smooth + 1; ii++)    psfJful[ii] = HALF * (erfJful[ii + 1] - erfJful[ii]);
+  for(int ii = 0; ii < 2 * nJsml_smooth + 1; ii++)    psfJsml[ii] = HALF * (erfJsml[ii + 1] - erfJsml[ii]);
+
+  const real dEJfulinv = dEinv * dJfulinv;
+  const real dEJsmlinv = dEinv * dJsmlinv;
+
+  for(int ii = 0; ii < kind * nJ * nE; ii++)    EJful[ii] = ZERO;
+  for(int ii = 0; ii < kind * nJ * nE; ii++)    EJsml[ii] = ZERO;
+
+  for(int kk = 0; kk < kind; kk++){
+    for(int ii = bodyHead[kk]; ii < bodyHead[kk] + bodyNum[kk]; ii++){
+      const real mi = body[ii].m;
+      const real Ei = Etot[ii];
+      const real Ji = Jtot[ii];
+
+      const int l0 = (int)FLOOR((Ji       ) * dJfulinv);
+      const int m0 = (int)FLOOR((Ji       ) * dJsmlinv);
+      const int n0 = (int)FLOOR((Ei - Emin) * dEinv);
+
+      for(int sE = 0; sE < 2 * nE_smooth + 1; sE++){
+	const int nn = n0 + sE - nE_smooth;
+	if( (nn >= 0) && (nn < nE) ){
+	  const real mE = mi * psfE[sE];
+
+	  for(int sJ = 0; sJ < 2 * nJful_smooth + 1; sJ++){
+	    const int ll = l0 + sJ - nJful_smooth;
+	    if( (ll >= 0) && (ll < nJ) )
+	      EJful[INDEX3D(kind, nJ, nE, kk, ll, nn)] += mE * psfJful[sJ];
+	  }/* for(int sJ = 0; sJ < 2 * nJful_smooth + 1; sJ++){ */
+
+	  for(int sJ = 0; sJ < 2 * nJsml_smooth + 1; sJ++){
+	    const int mm = m0 + sJ - nJsml_smooth;
+	    if( (mm >= 0) && (mm < nJ) )
+	      EJsml[INDEX3D(kind, nJ, nE, kk, mm, nn)] += mE * psfJsml[sJ];
+	  }/* for(int sJ = 0; sJ < 2 * nJsml_smooth + 1; sJ++){ */
+	}/* if( (nn >= 0) && (nn < nE) ){ */
+      }/* for(int sE = 0; sE < 2 * nE_smooth + 1; sE++){ */
+
+    }/* for(int ii = bodyHead[kk]; ii < bodyHead[kk] + bodyNum[kk]; ii++){ */
+  }/* for(int kk = 0; kk < kind; kk++){ */
+
+  for(int ii = 0; ii < kind * nE * nJ; ii++)    EJful[ii] *= dEJfulinv;
+  for(int ii = 0; ii < kind * nE * nJ; ii++)    EJsml[ii] *= dEJsmlinv;
+
+  free(erfE);  free(erfJful);  free(erfJsml);
+  free(psfE);  free(psfJful);  free(psfJsml);
+
+
+  __NOTE__("%s\n", "end");
+}
+
+
+
+
 #ifdef  USE_HDF5_FORMAT
 #ifdef  PREPARE_XDMF_FILES
 static inline void writeXdmf(char file[], const uint id, const int nx, const int ny, const int nz, const int kind)
@@ -1446,6 +1608,8 @@ void writeAnalyzedProfiles
  const int nx3D, real * restrict rho_xx, const int ny3D, real * restrict rho_yy, const int nz3D, real * restrict rho_zz, real * restrict rho_map,
  int * restrict prfHead, int * restrict prfNum, real * restrict rad, real * restrict rho, real * restrict enc, real * restrict sig, real * restrict sgt, real * restrict bet,
  int * restrict prfHead_hor, int * restrict prfNum_hor, real * restrict hor, real * restrict Sigma, real * restrict height, real * restrict sigR, real * restrict sigp, real * restrict sigz,
+ int * restrict bodyHead, real * restrict Etot, real * restrict Jtot,
+ const int nJ, real * restrict JJful, real * restrict JJsml, const int nE, real * restrict EE, real * restrict EJful, real * restrict EJsml,
  real * restrict rhalf, real * restrict com, real * restrict vel)
 {
   __NOTE__("%s\n", "start");
@@ -1461,6 +1625,9 @@ void writeAnalyzedProfiles
     for(int jj = 0; jj < nx3D + 1; jj++)      rho_xx[jj] = CAST_D2R(CAST_R2D(rho_xx[jj]) * length2astro);
     for(int jj = 0; jj < ny3D + 1; jj++)      rho_yy[jj] = CAST_D2R(CAST_R2D(rho_yy[jj]) * length2astro);
     for(int jj = 0; jj < nz3D + 1; jj++)      rho_zz[jj] = CAST_D2R(CAST_R2D(rho_zz[jj]) * length2astro);
+    for(int jj = 0; jj < nJ + 1; jj++)      JJful[jj] = CAST_D2R(CAST_R2D(JJful[jj]) * length2astro * velocity2astro);
+    for(int jj = 0; jj < nJ + 1; jj++)      JJsml[jj] = CAST_D2R(CAST_R2D(JJsml[jj]) * length2astro * velocity2astro);
+    for(int jj = 0; jj < nE + 1; jj++)      EE[jj] = CAST_D2R(CAST_R2D(EE[jj]) * senergy2astro);
   }/* if( firstCall ){ */
 
   for(int ii = 0; ii < kind * nx3D * ny3D * nz3D; ii++)
@@ -1471,6 +1638,9 @@ void writeAnalyzedProfiles
   for(int ii = 0; ii < kind * nx * nv; ii++)    f_xv[ii] = CAST_D2R(CAST_R2D(f_xv[ii]) * phase_space_density2astro);
   for(int ii = 0; ii < kind * ny * nv; ii++)    f_yv[ii] = CAST_D2R(CAST_R2D(f_yv[ii]) * phase_space_density2astro);
   for(int ii = 0; ii < kind * nz * nv; ii++)    f_zv[ii] = CAST_D2R(CAST_R2D(f_zv[ii]) * phase_space_density2astro);
+  const double cone_density2astro = mass2astro / (length2astro * velocity2astro * senergy2astro);
+  for(int ii = 0; ii < kind * nJ * nE; ii++)    EJful[ii] = CAST_D2R(CAST_R2D(EJful[ii]) * cone_density2astro);
+  for(int ii = 0; ii < kind * nJ * nE; ii++)    EJsml[ii] = CAST_D2R(CAST_R2D(EJsml[ii]) * cone_density2astro);
 
 
   /* create a new file (if the file already exists, the file is opened with read-write access, new data will overwrite any existing data) */
@@ -1549,6 +1719,12 @@ void writeAnalyzedProfiles
   attribute = H5Acreate(target, "nz3D", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &nz3D));
   chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target, "nE", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &nE));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target, "nJ", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &nJ));
+  chkHDF5err(H5Aclose(attribute));
   /* write flag about DOUBLE_PRECISION */
 #ifdef  DOUBLE_PRECISION
   const int useDP = 1;
@@ -1578,6 +1754,9 @@ void writeAnalyzedProfiles
   chkHDF5err(H5Aclose(attribute));
   attribute = H5Acreate(target, "col_density_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, str4format, col_density_astro_unit_name));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target, "senergy_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format, senergy_astro_unit_name));
   chkHDF5err(H5Aclose(attribute));
   chkHDF5err(H5Tclose(str4format));
   /* close the dataspace */
@@ -2082,6 +2261,128 @@ void writeAnalyzedProfiles
       attribute = H5Acreate(group, "Nhor", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
       chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &prfNum_hor[ii]));
       chkHDF5err(H5Aclose(attribute));
+      chkHDF5err(H5Sclose(dataspace));
+
+
+      chkHDF5err(H5Gclose(group));
+      sprintf(grp, "particle%d", ii);
+      group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+      /** 1D (bodyNum) arrays */
+      dims[0] = bodyNum[ii];
+      dataspace = H5Screate_simple(1, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+      cdims_loc[0] = gzip_cdims[2];
+      property = H5Pcreate(H5P_DATASET_CREATE);
+      if( dims[0] < cdims_loc[0] )
+	cdims_loc[0] = dims[0];
+      if( cdims_loc[0] > cdims_max )
+	cdims_loc[0] = cdims_max;
+      chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
+      chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+      for(int jj = bodyHead[ii]; jj < bodyHead[ii] + bodyNum[ii]; jj++){
+	Etot[jj] = CAST_D2R(CAST_R2D(Etot[jj]) * senergy2astro);
+	Jtot[jj] = CAST_D2R(CAST_R2D(Jtot[jj]) * length2astro * velocity2astro);
+      }/* for(int jj = bodyHead[ii]; jj < bodyHead[ii] + bodyNum[ii]; jj++){ */
+      dataset = H5Dcreate(group, "Etot", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &Etot[bodyHead[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "Jtot", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &Jtot[bodyHead[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_GZIP_COMPRESSION
+      chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+      /* close the dataspace */
+      chkHDF5err(H5Sclose(dataspace));
+      /* write attribute data */
+      attr_dims = 1;
+      dataspace = H5Screate_simple(1, &attr_dims, NULL);
+      /* write # of grid points */
+      attribute = H5Acreate(group, "num", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &bodyNum[ii]));
+      chkHDF5err(H5Aclose(attribute));
+      chkHDF5err(H5Sclose(dataspace));
+
+
+      chkHDF5err(H5Gclose(group));
+      sprintf(grp, "EJplane%d", ii);
+      group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+      /** 1D (nE + 1) arrays */
+      dims[0] = nE + 1;
+      dataspace = H5Screate_simple(1, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+      cdims_loc[0] = gzip_cdims[2];
+      property = H5Pcreate(H5P_DATASET_CREATE);
+      if( dims[0] < cdims_loc[0] )
+	cdims_loc[0] = dims[0];
+      if( cdims_loc[0] > cdims_max )
+	cdims_loc[0] = cdims_max;
+      chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
+      chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+      dataset = H5Dcreate(group, "E", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, EE));
+      chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_GZIP_COMPRESSION
+      chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+      /* close the dataspace */
+      chkHDF5err(H5Sclose(dataspace));
+      /** 1D (nJ + 1) arrays */
+      dims[0] = nJ + 1;
+      dataspace = H5Screate_simple(1, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+      cdims_loc[0] = gzip_cdims[2];
+      property = H5Pcreate(H5P_DATASET_CREATE);
+      if( dims[0] < cdims_loc[0] )
+	cdims_loc[0] = dims[0];
+      if( cdims_loc[0] > cdims_max )
+	cdims_loc[0] = cdims_max;
+      chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
+      chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+      dataset = H5Dcreate(group, "Jful", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, JJful));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "Jsml", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, JJsml));
+      chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_GZIP_COMPRESSION
+      chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+      /* close the dataspace */
+      chkHDF5err(H5Sclose(dataspace));
+
+      /** 2D (nJ * nE) array */
+      dims[0] = nJ;
+      dims[1] = nE;
+      dataspace = H5Screate_simple(2, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+      cdims_loc[0] = gzip_cdims[1];
+      cdims_loc[1] = gzip_cdims[2];
+      property = H5Pcreate(H5P_DATASET_CREATE);
+      if( dims[1] < cdims_loc[1] ){
+      cdims_loc[1] = dims[1];
+      cdims_loc[0] = dims[1] / cdims_loc[1];
+    }/* if( dims[1] < cdims_loc[1] ){ */
+      if( dims[0] < cdims_loc[0] )
+	cdims_loc[0] = dims[0];
+      if( cdims_loc[0] * cdims_loc[1] > cdims_max )
+	cdims_loc[0] = cdims_max / cdims_loc[1];
+      chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
+      chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+      dataset = H5Dcreate(group, "EJful", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &EJful[INDEX2D(kind, nE * nJ, ii, 0)]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "EJsml", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &EJsml[INDEX2D(kind, nE * nJ, ii, 0)]));
+      chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_GZIP_COMPRESSION
+      chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+      /* close the dataspace */
       chkHDF5err(H5Sclose(dataspace));
     }/* if( bodyNum[ii] > Nminimum ){ */
 

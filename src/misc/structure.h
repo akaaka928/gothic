@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/17 (Mon)
+ * @date 2018/12/25 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -228,8 +228,8 @@ typedef struct
 #ifdef  SET_SINK_PARTICLES
 typedef struct
 {
-  position *pold, *pnew;
-  velocity *vold, *vnew;
+  position *pos;
+  velocity *vel;
   velocity *mom;
   ulong *tag;
   int *list;

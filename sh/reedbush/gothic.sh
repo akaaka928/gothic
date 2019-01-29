@@ -35,27 +35,12 @@ if [ -z "$ABSERR" ]; then
     # ABSERR=1.220703125e-4
 fi
 ###############################################################
-# value of accuracy controling parameter: opening criterion by Barnes & Hut (1986)
-if [ -z "$THETA" ]; then
-    # THETA=0.9
-    # THETA=0.8
-    # THETA=0.7
-    # THETA=0.6
-    # THETA=0.5
-    THETA=0.4
-    # THETA=0.3
+if [ -z "$REBUILD" ]; then
+    REBUILD=16
 fi
 ###############################################################
-# value of accuracy controling parameter: multipole moment MAC by Warren & Salmon (1993)
-if [ -z "$ACCERR" ]; then
-    # ACCERR=1.250000e-1
-    # ACCERR=6.250000e-2
-    # ACCERR=3.125000e-2
-    ACCERR=1.562500e-2
-    # ACCERR=7.812500e-3
-    # ACCERR=3.906250e-3
-    # ACCERR=1.953125e-3
-    # ACCERR=9.765625e-4
+if [ -z "$BRENT" ]; then
+    BRENT=1.0
 fi
 ###############################################################
 
@@ -266,8 +251,303 @@ if [ $PROBLEM -eq 81 ]; then
     FILE=cb17_core
 fi
 ###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 200 ]; then
+    FILE=w3iso
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 201 ]; then
+    FILE=w3ra2
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 202 ]; then
+    FILE=w3ra1
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 203 ]; then
+    FILE=w3ra1_2
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 204 ]; then
+    FILE=w3ra1_4
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 205 ]; then
+    FILE=w3ra1_8
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 210 ]; then
+    FILE=w5iso
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 211 ]; then
+    FILE=w5ra2
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 212 ]; then
+    FILE=w5ra1
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 213 ]; then
+    FILE=w5ra1_2
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 214 ]; then
+    FILE=w5ra1_4
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 215 ]; then
+    FILE=w5ra1_8
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 220 ]; then
+    FILE=w7iso
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 221 ]; then
+    FILE=w7ra2
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 222 ]; then
+    FILE=w7ra1
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 223 ]; then
+    FILE=w7ra1_2
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 224 ]; then
+    FILE=w7ra1_4
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 225 ]; then
+    FILE=w7ra1_8
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 230 ]; then
+    FILE=m12iso
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 231 ]; then
+    FILE=m12ra2
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 232 ]; then
+    FILE=m12ra1
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 233 ]; then
+    FILE=m12ra1_2
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 234 ]; then
+    FILE=m12ra1_4
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 235 ]; then
+    FILE=m12ra1_8
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 240 ]; then
+    FILE=m09iso
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 241 ]; then
+    FILE=m09ra2
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 242 ]; then
+    FILE=m09ra1
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 243 ]; then
+    FILE=m09ra1_2
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 244 ]; then
+    FILE=m09ra1_4
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 245 ]; then
+    FILE=m09ra1_8
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 250 ]; then
+    FILE=a00iso
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 251 ]; then
+    FILE=a00ra2
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 252 ]; then
+    FILE=a00ra1
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 253 ]; then
+    FILE=a00ra1_2
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 254 ]; then
+    FILE=a00ra1_4
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 260 ]; then
+    FILE=a05iso
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 261 ]; then
+    FILE=a05ra2
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 262 ]; then
+    FILE=a05ra1
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 263 ]; then
+    FILE=a05ra1_2
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 264 ]; then
+    FILE=a05ra1_4
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 265 ]; then
+    FILE=a05ra1_8
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 270 ]; then
+    FILE=a10iso
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 271 ]; then
+    FILE=a10ra2
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 272 ]; then
+    FILE=a10ra1
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 273 ]; then
+    FILE=a10ra1_2
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 274 ]; then
+    FILE=a10ra1_4
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 275 ]; then
+    FILE=a10ra1_8
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 280 ]; then
+    FILE=a15iso
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 281 ]; then
+    FILE=a15ra2
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 282 ]; then
+    FILE=a15ra1
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 283 ]; then
+    FILE=a15ra1_2
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 284 ]; then
+    FILE=a15ra1_4
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 285 ]; then
+    FILE=a15ra1_8
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 290 ]; then
+    FILE=a20iso
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 291 ]; then
+    FILE=a20ra2
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 292 ]; then
+    FILE=a20ra1
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 293 ]; then
+    FILE=a20ra1_2
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 294 ]; then
+    FILE=a20ra1_4
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 295 ]; then
+    FILE=a20ra1_8
+fi
+###############################################################
 # set input arguments
-OPTION="-absErr=$ABSERR -accErr=$ACCERR -theta=$THETA -file=$FILE -jobID=$PBS_JOBID"
+OPTION="-absErr=$ABSERR -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -rebuild_interval=$REBUILD -brent_frac=$BRENT -jobID=$PBS_JOBID"
 ###############################################################
 
 

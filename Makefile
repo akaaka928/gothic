@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2018/12/20 (Thu) 17:18:14
+# last updated on 2019/01/29 (Tue) 16:50:45
 # Makefile for C Programming
 # Gravitational octree code for collisionless N-body simulations on GPUs
 #################################################################################################
@@ -7,7 +7,7 @@
 
 #################################################################################################
 ## Overall options
-nUSEDBG	:= 0
+USEDBG	:= 0
 USEDP	:= 0
 MKOPREP	:= 0
 # USEPAPI	:= 1
@@ -32,7 +32,7 @@ USE_MPI_GET_FOR_EXCG	:= 0
 CARE_EXTERNAL_PARTICLES	:= 0
 ACC_ACCUMULATION_IN_DP	:= 0
 KAHAN_SUM_CORRECTION	:= 0
-SET_SINK_PARTICLES	:= 1
+SET_SINK_PARTICLES	:= 0
 MONITOR_ENERGY_ERROR	:= 1
 MONITOR_LETGEN_TIME	:= 1
 DIVERT_GEOMETRIC_CENTER	:= 1
@@ -58,9 +58,11 @@ USE_OFFICIAL_SFMT_JUMP	:= 1
 USE_LIS_FOR_MAGI	:= 1
 SET_EXTERNAL_FIELD	:= 0
 SET_EXTERNAL_FIELD_DISK	:= 1
+RESET_CENTER_OF_MASS	:= 0
 ADAPTIVE_EXTERNAL_FIELD	:= 0
-USE_OSIPKOV_MERRITT	:= 1
+USE_OSIPKOV_MERRITT	:= 0
 USE_ZH78_RETROGRADING	:= 0
+DISABLE_SHIFT_CENTER	:= 0
 #################################################################################################
 # Debugging options
 EVALUATE_FORCE_ERROR	:= 0
@@ -375,6 +377,7 @@ endif
 ifeq ($(SET_EXTERNAL_FIELD), 1)
 CCARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD
 CUARG	+= -DSET_EXTERNAL_POTENTIAL_FIELD
+RESET_CENTER_OF_MASS	:= 0
 else
 SET_EXTERNAL_FIELD_DISK	:= 0
 ADAPTIVE_EXTERNAL_FIELD	:= 0
@@ -390,12 +393,21 @@ CCARG	+= -DADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 CUARG	+= -DADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 endif
 #################################################################################################
+ifeq ($(RESET_CENTER_OF_MASS), 1)
+CCARG	+= -DRESET_CENTER_OF_MASS
+CUARG	+= -DRESET_CENTER_OF_MASS
+endif
+#################################################################################################
 ifeq ($(USE_OSIPKOV_MERRITT), 1)
 CCARG	+= -DUSE_OSIPKOV_MERRITT_METHOD
 endif
 #################################################################################################
 ifeq ($(USE_ZH78_RETROGRADING), 1)
 CCARG	+= -DUSE_ZANG_HOHL_1978_EQ5
+endif
+#################################################################################################
+ifeq ($(DISABLE_SHIFT_CENTER), 1)
+CCARG	+= -DDISABLE_SHIFT_CENTER
 endif
 #################################################################################################
 NUM_NTHREADS	:= 512

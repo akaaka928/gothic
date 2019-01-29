@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/07/14 (Sat)
+ * @date 2019/01/17 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -101,7 +101,7 @@ typedef struct
 } hdf5struct;
 #endif//USE_HDF5_FORMAT
 
-/* list of functions appeared in ``io.c'' */
+/** list of functions appeared in ``io.c'' */
 #ifdef  __CUDACC__
 extern "C"
 {

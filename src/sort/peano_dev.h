@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/17 (Mon)
+ * @date 2018/12/28 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -79,6 +79,11 @@
 #endif//NTHREADS_PHSORT
 
 
+#ifdef  RESET_CENTER_OF_MASS
+#define NTHREADS_RESET_COM (1024)
+#endif//RESET_CENTER_OF_MASS
+
+
 /**
  * @struct soaPHsort
  *
@@ -94,12 +99,22 @@ typedef struct
   float4 *min_hst, *max_hst;
 #endif//SERIALIZED_EXECUTION
   int *gsync0, *gsync1;
+#ifdef  RESET_CENTER_OF_MASS
+  float *r2;
+  double4 *com_all;
+  double3 *vel_all;
+  bool *converge, *converge_hst;
+  int *gsync0_com, *gsync1_com;
+#endif//RESET_CENTER_OF_MASS
 #ifdef  CUB_AVAILABLE
   void *temp_storage;
   size_t temp_storage_size;
 #endif//CUB_AVAILABLE
 #ifdef  USE_OCCUPANCY_CALCULATOR
   int numBlocksPerSM_peano;
+#ifdef  RESET_CENTER_OF_MASS
+  int numBlocksPerSM_reset;
+#endif//RESET_CENTER_OF_MASS
 #ifndef SERIALIZED_EXECUTION
   int numBlocksPerSM_box;
 #endif//SERIALIZED_EXECUTION
@@ -142,6 +157,9 @@ extern "C"
 #ifdef  SET_SINK_PARTICLES
 				, const int Nbh, const sinkparticle bh
 #endif//SET_SINK_PARTICLES
+#ifdef  RESET_CENTER_OF_MASS
+				, const int com_group_head, const int com_group_num
+#endif//RESET_CENTER_OF_MASS
 #   if  !defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
 				, domainLocation *location
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
@@ -159,21 +177,33 @@ extern "C"
 
   muse allocPeanoHilbertKey_dev
   (const int num, int **idx_dev, PHint **key_dev, PHint **key_hst, float4 **minall, float4 **maxall, int **gsync0, int **gsync1,
+#ifdef  RESET_CENTER_OF_MASS
+   float **r2_dev, double4 **com_all, double3 **vel_all, int **gsync0_com, int **gsync1_com, bool **converge, bool **converge_hst,
+#endif//RESET_CENTER_OF_MASS
 #ifndef SERIALIZED_EXECUTION
    float4 **box_min, float4 **box_max, float4 **min_hst, float4 **max_hst,
 #endif//SERIALIZED_EXECUTION
    soaPHsort *dev, soaPHsort *hst,
 #ifdef  CUB_AVAILABLE
    soaPHsort *pre, void **temp_storage, int **idx_pre, PHint **key_pre,
+#ifdef  RESET_CENTER_OF_MASS
+    float **r2_pre,
+#endif//RESET_CENTER_OF_MASS
 #endif//CUB_AVAILABLE
    const deviceProp devProp);
   void  freePeanoHilbertKey_dev
   (int  *idx_dev, PHint  *key_dev, PHint  *key_hst, float4  *minall, float4  *maxall, int  *gsync0, int  *gsync1
+#ifdef  RESET_CENTER_OF_MASS
+   , float  *r2_dev, double4  *com_all, double3  *vel_all, int  *gsync0_com, int  *gsync1_com, bool  *converge, bool  *converge_hst
+#endif//RESET_CENTER_OF_MASS
 #ifndef SERIALIZED_EXECUTION
    , float4  *box_min, float4  *box_max, float4  *min_hst, float4  *max_hst
 #endif//SERIALIZED_EXECUTION
 #ifdef  CUB_AVAILABLE
    , void  *temp_storage, int  *idx_pre, PHint  *key_pre
+#ifdef  RESET_CENTER_OF_MASS
+   , float  *r2_pre
+#endif//RESET_CENTER_OF_MASS
 #endif//CUB_AVAILABLE
    );
 #ifdef  __CUDACC__

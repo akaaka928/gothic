@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/17 (Mon)
+ * @date 2018/12/25 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -328,7 +328,7 @@ void  freeAccel_dev
 #ifdef  SET_SINK_PARTICLES
 extern "C"
 muse allocSinkParticleSoA_dev
-(position **pold, velocity **vold, position **pnew, velocity **vnew, velocity **mom, ulong **tag, int **list, real **lmax, ulong **tag_hst,
+(position **pos, velocity **vel, velocity **mom, ulong **tag, int **list, real **lmax, ulong **tag_hst,
    const int Nsink, sinkparticle *sink)
 {
   __NOTE__("%s\n", "start");
@@ -339,10 +339,8 @@ muse allocSinkParticleSoA_dev
   size_t size = (size_t)Nsink;
 
   /** memory allocation and simple confirmation */
-  mycudaMalloc((void **)pold, size * sizeof(position));  alloc.device += size * sizeof(position);
-  mycudaMalloc((void **)pnew, size * sizeof(position));  alloc.device += size * sizeof(position);
-  mycudaMalloc((void **)vold, size * sizeof(velocity));  alloc.device += size * sizeof(velocity);
-  mycudaMalloc((void **)vnew, size * sizeof(velocity));  alloc.device += size * sizeof(velocity);
+  mycudaMalloc((void **) pos, size * sizeof(position));  alloc.device += size * sizeof(position);
+  mycudaMalloc((void **) vel, size * sizeof(velocity));  alloc.device += size * sizeof(velocity);
   mycudaMalloc((void **) mom, size * sizeof(velocity));  alloc.device += size * sizeof(velocity);
   mycudaMalloc((void **) tag, size * sizeof(   ulong));  alloc.device += size * sizeof(   ulong);
   mycudaMalloc((void **)list, size * sizeof(     int));  alloc.device += size * sizeof(     int);
@@ -350,14 +348,12 @@ muse allocSinkParticleSoA_dev
   mycudaMallocHost((void **)tag_hst, size * sizeof(ulong));  alloc.host += size * sizeof(ulong);
 
   /** commit arrays to the utility structure */
-sink->pold = *pold;
-sink->pnew = *pnew;
-sink->vold = *vold;
-sink->vnew = *vnew;
-sink-> mom = * mom;
-sink-> tag = * tag;
-sink->list = *list;
-sink->lmax2 = *lmax;
+  sink-> pos = *pos;
+  sink-> vel = *vel;
+  sink-> mom = * mom;
+  sink-> tag = * tag;
+  sink->list = *list;
+  sink->lmax2 = *lmax;
 
 
   __NOTE__("%s\n", "end");
@@ -365,14 +361,12 @@ sink->lmax2 = *lmax;
 }
 extern "C"
 void  freeSinkParticleSoA_dev
-(position  *pold, velocity  *vold, position  *pnew, velocity  *vnew, velocity  *mom, ulong  *tag, int  *list, real  *lmax, ulong  *tag_hst)
+(position  *pos, velocity  *vel, velocity  *mom, ulong  *tag, int  *list, real  *lmax, ulong  *tag_hst)
 {
   __NOTE__("%s\n", "start");
 
-  mycudaFree(pold);
-  mycudaFree(pnew);
-  mycudaFree(vold);
-  mycudaFree(vnew);
+  mycudaFree( pos);
+  mycudaFree( vel);
   mycudaFree( mom);
   mycudaFree( tag);
   mycudaFree(list);

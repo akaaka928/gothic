@@ -4,9 +4,8 @@
 #SBATCH -t 04:00:00            # upper limit of elapsed time
 #SBATCH -p normal              # partition name
 #SBATCH --nodes=1              # number of nodes, set to SLURM_JOB_NUM_NODES
-#SBATCH --ntasks=8             # number of total MPI processes, set to SLURM_NTASKS
+#SBATCH --ntasks=16            # number of total MPI processes, set to SLURM_NTASKS
 #SBATCH --ntasks-per-socket=8  # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET
-##SBATCH --ntasks-per-socket=16 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET
 #SBATCH --get-user-env         # retrieve the login environment variables
 ###############################################################
 
@@ -57,6 +56,12 @@ if [ -z "$NZ" ]; then
 fi
 if [ -z "$NV" ]; then
     NV=1024
+fi
+if [ -z "$NE" ]; then
+    NE=1024
+fi
+if [ -z "$NJ" ]; then
+    NJ=1024
 fi
 ###############################################################
 
@@ -238,6 +243,25 @@ if [ $PROBLEM -eq 133 ]; then
     VMIN=-$VMAX
 fi
 ###############################################################
+# DM accretion onto central MBH
+if [ $PROBLEM -eq 134 ]; then
+    FILE=m15ra1_4_run
+    FINISH=2000.0
+    INTERVAL=25.0
+    XMAX=1000.0
+    YMAX=1000.0
+    ZMAX=1000.0
+    VMAX=1000.0
+    XMIN=-$XMAX
+    YMIN=-$YMAX
+    ZMIN=-$ZMAX
+    VMIN=-$VMAX
+    EMIN=-1.0e+7
+    EMAX=-3.1e+5
+    JMIN=8.0e-1
+    JMAX=7.0e+5
+fi
+###############################################################
 # count up number of snapshot files
 if [ -z "$START" ]; then
     START=0
@@ -250,7 +274,7 @@ if [ -z "$INCREMENT" ]; then
 fi
 ###############################################################
 # set input arguments
-OPTION="-file=$FILE -start=$START -end=$END -interval=$INCREMENT -ncrit=$NCRIT -nx=$NX -xmin=$XMIN -xmax=$XMAX -ny=$NY -ymin=$YMIN -ymax=$YMAX -nz=$NZ -zmin=$ZMIN -zmax=$ZMAX -nv=$NV -vmin=$VMIN -vmax=$VMAX -nx3D=$NX3D -ny3D=$NY3D -nz3D=$NZ3D"
+OPTION="-file=$FILE -start=$START -end=$END -interval=$INCREMENT -ncrit=$NCRIT -nx=$NX -xmin=$XMIN -xmax=$XMAX -ny=$NY -ymin=$YMIN -ymax=$YMAX -nz=$NZ -zmin=$ZMIN -zmax=$ZMAX -nv=$NV -vmin=$VMIN -vmax=$VMAX -nx3D=$NX3D -ny3D=$NY3D -nz3D=$NZ3D -nE=$NE -Emin=$EMIN -Emax=$EMAX -nJ=$NJ -Jmin=$JMIN -Jmax=$JMAX"
 ###############################################################
 
 

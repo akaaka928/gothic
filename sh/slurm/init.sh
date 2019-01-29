@@ -56,7 +56,7 @@ if [ -z "$NTOT" ]; then
     # NTOT=16384
     # NTOT=32768
     # NTOT=65536
-    # NTOT=131072
+    NTOT=131072
     # NTOT=262144
     # NTOT=524288
     # NTOT=1048576
@@ -64,7 +64,7 @@ if [ -z "$NTOT" ]; then
     # NTOT=2097152
     # NTOT=4194304
     # NTOT=8388608
-    NTOT=16777216
+    # NTOT=16777216
     # NTOT=33554432
     # NTOT=67108864
     # NTOT=134217728
@@ -1242,6 +1242,614 @@ if [ $PROBLEM -eq 165 ]; then
     ETA=0.5
     FINISH=2000.0
     INTERVAL=25.0
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 200 ]; then
+    NTOT=1000000
+    FILE=w3iso
+    CONFIG=roi/king/w3iso.cfg
+    EPS=9.765625e-04
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 201 ]; then
+    NTOT=1000000
+    FILE=w3ra2
+    CONFIG=roi/king/w3ra2.cfg
+    EPS=9.765625e-04
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 202 ]; then
+    NTOT=1000000
+    FILE=w3ra1
+    CONFIG=roi/king/w3ra1.cfg
+    EPS=9.765625e-04
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 203 ]; then
+    NTOT=1000000
+    FILE=w3ra1_2
+    CONFIG=roi/king/w3ra1_2.cfg
+    EPS=9.765625e-04
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 204 ]; then
+    NTOT=1000000
+    FILE=w3ra1_4
+    CONFIG=roi/king/w3ra1_4.cfg
+    EPS=9.765625e-04
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 205 ]; then
+    NTOT=1000000
+    FILE=w3ra1_8
+    CONFIG=roi/king/w3ra1_8.cfg
+    EPS=9.765625e-04
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 210 ]; then
+    NTOT=1000000
+    FILE=w5iso
+    CONFIG=roi/king/w5iso.cfg
+    EPS=9.765625e-04
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 211 ]; then
+    NTOT=1000000
+    FILE=w5ra2
+    CONFIG=roi/king/w5ra2.cfg
+    EPS=9.765625e-04
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 212 ]; then
+    NTOT=1000000
+    FILE=w5ra1
+    CONFIG=roi/king/w5ra1.cfg
+    EPS=9.765625e-04
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 213 ]; then
+    NTOT=1000000
+    FILE=w5ra1_2
+    CONFIG=roi/king/w5ra1_2.cfg
+    EPS=9.765625e-04
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 214 ]; then
+    NTOT=1000000
+    FILE=w5ra1_4
+    CONFIG=roi/king/w5ra1_4.cfg
+    EPS=9.765625e-04
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 215 ]; then
+    NTOT=1000000
+    FILE=w5ra1_8
+    CONFIG=roi/king/w5ra1_8.cfg
+    EPS=9.765625e-04
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 220 ]; then
+    NTOT=1000000
+    FILE=w7iso
+    CONFIG=roi/king/w7iso.cfg
+    EPS=9.765625e-04
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 221 ]; then
+    NTOT=1000000
+    FILE=w7ra2
+    CONFIG=roi/king/w7ra2.cfg
+    EPS=9.765625e-04
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 222 ]; then
+    NTOT=1000000
+    FILE=w7ra1
+    CONFIG=roi/king/w7ra1.cfg
+    EPS=9.765625e-04
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 223 ]; then
+    NTOT=1000000
+    FILE=w7ra1_2
+    CONFIG=roi/king/w7ra1_2.cfg
+    EPS=9.765625e-04
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 224 ]; then
+    NTOT=1000000
+    FILE=w7ra1_4
+    CONFIG=roi/king/w7ra1_4.cfg
+    EPS=9.765625e-04
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of globular cluster
+if [ $PROBLEM -eq 225 ]; then
+    NTOT=1000000
+    FILE=w7ra1_8
+    CONFIG=roi/king/w7ra1_8.cfg
+    EPS=9.765625e-04
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 230 ]; then
+    FILE=m12iso
+    CONFIG=roi/nfw/m12iso.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 231 ]; then
+    FILE=m12ra2
+    CONFIG=roi/nfw/m12ra2.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 232 ]; then
+    FILE=m12ra1
+    CONFIG=roi/nfw/m12ra1.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 233 ]; then
+    FILE=m12ra1_2
+    CONFIG=roi/nfw/m12ra1_2.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 234 ]; then
+    FILE=m12ra1_4
+    CONFIG=roi/nfw/m12ra1_4.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 235 ]; then
+    FILE=m12ra1_8
+    CONFIG=roi/nfw/m12ra1_8.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 240 ]; then
+    FILE=m09iso
+    CONFIG=roi/nfw/m09iso.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 241 ]; then
+    FILE=m09ra2
+    CONFIG=roi/nfw/m09ra2.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 242 ]; then
+    FILE=m09ra1
+    CONFIG=roi/nfw/m09ra1.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 243 ]; then
+    FILE=m09ra1_2
+    CONFIG=roi/nfw/m09ra1_2.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 244 ]; then
+    FILE=m09ra1_4
+    CONFIG=roi/nfw/m09ra1_4.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of DM halo
+if [ $PROBLEM -eq 245 ]; then
+    FILE=m09ra1_8
+    CONFIG=roi/nfw/m09ra1_8.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 250 ]; then
+    FILE=a00iso
+    CONFIG=roi/dehnen/a00iso.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 251 ]; then
+    FILE=a00ra2
+    CONFIG=roi/dehnen/a00ra2.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 252 ]; then
+    FILE=a00ra1
+    CONFIG=roi/dehnen/a00ra1.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 253 ]; then
+    FILE=a00ra1_2
+    CONFIG=roi/dehnen/a00ra1_2.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 254 ]; then
+    FILE=a00ra1_4
+    CONFIG=roi/dehnen/a00ra1_4.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 260 ]; then
+    FILE=a05iso
+    CONFIG=roi/dehnen/a05iso.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 261 ]; then
+    FILE=a05ra2
+    CONFIG=roi/dehnen/a05ra2.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 262 ]; then
+    FILE=a05ra1
+    CONFIG=roi/dehnen/a05ra1.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 263 ]; then
+    FILE=a05ra1_2
+    CONFIG=roi/dehnen/a05ra1_2.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 264 ]; then
+    FILE=a05ra1_4
+    CONFIG=roi/dehnen/a05ra1_4.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 265 ]; then
+    FILE=a05ra1_8
+    CONFIG=roi/dehnen/a05ra1_8.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 270 ]; then
+    FILE=a10iso
+    CONFIG=roi/dehnen/a10iso.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 271 ]; then
+    FILE=a10ra2
+    CONFIG=roi/dehnen/a10ra2.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 272 ]; then
+    FILE=a10ra1
+    CONFIG=roi/dehnen/a10ra1.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 273 ]; then
+    FILE=a10ra1_2
+    CONFIG=roi/dehnen/a10ra1_2.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 274 ]; then
+    FILE=a10ra1_4
+    CONFIG=roi/dehnen/a10ra1_4.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 275 ]; then
+    FILE=a10ra1_8
+    CONFIG=roi/dehnen/a10ra1_8.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 280 ]; then
+    FILE=a15iso
+    CONFIG=roi/dehnen/a15iso.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 281 ]; then
+    FILE=a15ra2
+    CONFIG=roi/dehnen/a15ra2.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 282 ]; then
+    FILE=a15ra1
+    CONFIG=roi/dehnen/a15ra1.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 283 ]; then
+    FILE=a15ra1_2
+    CONFIG=roi/dehnen/a15ra1_2.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 284 ]; then
+    FILE=a15ra1_4
+    CONFIG=roi/dehnen/a15ra1_4.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 285 ]; then
+    FILE=a15ra1_8
+    CONFIG=roi/dehnen/a15ra1_8.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 290 ]; then
+    FILE=a20iso
+    CONFIG=roi/dehnen/a20iso.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 291 ]; then
+    FILE=a20ra2
+    CONFIG=roi/dehnen/a20ra2.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 292 ]; then
+    FILE=a20ra1
+    CONFIG=roi/dehnen/a20ra1.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 293 ]; then
+    FILE=a20ra1_2
+    CONFIG=roi/dehnen/a20ra1_2.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 294 ]; then
+    FILE=a20ra1_4
+    CONFIG=roi/dehnen/a20ra1_4.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
+fi
+###############################################################
+# Long-time stability of Dehnen model
+if [ $PROBLEM -eq 295 ]; then
+    FILE=a20ra1_8
+    CONFIG=roi/dehnen/a20ra1_8.cfg
+    EPS=7.8125e-3
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=100.0
 fi
 ###############################################################
 # set input arguments

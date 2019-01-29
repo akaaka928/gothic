@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/17 (Mon)
+ * @date 2018/12/28 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -571,7 +571,7 @@ void set_sink_particle_dev(const int Nsink, const sinkparticle sink, ulong *tag_
 
 
 __global__ void correct_MBH_kernel
-(const int Nbh, READ_ONLY int * RESTRICT list, position * RESTRICT pold, velocity * RESTRICT vold, position * RESTRICT pnew, velocity * RESTRICT vnew, velocity * RESTRICT BHsum, READ_ONLY real * RESTRICT lmax2,
+(const int Nbh, READ_ONLY int * RESTRICT list, position * RESTRICT pos, velocity * RESTRICT vel, velocity * RESTRICT BHsum, READ_ONLY real * RESTRICT lmax2,
  READ_ONLY position * RESTRICT ipos, READ_ONLY velocity * RESTRICT ivel, READ_ONLY acceleration * RESTRICT iacc,
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
  READ_ONLY acceleration * RESTRICT iacc_ext,
@@ -581,52 +581,78 @@ __global__ void correct_MBH_kernel
 {
   const int tidx = THREADIDX_X1D;
 
-  const int idx = list[tidx];
-  pold[tidx] = ipos[idx];
-  vold[tidx] = ivel[idx];
-  pnew[tidx] = jpos[idx];
+  if( tidx < Nbh ){
+    const int idx = list[tidx];
+    pos[tidx] = jpos[idx];
 
-  velocity vinew = jvel[idx];
+    velocity vinew = jvel[idx];
 #ifndef SET_EXTERNAL_POTENTIAL_FIELD
-  const acceleration ai = iacc[idx];
+    const acceleration ai = iacc[idx];
 #else///SET_EXTERNAL_POTENTIAL_FIELD
-  const acceleration slf = iacc    [idx];
-  const acceleration ext = iacc_ext[idx];
-  const acceleration ai = {slf.x + ext.x, slf.y + ext.y, slf.z + ext.z, slf.pot + ext.pot};
+    const acceleration slf = iacc    [idx];
+    const acceleration ext = iacc_ext[idx];
+    const acceleration ai = {slf.x + ext.x, slf.y + ext.y, slf.z + ext.z, slf.pot + ext.pot};
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-  vinew.dt *= HALF;
-  vinew.x += vinew.dt * ai.x;
-  vinew.y += vinew.dt * ai.y;
-  vinew.z += vinew.dt * ai.z;
+    vinew.dt *= HALF;
+    vinew.x += vinew.dt * ai.x;
+    vinew.y += vinew.dt * ai.y;
+    vinew.z += vinew.dt * ai.z;
 
-  vinew.dt = lmax2[tidx];
-  vnew[tidx] = vinew;
+    vinew.dt = lmax2[tidx];
+    vel[tidx] = vinew;
 
-  const velocity zero_mom = {ZERO, ZERO, ZERO, ZERO};
-  BHsum[tidx] = zero_mom;
+    const velocity zero_mom = {ZERO, ZERO, ZERO, ZERO};
+    BHsum[tidx] = zero_mom;
+  }/* if( tidx < Nbh ){ */
 }
 __global__ void update_MBH_kernel(const int Nbh, READ_ONLY int * RESTRICT list, READ_ONLY velocity * RESTRICT BHsum, position * RESTRICT ipos, velocity * RESTRICT ivel, const double time)
 {
   const int tidx = THREADIDX_X1D;
 
-  const velocity mom = BHsum[tidx];
-  if( mom.dt > ZERO ){/**< mom.dt contains accreted mass in this time step */
-    const int idx = list[tidx];
-    position pi = ipos[idx];
-    velocity vi = ivel[idx];
+  if( tidx < Nbh ){
+    const velocity mom = BHsum[tidx];
+    if( mom.dt > ZERO ){/**< mom.dt contains accreted mass in this time step */
+      const int idx = list[tidx];
+      position pi = ipos[idx];
+      velocity vi = ivel[idx];
 
-    const real minv = UNITY / (FLT_MIN + pi.m + mom.dt);
-    vi.x = (mom.x + pi.m * vi.x) * minv;
-    vi.y = (mom.y + pi.m * vi.y) * minv;
-    vi.z = (mom.z + pi.m * vi.z) * minv;
-    pi.m += mom.dt;
+      const real minv = UNITY / (FLT_MIN + pi.m + mom.dt);
+      vi.x = (mom.x + pi.m * vi.x) * minv;
+      vi.y = (mom.y + pi.m * vi.y) * minv;
+      vi.z = (mom.z + pi.m * vi.z) * minv;
+      pi.m += mom.dt;
 
-    ipos[idx] = pi;
-    ivel[idx] = vi;
+      ipos[idx] = pi;
+      ivel[idx] = vi;
 
-    printf("%e\t%d\t\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n", time, idx, pi.m, pi.x, pi.y, pi.z, vi.x, vi.y, vi.z);
-  }/* if( mom.m > ZERO ){ */
+      printf("%e\t%d\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n", time, idx, mom.dt, pi.m, pi.x, pi.y, pi.z, vi.x, vi.y, vi.z);
+    }/* if( mom.m > ZERO ){ */
+  }/* if( tidx < Nbh ){ */
 }
+
+#ifdef  RESET_CENTER_OF_MASS
+__global__ void recorrect_central_MBH_kernel(const int Nbh, READ_ONLY int * RESTRICT list, READ_ONLY ulong * RESTRICT pidx, position * RESTRICT pos, velocity * RESTRICT vel, const ulong central_MBH)
+{
+  const int tidx = THREADIDX_X1D;
+
+  if( tidx < Nbh ){
+    const int idx = list[tidx];
+    const ulong tag = pidx[idx];
+    if( tag == central_MBH ){
+      position pi = pos[idx];
+      pi.x = ZERO;
+      pi.y = ZERO;
+      pi.z = ZERO;
+      pos[tidx] = pi;
+      velocity vi = vel[idx];
+      vi.x = ZERO;
+      vi.y = ZERO;
+      vi.z = ZERO;
+      vel[idx] = vi;
+    }/* if( tag == central_MBH ){ */
+  }/* if( tidx < Nbh ){ */
+}
+#endif//RESET_CENTER_OF_MASS
 #endif//SET_SINK_PARTICLES
 
 
@@ -642,7 +668,7 @@ __global__ void correction_kernel
  READ_ONLY acceleration * RESTRICT iacc_ext,
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  SET_SINK_PARTICLES
- const int Nsink, READ_ONLY position * RESTRICT spold, READ_ONLY velocity * RESTRICT svold, READ_ONLY position * RESTRICT spnew, READ_ONLY velocity * RESTRICT svnew, velocity * RESTRICT BHsum,
+ const int Nsink, READ_ONLY int * RESTRICT sinkidx, READ_ONLY position * RESTRICT sinkpos, READ_ONLY velocity * RESTRICT sinkvel, velocity * RESTRICT BHsum,
 #endif//SET_SINK_PARTICLES
  READ_ONLY position * RESTRICT jpos, READ_ONLY velocity * RESTRICT jvel,
  const int reuseTree)
@@ -683,10 +709,8 @@ __global__ void correction_kernel
 #ifndef SET_SINK_PARTICLES
     ipos[idx] = jpos[idx];
 #else///SET_SINK_PARTICLES
-    position pinew = jpos[idx];
-    const position piold = ipos[idx];
-    const velocity viold = ivel[idx];
-    ipos[idx] = pinew;
+    position pi = jpos[idx];
+    ipos[idx] = pi;
 #endif//SET_SINK_PARTICLES
 
     /** update vi */
@@ -713,37 +737,37 @@ __global__ void correction_kernel
 #ifdef  SET_SINK_PARTICLES
 #pragma unroll
     for(int ii = 0; ii < Nsink; ii++){
-      bool accrete = true;
-      const position psink = spold[ii];
-      const velocity vsink = svold[ii];
-      const position psnew = spnew[ii];
-      const velocity vsnew = svnew[ii];/**< vsnew.dt contains l_max^2 */
-      const real dx = piold.x - psink.x;
-      const real dy = piold.y - psink.y;
-      const real dz = piold.z - psink.z;
-      const real vx = viold.x - vsink.x;
-      const real vy = viold.y - vsink.y;
-      const real vz = viold.z - vsink.z;
-      const real lx = dy * vz - dz * vy;
-      const real ly = dz * vx - dx * vz;
-      const real lz = dx * vy - dy * vx;
+      if( sinkidx[ii] != idx ){
+	const position ps = sinkpos[ii];
+	const velocity vs = sinkvel[ii];/**< vs.dt contains l_max^2 */
+	const real dx = pi.x - ps.x;
+	const real dy = pi.y - ps.y;
+	const real dz = pi.z - ps.z;
+	const real vx = vi.x - vs.x;
+	const real vy = vi.y - vs.y;
+	const real vz = vi.z - vs.z;
+	const real lx = dy * vz - dz * vy;
+	const real ly = dz * vx - dx * vz;
+	const real lz = dx * vy - dy * vx;
 
-      /** pick up (1) separation is less than epsilon \varDelta t_i, (2) specific angular momentum is less than l_max, (3) particle is approaching to MBH in the previous time step, and (4) particle is going away from the MBH in the current time step */
-      accrete =
-	((dx * dx + dy * dy + dz * dz) <= (eps * vi.dt * eps * vi.dt)) &&
-	((lx * lx + ly * ly + lz * lz) <= vsnew.dt) &&
-	((dx * vx + dy * vy + dz * vz) < ZERO) &&
-	(((pinew.x - psnew.x) * (vi.x - vsnew.x) + (pinew.y - psnew.y) * (vi.y - vsnew.y) + (pinew.z - psnew.z) * (vi.z - vsnew.z)) >= ZERO);
+	/** pick up (1) separation is less than epsilon, (2) specific angular momentum is less than l_max, and (3) particle is approaching to MBH */
+	/** how to eliminate BH particle?? (is (x, v) < 0 sufficient??; if no, add r^2 > ZERO) */
+	const bool accrete =
+	  /* ((dx * dx + dy * dy + dz * dz) <= (eta * eps * eta * eps)) && */
+	  ((dx * dx + dy * dy + dz * dz) <= ((vx * vx + vy * vy + vz * vz) * (vi.dt * vi.dt))) &&
+	  ((lx * lx + ly * ly + lz * lz) <= vs.dt) &&
+	  ((dx * vx + dy * vy + dz * vz) < ZERO);
 
-      if( accrete ){
-	const real mass = pinew.m;
-	pinew.m = ZERO;
-	ipos[idx] = pinew;
-	atomicAdd(&(BHsum[ii].dt), mass       );
-	atomicAdd(&(BHsum[ii].x ), mass * vi.x);
-	atomicAdd(&(BHsum[ii].y ), mass * vi.y);
-	atomicAdd(&(BHsum[ii].z ), mass * vi.z);
-      }/* if( accrete ){ */
+	if( accrete ){
+	  const real mass = pi.m;
+	  pi.m = ZERO;
+	  ipos[idx] = pi;
+	  atomicAdd(&(BHsum[ii].dt), mass       );
+	  atomicAdd(&(BHsum[ii].x ), mass * vi.x);
+	  atomicAdd(&(BHsum[ii].y ), mass * vi.y);
+	  atomicAdd(&(BHsum[ii].z ), mass * vi.z);
+	}/* if( accrete ){ */
+      }/* if( sinkidx[ii] != idx ){ */
     }/* for(int ii = 0; ii < Nsink; ii++){ */
 
 #endif//SET_SINK_PARTICLES
@@ -894,6 +918,9 @@ __global__ void setLaneTime_kernel(const int laneNum, READ_ONLY laneinfo * RESTR
  */
 extern "C"
 void prediction_dev(const int Nj, const double tnew, const iparticle pi
+#   if  defined(SET_SINK_PARTICLES) && defined(RESET_CENTER_OF_MASS)
+		    , const int Nbh, const sinkparticle bh, const bool replace_central_bh, const ulong central_MBH_idx
+#endif//defined(SET_SINK_PARTICLES) && defined(RESET_CENTER_OF_MASS)
 #ifdef  EXEC_BENCHMARK
 		    , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
@@ -942,6 +969,14 @@ void prediction_dev(const int Nj, const double tnew, const iparticle pi
   stopStopwatch(&(elapsed->prediction_dev));
 #endif//EXEC_BENCHMARK
 
+#   if  defined(SET_SINK_PARTICLES) && defined(RESET_CENTER_OF_MASS)
+  if( replace_central_bh ){
+    /** place central BH at the center with null velocity */
+    recorrect_central_MBH_kernel<<<1, Nbh>>>(Nbh, bh.list, pi.idx, pi.jpos, pi.jvel, central_MBH_idx);
+    getLastCudaError("recorrect_central_MBH_kernel");
+  }/* if( replace_central_bh ){ */
+#endif//defined(SET_SINK_PARTICLES) && defined(RESET_CENTER_OF_MASS)
+
 
   __NOTE__("%s\n", "end");
 }
@@ -958,6 +993,9 @@ extern "C"
 void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTRICT laneTime, const real eps, const real eta, const iparticle pi, const int reuseTree
 #ifdef  SET_SINK_PARTICLES
 		    , const int Nbh, const sinkparticle bh, const double time
+#ifdef  RESET_CENTER_OF_MASS
+		    , const bool replace_central_bh, const ulong central_MBH_idx
+#endif//RESET_CENTER_OF_MASS
 #endif//SET_SINK_PARTICLES
 #ifdef  EXEC_BENCHMARK
 		    , wall_clock_time *elapsed
@@ -973,13 +1011,21 @@ void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTR
 
 #ifdef  SET_SINK_PARTICLES
   /** remember BH position and velocity in the previous and current time step */
-  correct_MBH_kernel<<<1, Nbh>>>(Nbh, bh.list, bh.pold, bh.vold, bh.pnew, bh.vnew, bh.mom, bh.lmax2,
+  correct_MBH_kernel<<<1, Nbh>>>(Nbh, bh.list, bh.pos, bh.vel, bh.mom, bh.lmax2,
 				 pi.pos, pi.vel, pi.acc,
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
 				 pi.acc_ext,
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 				 pi.jpos, pi.jvel);
   getLastCudaError("correct_MBH_kernel");
+
+#ifdef  RESET_CENTER_OF_MASS
+  if( replace_central_bh ){
+    /** place central BH at the center with null velocity */
+    recorrect_central_MBH_kernel<<<1, Nbh>>>(Nbh, bh.list, pi.idx, bh.pos, bh.vel, central_MBH_idx);
+    getLastCudaError("recorrect_central_MBH_kernel");
+  }/* if( replace_central_bh ){ */
+#endif//RESET_CENTER_OF_MASS
 #endif//SET_SINK_PARTICLES
 
   /** thread-block structure must be identical to tree traversal */
@@ -996,7 +1042,7 @@ void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTR
 	   pi.acc_ext,
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  SET_SINK_PARTICLES
-	   Nbh, bh.pold, bh.vold, bh.pnew, bh.vnew, bh.mom,
+	   Nbh, bh.list, bh.pos, bh.vel, bh.mom,
 #endif//SET_SINK_PARTICLES
 	   pi.jpos, pi.jvel, reuseTree);
       else{
@@ -1014,7 +1060,7 @@ void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTR
 	     pi.acc_ext,
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  SET_SINK_PARTICLES
-	     Nbh, bh.pold, bh.vold, bh.pnew, bh.vnew, bh.mom,
+	     Nbh, bh.list, bh.pos, bh.vel, bh.mom,
 #endif//SET_SINK_PARTICLES
 	     pi.jpos, pi.jvel, reuseTree);
 
@@ -1030,6 +1076,14 @@ void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTR
   /** update BH mass and velocity */
   update_MBH_kernel<<<1, Nbh>>>(Nbh, bh.list, bh.mom, pi.pos, pi.vel, time);
   getLastCudaError("update_MBH_kernel");
+
+#ifdef  RESET_CENTER_OF_MASS
+  if( replace_central_bh ){
+    /** place central BH at the center with null velocity */
+    recorrect_central_MBH_kernel<<<1, Nbh>>>(Nbh, bh.list, pi.idx, pi.pos, pi.vel, central_MBH_idx);
+    getLastCudaError("recorrect_central_MBH_kernel");
+  }/* if( replace_central_bh ){ */
+#endif//RESET_CENTER_OF_MASS
 #endif//SET_SINK_PARTICLES
 
 #ifdef  EXEC_BENCHMARK
