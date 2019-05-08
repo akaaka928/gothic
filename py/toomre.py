@@ -54,8 +54,8 @@ RR = np.empty(Nkind * Ndata)
 QQ = np.empty(Nkind * Ndata)
 for kk in range(Nkind):
     folder = "data" + str(kk) + "/1D_data/"
-    rad = data_file[folder + "radius"].value
-    val = data_file[folder + "Toomre's Q"].value
+    rad = data_file[folder + "radius"]
+    val = data_file[folder + "Toomre's Q"]
     for ii in range(Ndata):
         RR[kk * Ndata + ii] = rad[ii]
         QQ[kk * Ndata + ii] = val[ii]

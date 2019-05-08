@@ -111,8 +111,8 @@ def draw_figures(fileid, Nkind, radius, sigmar, sigmal, Nsphe, Ndisk, Radius, si
                 Ndat_disk[diskID] = int(np.floor(num / nunit_disk))
 
             # read particle position and velocity
-            pos = h5file[folder + "position"].value
-            vel = h5file[folder + "velocity"].value
+            pos = h5file[folder + "position"]
+            vel = h5file[folder + "velocity"]
 
             posx = pos[:, 0]
             posy = pos[:, 1]
@@ -324,9 +324,9 @@ sigmar = [0] * Nkind * Ndata
 sigmal = [0] * Nkind * Ndata
 for kk in range(Nkind):
     folder = "data" + str(kk) + "/"
-    radius[kk] = data_file[folder + "rad"].value
-    sigmar[kk] = data_file[folder + "sigma_r"].value
-    sigmal[kk] = data_file[folder + "sigma_los"].value
+    radius[kk] = data_file[folder + "rad"]
+    sigmar[kk] = data_file[folder + "sigma_r"]
+    sigmal[kk] = data_file[folder + "sigma_los"]
 data_file.close()
 
 
@@ -342,10 +342,10 @@ if path.isfile(target) == True:
     sigmaz = [0] * Ndisk * Ndata
     for kk in range(Ndisk):
         folder = "data" + str(kk) + "/1D_data/"
-        Radius[kk] = disk_file[folder + "radius"].value
-        sigmaR[kk] = disk_file[folder + "sigmaR"].value
-        sigmap[kk] = disk_file[folder + "sigmap"].value
-        sigmaz[kk] = disk_file[folder + "sigmaz"].value
+        Radius[kk] = disk_file[folder + "radius"]
+        sigmaR[kk] = disk_file[folder + "sigmaR"]
+        sigmap[kk] = disk_file[folder + "sigmap"]
+        sigmaz[kk] = disk_file[folder + "sigmaz"]
     disk_file.close()
 else:
     Ndisk = 0

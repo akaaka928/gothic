@@ -89,8 +89,8 @@ def draw_figures(fileid, Nkind, Nsphe, Ndisk, mass_unit, length_unit, velocity_u
         Ndat[diskID] = int(np.floor(num / nunit))
 
         # read particle position and velocity
-        pos = h5file[folder + "position"].value
-        vel = h5file[folder + "velocity"].value
+        pos = h5file[folder + "position"]
+        vel = h5file[folder + "velocity"]
 
         posx = pos[:, 0]
         posy = pos[:, 1]
@@ -99,8 +99,8 @@ def draw_figures(fileid, Nkind, Nsphe, Ndisk, mass_unit, length_unit, velocity_u
         vely = vel[:, 1]
         velz = vel[:, 2]
 
-        pot  = h5file[folder + "potential"].value
-        mass = h5file[folder + "mass"].value
+        pot  = h5file[folder + "potential"]
+        mass = h5file[folder + "mass"]
 
         WW[1 + diskID] = 0.5 * np.sum(mass * pot)
 
@@ -149,8 +149,8 @@ def draw_figures(fileid, Nkind, Nsphe, Ndisk, mass_unit, length_unit, velocity_u
     for kk in range(Nsphe):
         folder = "data" + str(kk) + "/"
 
-        pot  = h5file[folder + "potential"].value
-        mass = h5file[folder + "mass"].value
+        pot  = h5file[folder + "potential"]
+        mass = h5file[folder + "mass"]
 
         WW[0] += 0.5 * np.sum(mass * pot)
 
@@ -262,10 +262,10 @@ for diskID in range(Ndisk):
     Ndat0[diskID] = int(np.floor(num / nunit))
 
     # read particle position and velocity
-    pos = h5file[folder + "position"].value
-    vel = h5file[folder + "velocity"].value
+    pos = h5file[folder + "position"]
+    vel = h5file[folder + "velocity"]
 
-    mass = h5file[folder + "mass"].value
+    mass = h5file[folder + "mass"]
     posx = pos[:, 0]
     posy = pos[:, 1]
     velx = vel[:, 0]

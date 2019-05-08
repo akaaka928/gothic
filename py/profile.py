@@ -78,9 +78,9 @@ def draw_figures(Nkind, fileid, Nanal, radius, inirho, sigmar, simal, length_uni
             Ndat[kk] = int(np.floor(num / nunit))
 
             # read particle position and velocity
-            mass = h5file[folder + "mass"].value
-            pos = h5file[folder + "position"].value
-            vel = h5file[folder + "velocity"].value
+            mass = h5file[folder + "mass"]
+            pos = h5file[folder + "position"]
+            vel = h5file[folder + "velocity"]
 
             posx = pos[:, 0]
             posy = pos[:, 1]
@@ -272,10 +272,10 @@ sigmar = [0] * Nanal * Ndata
 sigmal = [0] * Nanal * Ndata
 for kk in range(Nanal):
     folder = "data" + str(kk) + "/"
-    radius[kk] = data_file[folder + "rad"].value
-    inirho[kk] = data_file[folder + "rho"].value
-    sigmar[kk] = data_file[folder + "sigma_r"].value
-    sigmal[kk] = data_file[folder + "sigma_los"].value
+    radius[kk] = data_file[folder + "rad"]
+    inirho[kk] = data_file[folder + "rho"]
+    sigmar[kk] = data_file[folder + "sigma_r"]
+    sigmal[kk] = data_file[folder + "sigma_los"]
     # unit conversion for density profile
     for ii in range(Ndata):
         inirho[kk][ii] *= rho2astro

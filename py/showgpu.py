@@ -41,7 +41,7 @@ def draw_figure(fileid):
     input_file = "dat/" + filename + ".snp" + snapshot + ".h5"
     h5file = h5py.File(input_file, "r")
     steps = h5file["snp"].attrs["steps"][0]
-    record = h5file["GPUinfo/record"].value
+    record = h5file["GPUinfo/record"]
     # print(record.shape)
     # print(record.dtype)
     h5file.close()

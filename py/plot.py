@@ -27,7 +27,6 @@ osipkov_merritt = False
 # filename = "m31"
 # init = 0
 # last = 47
-# last = 15
 # lab = ["DM halo", "stellar halo", "bulge", "disk"]
 
 # filename = "k17disk"
@@ -57,12 +56,12 @@ osipkov_merritt = False
 # lab = ["halo"]
 # osipkov_merritt = True
 
-filename = "hb"
-init = 0
-last = 47
-# last = 0
-lab = ["halo", "bulge"]
-osipkov_merritt = True
+# filename = "hb"
+# init = 0
+# last = 47
+# # last = 0
+# lab = ["halo", "bulge"]
+# osipkov_merritt = True
 
 # filename = "etg"
 # # Nskip = 0
@@ -77,6 +76,122 @@ osipkov_merritt = True
 # last = 140
 # # last = 0
 # lab = ["bulge"]
+
+# filename = "m12iso"
+# init = 0
+# last = 140
+# # last = 0
+# lab = ["halo"]
+
+# filename = "m12ra2"
+# init = 0
+# last = 140
+# # last = 0
+# lab = ["halo"]
+# osipkov_merritt = True
+
+filename = "m12ra1"
+init = 0
+last = 140
+# last = 0
+lab = ["halo"]
+osipkov_merritt = True
+
+# filename = "m12ra1_2"
+# init = 0
+# last = 140
+# # last = 0
+# lab = ["halo"]
+# osipkov_merritt = True
+
+# filename = "m12ra1_4"
+# init = 0
+# last = 140
+# # last = 0
+# lab = ["halo"]
+# osipkov_merritt = True
+
+# filename = "m12ra1_8"
+# init = 0
+# last = 140
+# # last = 0
+# lab = ["halo"]
+# osipkov_merritt = True
+
+# filename = "m09iso"
+# init = 0
+# last = 140
+# # last = 0
+# lab = ["halo"]
+
+# filename = "m09ra2"
+# init = 0
+# last = 140
+# # last = 0
+# lab = ["halo"]
+# osipkov_merritt = True
+
+# filename = "m09ra1"
+# init = 0
+# last = 140
+# # last = 0
+# lab = ["halo"]
+# osipkov_merritt = True
+
+# filename = "m09ra1_2"
+# init = 0
+# last = 140
+# # last = 0
+# lab = ["halo"]
+# osipkov_merritt = True
+
+# filename = "m09ra1_4"
+# init = 0
+# last = 140
+# # last = 0
+# lab = ["halo"]
+# osipkov_merritt = True
+
+# filename = "m09ra1_8"
+# init = 0
+# last = 140
+# # last = 0
+# lab = ["halo"]
+# osipkov_merritt = True
+
+# filename = "a00iso"
+# init = 0
+# last = 140
+# # last = 0
+# lab = ["halo"]
+
+# filename = "a00ra2"
+# init = 0
+# last = 140
+# # last = 0
+# lab = ["halo"]
+# osipkov_merritt = True
+
+# filename = "a00ra1"
+# init = 0
+# last = 140
+# # last = 0
+# lab = ["halo"]
+# osipkov_merritt = True
+
+# filename = "a00ra1_2"
+# init = 0
+# last = 140
+# # last = 0
+# lab = ["halo"]
+# osipkov_merritt = True
+
+# filename = "a00ra1_4"
+# init = 0
+# last = 140
+# # last = 0
+# lab = ["halo"]
+# osipkov_merritt = True
 
 
 Npt = 6
@@ -132,20 +247,21 @@ def draw_figure(fileid, kind, sphe, radmin, radmax, rhomin, rhomax, encmin, encm
         num = h5file["attr" + str(ii)].attrs["number"][0]
         if (num > 1):
             folder = "rad" + str(ii) + "/"
-            rad = h5file[folder + "rad"].value
-            rho = h5file[folder + "rho"].value
-            enc = h5file[folder + "enc"].value
-            sig = h5file[folder + "sig"].value
-            sgt = h5file[folder + "tan"].value
-            bet = h5file[folder + "bet"].value
+            rad = h5file[folder + "rad"]
+            rho = h5file[folder + "rho"]
+            enc = h5file[folder + "enc"]
+            sig = h5file[folder + "sig"]
+            if osipkov_merritt:
+                sgt = h5file[folder + "tan"]
+                bet = h5file[folder + "bet"]
 
             folder = "hor" + str(ii) + "/"
-            hor = h5file[folder + "hor"].value
-            ver = h5file[folder + "height"].value
-            Sig = h5file[folder + "Sigma"].value
-            sigR = h5file[folder + "sigR"].value
-            sigp = h5file[folder + "sigp"].value
-            sigz = h5file[folder + "sigz"].value
+            hor = h5file[folder + "hor"]
+            ver = h5file[folder + "height"]
+            Sig = h5file[folder + "Sigma"]
+            sigR = h5file[folder + "sigR"]
+            sigp = h5file[folder + "sigp"]
+            sigz = h5file[folder + "sigz"]
 
             # measure of the thickness, according to Rodionov & Sotnikova (2013)
             ver *= thicknessMeasure
@@ -164,8 +280,8 @@ def draw_figure(fileid, kind, sphe, radmin, radmax, rhomin, rhomax, encmin, encm
 
             ax_rho[0].plot(rad, rho, pt[ii % Npt], linestyle = "None" if add_ini_sphe else ls[ii % Nls], color = col[ii % Ncol], label = lab[ii])
             ax_enc[0].plot(rad, enc, pt[ii % Npt], linestyle = "None" if add_ini_sphe else ls[ii % Nls], color = col[ii % Ncol], label = lab[ii])
-            ax_bet[0].plot(rad, bet, pt[ii % Npt], linestyle = "None" if add_ini_sphe else ls[ii % Nls], color = col[ii % Ncol], label = lab[ii])
             if osipkov_merritt:
+                ax_bet[0].plot(rad, bet, pt[ii % Npt], linestyle = "None" if add_ini_sphe else ls[ii % Nls], color = col[ii % Ncol], label = lab[ii])
                 ax_sig[0].plot(rad, sig, pt[ 0 % Npt], linestyle = "None" if add_ini_sphe else ls[ii % Nls], color = col[ii % Ncol], label = r"$\sigma_r$" + " (" + lab[ii] + ")")
                 ax_sig[0].plot(rad, sgt, pt[ 1 % Npt], linestyle = "None" if add_ini_sphe else ls[ii % Nls], color = col[ii % Ncol], label = r"$\sigma_t$" + " (" + lab[ii] + ")")
             else:
@@ -185,7 +301,6 @@ def draw_figure(fileid, kind, sphe, radmin, radmax, rhomin, rhomax, encmin, encm
     ax_rho[0].set_xlabel(r"$r$ ({:<})".format(length_unit.decode("UTF-8")))
     ax_enc[0].set_xlabel(r"$r$ ({:<})".format(length_unit.decode("UTF-8")))
     ax_sig[0].set_xlabel(r"$r$ ({:<})".format(length_unit.decode("UTF-8")))
-    ax_bet[0].set_xlabel(r"$r$ ({:<})".format(length_unit.decode("UTF-8")))
     ax_Sig[0].set_xlabel(r"$R$ ({:<})".format(length_unit.decode("UTF-8")))
     ax_ver[0].set_xlabel(r"$R$ ({:<})".format(length_unit.decode("UTF-8")))
     ax_sig2D[0].set_xlabel(r"$R$ ({:<})".format(length_unit.decode("UTF-8")))
@@ -194,9 +309,10 @@ def draw_figure(fileid, kind, sphe, radmin, radmax, rhomin, rhomax, encmin, encm
     ax_enc[0].set_ylabel(r"$M_\mathrm{enc}$" + r" ({:<})".format(mass_unit.decode("UTF-8")))
     if osipkov_merritt:
         ax_sig[0].set_ylabel(r"$\sigma$ ({:<})".format(velocity_unit.decode("UTF-8")))
+        ax_bet[0].set_xlabel(r"$r$ ({:<})".format(length_unit.decode("UTF-8")))
+        ax_bet[0].set_ylabel(r"$\beta$")
     else:
         ax_sig[0].set_ylabel(r"$\sigma_r$ ({:<})".format(velocity_unit.decode("UTF-8")))
-    ax_bet[0].set_ylabel(r"$\beta$")
     ax_Sig[0].set_ylabel(r"$\Sigma$ ({:<})".format(col_density_unit.decode("UTF-8")))
     ax_ver[0].set_ylabel(r"${:.2f}$".format(thicknessMeasure) + r" $\mathrm{median}(|z|)$" + r" ({:<})".format(length_unit.decode("UTF-8")))
     ax_sig2D[0].set_ylabel(r"$\sigma$ ({:<})".format(velocity_unit.decode("UTF-8")))
@@ -207,8 +323,6 @@ def draw_figure(fileid, kind, sphe, radmin, radmax, rhomin, rhomax, encmin, encm
     ax_enc[0].set_ylim(utils.scale_axis(encmin, encmax,  True))
     ax_sig[0].set_xlim(utils.scale_axis(radmin, radmax,  True))
     ax_sig[0].set_ylim(utils.scale_axis(sigmin, sigmax, False))
-    ax_bet[0].set_xlim(utils.scale_axis(radmin, radmax,  True))
-    ax_bet[0].set_ylim(utils.scale_axis(betmin, betmax, False))
 
     ax_Sig[0].set_xlim(utils.scale_axis( hormin,  hormax, True))
     ax_Sig[0].set_ylim(utils.scale_axis( Sigmin,  Sigmax, True))
@@ -217,22 +331,27 @@ def draw_figure(fileid, kind, sphe, radmin, radmax, rhomin, rhomax, encmin, encm
     ax_sig2D[0].set_xlim(utils.scale_axis( hormin,  hormax, True))
     ax_sig2D[0].set_ylim(utils.scale_axis(min([sigRmin, sigpmin, sigzmin]), max([sigRmax, sigpmax, sigzmax]), False))
 
+    if osipkov_merritt:
+        ax_bet[0].set_xlim(utils.scale_axis(radmin, radmax,  True))
+        ax_bet[0].set_ylim(utils.scale_axis(betmin, betmax, False))
+
     ax_rho[0].loglog()
     ax_enc[0].loglog()
     ax_Sig[0].loglog()
     ax_sig[0].semilogx()
-    ax_bet[0].semilogx()
     ax_ver[0].semilogx()
     ax_sig2D[0].semilogx()
 
     ax_rho[0].grid()
     ax_enc[0].grid()
     ax_sig[0].grid()
-    ax_bet[0].grid()
     ax_Sig[0].grid()
     ax_ver[0].grid()
     ax_sig2D[0].grid()
 
+    if osipkov_merritt:
+        ax_bet[0].semilogx()
+        ax_bet[0].grid()
 
     # add legends
     handles, labels = ax_rho[0].get_legend_handles_labels()
@@ -242,8 +361,6 @@ def draw_figure(fileid, kind, sphe, radmin, radmax, rhomin, rhomax, encmin, encm
     ax_enc[0].legend(handles, labels, numpoints = 1, handlelength = 2.5, loc = 'best')
     handles, labels = ax_sig[0].get_legend_handles_labels()
     ax_sig[0].legend(handles, labels, numpoints = 1, handlelength = 2.5, loc = 'best')
-    handles, labels = ax_bet[0].get_legend_handles_labels()
-    ax_bet[0].legend(handles, labels, numpoints = 1, handlelength = 2.5, loc = 'best')
     handles, labels = ax_Sig[0].get_legend_handles_labels()
     ax_Sig[0].legend(handles, labels, numpoints = 1, handlelength = 2.5, loc = 'best')
     handles, labels = ax_ver[0].get_legend_handles_labels()
@@ -251,23 +368,34 @@ def draw_figure(fileid, kind, sphe, radmin, radmax, rhomin, rhomax, encmin, encm
     handles, labels = ax_sig2D[0].get_legend_handles_labels()
     ax_sig2D[0].legend(handles, labels, numpoints = 1, handlelength = 2.5, loc = 'best')
 
+    if osipkov_merritt:
+        handles, labels = ax_bet[0].get_legend_handles_labels()
+        ax_bet[0].legend(handles, labels, numpoints = 1, handlelength = 2.5, loc = 'best')
+
 
     # add current time
-    fig_rho.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
-    fig_enc.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
-    fig_sig.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
-    fig_bet.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
-    fig_Sig.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
-    fig_ver.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
-    fig_sig2D.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
-
+    # fig_rho.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
+    # fig_enc.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
+    # fig_sig.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
+    # fig_Sig.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
+    # fig_ver.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
+    # fig_sig2D.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
+    # if osipkov_merritt:
+    #     fig_bet.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")))
+    fig_rho.suptitle(r"$t = {:.1f}$".format(time / 1000) + r"~(\si{Gyr})")
+    fig_enc.suptitle(r"$t = {:.1f}$".format(time / 1000) + r"~(\si{Gyr})")
+    fig_sig.suptitle(r"$t = {:.1f}$".format(time / 1000) + r"~(\si{Gyr})")
+    fig_Sig.suptitle(r"$t = {:.1f}$".format(time / 1000) + r"~(\si{Gyr})")
+    fig_ver.suptitle(r"$t = {:.1f}$".format(time / 1000) + r"~(\si{Gyr})")
+    fig_sig2D.suptitle(r"$t = {:.1f}$".format(time / 1000) + r"~(\si{Gyr})")
+    if osipkov_merritt:
+        fig_bet.suptitle(r"$t = {:.1f}$".format(time / 1000) + r"~(\si{Gyr})")
 
 
     # save figures
     fig_rho.savefig("fig/" + filename + "_rho" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
     fig_enc.savefig("fig/" + filename + "_enc" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
     fig_sig.savefig("fig/" + filename + "_sig" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
-    fig_bet.savefig("fig/" + filename + "_bet" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
     fig_Sig.savefig("fig/" + filename + "_Sig" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
     if kind > sphe:
         fig_ver.savefig("fig/" + filename + "_ver" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
@@ -276,11 +404,16 @@ def draw_figure(fileid, kind, sphe, radmin, radmax, rhomin, rhomax, encmin, encm
         fig_rho.savefig("fig/" + filename + "_rho" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
         fig_enc.savefig("fig/" + filename + "_enc" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
         fig_sig.savefig("fig/" + filename + "_sig" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
-        fig_bet.savefig("fig/" + filename + "_bet" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
         fig_Sig.savefig("fig/" + filename + "_Sig" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
         if kind > sphe:
             fig_ver.savefig("fig/" + filename + "_ver" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
             fig_sig2D.savefig("fig/" + filename + "_sigRz" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
+
+    if osipkov_merritt:
+        fig_bet.savefig("fig/" + filename + "_bet" + snapshot + ".png", format = "png", dpi =  96, bbox_inches = "tight")
+        if outputPDF:
+            fig_bet.savefig("fig/" + filename + "_bet" + snapshot + ".pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
+
     plt.close("all")
 
 
@@ -294,9 +427,12 @@ plt.rcParams['ps.useafm'] = True
 plt.rcParams['pdf.use14corefonts'] = True
 plt.rcParams['text.usetex'] = True
 
+plt.rcParams['text.latex.preamble'] = [r"\usepackage{amsmath}"]
+plt.rcParams['text.latex.preamble'] = [r"\usepackage{siunitx}"]
+
 # set font size
+plt.rcParams['font.size'] = 18
 # plt.rcParams['font.size'] = 16
-plt.rcParams['font.size'] = 14
 
 # specify direction of ticks
 plt.rcParams['xtick.direction'] = 'in'
@@ -370,14 +506,14 @@ if add_ini_sphe:
         sphe_bet = [0]
     for kk in range(sphe_Nanal):
         folder = "data" + str(kk) + "/"
-        sphe_rad[kk] = data_file[folder + "rad"].value
-        sphe_rho[kk] = data_file[folder + "rho"].value
-        sphe_enc[kk] = data_file[folder + "enc"].value
-        sphe_Sig[kk] = data_file[folder + "Sigma"].value
-        sphe_sig[kk] = data_file[folder + "sigma_r"].value
+        sphe_rad[kk] = data_file[folder + "rad"]
+        sphe_rho[kk] = data_file[folder + "rho"]
+        sphe_enc[kk] = data_file[folder + "enc"]
+        sphe_Sig[kk] = data_file[folder + "Sigma"]
+        sphe_sig[kk] = data_file[folder + "sigma_r"]
         if osipkov_merritt:
-            sphe_sgt[kk] = data_file[folder + "sigma_t"].value
-            sphe_bet[kk] = data_file[folder + "beta"].value
+            sphe_sgt[kk] = data_file[folder + "sigma_t"]
+            sphe_bet[kk] = data_file[folder + "beta"]
     data_file.close()
 else:
     sphe_rad = [0]

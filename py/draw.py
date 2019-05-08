@@ -6,6 +6,7 @@ import matplotlib
 matplotlib.use("agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm # for logarithmic plot in imshow
+import matplotlib.ticker as ticker
 
 import os.path as path
 import multiprocessing as mp
@@ -32,17 +33,16 @@ tw_base = 1.0
 # ytics = [-10, -5, 0, 5, 10]
 # lab = ["DM halo", "stellar halo", "bulge", "central BH", "thick disk", "thin disk"]
 
-filename = "m31"
-Nskip = 1
-skip = [0]
-init = 0
-last = 47
-last = 15
-fmin, fmax = 1.0e-3, 1.0e+1
-fvmin, fvmax = 1.0e+4, 1.0e+8
-xtics = [-10, -5, 0, 5, 10]
-ytics = [-10, -5, 0, 5, 10]
-lab = ["DM halo", "stellar halo", "bulge", "disk"]
+# filename = "m31"
+# Nskip = 1
+# skip = [0]
+# init = 0
+# last = 47
+# fmin, fmax = 1.0e-3, 1.0e+1
+# fvmin, fvmax = 1.0e+4, 1.0e+8
+# xtics = [-10, -5, 0, 5, 10]
+# ytics = [-10, -5, 0, 5, 10]
+# lab = ["DM halo", "stellar halo", "bulge", "disk"]
 
 # filename = "k17disk"
 # Nskip = 2
@@ -105,6 +105,321 @@ lab = ["DM halo", "stellar halo", "bulge", "disk"]
 # fvmin, fvmax = 1.0e+3, 1.0e+6
 # lab = ["bulge"]
 
+# filename = "w3iso"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
+# lab = ["GC"]
+
+# filename = "w3ra2"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
+# lab = ["GC"]
+
+# filename = "w3ra1"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
+# lab = ["GC"]
+
+# filename = "w3ra1_2"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
+# lab = ["GC"]
+
+# filename = "w3ra1_4"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
+# lab = ["GC"]
+
+# filename = "w3ra1_8"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
+# lab = ["GC"]
+
+# filename = "w5iso"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
+# lab = ["GC"]
+
+# filename = "w5ra2"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
+# lab = ["GC"]
+
+# filename = "w5ra1"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
+# lab = ["GC"]
+
+# filename = "w5ra1_2"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
+# lab = ["GC"]
+
+# filename = "w5ra1_4"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
+# lab = ["GC"]
+
+# filename = "w5ra1_8"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
+# lab = ["GC"]
+
+# filename = "w7iso"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
+# lab = ["GC"]
+
+# filename = "w7ra2"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
+# lab = ["GC"]
+
+# filename = "w7ra1"
+# Nskip = 0
+# init = 0
+# last = 140
+# last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
+# lab = ["GC"]
+
+# filename = "w7ra1_2"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
+# lab = ["GC"]
+
+# filename = "w7ra1_4"
+# Nskip = 0
+# init = 0
+# last = 140
+# last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
+# lab = ["GC"]
+
+# filename = "w7ra1_8"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+3, 1.0e+6
+# lab = ["GC"]
+
+# filename = "m12iso"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 3.1e+4, 1.0e+8
+# lab = ["halo"]
+
+# filename = "m12ra2"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 3.1e+4, 1.0e+8
+# lab = ["halo"]
+
+filename = "m12ra1"
+Nskip = 0
+init = 0
+last = 140
+# last = 0
+fmin, fmax = 1.0e-4, 1.0e-1
+fvmin, fvmax = 3.1e+4, 1.0e+8
+lab = ["halo"]
+
+# filename = "m12ra1_2"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 3.1e+4, 1.0e+8
+# lab = ["halo"]
+
+# filename = "m12ra1_4"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 3.1e+4, 1.0e+8
+# lab = ["halo"]
+
+# filename = "m12ra1_8"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 3.1e+4, 1.0e+8
+# lab = ["halo"]
+
+# filename = "m09iso"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 3.1e-2
+# fvmin, fvmax = 1.0e+4, 3.1e+7
+# lab = ["halo"]
+
+# filename = "m09ra2"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 3.1e-2
+# fvmin, fvmax = 1.0e+4, 3.1e+7
+# lab = ["halo"]
+
+# filename = "m09ra1"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 3.1e-2
+# fvmin, fvmax = 1.0e+4, 3.1e+7
+# lab = ["halo"]
+
+# filename = "m09ra1_2"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 3.1e-2
+# fvmin, fvmax = 1.0e+4, 3.1e+7
+# lab = ["halo"]
+
+# filename = "m09ra1_4"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 3.1e-2
+# fvmin, fvmax = 1.0e+4, 3.1e+7
+# lab = ["halo"]
+
+# filename = "m09ra1_8"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 3.1e-2
+# fvmin, fvmax = 1.0e+4, 3.1e+7
+# lab = ["halo"]
+
+# filename = "a00iso"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+4, 3.1e+7
+# lab = ["halo"]
+
+# filename = "a00ra2"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+4, 3.1e+7
+# lab = ["halo"]
+
+# filename = "a00ra1"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+4, 3.1e+7
+# lab = ["halo"]
+
+# filename = "a00ra1_2"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+4, 3.1e+7
+# lab = ["halo"]
+
+# filename = "a00ra1_4"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 1.0e+4, 3.1e+7
+# lab = ["halo"]
+
 
 Npt = 6
 pt = ["o", "s", "^", "D", "x", "*"]
@@ -140,7 +455,7 @@ def draw_figure(fileid, kind, sphe):
 
     # memory allocation for surface density maps
     xy_map = np.zeros((kind + 1, nx, ny))
-    xz_map = np.zeros((kind + 1, nx, nz))
+    zy_map = np.zeros((kind + 1, nz, ny))
     xx     = np.zeros((kind + 1, nx + 1))
     yy     = np.zeros((kind + 1, ny + 1))
     zz     = np.zeros((kind + 1, nz + 1))
@@ -159,8 +474,8 @@ def draw_figure(fileid, kind, sphe):
     Nmbh = 0
 
 
-    nxpanel = 0
-    nypanel = 2
+    nxpanel = 2
+    nypanel = 0
     nvpanel = 3
     Ndata = 0
     for ii in range(kind):
@@ -169,23 +484,23 @@ def draw_figure(fileid, kind, sphe):
             if (Nskip == 0) or (ii not in skip):
                 # read surface density maps
                 folder = "field" + str(ii) + "/"
-                xy_map[nxpanel] = h5file[folder + "Sigma_xy"].value
-                xz_map[nxpanel] = h5file[folder + "Sigma_zx"].value.T
-                xv_map[nxpanel] = h5file[folder + "f_xv"].value
-                yv_map[nxpanel] = h5file[folder + "f_yv"].value
-                zv_map[nxpanel] = h5file[folder + "f_zv"].value
-                xx[nxpanel] = h5file[folder + "x"].value
-                yy[nxpanel] = h5file[folder + "y"].value
-                zz[nxpanel] = h5file[folder + "z"].value
-                vv[nxpanel] = h5file[folder + "v"].value
+                xy_map[nypanel] = h5file[folder + "Sigma_xy"]
+                zy_map[nypanel] = h5file[folder + "Sigma_yz"].value.T
+                xv_map[nypanel] = h5file[folder + "f_xv"]
+                yv_map[nypanel] = h5file[folder + "f_yv"]
+                zv_map[nypanel] = h5file[folder + "f_zv"]
+                xx[nypanel] = h5file[folder + "x"]
+                yy[nypanel] = h5file[folder + "y"]
+                zz[nypanel] = h5file[folder + "z"]
+                vv[nypanel] = h5file[folder + "v"]
 
-                nxpanel += 1
+                nypanel += 1
                 Ndata += 1
 
         else:
             # read MBH location
             # tmpfile = h5py.File("dat/" + filename + ".split" + snapshot + ".h5", "r")
-            # position = tmpfile["data" + str(ii) + "/position"].value
+            # position = tmpfile["data" + str(ii) + "/position"]
             position = h5file["/attr" + str(ii)].attrs["com"]
             velocity = h5file["/attr" + str(ii)].attrs["vel"]
             mbh_x[Nmbh] = position[0]
@@ -201,22 +516,22 @@ def draw_figure(fileid, kind, sphe):
     h5file.close()
 
     summary = False
-    if nxpanel > 1:
-        for ii in range(nxpanel):
-            xy_map[nxpanel] += xy_map[ii]
-            xz_map[nxpanel] += xz_map[ii]
-            xv_map[nxpanel] += xv_map[ii]
-            yv_map[nxpanel] += yv_map[ii]
-            zv_map[nxpanel] += zv_map[ii]
+    if nypanel > 1:
+        for ii in range(nypanel):
+            xy_map[nypanel] += xy_map[ii]
+            zy_map[nypanel] += zy_map[ii]
+            xv_map[nypanel] += xv_map[ii]
+            yv_map[nypanel] += yv_map[ii]
+            zv_map[nypanel] += zv_map[ii]
 
-        nxpanel += 1
+        nypanel += 1
         summary = True
 
 
     xy_map = np.maximum(xy_map, fmin)
     xy_map = np.minimum(xy_map, fmax)
-    xz_map = np.maximum(xz_map, fmin)
-    xz_map = np.minimum(xz_map, fmax)
+    zy_map = np.maximum(zy_map, fmin)
+    zy_map = np.minimum(zy_map, fmax)
     xv_map = np.maximum(xv_map, fvmin)
     xv_map = np.minimum(xv_map, fvmax)
     yv_map = np.maximum(yv_map, fvmin)
@@ -229,9 +544,9 @@ def draw_figure(fileid, kind, sphe):
     fig = utils.set_figure(nxpanel, nypanel)
     ax = [0] * nxpanel * nypanel
     utils.locate_panels(fig, ax, nxpanel, nypanel, True, True)
-    fig_v = utils.set_figure(nvpanel, nxpanel)
-    ax_v = [0] * nvpanel * nxpanel
-    utils.locate_panels(fig_v, ax_v, nvpanel, nxpanel, True, True)
+    fig_v = utils.set_figure(nvpanel, nypanel)
+    ax_v = [0] * nvpanel * nypanel
+    utils.locate_panels(fig_v, ax_v, nvpanel, nypanel, True, True)
 
     xmin, xmax = xx[0][0], xx[0][nx]
     ymin, ymax = yy[0][0], yy[0][ny]
@@ -243,59 +558,59 @@ def draw_figure(fileid, kind, sphe):
     tl = tl_base / np.sqrt(max([nxpanel, nypanel]))
     tw = tw_base / np.sqrt(max([nxpanel, nypanel]))
     ms_mbh = ms_mbh_base / max([nxpanel, nypanel])
-    fs_v = fs_base / np.sqrt(max([nvpanel, nxpanel]))
-    tl_v = tl_base / np.sqrt(max([nvpanel, nxpanel]))
-    tw_v = tw_base / np.sqrt(max([nvpanel, nxpanel]))
-    ms_mbh_v = ms_mbh_base / max([nvpanel, nxpanel])
+    fs_v = fs_base / np.sqrt(max([nvpanel, nypanel]))
+    tl_v = tl_base / np.sqrt(max([nvpanel, nypanel]))
+    tw_v = tw_base / np.sqrt(max([nvpanel, nypanel]))
+    ms_mbh_v = ms_mbh_base / max([nvpanel, nypanel])
 
     head = 0
     if summary:
-        img = ax[1].imshow(xz_map[nxpanel - 1].T, extent = [xmin, xmax, zmin, zmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
-        img = ax[0].imshow(xy_map[nxpanel - 1].T, extent = [xmin, xmax, ymin, ymax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
-        img_v = ax_v[    nxpanel - 1].imshow(xv_map[nxpanel - 1].T, extent = [xmin, xmax, vmin, vmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fvmin, vmax = fvmax), cmap = "hot", aspect = "auto")
-        img_v = ax_v[2 * nxpanel - 1].imshow(yv_map[nxpanel - 1].T, extent = [ymin, ymax, vmin, vmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fvmin, vmax = fvmax), cmap = "hot", aspect = "auto")
-        img_v = ax_v[3 * nxpanel - 1].imshow(zv_map[nxpanel - 1].T, extent = [zmin, zmax, vmin, vmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fvmin, vmax = fvmax), cmap = "hot", aspect = "auto")
+        img = ax[    nypanel - 1].imshow(xy_map[nypanel - 1].T, extent = [xmin, xmax, ymin, ymax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
+        img = ax[2 * nypanel - 1].imshow(zy_map[nypanel - 1].T, extent = [zmin, zmax, ymin, ymax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
+        img_v = ax_v[    nypanel - 1].imshow(xv_map[nypanel - 1].T, extent = [xmin, xmax, vmin, vmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fvmin, vmax = fvmax), cmap = "hot", aspect = "auto")
+        img_v = ax_v[2 * nypanel - 1].imshow(yv_map[nypanel - 1].T, extent = [ymin, ymax, vmin, vmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fvmin, vmax = fvmax), cmap = "hot", aspect = "auto")
+        img_v = ax_v[3 * nypanel - 1].imshow(zv_map[nypanel - 1].T, extent = [zmin, zmax, vmin, vmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fvmin, vmax = fvmax), cmap = "hot", aspect = "auto")
         if Nmbh > 0:
-            ax[1].plot(mbh_x[:Nmbh], mbh_z[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh)
-            ax[0].plot(mbh_x[:Nmbh], mbh_y[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh)
-            ax_v[    nxpanel - 1].plot(mbh_x[:Nmbh], mbh_vx[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh_v)
-            ax_v[2 * nxpanel - 1].plot(mbh_y[:Nmbh], mbh_vy[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh_v)
-            ax_v[3 * nxpanel - 1].plot(mbh_z[:Nmbh], mbh_vz[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh_v)
+            ax[    nypanel - 1].plot(mbh_x[:Nmbh], mbh_y[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh)
+            ax[2 * nypanel - 1].plot(mbh_z[:Nmbh], mbh_y[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh)
+            ax_v[    nypanel - 1].plot(mbh_x[:Nmbh], mbh_vx[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh_v)
+            ax_v[2 * nypanel - 1].plot(mbh_y[:Nmbh], mbh_vy[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh_v)
+            ax_v[3 * nypanel - 1].plot(mbh_z[:Nmbh], mbh_vz[:Nmbh], pt_mbh, color = col_mbh, markersize = ms_mbh_v)
         head = 1
 
     for ii in range(Ndata):
-        img = ax[(head + ii) * nypanel + 1].imshow(xz_map[ii].T, extent = [xmin, xmax, zmin, zmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
-        img = ax[(head + ii) * nypanel    ].imshow(xy_map[ii].T, extent = [xmin, xmax, ymin, ymax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
-        img_v = ax_v[    nxpanel - 1 - (head + ii)].imshow(xv_map[ii].T, extent = [xmin, xmax, vmin, vmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fvmin, vmax = fvmax), cmap = "hot", aspect = "auto")
-        img_v = ax_v[2 * nxpanel - 1 - (head + ii)].imshow(yv_map[ii].T, extent = [ymin, ymax, vmin, vmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fvmin, vmax = fvmax), cmap = "hot", aspect = "auto")
-        img_v = ax_v[3 * nxpanel - 1 - (head + ii)].imshow(zv_map[ii].T, extent = [zmin, zmax, vmin, vmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fvmin, vmax = fvmax), cmap = "hot", aspect = "auto")
+        img = ax[    nypanel - 1 - (head + ii)].imshow(xy_map[ii].T, extent = [xmin, xmax, ymin, ymax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
+        img = ax[2 * nypanel - 1 - (head + ii)].imshow(zy_map[ii].T, extent = [zmin, zmax, ymin, ymax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
+        img_v = ax_v[    nypanel - 1 - (head + ii)].imshow(xv_map[ii].T, extent = [xmin, xmax, vmin, vmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fvmin, vmax = fvmax), cmap = "hot", aspect = "auto")
+        img_v = ax_v[2 * nypanel - 1 - (head + ii)].imshow(yv_map[ii].T, extent = [ymin, ymax, vmin, vmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fvmin, vmax = fvmax), cmap = "hot", aspect = "auto")
+        img_v = ax_v[3 * nypanel - 1 - (head + ii)].imshow(zv_map[ii].T, extent = [zmin, zmax, vmin, vmax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fvmin, vmax = fvmax), cmap = "hot", aspect = "auto")
 
     for ii in range(nxpanel * nypanel):
-        ax[ii].set_xlim([xmin, xmax])
-        # ax[ii].set_xticks(xtics)
-        # ax[ii].set_yticks(ytics)
+        ax[ii].set_ylim([ymin, ymax])
         ax[ii].tick_params(axis = "both", direction = "in", color = "white", bottom = True, top = True, left = True, right = True, labelsize = fs, length = tl, width = tw)
         ax[ii].spines["bottom"].set_color("white")
         ax[ii].spines[   "top"].set_color("white")
         ax[ii].spines[  "left"].set_color("white")
         ax[ii].spines[ "right"].set_color("white")
 
+    for jj in range(nypanel):
+        ax[          jj].set_xlim([xmin, xmax])
+        ax[nypanel + jj].set_xlim([zmin, zmax])
+        ax[          jj].set_xlabel(r"$x$" + r" ({:<})".format(length_unit.decode("UTF-8")), fontsize = fs)
+        ax[nypanel + jj].set_xlabel(r"$z$" + r" ({:<})".format(length_unit.decode("UTF-8")), fontsize = fs)
+        ax[          jj].spines[ "left"].set_color("black")
+        ax[nypanel + jj].spines["right"].set_color("black")
+        ax[jj].set_ylabel(r"$y$" + r" ({:<})".format(length_unit.decode("UTF-8")), fontsize = fs)
+
     for ii in range(nxpanel):
-        ax[ii * nypanel + 1].set_ylim([zmin, zmax])
-        ax[ii * nypanel    ].set_ylim([ymin, ymax])
-        ax[ii * nypanel    ].set_xlabel(r"$x$" + r" ({:<})".format(length_unit.decode("UTF-8")), fontsize = fs)
-        ax[ii * nypanel + 1].spines[   "top"].set_color("black")
-        ax[ii * nypanel    ].spines["bottom"].set_color("black")
+        ax[ ii      * nypanel    ].spines["bottom"].set_color("black")
+        ax[(ii + 1) * nypanel - 1].spines[   "top"].set_color("black")
 
 
-    ax[0].set_ylabel(r"$y$" + r" ({:<})".format(length_unit.decode("UTF-8")), fontsize = fs)
-    ax[1].set_ylabel(r"$z$" + r" ({:<})".format(length_unit.decode("UTF-8")), fontsize = fs)
-    ax[0].spines["left"].set_color("black")
-    ax[1].spines["left"].set_color("black")
-    ax[(nxpanel - 1) * nypanel + 1].spines[ "right"].set_color("black")
-    ax[(nxpanel - 1) * nypanel    ].spines[ "right"].set_color("black")
+    ax[0          ].set_xlabel(r"$x$" + r"~({:<})".format(length_unit.decode("UTF-8")), fontsize = fs)
+    ax[    nypanel].set_xlabel(r"$z$" + r"~({:<})".format(length_unit.decode("UTF-8")), fontsize = fs)
 
-    for ii in range(nvpanel * nxpanel):
+    for ii in range(nvpanel * nypanel):
         ax_v[ii].set_ylim([vmin, vmax])
         ax_v[ii].tick_params(axis = "both", direction = "in", color = "white", bottom = True, top = True, left = True, right = True, labelsize = fs_v, length = tl_v, width = tw_v)
         ax_v[ii].spines["bottom"].set_color("white")
@@ -303,21 +618,22 @@ def draw_figure(fileid, kind, sphe):
         ax_v[ii].spines[  "left"].set_color("white")
         ax_v[ii].spines[ "right"].set_color("white")
 
-    for jj in range(nxpanel):
-        ax_v[              jj].set_ylabel(r"$v$" + r" ({:<})".format(velocity_unit.decode("UTF-8")), fontsize = fs_v)
+    for jj in range(nypanel):
+        # ax_v[              jj].set_ylabel(r"$v$" + r" ({:<})".format(velocity_unit.decode("UTF-8")), fontsize = fs_v)
+        ax_v[              jj].set_ylabel(r"$v$" + r"~(\si{km.s^{-1}})", fontsize = fs_v)
         ax_v[              jj].spines["left"].set_color("black")
         ax_v[              jj].set_xlim([xmin, xmax])
-        ax_v[    nxpanel + jj].set_xlim([ymin, ymax])
-        ax_v[2 * nxpanel + jj].set_xlim([zmin, zmax])
-        ax_v[2 * nxpanel + jj].spines["right"].set_color("black")
+        ax_v[    nypanel + jj].set_xlim([ymin, ymax])
+        ax_v[2 * nypanel + jj].set_xlim([zmin, zmax])
+        ax_v[2 * nypanel + jj].spines["right"].set_color("black")
 
     for ii in range(nvpanel):
-        ax_v[ ii      * nxpanel    ].spines["bottom"].set_color("black")
-        ax_v[(ii + 1) * nxpanel - 1].spines["top"].set_color("black")
+        ax_v[ ii      * nypanel    ].spines["bottom"].set_color("black")
+        ax_v[(ii + 1) * nypanel - 1].spines["top"].set_color("black")
 
     ax_v[0          ].set_xlabel(r"$x$" + r" ({:<})".format(length_unit.decode("UTF-8")), fontsize = fs_v)
-    ax_v[    nxpanel].set_xlabel(r"$y$" + r" ({:<})".format(length_unit.decode("UTF-8")), fontsize = fs_v)
-    ax_v[2 * nxpanel].set_xlabel(r"$z$" + r" ({:<})".format(length_unit.decode("UTF-8")), fontsize = fs_v)
+    ax_v[    nypanel].set_xlabel(r"$y$" + r" ({:<})".format(length_unit.decode("UTF-8")), fontsize = fs_v)
+    ax_v[2 * nypanel].set_xlabel(r"$z$" + r" ({:<})".format(length_unit.decode("UTF-8")), fontsize = fs_v)
 
 
 
@@ -337,10 +653,11 @@ def draw_figure(fileid, kind, sphe):
         if y1 < yt:
             y1 = yt
     colorbar_ax = fig.add_axes([x1, y0, 0.05 / nxpanel, y1 - y0])
-    cbar = fig.colorbar(img, cax = colorbar_ax, label = r"$\Sigma$" + r" ({:<})".format(col_density_unit.decode("UTF-8")))
+    # cbar = fig.colorbar(img, cax = colorbar_ax, format=ticker.FuncFormatter(utils.scientific), label = r"$\Sigma$" + r" ({:<})".format(col_density_unit.decode("UTF-8")))
+    cbar = fig.colorbar(img, cax = colorbar_ax, format=ticker.FuncFormatter(utils.scientific), label = r"$\Sigma$" + r"~(\si{g.cm^{-2}})")
     cbar.solids.set_edgecolor("face")
-    cbar.ax.set_yticklabels(cbar.ax.get_yticklabels(), fontsize=fs)
-    cbar.ax.set_ylabel(cbar.ax.get_ylabel(), fontsize=fs)
+    # cbar.ax.set_yticklabels(cbar.ax.get_yticklabels(), fontsize=fs)
+    # cbar.ax.set_ylabel(cbar.ax.get_ylabel(), fontsize=fs)
 
     x0, x1 = 1, 0
     y0, y1 = 1, 0
@@ -357,16 +674,19 @@ def draw_figure(fileid, kind, sphe):
         if y1 < yt:
             y1 = yt
     colorbar_ax = fig_v.add_axes([x1, y0, 0.05 / nvpanel, y1 - y0])
-    cbar = fig_v.colorbar(img_v, cax = colorbar_ax, label = r"$f$ (" + r"{:<}".format(mass_unit.decode("UTF-8")) + r" {:<}".format(length_unit.decode("UTF-8")) + r"$^{-1}$" + r" {:<}".format(velocity_unit.decode("UTF-8")) + r"$^{-1}$" + r")")
+    # cbar = fig_v.colorbar(img_v, cax = colorbar_ax, format=ticker.FuncFormatter(utils.scientific), label = r"$f$ (" + r"{:<}".format(mass_unit.decode("UTF-8")) + r" {:<}".format(length_unit.decode("UTF-8")) + r"$^{-1}$" + r" {:<}".format(velocity_unit.decode("UTF-8")) + r"$^{-1}$" + r")")
+    cbar = fig_v.colorbar(img_v, cax = colorbar_ax, format=ticker.FuncFormatter(utils.scientific), label = r"$f$" + r"~(\si{M_\odot.kpc^{-1}.km^{-1}.s})")
     cbar.solids.set_edgecolor("face")
-    cbar.ax.set_yticklabels(cbar.ax.get_yticklabels(), fontsize=fs_v)
-    cbar.ax.set_ylabel(cbar.ax.get_ylabel(), fontsize=fs_v)
+    # cbar.ax.set_yticklabels(cbar.ax.get_yticklabels(), fontsize=fs_v)
+    # cbar.ax.set_ylabel(cbar.ax.get_ylabel(), fontsize=fs_v)
 
 
 
     # add current time
-    fig.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")), fontsize = fs)
-    fig_v.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")), fontsize = fs_v)
+    # fig.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")), fontsize = fs)
+    # fig_v.suptitle(r"$t = {:.3f}$ {:<}".format(time, time_unit.decode("UTF-8")), fontsize = fs_v)
+    fig.suptitle(r"$t = {:.1f}$".format(time / 1000) + r"~(\si{Gyr})", fontsize = fs)
+    fig_v.suptitle(r"$t = {:.1f}$".format(time / 1000) + r"~(\si{Gyr})", fontsize = fs)
 
 
     # save figures
@@ -390,6 +710,13 @@ def wrapper(argv):
 plt.rcParams['ps.useafm'] = True
 plt.rcParams['pdf.use14corefonts'] = True
 plt.rcParams['text.usetex'] = True
+
+plt.rcParams['text.latex.preamble'] = [r"\usepackage{amsmath}"]
+plt.rcParams['text.latex.preamble'] = [r"\usepackage{siunitx}"]
+
+# set font size
+plt.rcParams['font.size'] = 18
+# plt.rcParams['font.size'] = 16
 
 # specify direction of ticks
 plt.rcParams['xtick.direction'] = 'in'

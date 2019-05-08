@@ -66,14 +66,14 @@ def draw_figures(fileid, head, tail, xx0, Jr0, Jt0, Jp0):
     for kk in range(kinds - 1, nskip - 1, -1):
         folder = "data" + str(kk) + "/"
 
-        Jr = h5file[folder + "Jr"    ].value
-        Jt = h5file[folder + "Jtheta"].value
-        Jp = h5file[folder + "Jphi"  ].value
+        Jr = h5file[folder + "Jr"    ]
+        Jt = h5file[folder + "Jtheta"]
+        Jp = h5file[folder + "Jphi"  ]
 
         if kk < skind:
-            xx = h5file[folder + "r"].value
+            xx = h5file[folder + "r"]
         else:
-            xx = h5file[folder + "R"].value
+            xx = h5file[folder + "R"]
 
         ax[0].plot(xx, Jp, pt[kk], color = col[kk], label = tag[kk] + " (" + r"$t = {:.0f}$~{:<}".format(time, time_unit.decode('UTF-8')) + ")", markerfacecolor = "none")
         ax[1].plot(xx, Jt, pt[kk], color = col[kk], label = tag[kk] + " (" + r"$t = {:.0f}$~{:<}".format(time, time_unit.decode('UTF-8')) + ")", markerfacecolor = "none")
@@ -168,14 +168,14 @@ for kk in range(nskip, kinds, 1):
     folder = "data" + str(kk) + "/"
     num = h5file[folder].attrs["number"][0]
 
-    Jr = h5file[folder + "Jr"    ].value
-    Jt = h5file[folder + "Jtheta"].value
-    Jp = h5file[folder + "Jphi"  ].value
+    Jr = h5file[folder + "Jr"    ]
+    Jt = h5file[folder + "Jtheta"]
+    Jp = h5file[folder + "Jphi"  ]
 
     if kk < skind:
-        xx = h5file[folder + "r"].value
+        xx = h5file[folder + "r"]
     else:
-        xx = h5file[folder + "R"].value
+        xx = h5file[folder + "R"]
 
     for ii in range(num):
         xx0[head[kk] + ii] = xx[ii]

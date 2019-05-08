@@ -62,9 +62,9 @@ for ii in range(Nfile):
         nrad = data["/"].attrs["nrad"][0]
         rad = [0] * nrad
         enc = [0] * nrad
-        rad = data["/rad"].value
+        rad = data["/rad"]
         for kk in range(kind):
-            enc = data["/Menc_" + str(kk)].value
+            enc = data["/Menc_" + str(kk)]
             ax_menc[0].plot(rad, enc, linestyle = ls[kk % Nls], color = col[kk % Ncol], label = r"$M_\mathrm{orig}(r)$" + " (" + component[kk] + ")")
 
     for kk in range(kind):
@@ -76,10 +76,10 @@ for ii in range(Nfile):
         frac = [0] * nrad
         Msum = [0] * nrad
 
-        rad = data[folder + "rad"].value
-        loss = data[folder + "Mloc"].value
-        frac = data[folder + "frac"].value
-        Msum = data[folder + "Msum"].value
+        rad = data[folder + "rad"]
+        loss = data[folder + "Mloc"]
+        frac = data[folder + "frac"]
+        Msum = data[folder + "Msum"]
 
         jj = ii + kk * Nfile
         ax_menc[0].plot(rad, Msum, linestyle = ls[(jj + kind) % Nls], color = col[(jj + kind) % Ncol], label = r"$M_\mathrm{lost}(r)$" + " (" + lab[ii] + ", " + component[kk] + ")")

@@ -64,7 +64,7 @@ for ii in range(nxpanel):
     for kk in range(khead, kind):
         # read particle position and mass
         folder = "data" + str(kk) + "/"
-        position = h5file[folder + "position"].value
+        position = h5file[folder + "position"]
 
         # data preparation
         px = position[:, 0]

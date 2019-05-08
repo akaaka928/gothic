@@ -1,9 +1,12 @@
 #!/bin/bash
-#SBATCH -J magi               # name of job
-#SBATCH -t 02:00:00           # upper limit of elapsed time
-#SBATCH -p normal             # partition name
-#SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
-#SBATCH --get-user-env        # retrieve the login environment variables
+#PBS -A GALAXY
+#PBS -q gpu
+#PBS -N magi
+#PBS -b 1
+#PBS -l elapstim_req=00:10:00
+#PBS -v OMP_NUM_THREADS=24
+#PBS -T mvapich
+#PBS -v NQSV_MPI_VER=2.3.1/intel-cuda10.1
 ###############################################################
 
 
@@ -1860,23 +1863,28 @@ else
 fi
 ###############################################################
 # set environmental variables for OpenMP
-OMP_OPT_ENV="env OMP_DISPLAY_ENV=verbose OMP_PLACES=cores"
-# OMP_OPT_ENV="env KMP_AFFINITY=verbose,granularity=core,scatter"
+# OMP_OPT_ENV="env OMP_DISPLAY_ENV=verbose OMP_PLACES=cores"
+OMP_OPT_ENV="env KMP_AFFINITY=verbose,granularity=core,scatter"
 ###############################################################
 
 
 ###############################################################
-# job execution via SLURM
+# job execution via NQSV
 ###############################################################
 # set stdout and stderr
-STDOUT=log/${FILE}_$SLURM_JOB_NAME.o${SLURM_JOB_ID}
-STDERR=log/${FILE}_$SLURM_JOB_NAME.e${SLURM_JOB_ID}
+STDOUT=log/${FILE}_$PBS_JOBNAME.o${PBS_JOBID}
+STDERR=log/${FILE}_$PBS_JOBNAME.e${PBS_JOBID}
 ###############################################################
 # start logging
-cd $SLURM_SUBMIT_DIR
-echo "use $SLURM_JOB_CPUS_PER_NODE CPUs"
+cd $PBS_O_WORKDIR
 TIME=`date`
 echo "start: $TIME"
+###############################################################
+module purge
+export MODULEPATH=$MODULEPATH:/work/CSPP/ymiki/opt/module
+module load mvapich/2.3.1/intel-cuda10.1
+module load gsl lis
+module load phdf5
 ###############################################################
 # execute the job
 if [ `which numactl` ]; then

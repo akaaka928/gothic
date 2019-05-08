@@ -71,8 +71,8 @@ rad = np.empty(Nkind * Ndata)
 enc = np.empty(Nkind * Ndata)
 for kk in range(Nkind):
     folder = "data" + str(kk) + "/"
-    rr = data_file[folder + "rad"].value
-    MM = data_file[folder + "enc"].value
+    rr = data_file[folder + "rad"]
+    MM = data_file[folder + "enc"]
     for ii in range(Ndata):
         rad[kk * Ndata + ii] = rr[ii]
         enc[kk * Ndata + ii] = MM[ii]

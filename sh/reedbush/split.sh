@@ -128,7 +128,7 @@ module load cuda9/9.1.85 openmpi/gdr/2.1.2/intel phdf5/ompi
 module load cub
 ###############################################################
 # execute the job
-mpirun -np $PROCS ./wrapper.sh $EXEC $FILE $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION
+mpirun -np $PROCS sh/reedbush/wrapper.sh $EXEC $FILE $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION
 ###############################################################
 # finish logging
 TIME=`date`

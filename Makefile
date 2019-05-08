@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2019/01/29 (Tue) 16:50:45
+# last updated on 2019/04/23 (Tue) 13:18:51
 # Makefile for C Programming
 # Gravitational octree code for collisionless N-body simulations on GPUs
 #################################################################################################
@@ -47,6 +47,7 @@ REPORT_COMPUTE_RATE	:= 1
 USE_COOPERATIVE_GROUPS	:= 0
 GET_NBLOCKS_PER_SM_AUTO	:= 1
 DISABLE_NVML_FOR_CLOCK	:= 1
+RESET_CENTER_OF_MASS	:= 0
 DATAFILE_FORMAT_HDF5	:= 1
 HDF5_FOR_ZINDAIJI	:= 1
 PREPARE_XDMF_FILES	:= 1
@@ -58,7 +59,6 @@ USE_OFFICIAL_SFMT_JUMP	:= 1
 USE_LIS_FOR_MAGI	:= 1
 SET_EXTERNAL_FIELD	:= 0
 SET_EXTERNAL_FIELD_DISK	:= 1
-RESET_CENTER_OF_MASS	:= 0
 ADAPTIVE_EXTERNAL_FIELD	:= 0
 USE_OSIPKOV_MERRITT	:= 0
 USE_ZH78_RETROGRADING	:= 0
@@ -116,6 +116,23 @@ endif
 # Server at ITC
 ifeq ($(findstring pn, $(HOSTNAME)), pn)
 MYDIR	:= $(HOME)/pn
+MYINC	:= $(MYDIR)/inc
+MYLIB	:= $(MYDIR)/lib
+endif
+#################################################################################################
+# Cygnus
+CYGNUS  := 0
+ifeq ($(findstring cygnus, $(HOSTNAME)), cygnus)
+CYGNUS  = 1
+endif
+ifeq ($(findstring fnode, $(HOSTNAME)), fnode)
+CYGNUS  = 1
+endif
+ifeq ($(findstring gnode, $(HOSTNAME)), gnode)
+CYGNUS  = 1
+endif
+ifeq ($(CYGNUS), 1)
+MYDIR	:= /work/CSPP/$(USER)
 MYINC	:= $(MYDIR)/inc
 MYLIB	:= $(MYDIR)/lib
 endif
@@ -941,24 +958,27 @@ OBJAM31	+= $(patsubst %.c, $(OBJDIR)/%.o,          $(notdir $(M31LIB)))
 #################################################################################################
 ## Rules
 #################################################################################################
-all:	TAGS $(GOTHIC) $(MAGI) $(EDITOR) $(PLTENE) $(PLTDST) $(ANALPRF)
+# all:	TAGS $(GOTHIC) $(MAGI) $(EDITOR) $(PLTENE) $(PLTDST) $(ANALPRF)
+all:	$(GOTHIC) $(MAGI) $(EDITOR) $(PLTENE) $(PLTDST) $(ANALPRF)
+# TAGS is removed for Cygnus (command 'etags' is not found)
 #################################################################################################
 .PHONY:	gothic init magi cold editor plot bench sample disk anal mbh halo bulge m31 sass
-gothic:	TAGS $(GOTHIC)
-init:	TAGS $(MAGI) $(MKCOLD) $(EDITOR)
-magi:	TAGS $(MAGI)
-cold:	TAGS $(MKCOLD)
-editor:	TAGS $(EDITOR)
-plot:	TAGS $(PLTENE) $(PLTDST) $(PLTCDF)
-bench:	TAGS $(OPTCFG) $(PLTELP) $(PLTDEP) $(PLTBRK) $(PLTCMP) $(PLTFLP) $(PLTRAD)
-sample:	TAGS $(SAMPLE) $(PLTDF)
-disk:	TAGS $(PLTJET) $(PLTDISK)
-anal:	TAGS $(ANALACT) $(ANALERR) $(ANALPRF)
-mbh:	TAGS $(ANALMBH)
-halo:	TAGS $(DMHALO)
-bulge:	TAGS $(BULGE) $(BHMASS)
-m31:	TAGS $(M31OBS)
-sass:	TAGS $(GOTHIC).sass
+gothic:	$(GOTHIC)
+init:	$(MAGI) $(MKCOLD) $(EDITOR)
+magi:	$(MAGI)
+cold:	$(MKCOLD)
+editor:	$(EDITOR)
+plot:	$(PLTENE) $(PLTDST) $(PLTCDF)
+bench:	$(OPTCFG) $(PLTELP) $(PLTDEP) $(PLTBRK) $(PLTCMP) $(PLTFLP) $(PLTRAD)
+sample:	$(SAMPLE) $(PLTDF)
+disk:	$(PLTJET) $(PLTDISK)
+anal:	$(ANALACT) $(ANALERR) $(ANALPRF)
+mbh:	$(ANALMBH)
+halo:	$(DMHALO)
+bulge:	$(BULGE) $(BHMASS)
+m31:	$(M31OBS)
+sass:	$(GOTHIC).sass
+tags:	TAGS
 #################################################################################################
 ## Making TAGS file for Emacs
 TAGS:

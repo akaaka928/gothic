@@ -88,8 +88,8 @@ def draw_figure(fileid, Nkind):
     for ii in range(Ndark, Nkind):
         # read particle position and mass
         folder = "data" + str(ii) + "/"
-        position = h5file[folder + "position"].value
-        mass = h5file[folder + "mass"].value
+        position = h5file[folder + "position"]
+        mass = h5file[folder + "mass"]
 
         # data preparation
         px = position[:, 0]

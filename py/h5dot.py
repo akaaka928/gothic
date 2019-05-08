@@ -35,8 +35,8 @@ def make_map(idx):
 
     # read particle position and mass
     folder = "data2/"
-    position = h5file[folder + "position"].value
-    mass = h5file[folder + "mass"].value
+    position = h5file[folder + "position"]
+    mass = h5file[folder + "mass"]
 
     # close the HDF5 file
     h5file.close()

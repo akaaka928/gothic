@@ -88,20 +88,20 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
         if (Nskip == 0) or (ii not in skip):
             # read surface density maps
             folder = "field" + str(ii) + "/"
-            xy_map[nxpanel] = h5file[folder + "Sigma_xy"].value
+            xy_map[nxpanel] = h5file[folder + "Sigma_xy"]
             xz_map[nxpanel] = h5file[folder + "Sigma_zx"].value.T
-            xx[nxpanel] = h5file[folder +  "xi"].value
-            yy[nxpanel] = h5file[folder + "eta"].value
-            zz[nxpanel] = h5file[folder +   "D"].value
+            xx[nxpanel] = h5file[folder +  "xi"]
+            yy[nxpanel] = h5file[folder + "eta"]
+            zz[nxpanel] = h5file[folder +   "D"]
 
             nxpanel += 1
             Ndata += 1
         if (Nmbh > 0) and (ii in wmbh):
             # read particle position and mass
             folder = "obs" + str(ii) + "/"
-            mbh_xi   = h5file[folder +   "xi"].value
-            mbh_eta  = h5file[folder +  "eta"].value
-            mbh_dist = h5file[folder + "dist"].value
+            mbh_xi   = h5file[folder +   "xi"]
+            mbh_eta  = h5file[folder +  "eta"]
+            mbh_dist = h5file[folder + "dist"]
             mbh_obs[0] = mbh_xi[0]
             mbh_obs[1] = mbh_eta[0]
             mbh_obs[2] = mbh_dist[0]

@@ -6,6 +6,7 @@ import matplotlib
 matplotlib.use("agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm # for logarithmic plot in imshow
+import matplotlib.ticker as ticker
 
 import os.path as path
 import multiprocessing as mp
@@ -15,23 +16,340 @@ import utils as utils
 
 outputPDF = False
 
+closeUp = False
+
+
 fs_base = 24
 tl_base = 6.0
 tw_base = 1.0
 
 
-outputPDF = False
 senergy2astro = 1.0e+10
 
 
-filename = "m15ra1_4_run"
+# filename = "m15ra1_4_run"
+# init = 0
+# last = 80
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["DM halo", "bulge"]
+# fmin, fmax = 3.1e+0 / senergy2astro, 3.1e+3 / senergy2astro
+
+# filename = "w3iso"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["GC"]
+# fmin, fmax = 1.0e+4 / senergy2astro, 1.0e+5 / senergy2astro
+
+# filename = "w3ra2"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["GC"]
+# fmin, fmax = 1.0e+4 / senergy2astro, 1.0e+5 / senergy2astro
+
+# filename = "w3ra1"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["GC"]
+# fmin, fmax = 1.0e+4 / senergy2astro, 1.5e+5 / senergy2astro
+
+# filename = "w3ra1_2"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["GC"]
+# fmin, fmax = 1.0e+4 / senergy2astro, 2.0e+5 / senergy2astro
+
+# filename = "w3ra1_4"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["GC"]
+# fmin, fmax = 1.0e+4 / senergy2astro, 3.1e+5 / senergy2astro
+
+# filename = "w3ra1_8"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["GC"]
+# fmin, fmax = 3.1e+4 / senergy2astro, 1.0e+6 / senergy2astro
+
+# filename = "w5iso"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["GC"]
+# fmin, fmax = 1.0e+4 / senergy2astro, 1.0e+5 / senergy2astro
+
+# filename = "w5ra2"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["GC"]
+# fmin, fmax = 1.0e+4 / senergy2astro, 1.0e+5 / senergy2astro
+
+# filename = "w5ra1"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["GC"]
+# fmin, fmax = 1.0e+4 / senergy2astro, 1.0e+5 / senergy2astro
+
+# filename = "w5ra1_2"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["GC"]
+# fmin, fmax = 1.0e+4 / senergy2astro, 2.0e+5 / senergy2astro
+
+# filename = "w5ra1_4"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["GC"]
+# fmin, fmax = 1.0e+4 / senergy2astro, 3.1e+5 / senergy2astro
+
+# filename = "w5ra1_8"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["GC"]
+# fmin, fmax = 1.0e+4 / senergy2astro, 8.0e+5 / senergy2astro
+
+# filename = "w7iso"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["GC"]
+# fmin, fmax = 3.1e+3 / senergy2astro, 1.0e+5 / senergy2astro
+
+# filename = "w7ra2"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["GC"]
+# fmin, fmax = 3.1e+3 / senergy2astro, 1.0e+5 / senergy2astro
+
+# filename = "w7ra1"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["GC"]
+# fmin, fmax = 3.1e+3 / senergy2astro, 1.0e+5 / senergy2astro
+
+# filename = "w7ra1_2"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["GC"]
+# fmin, fmax = 3.1e+3 / senergy2astro, 3.1e+5 / senergy2astro
+
+# filename = "w7ra1_4"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["GC"]
+# fmin, fmax = 3.1e+3 / senergy2astro, 3.1e+5 / senergy2astro
+
+# filename = "w7ra1_8"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["GC"]
+# fmin, fmax = 1.0e+4 / senergy2astro, 1.0e+6 / senergy2astro
+
+# filename = "m12iso"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["halo"]
+# fmin, fmax = 1.0e+2 / senergy2astro, 4.0e+3 / senergy2astro
+
+# filename = "m12ra2"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["halo"]
+# fmin, fmax = 1.0e+2 / senergy2astro, 5.0e+3 / senergy2astro
+
+filename = "m12ra1"
 init = 0
-last = 80
+last = 140
 # last = 0
 Nskip = 0
 skip = [0]
-lab = ["DM halo", "bulge"]
-fmin, fmax = 3.1e+0 / senergy2astro, 3.1e+3 / senergy2astro
+lab = ["halo"]
+fmin, fmax = 1.0e+2 / senergy2astro, 1.0e+4 / senergy2astro
+
+# filename = "m12ra1_2"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["halo"]
+# fmin, fmax = 1.0e+2 / senergy2astro, 1.0e+4 / senergy2astro
+
+# filename = "m12ra1_4"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["halo"]
+# fmin, fmax = 1.0e+2 / senergy2astro, 3.1e+4 / senergy2astro
+
+# filename = "m12ra1_8"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["halo"]
+# fmin, fmax = 3.1e+0 / senergy2astro, 1.0e+5 / senergy2astro
+
+# filename = "m09iso"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["halo"]
+# fmin, fmax = 3.1e+2 / senergy2astro, 1.0e+5 / senergy2astro
+
+# filename = "m09ra2"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["halo"]
+# fmin, fmax = 3.1e+2 / senergy2astro, 1.0e+5 / senergy2astro
+
+# filename = "m09ra1"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["halo"]
+# fmin, fmax = 3.1e+2 / senergy2astro, 1.0e+5 / senergy2astro
+
+# filename = "m09ra1_2"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["halo"]
+# fmin, fmax = 3.1e+2 / senergy2astro, 3.1e+5 / senergy2astro
+
+# filename = "m09ra1_4"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["halo"]
+# fmin, fmax = 3.1e+2 / senergy2astro, 3.1e+5 / senergy2astro
+
+# filename = "m09ra1_8"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["halo"]
+# fmin, fmax = 3.1e+2 / senergy2astro, 3.1e+5 / senergy2astro
+
+# filename = "a00iso"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["halo"]
+# fmin, fmax = 1.0e+2 / senergy2astro, 3.1e+4 / senergy2astro
+
+# filename = "a00ra2"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["halo"]
+# fmin, fmax = 1.0e+2 / senergy2astro, 3.1e+4 / senergy2astro
+
+# filename = "a00ra1"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["halo"]
+# fmin, fmax = 1.0e+2 / senergy2astro, 3.1e+4 / senergy2astro
+
+# filename = "a00ra1_2"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["halo"]
+# fmin, fmax = 1.0e+2 / senergy2astro, 1.0e+5 / senergy2astro
+
+# filename = "a00ra1_4"
+# init = 0
+# last = 140
+# # last = 0
+# Nskip = 0
+# skip = [0]
+# lab = ["halo"]
+# fmin, fmax = 3.1e+2 / senergy2astro, 3.1e+5 / senergy2astro
 
 
 Npt = 6
@@ -62,7 +380,9 @@ def draw_figure(fileid, kind, sphe):
     Jsml  = np.zeros((kind + 1, nJ + 1))
 
 
-    nxpanel = 2
+    nxpanel = 1
+    if closeUp:
+        nxpanel = 2
     nypanel = 0
     Ndata = 0
     for ii in range(kind):
@@ -71,11 +391,11 @@ def draw_figure(fileid, kind, sphe):
             if (Nskip == 0) or (ii not in skip):
                 # EJ-maps
                 folder = "EJplane" + str(ii) + "/"
-                EJful[nypanel] = h5file[folder + "EJful"].value / senergy2astro
-                EJsml[nypanel] = h5file[folder + "EJsml"].value / senergy2astro
-                EE[nypanel] = h5file[folder + "E"].value * senergy2astro
-                Jful[nypanel] = h5file[folder + "Jful"].value
-                Jsml[nypanel] = h5file[folder + "Jsml"].value
+                EJful[nypanel] = h5file[folder + "EJful"] / senergy2astro
+                EJsml[nypanel] = h5file[folder + "EJsml"] / senergy2astro
+                EE[nypanel] = h5file[folder + "E"] * senergy2astro
+                Jful[nypanel] = h5file[folder + "Jful"]
+                Jsml[nypanel] = h5file[folder + "Jsml"]
 
                 nypanel += 1
                 Ndata += 1
@@ -115,11 +435,13 @@ def draw_figure(fileid, kind, sphe):
 
     if summary:
         img = ax[    nypanel - 1].imshow(EJful[nypanel - 1].T, extent = [Jfulmin, Jfulmax, Emin, Emax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
-        img = ax[2 * nypanel - 1].imshow(EJsml[nypanel - 1].T, extent = [Jsmlmin, Jsmlmax, Emin, Emax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
+        if closeUp:
+            img = ax[2 * nypanel - 1].imshow(EJsml[nypanel - 1].T, extent = [Jsmlmin, Jsmlmax, Emin, Emax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
 
     for ii in range(Ndata):
         img = ax[ii          ].imshow(EJful[ii].T, extent = [Jfulmin, Jfulmax, Emin, Emax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
-        img = ax[ii + nypanel].imshow(EJsml[ii].T, extent = [Jsmlmin, Jsmlmax, Emin, Emax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
+        if closeUp:
+            img = ax[ii + nypanel].imshow(EJsml[ii].T, extent = [Jsmlmin, Jsmlmax, Emin, Emax], origin = "lower", interpolation = "none", norm = LogNorm(vmin = fmin, vmax = fmax), cmap = my_cmap, aspect = "auto")
 
     for ii in range(nxpanel * nypanel):
         ax[ii].set_ylim([Emin, Emax])
@@ -128,13 +450,15 @@ def draw_figure(fileid, kind, sphe):
         ax[ii].spines[   "top"].set_color("white")
         ax[ii].spines[  "left"].set_color("white")
         ax[ii].spines[ "right"].set_color("white")
+        ax[ii].yaxis.set_major_formatter(ticker.FuncFormatter(utils.scientific))
 
     for ii in range(nypanel):
         ax[ii          ].set_xlim([Jfulmin, Jfulmax])
-        ax[ii + nypanel].set_xlim([Jsmlmin, Jsmlmax])
         ax[ii          ].spines[ "left"].set_color("black")
-        ax[ii + nypanel].spines["right"].set_color("black")
         ax[ii          ].set_ylabel(r"$E$~(\si{erg.g^{-1}})", fontsize = fs)
+        if closeUp:
+            ax[ii + nypanel].set_xlim([Jsmlmin, Jsmlmax])
+            ax[ii + nypanel].spines["right"].set_color("black")
 
     for ii in range(nxpanel):
         ax[(ii + 1) * nypanel - 1].spines["top"].set_color("black")
@@ -158,13 +482,11 @@ def draw_figure(fileid, kind, sphe):
         if y1 < yt:
             y1 = yt
     colorbar_ax = fig.add_axes([x1, y0, 0.05 / nxpanel, y1 - y0])
-    cbar = fig.colorbar(img, cax = colorbar_ax, label = r"$f$ (" + r"\si{M_\odot.kpc^{-1}.km^{-1}.s.erg^{-1}.g}" + r")")
+    cbar = fig.colorbar(img, cax = colorbar_ax, format=ticker.FuncFormatter(utils.scientific), label = r"$f$ (" + r"\si{M_\odot.kpc^{-1}.km^{-1}.s.erg^{-1}.g}" + r")")
     cbar.solids.set_edgecolor("face")
-    cbar.ax.set_yticklabels(cbar.ax.get_yticklabels(), fontsize=fs)
-    cbar.ax.set_ylabel(cbar.ax.get_ylabel(), fontsize=fs)
 
     # add current time
-    fig.suptitle(r"$t = {:.3f}$".format(time) + r"~(\si{Myr})", fontsize = fs)
+    fig.suptitle(r"$t = {:.1f}$".format(time / 1000) + r"~(\si{Gyr})", fontsize = fs)
 
 
     # save figures

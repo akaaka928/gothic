@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/01/29 (Tue)
+ * @date 2019/04/22 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -772,7 +772,7 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
       double QQ, v2;
       while( true ){
 	vr = vesc * RANDVAL_DBL(rand);
-	vt = vtmax * UNIRAND_DBL(rand);
+	/* vt = vtmax * UNIRAND_DBL(rand); */
 	const double v0 = vtmax * UNIRAND_DBL(rand);
 	const double v1 = vtmax * UNIRAND_DBL(rand);
 	const double vt2 = v0 * v0 + v1 * v1;
@@ -1197,7 +1197,6 @@ int main(int argc, char **argv)
 	jmax = jj;
 	break;
       }/* if( fene[ii][jj].val > ZERO ){ */
-    const real Emax = fene[ii][jmax].ene;
 
     int jmin = 0;
     for(int jj = jmin; jj < jmax; jj++)
@@ -1207,14 +1206,30 @@ int main(int argc, char **argv)
       }/* if( fene[ii][jj].val > ZERO ){ */
     real Emin = fene[ii][jmin].ene;
 
-    bool single_component = true;
+    while( true ){
+      const int jtest = (int)nearbyintf((float)jmax - 1.0e-3f * (float)(jmax - jmin));
+      bool passed = true;
+      for(int jj = jmax; jj >= jtest; jj--)
+	if( fene[ii][jj].val <= ZERO ){
+	  jmax = jj - 1;
+	  passed = false;
+	  break;
+	}
+
+      if( passed )
+	break;
+    }
+    const real Emax = fene[ii][jmax].ene;
+
+    bool nonnegative_df = true;
     for(int jj = jmin; jj < jmax + 1; jj++)
       if( fene[ii][jj].val <= ZERO ){
-	single_component = false;
+	nonnegative_df = false;
+	/* fprintf(stdout, "fene[%d][%d].val = %e\n", ii, jj, fene[ii][jj].val); */
 	break;
       }/* if( fene[ii][jj].val <= ZERO ){ */
 
-    if( !single_component ){
+    if( !nonnegative_df ){
       for(int jj = jmax; jj >= jmin; jj--)
 	if( fene[ii][jj].val <= ZERO ){
 	  jmin = jj + 1;
@@ -1229,12 +1244,13 @@ int main(int argc, char **argv)
 #pragma omp critical
       {
 	__FPRINTF__(stderr, "WARNING: DF of %d-th component contains f = 0 regions in [Emin:Emax] = [%e:%e]; consider adopting wider smoothing scale about the cut-off radius (current value is %e = %e %s)\n", ii, Emin, Emax, cfg[ii].rc_width, cfg[ii].rc_width * length2astro, length_astro_unit_name);
+	/* __FPRINTF__(stderr, "jmin = %d, jmax = %d\n", jmin, jmax); */
 
 	if( !denoisingDistributionFunction ){
 	  __FPRINTF__(stderr, "WARNING: recomend to rerun MAGI with additional input argument of \"-denoisingDistributionFunction=1\" to denoise distribution function\n");
 	}/* if( !denoisingDistributionFunction ){ */
       }
-    }/* if( !single_component ){ */
+    }/* if( !nonnegative_df ){ */
 
     int jc = cfg[ii].iout;
     for(int jj = jc; jj >= 0; jj--)

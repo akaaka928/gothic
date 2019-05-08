@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/01/07 (Mon)
+ * @date 2019/01/31 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -485,7 +485,7 @@ int main(int argc, char **argv)
   real *JJful;  JJful = (real *)malloc(sizeof(real) * (nJ + 1));  if( JJful == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate JJful");  }
   real *JJsml;  JJsml = (real *)malloc(sizeof(real) * (nJ + 1));  if( JJsml == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate JJsml");  }
   const real dJful = Jmax / (real)nJ;
-  const real dJsml = (POW10(ONE_EIGHTH * (LOG10(Jmax) + LOG10(Jmin)))) / (real)nJ;
+  const real dJsml = FMIN(POW10(ONE_EIGHTH * (LOG10(Jmax) + LOG10(Jmin))), ONE_EIGHTH * Jmax) / (real)nJ;
   for(int ii = 0; ii < nJ + 1; ii++)    JJful[ii] = dJful * (real)ii;
   for(int ii = 0; ii < nJ + 1; ii++)    JJsml[ii] = dJsml * (real)ii;
   real *EJful;  EJful = (real *)malloc(sizeof(real) * kind * nE * nJ);  if( EJful == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate EJful");  }

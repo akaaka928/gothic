@@ -66,10 +66,10 @@ for ii in range(Nfile):
         sphe_sgt = [0]
     for kk in range(sphe_Nanal):
         folder = "data" + str(kk) + "/"
-        sphe_rad[kk] = data_file[folder + "rad"].value
-        sphe_sig[kk] = data_file[folder + "sigma_r"].value
+        sphe_rad[kk] = data_file[folder + "rad"]
+        sphe_sig[kk] = data_file[folder + "sigma_r"]
         if osipkov_merritt:
-            sphe_sgt[kk] = data_file[folder + "sigma_t"].value
+            sphe_sgt[kk] = data_file[folder + "sigma_t"]
 
     # read attributes
     length_unit = data_file["/"].attrs["length_astro_unit_name"][0]

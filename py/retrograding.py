@@ -89,9 +89,9 @@ if path.isfile(target) == True:
 
     # read particle position and velocity
     folder = "nbody/"
-    pos = data_file[folder + "position"].value
-    vel = data_file[folder + "velocity"].value
-    idx = data_file[folder + "index"].value
+    pos = data_file[folder + "position"]
+    vel = data_file[folder + "velocity"]
+    idx = data_file[folder + "index"]
 
     Ntot = data_file["nbody/"].attrs["number"][0]
     posx = np.empty(Ntot)

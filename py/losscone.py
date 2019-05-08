@@ -50,8 +50,8 @@ def draw_figure(fileid, kind, Emin, Emax, Jmin, Jmax):
 
     for ii in range(kind):
         folder = "particle" + str(ii) + "/"
-        Etot = h5file[folder + "Etot"].value * senergy2astro
-        Jtot = h5file[folder + "Jtot"].value
+        Etot = h5file[folder + "Etot"] * senergy2astro
+        Jtot = h5file[folder + "Jtot"]
         ax[ii * nypanel].plot(Jtot, Etot, ",", color = "black", rasterized = True)
 
     # close the HDF5 file

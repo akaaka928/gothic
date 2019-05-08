@@ -74,16 +74,16 @@ def draw_figures(fileid):
 
     # read particle position and velocity
     folder = "snp/"
-    pos_part = h5file_fixed[folder + "position"].value
-    acc_part = h5file_fixed[folder + "acceleration"].value
-    pot_part = h5file_fixed[folder + "potential"].value
-    idx_part = h5file_fixed[folder + "index"].value
-    acc_ext_part = h5file_fixed[folder + "acceleration_external"].value
-    pot_ext_part = h5file_fixed[folder + "potential_external"].value
-    pos_full = h5file_nbody[folder + "position"].value
-    acc_full = h5file_nbody[folder + "acceleration"].value
-    pot_full = h5file_nbody[folder + "potential"].value
-    idx_full = h5file_nbody[folder + "index"].value
+    pos_part = h5file_fixed[folder + "position"]
+    acc_part = h5file_fixed[folder + "acceleration"]
+    pot_part = h5file_fixed[folder + "potential"]
+    idx_part = h5file_fixed[folder + "index"]
+    acc_ext_part = h5file_fixed[folder + "acceleration_external"]
+    pot_ext_part = h5file_fixed[folder + "potential_external"]
+    pos_full = h5file_nbody[folder + "position"]
+    acc_full = h5file_nbody[folder + "acceleration"]
+    pot_full = h5file_nbody[folder + "potential"]
+    idx_full = h5file_nbody[folder + "index"]
 
     ax_full = acc_full[:, 0]
     ay_full = acc_full[:, 1]

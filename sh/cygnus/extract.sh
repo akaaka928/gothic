@@ -1,12 +1,16 @@
 #!/bin/bash
+#PBS -A GALAXY
+#PBS -q gpu
+#PBS -N analysis
+#PBS -b 1
+#PBS -l elapstim_req=01:00:00
+#PBS -T mvapich
+#PBS -v NQSV_MPI_VER=2.3.1/intel-cuda10.1
 ###############################################################
-#SBATCH -J analysis            # name of job
-#SBATCH -t 04:00:00            # upper limit of elapsed time
-#SBATCH -p normal              # partition name
-#SBATCH --nodes=1              # number of nodes, set to SLURM_JOB_NUM_NODES
-#SBATCH --ntasks=16            # number of total MPI processes, set to SLURM_NTASKS
-#SBATCH --ntasks-per-socket=8  # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET
-#SBATCH --get-user-env         # retrieve the login environment variables
+NUM_NODES=1
+PROCS_PER_SOCKET=12
+PROCS_PER_NODE=`expr $PROCS_PER_SOCKET \* 2`
+# PROCS_PER_NODE=$PROCS_PER_SOCKET
 ###############################################################
 
 
@@ -18,11 +22,11 @@ EXEC=bin/extract
 # problem ID
 if [ -z "$PROBLEM" ]; then
     # PROBLEM=2
-    PROBLEM=10
+    # PROBLEM=10
     # PROBLEM=14
     # PROBLEM=22
     # PROBLEM=26
-    # PROBLEM=27
+    PROBLEM=27
     # PROBLEM=62
     # PROBLEM=130
     # PROBLEM=131
@@ -217,13 +221,17 @@ if [ $PROBLEM -eq 130 ]; then
     FINISH=14000.0
     INTERVAL=100.0
     XMAX=3.0
-x    YMAX=3.0
+    YMAX=3.0
     ZMAX=3.0
     VMAX=3.0
     XMIN=-$XMAX
     YMIN=-$YMAX
     ZMIN=-$ZMAX
     VMIN=-$VMAX
+    EMIN=-5.0e+5 # minmax.txt x100
+    EMAX=-0.0e+3 # minmax.txt x100
+    JMIN=3.1e-3 # minmax.txt x10
+    JMAX=3.1e+4 # minmax.txt x10
 fi
 ###############################################################
 # Fornax simulation
@@ -985,21 +993,29 @@ OPTION="-file=$FILE -start=$START -end=$END -interval=$INCREMENT -ncrit=$NCRIT -
 
 
 ###############################################################
-# job execution via SLURM
+# job execution via NQSV
 ###############################################################
-# set number of MPI processes per node
-PROCS_PER_NODE=`expr $SLURM_NTASKS / $SLURM_JOB_NUM_NODES`
+# set stdout and stderr
+STDOUT=log/${FILE}_$PBS_JOBNAME.o${PBS_JOBID}
+STDERR=log/${FILE}_$PBS_JOBNAME.e${PBS_JOBID}
 ###############################################################
 # start logging
-cd $SLURM_SUBMIT_DIR
-echo "use $SLURM_JOB_NUM_NODES nodes"
-echo "use $SLURM_JOB_CPUS_PER_NODE CPUs per node"
+cd $PBS_O_WORKDIR
 TIME=`date`
 echo "start: $TIME"
 ###############################################################
+module purge
+export MODULEPATH=$MODULEPATH:/work/CSPP/ymiki/opt/module
+module load mvapich/2.3.1/intel-cuda10.1
+module load gsl lis
+module load phdf5
+###############################################################
+# set number of MPI processes per node
+PROCS=`expr $NUM_NODES \* $PROCS_PER_NODE`
+###############################################################
 # execute the job
-echo "mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION"
-mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION
+echo "mpiexec ${NQSII_MPIOPTS} -genv MV2_NUM_HCAS 4 -np $PROCS sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION"
+mpiexec ${NQSII_MPIOPTS} -genv MV2_NUM_HCAS 4 -np $PROCS sh/wrapper.sh $EXEC log/${FILE}_${PBS_JOBNAME} $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION
 ###############################################################
 # finish logging
 TIME=`date`
