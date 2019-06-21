@@ -5,7 +5,7 @@
  *
  * @author Yohei MIKI (The University of Tokyo)
  *
- * @date 2019/01/25 (Fri)
+ * @date 2019/06/15 (Sat)
  *
  * Copyright (C) 2019 Yohei MIKI
  * All rights reserved.
@@ -181,6 +181,8 @@ int main(int argc, char **argv)
 
 
   /** declarations of arrays to contain information of sink particle(s) */
+  /**# remove the sink particle from the initial-condition; however, read the mass of the central BH to determine the loss cone */
+  /* test-particles should memory the time if the particle accretes the central BH */
   static int Nsink = 0;
   requiredCmdArg(getCmdArgInt(argc, (const char * const *)(void *)argv, "Nsink", &Nsink));
 
