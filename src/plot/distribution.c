@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/07/23 (Mon)
+ * @date 2019/07/31 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -956,11 +956,11 @@ int main(int argc, char **argv)
   /** read analytic profile and analyze */
 #ifndef SET_EXTERNAL_POTENTIAL_FIELD
 #ifdef  USE_HDF5_FORMAT
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
   hid_t hdf5_real = H5T_NATIVE_DOUBLE;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   hid_t hdf5_real = H5T_NATIVE_FLOAT;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
 #endif//USE_HDF5_FORMAT
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
   int kind = 1;
@@ -1011,7 +1011,7 @@ int main(int argc, char **argv)
       /* open the target file and group */
       sprintf(filename, "%s/%s.%s.h5", DATAFOLDER, file, "profile");
       hid_t target = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
-      /* read flag about DOUBLE_PRECISION */
+      /* read flag about USE_DOUBLE_PRECISION */
       int useDP;
       hid_t attribute = H5Aopen(target, "useDP", H5P_DEFAULT);
       chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &useDP));
@@ -1073,15 +1073,15 @@ int main(int argc, char **argv)
       chkHDF5err(H5Gclose(h5group));
       chkHDF5err(H5Fclose(target));
 
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
       if( useDP != 1 ){
 	__KILL__(stderr, "ERROR: useDP (%d) differs with that in the code (%d)\n", useDP, true);
       }/* if( useDP != 1 ){ */
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
       if( useDP != 0 ){
 	__KILL__(stderr, "ERROR: useDP (%d) differs with that in the code (%d)\n", useDP, false);
       }/* if( useDP != 0 ){ */
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
 
 #else///USE_HDF5_FORMAT
 
@@ -1137,7 +1137,7 @@ int main(int argc, char **argv)
 	sprintf(filename, "%s/%s.%s.h5", DATAFOLDER, file, "disk");
 	hid_t target = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
 
-	/* read flag about DOUBLE_PRECISION */
+	/* read flag about USE_DOUBLE_PRECISION */
 	int _useDP;
 	attribute = H5Aopen(target, "useDP", H5P_DEFAULT);
 	chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &_useDP));
@@ -1256,15 +1256,15 @@ int main(int argc, char **argv)
 	/* close the file */
 	chkHDF5err(H5Gclose(h5group));
 	chkHDF5err(H5Fclose(target));
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
 	if( _useDP != 1 ){
 	  __KILL__(stderr, "ERROR: useDP (%d) differs with that in the code (%d)\n", _useDP, true);
 	}/* if( useDP != 1 ){ */
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
 	if( _useDP != 0 ){
 	  __KILL__(stderr, "ERROR: useDP (%d) differs with that in the code (%d)\n", _useDP, false);
 	}/* if( useDP != 0 ){ */
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
 
 #else///USE_HDF5_FORMAT
 

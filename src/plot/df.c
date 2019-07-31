@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/03/08 (Thu)
+ * @date 2019/07/31 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -343,11 +343,11 @@ void readDF(char *file, PLFLT ene[restrict], PLFLT val[restrict], PLFLT rad[rest
   static real tmp_ene[NENEBIN], tmp_val[NENEBIN];
   static real tmp_rad[NRADBIN], tmp_psi[NRADBIN];
 
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
   hid_t hdf5_real = H5T_NATIVE_DOUBLE;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   hid_t hdf5_real = H5T_NATIVE_FLOAT;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
 
   /** open an existing file for DF */
   char filename[128];

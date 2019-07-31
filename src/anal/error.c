@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/09/07 (Fri)
+ * @date 2019/07/31 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -307,12 +307,12 @@ int main(int argc, char **argv)
     attribute = H5Acreate(group, "number", H5T_NATIVE_ULONG, dataspace, H5P_DEFAULT, H5P_DEFAULT);
     chkHDF5err(H5Awrite(attribute, H5T_NATIVE_ULONG, &Ntot));
     chkHDF5err(H5Aclose(attribute));
-    /** write flag about DOUBLE_PRECISION */
-#ifdef  DOUBLE_PRECISION
+    /** write flag about USE_DOUBLE_PRECISION */
+#ifdef  USE_DOUBLE_PRECISION
     const int useDP = 1;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
     const int useDP = 0;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
     attribute = H5Acreate(group, "useDP", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
     chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
     chkHDF5err(H5Aclose(attribute));

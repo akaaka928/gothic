@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/01/31 (Thu)
+ * @date 2019/07/31 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -1725,12 +1725,12 @@ void writeAnalyzedProfiles
   attribute = H5Acreate(target, "nJ", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &nJ));
   chkHDF5err(H5Aclose(attribute));
-  /* write flag about DOUBLE_PRECISION */
-#ifdef  DOUBLE_PRECISION
+  /* write flag about USE_DOUBLE_PRECISION */
+#ifdef  USE_DOUBLE_PRECISION
   const int useDP = 1;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   const int useDP = 0;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
   attribute = H5Acreate(target, "useDP", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
   chkHDF5err(H5Aclose(attribute));

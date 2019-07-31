@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/01 (Fri)
+ * @date 2019/07/31 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -36,15 +36,15 @@ using namespace cooperative_groups;
 #endif//(GPUGEN >= 70) && !defined(_COOPERATIVE_GROUPS_H_) && (TSUB < 32)
 
 
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
 #define SEB_EPS  (1.0e-15)
 #define SEB_EPS2 (1.0e-30)
 #define SEB_TINY (DBL_MIN)
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
 #define SEB_EPS  (1.0e-6f)
 #define SEB_EPS2 (1.0e-12f)
 #define SEB_TINY (FLT_MIN)
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
 
 
 /**

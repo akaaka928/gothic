@@ -485,7 +485,7 @@ def draw_figure(fileid, kind, sphe):
                 # read surface density maps
                 folder = "field" + str(ii) + "/"
                 xy_map[nypanel] = h5file[folder + "Sigma_xy"]
-                zy_map[nypanel] = h5file[folder + "Sigma_yz"].value.T
+                zy_map[nypanel] = h5file[folder + "Sigma_yz"][()].T
                 xv_map[nypanel] = h5file[folder + "f_xv"]
                 yv_map[nypanel] = h5file[folder + "f_yv"]
                 zv_map[nypanel] = h5file[folder + "f_zv"]

@@ -108,7 +108,7 @@ def draw_figure(fileid, kind, Ndisk, disk_xi, disk_eta, disk_D, Neast, Eshell_xi
             # read surface density maps
             folder = "field" + str(ii) + "/"
             xy_map[nxpanel] = h5file[folder + "Sigma_xy"]
-            xz_map[nxpanel] = h5file[folder + "Sigma_zx"].value.T
+            xz_map[nxpanel] = h5file[folder + "Sigma_zx"][()].T
             xx[nxpanel] = h5file[folder +  "xi"]
             yy[nxpanel] = h5file[folder + "eta"]
             zz[nxpanel] = h5file[folder +   "D"]

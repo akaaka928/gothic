@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/03/08 (Thu)
+ * @date 2019/07/31 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -113,11 +113,11 @@ int main(int argc, char **argv)
 
 
 #ifdef  USE_HDF5_FORMAT
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
   hid_t hdf5_real = H5T_NATIVE_DOUBLE;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   hid_t hdf5_real = H5T_NATIVE_FLOAT;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
 #endif//USE_HDF5_FORMAT
 
   /** load initial profile */
@@ -134,15 +134,15 @@ int main(int argc, char **argv)
     hid_t attribute = H5Aopen(target, "useDP", H5P_DEFAULT);
     chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &useDP));
     chkHDF5err(H5Aclose(attribute));
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
     if( useDP != 1 ){
       __KILL__(stderr, "ERROR: useDP (%d) differs with that in the code (%d)\n", useDP, true);
     }/* if( useDP != 1 ){ */
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
     if( useDP != 0 ){
       __KILL__(stderr, "ERROR: useDP (%d) differs with that in the code (%d)\n", useDP, false);
     }/* if( useDP != 0 ){ */
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
 
     for(int ii = 0; ii < Ndisk; ii++){
       char grp[16];

@@ -26,11 +26,11 @@ void read_disk_table(char *file, disk_data **disk, double **hor, double **ver, d
   char filename[128];
   sprintf(filename, "%s/%s.%s.h5", DATAFOLDER, file, "disk");
   hid_t target = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
   hid_t hdf5_real = H5T_NATIVE_DOUBLE;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   hid_t hdf5_real = H5T_NATIVE_FLOAT;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
 
 
   /** read attribute data */

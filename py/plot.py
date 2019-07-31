@@ -3,7 +3,7 @@ import math
 import h5py
 
 import matplotlib
-matplotlib.use("agg")
+# matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
 import os.path as path

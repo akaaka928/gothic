@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/08/23 (Thu)
+ * @date 2019/07/31 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -374,11 +374,11 @@ void createHDF5DataType(hdf5struct *type)
   chkHDF5err(H5Tset_size(type->str4unit, CONSTANTS_H_CHAR_WORDS));/* memo: sizeof(char) is unity */
 
   /* commit a data type to switch float and double */
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
   type->real = H5T_NATIVE_DOUBLE;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   type->real = H5T_NATIVE_FLOAT;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
 
   /* commit a data type of rebuildTree for GOTHIC */
 #ifndef RUN_WITHOUT_GOTHIC
@@ -793,7 +793,7 @@ void  readTentativeData(double *time, double *dt, ulong *steps, double *elapsed,
   chkHDF5err(H5Aread(attribute, H5T_NATIVE_DOUBLE, &relEneErr->errMax));
   chkHDF5err(H5Aclose(attribute));
 #endif//MONITOR_ENERGY_ERROR
-  /* read flag about DOUBLE_PRECISION */
+  /* read flag about USE_DOUBLE_PRECISION */
   int useDP;
   attribute = H5Aopen(group, "useDP", H5P_DEFAULT);
   chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &useDP));
@@ -807,11 +807,11 @@ void  readTentativeData(double *time, double *dt, ulong *steps, double *elapsed,
 
   /* simple error checks */
   if( num_ulong != (ulong)num ){    __KILL__(stderr, "ERROR: number of N-body particles in the file (%zu) differs with that in the code (%d)\n", num_ulong, num);  }
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
   if( useDP != 1 ){    __KILL__(stderr, "ERROR: useDP (%d) differs with that in the code (%d)\n", useDP, true);  }
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   if( useDP != 0 ){    __KILL__(stderr, "ERROR: useDP (%d) differs with that in the code (%d)\n", useDP, false);  }
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
 #ifdef  BLOCK_TIME_STEP
   if( blockTimeStep != 1 ){    __KILL__(stderr, "ERROR: blockTimeStep (%d) differs with that in the code (%d)\n", blockTimeStep, true);  }
 #else///BLOCK_TIME_STEP
@@ -1196,12 +1196,12 @@ void writeTentativeData
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &relEneErr.errMax));
   chkHDF5err(H5Aclose(attribute));
 #endif//MONITOR_ENERGY_ERROR
-  /* write flag about DOUBLE_PRECISION */
-#ifdef  DOUBLE_PRECISION
+  /* write flag about USE_DOUBLE_PRECISION */
+#ifdef  USE_DOUBLE_PRECISION
   const int useDP = 1;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   const int useDP = 0;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
   attribute = H5Acreate(group, "useDP", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
   chkHDF5err(H5Aclose(attribute));
@@ -1484,7 +1484,7 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, double *
     chkHDF5err(H5Aread(attribute, H5T_NATIVE_DOUBLE, &relEneErr->errMax));
     chkHDF5err(H5Aclose(attribute));
 #endif//MONITOR_ENERGY_ERROR
-    /* read flag about DOUBLE_PRECISION */
+    /* read flag about USE_DOUBLE_PRECISION */
     attribute = H5Aopen(group, "useDP", H5P_DEFAULT);
     chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &useDP));
     chkHDF5err(H5Aclose(attribute));
@@ -1512,15 +1512,15 @@ void  readTentativeDataParallel(double *time, double *dt, ulong *steps, double *
   if( Nread != Ntot ){
     __KILL__(stderr, "ERROR: number of N-body particles in the file (%zu) differs with that in the code (%zu)\n", Nread, Ntot);
   }/* if( Nread != Ntot ){ */
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
   if( useDP != 1 ){
     __KILL__(stderr, "ERROR: useDP (%d) differs with that in the code (%d)\n", useDP, true);
   }/* if( useDP != 1 ){ */
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   if( useDP != 0 ){
     __KILL__(stderr, "ERROR: useDP (%d) differs with that in the code (%d)\n", useDP, false);
   }/* if( useDP != 0 ){ */
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
 #ifdef  BLOCK_TIME_STEP
   if( blockTimeStep != 1 ){
     __KILL__(stderr, "ERROR: blockTimeStep (%d) differs with that in the code (%d)\n", blockTimeStep, true);
@@ -2152,12 +2152,12 @@ void writeTentativeDataParallel
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &relEneErr.errMax));
   chkHDF5err(H5Aclose(attribute));
 #endif//MONITOR_ENERGY_ERROR
-  /* write flag about DOUBLE_PRECISION */
-#ifdef  DOUBLE_PRECISION
+  /* write flag about USE_DOUBLE_PRECISION */
+#ifdef  USE_DOUBLE_PRECISION
   const int useDP = 1;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   const int useDP = 0;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
   attribute = H5Acreate(group, "useDP", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
   chkHDF5err(H5Aclose(attribute));
@@ -2874,12 +2874,12 @@ void writeFixedPotentialTable
   attribute = H5Acreate(target, "skind", H5T_NATIVE_INT, attrspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &skind));
   chkHDF5err(H5Aclose(attribute));
-  /* write flag about DOUBLE_PRECISION */
-#ifdef  DOUBLE_PRECISION
+  /* write flag about USE_DOUBLE_PRECISION */
+#ifdef  USE_DOUBLE_PRECISION
   const int useDP = 1;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   const int useDP = 0;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
   attribute = H5Acreate(target, "useDP", H5T_NATIVE_INT, attrspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
   chkHDF5err(H5Aclose(attribute));
@@ -2954,7 +2954,7 @@ void writeFixedPotentialTable
 
 
   /* write numeric table for each component */
-  if( skind > 1 )
+  if( skind >= 1 )
     for(int kk = 0; kk < skind; kk++){
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
       Ndat = pot_tbl[kk].num;
@@ -3198,12 +3198,12 @@ void writeFixedDiskPotential
 #endif//USE_SZIP_COMPRESSION
 
   /* write attribute data */
-  /* write flag about DOUBLE_PRECISION */
-#ifdef  DOUBLE_PRECISION
+  /* write flag about USE_DOUBLE_PRECISION */
+#ifdef  USE_DOUBLE_PRECISION
   const int useDP = 1;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   const int useDP = 0;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
   attribute = H5Acreate(target, "useDP", H5T_NATIVE_INT, attrspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
   chkHDF5err(H5Aclose(attribute));
@@ -3433,7 +3433,7 @@ void  readSnapshot(int *unit, double *time, ulong *steps, int num, char file[], 
   attribute = H5Aopen(group, "number", H5P_DEFAULT);
   chkHDF5err(H5Aread(attribute, H5T_NATIVE_ULONG, &num_ulong));
   chkHDF5err(H5Aclose(attribute));
-  /* read flag about DOUBLE_PRECISION */
+  /* read flag about USE_DOUBLE_PRECISION */
   int useDP;
   attribute = H5Aopen(group, "useDP", H5P_DEFAULT);
   chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &useDP));
@@ -3460,15 +3460,15 @@ void  readSnapshot(int *unit, double *time, ulong *steps, int num, char file[], 
   if( num_ulong != (ulong)num ){
     __KILL__(stderr, "ERROR: number of N-body particles in the file (%zu) differs with that in the code (%d)\n", num_ulong, num);
   }
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
   if( useDP != 1 ){
     __KILL__(stderr, "ERROR: useDP (%d) differs with that in the code (%d)\n", useDP, true);
   }/* if( useDP != 1 ){ */
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   if( useDP != 0 ){
     __KILL__(stderr, "ERROR: useDP (%d) differs with that in the code (%d)\n", useDP, false);
   }/* if( useDP != 0 ){ */
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
 #endif//USE_HDF5_FORMAT
 
 
@@ -3804,12 +3804,12 @@ void writeSnapshot
   attribute = H5Acreate(group, "number", H5T_NATIVE_ULONG, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_ULONG, &num_ulong));
   chkHDF5err(H5Aclose(attribute));
-  /* write flag about DOUBLE_PRECISION */
-#ifdef  DOUBLE_PRECISION
+  /* write flag about USE_DOUBLE_PRECISION */
+#ifdef  USE_DOUBLE_PRECISION
   const int useDP = 1;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   const int useDP = 0;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
   attribute = H5Acreate(group, "useDP", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
   chkHDF5err(H5Aclose(attribute));
@@ -4280,12 +4280,12 @@ void writeSnapshotParallel
   attribute = H5Acreate(group, "number", H5T_NATIVE_ULONG, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_ULONG, &Ntot));
   chkHDF5err(H5Aclose(attribute));
-  /* write flag about DOUBLE_PRECISION */
-#ifdef  DOUBLE_PRECISION
+  /* write flag about USE_DOUBLE_PRECISION */
+#ifdef  USE_DOUBLE_PRECISION
   const int useDP = 1;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   const int useDP = 0;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
   attribute = H5Acreate(group, "useDP", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
   chkHDF5err(H5Aclose(attribute));
@@ -4579,12 +4579,12 @@ void writeSnapshotMultiGroups(double  time, ulong  steps, nbody_hdf5 *body, char
   attribute = H5Acreate(target, "kinds", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &kind));
   chkHDF5err(H5Aclose(attribute));
-  /* write flag about DOUBLE_PRECISION */
-#ifdef  DOUBLE_PRECISION
+  /* write flag about USE_DOUBLE_PRECISION */
+#ifdef  USE_DOUBLE_PRECISION
   const int useDP = 1;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   const int useDP = 0;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
   attribute = H5Acreate(target, "useDP", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
   chkHDF5err(H5Aclose(attribute));

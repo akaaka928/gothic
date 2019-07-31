@@ -143,8 +143,8 @@ PROCS_PER_SOCKET=14
 # load modules
 . /etc/profile.d/modules.sh
 export MODULEPATH=$MODULEPATH:/gs/hs1/jh180045/share/opt/Modules
-module load intel cuda openmpi
-module load phdf5/ompi
+module load intel/19.0.0.117 cuda/9.2.148 openmpi/2.1.2-opa10.0
+module load phdf5
 ###############################################################
 # start logging
 cat $PE_HOSTFILE

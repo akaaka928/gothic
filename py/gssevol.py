@@ -171,7 +171,7 @@ for ii in range(nxpanel):
             # read surface density maps
             folder = "field" + str(jj) + "/"
             xy_map[Ndata] = h5file[folder + "Sigma_xy"]
-            xz_map[Ndata] = h5file[folder + "Sigma_zx"].value.T
+            xz_map[Ndata] = h5file[folder + "Sigma_zx"][()].T
             xx[Ndata] = h5file[folder +  "xi"]
             yy[Ndata] = h5file[folder + "eta"]
             zz[Ndata] = h5file[folder +   "D"]

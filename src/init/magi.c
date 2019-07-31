@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/04/22 (Mon)
+ * @date 2019/07/31 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2551,11 +2551,11 @@ void outputRadialProfiles
   /** create a new file (if the file already exists, the file is opened with read-write access, new data will overwrite any existing data) */
   sprintf(filename, "%s/%s.%s.h5", DATAFOLDER, file, "profile");
   hid_t target = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
   hid_t hdf5_real = H5T_NATIVE_DOUBLE;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   hid_t hdf5_real = H5T_NATIVE_FLOAT;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
   /* preparation for data compression */
   hid_t dataset, dataspace, property;
 #ifdef  USE_SZIP_COMPRESSION
@@ -2817,12 +2817,12 @@ void outputRadialProfiles
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &kind));
   chkHDF5err(H5Aclose(attribute));
 
-  /** write flag about DOUBLE_PRECISION */
-#ifdef  DOUBLE_PRECISION
+  /** write flag about USE_DOUBLE_PRECISION */
+#ifdef  USE_DOUBLE_PRECISION
   const int useDP = 1;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   const int useDP = 0;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
   attribute = H5Acreate(target, "useDP", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
   chkHDF5err(H5Aclose(attribute));
@@ -2931,11 +2931,11 @@ void outputDistributionFunction(const int skind, dist_func **df, char file[])
     hsize_t dims = NENEBIN;
     dataspace = H5Screate_simple(1, &dims, NULL);
 
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
     hid_t hdf5_real = H5T_NATIVE_DOUBLE;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
     hid_t hdf5_real = H5T_NATIVE_FLOAT;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
 
     /** write energy */
     hid_t dataset;
@@ -2986,12 +2986,12 @@ void outputDistributionFunction(const int skind, dist_func **df, char file[])
   chkHDF5err(H5Aclose(attribute));
   chkHDF5err(H5Tclose(str4format));
 
-  /** write flag about DOUBLE_PRECISION */
-#ifdef  DOUBLE_PRECISION
+  /** write flag about USE_DOUBLE_PRECISION */
+#ifdef  USE_DOUBLE_PRECISION
   const int useDP = 1;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   const int useDP = 0;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
   attribute = H5Acreate(target, "useDP", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
   chkHDF5err(H5Aclose(attribute));
@@ -3663,11 +3663,11 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
   char filename[128];
   sprintf(filename, "%s/%s.%s.h5", DATAFOLDER, file, "disk");
   hid_t target = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
   hid_t hdf5_real = H5T_NATIVE_DOUBLE;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   hid_t hdf5_real = H5T_NATIVE_FLOAT;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
 
   /** preparation for data compression */
   hid_t dataset, dataspace, property;
@@ -4064,12 +4064,12 @@ void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *dis
   chkHDF5err(H5Awrite(attribute, str4format,        time_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
   chkHDF5err(H5Tclose(str4format));
 
-  /** write flag about DOUBLE_PRECISION */
-#ifdef  DOUBLE_PRECISION
+  /** write flag about USE_DOUBLE_PRECISION */
+#ifdef  USE_DOUBLE_PRECISION
   const int useDP = 1;
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   const int useDP = 0;
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
   attribute = H5Acreate(target, "useDP", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
   chkHDF5err(H5Aclose(attribute));

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/25 (Tue)
+ * @date 2019/07/31 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -258,11 +258,11 @@ typedef struct
  *
  * @brief structure for fixed potential field
  */
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
 typedef struct __align__(16)
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
 typedef struct __align__( 8)
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
 {
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   real val, dr2;/**< potential and its 2nd-derivative */
@@ -294,11 +294,11 @@ typedef struct
  *
  * @brief structure for fixed potential field
  */
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
 typedef struct __align__(16)
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
 typedef struct __align__( 8)
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
 {
   real R, z;/**< F_R and F_z */
 } disk_grav;

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/24 (Thu)
+ * @date 2019/07/31 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -516,11 +516,11 @@ __global__ void calcExternalGravity_kernel
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD_DISK
 
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
 #define THREE_HALVES (1.5)
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
 #define THREE_HALVES (1.5f)
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
 
 /**
  * @fn calcExternalDiskGravity_kernel
@@ -965,7 +965,7 @@ muse  readFixedPotentialTableSpherical
 
   /* read attribute data */
   hid_t attribute;
-  /* read flag about DOUBLE_PRECISION */
+  /* read flag about USE_DOUBLE_PRECISION */
   int useDP;
   attribute = H5Aopen(target, "useDP", H5P_DEFAULT);
   chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &useDP));
@@ -979,11 +979,11 @@ muse  readFixedPotentialTableSpherical
   chkHDF5err(H5Gclose(group));
 
   /* simple error checks */
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
   if( useDP != 1 ){    __KILL__(stderr, "ERROR: useDP (%d) differs with that in the code (%d)\n", useDP, true);  }
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   if( useDP != 0 ){    __KILL__(stderr, "ERROR: useDP (%d) differs with that in the code (%d)\n", useDP, false);  }
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
   if( unit_pot != unit ){
     __KILL__(stderr, "ERROR: unit system of the potential field (%d) differs with that in the simulation run (%d)\n", unit_pot, unit);
   }/* if( unit_pot != unit ){ */
@@ -1285,7 +1285,7 @@ muse  readFixedPotentialTableDisk
 
   /* read attribute data */
   hid_t attribute;
-  /* read flag about DOUBLE_PRECISION */
+  /* read flag about USE_DOUBLE_PRECISION */
   int useDP;
   attribute = H5Aopen(target, "useDP", H5P_DEFAULT);
   chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &useDP));
@@ -1299,11 +1299,11 @@ muse  readFixedPotentialTableDisk
   chkHDF5err(H5Gclose(group));
 
   /* simple error checks */
-#ifdef  DOUBLE_PRECISION
+#ifdef  USE_DOUBLE_PRECISION
   if( useDP != 1 ){    __KILL__(stderr, "ERROR: useDP (%d) differs with that in the code (%d)\n", useDP, true);  }
-#else///DOUBLE_PRECISION
+#else///USE_DOUBLE_PRECISION
   if( useDP != 0 ){    __KILL__(stderr, "ERROR: useDP (%d) differs with that in the code (%d)\n", useDP, false);  }
-#endif//DOUBLE_PRECISION
+#endif//USE_DOUBLE_PRECISION
   if( unit_pot != unit ){
     __KILL__(stderr, "ERROR: unit system of the potential field (%d) differs with that in the simulation run (%d)\n", unit_pot, unit);
   }/* if( unit_pot != unit ){ */
