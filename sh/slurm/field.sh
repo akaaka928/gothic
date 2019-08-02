@@ -21,10 +21,12 @@ EXEC=bin/gothic
 # problem ID
 if [ -z "$PROBLEM" ]; then
     # PROBLEM=0
-    PROBLEM=11
+    # PROBLEM=11
     # PROBLEM=12
     # PROBLEM=13
     # PROBLEM=22
+    # PROBLEM=30
+    PROBLEM=31
 fi
 ###############################################################
 # topology of MPI processes
@@ -107,6 +109,20 @@ fi
 if [ $PROBLEM -eq 22 ]; then
     FILE=disk
     SPHEPOT=hd
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 30 ]; then
+    FILE=subhalo0-backward
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 31 ]; then
+    FILE=subhalo1-backward
+    SPHEPOT=m31
+    DISKPOT=m31
 fi
 ###############################################################
 # set input arguments

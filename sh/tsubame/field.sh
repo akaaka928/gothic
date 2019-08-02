@@ -76,6 +76,41 @@ if [ $PROBLEM -eq 22 ]; then
     SPHEPOT=hd
 fi
 ###############################################################
+# preparation for throwing DM subhalo into NW stream
+if [ $PROBLEM -eq 30 ]; then
+    FILE=k18nws
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo and NW stream
+if [ $PROBLEM -eq 31 ]; then
+    FILE=nws-subhalo0-live
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo and NW stream
+if [ $PROBLEM -eq 32 ]; then
+    FILE=nws-subhalo1-live
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo and NW stream
+if [ $PROBLEM -eq 33 ]; then
+    FILE=nws-subhalo0-test
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo and NW stream
+if [ $PROBLEM -eq 34 ]; then
+    FILE=nws-subhalo1-test
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
 # set input arguments
 OPTION="-absErr=$ABSERR -file=$FILE -pot_file_sphe=$SPHEPOT -pot_file_disk=$DISKPOT -jobID=$JOB_ID"
 ###############################################################

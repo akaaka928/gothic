@@ -27,11 +27,16 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=10
     # PROBLEM=11
     # PROBLEM=12
-    PROBLEM=13
+    # PROBLEM=13
     # PROBLEM=21
     # PROBLEM=22
     # PROBLEM=23
     # PROBLEM=24
+    PROBLEM=30
+    # PROBLEM=31
+    # PROBLEM=32
+    # PROBLEM=33
+    # PROBLEM=34
 fi
 ###############################################################
 # dump file generation interval (in units of minute)
@@ -170,6 +175,36 @@ if [ $PROBLEM -eq 24 ]; then
     ETA=0.5
     FINISH=14000.0
     INTERVAL=100.0
+fi
+###############################################################
+# preparation for throwing DM subhalo into NW stream
+if [ $PROBLEM -eq 30 ]; then
+    FILE=k18nws
+    CFG=nws/satellite.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=7400.0
+    INTERVAL=25.0
+fi
+###############################################################
+# collision between DM subhalo and NW stream
+if [ $PROBLEM -eq 40 ]; then
+    FILE=nws-subhalo0
+    CFG=nws/subhalo0.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=6600.0
+    INTERVAL=25.0
+fi
+###############################################################
+# collision between DM subhalo and NW stream
+if [ $PROBLEM -eq 32 ]; then
+    FILE=nws-subhalo1
+    CFG=nws/subhalo1.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=6600.0
+    INTERVAL=25.0
 fi
 ###############################################################
 # set input arguments

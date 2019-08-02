@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/12/21 (Fri)
+ * @date 2019/08/02 (Fri)
  *
  * Copyright (C) 2018 Yohei Miki
  * All rights reserved.
@@ -169,6 +169,7 @@ static inline void readEditorCfg(char *cfg, int *unit, int *Nobj, object **obj, 
   int checker = 1;
 
   /** read the number of input files */
+  checker &= (1 == fscanf(fp, "%d", unit));
   checker &= (1 == fscanf(fp, "%d", Nobj));
   *obj = (object *)malloc(sizeof(object) * (*Nobj));  if( *obj == NULL ){    __KILL__(stderr, "ERROR: failure to allocate obj (cfg file is \"%s\", Nobj = %d)\n", filename, *Nobj);  }
 
@@ -203,13 +204,13 @@ static inline void readEditorCfg(char *cfg, int *unit, int *Nobj, object **obj, 
       static double ft, snapshotInterval, saveInterval;
       static int unit_tmp;
       readSettings(&unit_tmp, &Ntot, &eps, &eta, &ft, &snapshotInterval, &saveInterval, (*obj)[ii].file);
-      if( ii > 0 ){
+      /* if( ii > 0 ){ */
 	if( unit_tmp != *unit ){
 	  __KILL__(stderr, "ERROR: unit system of all objects listed in \"%s/%s\" must be identical.\n", CFGFOLDER, cfg);
 	}/* if( unit_tmp != unit ){ */
-      }/* if( ii > 0 ){ */
-      else
-	*unit = unit_tmp;
+      /* }/\* if( ii > 0 ){ *\/ */
+      /* else */
+      /* 	*unit = unit_tmp; */
       *eps_min = FMIN(*eps_min, eps);
     }/* if( strncmp((*obj)[ii].file, "throw_BH_particle", 17) != 0 ){ */
     else{
@@ -315,6 +316,7 @@ static inline void readEditorCfg(char *cfg, int *unit, int *Nobj, object **obj, 
       (*obj)[ii].BHmass = CAST_D2R(BHmass * mass_astro2com);
       (*cmp)[(*obj)[ii].head].num = 1;
       (*cmp)[(*obj)[ii].head].skip = 0;
+      (*cmp)[(*obj)[ii].head].head = 0;
     }/* else{ */
 
     fclose(fp);

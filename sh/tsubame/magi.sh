@@ -575,7 +575,8 @@ if [ $PROBLEM -eq 62 ]; then
     # FINISH=5175.0
     # FINISH=5175.0
     INTERVAL=100.0
-    FINISH=14000.0
+    # FINISH=14000.0
+    FINISH=7400.0
 fi
 ###############################################################
 # dynamical stability of a progenitor model for NW stream

@@ -19,13 +19,15 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=1
     # PROBLEM=2
     # PROBLEM=10
-    PROBLEM=11
+    # PROBLEM=11
     # PROBLEM=12
     # PROBLEM=13
     # PROBLEM=21
     # PROBLEM=22
     # PROBLEM=23
     # PROBLEM=24
+    # PROBLEM=40
+    PROBLEM=41
 fi
 ###############################################################
 # dump file generation interval (in units of minute)
@@ -164,6 +166,26 @@ if [ $PROBLEM -eq 33 ]; then
     ETA=0.5
     FINISH=14000.0
     INTERVAL=100.0
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 40 ]; then
+    FILE=subhalo0-backward
+    CFG=nws/subhalo0-backward.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=800.0
+    INTERVAL=25.0
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 41 ]; then
+    FILE=subhalo1-backward
+    CFG=nws/subhalo1-backward.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=800.0
+    INTERVAL=25.0
 fi
 ###############################################################
 # DM accretion onto central MBH
