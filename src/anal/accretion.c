@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/07/31 (Wed)
+ * @date 2019/08/06 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -76,13 +76,13 @@ static inline double getDF(const double QQ, real * restrict ene, real * restrict
 {
   if( QQ < Qmin )
     return (0.0);
-  const int ii = (int)((QQ - Qmin) * invQbin);
+  const int ii = (int)FLOOR((QQ - Qmin) * invQbin);
   return (CAST_R2D(df[ii] + (df[ii + 1] - df[ii]) * (QQ - ene[ii]) / (ene[ii + 1] - ene[ii])));
 }
 static inline double getPsi(const double rad, const double logrmin, const double invlogrbin, real * restrict Psi)
 {
   const double rr = (log10(rad) - logrmin) * invlogrbin;
-  const int ii = (int)rr;
+  const int ii = (int)floor(rr);
   if( ii < 0 )
     return (CAST_R2D(Psi[0]));
   return (CAST_R2D(Psi[ii]) + (CAST_R2D(Psi[ii + 1]) - CAST_R2D(Psi[ii])) * (rr - (double)ii));
@@ -98,7 +98,7 @@ static inline double get_DEformula_azimuthal(const double tt, const double Psi, 
   const double sineta = sin(alp_2 * exp(sinh_t) * inv_cosh_t);
   const double QQ = Psi - v2_2 * (1.0 + r2_ra2 * sineta * sineta);
 
-  return (cosh(tt) * inv_cosh_t * inv_cosh_t * getDF(QQ, ene, df, Qmin, invQbin));
+  return (cosh(tt) * inv_cosh_t * inv_cosh_t * sineta * getDF(QQ, ene, df, Qmin, invQbin));/**< sineta was missing until 2019/08/06 */
 }
 static inline double update_trapezoidal_azimuthal(const double hh, const double tmin, const double tmax, const double sum, const double Psi, const double r2_ra2, const double v2_2, const double alp_2, real * restrict ene, real * restrict df, const double Qmin, const double invQbin)
 {
@@ -655,6 +655,8 @@ int main(int argc, char **argv)
   int *tail;  tail = (int *)malloc(sizeof(int) * kind);  if( tail == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tail\n");  }
 
   const double factor = M_PI * M_PI * 2.0 * M_PI * M_PI * M_PI;
+  /** must be checked: M_PI * M_PI * 2.0 * M_PI * M_PI * M_PI * (drp_4 + drm_4) * vesc_2 * alp_2 */
+  /** desired:         M_PI * M_PI * 2.0 * M_PI * M_PI * M_PI * (drp + drm) * 0.25 * vesc * alpha * 0.25 <-- O.K! */
   for(int ii = 0; ii < skind; ii++){
     const double Qmin = CAST_R2D(ene[ii][0]);
     const double invQbin = (double)(num - 1) / (ene[ii][num - 1] - Qmin);
@@ -687,8 +689,15 @@ int main(int argc, char **argv)
     for(int jj = jhead; jj < jtail + 1; jj++){
       const double rr = CAST_R2D(rad[jj]);
       /* calculate mass in loss cone */
+#if 1
+      /* updated on 2019/08/06 */
+      const double drp_4 = rr * fac_drp * 0.25;
+      const double drm_4 = (jj > 0) ? (rr * fac_drm * 0.25) : (0.0);
+#else
+      /* old implementation, seems to be a bug */
       const double drp_4 = rr * fac_drp * 0.125;
       const double drm_4 = (jj > 0) ? (rr * fac_drm * 0.125) : (0.0);
+#endif
       loss[ii][jj] = CAST_D2R(factor * integrate_DEformula_radial(rr, drp_4, drm_4, logrmin, invlogrbin, Psi_tot, lmax, ra2inv[ii], ene[ii], df[ii], Qmin, invQbin) * mass2astro);
     }/* for(int jj = jhead; jj < jtail + 1; jj++){ */
   }/* for(int ii = 0; ii < skind; ii++){ */
