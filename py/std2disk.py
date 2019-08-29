@@ -47,7 +47,10 @@ print(spin)
 
 
 # colliding point of NW Stream and a DM subhalo
-xi, eta, D = -5.7083, 5.2083, 870.17
+# xi, eta, D = -5.7083, 5.2083, 870.17
+# vrot = 147.133755043495863996
+xi, eta, D = 1.1404, 8.2456, 908.22
+vrot = 137.6723563
 x0, y0, z0 = m31.cartesian_coordinate(xi, eta, D)
 obs = np.array([x0, y0, z0])
 print("collision point in observed frame:")
@@ -55,7 +58,7 @@ print(obs, np.sqrt(x0**2 + y0**2 + z0**2))
 print("collision point in M31 disk frame:")
 print(np.dot(rot, obs))
 
-vx0 = 147.133755043495863996 / np.sqrt(1.0 + (y0 / x0)**2 + ((x0**2 + y0**2) / (z0 * x0))**2)
+vx0 = vrot / np.sqrt(1.0 + (y0 / x0)**2 + ((x0**2 + y0**2) / (z0 * x0))**2)
 vy0 = vx0 * y0 / x0
 vz0 = -vx0 * (x0**2 + y0**2) / (z0 * x0)
 print("collision velocity 0 in observed frame:")
@@ -66,7 +69,7 @@ print(np.dot(rot, vel))
 
 A = -(x0 * vz0 - z0 * vx0) / (y0 * vz0 - z0 * vy0)
 B = -(x0 + A * y0) / z0
-vx1 = 147.133755043495863996 / np.sqrt(1.0 + A * A + B * B)
+vx1 = vrot / np.sqrt(1.0 + A * A + B * B)
 vy1 = A * vx1
 vz1 = B * vx1
 print("collision velocity 1 in observed frame:")

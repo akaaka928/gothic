@@ -27,7 +27,9 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=23
     # PROBLEM=24
     # PROBLEM=40
-    PROBLEM=41
+    # PROBLEM=41
+    PROBLEM=42
+    # PROBLEM=43
 fi
 ###############################################################
 # dump file generation interval (in units of minute)
@@ -185,6 +187,26 @@ if [ $PROBLEM -eq 41 ]; then
     EPS=1.5625e-2
     ETA=0.5
     FINISH=800.0
+    INTERVAL=25.0
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 42 ]; then
+    FILE=subhalo2-backward
+    CFG=nws/subhalo2-backward.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 43 ]; then
+    FILE=subhalo3-backward
+    CFG=nws/subhalo3-backward.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1000.0
     INTERVAL=25.0
 fi
 ###############################################################

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/07/31 (Wed)
+ * @date 2019/08/18 (Sun)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1124,10 +1124,8 @@ muse  readFixedPotentialTableSpherical
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
   real *rad_hst;
 #else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-  alloc_tbl = allocSphericalPotentialTable_dev(rad, Phi, num);
-  allocSphericalPotentialTable_hst(&rad_hst, &Phi_hst, num);
-
-  tmp = num;  if( tmp != fread(rad_hst, sizeof(real), tmp, fp) )    success = false;
+  alloc_tbl = allocSphericalPotentialTable_dev(Phi, num);
+  allocSphericalPotentialTable_hst(&Phi_hst, num);
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
   int list;
@@ -1182,8 +1180,8 @@ muse  readFixedPotentialTableSpherical
       tmp = num;      if( tmp != fread(Phi_tmp, sizeof(pot2), tmp, fp) )	success = false;
 
       for(int jj = 0; jj < num; jj++){
-	Phi_hst[jj].val += Phi_tmp[jj].val;
-	Phi_hst[jj].dr2 += Phi_tmp[jj].dr2;
+	Phi_hst[jj].Phi += Phi_tmp[jj].Phi;
+	Phi_hst[jj].Fr  += Phi_tmp[jj].Fr;
       }/* for(int jj = 0; jj < *Nr; jj++){ */
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
 
@@ -1456,7 +1454,7 @@ muse  readFixedPotentialTableDisk
 #ifdef  ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
      &RR_hst, &zz_hst,
 #else///ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-     FRz_hst,
+     &FRz_hst,
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
      *disk);
 

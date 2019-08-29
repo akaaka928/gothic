@@ -17,66 +17,14 @@ EXEC=bin/magi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    # PROBLEM=2
-    # PROBLEM=3
-    # PROBLEM=10
-    # PROBLEM=14
-    # PROBLEM=15
-    # PROBLEM=21
-    # PROBLEM=23
-    # PROBLEM=26
-    PROBLEM=27
-    # PROBLEM=33
-    # PROBLEM=39
-    # PROBLEM=46
-    # PROBLEM=60
-    # PROBLEM=61
-    # PROBLEM=62
-    # PROBLEM=63
-    # PROBLEM=64
-    # PROBLEM=90
-    # PROBLEM=91
-    # PROBLEM=92
-    # PROBLEM=93
-    # PROBLEM=94
-    # PROBLEM=95
-    # PROBLEM=96
-    # PROBLEM=97
-    # PROBLEM=98
-    # PROBLEM=99
-    # PROBLEM=100
+    # PROBLEM=27
+    PROBLEM=304
+    # PROBLEM=305
 fi
 ###############################################################
 # number of N-body particles
 if [ -z "$NTOT" ]; then
-    # NTOT=128
-    # NTOT=256
-    # NTOT=512
-    # NTOT=1024
-    # NTOT=2048
-    # NTOT=4096
-    # NTOT=8192
-    # NTOT=16384
-    # NTOT=32768
-    # NTOT=65536
-    # NTOT=131072
-    # NTOT=262144
-    # NTOT=524288
-    # NTOT=1048576
-    # NTOT=1900000
-    # NTOT=2097152
-    # NTOT=4194304
-    # NTOT=8388608
-    NTOT=16777216
-    # NTOT=33554432
-    # NTOT=67108864
-    # NTOT=134217728
-    # NTOT=268435456
-    # NTOT=536870912
-    # NTOT=1073741824
-    # NTOT=2147483648
-    # NTOT=4294967296
-    # NTOT=8589934592
+    NTOT=1048576
 fi
 ###############################################################
 # dump file generation interval (in units of minute)
@@ -1853,6 +1801,72 @@ if [ $PROBLEM -eq 295 ]; then
     ETA=0.5
     FINISH=14000.0
     INTERVAL=100.0
+fi
+###############################################################
+# dynamical stability of a subhalo model (10^7 Msun)
+if [ $PROBLEM -eq 300 ]; then
+    NTOT=209715
+    FILE=subhalo-m7_0
+    CONFIG=nws/subhalo/m7_0.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=6600.0
+    INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of a subhalo model (10^7.5 Msun)
+if [ $PROBLEM -eq 301 ]; then
+    NTOT=663178
+    FILE=subhalo-m7_5
+    CONFIG=nws/subhalo/m7_5.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=6600.0
+    INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of a subhalo model (10^8 Msun)
+if [ $PROBLEM -eq 302 ]; then
+    NTOT=2097152
+    FILE=subhalo-m8_0
+    CONFIG=nws/subhalo/m8_0.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=6600.0
+    INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of a subhalo model (10^8.5 Msun)
+if [ $PROBLEM -eq 303 ]; then
+    NTOT=6631777
+    FILE=subhalo-m8_5
+    CONFIG=nws/subhalo/m8_5.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=6600.0
+    INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of a subhalo model (10^9 Msun)
+if [ $PROBLEM -eq 304 ]; then
+    NTOT=20971520
+    FILE=subhalo-m9_0
+    CONFIG=nws/subhalo/m9_0.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=6600.0
+    INTERVAL=25.0
+fi
+###############################################################
+# dynamical stability of a subhalo model (10^9.5 Msun)
+if [ $PROBLEM -eq 305 ]; then
+    NTOT=66317769
+    FILE=subhalo-m9_5
+    CONFIG=nws/subhalo/m9_5.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=6600.0
+    INTERVAL=25.0
 fi
 ###############################################################
 # set input arguments

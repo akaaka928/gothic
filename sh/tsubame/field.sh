@@ -1,7 +1,7 @@
 #!/bin/sh
 #$ -cwd
 #$ -l s_gpu=1
-#$ -l h_rt=24:00:00
+#$ -l h_rt=12:00:00
 #$ -N gothic_ext
 #$ -hold_jid magi,modify,gothic_ext
 ###############################################################
@@ -16,11 +16,32 @@ fi
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    # PROBLEM=0
-    # PROBLEM=11
-    # PROBLEM=12
-    PROBLEM=13
-    # PROBLEM=22
+    PROBLEM=30
+    # PROBLEM=31
+    # PROBLEM=40
+    # PROBLEM=41
+    # PROBLEM=42
+    # PROBLEM=43
+    # PROBLEM=44
+    # PROBLEM=45
+    # PROBLEM=46
+    # PROBLEM=47
+    # PROBLEM=48
+    # PROBLEM=49
+    # PROBLEM=50
+    # PROBLEM=51
+    # PROBLEM=60
+    # PROBLEM=61
+    # PROBLEM=62
+    # PROBLEM=63
+    # PROBLEM=64
+    # PROBLEM=65
+    # PROBLEM=66
+    # PROBLEM=67
+    # PROBLEM=68
+    # PROBLEM=69
+    # PROBLEM=70
+    # PROBLEM=71
 fi
 ###############################################################
 # value of accuracy controling parameter: GADGET MAC by Springel (2005)
@@ -83,30 +104,177 @@ if [ $PROBLEM -eq 30 ]; then
     DISKPOT=m31
 fi
 ###############################################################
-# collision between DM subhalo and NW stream
+# continue N-body simulation to reproduce NW stream
 if [ $PROBLEM -eq 31 ]; then
-    FILE=nws-subhalo0-live
+    FILE=nws-continue
     SPHEPOT=m31
     DISKPOT=m31
 fi
 ###############################################################
-# collision between DM subhalo and NW stream
-if [ $PROBLEM -eq 32 ]; then
-    FILE=nws-subhalo1-live
+# collision between DM subhalo (test-particle) and NW stream
+if [ $PROBLEM -eq 40 ]; then
+    FILE=nws-test-m7_0-orbit0
     SPHEPOT=m31
     DISKPOT=m31
 fi
 ###############################################################
-# collision between DM subhalo and NW stream
-if [ $PROBLEM -eq 33 ]; then
-    FILE=nws-subhalo0-test
+# collision between DM subhalo (test-particle) and NW stream
+if [ $PROBLEM -eq 41 ]; then
+    FILE=nws-test-m7_0-orbit1
     SPHEPOT=m31
     DISKPOT=m31
 fi
 ###############################################################
-# collision between DM subhalo and NW stream
-if [ $PROBLEM -eq 34 ]; then
-    FILE=nws-subhalo1-test
+# collision between DM subhalo (test-particle) and NW stream
+if [ $PROBLEM -eq 42 ]; then
+    FILE=nws-test-m7_5-orbit0
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (test-particle) and NW stream
+if [ $PROBLEM -eq 43 ]; then
+    FILE=nws-test-m7_5-orbit1
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (test-particle) and NW stream
+if [ $PROBLEM -eq 44 ]; then
+    FILE=nws-test-m8_0-orbit0
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (test-particle) and NW stream
+if [ $PROBLEM -eq 45 ]; then
+    FILE=nws-test-m8_0-orbit1
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (test-particle) and NW stream
+if [ $PROBLEM -eq 46 ]; then
+    FILE=nws-test-m8_5-orbit0
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (test-particle) and NW stream
+if [ $PROBLEM -eq 47 ]; then
+    FILE=nws-test-m8_5-orbit1
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (test-particle) and NW stream
+if [ $PROBLEM -eq 48 ]; then
+    FILE=nws-test-m9_0-orbit0
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (test-particle) and NW stream
+if [ $PROBLEM -eq 49 ]; then
+    FILE=nws-test-m9_0-orbit1
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (test-particle) and NW stream
+if [ $PROBLEM -eq 50 ]; then
+    FILE=nws-test-m9_5-orbit0
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (test-particle) and NW stream
+if [ $PROBLEM -eq 51 ]; then
+    FILE=nws-test-m9_5-orbit1
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 60 ]; then
+    FILE=nws-live-m7_0-orbit0
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 61 ]; then
+    FILE=nws-live-m7_0-orbit1
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 62 ]; then
+    FILE=nws-live-m7_5-orbit0
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 63 ]; then
+    FILE=nws-live-m7_5-orbit1
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 64 ]; then
+    FILE=nws-live-m8_0-orbit0
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 65 ]; then
+    FILE=nws-live-m8_0-orbit1
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 66 ]; then
+    FILE=nws-live-m8_5-orbit0
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 67 ]; then
+    FILE=nws-live-m8_5-orbit1
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 68 ]; then
+    FILE=nws-live-m9_0-orbit0
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 69 ]; then
+    FILE=nws-live-m9_0-orbit1
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 70 ]; then
+    FILE=nws-live-m9_5-orbit0
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 71 ]; then
+    FILE=nws-live-m9_5-orbit1
     SPHEPOT=m31
     DISKPOT=m31
 fi
@@ -126,7 +294,7 @@ STDERR=log/${FILE}_$REQUEST.e$JOB_ID
 # load modules
 . /etc/profile.d/modules.sh
 export MODULEPATH=$MODULEPATH:/gs/hs1/jh180045/share/opt/Modules
-module load intel/19.0.0.117 cuda/9.2.148 openmpi/2.1.2-opa10.0
+module load intel/19.0.0.117 cuda/9.2.148 openmpi/2.1.2-opa10.9
 module load cub phdf5
 module list 1>>$STDOUT 2>>$STDERR
 ###############################################################

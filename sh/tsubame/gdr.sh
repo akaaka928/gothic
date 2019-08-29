@@ -314,7 +314,7 @@ echo "start: $TIME"
 # load modules
 . /etc/profile.d/modules.sh
 export MODULEPATH=$MODULEPATH:/gs/hs1/jh180045/share/opt/Modules
-module load intel/19.0.0.117 cuda/9.2.148 openmpi/2.1.2-opa10.0
+module load intel/19.0.0.117 cuda/9.2.148 openmpi/2.1.2-opa10.9
 module load cub phdf5
 module list
 ###############################################################

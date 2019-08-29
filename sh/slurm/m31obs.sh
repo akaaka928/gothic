@@ -17,9 +17,12 @@ EXEC=bin/m31obs
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
-    PROBLEM=111
+    # PROBLEM=111
     # PROBLEM=112
     # PROBLEM=113
+    # PROBLEM=114
+    PROBLEM=115
+    # PROBLEM=116
 fi
 ###############################################################
 # set number of N-body particles per bin to estimate density
@@ -87,8 +90,11 @@ fi
 ###############################################################
 # reproduction of Komiyama et al. (2018) in the disk coordinate system
 if [ $PROBLEM -eq 113 ]; then
-    FILE=k18nws
-    FINISH=14000.0
+    # FILE=nws-continue
+    FILE=nws-test-m9_5-orbit0
+    FINISH=6600.0
+    # FILE=k18nws
+    # FINISH=14000.0
     INTERVAL=25.0
     XIMIN=-9.0
     XIMAX=7.0
@@ -98,6 +104,79 @@ if [ $PROBLEM -eq 113 ]; then
     DMAX=200.0
     VMIN=-540.0
     VMAX=-200.0
+fi
+###############################################################
+# reproduction of Komiyama et al. (2018) in the disk coordinate system
+if [ $PROBLEM -eq 114 ]; then
+    FILE=nws-continue
+    # FILE=nws-test-m9_5-orbit0
+    # FILE=nws-test-m9_5-orbit1
+    FINISH=6600.0
+    INTERVAL=25.0
+    XIMIN=-11.0
+    XIMAX=21.0
+    ETAMIN=-14.0
+    ETAMAX=18.0
+    DMIN=-150.0
+    DMAX=350.0
+    VMIN=-650.0
+    VMAX=-50.0
+
+    NX3D=256
+    NY3D=256
+    NZ3D=256
+    NX=2048
+    NY=2048
+    NZ=2048
+    NV=2048
+fi
+###############################################################
+# reproduction of Komiyama et al. (2018) in the disk coordinate system
+if [ $PROBLEM -eq 115 ]; then
+    FILE=nws-continue
+    # FILE=nws-test-m9_5-orbit2
+    # FILE=nws-test-m9_5-orbit3
+    FINISH=10700.0
+    INTERVAL=25.0
+    XIMIN=-11.0
+    XIMAX=21.0
+    ETAMIN=-14.0
+    ETAMAX=18.0
+    DMIN=-150.0
+    DMAX=350.0
+    VMIN=-650.0
+    VMAX=-50.0
+
+    NX3D=256
+    NY3D=256
+    NZ3D=256
+    NX=2048
+    NY=2048
+    NZ=2048
+    NV=2048
+fi
+###############################################################
+# reproduction of Komiyama et al. (2018) in the disk coordinate system (show whole domain)
+if [ $PROBLEM -eq 116 ]; then
+    FILE=k18nws
+    FINISH=14000.0
+    INTERVAL=25.0
+    XIMIN=-22.0
+    XIMAX=22.0
+    ETAMIN=-22.0
+    ETAMAX=22.0
+    DMIN=-150.0
+    DMAX=350.0
+    VMIN=-650.0
+    VMAX=-50.0
+
+    NX3D=256
+    NY3D=256
+    NZ3D=256
+    NX=2048
+    NY=2048
+    NZ=2048
+    NV=2048
 fi
 ###############################################################
 # count up number of snapshot files

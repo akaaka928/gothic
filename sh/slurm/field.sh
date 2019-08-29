@@ -26,7 +26,9 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=13
     # PROBLEM=22
     # PROBLEM=30
-    PROBLEM=31
+    # PROBLEM=31
+    PROBLEM=32
+    # PROBLEM=33
 fi
 ###############################################################
 # topology of MPI processes
@@ -121,6 +123,20 @@ fi
 # throwing DM subhalo toward NW stream
 if [ $PROBLEM -eq 31 ]; then
     FILE=subhalo1-backward
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 32 ]; then
+    FILE=subhalo2-backward
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 33 ]; then
+    FILE=subhalo3-backward
     SPHEPOT=m31
     DISKPOT=m31
 fi
