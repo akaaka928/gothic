@@ -25,19 +25,19 @@ if [ `which numactl` ]; then
     SOCKET=`expr $TEMPID / $PROCS_PER_SOCKET`
 
     if [ $RANK -eq 0 ]; then
-	FILE=nws-live-m9_0-orbit2
+	FILE=nws-live-m9_0-orbit4
 	DEVID=0
     fi
     if [ $RANK -eq 1 ]; then
-	FILE=nws-live-m9_0-orbit3
+	FILE=nws-live-m9_0-orbit5
 	DEVID=2
     fi
     if [ $RANK -eq 2 ]; then
-	FILE=nws-live-m9_5-orbit2
+	FILE=nws-live-m9_0-orbit6
 	DEVID=1
     fi
     if [ $RANK -eq 3 ]; then
-	FILE=nws-live-m9_5-orbit3
+	FILE=nws-live-m9_0-orbit7
 	DEVID=3
     fi
 

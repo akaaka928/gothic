@@ -610,6 +610,7 @@ GOTHIC	:= $(BINDIR)/gothic
 MKCOLD	:= $(BINDIR)/uniformsphere
 MAGI	:= $(BINDIR)/magi
 EDITOR	:= $(BINDIR)/editor
+EXTEND	:= $(BINDIR)/extend
 ifneq ($(PLPLOT), 0)
 PLTENE	:= $(BINDIR)/energy
 PLTDST	:= $(BINDIR)/distribution
@@ -634,6 +635,7 @@ DMHALO	:= $(BINDIR)/dmhalo
 BULGE	:= $(BINDIR)/spheroid
 BHMASS	:= $(BINDIR)/blackhole
 M31OBS	:= $(BINDIR)/m31obs
+M31ENE	:= $(BINDIR)/m31phase
 OPTCFG	:= $(BINDIR)/showOptConfig
 SAMPLE	:= $(BINDIR)/sample
 #################################################################################################
@@ -731,6 +733,7 @@ ifeq ($(SET_EXTERNAL_FIELD), 1)
 MAGILIB	+= external.c
 endif
 EDITSRC	:= editor.c
+EXTDSRC	:= extend.c
 #################################################################################################
 PENESRC	:= energy.c
 DISTSRC	:= distribution.c
@@ -757,6 +760,7 @@ HALOSRC	:= dmhalo.c
 SPHESRC	:= spheroid.c
 SMBHSRC	:= blackhole.c
 AM31SRC	:= m31obs.c
+EM31SRC	:= m31phase.c
 M31LIB	:= m31coord.c
 #################################################################################################
 
@@ -848,6 +852,14 @@ else
 OBJEDIT	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.o,      $(notdir $(EDITSRC)))
 OBJEDIT	+= $(patsubst %.c, $(OBJDIR)/%.o,             $(notdir $(ALLCLIB)))
 OBJEDIT	+= $(patsubst %.c, $(OBJDIR)/%.mpi.o,         $(notdir $(FILELIB)))
+endif
+#################################################################################################
+ifeq ($(DATAFILE_FORMAT_HDF5), 1)
+OBJEXTD	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.hdf5.o, $(notdir $(EXTDSRC)))
+OBJEXTD	+= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o,    $(notdir $(FILELIB)))
+else
+OBJEXTD	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.o,      $(notdir $(EXTDSRC)))
+OBJEXTD	+= $(patsubst %.c, $(OBJDIR)/%.mpi.o,	      $(notdir $(FILELIB)))
 endif
 #################################################################################################
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
@@ -953,21 +965,29 @@ OBJAM31	+= $(patsubst %.c, $(OBJDIR)/%.o,          $(notdir $(ALLCLIB)))
 endif
 OBJAM31	+= $(patsubst %.c, $(OBJDIR)/%.o,          $(notdir $(M31LIB)))
 #################################################################################################
+ifeq ($(DATAFILE_FORMAT_HDF5), 1)
+OBJEM31	:= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o, $(notdir $(EM31SRC) $(FILELIB) $(ALLCLIB)))
+else
+OBJEM31	:= $(patsubst %.c, $(OBJDIR)/%.mpi.o,	   $(notdir $(EM31SRC) $(FILELIB)))
+OBJEM31	+= $(patsubst %.c, $(OBJDIR)/%.o,	   $(notdir $(ALLCLIB)))
+endif
+#################################################################################################
 
 
 #################################################################################################
 ## Rules
 #################################################################################################
-# all:	TAGS $(GOTHIC) $(MAGI) $(EDITOR) $(PLTENE) $(PLTDST) $(ANALPRF)
-all:	$(GOTHIC) $(MAGI) $(EDITOR) $(PLTENE) $(PLTDST) $(ANALPRF)
+# all:	TAGS $(GOTHIC) $(MAGI) $(EDITOR) $(EXTEND) $(PLTENE) $(PLTDST) $(ANALPRF)
+all:	$(GOTHIC) $(MAGI) $(EDITOR) $(EXTEND) $(PLTENE) $(PLTDST) $(ANALPRF)
 # TAGS is removed for Cygnus (command 'etags' is not found)
 #################################################################################################
-.PHONY:	gothic init magi cold editor plot bench sample disk anal mbh halo bulge m31 sass
+.PHONY:	gothic init magi cold editor extend plot bench sample disk anal mbh halo bulge m31 sass
 gothic:	$(GOTHIC)
 init:	$(MAGI) $(MKCOLD) $(EDITOR)
 magi:	$(MAGI)
 cold:	$(MKCOLD)
 editor:	$(EDITOR)
+extend:	$(EXTEND)
 plot:	$(PLTENE) $(PLTDST) $(PLTCDF)
 bench:	$(OPTCFG) $(PLTELP) $(PLTDEP) $(PLTBRK) $(PLTCMP) $(PLTFLP) $(PLTRAD)
 sample:	$(SAMPLE) $(PLTDF)
@@ -976,7 +996,7 @@ anal:	$(ANALACT) $(ANALERR) $(ANALPRF)
 mbh:	$(ANALMBH)
 halo:	$(DMHALO)
 bulge:	$(BULGE) $(BHMASS)
-m31:	$(M31OBS)
+m31:	$(M31OBS) $(M31ENE)
 sass:	$(GOTHIC).sass
 tags:	TAGS
 #################################################################################################
@@ -1076,6 +1096,8 @@ $(MAGI):	$(OBJMAGI)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constan
 endif
 $(EDITOR):	$(OBJEDIT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEDIT) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)ompmpilib $(HDF5LIB) $(OMPLIB) $(CCLIB)
+$(EXTEND):	$(OBJEXTD)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEXTD) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)hdf5lib -l$(LIBPREC)ompmpilib $(HDF5LIB) $(OMPLIB) $(CCLIB)
 $(PLTENE):	$(OBJPENE)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPENE) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)plplotlib -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CCLIB)
 $(PLTDST):	$(OBJDIST)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
@@ -1092,6 +1114,8 @@ $(ANALMBH):	$(OBJAMBH)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)cons
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAMBH) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)hdf5lib -l$(LIBPREC)ompmpilib $(HDF5LIB) $(OMPLIB) $(CCLIB)
 $(M31OBS):	$(OBJAM31)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAM31) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CCLIB)
+$(M31ENE):	$(OBJEM31)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEM31) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CCLIB)
 else
 ifeq ($(USE_OFFICIAL_SFMT), 1)
 ifeq ($(USE_OFFICIAL_SFMT_JUMP), 1)
@@ -1113,6 +1137,8 @@ $(MAGI):	$(OBJMAGI)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constan
 endif
 $(EDITOR):	$(OBJEDIT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)rotate.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEDIT) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)ompmpilib $(OMPLIB) $(CCLIB)
+$(EXTEND):	$(OBJEXTD)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)ompmpilib.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEXTD) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib $(OMPLIB) $(CCLIB)
 $(PLTENE):	$(OBJPENE)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPENE) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)plplotlib -l$(LIBPREC)mpilib $(CCLIB)
 $(PLTDST):	$(OBJDIST)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)plplotlib.a
@@ -1129,6 +1155,8 @@ $(ANALMBH):	$(OBJAMBH)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)cons
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAMBH) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)ompmpilib $(OMPLIB) $(CCLIB)
 $(M31OBS):	$(OBJAM31)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAM31) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)mpilib $(CCLIB)
+$(M31ENE):	$(OBJEM31)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEM31) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib $(CCLIB)
 endif
 $(PLTELP):	$(OBJPELP)	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)mpilib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPELP) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)plplotlib -l$(LIBPREC)mpilib $(CCLIB)
@@ -1197,7 +1225,7 @@ clean:
 	$(VERBOSE)rm -f $(OBJDIR)/*.log
 	$(VERBOSE)rm -f $(OBJDIR)/*.o
 	$(VERBOSE)rm -f $(GOTHIC) $(OBJMPGT) $(GOTHIC).sass
-	$(VERBOSE)rm -f $(MKCOLD) $(MAGI) $(EDITOR)
+	$(VERBOSE)rm -f $(MKCOLD) $(MAGI) $(EDITOR) $(EXTEND)
 ifneq ($(PLPLOT), 0)
 	$(VERBOSE)rm -f $(PLTENE) $(PLTDST) $(PLTCDF)
 	$(VERBOSE)rm -f $(PLTELP) $(PLTDEP) $(PLTBRK) $(PLTCMP) $(PLTFLP)
@@ -1208,7 +1236,7 @@ endif
 	$(VERBOSE)rm -f $(ANALMBH)
 	$(VERBOSE)rm -f $(DMHALO)
 	$(VERBOSE)rm -f $(BULGE) $(BHMASS)
-	$(VERBOSE)rm -f $(M31OBS)
+	$(VERBOSE)rm -f $(M31OBS) $(M31ENE)
 	$(VERBOSE)rm -f $(SAMPLE)
 #################################################################################################
 visit:	$(DIRBODY)/Makefile $(DIRSNAP)/Makefile $(DIRPLOT)/Makefile $(DIRPM31)/Makefile $(DIRAERR)/Makefile $(DIRDUMP)/Makefile $(DIRDISK)/Makefile $(DIRDIST)/Makefile $(DIRPROF)/Makefile
@@ -1480,6 +1508,8 @@ $(OBJDIR)/magi.ompmpi.gsl.sfmt.o:	$(IOFILE_DEP)	$(MAGI_DEP)
 $(OBJDIR)/magi.ompmpi.gsl.o:		$(IOFILE_DEP)	$(MAGI_DEP)
 $(OBJDIR)/editor.ompmpi.hdf5.o:	$(IOFILE_DEP)	$(MYINC)/rotate.h	$(MYINC)/hdf5lib.h
 $(OBJDIR)/editor.ompmpi.o:	$(IOFILE_DEP)	$(MYINC)/rotate.h
+$(OBJDIR)/extend.ompmpi.hdf5.o:	$(IOFILE_DEP)	$(MYINC)/hdf5lib.h
+$(OBJDIR)/extend.ompmpi.o:	$(IOFILE_DEP)
 #################################################################################################
 ## $(PLOTDIR)/*
 PLOT_DEP	:=	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/constants.h	\
@@ -1524,6 +1554,8 @@ $(OBJDIR)/extract.mpi.o:	$(ANAL_DEP)
 $(OBJDIR)/m31obs.mpi.hdf5.o:	$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/rotate.h	$(MYINC)/hdf5lib.h
 $(OBJDIR)/m31obs.mpi.o:		$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/rotate.h
 $(OBJDIR)/m31coord.o:		$(COMMON_DEP)	$(MYINC)/constants.h	$(MYINC)/rotate.h	$(MISCDIR)/structure.h	$(M31_DEP)
+$(OBJDIR)/m31phase.mpi.hdf5.o:	$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/hdf5lib.h
+$(OBJDIR)/m31phase.mpi.o:	$(ANAL_DEP)	$(M31_DEP)
 $(OBJDIR)/dmhalo.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/myutil.h
 $(OBJDIR)/spheroid.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/myutil.h
 $(OBJDIR)/blackhole.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/myutil.h

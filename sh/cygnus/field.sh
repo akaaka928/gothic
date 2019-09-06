@@ -56,7 +56,8 @@ if [ $PROBLEM -eq 0 ]; then
 fi
 ###############################################################
 # set input arguments
-OPTION="-absErr=$ABSERR -pot_file_sphe=$SPHEPOT -pot_file_disk=$DISKPOT -rebuild_interval=$REBUILD -brent_frac=$BRENT -jobID=$PBS_JOBID"
+# OPTION="-absErr=$ABSERR -pot_file_sphe=$SPHEPOT -pot_file_disk=$DISKPOT -rebuild_interval=$REBUILD -brent_frac=$BRENT -jobID=$PBS_JOBID"
+OPTION="-absErr=$ABSERR -pot_file_sphe=$SPHEPOT -pot_file_disk=$DISKPOT -jobID=$PBS_JOBID"
 # -file=$FILE
 ###############################################################
 

@@ -22,10 +22,22 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=70
     # PROBLEM=71
 
-    PROBLEM=108
+    # PROBLEM=108
     # PROBLEM=109
     # PROBLEM=110
     # PROBLEM=111
+
+    # collision with live halo (orbit 4 and 5)
+    PROBLEM=148
+    # PROBLEM=149
+    # PROBLEM=150
+    # PROBLEM=151
+
+    # collision with live halo (orbit 6 and 7)
+    # PROBLEM=188
+    # PROBLEM=189
+    # PROBLEM=190
+    # PROBLEM=191
 fi
 ###############################################################
 # dump file generation interval (in units of minute)
@@ -463,6 +475,86 @@ if [ $PROBLEM -eq 111 ]; then
     EPS=1.5625e-2
     ETA=0.5
     FINISH=10700.0
+    INTERVAL=25.0
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 148 ]; then
+    FILE=nws-live-m9_0-orbit4
+    CFG=nws/live/m9_0-orbit4.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 149 ]; then
+    FILE=nws-live-m9_0-orbit5
+    CFG=nws/live/m9_0-orbit5.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 150 ]; then
+    FILE=nws-live-m9_5-orbit4
+    CFG=nws/live/m9_5-orbit4.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 151 ]; then
+    FILE=nws-live-m9_5-orbit5
+    CFG=nws/live/m9_5-orbit5.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 188 ]; then
+    FILE=nws-live-m9_0-orbit6
+    CFG=nws/live/m9_0-orbit6.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 189 ]; then
+    FILE=nws-live-m9_0-orbit7
+    CFG=nws/live/m9_0-orbit7.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 190 ]; then
+    FILE=nws-live-m9_5-orbit6
+    CFG=nws/live/m9_5-orbit6.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# collision between DM subhalo (N-body) and NW stream
+if [ $PROBLEM -eq 191 ]; then
+    FILE=nws-live-m9_5-orbit7
+    CFG=nws/live/m9_5-orbit7.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
     INTERVAL=25.0
 fi
 ###############################################################

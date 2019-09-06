@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/07/31 (Wed)
+ * @date 2019/09/03 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -164,7 +164,7 @@ static inline void enlargeHorizontalProfileArray(int num, real **pos, real **Sig
 }
 
 
-#ifdef __ICC
+#ifdef  __ICC
 /* Disable ICC's remark #161: unrecognized #pragma */
 #     pragma warning (disable:161)
 #endif//__ICC
@@ -229,7 +229,7 @@ int verAscendingOrder(const void *a, const void *b)
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 }
 
-#ifdef __ICC
+#ifdef  __ICC
 /* Enable ICC's remark #161: unrecognized #pragma */
 #     pragma warning (enable:161)
 #endif//__ICC
