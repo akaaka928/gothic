@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/07/31 (Wed)
+ * @date 2019/09/10 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -81,7 +81,7 @@ extern const double        mass2astro;
 extern const double    velocity2astro;
 
 
-#ifdef __ICC
+#ifdef  __ICC
 /* Disable ICC's remark #161: unrecognized #pragma */
 #     pragma warning (disable:161)
 #endif//__ICC
@@ -100,7 +100,7 @@ int idxAscendingOrder(const void *a, const void *b)
 #pragma GCC diagnostic pop
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 }
-#ifdef __ICC
+#ifdef  __ICC
 /* Enable ICC's remark #161: unrecognized #pragma */
 #     pragma warning (enable:161)
 #endif//__ICC
