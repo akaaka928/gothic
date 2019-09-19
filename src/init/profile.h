@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/18 (Tue)
+ * @date 2019/09/19 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -161,6 +161,9 @@ typedef struct
   double slos;/**< velocity dispersion along the line-of-sight */
 #endif//defined(MAKE_VELOCITY_DISPERSION_PROFILE) && !defined(USE_OSIPKOV_MERRITT_METHOD)
 #endif//MAKE_COLUMN_DENSITY_PROFILE
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  double p, T;
+#endif//ENABLE_GASEOUS_COMPONENT
 } profile;
 
 
@@ -200,6 +203,7 @@ typedef struct
   double Tdisk;/**< rotational kinetic energy of disk component */
   double Wdisk;/**< potential energy of disk component */
 #endif//CHECK_OSTRIKER_PEEBLES_CRITERION
+  double Tgas, mu, rho0_bak;/**< temperature and mean molecular weight of the gas */
   double rc, rc_width;
   double Ecut;
   ulong num;
@@ -230,6 +234,8 @@ void setDensityProfileAppLoweredEvans(profile *prf, const double rs, const doubl
 
 void setContributionByCentralBH(profile *prf, const profile_cfg cfg);
 
+void setIsothermalGas(profile *prf, const double Tgas, const double mu, const double rho0);
+
 void integrateDensityProfile(profile *prf, profile_cfg *cfg
 #ifndef ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
 			     , const double logrbin
@@ -237,6 +243,10 @@ void integrateDensityProfile(profile *prf, profile_cfg *cfg
 			     );
 
 void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg);
+
+#ifdef  ENABLE_GASEOUS_COMPONENT
+void gas_readProfileCfg(char *fcfg, const int unit, int *kind, profile_cfg **cfg);
+#endif//ENABLE_GASEOUS_COMPONENT
 
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE
 void calcColumnDensityProfile(const int skind, profile **prf,

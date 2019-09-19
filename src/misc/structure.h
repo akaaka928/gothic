@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/07/31 (Wed)
+ * @date 2019/09/19 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -347,6 +347,26 @@ typedef struct
   real ax_ext, ay_ext, az_ext, pot_ext;
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 } nbody_aos;
+
+
+#ifdef  ENABLE_GASEOUS_COMPONENT
+/**
+ * @struct sph_particle
+ *
+ * @brief structure for SPH particles (SoA)
+ */
+typedef struct
+{
+  position *pos;
+  real     *vx;
+  real     *vy;
+  real     *vz;
+  real     *rho;
+  real     *p;
+  real     *T;
+  ulong    *idx;
+} sph_particle;
+#endif//ENABLE_GASEOUS_COMPONENT
 
 
 #endif//STRUCTURE_H

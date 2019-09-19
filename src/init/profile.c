@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/01/29 (Tue)
+ * @date 2019/09/19 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -40,11 +40,17 @@
 extern double gsl_gaussQD_pos[NTBL_GAUSS_QD], gsl_gaussQD_weight[NTBL_GAUSS_QD];
 #endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
 
+#ifdef  ENABLE_GASEOUS_COMPONENT
+#include "gas.h"
+#endif//ENABLE_GASEOUS_COMPONENT
 
 extern const real newton;
 extern const double     mass_astro2com;
 extern const double   length_astro2com;
 extern const double velocity_astro2com;
+#ifdef  ENABLE_GASEOUS_COMPONENT
+extern const double temperature_astro2com;
+#endif//ENABLE_GASEOUS_COMPONENT
 
 
 /**
@@ -441,6 +447,58 @@ void setContributionByCentralBH(profile *prf, const profile_cfg cfg)
 }
 
 
+/**
+ * @fn setIsothermalGas
+ *
+ * @brief Get radial profile of the isothermal gaseous component in hydrostatic.
+ *
+ * @return (prf) radial profile of the component
+ * @param (Tgas) temperature of the gas
+ * @param (mu) mean molecular weight of the gas
+ * @param (rho0) scaling factor of the density
+ */
+void setIsothermalGas(profile *prf, const double Tgas, const double mu, const double rho0)
+{
+  __NOTE__("%s\n", "start");
+
+  /** assumption: rho_tot, enc_tot, and psi_tot are already prepared */
+  /* double rho_tot, enc_tot, psi_tot; */
+  const double psi0 = prf[0].psi_tot;
+
+  /** set density profile */
+#if 1
+  extern const double boltzmann, protonmass;
+  const double coeff = (mu * protonmass) / (boltzmann * Tgas);
+  /* __KILL__(stderr, "coeff = %e, psi0 = %e, exponent = %e, ret = %e\n", coeff, psi0, coeff * psi0, exp(coeff * psi0)); */
+#else
+  const double coeff = 1.0 / prf[0].psi_tot;
+#endif
+
+#pragma omp parallel for
+  for(int ii = 0; ii < NRADBIN; ii++){
+    const double psi = prf[ii].psi_tot;
+    const double rho = rho0 * exp(-coeff * (psi0 - psi));/**< psi = -Phi(r) */
+
+    /* const double rad = prf[ii].rad; */
+    /* const double rinv = 1.0 / rad; */
+    /* const double enc = prf[ii].enc_tot; */
+    /* const double grav = newton * enc * rinv * rinv; */
+
+    prf[ii].rho = rho;
+    /* prf[ii]. drho_dr  = -coeff * grav * rho; */
+    /* prf[ii].d2rho_dr2 =  coeff * grav * rho * (coeff * grav + 2.0 * (rinv - 2.0 * M_PI * rad * rad * prf[ii].rho_tot / enc)); */
+  }/* for(int ii = 0; ii < NRADBIN; ii++){ */
+
+#if 0
+  for(int ii = 0; ii < NRADBIN; ii += (NRADBIN / 128))
+    fprintf(stdout, "%e\t%e\t%e\n", prf[ii].rad, prf[ii].rho, prf[ii].psi_tot);
+  __KILL__(stderr, "suspend for debugging\n");
+#endif
+
+  __NOTE__("%s\n", "end");
+}
+
+
 #ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
 /**
  * @fn leastSquaresMethod
@@ -810,6 +868,11 @@ void integrateDensityProfile(profile *prf, profile_cfg *cfg
   cfg->iout = iout;
   cfg->rmax = rmax;
 
+/* #pragma omp parallel for */
+/*   for(int ii = 0; ii < NRADBIN; ii++){ */
+/*     prf[ii].enc = 0.0; */
+/*     prf[ii].psi = 0.0; */
+/*   } */
 
 #ifdef  ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
   const double rs = cfg->rs;
@@ -876,6 +939,13 @@ void integrateDensityProfile(profile *prf, profile_cfg *cfg
   Menc[1] = prf[1].rad * prf[1].rad * prf[1].rad * prf[1].rho;
   prf[0].enc =              Menc[0] / 3.0;
   prf[1].enc = prf[0].enc + (prf[1].rad - prf[0].rad) * prf[1].rad * prf[0].rad * 0.5 * (prf[0].rho + prf[1].rho);
+#if 1
+  prf[0].psi = prf[0].enc / prf[0].rad;
+  prf[1].psi = prf[1].enc / prf[1].rad;
+#else
+  prf[0].psi = prf[0].rad * prf[0].rad * prf[0].rho / 3.0;
+  prf[1].psi = prf[1].rad * prf[1].rad * prf[1].rho / 3.0;
+#endif
   Menc[0] += Menc[1] * 4.0;
 
   for(int ii = 2; ii < NRADBIN; ii++){
@@ -888,7 +958,13 @@ void integrateDensityProfile(profile *prf, profile_cfg *cfg
     Menc[0] += mass * (double)(1 << (1 + (idx    )));
     Menc[1] += mass * (double)(1 << (1 + (idx ^ 1)));
   }/* for(int ii = 2; ii < NRADBIN; ii++){ */
-
+#if 0
+  if( cfg->kind == ISOTHERMAL_GAS ){
+    fprintf(stdout, "internal: rho0 = %e, enc0 = %e, psi0 = %e, psi0_tot = %e\n", prf[0].rho, prf[0].enc, prf[0].psi, prf[0].psi_tot);
+    fprintf(stdout, "internal: rho1 = %e, enc1 = %e, psi1 = %e, psi1_tot = %e\n", prf[1].rho, prf[1].enc, prf[1].psi, prf[1].psi_tot);
+    fprintf(stdout, "internal: rho2 = %e, enc2 = %e, psi2 = %e, psi2_tot = %e\n", prf[2].rho, prf[2].enc, prf[2].psi, prf[2].psi_tot);
+  }
+#endif
 
   /** calculate potential (external part) */
   double Pext[2];
@@ -908,6 +984,24 @@ void integrateDensityProfile(profile *prf, profile_cfg *cfg
     Pext[0] += psi * (double)(1 << (1 + (idx    )));
     Pext[1] += psi * (double)(1 << (1 + (idx ^ 1)));
   }/* for(int ii = NRADBIN - 3; ii >= 0; ii--){ */
+#if 0
+  if( cfg->kind == ISOTHERMAL_GAS ){
+    fprintf(stdout, "external: enc0 = %e, psi0 = %e\n", prf[0].enc, prf[0].psi);
+    fprintf(stdout, "external: enc1 = %e, psi1 = %e\n", prf[1].enc, prf[1].psi);
+    fprintf(stdout, "external: enc2 = %e, psi2 = %e\n", prf[2].enc, prf[2].psi);
+  }
+#endif
+
+#if 1
+  /** remove spike from the potential profile */
+  double psi_in = prf[0].psi;
+  for(int ii = 1; ii < NRADBIN - 1; ii++){
+  if( prf[ii].psi > psi_in ){
+  prf[ii].psi = fmin(psi_in, 0.5 * (psi_in + prf[ii + 1].psi));
+}
+  psi_in = prf[ii].psi;
+}
+#endif
 
 #endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
 
@@ -922,12 +1016,38 @@ void integrateDensityProfile(profile *prf, profile_cfg *cfg
 
   /** set appropriate unit system */
   const double Mscale = Mtot / prf[NRADBIN - 1].enc;
-  cfg->rho0 = (cfg->kind != KING) ? (Mscale) : (cfg->rho0 * Mscale);
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  const bool initialize_rho0 = ((cfg->kind != KING) && (cfg->kind != ISOTHERMAL_GAS));
+#else///ENABLE_GASEOUS_COMPONENT
+  const bool initialize_rho0 =  (cfg->kind != KING);
+#endif//ENABLE_GASEOUS_COMPONENT
+  cfg->rho0 = initialize_rho0 ? (Mscale) : (cfg->rho0 * Mscale);
+#if 0
+  fprintf(stdout, "#Mtot = %e, Mcalc = %e, Mscale = %e, update = %d: rho0 = %e\n", Mtot, prf[NRADBIN - 1].enc, Mscale, !initialize_rho0, cfg->rho0);
+  /* fprintf(stdout, "rho0 = %e, enc0 = %e, psi0 = %e\n", prf[0].rho, prf[0].enc, prf[0].psi); */
+  /* fprintf(stdout, "rho1 = %e, enc1 = %e, psi1 = %e\n", prf[128].rho, prf[128].enc, prf[128].psi); */
+#endif
 #if 0
   if( isnan(Mscale) )
     for(int ii = 0; ii < NRADBIN; ii += 32)
       fprintf(stderr, "%e\t%e\t%e\t%e\n", prf[ii].rad, prf[ii].rho, prf[ii].enc, prf[ii].psi);
   fflush(NULL);
+#endif
+#if 0
+  if( cfg->kind == ISOTHERMAL_GAS ){
+    for(int ii = 0; ii < NRADBIN; ii++){
+      fprintf(stdout, "%e\t%e\t%e\t%e\t%e\t%e\t%e\n", prf[ii].rad, prf[ii].rho, prf[ii].rho_tot, prf[ii].enc, prf[ii].enc_tot, prf[ii].psi, prf[ii].psi_tot);
+      if( prf[ii].psi < 1.0e+4 )
+	break;
+    }
+  }
+#endif
+#if 0
+  if( (cfg->kind == ISOTHERMAL_GAS) && (Mscale < 10.0) ){
+    for(int ii = 0; ii < NRADBIN; ii += (NRADBIN / 128))
+      fprintf(stdout, "%e\t%e\t%e\t%e\t%e\t%e\t%e\n", prf[ii].rad, prf[ii].rho, prf[ii].rho_tot, prf[ii].enc, prf[ii].enc_tot, prf[ii].psi, prf[ii].psi_tot);
+    __KILL__(stderr, "suspend for debugging\n");
+  }
 #endif
 #pragma omp parallel for
   for(int ii = 0; ii < NRADBIN; ii++){
@@ -938,6 +1058,21 @@ void integrateDensityProfile(profile *prf, profile_cfg *cfg
     prf[ii].d2rho_dr2 *= Mscale;
   }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
+#if 0
+  if( cfg->kind == ISOTHERMAL_GAS ){
+    fprintf(stdout, "#rescaled: rho0 = %e, enc0 = %e, psi0 = %e, psi0_tot = %e\n", prf[0].rho, prf[0].enc, prf[0].psi, prf[0].psi_tot);
+    fprintf(stdout, "#rescaled: rho1 = %e, enc1 = %e, psi1 = %e, psi1_tot = %e\n", prf[1].rho, prf[1].enc, prf[1].psi, prf[1].psi_tot);
+    fprintf(stdout, "#rescaled: rho2 = %e, enc2 = %e, psi2 = %e, psi2_tot = %e\n", prf[2].rho, prf[2].enc, prf[2].psi, prf[2].psi_tot);
+  }
+#endif
+
+#if 0
+  if( cfg->kind == ISOTHERMAL_GAS ){
+    for(int ii = 0; ii < NRADBIN; ii += (NRADBIN / 128))
+      fprintf(stdout, "%e\t%e\t%e\t%e\t%e\t%e\t%e\n", prf[ii].rad, prf[ii].rho, prf[ii].rho_tot, prf[ii].enc, prf[ii].enc_tot, prf[ii].psi, prf[ii].psi_tot);
+    __KILL__(stderr, "suspend for debugging\n");
+  }
+#endif
 
 #if 0
   for(int ii = iout - 3; ii >= 0; ii--)
@@ -1046,6 +1181,10 @@ static inline void writeProfileCfgFormat(char *filename, const profile_cfg cfg)
     fprintf(stderr, "\t beta<real>: internal power-law slope of the projected two-power model\n");
     fprintf(stderr, "\tgamma<real>:    outer power-law slope of the projected two-power model\n");
   }/* if( cfg.kind == SIGTWOPOW ){ */
+  /* if( cfg.kind == ISOTHERMAL_GAS ){ */
+  /*   fprintf(stderr, "\tTgas<real>: temperature of the gaseous component\n"); */
+  /*   fprintf(stderr, "\t  mu<real>: mean molecular weight of the gaseous component\n"); */
+  /* }/\* if( cfg.kind == ISOTHERMAL_GAS ){ *\/ */
   if( cfg.kind == TBL_DISK )
     fprintf(stderr, "\ttable<char *>: file name to be read column density profile in table form\n");
   if( (cfg.kind == EXP_DISK) || (cfg.kind == SERSIC) || (cfg.kind == TBL_DISK) ){
@@ -1111,6 +1250,8 @@ void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg)
   /** read the specified unit system and set it */
   checker &= (1 == fscanf(fp, "%d", unit));
   setPhysicalConstantsAndUnitSystem(*unit, 1);
+  /* setPhysicalConstantsAndUnitSystem(3, 1); */
+  /* __KILL__(stderr, "suspend for confirmation\n"); */
   /** read # of components */
   checker &= (1 == fscanf(fp, "%d", kind));
 
@@ -1233,8 +1374,8 @@ void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg)
       checker &= (1 == fscanf(fp, "%le", &(*cfg)[ii].retrogradeFrac));
     }/* if( ((*cfg)[ii].kind == EXP_DISK) || ((*cfg)[ii].kind == SERSIC) || ((*cfg)[ii].kind == TBL_DISK) ){ */
 
-    /** parameters for density cutoff */
-    if( (*cfg)[ii].kind != CENTRALBH ){
+  /** parameters for density cutoff */
+  if( (*cfg)[ii].kind != CENTRALBH ){
       int input;
       checker &= (1 == fscanf(fp, "%d", &input));
       (*cfg)[ii].cutoff = (bool)input;
@@ -1253,6 +1394,113 @@ void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg)
 
   __NOTE__("%s\n", "end");
 }
+
+#ifdef  ENABLE_GASEOUS_COMPONENT
+
+/**
+ * @fn gas_writeProfileCfgFormat
+ *
+ * @brief Print the expected format.
+ *
+ * @param (file) the specified file name
+ * @param (cfg) physical properties of the component
+ */
+static inline void gas_writeProfileCfgFormat(char *filename, const profile_cfg cfg)
+{
+  __NOTE__("%s\n", "start");
+
+
+  fprintf(stderr, "ERROR: data written in \"%s\" does not match with format of specified model id \"%d\"\n", filename, cfg.kind);
+  fprintf(stderr, "Expected format is below:\n");
+  fprintf(stderr, "\tMtot<real>: total mass of the model in astrophysical units\n");
+
+  /** some models require more information */
+  if( cfg.kind == ISOTHERMAL_GAS ){
+    fprintf(stderr, "\tTgas<real>: temperature of the gaseous component\n");
+    fprintf(stderr, "\t  mu<real>: mean molecular weight of the gaseous component\n");
+
+    fprintf(stderr, "\trc<real> rc_width<real>: cutoff radius and width of the density cutoff in astrophysical units, respectively\n");
+  }/* if( cfg.kind == ISOTHERMAL_GAS ){ */
+
+  __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);
+
+  __NOTE__("%s\n", "end");
+}
+
+/**
+ * @fn gas_readProfileCfg
+ *
+ * @brief Read physical properties of the spherical gaseous component(s) with memory allocation.
+ *
+ * @param (fcfg) file name of the configuration
+ * @param (unit) unit system
+ * @return (kind) number of components
+ * @return (cfg) physical properties of the component(s)
+ *
+ * @sa setPhysicalConstantsAndUnitSystem
+ * @sa writeProfileCfgFormat
+ */
+void gas_readProfileCfg(char *fcfg, const int unit, int *kind, profile_cfg **cfg)
+{
+  __NOTE__("%s\n", "start");
+
+
+  /** read global settings */
+  char filename[128];
+  FILE *fp;
+  sprintf(filename, "%s/%s", CFGFOLDER, fcfg);
+
+  fp = fopen(filename, "r");
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
+  int checker = 1;
+
+  /** read the specified unit system and set it */
+  int unit_read;
+  checker &= (1 == fscanf(fp, "%d", &unit_read));
+  if( unit_read != unit ){
+    __KILL__(stderr, "ERROR: unit system in \"%s\" is %d; however, it is inconsistent with %d for N-body particles\n", filename, unit_read, unit);
+  }
+  /** read # of components */
+  checker &= (1 == fscanf(fp, "%d", kind));
+
+  *cfg = (profile_cfg *)malloc(sizeof(profile_cfg) * (*kind));  if( *cfg == NULL ){    __KILL__(stderr, "ERROR: failure to allocate cfg\n");  }
+  for(int ii = 0; ii < *kind; ii++)
+    checker &= (4 == fscanf(fp, "%d\t%s\t%d\t%zu", &(*cfg)[ii].kind, (*cfg)[ii].file, &(*cfg)[ii].forceNum, &(*cfg)[ii].num));
+
+  fclose(fp);
+  if( !checker ){    __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);  }
+
+
+  /** read individual settings */
+  for(int ii = 0; ii < *kind; ii++){
+    sprintf(filename, "%s/%s", CFGFOLDER, (*cfg)[ii].file);
+    fp = fopen(filename, "r");
+    if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
+    checker = 1;
+
+    checker &= (1 == fscanf(fp, "%le", &(*cfg)[ii].Mtot));    (*cfg)[ii].Mtot *= mass_astro2com;
+
+    /** parameters for isothermal gaseous component */
+    if( (*cfg)[ii].kind == ISOTHERMAL_GAS ){
+      checker &= (1 == fscanf(fp, "%le", &(*cfg)[ii].Tgas));      (*cfg)[ii].Tgas *= temperature_astro2com;
+      checker &= (1 == fscanf(fp, "%le", &(*cfg)[ii].mu));
+
+      (*cfg)[ii].cutoff = true;
+      checker &= (2 == fscanf(fp, "%le %le", &(*cfg)[ii].rc, &(*cfg)[ii].rc_width));
+      (*cfg)[ii].rc       *= length_astro2com;
+      (*cfg)[ii].rc_width *= length_astro2com;
+    }/* if( (*cfg)[ii].kind == ISOTHERMAL_GAS ){ */
+
+    fclose(fp);
+    if( !checker )
+      gas_writeProfileCfgFormat(filename, (*cfg)[ii]);
+  }/* for(int ii = 0; ii < *kind; ii++){ */
+
+
+  __NOTE__("%s\n", "end");
+}
+
+#endif//ENABLE_GASEOUS_COMPONENT
 
 
 #ifdef  MAKE_COLUMN_DENSITY_PROFILE

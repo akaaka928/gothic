@@ -51,7 +51,7 @@ RESET_CENTER_OF_MASS	:= 0
 DATAFILE_FORMAT_HDF5	:= 1
 HDF5_FOR_ZINDAIJI	:= 1
 PREPARE_XDMF_FILES	:= 1
-DUMPFILE_IN_TIPSY	:= 0
+DUMPFILE_IN_TIPSY	:= 1
 DUMPFILE_AS_GALACTICS	:= 0
 DUMPFILE_AS_GADGET	:= 0
 USE_OFFICIAL_SFMT	:= 1
@@ -63,6 +63,7 @@ ADAPTIVE_EXTERNAL_FIELD	:= 0
 USE_OSIPKOV_MERRITT	:= 0
 USE_ZH78_RETROGRADING	:= 0
 DISABLE_SHIFT_CENTER	:= 0
+ADD_GAS_FOR_MAGI	:= 1
 #################################################################################################
 # Debugging options
 EVALUATE_FORCE_ERROR	:= 0
@@ -425,6 +426,10 @@ endif
 #################################################################################################
 ifeq ($(DISABLE_SHIFT_CENTER), 1)
 CCARG	+= -DDISABLE_SHIFT_CENTER
+endif
+#################################################################################################
+ifeq ($(ADD_GAS_FOR_MAGI), 1)
+CCARG	+= -DENABLE_GASEOUS_COMPONENT
 endif
 #################################################################################################
 NUM_NTHREADS	:= 512
@@ -1479,10 +1484,13 @@ $(OBJDIR)/external.omp.o:	$(SPLINE_DEP)	$(INITDIR)/external.h	$(INITDIR)/potdens
 else
 $(OBJDIR)/external.omp.o:	$(SPLINE_DEP)	$(INITDIR)/external.h
 endif
+ifeq ($(ADD_GAS_FOR_MAGI), 1)
+MAGI_GAS_DEP	:=	$(INITDIR)/gas.h
+endif
 PROFILE_DEP	:=	$(COMMON_DEP)	$(MYINC)/constants.h	$(INITDIR)/profile.h	$(INITDIR)/magi.h
 $(OBJDIR)/eddington.omp.o:	$(PROFILE_DEP)	$(INITDIR)/eddington.h
 $(OBJDIR)/king.omp.o:		$(PROFILE_DEP)	$(INITDIR)/king.h
-$(OBJDIR)/profile.omp.o:	$(PROFILE_DEP)	$(MYINC)/name.h
+$(OBJDIR)/profile.omp.o:	$(PROFILE_DEP)	$(MYINC)/name.h	$(MAGI_GAS_DEP)
 DISK_DEP	:=	$(PROFILE_DEP)	$(INITDIR)/magi.h	$(INITDIR)/spline.h	$(INITDIR)/blas.h	$(INITDIR)/potdens.h
 $(OBJDIR)/potdens.omp.gsl.o:	$(DISK_DEP)	$(INITDIR)/abel.h
 $(OBJDIR)/potdens.omp.gsl.sfmt.o:	$(DISK_DEP)	$(INITDIR)/abel.h
@@ -1499,6 +1507,9 @@ MAGI_DEP	:=	$(MYINC)/rotate.h	$(MYINC)/rand.h	$(INITDIR)/magi.h	$(INITDIR)/king.
 MAGI_DEP	+=	$(INITDIR)/table.h	$(INITDIR)/abel.h	$(INITDIR)/potdens.h	$(INITDIR)/diskDF.h
 ifeq ($(SET_EXTERNAL_FIELD), 1)
 MAGI_DEP	+=	$(INITDIR)/external.h
+endif
+ifeq ($(ADD_GAS_FOR_MAGI), 1)
+MAGI_DEP	+=	$(INITDIR)/gas.h
 endif
 $(OBJDIR)/magi.ompmpi.gsl.smtj.hdf5.o:	$(IOFILE_DEP)	$(MAGI_DEP)	$(MYINC)/hdf5lib.h	$(MYINC)/sfmtjump_polynomial.h
 $(OBJDIR)/magi.ompmpi.gsl.sfmt.hdf5.o:	$(IOFILE_DEP)	$(MAGI_DEP)	$(MYINC)/hdf5lib.h

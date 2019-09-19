@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/07/31 (Wed)
+ * @date 2019/09/19 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2357,9 +2357,18 @@ void writeTentativeDataParallel
  * @param (body) the particle data
  * @param (file) name of the simulation
  */
-void writeTipsyFile(double time, float eps, int num, iparticle body, char file[])
+void writeTipsyFile
+(double time, float eps, int num, iparticle body, char file[]
+#ifdef  ENABLE_GASEOUS_COMPONENT
+ , const int Nsph, sph_particle sph
+#endif//ENABLE_GASEOUS_COMPONENT
+)
 {
   __NOTE__("%s\n", "start");
+
+#ifndef ENABLE_GASEOUS_COMPONENT
+const int Nsph = 0;
+#endif//ENABLE_GASEOUS_COMPONENT
 
   char filename[256];
   sprintf(filename, "%s/%s.tipsy", DATAFOLDER, file);
@@ -2382,14 +2391,52 @@ void writeTipsyFile(double time, float eps, int num, iparticle body, char file[]
   typedef struct dump header;
   header bonsaiHeader;
   bonsaiHeader.time = time;
-  bonsaiHeader.nbodies = num;
+  bonsaiHeader.nbodies = num + Nsph;
   bonsaiHeader.ndim = 3;
-  bonsaiHeader.nsph = 0;
+  bonsaiHeader.nsph = Nsph;
   bonsaiHeader.ndark = num;
   bonsaiHeader.nstar = 0;
   count = 1;  if( count != fwrite(&bonsaiHeader, sizeof(header), count, fp) )    success = false;
 
   /** main body */
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  struct gas_particle {
+    float mass;
+    float pos[3];
+    float vel[3];
+    float rho;
+    float temp;
+    float hsmooth;
+    float metals;
+    /* float phi; */
+    int idx;
+  };
+  struct gas_particle *gas;
+  gas = (struct gas_particle *)malloc(sizeof(struct gas_particle) * Nsph);
+  if( gas == NULL ){    __KILL__(stderr, "ERROR: failure to allocate gas\n");  }
+  for(int ii = 0; ii < Nsph; ii++){
+    gas[ii].mass = CAST_R2F(sph.pos[ii].m);
+    gas[ii].pos[0] = CAST_R2F(sph.pos[ii].x);
+    gas[ii].pos[1] = CAST_R2F(sph.pos[ii].y);
+    gas[ii].pos[2] = CAST_R2F(sph.pos[ii].z);
+    gas[ii].vel[0] = CAST_R2F(sph.vx[ii]);
+    gas[ii].vel[1] = CAST_R2F(sph.vy[ii]);
+    gas[ii].vel[2] = CAST_R2F(sph.vz[ii]);
+    gas[ii].rho = CAST_R2F(sph.rho[ii]);
+    gas[ii].temp = CAST_R2F(sph.T[ii]);
+    gas[ii].hsmooth = 0.0f;
+    gas[ii].metals = 0.0f;
+    gas[ii].idx = (int)sph.idx[ii];
+#if 0
+    if( (ii & 1023) == 0 )
+      fprintf(stdout, "m = %e, x = %e, y = %e, z = %e, vx = %e, vy = %e, vz = %e, rho = %e, T = %e, idx = %d\n", gas[ii].mass, gas[ii].pos[0], gas[ii].pos[1], gas[ii].pos[2], gas[ii].vel[0], gas[ii].vel[1], gas[ii].vel[2], gas[ii].rho, gas[ii].temp, gas[ii].idx);
+#endif
+  }
+  count = Nsph;
+  if( count != fwrite(gas, sizeof(struct gas_particle), count, fp) )
+    success = false;
+#endif//ENABLE_GASEOUS_COMPONENT
+
   struct dark_particle {
     float mass;
     float pos[3];
@@ -2397,25 +2444,30 @@ void writeTipsyFile(double time, float eps, int num, iparticle body, char file[]
     float eps;
     int idx;
   };
+  struct dark_particle *dark;
+  dark = (struct dark_particle *)malloc(sizeof(struct dark_particle) * num);
+  if( dark == NULL ){    __KILL__(stderr, "ERROR: failure to allocate dark\n");  }
   for(int ii = 0; ii < num; ii++){
-    struct dark_particle tmp;
-    tmp.mass   = CAST_R2F(body.pos[ii].m);
-    tmp.pos[0] = CAST_R2F(body.pos[ii].x);
-    tmp.pos[1] = CAST_R2F(body.pos[ii].y);
-    tmp.pos[2] = CAST_R2F(body.pos[ii].z);
+    dark[ii].mass   = CAST_R2F(body.pos[ii].m);
+    dark[ii].pos[0] = CAST_R2F(body.pos[ii].x);
+    dark[ii].pos[1] = CAST_R2F(body.pos[ii].y);
+    dark[ii].pos[2] = CAST_R2F(body.pos[ii].z);
 #ifdef  BLOCK_TIME_STEP
-    tmp.vel[0] = CAST_R2F(body.vel[ii].x);
-    tmp.vel[1] = CAST_R2F(body.vel[ii].y);
-    tmp.vel[2] = CAST_R2F(body.vel[ii].z);
+    dark[ii].vel[0] = CAST_R2F(body.vel[ii].x);
+    dark[ii].vel[1] = CAST_R2F(body.vel[ii].y);
+    dark[ii].vel[2] = CAST_R2F(body.vel[ii].z);
 #else///BLOCK_TIME_STEP
-    tmp.vel[0] = CAST_R2F(body.vx[ii]);
-    tmp.vel[1] = CAST_R2F(body.vy[ii]);
-    tmp.vel[2] = CAST_R2F(body.vz[ii]);
+    dark[ii].vel[0] = CAST_R2F(body.vx[ii]);
+    dark[ii].vel[1] = CAST_R2F(body.vy[ii]);
+    dark[ii].vel[2] = CAST_R2F(body.vz[ii]);
 #endif//BLOCK_TIME_STEP
-    tmp.eps    = eps;
-    tmp.idx    = (int)body.idx[ii];
-    count = 1;    if( count != fwrite(&tmp, sizeof(struct dark_particle), count, fp) )      success = false;
+    dark[ii].eps    = eps;
+    dark[ii].idx    = (int)body.idx[ii];
   }
+  count = num;
+  if( count != fwrite(dark, sizeof(struct dark_particle), count, fp) )
+    success = false;
+
   if( success != true ){    __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);  }
 
   fclose(fp);

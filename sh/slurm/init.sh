@@ -22,7 +22,7 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=21
     # PROBLEM=23
     # PROBLEM=26
-    PROBLEM=27
+    # PROBLEM=27
     # PROBLEM=33
     # PROBLEM=39
     # PROBLEM=46
@@ -42,6 +42,7 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=98
     # PROBLEM=99
     # PROBLEM=100
+    PROBLEM=1000
 fi
 ###############################################################
 # number of N-body particles
@@ -1852,11 +1853,26 @@ if [ $PROBLEM -eq 295 ]; then
     INTERVAL=100.0
 fi
 ###############################################################
+# dynamical stability of multi components galaxy model (only spherical components) with gaseous component
+if [ $PROBLEM -eq 1000 ]; then
+    FILE=etg_gas
+    CONFIG=gas/etg.cfg
+    GAS_CONFIG=gas/etg_gas.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    INTERVAL=25.0
+    FINISH=1175.0
+fi
+###############################################################
 # set input arguments
 if [ $PROBLEM -ge 1 ]; then
     OPTION="-file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE -denoisingDistributionFunction=$DENOISE_DF"
 else
     OPTION="-file=$FILE -unit=$UNIT -Ntot=$NTOT -Mtot=$MTOT -virial=$VIRIAL -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE"
+fi
+###############################################################
+if [ $PROBLEM -ge 1000 ]; then
+    OPTION="$OPTION -gas_config=$GAS_CONFIG"
 fi
 ###############################################################
 # set environmental variables for OpenMP

@@ -1,7 +1,7 @@
 #!/bin/bash
 ###############################################################
 #SBATCH -J m31obs              # name of job
-#SBATCH -t 02:00:00            # upper limit of elapsed time
+#SBATCH -t 08:00:00            # upper limit of elapsed time
 #SBATCH -p normal              # partition name
 #SBATCH --nodes=1              # number of nodes, set to SLURM_JOB_NUM_NODES
 #SBATCH --ntasks=16             # number of total MPI processes, set to SLURM_NTASKS
@@ -137,10 +137,9 @@ fi
 ###############################################################
 # reproduction of Komiyama et al. (2018) in the disk coordinate system
 if [ $PROBLEM -eq 115 ]; then
-    FILE=nws-continue
-    # FILE=nws-test-m9_5-orbit2
-    # FILE=nws-test-m9_5-orbit3
-    FINISH=10700.0
+    # FILE=nws-continue
+    FILE=nws-test-m95-orbit2
+    FINISH=14000.0
     INTERVAL=25.0
     XIMIN=-11.0
     XIMAX=21.0

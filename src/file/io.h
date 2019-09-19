@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/01/17 (Thu)
+ * @date 2019/09/19 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -186,7 +186,12 @@ extern "C"
 #endif//defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
 
   /* write particle data in TIPSY format */
-  void writeTipsyFile(double time, float eps, int num, iparticle body, char file[]);
+  void writeTipsyFile
+  (double time, float eps, int num, iparticle body, char file[]
+#ifdef  ENABLE_GASEOUS_COMPONENT
+   , const int Nsph, sph_particle sph
+#endif//ENABLE_GASEOUS_COMPONENT
+   );
 
   /* write particle data in GalactICS format */
   void writeGalactICSFile(double time, int head, int num, iparticle body, char file[], int series);

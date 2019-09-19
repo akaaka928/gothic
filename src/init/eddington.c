@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/12 (Wed)
+ * @date 2019/09/17 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1008,7 +1008,6 @@ void integrateEddingtonFormula(const int skind, profile **prf
   const double Emin = 0.0;/**< Q = \mathcal{E} - L^2 / (2 r_a^2) */
 #endif//USE_OSIPKOV_MERRITT_METHOD
   const double Ebin = (Emax - Emin) / (double)(NENEBIN - 1);
-
   double common = M_1_PI / CAST_R2D(newton);
   common *= common * 0.5 * M_SQRT1_2;
 

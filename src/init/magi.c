@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/07/31 (Wed)
+ * @date 2019/09/19 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -88,6 +88,10 @@
 #include "external.h"
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 
+#ifdef  ENABLE_GASEOUS_COMPONENT
+#include "gas.h"
+#endif//ENABLE_GASEOUS_COMPONENT
+
 
 /* global constants to set unit system, defined in constants.c */
 extern const real newton;
@@ -98,6 +102,8 @@ extern const double                     velocity2astro;extern const char    velo
 extern const double                  col_density2astro;extern const char col_density_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
 extern const double                      density2astro;extern const char     density_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
 extern const double                      senergy2astro;extern const char     senergy_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
+extern const double                     pressure2astro;extern const char    pressure_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
+extern const double                  temperature2astro;extern const char temperature_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
 
 
 #include <gsl/gsl_integration.h>
@@ -120,6 +126,9 @@ typedef struct
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   double external;
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  double gas_spheProf, gas_spheDist;
+#endif//ENABLE_GASEOUS_COMPONENT
 } breakdown;
 
 
@@ -485,9 +494,182 @@ void shiftCenter(const ulong num, const ulong head, iparticle body, const profil
 #endif//RESET_ROTATION_AXIS
   }
 
+  __NOTE__("%s\n", "end");
+}
+
+#ifdef  ENABLE_GASEOUS_COMPONENT
+/**
+ * @fn gas_shiftCenter
+ *
+ * @brief Shift center to set the center-of-mass at the coordinate origin with null bulk velocity.
+ *
+ * @param (num) total number of particles in the component
+ * @param (head) index of the head particle in the component
+ * @return (body) physical quantities of fluid particles
+ * @param (cfg) physical properties of the component
+ *
+ * @sa isInnerParticle4spherical
+ * @sa isInnerParticle4disk
+ * @sa initRotationMatrices
+ * @sa rotateVector
+ */
+void gas_shiftCenter(const ulong num, const ulong head, sph_particle body, const profile_cfg cfg);
+void gas_shiftCenter(const ulong num, const ulong head, sph_particle body, const profile_cfg cfg)
+{
+  __NOTE__("%s\n", "start");
+
+
+#ifndef USE_SFMTJUMP
+#pragma omp parallel
+#endif//USE_SFMTJUMP
+  {
+    /** calculate center-of-mass and bulk-motion */
+    double comx_loc = 0.0, comy_loc = 0.0, comz_loc = 0.0;
+    double velx_loc = 0.0, vely_loc = 0.0, velz_loc = 0.0;
+    double Mtot_loc = 0.0;
+    static double comx, comy, comz, velx, vely, velz, Mtot;
+#pragma omp single
+    comx = comy = comz = velx = vely = velz = Mtot = 0.0;
+
+    /** use particles (r < rh          ) for spherical components */
+    /** use particles (R < Rh, |z| < zh) for      disk components */
+    const double rmax2 = cfg.rhalf * cfg.rhalf;
+    const double zmax2 = (cfg.kind < 0) ? (cfg.zd * cfg.zd) : (cfg.rs * cfg.rs);
+    bool (*isInnerParticle)(double, double, double, double, double) = (cfg.kind < 0) ? isInnerParticle4disk : isInnerParticle4spherical;
+
+#pragma omp for
+    for(ulong ii = head; ii < head + num; ii++){
+      const double xx = CAST_R2D(body.pos[ii].x);
+      const double yy = CAST_R2D(body.pos[ii].y);
+      const double zz = CAST_R2D(body.pos[ii].z);
+      if( isInnerParticle(xx * xx, yy * yy, zz * zz, rmax2, zmax2) ){
+	const double mass = CAST_R2D(body.pos[ii].m);
+	Mtot_loc += mass;
+
+	comx_loc += mass * xx;
+	comy_loc += mass * yy;
+	comz_loc += mass * zz;
+	velx_loc += mass * CAST_R2D(body.vx[ii]);
+	vely_loc += mass * CAST_R2D(body.vy[ii]);
+	velz_loc += mass * CAST_R2D(body.vz[ii]);
+      }/* if( isInnerParticle(xx * xx, yy * yy, zz * zz, rmax2, zmax2) ){ */
+    }/* for(ulong ii = head; ii < head + num; ii++){ */
+
+#pragma omp atomic
+    Mtot += Mtot_loc;
+#pragma omp atomic
+    comx += comx_loc;
+#pragma omp atomic
+    comy += comy_loc;
+#pragma omp atomic
+    comz += comz_loc;
+#pragma omp atomic
+    velx += velx_loc;
+#pragma omp atomic
+    vely += vely_loc;
+#pragma omp atomic
+    velz += velz_loc;
+#pragma omp barrier
+#pragma omp single
+    {
+      double Minv = 1.0 / (DBL_MIN + Mtot);
+      comx *= Minv;      comy *= Minv;      comz *= Minv;
+      velx *= Minv;      vely *= Minv;      velz *= Minv;
+    }
+
+#ifdef  PROGRESS_REPORT_ON
+#pragma omp single nowait
+    {
+      fprintf(stdout, "# center-of-mass shift: %e, %e, %e\n", comx, comy, comz);
+      fprintf(stdout, "#    bulk motion shift: %e, %e, %e\n", velx, vely, velz);
+      fflush(stdout);
+    }
+#endif//PROGRESS_REPORT_ON
+
+
+    /** shift the coordinate system to the center-of-mass rest frame */
+#pragma omp for
+    for(ulong ii = head; ii < head + num; ii++){
+      body.pos[ii].x = CAST_D2R(CAST_R2D(body.pos[ii].x) - comx);
+      body.pos[ii].y = CAST_D2R(CAST_R2D(body.pos[ii].y) - comy);
+      body.pos[ii].z = CAST_D2R(CAST_R2D(body.pos[ii].z) - comz);
+      body.vx[ii] = CAST_D2R(CAST_R2D(body.vx[ii]) - velx);
+      body.vy[ii] = CAST_D2R(CAST_R2D(body.vy[ii]) - vely);
+      body.vz[ii] = CAST_D2R(CAST_R2D(body.vz[ii]) - velz);
+    }/* for(ulong ii = head; ii < head + num; ii++){ */
+
+
+#ifdef  RESET_ROTATION_AXIS
+    /** calculate angular momentum vector */
+    double Lx_loc = 0.0, Ly_loc = 0.0, Lz_loc = 0.0;
+    static double Lx, Ly, Lz;
+#pragma omp single
+    Lx = Ly = Lz = 0.0;
+#pragma omp for
+    for(ulong ii = head; ii < head + num; ii++){
+      const double rx = CAST_R2D(body.pos[ii].x);
+      const double ry = CAST_R2D(body.pos[ii].y);
+      const double rz = CAST_R2D(body.pos[ii].z);
+      if( isInnerParticle(rx * rx, ry * ry, rz * rz, rmax2, zmax2) ){
+	const double mass = CAST_R2D(body.pos[ii].m);
+	const double px = CAST_R2D(body.vx[ii]) * mass;
+	const double py = CAST_R2D(body.vy[ii]) * mass;
+	const double pz = CAST_R2D(body.vz[ii]) * mass;
+
+	Lx_loc += ry * pz - rz * py;
+	Ly_loc += rz * px - rx * pz;
+	Lz_loc += rx * py - ry * px;
+      }/* if( isInnerParticle(rx * rx, ry * ry, rz * rz, rmax2, zmax2) ){ */
+    }/* for(ulong ii = head; ii < head + num; ii++){ */
+
+    /** rotate galaxy (if necessary) */
+#pragma omp atomic
+    Lx += Lx_loc;
+#pragma omp atomic
+    Ly += Ly_loc;
+#pragma omp atomic
+    Lz += Lz_loc;
+#pragma omp barrier
+    const double L2 = Lx * Lx + Ly * Ly + Lz * Lz;
+    if( L2 > 1.0e-6 ){
+      real ini[3] = {CAST_D2R(Lx), CAST_D2R(Ly), CAST_D2R(Lz)};
+      real fin[3] = {ZERO, ZERO, UNITY};
+
+      real rot[3][3], inv[3][3];
+      initRotationMatrices(ini, fin, rot, inv);
+
+#ifndef USE_SFMTJUMP
+#pragma omp parallel
+#endif//USE_SFMTJUMP
+#pragma omp for
+      for(ulong ii = head; ii < head + num; ii++){
+	real bfr[3], aft[3];
+	/** rotate position */
+	bfr[0] = body.pos[ii].x;
+	bfr[1] = body.pos[ii].y;
+	bfr[2] = body.pos[ii].z;
+	rotateVector(bfr, rot, aft);
+	body.pos[ii].x = aft[0];
+	body.pos[ii].y = aft[1];
+	body.pos[ii].z = aft[2];
+
+	/** rotate velocity */
+	bfr[0] = body.vx[ii];
+	bfr[1] = body.vy[ii];
+	bfr[2] = body.vz[ii];
+	rotateVector(bfr, rot, aft);
+	body.vx[ii] = aft[0];
+	body.vy[ii] = aft[1];
+	body.vz[ii] = aft[2];
+      }/* for(ulong ii = head; ii < head + num; ii++){ */
+    }/* if( L2 > 1.0e-6 ){ */
+#endif//RESET_ROTATION_AXIS
+  }
 
   __NOTE__("%s\n", "end");
 }
+#endif//ENABLE_GASEOUS_COMPONENT
+
 #endif//DISABLE_SHIFT_CENTER
 
 
@@ -862,6 +1044,120 @@ double distributeSpheroidParticles(ulong *Nuse, iparticle body, const real mass,
 }
 
 
+#ifdef  ENABLE_GASEOUS_COMPONENT
+
+/**
+ * @fn gas_distributeSpheroidParticles
+ *
+ * @brief Distribute gaseous particles in the spherical symmetric component.
+ *
+ * @return (Nuse) total number of gaseous particles distributed
+ * @return (body) gaseous particles
+ * @param (mass) mass of gaseous particles
+ * @param (cfg) physical properties of the component
+ * @param (prf) radial profile of the component
+ * @param (rand) state of pseudo random numbers
+ *
+ * @sa UNIRAND_DBL
+ * @sa isotropicDistribution
+ */
+void gas_distributeSpheroidParticles(ulong *Nuse, sph_particle body, const real mass, profile_cfg cfg, profile *prf, rand_state *rand);
+void gas_distributeSpheroidParticles(ulong *Nuse, sph_particle body, const real mass, profile_cfg cfg, profile *prf, rand_state *rand)
+{
+  __NOTE__("%s\n", "start");
+
+  const ulong num = cfg.num;
+
+#ifdef  PROGRESS_REPORT_ON
+#ifdef  USE_SFMTJUMP
+  const ulong nunit = (ulong)floorf(0.1f * (float)num / (float)omp_get_num_threads());
+#else///USE_SFMTJUMP
+  const ulong nunit = (ulong)floorf(0.1f * (float)num);
+#endif//USE_SFMTJUMP
+  ulong stage = 1;
+  ulong Npart = 0;
+#ifdef  USE_SFMTJUMP
+#pragma omp single nowait
+#endif//USE_SFMTJUMP
+  {
+    fprintf(stdout, "#\n#\n# start distributing spherical component particles (%zu bodies: [%zu:%zu])\n", num, *Nuse, (*Nuse) + num - 1);
+    fflush(stdout);
+  }
+#endif//PROGRESS_REPORT_ON
+
+  const int iout = cfg.iout;
+
+  const double Mmin = prf[0].enc;
+  const double Mmax = cfg.Mtot;
+
+#ifdef  USE_SFMTJUMP
+#pragma omp for
+#endif//USE_SFMTJUMP
+  for(ulong ii = *Nuse; ii < *Nuse + num; ii++){
+    /** set spatial distribution by table search */
+    const double tmp = Mmin + (Mmax - Mmin) * UNIRAND_DBL(rand);
+    int ll = 0;
+    int rr = iout;
+    while( true ){
+      uint cc = (ll + rr) >> 1;
+
+      if( (prf[cc].enc - tmp) * (prf[ll].enc - tmp) <= 0.0 )	rr = cc;
+      else	                                                ll = cc;
+
+      if( (ll + 1) == rr )	break;
+    }/* while( true ){ */
+
+    const double alpha = (tmp - prf[ll].enc) / (prf[rr].enc - prf[ll].enc);
+    const double rad = (1.0 - alpha) * prf[ll].rad + alpha * prf[rr].rad;
+    isotropicDistribution(CAST_D2R(rad), &(body.pos[ii].x), &(body.pos[ii].y), &(body.pos[ii].z), rand);
+    body.pos[ii].m = mass;
+
+    /** assumption: hydrostatic */
+    body.vx[ii] = ZERO;
+    body.vy[ii] = ZERO;
+    body.vz[ii] = ZERO;
+
+    body.rho[ii] = CAST_D2R((1.0 - alpha) * prf[ll].rho + alpha * prf[rr].rho);
+    body.p  [ii] = CAST_D2R((1.0 - alpha) * prf[ll].p   + alpha * prf[rr].p  );
+    body.T  [ii] = CAST_D2R((1.0 - alpha) * prf[ll].T   + alpha * prf[rr].T  );
+
+    body.idx[ii] = ii;
+
+#ifdef  PROGRESS_REPORT_ON
+    Npart++;
+    if( Npart == (stage * nunit) ){
+#ifdef  USE_SFMTJUMP
+      fprintf(stdout, "# ~%zu%% on thread %d\n", stage * 10, omp_get_thread_num());
+#else///USE_SFMTJUMP
+      fprintf(stdout, "# ~%zu%%\n", stage * 10);
+#endif//USE_SFMTJUMP
+      fflush(stdout);
+      stage++;
+    }/* if( Npart == (stage * nunit) ){ */
+#endif//PROGRESS_REPORT_ON
+  }/* for(ulong ii = *Nuse; ii < *Nuse + num; ii++){ */
+
+  *Nuse += num;
+
+#ifdef  PROGRESS_REPORT_ON
+#ifdef  USE_SFMTJUMP
+#pragma omp barrier
+#pragma omp master
+#endif//USE_SFMTJUMP
+  {
+    fprintf(stdout, "# finish distributing spherical component particles (%zu bodies)\n", num);
+    fflush(stdout);
+  }
+#endif//PROGRESS_REPORT_ON
+
+
+  __NOTE__("%s\n", "end");
+}
+#endif//ENABLE_GASEOUS_COMPONENT
+
+
+
+
 void outputFundamentalInformation
 (const int unit, const int kind, const int skind, profile_cfg *cfg, profile **prf, const ulong Ntot, const real eps, const double snapshotInterval, const double ft, char file[]);
 void outputRadialProfiles
@@ -870,6 +1166,16 @@ void outputRadialProfiles
  profile_cfg *cfg, const real eps,
 #endif//USE_HDF5_FORMAT
  char file[]);
+
+#ifdef  ENABLE_GASEOUS_COMPONENT
+void gas_outputFundamentalInformation(const int unit, const int kind, const int skind, profile_cfg *cfg, const ulong Ntot, const real eps, const double snapshotInterval, const double ft, char file[]);
+void gas_outputRadialProfiles
+(const int kind, profile **prf,
+#ifdef  USE_HDF5_FORMAT
+ profile_cfg *cfg,
+#endif//USE_HDF5_FORMAT
+   char file[]);
+#endif//ENABLE_GASEOUS_COMPONENT
 
 void outputDistributionFunction(const int skind, dist_func **df, char file[]);
 
@@ -883,6 +1189,11 @@ void findJmax(const int maxLev, const int ndisk, disk_data *disk);
 #endif//USE_ZANG_HOHL_1978_EQ5
 
 void evaluateObservables(const int kind, const int skind, profile_cfg *cfg, profile **prf);
+
+#ifdef  ENABLE_GASEOUS_COMPONENT
+void get_rhalf_for_gas_sphere(const int kind, profile_cfg *cfg, profile **prf);
+#endif//ENABLE_GASEOUS_COMPONENT
+
 void writeDiskData(char *file, const int ndisk, const int maxLev, disk_data *disk);
 
 
@@ -903,6 +1214,9 @@ int main(int argc, char **argv)
     __FPRINTF__(stderr, "          -ft=<real> -snapshotInterval=<real> -saveInterval=<real>\n");
     __FPRINTF__(stderr, "          -enforceInputSoftening=<int> (optional)\n");
     __FPRINTF__(stderr, "          -denoisingDistributionFunction=<int> (optional)\n");
+#ifdef  ENABLE_GASEOUS_COMPONENT
+    __FPRINTF__(stderr, "          -gas_config=<char *> (optional)\n");
+#endif//ENABLE_GASEOUS_COMPONENT
     __KILL__(stderr, "%s\n", "insufficient command line arguments");
   }/* if( argc < 9 ){ */
 
@@ -913,11 +1227,25 @@ int main(int argc, char **argv)
   real   eta;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv,    "eta", &eta));
   double saveInterval;  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "saveInterval", &saveInterval));
 
+  /** read optional input arguments related to gaseous components */
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  char *gas_fcfg;
+  const bool add_gas = (optionalCmdArg(getCmdArgStr(argc, (const char * const *)(void *)argv, "gas_config", &gas_fcfg)) == myUtilAvail);
+#endif//ENABLE_GASEOUS_COMPONENT
+
   /** set unit system by reading the configuration file about physical parameters of the initial distribution */
   int unit, kind;
   profile_cfg *cfg;
   readProfileCfg(fcfg, &unit, &kind, &cfg);
-  if( kind > NKIND_MAX ){    __KILL__(stderr, "ERROR: kind(= %d) must be smaller than %d\n", kind, NKIND_MAX);  }
+  if( kind > NKIND_MAX ){    __KILL__(stderr, "ERROR: kind(= %d) must be smaller than %d or increase the limit (NKIND_MAX defined in src/init/profile.h)\n", kind, NKIND_MAX);  }
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  static int gas_kind = 0;
+  profile_cfg *gas_cfg;
+  if( add_gas ){
+    gas_readProfileCfg(gas_fcfg, unit, &gas_kind, &gas_cfg);
+    if( gas_kind > NKIND_MAX ){    __KILL__(stderr, "ERROR: gas_kind(= %d) must be smaller than %d or increase the limit (NKIND_MAX defined in src/init/profile.h)\n", gas_kind, NKIND_MAX);  }
+  }
+#endif//ENABLE_GASEOUS_COMPONENT
 
   /** read input arguments depend on the unit system adopted in the numerical simulation */
   double tmp;
@@ -929,7 +1257,6 @@ int main(int argc, char **argv)
   if( optionalCmdArg(getCmdArgInt(argc, (const char * const *)(void *)argv, "denoisingDistributionFunction", &denoisingDistributionFunction)) != myUtilAvail )
     denoisingDistributionFunction = 0;
 
-
   static breakdown execTime;
 
 
@@ -937,19 +1264,36 @@ int main(int argc, char **argv)
   ulong Nrem = 0;
   for(int ii = 0; ii < kind; ii++)
     Nrem += (cfg[ii].forceNum == 1) ? cfg[ii].num : 0;
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  if( add_gas )
+    for(int ii = 0; ii < gas_kind; ii++)
+      Nrem += (gas_cfg[ii].forceNum == 1) ? gas_cfg[ii].num : 0;
+#endif//ENABLE_GASEOUS_COMPONENT
   if( Nrem > Ntot ){
     __KILL__(stderr, "ERROR: the sum of number of particles for each component (%zu) exceeds the specified total number of particles (%zu).\n", Nrem, Ntot);
   }/* if( Nrem > Ntot ){ */
   Nrem = Ntot - Nrem;
+
 
   /** set number of particles to represent each profile */
   double Mtot = 0.0;
   for(int ii = 0; ii < kind; ii++)
     if( cfg[ii].forceNum != 1 )
       Mtot += cfg[ii].Mtot;
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  if( add_gas )
+    for(int ii = 0; ii < gas_kind; ii++)
+      if( gas_cfg[ii].forceNum != 1 )
+	Mtot += gas_cfg[ii].Mtot;
+#endif//ENABLE_GASEOUS_COMPONENT
   const double Minv = 1.0 / Mtot;
   ulong Nuse = 0;
   int kidx = kind;
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  if( add_gas )
+    kidx += gas_kind;
+#endif//ENABLE_GASEOUS_COMPONENT
+const int kidx_org = kidx;
   double Mmax = 0.0;
   for(int ii = 0; ii < kind; ii++){
     if( cfg[ii].forceNum != 1 ){
@@ -963,13 +1307,33 @@ int main(int argc, char **argv)
       }/* if( cfg[ii].Mtot > Mmax ){ */
     }/* if( cfg[ii].forceNum != 1 ){ */
   }/* for(int ii = 0; ii < kind; ii++){ */
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  if( add_gas )
+    for(int ii = 0; ii < gas_kind; ii++)
+      if( gas_cfg[ii].forceNum != 1 ){
+	/** number of particles is determined by mass fraction */
+	gas_cfg[ii].num = (ulong)(gas_cfg[ii].Mtot * Minv * (double)Nrem);
+	Nuse += gas_cfg[ii].num;
 
-  if( (kidx == kind) && (Nuse != Nrem) ){
-    __KILL__(stderr, "ERROR: mismatch about number of particles detected (Nuse = %zu, Nrem = %zu) with %d components\n", Nuse, Nrem, kind);
-  }/* if( (kidx == kind) && (Nuse != Nrem) ){ */
-  if( Nuse != Nrem )
+	if( gas_cfg[ii].Mtot > Mmax ){
+	  kidx = kind + ii;
+	  Mmax = gas_cfg[ii].Mtot;
+	}/* if( cfg[ii].Mtot > Mmax ){ */
+      }
+#endif//ENABLE_GASEOUS_COMPONENT
+  if( (kidx == kidx_org) && (Nuse != Nrem) ){
+    __KILL__(stderr, "ERROR: mismatch about number of particles detected (Nuse = %zu, Nrem = %zu)\n", Nuse, Nrem);
+  }/* if( (kidx == kidx_org) && (Nuse != Nrem) ){ */
+  if( Nuse != Nrem ){
+#ifdef  ENABLE_GASEOUS_COMPONENT
+    if( kidx < kind )
+#endif//ENABLE_GASEOUS_COMPONENT
     cfg[kidx].num += (Nrem - Nuse);
-
+#ifdef  ENABLE_GASEOUS_COMPONENT
+    else
+      gas_cfg[kidx - kind].num += (Nrem - Nuse);
+#endif//ENABLE_GASEOUS_COMPONENT
+  }
 
   /** initialize the table for Gaussian Quadrature provided by GSL */
   for(int ii = 0; ii < NTBL_GAUSS_QD; ii++){
@@ -998,6 +1362,18 @@ int main(int argc, char **argv)
   if( addDisk )
     for(int ii = skind; ii < kind; ii++)
       if( cfg[ii].kind >= 0 ){      	__KILL__(stderr, "ERROR: disk component must be last component(s).\n\tModify \"%s/%s\".\n", CFGFOLDER, fcfg);      }
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  int gas_skind = gas_kind;
+  if( add_gas )
+    for(int ii = 0; ii < gas_kind; ii++)
+      if( gas_cfg[ii].kind < 0 )
+	gas_skind--;
+  const int gas_ndisk = gas_kind - gas_skind;
+  const bool gas_addDisk = (gas_ndisk != 0) ? true : false;
+  if( gas_addDisk )
+    for(int ii = gas_skind; ii < gas_kind; ii++)
+      if( gas_cfg[ii].kind >= 0 ){      	__KILL__(stderr, "ERROR: disk component must be last component(s).\n\tModify \"%s/%s\".\n", CFGFOLDER, gas_fcfg);      }
+#endif//ENABLE_GASEOUS_COMPONENT
 
 
   /** set softening length */
@@ -1060,6 +1436,20 @@ int main(int argc, char **argv)
   for(int ii = 0; ii < kind; ii++)
     for(int jj = 0; jj < NRADBIN; jj++)
       prf[ii][jj].rad = pow(10.0, logrmin + logrbin * (double)jj);
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  profile **gas_prf, *_gas_prf;
+  if( add_gas ){
+    /** 2 * 2 bins are added in the both edge */
+    _gas_prf = (profile  *)malloc(sizeof(profile  ) * gas_kind * NRADBIN);  if( _gas_prf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate _gas_prf\n");  }
+    gas_prf  = (profile **)malloc(sizeof(profile *) * gas_kind          );  if(  gas_prf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate  gas_prf\n");  }
+    for(int ii = 0; ii < gas_kind; ii++)
+      gas_prf[ii] = _gas_prf + ii * NRADBIN;
+#pragma omp parallel for
+    for(int ii = 0; ii < gas_kind; ii++)
+      for(int jj = 0; jj < NRADBIN; jj++)
+	gas_prf[ii][jj].rad = pow(10.0, logrmin + logrbin * (double)jj);
+  }
+#endif//ENABLE_GASEOUS_COMPONENT
   stopBenchmark_cpu(&execTime.spheAlloc);
   /** memory allocation for disk component(s) */
   initBenchmark_cpu();
@@ -1143,7 +1533,127 @@ int main(int argc, char **argv)
   }/* for(int ii = 0; ii < NRADBIN; ii++){ */
   stopBenchmark_cpu(&execTime.spheProf);
 
-  /* set density profile for the disk component(s) */
+
+  /** set spherical isothermal gas in hydrostatic */
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  /* int gas_nsphere = gas_skind; */
+  if( add_gas ){
+    initBenchmark_cpu();
+    for(int ii = 0; ii < gas_skind; ii++){
+      gas_cfg[ii].rho0 = 1.0;
+      gas_cfg[ii].rho0_bak = -1.0;
+
+      gas_cfg[ii].rs = cfg[0].rs;/**< tentative treatment to using DE formula in integrateDensityProfile() in src/init/profile.c */
+    }
+
+    for(int kk = 0; kk < gas_kind; kk++)
+#pragma omp parallel for
+      for(int ii = 0; ii < NRADBIN; ii++){
+	gas_prf[kk][ii].rho = 0.0;
+	gas_prf[kk][ii].enc = 0.0;
+	gas_prf[kk][ii].psi = 0.0;
+      }
+
+    static bool gas_profile_converged = false;
+
+    while( true ){
+      /** update sum of density, enclosed mass and potential of all spherical component(s) */
+#pragma omp parallel for
+      for(int ii = 0; ii < NRADBIN; ii++){
+      	double rho = prf[0][ii].rho_tot;
+      	double enc = prf[0][ii].enc_tot;
+      	double psi = prf[0][ii].psi_tot;
+      	for(int kk = 0; kk < gas_skind; kk++){
+      	  rho += gas_prf[kk][ii].rho;
+      	  enc += gas_prf[kk][ii].enc;
+      	  psi += gas_prf[kk][ii].psi;
+      	}
+      	for(int kk = 0; kk < gas_skind; kk++){
+      	  gas_prf[kk][ii].rho_tot = rho;
+      	  gas_prf[kk][ii].enc_tot = enc;
+      	  gas_prf[kk][ii].psi_tot = psi;
+      	}
+      }
+
+      if( gas_profile_converged )
+	break;
+
+      /** set hydrostatic gaseous component(s) */
+      for(int ii = 0; ii < gas_skind; ii++){
+	/** set density distribution */
+	__NOTE__("rho0 = %e\n", gas_cfg[ii].rho0);
+	switch( gas_cfg[ii].kind ){
+	case ISOTHERMAL_GAS:
+	  setIsothermalGas(gas_prf[ii], gas_cfg[ii].Tgas, gas_cfg[ii].mu, gas_cfg[ii].rho0);
+	  break;
+	default:
+	  __KILL__(stderr, "ERROR: undefined profile ``%d'' specified\n", gas_cfg[ii].kind);
+	  break;
+	}
+
+	/** calculate mass profile */
+	integrateDensityProfile(gas_prf[ii], &gas_cfg[ii]
+#ifndef ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
+				, logrbin
+#endif//ADOPT_DOUBLE_EXPONENTIAL_FORMULA_FOR_PROFILE
+				);
+      }
+
+      gas_profile_converged = true;
+#ifdef  CONSIDER_SELF_GRAVITY_OF_GAS_COMPONENT
+      for(int ii = 0; ii < gas_skind; ii++){
+	gas_profile_converged &= (fabs(1.0 - gas_cfg[ii].rho0_bak / gas_cfg[ii].rho0) <= 1.0e-6);
+	gas_cfg[ii].rho0_bak = gas_cfg[ii].rho0;
+      }
+#endif//CONSIDER_SELF_GRAVITY_OF_GAS_COMPONENT
+    }
+#if 0
+    for(int ii = 0; ii < NRADBIN; ii += (NRADBIN / 128))
+      fprintf(stdout, "%e\t%e\t%e\t%e\t%e\n", gas_prf[0][ii].rad, gas_prf[0][ii].rho, gas_prf[0][ii].enc, gas_prf[0][ii].psi, gas_prf[0][ii].psi_tot);
+    __KILL__(stderr, "suspend for debugging\n");
+#endif
+    /** set pressure and temprature of gaseous component(s) */
+    for(int ii = 0; ii < gas_skind; ii++){
+      /** set density distribution */
+      switch( gas_cfg[ii].kind ){
+      case ISOTHERMAL_GAS:
+	{
+	  extern const double boltzmann, protonmass;
+	  const double Tgas = gas_cfg[ii].Tgas;
+	  const double coeff = (boltzmann * Tgas) / (gas_cfg[ii].mu * protonmass);
+
+	  for(int jj = 0; jj < NRADBIN; jj++){
+	    gas_prf[ii][jj].p = coeff * gas_prf[ii][jj].rho;
+	    gas_prf[ii][jj].T = Tgas;
+	  }
+	}
+	break;
+      default:
+	__KILL__(stderr, "ERROR: undefined profile ``%d'' specified\n", gas_cfg[ii].kind);
+	break;
+      }
+    }
+
+
+    /** update sum of density, enclosed mass and potential of all spherical component(s) */
+#pragma omp parallel for
+    for(int ii = 0; ii < NRADBIN; ii++){
+      const double rho = gas_prf[0][ii].rho_tot;
+      const double enc = gas_prf[0][ii].enc_tot;
+      const double psi = gas_prf[0][ii].psi_tot;
+
+      for(int kk = 0; kk < kind; kk++){
+	prf[kk][ii].rho_tot = rho;
+	prf[kk][ii].enc_tot = enc;
+	prf[kk][ii].psi_tot = psi;
+      }/* for(int kk = 0; kk < kind; kk++){ */
+    }/* for(int ii = 0; ii < NRADBIN; ii++){ */
+    stopBenchmark_cpu(&execTime.gas_spheProf);
+  }
+#endif//ENABLE_GASEOUS_COMPONENT
+
+
+  /** set density profile for the disk component(s) */
   if( addDisk ){
     /** set disk_radius, disk_height, disk_pot */
     initBenchmark_cpu();
@@ -1319,6 +1829,11 @@ int main(int argc, char **argv)
   stopBenchmark_cpu(&execTime.column);
 #endif//MAKE_COLUMN_DENSITY_PROFILE
 
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  if( add_gas )
+    get_rhalf_for_gas_sphere(gas_kind, gas_cfg, gas_prf);
+#endif//ENABLE_GASEOUS_COMPONENT
+
   if( addDisk ){
     initBenchmark_cpu();
     /** differentiate potential along the radial direction on the equatorial plane */
@@ -1339,6 +1854,36 @@ int main(int argc, char **argv)
 
   /** set particle distribution */
   initBenchmark_cpu();
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  sph_particle gas_body;
+  ulong *gas_idx;
+  position *gas_pos;
+  real *gas_vx, *gas_vy, *gas_vz;
+  real *gas_rho, *gas_p, *gas_T;
+  ulong gas_Ntot = 0;
+  if( add_gas ){
+    for(int ii = 0; ii < gas_kind; ii++)
+      gas_Ntot += gas_cfg[ii].num;
+    Ntot -= gas_Ntot;
+    gas_idx = (ulong    *)malloc(gas_Ntot * sizeof(ulong)   );    if( gas_idx == NULL ){      __KILL__(stderr, "ERROR: failure to allocate gas_idx\n");    }
+    gas_pos = (position *)malloc(gas_Ntot * sizeof(position));    if( gas_pos == NULL ){      __KILL__(stderr, "ERROR: failure to allocate gas_pos\n");    }
+    gas_vx  = (real     *)malloc(gas_Ntot * sizeof(real)    );    if( gas_vx  == NULL ){      __KILL__(stderr, "ERROR: failure to allocate gas_vx\n");    }
+    gas_vy  = (real     *)malloc(gas_Ntot * sizeof(real)    );    if( gas_vy  == NULL ){      __KILL__(stderr, "ERROR: failure to allocate gas_vy\n");    }
+    gas_vz  = (real     *)malloc(gas_Ntot * sizeof(real)    );    if( gas_vz  == NULL ){      __KILL__(stderr, "ERROR: failure to allocate gas_vz\n");    }
+    gas_rho = (real     *)malloc(gas_Ntot * sizeof(real)    );    if( gas_rho == NULL ){      __KILL__(stderr, "ERROR: failure to allocate gas_rho\n");    }
+    gas_p   = (real     *)malloc(gas_Ntot * sizeof(real)    );    if( gas_p   == NULL ){      __KILL__(stderr, "ERROR: failure to allocate gas_p\n");    }
+    gas_T   = (real     *)malloc(gas_Ntot * sizeof(real)    );    if( gas_T   == NULL ){      __KILL__(stderr, "ERROR: failure to allocate gas_T\n");    }
+
+    gas_body.idx = gas_idx;
+    gas_body.pos = gas_pos;
+    gas_body.vx  = gas_vx;
+    gas_body.vy  = gas_vy;
+    gas_body.vz  = gas_vz;
+    gas_body.rho = gas_rho;
+    gas_body.p   = gas_p;
+    gas_body.T   = gas_T;
+  }
+#endif//ENABLE_GASEOUS_COMPONENT
   iparticle body;
   ulong *idx;
   position *pos;
@@ -1428,6 +1973,30 @@ int main(int argc, char **argv)
 #pragma omp master
 #endif//USE_SFMTJUMP
     stopBenchmark_cpu(&execTime.spheDist);
+
+#ifdef  ENABLE_GASEOUS_COMPONENT
+    if( add_gas && (gas_skind > 0) ){
+#ifdef  USE_SFMTJUMP
+#pragma omp barrier
+#pragma omp master
+#endif//USE_SFMTJUMP
+      initBenchmark_cpu();
+      Nuse = 0;
+      for(int ii = 0; ii < gas_skind; ii++){
+	gas_distributeSpheroidParticles(&Nuse, gas_body, CAST_D2R(gas_cfg[ii].Mtot / (double)gas_cfg[ii].num), gas_cfg[ii], &gas_prf[ii][2], rand);
+
+#ifndef DISABLE_SHIFT_CENTER
+	/** shift center-of-mass, remove bulk motion */
+	gas_shiftCenter(gas_cfg[ii].num, Nuse - gas_cfg[ii].num, gas_body, gas_cfg[ii]);
+#endif//DISABLE_SHIFT_CENTER
+      }
+#ifdef  USE_SFMTJUMP
+#pragma omp barrier
+#pragma omp master
+#endif//USE_SFMTJUMP
+      stopBenchmark_cpu(&execTime.gas_spheDist);
+    }
+#endif//ENABLE_GASEOUS_COMPONENT
 
 #   if  defined(USE_OSIPKOV_MERRITT_METHOD) && defined(CHECK_RADIAL_ORBIT_INSTABILITY)
     static double Trad, Ttan;
@@ -1647,6 +2216,19 @@ int main(int argc, char **argv)
 #ifdef  USE_HDF5_FORMAT
   outputRepresentativeQuantities(kind, cfg, skind, prf, ndisk, maxLev, disk_info, file);
 #endif//USE_HDF5_FORMAT
+
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  if( add_gas ){
+    gas_outputFundamentalInformation(unit, gas_kind, gas_skind, gas_cfg, gas_Ntot, eps, snapshotInterval, ft, file);
+    gas_outputRadialProfiles
+      (gas_kind, gas_prf,
+#ifdef  USE_HDF5_FORMAT
+       gas_cfg,
+#endif//USE_HDF5_FORMAT
+       file);
+  }
+#endif//ENABLE_GASEOUS_COMPONENT
+
   stopBenchmark_cpu(&execTime.spheInfo);
 
   /** write particle data */
@@ -1698,7 +2280,12 @@ int main(int argc, char **argv)
 #else///!defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT) && !defined(WRITE_IN_GADGET_FORMAT)
 
 #ifdef  WRITE_IN_TIPSY_FORMAT
-  writeTipsyFile(time, CAST_R2F(eps), (int)Ntot, body, file);
+  writeTipsyFile
+    (time, CAST_R2F(eps), (int)Ntot, body, file
+#ifdef  ENABLE_GASEOUS_COMPONENT
+     , (int)gas_Ntot, gas_body
+#endif//ENABLE_GASEOUS_COMPONENT
+     );
 #endif//WRITE_IN_TIPSY_FORMAT
 
 #ifdef  WRITE_IN_GALACTICS_FORMAT
@@ -1785,6 +2372,9 @@ int main(int argc, char **argv)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   ttot += execTime.external;
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  ttot += execTime.gas_spheProf + execTime.gas_spheDist;
+#endif//ENABLE_GASEOUS_COMPONENT
 
   FILE *fp;
   char filename[128];
@@ -1806,6 +2396,9 @@ int main(int argc, char **argv)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
     fprintf(fp, "\t%s", "external");
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  ENABLE_GASEOUS_COMPONENT
+    fprintf(fp, "\t%s\t%s", "gas_spheProf", "gas_spheDist");
+#endif//ENABLE_GASEOUS_COMPONENT
     fprintf(fp, "\n");
     fclose(fp);
   }/* if( 0 != access(filename, F_OK) ){ */
@@ -1825,6 +2418,9 @@ int main(int argc, char **argv)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   fprintf(fp, "\t%e", execTime.external);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  fprintf(fp, "\t%e\t%e", execTime.gas_spheProf, execTime.gas_spheDist);
+#endif//ENABLE_GASEOUS_COMPONENT
   fprintf(fp, "\n");
   fclose(fp);
 
@@ -1848,6 +2444,10 @@ int main(int argc, char **argv)
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.external, execTime.external * ttot, "execute cubic spline interpolation to generate external potential field");
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.gas_spheProf, execTime.gas_spheProf * ttot, "generating radial profile of gaseous component(s)");
+  fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.gas_spheDist, execTime.gas_spheDist * ttot, "distributing SPH particles of gaseous component(s)");
+#endif//ENABLE_GASEOUS_COMPONENT
   fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.file    , execTime.file     * ttot, "writing particle data");
   fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.spheInfo, execTime.spheInfo * ttot, "writing fundamental data of spherical component(s)");
   if( addDisk )    fprintf(stdout, "# %e s (%5.2f%%) for %s\n", execTime.diskInfo, execTime.diskInfo * ttot, "writing fundamental data of disk component(s)");
@@ -1941,6 +2541,25 @@ int main(int argc, char **argv)
        Phi_diskpot);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELDp
+
+#ifdef  ENABLE_GASEOUS_COMPONENT
+  if( add_gas ){
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+    free(gas_cfg);
+    free(gas_prf);    free(_gas_prf);
+
+    free(gas_idx);
+    free(gas_pos);
+    free(gas_vx);    free(gas_vy);    free(gas_vz);
+    free(gas_rho);    free(gas_p);    free(gas_T);
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+  }
+#endif//ENABLE_GASEOUS_COMPONENT
 
 #ifdef  USE_LIS
   lis_finalize();
@@ -2048,10 +2667,12 @@ void outputFundamentalInformation
   fprintf(fp, "Snapshot interval            is %e (= %e %s)\n", snapshotInterval, snapshotInterval * time2astro, time_astro_unit_name);
   fprintf(fp, "Final time of the simulation is %e (= %e %s)\n",               ft,               ft * time2astro, time_astro_unit_name);
   fprintf(fp, "#############################################################################\n");
-  fprintf(fp, "#############################################################################\n\n");
+  fprintf(fp, "#############################################################################\n");
 
   ulong ihead = 0;
   for(int ii = 0; ii < kind; ii++){
+    if( ii > 0 )
+      fprintf(fp, "\n");
     /** output settings for individual component */
     fprintf(fp, "#############################################################################\n");
     fprintf(fp, "#############################################################################\n");
@@ -2493,7 +3114,6 @@ void outputFundamentalInformation
       fprintf(fp, "#############################################################################\n");
       fprintf(fp, "#############################################################################\n");
     }/* if( cfg[ii].kind != CENTRALBH ){ */
-    fprintf(fp, "\n");
   }/* for(int ii = 0; ii < kind; ii++){ */
   fclose(fp);
 
@@ -2875,6 +3495,331 @@ void outputRadialProfiles
 
   __NOTE__("%s\n", "end");
 }
+
+
+#ifdef  ENABLE_GASEOUS_COMPONENT
+/**
+ * @fn gas_outputFundamentalInformation
+ *
+ * @brief Print out fundamental information on the generated system.
+ *
+ * @param (unit) unit system
+ * @param (kind) number of components
+ * @param (skind) number of spherical symmetric components
+ * @param (cfg) physical properties of the components
+ * @param (Ntot) total number of N-body particles
+ * @return (eps) value of Plummer softening length
+ * @return (SnapshotInterval) time interval to write snapshot files
+ * @return (ft) finish time of the simulation
+ * @param (file) name of the simulation
+ */
+void gas_outputFundamentalInformation(const int unit, const int kind, const int skind, profile_cfg *cfg, const ulong Ntot, const real eps, const double snapshotInterval, const double ft, char file[])
+{
+  __NOTE__("%s\n", "start");
+
+  FILE *fp;
+  char filename[256], date[64];
+
+  /** output useful information for multi-component analysis */
+  sprintf(filename, "%s/%s.summary_gas.txt", DOCUMENTFOLDER, file);
+  fp = fopen(filename, "w");
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);  }
+
+  fprintf(fp, "%d\n", unit);
+  fprintf(fp, "%d\t%d\n", kind, skind);
+  for(int ii = 0; ii < kind; ii++)
+    fprintf(fp, "%zu\n", cfg[ii].num);
+
+  fclose(fp);
+
+
+  /** output fundamental information of the particle distribution */
+  sprintf(filename, "%s/%s.info_gas.txt", DOCUMENTFOLDER, file);
+  fp = fopen(filename, "w");
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);  }
+
+  /** output global settings */
+  getPresentDateInStrings(date);
+  fprintf(fp, "#############################################################################\n");
+  fprintf(fp, "#############################################################################\n");
+  fprintf(fp, "Fundamental information about the gaseous particle distribution\n");
+  fprintf(fp, "\tgenerated on %s", date);
+  fprintf(fp, "Physical quantities in Computational and Astrophysical units is listed\n");
+  fprintf(fp, "#############################################################################\n");
+  fprintf(fp, "#############################################################################\n");
+  double Mtot = 0.0;
+  for(int ii = 0; ii < kind; ii++)
+    Mtot += cfg[ii].Mtot;
+  fprintf(fp, "Total mass of the system  Mtot is %e (= %e %s)\n" , Mtot, Mtot * mass2astro, mass_astro_unit_name);
+  fprintf(fp, "Total number of particles Ntot is %zu (= 2^%u)\n", Ntot, ilog2((uint)Ntot));
+  fprintf(fp, "Number of components      kind is %d\n" , kind);
+  fprintf(fp, "#############################################################################\n");
+  fprintf(fp, "Length of Plummer softening  is %e (= %e %s)\n", eps, eps * length2astro, length_astro_unit_name);
+  fprintf(fp, "Snapshot interval            is %e (= %e %s)\n", snapshotInterval, snapshotInterval * time2astro, time_astro_unit_name);
+  fprintf(fp, "Final time of the simulation is %e (= %e %s)\n",               ft,               ft * time2astro, time_astro_unit_name);
+  fprintf(fp, "#############################################################################\n");
+  fprintf(fp, "#############################################################################\n");
+
+  ulong ihead = 0;
+  for(int ii = 0; ii < kind; ii++){
+    if( ii > 0 )
+      fprintf(fp, "\n");
+    /** output settings for individual component */
+    fprintf(fp, "#############################################################################\n");
+    fprintf(fp, "#############################################################################\n");
+    fprintf(fp, "%d-th component: ", ii);
+    switch( cfg[ii].kind ){
+    case ISOTHERMAL_GAS:      fprintf(fp, "Isothermal gas in hydrostatic\n");      break;
+    default:
+      __KILL__(stderr, "ERROR: undefined profile ``%d'' specified\n", cfg[ii].kind);
+      break;
+    }/* switch( cfg[ii].kind ){ */
+    fprintf(fp, "#############################################################################\n");
+    fprintf(fp, "Total number of particles Ntot is %zu (about 2^%u)\n", cfg[ii].num, ilog2((int)cfg[ii].num));
+    fprintf(fp, "Range of idx for the component is [%zu, %zu]\n", ihead, ihead + cfg[ii].num - 1);
+    ihead += cfg[ii].num;
+    fprintf(fp, "Mass of each N-body particle m is %e (= %e %s)\n", cfg[ii].Mtot / (double)cfg[ii].num, cfg[ii].Mtot / (double)cfg[ii].num * mass2astro, mass_astro_unit_name);
+    fprintf(fp, "#############################################################################\n");
+    fprintf(fp, "Total mass of the component Mtot is %e (= %e %s)\n", cfg[ii].Mtot, cfg[ii].Mtot * mass2astro, mass_astro_unit_name);
+    if( cfg[ii].kind == ISOTHERMAL_GAS ){
+      fprintf(fp, "Temperature of the component Tgas is %e (= %e %s)\n", cfg[ii].Tgas, cfg[ii].Tgas * temperature2astro, temperature_astro_unit_name);
+      fprintf(fp, "Mean molecular weight of the component mu is %e\n", cfg[ii].mu);
+      fprintf(fp, "Half-mass radius of the component r_{1/2} is %e (= %e %s)\n", cfg[ii].rhalf, cfg[ii].rhalf * length2astro, length_astro_unit_name);
+    }
+    fprintf(fp, "#############################################################################\n");
+  }
+  fclose(fp);
+
+  __NOTE__("%s\n", "end");
+}
+
+
+/**
+ * @fn gas_outputRadialProfiles
+ *
+ * @brief Print out radial profiles of the generated system.
+ *
+ * @param (kind) number of components
+ * @param (prf) radial profile of the components
+ * @param (cfg) physical properties of the components
+ * @param (file) name of the simulation
+ */
+void gas_outputRadialProfiles
+(const int kind, profile **prf,
+#ifdef  USE_HDF5_FORMAT
+ profile_cfg *cfg,
+#endif//USE_HDF5_FORMAT
+ char file[])
+{
+  __NOTE__("%s\n", "start");
+
+
+  /** output fundamental profile of the particle distribution */
+  real *tmp_rad;  tmp_rad = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_rad == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_rad\n");  }
+  real *tmp_rho;  tmp_rho = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_rho == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_rho\n");  }
+  real *tmp_enc;  tmp_enc = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_enc == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_enc\n");  }
+  real *tmp_psi;  tmp_psi = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_psi == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_psi\n");  }
+  real *tmp_p  ;  tmp_p   = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_p   == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_p\n");  }
+  real *tmp_T  ;  tmp_T   = (real *)malloc(NRADBIN * sizeof(real));  if( tmp_T   == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tmp_T\n");  }
+
+
+  char filename[128];
+#ifdef  USE_HDF5_FORMAT
+  /** create a new file (if the file already exists, the file is opened with read-write access, new data will overwrite any existing data) */
+  sprintf(filename, "%s/%s.%s.h5", DATAFOLDER, file, "profile_gas");
+  hid_t target = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+#ifdef  USE_DOUBLE_PRECISION
+  hid_t hdf5_real = H5T_NATIVE_DOUBLE;
+#else///USE_DOUBLE_PRECISION
+  hid_t hdf5_real = H5T_NATIVE_FLOAT;
+#endif//USE_DOUBLE_PRECISION
+  /* preparation for data compression */
+  hid_t dataset, dataspace, property;
+#ifdef  USE_SZIP_COMPRESSION
+  /* compression using szip */
+  uint szip_options_mask = H5_SZIP_NN_OPTION_MASK;
+  uint szip_pixels_per_block = 8;
+  hsize_t cdims = 128 * szip_pixels_per_block;
+#else///USE_SZIP_COMPRESSION
+  property = H5P_DEFAULT;
+#endif//USE_SZIP_COMPRESSION
+#endif//USE_HDF5_FORMAT
+
+  for(int kk = 0; kk < kind; kk++){
+#ifdef  USE_HDF5_FORMAT
+    char grp[16];    sprintf(grp, "data%d", kk);
+    hid_t group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+#else///USE_HDF5_FORMAT
+    FILE *fp;
+#ifndef WRITE_IN_GALACTICS_FORMAT
+    sprintf(filename, "%s/%s.profile_gas.%d.dat", DATAFOLDER, file, kk);
+    fp = fopen(filename, "wb");
+#else///WRITE_IN_GALACTICS_FORMAT
+    sprintf(filename, "%s/%s.profile_gas.%d.txt", DATAFOLDER, file, kk);
+    fp = fopen(filename, "w");
+#endif//WRITE_IN_GALACTICS_FORMAT
+    if( fp == NULL ){      __KILL__(stderr, "ERROR: \"%s\" couldn't open.\n", filename);    }
+#endif//USE_HDF5_FORMAT
+
+#pragma omp parallel for
+    for(int ii = 0; ii < NRADBIN; ii++){
+      tmp_rad[ii] = CAST_D2R(prf[kk][ii].rad *  length2astro);
+      tmp_rho[ii] = CAST_D2R(prf[kk][ii].rho * density2astro);
+      tmp_enc[ii] = CAST_D2R(prf[kk][ii].enc *    mass2astro);
+      tmp_psi[ii] = CAST_D2R(prf[kk][ii].psi * senergy2astro);
+      tmp_p  [ii] = CAST_D2R(prf[kk][ii].p   * pressure2astro);
+      tmp_T  [ii] = CAST_D2R(prf[kk][ii].T   * temperature2astro);
+    }/* for(int ii = 0; ii < NRADBIN; ii++){ */
+
+#ifdef  USE_HDF5_FORMAT
+    hsize_t dims = NRADBIN;
+    dataspace = H5Screate_simple(1, &dims, NULL);
+#ifdef  USE_SZIP_COMPRESSION
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    chkHDF5err(H5Pset_chunk(property, 1, &cdims));
+    chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+#endif//USE_SZIP_COMPRESSION
+
+    /** write radius */
+    dataset = H5Dcreate(group, "rad", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_rad));
+    chkHDF5err(H5Dclose(dataset));
+    /** write density */
+    dataset = H5Dcreate(group, "rho", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_rho));
+    chkHDF5err(H5Dclose(dataset));
+    /** write enclosed mass */
+    dataset = H5Dcreate(group, "enc", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_enc));
+    chkHDF5err(H5Dclose(dataset));
+    /** write potential */
+    dataset = H5Dcreate(group, "Psi", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_psi));
+    chkHDF5err(H5Dclose(dataset));
+    /** write pressure */
+    dataset = H5Dcreate(group, "p", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_p));
+    chkHDF5err(H5Dclose(dataset));
+    /** write temperature */
+    dataset = H5Dcreate(group, "T", hdf5_real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, hdf5_real, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp_T));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_SZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_SZIP_COMPRESSION
+    /** close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+
+    /** write attribute data */
+    /** create the data space for the attribute */
+    hsize_t attr_dims = 1;
+    dataspace = H5Screate_simple(1, &attr_dims, NULL);
+    hid_t attribute;
+
+    /** write # of arrays */
+    int nradbin = NRADBIN;
+    attribute = H5Acreate(group, "num", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &nradbin));
+    chkHDF5err(H5Aclose(attribute));
+    /** write total mass */
+    attribute = H5Acreate(group, "Mtot", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &cfg[kk].Mtot));
+    chkHDF5err(H5Aclose(attribute));
+    /** profile ID */
+    attribute = H5Acreate(group, "profile ID", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &cfg[kk].kind));
+    chkHDF5err(H5Aclose(attribute));
+    /** write half-mass radius */
+    attribute = H5Acreate(group, "rhalf", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &cfg[kk].rhalf));
+    chkHDF5err(H5Aclose(attribute));
+
+    /** close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+    chkHDF5err(H5Gclose(group));
+#else///USE_HDF5_FORMAT
+#ifndef WRITE_IN_GALACTICS_FORMAT
+    int nradbin = NRADBIN;
+    bool success = true;
+    success &= (fwrite(&nradbin, sizeof( int),       1, fp) ==       1);
+    success &= (fwrite( tmp_rad, sizeof(real), NRADBIN, fp) == NRADBIN);
+    success &= (fwrite( tmp_rho, sizeof(real), NRADBIN, fp) == NRADBIN);
+    success &= (fwrite( tmp_enc, sizeof(real), NRADBIN, fp) == NRADBIN);
+    success &= (fwrite( tmp_psi, sizeof(real), NRADBIN, fp) == NRADBIN);
+    success &= (fwrite( tmp_p  , sizeof(real), NRADBIN, fp) == NRADBIN);
+    success &= (fwrite( tmp_T  , sizeof(real), NRADBIN, fp) == NRADBIN);
+    if( !success ){      __KILL__(stderr, "ERROR: failure to write \"%s\"\n", filename);    }
+#else///WRITE_IN_GALACTICS_FORMAT
+    fprintf(fp, "#r\trho(r)\tM(r)\tPsi(r)\tp(r)\tT(r)");
+    fprintf(fp, "\n");
+    for(int ii = 0; ii < NRADBIN; ii += (NRADBIN / 1024)){
+      fprintf(fp, "%e\t%e\t%e\t%e", tmp_rad[ii], tmp_rho[ii], tmp_enc[ii], tmp_psi[ii]);
+      fprintf(fp, "\t%e\t%e", tmp_p[ii], tmp_T[ii]);
+      fprintf(fp, "\n");
+    }/* for(int ii = 0; ii < NRADBIN; ii++){ */
+#endif//WRITE_IN_GALACTICS_FORMAT
+    fclose(fp);
+#endif//USE_HDF5_FORMAT
+  }/* for(int kk = 0; kk < kind; kk++){ */
+
+#ifdef  USE_HDF5_FORMAT
+  /** write attribute data */
+  /** create the data space for the attribute */
+  hsize_t attr_dims = 1;
+  dataspace = H5Screate_simple(1, &attr_dims, NULL);
+
+  /** write # of components */
+  hid_t attribute = H5Acreate(target, "kinds", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &kind));
+  chkHDF5err(H5Aclose(attribute));
+
+  /** write flag about USE_DOUBLE_PRECISION */
+#ifdef  USE_DOUBLE_PRECISION
+  const int useDP = 1;
+#else///USE_DOUBLE_PRECISION
+  const int useDP = 0;
+#endif//USE_DOUBLE_PRECISION
+  attribute = H5Acreate(target, "useDP", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
+  chkHDF5err(H5Aclose(attribute));
+
+  hid_t str4format = H5Tcopy(H5T_C_S1);
+  chkHDF5err(H5Tset_size(str4format, CONSTANTS_H_CHAR_WORDS));
+  attribute = H5Acreate(target,      "length_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format,     length_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target,     "density_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format,     density_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target,        "mass_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format,        mass_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target,     "senergy_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format,     senergy_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target,        "time_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format,        time_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target, "col_density_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format, col_density_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target,    "velocity_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format,    velocity_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target,    "pressure_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format,    pressure_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target, "temperature_astro_unit_name", str4format, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, str4format, temperature_astro_unit_name));  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Tclose(str4format));
+
+  /** close the dataspace */
+  chkHDF5err(H5Sclose(dataspace));
+  /** close the file */
+  chkHDF5err(H5Fclose(target));
+#endif//USE_HDF5_FORMAT
+
+  free(tmp_rad);
+  free(tmp_rho);
+  free(tmp_enc);
+  free(tmp_psi);
+
+
+  __NOTE__("%s\n", "end");
+}
+#endif//ENABLE_GASEOUS_COMPONENT
 
 
 /**
@@ -3454,6 +4399,39 @@ void evaluateObservables(const int kind, const int skind, profile_cfg *cfg, prof
 
   __NOTE__("%s\n", "end");
 }
+
+
+#ifdef  ENABLE_GASEOUS_COMPONENT
+/**
+ * @fn get_rhalf_for_gas_sphere
+ *
+ * @brief Evaluate half-mass radius of gaseous component(s)
+ *
+ * @param (kind) number of components
+ * @param (cfg) physical properties of the components
+ * @param (prf) radial profile of the components
+ *
+ * @sa findIdx_enc
+ */
+void get_rhalf_for_gas_sphere(const int kind, profile_cfg *cfg, profile **prf)
+{
+  __NOTE__("%s\n", "start");
+
+  /** evaluate half-mass radius r_{1/2}: the radius containing half the total mass */
+  for(int kk = 0; kk < kind; kk++)
+    if( cfg[kk].kind != CENTRALBH ){
+      const double Mhalf = 0.5 * cfg[kk].Mtot;
+      int ll, rr;
+      findIdx_enc(Mhalf, prf[kk], &ll, &rr);
+
+      const double alpha = (Mhalf - prf[kk][ll].enc) / (prf[kk][rr].enc - prf[kk][ll].enc);
+
+      cfg[kk].rhalf = (1.0 - alpha) * prf[kk][ll].rad + alpha * prf[kk][rr].rad;
+    }/* if( cfg[ii].kind != CENTRALBH ){ */
+
+  __NOTE__("%s\n", "end");
+}
+#endif//ENABLE_GASEOUS_COMPONENT
 
 
 #ifdef  USE_ZANG_HOHL_1978_EQ5

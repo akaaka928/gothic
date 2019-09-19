@@ -11,7 +11,8 @@ EXEC=py/shownws.py
 
 SPECIFY="--specify"
 
-TARGET="--files=nws-test-m9_5-orbit0"
+TARGET="--files=nws-test-m95-orbit4"
+# TARGET="--files=nws-test-m95-orbit5"
 # TARGET="--files=nws-continue"
 
 PDFFIGS="--pdf"

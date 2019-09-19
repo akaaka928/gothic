@@ -83,13 +83,16 @@ if monochrome:
 time_offset = 0.0
 if continued:
     # time_offset = -775.0
-    time_offset = -4875.0
+    # time_offset = -4875.0
+    time_offset = -1000.0
+    # time_offset = -1200.0
 
 
 Nskip = 0
 init = 0
-last = 264
-last = 428
+# last = 264
+# last = 428
+last = 560
 Sigma_min, Sigma_max = 3.1e+4, 1.0e+8
 depth_min, depth_max = 3.1e+3, 3.1e+6
 phase_min, phase_max = 1.0e+4, 3.1e+6
