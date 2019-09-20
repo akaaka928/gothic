@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/09/19 (Thu)
+ * @date 2019/09/20 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -466,13 +466,8 @@ void setIsothermalGas(profile *prf, const double Tgas, const double mu, const do
   const double psi0 = prf[0].psi_tot;
 
   /** set density profile */
-#if 1
-  extern const double boltzmann, protonmass;
-  const double coeff = (mu * protonmass) / (boltzmann * Tgas);
-  /* __KILL__(stderr, "coeff = %e, psi0 = %e, exponent = %e, ret = %e\n", coeff, psi0, coeff * psi0, exp(coeff * psi0)); */
-#else
-  const double coeff = 1.0 / prf[0].psi_tot;
-#endif
+  extern const real kB_mp;
+  const double coeff = mu / (CAST_R2D(kB_mp) * Tgas);
 
 #pragma omp parallel for
   for(int ii = 0; ii < NRADBIN; ii++){

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/09/19 (Thu)
+ * @date 2019/09/20 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1546,13 +1546,27 @@ const int kidx_org = kidx;
       gas_cfg[ii].rs = cfg[0].rs;/**< tentative treatment to using DE formula in integrateDensityProfile() in src/init/profile.c */
     }
 
-    for(int kk = 0; kk < gas_kind; kk++)
+#ifdef  CONSIDER_SELF_GRAVITY_OF_GAS_COMPONENT
+    double Minv_nbody = 0.0;
+    for(int kk = 0; kk < kind; kk++)
+      Minv_nbody += cfg[kk].Mtot;
+    Minv_nbody = 1.0 / Minv_nbody;
+#endif//CONSIDER_SELF_GRAVITY_OF_GAS_COMPONENT
+    for(int kk = 0; kk < gas_kind; kk++){
+#ifdef  CONSIDER_SELF_GRAVITY_OF_GAS_COMPONENT
+      const double Mscale = gas_cfg[kk].Mtot * Minv_nbody;
+#endif//CONSIDER_SELF_GRAVITY_OF_GAS_COMPONENT
 #pragma omp parallel for
       for(int ii = 0; ii < NRADBIN; ii++){
 	gas_prf[kk][ii].rho = 0.0;
 	gas_prf[kk][ii].enc = 0.0;
+#ifdef  CONSIDER_SELF_GRAVITY_OF_GAS_COMPONENT
+	gas_prf[kk][ii].psi = Mscale * prf[0][ii].psi_tot;
+#else///CONSIDER_SELF_GRAVITY_OF_GAS_COMPONENT
 	gas_prf[kk][ii].psi = 0.0;
+#endif//CONSIDER_SELF_GRAVITY_OF_GAS_COMPONENT
       }
+    }
 
     static bool gas_profile_converged = false;
 
@@ -1618,9 +1632,9 @@ const int kidx_org = kidx;
       switch( gas_cfg[ii].kind ){
       case ISOTHERMAL_GAS:
 	{
-	  extern const double boltzmann, protonmass;
+	  extern const real kB_mp;
 	  const double Tgas = gas_cfg[ii].Tgas;
-	  const double coeff = (boltzmann * Tgas) / (gas_cfg[ii].mu * protonmass);
+	  const double coeff = (CAST_R2D(kB_mp) * Tgas) / gas_cfg[ii].mu;
 
 	  for(int jj = 0; jj < NRADBIN; jj++){
 	    gas_prf[ii][jj].p = coeff * gas_prf[ii][jj].rho;

@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2019/08/23 (Fri) 15:05:26
+# last updated on 2019/09/20 (Fri) 11:22:32
 # Makefile for C Programming
 # Gravitational octree code for collisionless N-body simulations on GPUs
 #################################################################################################
@@ -49,9 +49,9 @@ GET_NBLOCKS_PER_SM_AUTO	:= 1
 DISABLE_NVML_FOR_CLOCK	:= 1
 RESET_CENTER_OF_MASS	:= 0
 DATAFILE_FORMAT_HDF5	:= 1
-HDF5_FOR_ZINDAIJI	:= 1
-PREPARE_XDMF_FILES	:= 1
-DUMPFILE_IN_TIPSY	:= 1
+HDF5_FOR_ZINDAIJI	:= 0
+PREPARE_XDMF_FILES	:= 0
+DUMPFILE_IN_TIPSY	:= 0
 DUMPFILE_AS_GALACTICS	:= 0
 DUMPFILE_AS_GADGET	:= 0
 USE_OFFICIAL_SFMT	:= 1
@@ -63,7 +63,7 @@ ADAPTIVE_EXTERNAL_FIELD	:= 0
 USE_OSIPKOV_MERRITT	:= 0
 USE_ZH78_RETROGRADING	:= 0
 DISABLE_SHIFT_CENTER	:= 0
-ADD_GAS_FOR_MAGI	:= 1
+ADD_GAS_FOR_MAGI	:= 0
 #################################################################################################
 # Debugging options
 EVALUATE_FORCE_ERROR	:= 0
