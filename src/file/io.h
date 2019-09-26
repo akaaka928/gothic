@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/09/19 (Thu)
+ * @date 2019/09/25 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -242,7 +242,7 @@ extern "C"
 #ifdef  USE_HDF5_FORMAT
    , nbody_hdf5 *body, hdf5struct type
 #ifdef  MONITOR_ENERGY_ERROR
-   , energyError *relEneErr
+   , energyError *relEneErr, const bool update
 #endif//MONITOR_ENERGY_ERROR
 #else///USE_HDF5_FORMAT
    , iparticle body

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/09/19 (Thu)
+ * @date 2019/09/25 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -25,10 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
-#ifdef  MONITOR_ENERGY_ERROR
 #include <math.h>
-#endif//MONITOR_ENERGY_ERROR
 
 #ifndef DISABLE_MPI
 #include <mpi.h>
@@ -3638,7 +3635,7 @@ void writeSnapshot
 #ifdef  USE_HDF5_FORMAT
  , nbody_hdf5 *body, hdf5struct type
 #ifdef  MONITOR_ENERGY_ERROR
- , energyError *relEneErr
+ , energyError *relEneErr, const bool update
 #endif//MONITOR_ENERGY_ERROR
 #else///USE_HDF5_FORMAT
  , iparticle body
@@ -3663,47 +3660,60 @@ void writeSnapshot
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   double Eext = 0.0;
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-  for(int ii = 0; ii < num; ii++){
-    const double mass = CAST_R2D(body->m  [ii	     ]);
-    const double velx = CAST_R2D(body->vel[ii * 3    ]);
-    const double vely = CAST_R2D(body->vel[ii * 3 + 1]);
-    const double velz = CAST_R2D(body->vel[ii * 3 + 2]);
-    Ekin += mass * (velx * velx + vely * vely + velz * velz);
-    Epot += mass * CAST_R2D(body->pot[ii]);
+  if( update ){
+    for(int ii = 0; ii < num; ii++){
+      const double mass = CAST_R2D(body->m  [ii	     ]);
+      const double velx = CAST_R2D(body->vel[ii * 3    ]);
+      const double vely = CAST_R2D(body->vel[ii * 3 + 1]);
+      const double velz = CAST_R2D(body->vel[ii * 3 + 2]);
+      Ekin += mass * (velx * velx + vely * vely + velz * velz);
+      Epot += mass * CAST_R2D(body->pot[ii]);
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-    Eext += mass * CAST_R2D(body->pot_ext[ii]);
+      Eext += mass * CAST_R2D(body->pot_ext[ii]);
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-  }/* for(int ii = 0; ii < num; ii++){ */
+    }/* for(int ii = 0; ii < num; ii++){ */
 
-  Ekin *= 0.5 * energy2astro;
+    Ekin *= 0.5 * energy2astro;
 #ifndef SET_EXTERNAL_POTENTIAL_FIELD
-  Epot *= 0.5 * energy2astro;
+    Epot *= 0.5 * energy2astro;
 #else///SET_EXTERNAL_POTENTIAL_FIELD
-  Epot = Eext + 0.5 * Epot;
-  Epot *= energy2astro;
+    Epot = Eext + 0.5 * Epot;
+    Epot *= energy2astro;
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+  }
   const double Etot = Ekin + Epot;
 
   FILE *fp;
-  sprintf(filename, "%s/%s.%s.log", LOGFOLDER, file, "energy");
-  if( id == 0 ){
-    relEneErr->E0inv  = 1.0 / Etot;
-    relEneErr->errMax = DBL_MIN;
-    fp = fopen(filename, "w");
-    if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
-    fprintf(fp, "#time(%s)\tsteps\tfile\trelative_error\tEtot(%s)\tEkin(%s)\tEpot(%s)\n", time_astro_unit_name, energy_astro_unit_name, energy_astro_unit_name, energy_astro_unit_name);
-  }/* if( id == 0 ){ */
-  else{
-    fp = fopen(filename, "a");
-    if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
-  }/* else{ */
+  if( update ){
+    sprintf(filename, "%s/%s.%s.log", LOGFOLDER, file, "energy");
+    if( id == 0 ){
+      relEneErr->E0inv  = 1.0 / Etot;
+      relEneErr->errMax = DBL_MIN;
+      fp = fopen(filename, "w");
+      if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
+      fprintf(fp, "#time(%s)\tsteps\tfile\trelative_error\tEtot(%s)\tEkin(%s)\tEpot(%s)\n", time_astro_unit_name, energy_astro_unit_name, energy_astro_unit_name, energy_astro_unit_name);
+    }/* if( id == 0 ){ */
+    else{
+      fp = fopen(filename, "a");
+      if( fp == NULL ){      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);    }
+    }/* else{ */
+  }
 
   const double Eerr = Etot * relEneErr->E0inv - 1.0;
   if( fabs(Eerr) > fabs(relEneErr->errMax) )
     relEneErr->errMax = Eerr;
 
-  fprintf(fp, "%e\t%zu\t%u\t% e\t%e\t%e\t%e\n", time * time2astro, steps, id, Eerr, Etot, Ekin, Epot);
-  fclose(fp);
+  if( update ){
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+    fprintf(fp, "%e\t%zu\t%u\t% e\t%e\t%e\t%e\n", time * time2astro, steps, id, Eerr, Etot, Ekin, Epot);
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+    fclose(fp);
+  }
 #endif//defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR)
 
 #ifdef  REPORT_COMPUTE_RATE
@@ -3960,27 +3970,29 @@ void writeSnapshot
 
 
 #ifdef  MONITOR_ENERGY_ERROR
-  /* write energy conservation */
-  group = H5Gcreate(target, "energy", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  /* create the data space for the attribute */
-  attr_dims = 1;
-  dataspace = H5Screate_simple(1, &attr_dims, NULL);
+  if( update ){
+    /* write energy conservation */
+    group = H5Gcreate(target, "energy", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    /* create the data space for the attribute */
+    attr_dims = 1;
+    dataspace = H5Screate_simple(1, &attr_dims, NULL);
 
-  attribute = H5Acreate(group, "total energy", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &Etot));
-  chkHDF5err(H5Aclose(attribute));
-  attribute = H5Acreate(group, "kinetic energy", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &Ekin));
-  chkHDF5err(H5Aclose(attribute));
-  attribute = H5Acreate(group, "potential energy", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &Epot));
-  chkHDF5err(H5Aclose(attribute));
-  attribute = H5Acreate(group, "relative error", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &Eerr));
-  chkHDF5err(H5Aclose(attribute));
+    attribute = H5Acreate(group, "total energy", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &Etot));
+    chkHDF5err(H5Aclose(attribute));
+    attribute = H5Acreate(group, "kinetic energy", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &Ekin));
+    chkHDF5err(H5Aclose(attribute));
+    attribute = H5Acreate(group, "potential energy", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &Epot));
+    chkHDF5err(H5Aclose(attribute));
+    attribute = H5Acreate(group, "relative error", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &Eerr));
+    chkHDF5err(H5Aclose(attribute));
 
-  chkHDF5err(H5Sclose(dataspace));
-  chkHDF5err(H5Gclose(group));
+    chkHDF5err(H5Sclose(dataspace));
+    chkHDF5err(H5Gclose(group));
+  }
 #endif//MONITOR_ENERGY_ERROR
 
   /* write GPU information */
@@ -3998,9 +4010,10 @@ void writeSnapshot
 #endif//USE_HDF5_FORMAT
 
 #   if  defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR) && !defined(SET_EXTERNAL_POTENTIAL_FIELD)
-  if( Eerr > 0.1 ){
-    __KILL__(stderr, "detect too large energy error: Eerr = %e\n", Eerr);
-  }/* if( Eerr > 0.1 ){ */
+  if( update )
+    if( Eerr > 0.1 ){
+      __KILL__(stderr, "detect too large energy error: Eerr = %e\n", Eerr);
+    }/* if( Eerr > 0.1 ){ */
 #endif//defined(USE_HDF5_FORMAT) && defined(MONITOR_ENERGY_ERROR) && !defined(SET_EXTERNAL_POTENTIAL_FIELD)
 
 

@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/08/02 (Fri)
+ * @date 2019/09/26 (Thu)
  *
  * Copyright (C) 2018 Yohei Miki
  * All rights reserved.
@@ -328,6 +328,13 @@ static inline void readEditorCfg(char *cfg, int *unit, int *Nobj, object **obj, 
 }
 
 
+typedef struct
+{
+  ulong key;
+  ulong idx;
+} soaIdxSort;
+
+
 #ifdef __ICC
 /* Disable ICC's remark #161: unrecognized #pragma */
 #     pragma warning (disable:161)
@@ -340,9 +347,9 @@ int idxAscendingOrder(const void *a, const void *b)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
-  if(          (const ulong *)a > (const ulong *)b ){    return ( 1);  }
-  else{    if( (const ulong *)a < (const ulong *)b ){    return (-1);  }
-    else{                                                                    return ( 0);  }  }
+  if(          ((const soaIdxSort *)a)->key > ((const soaIdxSort *)b)->key ){	 return ( 1);  }
+  else{	   if( ((const soaIdxSort *)a)->key < ((const soaIdxSort *)b)->key ){	 return (-1);  }
+    else{                                                                        return ( 0);  }  }
 #   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
 #pragma GCC diagnostic pop
 #endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
@@ -393,6 +400,8 @@ static inline void addSystem(object obj, component *cmp, ulong *head, const ipar
      &vx, &vy, &vz
 #endif//BLOCK_TIME_STEP
      );
+  soaIdxSort *tag;
+  tag = (soaIdxSort *)malloc(sizeof(soaIdxSort) * num);  if( tag == NULL ){    __KILL__(stderr, "ERROR: failure to allocate tag\n");  }
 
   /**< read distribution of N-body particles */
   double time, dt;
@@ -411,8 +420,10 @@ static inline void addSystem(object obj, component *cmp, ulong *head, const ipar
   static brentMemory memory;
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
-  if( strncmp(obj.file, "throw_BH_particle", 17) != 0 )
-    readTentativeData(&time, &dt, &steps, &elapsed, (int)num, tmp, obj.file, 0
+  if( strncmp(obj.file, "throw_BH_particle", 17) != 0 ){
+    int last;
+    readConfigFile(&last, obj.file);
+    readTentativeData(&time, &dt, &steps, &elapsed, (int)num, tmp, obj.file, last
 #ifdef  USE_HDF5_FORMAT
 		      , hdf5type
 #ifndef RUN_WITHOUT_GOTHIC
@@ -423,6 +434,7 @@ static inline void addSystem(object obj, component *cmp, ulong *head, const ipar
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
 		      );
+  }
   else{
     tmp.pos[0].m = obj.BHmass;
     tmp.pos[0].x = tmp.pos[0].y = tmp.pos[0].z = ZERO;
@@ -477,16 +489,21 @@ static inline void addSystem(object obj, component *cmp, ulong *head, const ipar
     tmp.vy[ii] = drift[1] + rot[1][0] * vx + rot[1][1] * vy + rot[1][2] * vz;
     tmp.vz[ii] = drift[2] + rot[2][0] * vx + rot[2][1] * vy + rot[2][2] * vz;
 #endif//BLOCK_TIME_STEP
+
+    tag[ii].idx = ii;
+    tag[ii].key = tmp.idx[ii];
   }/* for(ulong ii = 0; ii < num; ii++){ */
 
   /**< sort N-body particles */
-  qsort(tmp.idx, num, sizeof(ulong), idxAscendingOrder);
+  /* qsort(tmp.idx, num, sizeof(ulong), idxAscendingOrder); */
+  qsort(tag, num, sizeof(soaIdxSort), idxAscendingOrder);
 
   /**< copy particle position and velocity */
   for(int ii = obj.head; ii < obj.head + obj.kind; ii++)
     if( cmp[ii].skip != 1 ){
       for(ulong jj = 0; jj < cmp[ii].num; jj++){
-	const ulong src = tmp.idx[cmp[ii].head + jj];
+	/* const ulong src = tmp.idx[cmp[ii].head + jj]; */
+	const ulong src = tag[cmp[ii].head + jj].idx;
 	const ulong dst = (*head) + jj;
 
 	body.pos[dst] = tmp.pos[src];
@@ -513,6 +530,8 @@ static inline void addSystem(object obj, component *cmp, ulong *head, const ipar
      vx, vy, vz
 #endif//BLOCK_TIME_STEP
      );
+
+  free(tag);
 
 
   __NOTE__("%s\n", "end");

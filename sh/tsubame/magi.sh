@@ -21,8 +21,9 @@ EXEC=bin/magi
 # problem ID
 if [ -z "$PROBLEM" ]; then
     # PROBLEM=27
-    # PROBLEM=62
-    PROBLEM=100
+    PROBLEM=62
+
+    # PROBLEM=100
     # PROBLEM=101
     # PROBLEM=102
     # PROBLEM=103
@@ -545,8 +546,8 @@ if [ $PROBLEM -eq 62 ]; then
     # FINISH=5175.0
     # FINISH=5175.0
     INTERVAL=100.0
-    # FINISH=14000.0
-    FINISH=7400.0
+    FINISH=14000.0
+    # FINISH=7400.0
 fi
 ###############################################################
 # dynamical stability of a progenitor model for NW stream

@@ -138,7 +138,8 @@ fi
 # reproduction of Komiyama et al. (2018) in the disk coordinate system
 if [ $PROBLEM -eq 115 ]; then
     # FILE=nws-continue
-    FILE=nws-test-m95-orbit2
+    # FILE=nws-test-m95-orbit2
+    FILE=nws-test-m9_5-orbit1-chosen
     FINISH=14000.0
     INTERVAL=25.0
     XIMIN=-11.0
@@ -194,6 +195,11 @@ if [ -z "$INCREMENT" ]; then
 fi
 # START=325
 # END=325
+# END=696
+# START=327
+# END=327
+START=0
+END=264
 ###############################################################
 # set input arguments
 OPTION="-file=$FILE -start=$START -end=$END -interval=$INCREMENT -ncrit=$NCRIT -nxi=$NX -ximin=$XIMIN -ximax=$XIMAX -neta=$NY -etamin=$ETAMIN -etamax=$ETAMAX -nD=$NZ -Dmin=$DMIN -Dmax=$DMAX -nvlos=$NV -vlosmin=$VMIN -vlosmax=$VMAX -nx3D=$NX3D -ny3D=$NY3D -nz3D=$NZ3D"

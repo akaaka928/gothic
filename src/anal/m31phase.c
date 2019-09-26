@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/09/05 (Thu)
+ * @date 2019/09/26 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -427,6 +427,17 @@ int main(int argc, char **argv)
     fprintf(fp, "%e\t%e\n", vtanmin, vtanmax);
     fprintf(fp, "%e\t%e\n", enemin, enemax);
     fprintf(fp, "%e\t%e\n", sammin, sammax);
+    fclose(fp);
+
+    sprintf(filename, "%s/%s_phase_minmax-astr.txt", DATAFOLDER, file);
+    fp = fopen(filename, "w");
+    if( fp == NULL ){
+      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);
+    }
+    fprintf(fp, "%e\t%e\n", vradmin * velocity2astro, vradmax * velocity2astro);
+    fprintf(fp, "%e\t%e\n", vtanmin * velocity2astro, vtanmax * velocity2astro);
+    fprintf(fp, "%e\t%e\n", enemin * senergy2astro, enemax * senergy2astro);
+    fprintf(fp, "%e\t%e\n", sammin * length2astro * velocity2astro, sammax * length2astro * velocity2astro);
     fclose(fp);
   }/* if( mpi.rank == 0 ){ */
 
@@ -907,58 +918,58 @@ void writeAnalyzedMaps
     /* chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &nJ)); */
     /* chkHDF5err(H5Aclose(attribute)); */
     /* chkHDF5err(H5Sclose(dataspace)); */
-
-
     chkHDF5err(H5Gclose(group));
-    sprintf(grp, "particle%d", ii);
-    group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    /** 1D (bodyNum) arrays */
-    dims[0] = bodyNum[ii];
-    dataspace = H5Screate_simple(1, dims, NULL);
+
+
+    if( bodyNum[ii] > 0 ){
+      sprintf(grp, "particle%d", ii);
+      group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+      /** 1D (bodyNum) arrays */
+      dims[0] = bodyNum[ii];
+      dataspace = H5Screate_simple(1, dims, NULL);
 #ifdef  USE_GZIP_COMPRESSION
-    cdims_loc[0] = gzip_cdims[1];
-    property = H5Pcreate(H5P_DATASET_CREATE);
-    if( dims[0] < cdims_loc[0] )
-      cdims_loc[0] = dims[0];
-    if( cdims_loc[0] > cdims_max )
-      cdims_loc[0] = cdims_max;
-    chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
-    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+      cdims_loc[0] = gzip_cdims[1];
+      property = H5Pcreate(H5P_DATASET_CREATE);
+      if( dims[0] < cdims_loc[0] )
+	cdims_loc[0] = dims[0];
+      if( cdims_loc[0] > cdims_max )
+	cdims_loc[0] = cdims_max;
+      chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
+      chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
 #endif//USE_GZIP_COMPRESSION
-    for(int jj = bodyHead[ii]; jj < bodyHead[ii] + bodyNum[ii]; jj++){
-      vr[jj] = CAST_D2R(CAST_R2D(vr[jj]) * velocity2astro);
-      vt[jj] = CAST_D2R(CAST_R2D(vt[jj]) * velocity2astro);
-      Etot[jj] = CAST_D2R(CAST_R2D(Etot[jj]) * senergy2astro);
-      Jtot[jj] = CAST_D2R(CAST_R2D(Jtot[jj]) * length2astro * velocity2astro);
-    }/* for(int jj = bodyHead[ii]; jj < bodyHead[ii] + bodyNum[ii]; jj++){ */
-    dataset = H5Dcreate(group, "vr", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &vr[bodyHead[ii]]));
-    chkHDF5err(H5Dclose(dataset));
-    dataset = H5Dcreate(group, "vt", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &vt[bodyHead[ii]]));
-    chkHDF5err(H5Dclose(dataset));
-    dataset = H5Dcreate(group, "Etot", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &Etot[bodyHead[ii]]));
-    chkHDF5err(H5Dclose(dataset));
-    dataset = H5Dcreate(group, "Jtot", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
-    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &Jtot[bodyHead[ii]]));
-    chkHDF5err(H5Dclose(dataset));
+      for(int jj = bodyHead[ii]; jj < bodyHead[ii] + bodyNum[ii]; jj++){
+	vr[jj] = CAST_D2R(CAST_R2D(vr[jj]) * velocity2astro);
+	vt[jj] = CAST_D2R(CAST_R2D(vt[jj]) * velocity2astro);
+	Etot[jj] = CAST_D2R(CAST_R2D(Etot[jj]) * senergy2astro);
+	Jtot[jj] = CAST_D2R(CAST_R2D(Jtot[jj]) * length2astro * velocity2astro);
+      }/* for(int jj = bodyHead[ii]; jj < bodyHead[ii] + bodyNum[ii]; jj++){ */
+      dataset = H5Dcreate(group, "vr", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &vr[bodyHead[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "vt", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &vt[bodyHead[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "Etot", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &Etot[bodyHead[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "Jtot", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &Jtot[bodyHead[ii]]));
+      chkHDF5err(H5Dclose(dataset));
 #ifdef  USE_GZIP_COMPRESSION
-    chkHDF5err(H5Pclose(property));
+      chkHDF5err(H5Pclose(property));
 #endif//USE_GZIP_COMPRESSION
       /* close the dataspace */
-    chkHDF5err(H5Sclose(dataspace));
-    /* write attribute data */
-    attr_dims = 1;
-    dataspace = H5Screate_simple(1, &attr_dims, NULL);
-    /* write # of grid points */
-    attribute = H5Acreate(group, "num", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &bodyNum[ii]));
-    chkHDF5err(H5Aclose(attribute));
-    chkHDF5err(H5Sclose(dataspace));
-
-
-    chkHDF5err(H5Gclose(group));
+      chkHDF5err(H5Sclose(dataspace));
+      /* write attribute data */
+      attr_dims = 1;
+      dataspace = H5Screate_simple(1, &attr_dims, NULL);
+      /* write # of grid points */
+      attribute = H5Acreate(group, "num", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &bodyNum[ii]));
+      chkHDF5err(H5Aclose(attribute));
+      chkHDF5err(H5Sclose(dataspace));
+      chkHDF5err(H5Gclose(group));
+    }
   }/* for(int ii = 0; ii < kind; ii++){ */
 
 

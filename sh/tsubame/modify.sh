@@ -21,14 +21,19 @@ EXEC=bin/editor
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
+    PROBLEM=13
+
+    # prepare or continue simulations to reproduce NW stream
     # PROBLEM=30
     # PROBLEM=31
     # PROBLEM=32
     # PROBLEM=33
-    PROBLEM=34
+    # PROBLEM=34
     # PROBLEM=35
     # PROBLEM=36
     # PROBLEM=37
+
+    # collision with test-particle (orbit 0 and 1)
     # PROBLEM=40
     # PROBLEM=41
     # PROBLEM=42
@@ -41,6 +46,8 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=49
     # PROBLEM=50
     # PROBLEM=51
+
+    # collision with live DM sub-halo (orbit 0 and 1)
     # PROBLEM=60
     # PROBLEM=61
     # PROBLEM=62
@@ -54,6 +61,7 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=70
     # PROBLEM=71
 
+    # collision with test-particle (orbit 2 and 3)
     # PROBLEM=80
     # PROBLEM=81
     # PROBLEM=82
@@ -67,7 +75,7 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=90
     # PROBLEM=91
 
-
+    # collision with live DM sub-halo (orbit 2 and 3)
     # PROBLEM=100
     # PROBLEM=101
     # PROBLEM=102
@@ -95,7 +103,7 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=130
     # PROBLEM=131
 
-    # collision with live halo (orbit 4 and 5)
+    # collision with live DM sub-halo (orbit 4 and 5)
     # PROBLEM=140
     # PROBLEM=141
     # PROBLEM=142
@@ -123,7 +131,7 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=170
     # PROBLEM=171
 
-    # collision with live halo (orbit 6 and 7)
+    # collision with live DM sub-halo (orbit 6 and 7)
     # PROBLEM=180
     # PROBLEM=181
     # PROBLEM=182

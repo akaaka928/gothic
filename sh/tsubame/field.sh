@@ -1,7 +1,7 @@
 #!/bin/sh
 #$ -cwd
 #$ -l s_gpu=1
-#$ -l h_rt=12:00:00
+#$ -l h_rt=24:00:00
 #$ -N gothic_ext
 #$ -hold_jid magi,modify,gothic_ext
 ###############################################################

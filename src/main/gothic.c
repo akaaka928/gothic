@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/01/25 (Fri)
+ * @date 2019/09/25 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -528,7 +528,7 @@ static inline void dumpSnapshot
 #ifdef  USE_HDF5_FORMAT
      , body, hdf5type
 #ifdef  MONITOR_ENERGY_ERROR
-     , relEneErr
+     , relEneErr, true
 #endif//MONITOR_ENERGY_ERROR
 #else///USE_HDF5_FORMAT
      , ibody_hst

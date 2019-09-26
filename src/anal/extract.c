@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/09/03 (Tue)
+ * @date 2019/09/26 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -768,6 +768,26 @@ int main(int argc, char **argv)
     fprintf(fp, "%e\t%e\n",    0.0, diskmax);
     fprintf(fp, "%e\t%e\n", enemin, enemax);
     fprintf(fp, "%e\t%e\n", sammin, sammax);
+    fclose(fp);
+
+    sprintf(filename, "%s/%s.minmax-astro.txt", DATAFOLDER, file);
+    fp = fopen(filename, "w");
+    if( fp == NULL ){
+      __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);
+    }
+    fprintf(fp, "%e\t%e\n", radmin * length2astro, radmax * length2astro);
+    fprintf(fp, "%e\t%e\n", rhomin * density2astro, rhomax * density2astro);
+    fprintf(fp, "%e\t%e\n", encmin * mass2astro, encmax * mass2astro);
+    fprintf(fp, "%e\t%e\n",    0.0, sigmax * velocity2astro);
+    fprintf(fp, "%e\t%e\n", betmin, betmax);
+    fprintf(fp, "%e\t%e\n", hormin * length2astro, hormax * length2astro);
+    fprintf(fp, "%e\t%e\n", Sigmin * col_density2astro, Sigmax * col_density2astro);
+    fprintf(fp, "%e\t%e\n",    0.0, sigRmax * velocity2astro);
+    fprintf(fp, "%e\t%e\n",    0.0, sigpmax * velocity2astro);
+    fprintf(fp, "%e\t%e\n",    0.0, sigzmax * velocity2astro);
+    fprintf(fp, "%e\t%e\n",    0.0, diskmax * length2astro);
+    fprintf(fp, "%e\t%e\n", enemin * senergy2astro, enemax * senergy2astro);
+    fprintf(fp, "%e\t%e\n", sammin * length2astro * velocity2astro, sammax * length2astro * velocity2astro);
     fclose(fp);
   }/* if( mpi.rank == 0 ){ */
 
