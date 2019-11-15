@@ -44,10 +44,6 @@ fi
 if [ -z "$INCREMENT" ]; then
     INCREMENT=1
 fi
-# START=680
-# END=696
-START=327
-END=327
 ###############################################################
 # set input arguments
 OPTION="-file=$FILE -start=$START -end=$END -interval=$INCREMENT -target=$TARGET -list=$LIST"

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/09/20 (Fri)
+ * @date 2019/11/14 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1244,6 +1244,18 @@ void readProfileCfg(char *fcfg, int *unit, int *kind, profile_cfg **cfg)
 
   /** read the specified unit system and set it */
   checker &= (1 == fscanf(fp, "%d", unit));
+#ifdef  WRITE_IN_ANTHEM_FORMAT
+  /** change the unit model for Anthem style */
+  switch( *unit ){
+  case    UnityValueSystem:    *unit = ANTHEM_UNIT_UNITY    ;    break;
+  case       GalacticScale:    *unit = ANTHEM_UNIT_GALAXY   ;    break;
+  case     HostGalaxyScale:    *unit = ANTHEM_UNIT_GALAXY   ;    break;
+  case GalacticNucleiScale:    *unit = ANTHEM_UNIT_DWARF    ;    break;
+  case         UnityNewton:    *unit = ANTHEM_UNIT_GALAXY   ;    break;
+  case       GalactICSunit:    *unit = ANTHEM_UNIT_GALACTICS;    break;
+  default                 :    *unit = ANTHEM_UNIT_UNITY    ;    break;
+  }
+#endif//WRITE_IN_ANTHEM_FORMAT
   setPhysicalConstantsAndUnitSystem(*unit, 1);
   /* setPhysicalConstantsAndUnitSystem(3, 1); */
   /* __KILL__(stderr, "suspend for confirmation\n"); */

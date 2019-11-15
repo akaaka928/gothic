@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/09/25 (Wed)
+ * @date 2019/11/15 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -21,6 +21,19 @@
  * @brief On to enable Szip compression for HDF5 files (default is OFF).
  */
 /* #define USE_SZIP_COMPRESSION */
+
+/**
+ * @def USE_GZIP_COMPRESSION
+ *
+ * @brief On to enable gzip compression for HDF5 files (default is ON).
+ *
+ * @detail currently, h5py does not accept Szip compression in default.
+ */
+#define USE_GZIP_COMPRESSION
+
+#   if  defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
+#define USE_FILE_COMPRESSION
+#endif//defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -2669,7 +2682,7 @@ void writeGADGETFile
   hid_t target = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
   hid_t group = H5Gcreate(target, "Header", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-  /* write attributes; */
+  /* write attributes */
   hsize_t attr_dims = 6;
   hid_t dataspace;
   dataspace = H5Screate_simple(1, &attr_dims, NULL);
@@ -2749,6 +2762,427 @@ void writeGADGETFile
   free(vel);
   free(idx);
   free(mss);
+
+  __NOTE__("%s\n", "end");
+}
+
+
+/**
+ * @fn writeAnthemFile
+ *
+ * @brief Write particle data in Anthem format.
+ */
+void writeAnthemFile(const ulong Ntot, iparticle body, const int unit, char file[])
+{
+  __NOTE__("%s\n", "start");
+
+
+  /** open the target file */
+  char filename[128];
+  sprintf(filename, "%s/%s_dmp0.anthem", DATAFOLDER, file);
+  hid_t target = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  hid_t group = H5Gcreate(target, "info", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+  /** write attributes */
+  hsize_t attr_dims = 1;
+  hid_t dataspace;
+  dataspace = H5Screate_simple(1, &attr_dims, NULL);
+  hid_t attribute;
+  /** write attributes about configuration */
+#ifdef  USE_DOUBLE_PRECISION
+  const hid_t HDF5_FPTYPE_REAL = H5T_NATIVE_DOUBLE;
+  int FP_PREQ = 64;
+  double *write_buf;
+  write_buf = (double *)malloc(sizeof(double) * Ntot);
+  if( write_buf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate write_buf\n");  }
+#else///USE_DOUBLE_PRECISION
+  const hid_t HDF5_FPTYPE_REAL = H5T_NATIVE_FLOAT;
+  int FP_PREQ = 32;
+  float *write_buf;
+  write_buf = (float *)malloc(sizeof(float) * Ntot);
+  if( write_buf == NULL ){    __KILL__(stderr, "ERROR: failure to allocate write_buf\n");  }
+#endif//USE_DOUBLE_PRECISION
+  attribute = H5Acreate(group, "FP_M", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &FP_PREQ));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "FP_L", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  FP_PREQ = 32;
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &FP_PREQ));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "FP_H", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  FP_PREQ = 64;
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &FP_PREQ));
+  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Gclose(group));
+
+
+  /** write attributes about physical properties of the system */
+  group = H5Gcreate(target, "system", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  attribute = H5Acreate(group, "num", H5T_NATIVE_ULONG, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_ULONG, &Ntot));
+  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Gclose(group));
+
+
+  /** write unit system */
+  group = H5Gcreate(target, "unit", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  attribute = H5Acreate(group, "ID", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  int anthem_unit;
+  switch( unit ){
+  case ANTHEM_UNIT_UNITY:
+    anthem_unit = -1;
+    break;
+  case ANTHEM_UNIT_GALAXY:
+    anthem_unit = 0;
+    break;
+  case ANTHEM_UNIT_DWARF:
+    anthem_unit = 1;
+    break;
+  case ANTHEM_UNIT_GLOBULAR_CLUSTER:
+    anthem_unit = 2;
+    break;
+  case ANTHEM_UNIT_GALACTICS:
+    anthem_unit = 10;
+    break;
+  default:
+    __KILL__(stderr, "ERROR: undefined unit (%d) is passed\n", unit);
+    break;
+  }
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &anthem_unit));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "newton", HDF5_FPTYPE_REAL, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, HDF5_FPTYPE_REAL, &newton));
+  chkHDF5err(H5Aclose(attribute));
+  extern const double lightspeed;
+  const real lightspeed_real = CAST_D2R(lightspeed);
+  attribute = H5Acreate(group, "speed_of_light", HDF5_FPTYPE_REAL, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, HDF5_FPTYPE_REAL, &lightspeed_real));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "com2astr_time", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &time2astro));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "com2astr_mass", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &mass2astro));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "com2astr_length", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &length2astro));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "com2astr_velocity", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &velocity2astro));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "com2astr_energy", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &energy2astro));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "com2astr_specific_energy", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &senergy2astro));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "com2astr_momentum", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const double momentum2astro;
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &momentum2astro));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "com2astr_angular_momentum", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const double angular_momentum2astro;
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &angular_momentum2astro));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "com2astr_specific_angular_momentum", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const double specific_angular_momentum2astro;
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &specific_angular_momentum2astro));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "com2astr_density", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &density2astro));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "com2astr_surface_density", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &col_density2astro));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "com2astr_phase_space_density_6D", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const double phase_space_density_6D2astro;
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &phase_space_density_6D2astro));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "com2astr_phase_space_density", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const double phase_space_density2astro;
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &phase_space_density2astro));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "com2astr_angle_phase_space_density", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const double angle_phase_space_density2astro;
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &angle_phase_space_density2astro));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "com2astr_EJ_phase_space_density", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const double EJ_phase_space_density2astro;
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &EJ_phase_space_density2astro));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "com2astr_number_density", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const double ndensity2astro;
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &ndensity2astro));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "com2astr_column_density", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const double colndensity2astro;
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &colndensity2astro));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "max_length", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  const int max_length = CONSTANTS_H_PLOT_WORDS;
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &max_length));
+  chkHDF5err(H5Aclose(attribute));
+
+
+
+  /* attr_dims = 1; */
+  /* dataspace = H5Screate_simple(1, &attr_dims, NULL); */
+  /* attribute = H5Acreate(subgroup, "length_astro_unit_name", type.str4unit, dataspace, H5P_DEFAULT, H5P_DEFAULT); */
+  /* chkHDF5err(H5Awrite(attribute, type.str4unit, length_astro_unit_name)); */
+  /* chkHDF5err(H5Aclose(attribute)); */
+  /* type->str4unit = H5Tcopy(H5T_C_S1); */
+  /* chkHDF5err(H5Tset_size(type->str4unit, CONSTANTS_H_CHAR_WORDS));/\* memo: sizeof(char) is unity *\/ */
+
+
+
+  // write texts
+  hid_t H5T_ANTHEM_STRING = H5Tcopy(H5T_C_S1);
+  chkHDF5err(H5Tset_size(H5T_ANTHEM_STRING, H5T_VARIABLE));/* memo: sizeof(char) is unity */
+  attribute = H5Acreate(group, "tex_time", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char time_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
+  char *tmp_str = (char *)malloc(sizeof(char) * CONSTANTS_H_PLOT_WORDS);
+  sprintf(tmp_str, time_astro_unit_name4plot);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "tex_mass", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char mass_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
+  sprintf(tmp_str, mass_astro_unit_name4plot);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "tex_length", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char length_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
+  sprintf(tmp_str, length_astro_unit_name4plot);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "tex_velocity", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char velocity_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
+  sprintf(tmp_str, velocity_astro_unit_name4plot);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "tex_energy", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char energy_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
+  sprintf(tmp_str, energy_astro_unit_name4plot);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "tex_specific_energy", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char senergy_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
+  sprintf(tmp_str, senergy_astro_unit_name4plot);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "tex_momentum", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char momentum_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
+  sprintf(tmp_str, momentum_astro_unit_name4plot);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "tex_angular_momentum", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char angular_momentum_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
+  sprintf(tmp_str, angular_momentum_astro_unit_name4plot);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "tex_specific_angular_momentum", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char specific_angular_momentum_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
+  sprintf(tmp_str, specific_angular_momentum_astro_unit_name4plot);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "tex_density", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char density_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
+  sprintf(tmp_str, density_astro_unit_name4plot);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "tex_surface_density", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char col_density_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
+  sprintf(tmp_str, col_density_astro_unit_name4plot);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "tex_phase_space_density_6D", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char phase_space_density_6D_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
+  sprintf(tmp_str, phase_space_density_6D_astro_unit_name4plot);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "tex_phase_space_density", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char phase_space_density_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
+  sprintf(tmp_str, phase_space_density_astro_unit_name4plot);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "tex_angle_phase_space_density", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char angle_phase_space_density_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
+  sprintf(tmp_str, angle_phase_space_density_astro_unit_name4plot);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "tex_EJ_phase_space_density", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char EJ_phase_space_density_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
+  sprintf(tmp_str, EJ_phase_space_density_astro_unit_name4plot);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "tex_number_density", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char ndensity_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
+  sprintf(tmp_str, ndensity_astro_unit_name4plot);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "tex_column_density", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char colndensity_astro_unit_name4plot[CONSTANTS_H_PLOT_WORDS];
+  sprintf(tmp_str, colndensity_astro_unit_name4plot);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "ascii_time", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  sprintf(tmp_str, time_astro_unit_name);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "ascii_mass", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  sprintf(tmp_str, mass_astro_unit_name);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "ascii_length", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  sprintf(tmp_str, length_astro_unit_name);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "ascii_velocity", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  sprintf(tmp_str, velocity_astro_unit_name);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "ascii_energy", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  sprintf(tmp_str, energy_astro_unit_name);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "ascii_specific_energy", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  sprintf(tmp_str, senergy_astro_unit_name);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "ascii_momentum", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char momentum_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
+  sprintf(tmp_str, momentum_astro_unit_name);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "ascii_angular_momentum", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char angular_momentum_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
+  sprintf(tmp_str, angular_momentum_astro_unit_name);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "ascii_specific_angular_momentum", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char specific_angular_momentum_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
+  sprintf(tmp_str, specific_angular_momentum_astro_unit_name);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "ascii_density", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char density_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
+  sprintf(tmp_str, density_astro_unit_name);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "ascii_surface_density", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char col_density_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
+  sprintf(tmp_str, col_density_astro_unit_name);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "ascii_phase_space_density_6D", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char phase_space_density_6D_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
+  sprintf(tmp_str, phase_space_density_6D_astro_unit_name);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "ascii_phase_space_density", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char phase_space_density_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
+  sprintf(tmp_str, phase_space_density_astro_unit_name);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "ascii_angle_phase_space_density", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char angle_phase_space_density_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
+  sprintf(tmp_str, angle_phase_space_density_astro_unit_name);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "ascii_EJ_phase_space_density", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char EJ_phase_space_density_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
+  sprintf(tmp_str, EJ_phase_space_density_astro_unit_name);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "ascii_number_density", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char ndensity_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
+  sprintf(tmp_str, ndensity_astro_unit_name);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(group, "ascii_column_density", H5T_ANTHEM_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  extern const char colndensity_astro_unit_name[CONSTANTS_H_CHAR_WORDS];
+  sprintf(tmp_str, colndensity_astro_unit_name);
+  chkHDF5err(H5Awrite(attribute, H5T_ANTHEM_STRING, &tmp_str));
+  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Tclose(H5T_ANTHEM_STRING));
+  free(tmp_str);
+
+  chkHDF5err(H5Gclose(group));
+  chkHDF5err(H5Sclose(dataspace));
+
+
+  /** write particle data */
+  group = H5Gcreate(target, "nbody", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  hsize_t dims = Ntot;
+  dataspace = H5Screate_simple(1, &dims, NULL);
+  hid_t dataset;
+  dataset = H5Dcreate(group, "id", H5T_NATIVE_ULONG, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Dwrite(dataset, H5T_NATIVE_ULONG, H5S_ALL, H5S_ALL, H5P_DEFAULT, body.idx));
+  chkHDF5err(H5Dclose(dataset));
+  dataset = H5Dcreate(group, "mass", HDF5_FPTYPE_REAL, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  for(ulong ii = 0; ii < Ntot; ii++)
+    write_buf[ii] = body.pos[ii].m;
+  chkHDF5err(H5Dwrite(dataset, HDF5_FPTYPE_REAL, H5S_ALL, H5S_ALL, H5P_DEFAULT, write_buf));
+  chkHDF5err(H5Dclose(dataset));
+  dataset = H5Dcreate(group, "posx", HDF5_FPTYPE_REAL, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  for(ulong ii = 0; ii < Ntot; ii++)
+    write_buf[ii] = body.pos[ii].x;
+  chkHDF5err(H5Dwrite(dataset, HDF5_FPTYPE_REAL, H5S_ALL, H5S_ALL, H5P_DEFAULT, write_buf));
+  chkHDF5err(H5Dclose(dataset));
+  dataset = H5Dcreate(group, "posy", HDF5_FPTYPE_REAL, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  for(ulong ii = 0; ii < Ntot; ii++)
+    write_buf[ii] = body.pos[ii].y;
+  chkHDF5err(H5Dwrite(dataset, HDF5_FPTYPE_REAL, H5S_ALL, H5S_ALL, H5P_DEFAULT, write_buf));
+  chkHDF5err(H5Dclose(dataset));
+  dataset = H5Dcreate(group, "posz", HDF5_FPTYPE_REAL, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  for(ulong ii = 0; ii < Ntot; ii++)
+    write_buf[ii] = body.pos[ii].z;
+  chkHDF5err(H5Dwrite(dataset, HDF5_FPTYPE_REAL, H5S_ALL, H5S_ALL, H5P_DEFAULT, write_buf));
+  chkHDF5err(H5Dclose(dataset));
+  dataset = H5Dcreate(group, "velx", HDF5_FPTYPE_REAL, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  for(ulong ii = 0; ii < Ntot; ii++){
+#ifdef  BLOCK_TIME_STEP
+    write_buf[ii] = body.vel[ii].x;
+#else///BLOCK_TIME_STEP
+    write_buf[ii] = body.vx[ii];
+#endif//BLOCK_TIME_STEP
+  }
+  chkHDF5err(H5Dwrite(dataset, HDF5_FPTYPE_REAL, H5S_ALL, H5S_ALL, H5P_DEFAULT, write_buf));
+  chkHDF5err(H5Dclose(dataset));
+  dataset = H5Dcreate(group, "vely", HDF5_FPTYPE_REAL, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  for(ulong ii = 0; ii < Ntot; ii++){
+#ifdef  BLOCK_TIME_STEP
+    write_buf[ii] = body.vel[ii].y;
+#else///BLOCK_TIME_STEP
+    write_buf[ii] = body.vy[ii];
+#endif//BLOCK_TIME_STEP
+  }
+  chkHDF5err(H5Dwrite(dataset, HDF5_FPTYPE_REAL, H5S_ALL, H5S_ALL, H5P_DEFAULT, write_buf));
+  chkHDF5err(H5Dclose(dataset));
+  dataset = H5Dcreate(group, "velz", HDF5_FPTYPE_REAL, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  for(ulong ii = 0; ii < Ntot; ii++){
+#ifdef  BLOCK_TIME_STEP
+    write_buf[ii] = body.vel[ii].z;
+#else///BLOCK_TIME_STEP
+    write_buf[ii] = body.vz[ii];
+#endif//BLOCK_TIME_STEP
+  }
+  chkHDF5err(H5Dwrite(dataset, HDF5_FPTYPE_REAL, H5S_ALL, H5S_ALL, H5P_DEFAULT, write_buf));
+  chkHDF5err(H5Dclose(dataset));
+  chkHDF5err(H5Sclose(dataspace));
+  chkHDF5err(H5Gclose(group));
+
+  /** close the file */
+  chkHDF5err(H5Fclose(target));
+
+
+  FILE *fp;
+  sprintf(filename, "%s/%s.txt", DATAFOLDER, file);
+  fp = fopen(filename, "w");
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
+  fprintf(fp, "_dmp0\n");
+  fprintf(fp, "%d\n", 0);
+  fclose(fp);
+
 
   __NOTE__("%s\n", "end");
 }
@@ -3763,30 +4197,62 @@ void writeSnapshot
   hid_t group = H5Gcreate(target, groupname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   /* preparation for data compression */
   hid_t dataset, dataspace, property;
+#ifdef  USE_FILE_COMPRESSION
+  hsize_t cdims_max;
+  hsize_t cdims_loc[2];
 #ifdef  USE_SZIP_COMPRESSION
   /* compression using szip */
-  uint szip_options_mask = H5_SZIP_NN_OPTION_MASK;
-  uint szip_pixels_per_block = 8;
-  /* hsize_t cdims[2] = {128 * szip_pixels_per_block, 3}; */
-  hsize_t cdims[2] = {32 * szip_pixels_per_block, 3};
-#else///USE_SZIP_COMPRESSION
-  property = H5P_DEFAULT;
+  const uint szip_options_mask = H5_SZIP_NN_OPTION_MASK;
+  const uint szip_pixels_per_block = 8;
+  /* cdims[2] = {128 * szip_pixels_per_block, 3}; */
+  hsize_t szip_cdims[2] = {32 * szip_pixels_per_block, 3};
 #endif//USE_SZIP_COMPRESSION
+#ifdef  USE_GZIP_COMPRESSION
+  /* compression using gzip */
+  const uint gzip_compress_level = 9;/**< 9 is the maximum compression ratio */
+  /* const hsize_t gzip_cdims[2] = {1024, 1}; */
+  hsize_t gzip_cdims[2] = {256, 3};
+#endif//USE_GZIP_COMPRESSION
+#else///USE_FILE_COMPRESSION
+  property = H5P_DEFAULT;
+#endif//USE_FILE_COMPRESSION
+
 
   /* 2D (num * 3) array */
   hsize_t dims[2] = {num, 3};
   dataspace = H5Screate_simple(2, dims, NULL);
+#ifdef  USE_FILE_COMPRESSION
+  cdims_max = (MAXIMUM_CHUNK_SIZE_4BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_4BIT : MAXIMUM_CHUNK_SIZE;
 #ifdef  USE_SZIP_COMPRESSION
+  cdims_loc[0] = szip_cdims[0];
+  cdims_loc[1] = szip_cdims[1];
+  if( (dims[0] * dims[1]) > (hsize_t)szip_pixels_per_block ){
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] * cdims_loc[1] > cdims_max )
+      cdims_loc[0] = cdims_max / cdims_loc[1];
+    chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
+    chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+  }
+  else
+    property = H5P_DEFAULT;
+#else///USE_SZIP_COMPRESSION
+#ifdef  USE_GZIP_COMPRESSION
+  cdims_loc[0] = gzip_cdims[0];
+  cdims_loc[1] = gzip_cdims[1];
   property = H5Pcreate(H5P_DATASET_CREATE);
-  hsize_t cdims_loc[2] = {cdims[0], cdims[1]};
-  if( (hsize_t)num < cdims_loc[0] )
-    cdims_loc[0] = (hsize_t)num;
-  hsize_t cdims_max = (MAXIMUM_CHUNK_SIZE_4BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_4BIT : MAXIMUM_CHUNK_SIZE;
+  if( dims[0] < cdims_loc[0] )
+    cdims_loc[0] = dims[0];
   if( cdims_loc[0] * cdims_loc[1] > cdims_max )
     cdims_loc[0] = cdims_max / cdims_loc[1];
   chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
-  chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+  chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
 #endif//USE_SZIP_COMPRESSION
+#endif//USE_FILE_COMPRESSION
+
+
   /* write particle position */
   dataset = H5Dcreate(group, "position", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
   chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body->pos));
@@ -3805,26 +4271,42 @@ void writeSnapshot
   chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body->acc_ext));
   chkHDF5err(H5Dclose(dataset));
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  USE_FILE_COMPRESSION
 #ifdef  USE_SZIP_COMPRESSION
-  chkHDF5err(H5Pclose(property));
+  if( (dims[0] * dims[1]) > (hsize_t)szip_pixels_per_block )
 #endif//USE_SZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_FILE_COMPRESSION
   /* close the dataspace */
   chkHDF5err(H5Sclose(dataspace));
 
   /* 1D (num) arrays */
   dataspace = H5Screate_simple(1, dims, NULL);
-#ifdef  USE_SZIP_COMPRESSION
+
+#ifdef  USE_FILE_COMPRESSION
   property = H5Pcreate(H5P_DATASET_CREATE);
-  cdims[0] = 128 * szip_pixels_per_block;
-  cdims_loc[0] = cdims[0];
-  if( (hsize_t)num < cdims_loc[0] )
-    cdims_loc[0] = (hsize_t)num;
   cdims_max = (MAXIMUM_CHUNK_SIZE_8BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_8BIT : MAXIMUM_CHUNK_SIZE;
+#ifdef  USE_SZIP_COMPRESSION
+  szip_cdims[0] = 128 * szip_pixels_per_block;
+  cdims_loc[0] = szip_cdims[0];
+  if( dims[0] < cdims_loc[0] )
+    cdims_loc[0] = dims[0];
   if( cdims_loc[0] > cdims_max )
     cdims_loc[0] = cdims_max;
   chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
   chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+#else///USE_SZIP_COMPRESSION
+#ifdef  USE_GZIP_COMPRESSION
+  gzip_cdims[0] = 1024;
+  if( dims[0] < cdims_loc[0] )
+    cdims_loc[0] = dims[0];
+  if( cdims_loc[0] > cdims_max )
+    cdims_loc[0] = cdims_max;
+  chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
+  chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
 #endif//USE_SZIP_COMPRESSION
+#endif//USE_FILE_COMPRESSION
   /* write particle mass */
   dataset = H5Dcreate(group, "mass", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
   chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, body->m));
@@ -3843,9 +4325,9 @@ void writeSnapshot
   dataset = H5Dcreate(group, "index", H5T_NATIVE_ULONG, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
   chkHDF5err(H5Dwrite(dataset, H5T_NATIVE_ULONG, H5S_ALL, H5S_ALL, H5P_DEFAULT, body->idx));
   chkHDF5err(H5Dclose(dataset));
-#ifdef  USE_SZIP_COMPRESSION
+#ifdef  USE_FILE_COMPRESSION
   chkHDF5err(H5Pclose(property));
-#endif//USE_SZIP_COMPRESSION
+#endif//USE_FILE_COMPRESSION
   /* close the dataspace */
   chkHDF5err(H5Sclose(dataspace));
 

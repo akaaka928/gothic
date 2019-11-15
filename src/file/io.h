@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/09/25 (Wed)
+ * @date 2019/11/14 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -203,6 +203,8 @@ extern "C"
    , hdf5struct type
 #endif//USE_HDF5_FORMAT
    );
+
+  void writeAnthemFile(const ulong Ntot, iparticle body, const int unit, char file[]);
 
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD

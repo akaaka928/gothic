@@ -21,8 +21,8 @@ PROCS_PER_SOCKET=$5
 EXEC=$1
 OPTION="`echo $@ | sed -e "s|$EXEC||" -e "s|$LOGNAME||" -e "s/$JOB_ID//" -e "s/$PROCS_PER_NODE//" -e "s/$PROCS_PER_SOCKET//"`"
 if [ `which numactl` ]; then
-    TEMPID=`expr $RANK % $PROCS_PER_NODE`
-    SOCKET=`expr $TEMPID / $PROCS_PER_SOCKET`
+    # TEMPID=`expr $RANK % $PROCS_PER_NODE`
+    # SOCKET=`expr $TEMPID / $PROCS_PER_SOCKET`
 
     if [ $RANK -eq 0 ]; then
 	FILE=nws-live-m9_0-orbit4
@@ -41,8 +41,7 @@ if [ `which numactl` ]; then
 	DEVID=3
     fi
 
-    # echo "numactl --cpunodebind=$SOCKET --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
-    numactl --cpunodebind=$SOCKET --localalloc $EXEC -deviceID=$DEVID -file=$FILE $OPTION 1>>$STDOUT 2>>$STDERR
+    numactl --cpunodebind=0 --localalloc $EXEC -deviceID=$DEVID -file=$FILE $OPTION 1>>$STDOUT 2>>$STDERR
 else
     # echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
     $EXEC $OPTION 1>>$STDOUT 2>>$STDERR

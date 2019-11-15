@@ -81,3 +81,21 @@ vel = np.array([vx1, vy1, vz1])
 print(vel, np.sqrt(vx1**2 + vy1**2 + vz1**2))
 print("collision velocity 1 in M31 disk frame:")
 print(np.dot(rot, vel))
+
+
+# inflowing angle of the GSS progenitor
+disk = np.array([0.0, 0.0, 1.0])
+view = np.dot(inv, disk)
+print("rotation axis of the M31 in observed frame:")
+print(view)
+flow = np.array([394.0, -353.0, 316.0]) # in units of km/s
+vvec = flow / np.linalg.norm(flow)
+cosv = np.dot(view, vvec)
+out = np.cross(view, vvec)
+print("cosine:")
+print(cosv)
+print("sine:")
+print(np.linalg.norm(out))
+# print(cosv**2 + np.linalg.norm(out) **2)
+print("arcsin:", np.arcsin(np.linalg.norm(out)), np.rad2deg(np.arcsin(np.linalg.norm(out))))
+print("arccos:", np.arccos(cosv), np.rad2deg(np.arccos(cosv)))

@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2019/09/25 (Wed) 17:22:49
+# last updated on 2019/11/15 (Fri) 09:32:22
 # Makefile for C Programming
 # Gravitational octree code for collisionless N-body simulations on GPUs
 #################################################################################################
@@ -54,6 +54,7 @@ PREPARE_XDMF_FILES	:= 0
 DUMPFILE_IN_TIPSY	:= 0
 DUMPFILE_AS_GALACTICS	:= 0
 DUMPFILE_AS_GADGET	:= 0
+DUMPFILE_AS_ANTHEM	:= 0
 USE_OFFICIAL_SFMT	:= 1
 USE_OFFICIAL_SFMT_JUMP	:= 1
 USE_LIS_FOR_MAGI	:= 1
@@ -86,6 +87,10 @@ CHECK_FUNCTION_CALLS	:= 0
 CHECK_CALL_MAKE_TREE	:= 0
 CHECK_CALL_MAKE_NODE	:= 0
 CHECK_CALL_NEIGHBOUR	:= 0
+#################################################################################################
+ifeq ($(DUMPFILE_AS_ANTHEM), 1)
+USEDP	:= 1
+endif
 #################################################################################################
 
 
@@ -582,6 +587,10 @@ endif
 #################################################################################################
 ifeq ($(DUMPFILE_AS_GADGET), 1)
 CCARG	+= -DWRITE_IN_GADGET_FORMAT
+endif
+#################################################################################################
+ifeq ($(DUMPFILE_AS_ANTHEM), 1)
+CCARG	+= -DWRITE_IN_ANTHEM_FORMAT
 endif
 #################################################################################################
 ifeq ($(HDF5_FOR_ZINDAIJI), 1)

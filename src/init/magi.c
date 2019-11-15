@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/09/20 (Fri)
+ * @date 2019/11/15 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2246,7 +2246,11 @@ const int kidx_org = kidx;
   stopBenchmark_cpu(&execTime.spheInfo);
 
   /** write particle data */
+  FILE *fp;
+  char filename[128];
+#ifndef WRITE_IN_ANTHEM_FORMAT
   double time = 0.0;
+#endif//WRITE_IN_ANTHEM_FORMAT
   initBenchmark_cpu();
 
 #ifdef  USE_HDF5_FORMAT
@@ -2254,7 +2258,7 @@ const int kidx_org = kidx;
   createHDF5DataType(&hdf5type);
 #endif//USE_HDF5_FORMAT
 
-#   if  !defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT) && !defined(WRITE_IN_GADGET_FORMAT)
+#   if  !defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT) && !defined(WRITE_IN_GADGET_FORMAT) && !defined(WRITE_IN_ANTHEM_FORMAT)
   double  dt  = 0.0;
   int   last  = 1;
   ulong steps = 0;
@@ -2291,7 +2295,7 @@ const int kidx_org = kidx;
 		     );
   updateConfigFile(last, file);
 
-#else///!defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT) && !defined(WRITE_IN_GADGET_FORMAT)
+#else///!defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT) && !defined(WRITE_IN_GADGET_FORMAT) && !defined(WRITE_IN_ANTHEM_FORMAT)
 
 #ifdef  WRITE_IN_TIPSY_FORMAT
   writeTipsyFile
@@ -2327,7 +2331,21 @@ const int kidx_org = kidx;
   free(gnum);
 #endif//WRITE_IN_GADGET_FORMAT
 
-#endif//!defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT) && !defined(WRITE_IN_GADGET_FORMAT)
+#ifdef  WRITE_IN_ANTHEM_FORMAT
+  writeAnthemFile(Ntot, body, unit, file);
+
+  sprintf(filename, "%s/%s_summary.csv", DATAFOLDER, file);
+  fp = fopen(filename, "w");
+  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
+  ulong head = 0;
+  for(int kk = 0; kk < kind; kk++){
+    fprintf(fp, "%zu,%zu,%s\n", head, cfg[kk].num, cfg[kk].file);
+    head += cfg[kk].num;
+  }
+  fclose(fp);
+#endif//WRITE_IN_ANTHEM_FORMAT
+
+#endif//!defined(WRITE_IN_TIPSY_FORMAT) && !defined(WRITE_IN_GALACTICS_FORMAT) && !defined(WRITE_IN_GADGET_FORMAT) && !defined(WRITE_IN_ANTHEM_FORMAT)
 
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
   writeFixedPotentialTable
@@ -2390,8 +2408,6 @@ const int kidx_org = kidx;
   ttot += execTime.gas_spheProf + execTime.gas_spheDist;
 #endif//ENABLE_GASEOUS_COMPONENT
 
-  FILE *fp;
-  char filename[128];
   sprintf(filename, "%s/%s.N%zu_%.2d.%s.%s.txt", LOGFOLDER, file, Ntot, CPUS_PER_PROCESS, "magi", "breakdown");
   if( 0 != access(filename, F_OK) ){
     fp = fopen(filename, "w");

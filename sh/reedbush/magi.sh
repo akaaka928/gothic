@@ -65,6 +65,11 @@ if [ -z "$SAVE" ]; then
     SAVE=55.0
 fi
 ###############################################################
+# denoise distribution function
+if [ -z "$DENOISE_DF" ]; then
+    DENOISE_DF=1
+fi
+###############################################################
 
 
 ###############################################################
@@ -678,7 +683,7 @@ fi
 ###############################################################
 # set input arguments
 if [ $PROBLEM -ge 1 ]; then
-    OPTION="-file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE"
+    OPTION="-file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE -denoisingDistributionFunction=$DENOISE_DF"
 else
     OPTION="-file=$FILE -unit=$UNIT -Ntot=$NTOT -Mtot=$MTOT -virial=$VIRIAL -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE"
 fi

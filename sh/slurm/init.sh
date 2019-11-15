@@ -22,7 +22,7 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=21
     # PROBLEM=23
     # PROBLEM=26
-    # PROBLEM=27
+    PROBLEM=27
     # PROBLEM=33
     # PROBLEM=39
     # PROBLEM=46
@@ -42,7 +42,7 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=98
     # PROBLEM=99
     # PROBLEM=100
-    PROBLEM=1000
+    # PROBLEM=1000
 fi
 ###############################################################
 # number of N-body particles
@@ -54,7 +54,7 @@ if [ -z "$NTOT" ]; then
     # NTOT=2048
     # NTOT=4096
     # NTOT=8192
-    # NTOT=16384
+    NTOT=16384
     # NTOT=32768
     # NTOT=65536
     # NTOT=131072
@@ -65,7 +65,7 @@ if [ -z "$NTOT" ]; then
     # NTOT=2097152
     # NTOT=4194304
     # NTOT=8388608
-    NTOT=16777216
+    # NTOT=16777216
     # NTOT=33554432
     # NTOT=67108864
     # NTOT=134217728
