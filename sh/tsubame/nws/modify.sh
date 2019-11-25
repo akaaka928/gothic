@@ -34,7 +34,8 @@ if [ -z "$FINISH" ]; then
     FINISH=14000.0
 fi
 if [ -z "$INTERVAL" ]; then
-    INTERVAL=25.0
+    # INTERVAL=25.0
+    INTERVAL=100.0
 fi
 ###############################################################
 # problem ID

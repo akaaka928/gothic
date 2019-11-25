@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/11/09 (Sat)
+ * @date 2019/11/20 (Wed)
  *
  * Copyright (C) 2019 Yohei Miki
  * All rights reserved.
@@ -75,6 +75,24 @@
 #include "../anal/m31coord.h"
 
 
+/** 5 fields in Subaru/HSC observations by Komiyama et al. (2018): copied from py/m31.py, 4 additional fields proposed for HSC or PFS observations: copied from py/radec.py */
+#define NFIELD (9)
+const real  xi0[NFIELD] = {-4.653744156858361, -5.7227710294896745, -5.530826768687439, -4.842739589150247, -5.912437203950868, -4.05, -3.2, -6.1, -6.3};
+const real eta0[NFIELD] = { 3.635683362752261,  4.47091006650441  ,  5.816784796173433,  2.290423176281251,  3.125050968157858,  1.25,  0.2,  6.9,  8.2};
+const real hsc_fov2 = 0.75 * 0.75;/**< FoV is 0.75 degree in radius (HSC spec) */
+
+
+/** snapshots without DM sub-halo interaction, M = 10^7, 10^7.5, 10^8, 10^8.5, 10^9, and 10^9.5 Msun */
+#define NMODEL (7)
+
+
+/** noise patterns: white noise (S/N = 1, 2, 3, 4, 5, 7, 8, 9. 10), stellar halo in M31, and MW foreground contamination (stellar halo and MW are in preparation) */
+#define NNOISE (10)
+
+
+
+
+
 extern const double      length2astro;
 extern const double        time2astro;
 extern const double        mass2astro;
@@ -104,6 +122,133 @@ int idxAscendingOrder(const void *a, const void *b)
 /* Enable ICC's remark #161: unrecognized #pragma */
 #     pragma warning (enable:161)
 #endif//__ICC
+
+
+
+
+void read_model(const bool without_subhalo, char *file,
+		int *num, int **list)
+{
+  __NOTE__("%s\n", "start");
+
+
+  /** read snapshot */
+  double time;
+  ulong steps;
+  int unit_read;
+#ifdef  USE_HDF5_FORMAT
+  readSnapshot(&unit_read, &time, &steps, Ntot, file, (uint)filenum, &hdf5, hdf5type);
+  for(int ii = 0; ii < (int)Ntot; ii++){
+    body[ii]. x  = hdf5.pos[ii * 3];      body[ii]. y = hdf5.pos[ii * 3 + 1];      body[ii].z   = hdf5.pos[ii * 3 + 2];
+    body[ii].vx  = hdf5.vel[ii * 3];      body[ii].vy = hdf5.vel[ii * 3 + 1];      body[ii].vz  = hdf5.vel[ii * 3 + 2];
+    body[ii].ax  = hdf5.acc[ii * 3];      body[ii].ay = hdf5.acc[ii * 3 + 1];      body[ii].az  = hdf5.acc[ii * 3 + 2];
+    body[ii].idx = hdf5.idx[ii    ];      body[ii]. m = hdf5.  m[ii        ];      body[ii].pot = hdf5.pot[ii        ];
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    body[ii].ax_ext = hdf5.acc_ext[ii * 3];      body[ii].ay_ext = hdf5.acc_ext[ii * 3 + 1];      body[ii].az_ext = hdf5.acc_ext[ii * 3 + 2];
+    body[ii].pot_ext = hdf5.pot_ext[ii];
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+  }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
+#else///USE_HDF5_FORMAT
+  readSnapshot(&unit_read, &time, &steps, Ntot, file, ibody, (uint)filenum);
+  for(int ii = 0; ii < (int)Ntot; ii++){
+    body[ii]. x  = ibody.pos[ii].x;      body[ii]. y = ibody.pos[ii].y;      body[ii]. z  = ibody.pos[ii].z;
+    body[ii].vx  = ibody.vel[ii].x;      body[ii].vy = ibody.vel[ii].y;      body[ii].vz  = ibody.vel[ii].z;
+    body[ii].ax  = ibody.acc[ii].x;      body[ii].ay = ibody.acc[ii].y;      body[ii].az  = ibody.acc[ii].z;
+    body[ii].idx = ibody.idx[ii]  ;      body[ii]. m = ibody.pos[ii].m;      body[ii].pot = ibody.acc[ii].pot;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    body[ii].ax_ext = ibody.acc_ext[ii].x;      body[ii].ay_ext = ibody.acc_ext[ii].y;      body[ii].az_ext = ibody.acc_ext[ii].z;
+    body[ii].pot_ext = ibody.acc_ext[ii].pot;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+  }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
+#endif//USE_HDF5_FORMAT
+  if( unit_read != unit ){
+    __KILL__(stderr, "ERROR: conflict about unit system detected (unit = %d, unit_read = %d)\n", unit, unit_read);
+  }/* if( unit_read != unit ){ */
+
+
+  /** sort particle data by index */
+  qsort(body, Ntot, sizeof(nbody_aos), idxAscendingOrder);
+
+  /** obtain surface density maps for visualization */
+  standard_coordinate(Ntot, body, rot, xi, eta, dist, vxi, veta, vlos);
+
+
+  /** generate list of particle index in each field */
+  for(int kk = 0; kk < NFIELD; kk++)
+    num[kk] = 0;
+
+  for(int ii = 0; ii < (int)Ntot; ii++){
+    const real xx = xi[ii];
+    const real yy = eta[ii];
+    const real vv = vlos[ii];
+
+    for(int kk = 0; kk < NFIELD; kk++){
+      const real dx = xx - xi0[kk];
+      const real dy = yy - eta0[kk];
+      if( dx * dx + dy * dy <= hsc_fov2 ){
+	list[kk][num[kk]] = ii;
+	num[kk]++;
+      }
+    }
+  }
+
+
+  /** initialize focusing regions */
+  if( without_subhalo ){
+    for(int kk = 0; kk < NFIELD; kk++){
+      /** vmin and vmax will be determined by snapshot without DM sub-halo */
+      real vmin_tmp =  REAL_MAX;
+      real vmax_tmp = -REAL_MAX;
+
+      for(int ii = 0; ii < num[kk]; ii++){
+	const real vel = vlos[list[kk][ii]];
+
+	vmin_tmp = FMIN(vmin_tmp, vel);
+	vmax_tmp = FMAX(vmax_tmp, vel);
+      }
+
+      vmin[kk] = vmin_tmp;
+      vmax[kk] = vmax_tmp;
+
+      /** set grids for the line-of-sight velocity in each fields */
+      /* set xx, yy, and vv */
+
+
+
+
+    }
+  }
+
+
+
+
+
+
+
+  /** generate maps in each field */
+
+
+
+
+
+
+
+  /** generate velocity maps */
+
+
+
+
+
+
+
+  __NOTE__("%s\n", "end");
+}
+
+
+
+
+
+
 
 
 int main(int argc, char **argv)
@@ -211,16 +356,8 @@ int main(int argc, char **argv)
   checker &= (1 == fscanf(fp, "%d\t%*d", &kind));
   bodyHead = (int *)malloc(sizeof(int) * kind);  if( bodyHead == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate bodyHead");  }
   bodyNum  = (int *)malloc(sizeof(int) * kind);  if( bodyNum  == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate bodyNum");  }
-#ifdef  HDF5_FOR_ZINDAIJI
-  int *bodyType;
-  bodyType = (int *)malloc(sizeof(int) * kind);  if( bodyType == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate bodyType");  }
-#endif//HDF5_FOR_ZINDAIJI
   for(int ii = 0; ii < kind; ii++)
     checker &= (1 == fscanf(fp, "%d", &bodyNum[ii]));
-#ifdef  HDF5_FOR_ZINDAIJI
-  for(int ii = 0; ii < kind; ii++)
-    checker &= (1 == fscanf(fp, "%d", &bodyType[ii]));
-#endif//HDF5_FOR_ZINDAIJI
   fclose(fp);
   if( !checker ){
     __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);
@@ -228,7 +365,38 @@ int main(int argc, char **argv)
   bodyHead[0] = 0;
   for(int ii = 1; ii < kind; ii++)
     bodyHead[ii] = bodyHead[ii - 1] + bodyNum[ii - 1];
-#ifdef  HDF5_FOR_ZINDAIJI
-  for(int ii = 0; ii < kind; ii++)
-    bodyType[ii] &= 3;
-#endif//HDF5_FOR_ZINDAIJI
+
+
+
+  real *map;  map = (real *)malloc(sizeof(real) * (kind * NMODEL + NNOISE) * NFIELD * nx * ny);  if( map == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate map");  }
+  real *vmap;  vmap = (real *)malloc(sizeof(real) * (kind * NMODEL + NNOISE) * NFIELD * nv * ny);  if( vmap == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate vmap");  }
+
+  real *xx;  xx = (real *)malloc(sizeof(real) * NFIELD * (nx + 1));  if( xx == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate xx");  }
+  real *yy;  yy = (real *)malloc(sizeof(real) * NFIELD * (ny + 1));  if( yy == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate yy");  }
+  real *vv;  vv = (real *)malloc(sizeof(real) * NFIELD * (nv + 1));  if( vv == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate vv");  }
+
+
+  for(int filenum = start + mpi.rank * interval; filenum < end + 1; filenum += interval * mpi.size){
+
+
+
+
+
+
+
+  /** analyze snapshot without DM sub-halo and create noise maps*/
+
+
+  /** analyze snapshot with various mass of DM sub-halo */
+
+
+  /** dump results for visualization */
+
+
+
+
+
+  exitMPI();
+
+  return (0);
+}
