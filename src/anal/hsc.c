@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/11/20 (Wed)
+ * @date 2019/12/02 (Mon)
  *
  * Copyright (C) 2019 Yohei Miki
  * All rights reserved.
@@ -79,16 +79,16 @@
 #define NFIELD (9)
 const real  xi0[NFIELD] = {-4.653744156858361, -5.7227710294896745, -5.530826768687439, -4.842739589150247, -5.912437203950868, -4.05, -3.2, -6.1, -6.3};
 const real eta0[NFIELD] = { 3.635683362752261,  4.47091006650441  ,  5.816784796173433,  2.290423176281251,  3.125050968157858,  1.25,  0.2,  6.9,  8.2};
-const real hsc_fov2 = 0.75 * 0.75;/**< FoV is 0.75 degree in radius (HSC spec) */
+const real hsc_fov = 0.75;/**< FoV is 0.75 degree in radius (HSC spec) */
+const real hsc_fov2 = hsc_fov * hsc_fov;
 
 
 /** snapshots without DM sub-halo interaction, M = 10^7, 10^7.5, 10^8, 10^8.5, 10^9, and 10^9.5 Msun */
 #define NMODEL (7)
 
 
-/** noise patterns: white noise (S/N = 1, 2, 3, 4, 5, 7, 8, 9. 10), stellar halo in M31, and MW foreground contamination (stellar halo and MW are in preparation) */
+/** noise patterns: white noise (S/N = 1, 2, 3, 4, 5, 7, 8, 9, 10), stellar halo in M31, and MW foreground contamination (stellar halo and MW are in preparation) */
 #define NNOISE (10)
-
 
 
 
@@ -126,8 +126,21 @@ int idxAscendingOrder(const void *a, const void *b)
 
 
 
+/* 3 sigma means that neglecting component of 0.26% */
+/* 5 sigma means that neglecting component of 6e-7 */
+/* #define SPREAD (3) */
+#define SPREAD (5)
+
+#define SMOOTHING_FOR_VISUALIZATION TWO
+/* #define SMOOTHING_FOR_VISUALIZATION THREE */
+
 void read_model(const bool without_subhalo, char *file,
-		int *num, int **list)
+		const int modelID,
+		const ulont Ntot, const int kind, int * restrict bodyHead, int * restrict bodyNum, 
+		int *num, int **list,
+		real * restrict vmin, real * restrict vmax,
+		const int nx, real * restrict xx, const int ny, real * restrict yy, const int nv, real * restrict vv,
+		real * restrict map, real * restrict vmap)
 {
   __NOTE__("%s\n", "start");
 
@@ -174,61 +187,190 @@ void read_model(const bool without_subhalo, char *file,
 
 
   /** generate list of particle index in each field */
-  for(int kk = 0; kk < NFIELD; kk++)
-    num[kk] = 0;
-
-  for(int ii = 0; ii < (int)Ntot; ii++){
-    const real xx = xi[ii];
-    const real yy = eta[ii];
-    const real vv = vlos[ii];
-
-    for(int kk = 0; kk < NFIELD; kk++){
-      const real dx = xx - xi0[kk];
-      const real dy = yy - eta0[kk];
-      if( dx * dx + dy * dy <= hsc_fov2 ){
-	list[kk][num[kk]] = ii;
-	num[kk]++;
-      }
-    }
+  int *list;  list = (int *)malloc(sizeof(int) * Ntot         );  if( list == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate list");  }
+  int * num;  num  = (int *)malloc(sizeof(int) * NFIELD * kind);  if(  num == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate num");  }
+  int *head;  head = (int *)malloc(sizeof(int) * NFIELD * kind);  if( head == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate head");  }
+  for(int ff = 0; ff < NFIELD * kind; ff++){
+    num [ff] = 0;
+    head[ff] = 0;
   }
+  for(int ii = 0; ii < (int)Ntot; ii++)
+    list[ii] = (int)Ntot;
+
+  int mem = 0;
+  for(int ff = 0; ff < NFIELD; ff++)
+    for(int kk = 0; kk < kind; kk++){
+      for(int ii = bodyHead[kk]; ii < bodyHead[kk] + bodyNum[kk]; ii++){
+	const real dx =  xi[ii] -  xi0[ff];
+	const real dy = eta[ii] - eta0[ff];
+
+	if( dx * dx + dy * dy <= hsc_fov2 ){
+	  list[mem] = ii;
+	  mem++;
+	}
+      }
+      num[INDEX2D(NFIELD, kind, ff, kk)] = mem - head[INDEX2D(NFIELD, kind, ff, kk)];
+      if( INDEX2D(NFIELD, kind, ff, kk) + 1 < NFIELD * kind )
+	head[INDEX2D(NFIELD, kind, ff, kk) + 1] = mem;
+    }
 
 
   /** initialize focusing regions */
   if( without_subhalo ){
-    for(int kk = 0; kk < NFIELD; kk++){
+    for(int ff = 0; ff < NFIELD; ff++){
       /** vmin and vmax will be determined by snapshot without DM sub-halo */
       real vmin_tmp =  REAL_MAX;
       real vmax_tmp = -REAL_MAX;
 
-      for(int ii = 0; ii < num[kk]; ii++){
-	const real vel = vlos[list[kk][ii]];
+      for(int ii = head[INDEX2D(NFIELD, kind, ff, 0)]; ii < head[INDEX2D(NFIELD, kind, ff, kind - 1)] + num[INDEX2D(NFIELD, kind, ff, kind - 1)]; ii++){
+	const real vel = vlos[list[ii]];
 
 	vmin_tmp = FMIN(vmin_tmp, vel);
 	vmax_tmp = FMAX(vmax_tmp, vel);
       }
 
-      vmin[kk] = vmin_tmp;
-      vmax[kk] = vmax_tmp;
+      vmin[ff] = vmin_tmp;
+      vmax[ff] = vmax_tmp;
 
       /** set grids for the line-of-sight velocity in each fields */
-      /* set xx, yy, and vv */
+      /** set xx, yy, and vv */
+      const real xmin =  xi0[ff] - hsc_fov;      const real xmax =  xi0[ff] + hsc_fov;      const real dx = (xmax - xmin) / (real)nx;
+      const real ymin = eta0[ff] - hsc_fov;      const real ymax = eta0[ff] + hsc_fov;      const real dy = (ymax - ymin) / (real)ny;
 
+      for(int ii = 0; ii < nx + 1; ii++)	xx[INDEX2D(NFIELD, nx + 1, ff, ii)] = xmin + dx * (real)ii;
+      for(int ii = 0; ii < ny + 1; ii++)	yy[INDEX2D(NFIELD, ny + 1, ff, ii)] = ymin + dy * (real)ii;
 
-
-
+      const real dv = (vmax_tmp - vmin_tmp) / (real)nv;
+      for(int ii = 0; ii < nv + 1; ii++)
+	vv[INDEX2D(NFIELD, nv + 1, ff, ii)] = vmin_tmp + dv * (real)ii;
     }
   }
 
 
-
-
-
-
-
   /** generate maps in each field */
+  const real deg2kpc = zm31 * CAST_D2R(tan(1.0 * M_PI / 180.0));
+  const real kpc2deg = UNITY / deg2kpc;
+  for(int ff = 0; ff < NFIELD; ff++){
+    const real xmin = xx[INDEX2D(NFIELD, nx + 1, ff, 0)];
+    const real ymin = yy[INDEX2D(NFIELD, ny + 1, ff, 0)];
+    const real vmin = vv[INDEX2D(NFIELD, nv + 1, ff, 0)];
+
+    const real dx = (xx[INDEX2D(NFIELD, nx + 1, ff, nx)] - xmin) / (real)nx;
+    const real dy = (yy[INDEX2D(NFIELD, ny + 1, ff, ny)] - ymin) / (real)ny;
+    const real dv = (vv[INDEX2D(NFIELD, nv + 1, ff, nv)] - vmin) / (real)nv;
+
+    const real dxinv = UNITY / dx;
+    const real dyinv = UNITY / dy;
+    const real dzinv = UNITY / dz;
+
+    const real xsig = FMAX(HALF * eps * kpc2deg, SMOOTHING_FOR_VISUALIZATION * FABS(dx));/**< sigma in Gaussian is roughly corresponding to eps of Plummer softening */
+    const real ysig = FMAX(HALF * eps * kpc2deg, SMOOTHING_FOR_VISUALIZATION * FABS(dy));/**< sigma in Gaussian is roughly corresponding to eps of Plummer softening */
+    const real vsig = FMAX(HALF                , SMOOTHING_FOR_VISUALIZATION * FABS(dv));/**< sigma in velocity space is set to be 1 km/s (velocity precision is 5-10 km/s in Chiba et al. 2016: http://dx.doi.org/10.1017/S1743921315006912) */
+
+    const real invxsig = UNITY / xsig;
+    const real invysig = UNITY / ysig;
+    const real invvsig = UNITY / vsig;
+
+    const int nx_smooth = (int)CEIL(SPREAD * FABS(dxinv) * xsig);
+    const int ny_smooth = (int)CEIL(SPREAD * FABS(dyinv) * ysig);
+    const int nv_smooth = (int)CEIL(SPREAD * FABS(dvinv) * vsig);
+
+    real *erfx;  erfx = (real *)malloc(sizeof(real) * (2 * nx_smooth + 2));  if( erfx == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate erfx");  }
+    real *erfy;  erfy = (real *)malloc(sizeof(real) * (2 * ny_smooth + 2));  if( erfy == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate erfy");  }
+    real *erfv;  erfv = (real *)malloc(sizeof(real) * (2 * nv_smooth + 2));  if( erfv == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate erfv");  }
+    for(int ii = 0; ii < 2 * nx_smooth + 2; ii++)    erfx[ii] = ERF((dx * ((real)(ii - nx_smooth) - HALF)) * invxsig);
+    for(int ii = 0; ii < 2 * ny_smooth + 2; ii++)    erfy[ii] = ERF((dy * ((real)(ii - ny_smooth) - HALF)) * invysig);
+    for(int ii = 0; ii < 2 * nv_smooth + 2; ii++)    erfv[ii] = ERF((dv * ((real)(ii - nv_smooth) - HALF)) * invvsig);
+
+    real *psfx;  psfx = (real *)malloc(sizeof(real) * (2 * nx_smooth + 1));  if( psfx == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate psfx");  }
+    real *psfy;  psfy = (real *)malloc(sizeof(real) * (2 * ny_smooth + 1));  if( psfy == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate psfy");  }
+    real *psfv;  psfv = (real *)malloc(sizeof(real) * (2 * nv_smooth + 1));  if( psfv == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate psfv");  }
+    for(int ii = 0; ii < 2 * nx_smooth + 1; ii++)    psfx[ii] = HALF * (erfx[ii + 1] - erfx[ii]);
+    for(int ii = 0; ii < 2 * ny_smooth + 1; ii++)    psfy[ii] = HALF * (erfy[ii + 1] - erfy[ii]);
+    for(int ii = 0; ii < 2 * nv_smooth + 1; ii++)    psfv[ii] = HALF * (erfv[ii + 1] - erfv[ii]);
+
+    const real dSxyinv = dxinv * dyinv;
+    const real dfyvinv = dyinv * dvinv;
+
+    for(int kk = 0; kk < kind; kk++){
+      for(int ii = 0; ii < nx * ny; ii++)
+	map [INDEX(NFIELD, kind * (NMODEL + NNOISE), nx * ny, ff, INDEX2D(kind, NMODEL + NNOISE, kk, modelID), ii)] = ZERO;
+      for(int ii = 0; ii < ny * nv; ii++)
+	vmap[INDEX(NFIELD, kind * (NMODEL + NNOISE), ny * nv, ff, INDEX2D(kind, NMODEL + NNOISE, kk, modelID), ii)] = ZERO;
+      real mass = ZERO;
+
+      for(int ii = head[INDEX2D(NFIELD, kind, ff, kk)]; ii < head[INDEX2D(NFIELD, kind, ff, kk)] + num[INDEX2D(NFIELD, kind, ff, kk)]; ii++){
+	const int idx = list[ii];
+	const real mi = CAST_D2R(CAST_R2D(body[idx].m) * mass2astro);
+	const real xx =   xi[idx];
+	const real yy =  eta[idx];
+	const real vv = vlos[idx];
+
+	const int l0 = (int)FLOOR((xx - xmin) * dxinv);
+	const int m0 = (int)FLOOR((yy - ymin) * dyinv);
+	const int n0 = (int)FLOOR((vv - vmin) * dvinv);
+
+	for(int sy = 0; sy < 2 * ny_smooth + 1; sy++){
+	  const int mm = m0 + sy - ny_smooth;
+	  if( (mm >= 0) && (mm < ny) ){
+	    const real my = mi * psfy[sy];
+
+	    for(int sx = 0; sx < 2 * nx_smooth + 1; sx++){
+	      const int ll = l0 + sx - nx_smooth;
+	      if( (ll >= 0) && (ll < nx) )
+		map[INDEX(NFIELD * kind * (NMODEL + NNOISE), nx, ny, INDEX(NFIELD, kind, NMODEL + NNOISE, ff, kk, modelID), ll, mm)] += my * psfx[sx];
+
+	    }
+
+	    for(int sv = 0; sv < 2 * nv_smooth + 1; sv++){
+	      const int nn = n0 + sv - nv_smooth;
+	      if( (nn >= 0) && (nn < nv) )
+		vmap[INDEX(NFIELD * kind * (NMODEL + NNOISE), ny, nv, INDEX(NFIELD, kind, NMODEL + NNOISE, ff, kk, modelID), mm, nn)] += my * psfv[sv];
+	    }
+	  }
+	}
+
+      }
+
+
+      for(int ii = 0; ii < nx * ny; ii++)
+	map [INDEX(NFIELD, kind * (NMODEL + NNOISE), nx * ny, ff, INDEX2D(kind, NMODEL + NNOISE, kk, modelID), ii)] *= dSxyinv;
+      for(int ii = 0; ii < ny * nv; ii++)
+	vmap[INDEX(NFIELD, kind * (NMODEL + NNOISE), ny * nv, ff, INDEX2D(kind, NMODEL + NNOISE, kk, modelID), ii)] *= dfyvinv;
+
+
+      /** generate noise map */
+      if( without_subhalo ){
+	/* field: ff, kind: kk */
+
+	/* avg = mass / (nx * ny) for a grid point */
+	/* 1024 * 10 * pseudo-particles -> 1024 * 10 * nx * ny particles (10 is the ratio of maximum and minimum of S/N models) */
+	/* m_p = mass / (1024 * 10 * nx * ny) */
 
 
 
+      }
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  }
 
 
 
@@ -368,8 +510,8 @@ int main(int argc, char **argv)
 
 
 
-  real *map;  map = (real *)malloc(sizeof(real) * (kind * NMODEL + NNOISE) * NFIELD * nx * ny);  if( map == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate map");  }
-  real *vmap;  vmap = (real *)malloc(sizeof(real) * (kind * NMODEL + NNOISE) * NFIELD * nv * ny);  if( vmap == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate vmap");  }
+  real *map;  map = (real *)malloc(sizeof(real) * (kind * (NMODEL + NNOISE)) * NFIELD * nx * ny);  if( map == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate map");  }
+  real *vmap;  vmap = (real *)malloc(sizeof(real) * (kind * (NMODEL + NNOISE)) * NFIELD * nv * ny);  if( vmap == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate vmap");  }
 
   real *xx;  xx = (real *)malloc(sizeof(real) * NFIELD * (nx + 1));  if( xx == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate xx");  }
   real *yy;  yy = (real *)malloc(sizeof(real) * NFIELD * (ny + 1));  if( yy == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate yy");  }
