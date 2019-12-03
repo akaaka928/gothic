@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/12/02 (Mon)
+ * @date 2019/12/03 (Tue)
  *
  * Copyright (C) 2019 Yohei Miki
  * All rights reserved.
@@ -74,6 +74,12 @@
 #include "../file/io.h"
 #include "../anal/m31coord.h"
 
+#include "rand.h"
+#ifdef  USE_SFMTJUMP
+#include "SFMT-jump.h"
+#include "sfmtjump_polynomial.h"
+#endif//USE_SFMTJUMP
+
 
 /** 5 fields in Subaru/HSC observations by Komiyama et al. (2018): copied from py/m31.py, 4 additional fields proposed for HSC or PFS observations: copied from py/radec.py */
 #define NFIELD (9)
@@ -81,22 +87,28 @@ const real  xi0[NFIELD] = {-4.653744156858361, -5.7227710294896745, -5.530826768
 const real eta0[NFIELD] = { 3.635683362752261,  4.47091006650441  ,  5.816784796173433,  2.290423176281251,  3.125050968157858,  1.25,  0.2,  6.9,  8.2};
 const real hsc_fov = 0.75;/**< FoV is 0.75 degree in radius (HSC spec) */
 const real hsc_fov2 = hsc_fov * hsc_fov;
+const char *field_name[NFIELD] = {"f003", "f004", "f009", "f022", "f023", "S0", "S1", "N0", "N1"};
 
 
 /** snapshots without DM sub-halo interaction, M = 10^7, 10^7.5, 10^8, 10^8.5, 10^9, and 10^9.5 Msun */
 #define NMODEL (7)
+/** all snapshot must be located in dat/ -->> creating symbolic link is required */
+const char *modelTag[NMODEL] = {"nws-continue", "nws-test-m7_0-orbit4", "nws-test-m7_5-orbit4", "nws-test-m8_0-orbit4", "nws-test-m8_5-orbit4", "nws-test-m9_0-orbit4", "nws-test-m9_5-orbit4"};
 
 
 /** noise patterns: white noise (S/N = 1, 2, 3, 4, 5, 7, 8, 9, 10), stellar halo in M31, and MW foreground contamination (stellar halo and MW are in preparation) */
 #define NNOISE (10)
+#define MAX_SN (10)
+
+/** averaged number of noise particle per grid point */
+#define NUNIT (16384)
 
 
 
-
-extern const double      length2astro;
-extern const double        time2astro;
-extern const double        mass2astro;
-extern const double    velocity2astro;
+extern const double   length2astro;
+extern const double     time2astro;
+extern const double     mass2astro;
+extern const double velocity2astro;
 
 
 #ifdef  __ICC
@@ -134,23 +146,21 @@ int idxAscendingOrder(const void *a, const void *b)
 #define SMOOTHING_FOR_VISUALIZATION TWO
 /* #define SMOOTHING_FOR_VISUALIZATION THREE */
 
-void read_model(const bool without_subhalo, char *file,
-		const int modelID,
-		const ulont Ntot, const int kind, int * restrict bodyHead, int * restrict bodyNum, 
-		int *num, int **list,
-		real * restrict vmin, real * restrict vmax,
+void read_model(const bool without_subhalo, const uint filenum,
+		const int modelID, nbody_aos *body,
+		const ulong Ntot, const int kind, int * restrict bodyHead, int * restrict bodyNum,
 		const int nx, real * restrict xx, const int ny, real * restrict yy, const int nv, real * restrict vv,
-		real * restrict map, real * restrict vmap)
+		real * restrict map, real * restrict vmap,
+		rand_state *rand, const hdf5struct hdf5type)
 {
   __NOTE__("%s\n", "start");
-
 
   /** read snapshot */
   double time;
   ulong steps;
   int unit_read;
 #ifdef  USE_HDF5_FORMAT
-  readSnapshot(&unit_read, &time, &steps, Ntot, file, (uint)filenum, &hdf5, hdf5type);
+  readSnapshot(&unit_read, &time, &steps, Ntot, modelTag[modelID], filenum, &hdf5, hdf5type);
   for(int ii = 0; ii < (int)Ntot; ii++){
     body[ii]. x  = hdf5.pos[ii * 3];      body[ii]. y = hdf5.pos[ii * 3 + 1];      body[ii].z   = hdf5.pos[ii * 3 + 2];
     body[ii].vx  = hdf5.vel[ii * 3];      body[ii].vy = hdf5.vel[ii * 3 + 1];      body[ii].vz  = hdf5.vel[ii * 3 + 2];
@@ -162,7 +172,7 @@ void read_model(const bool without_subhalo, char *file,
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
   }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 #else///USE_HDF5_FORMAT
-  readSnapshot(&unit_read, &time, &steps, Ntot, file, ibody, (uint)filenum);
+  readSnapshot(&unit_read, &time, &steps, Ntot, modelTag[modelID], ibody, filenum);
   for(int ii = 0; ii < (int)Ntot; ii++){
     body[ii]. x  = ibody.pos[ii].x;      body[ii]. y = ibody.pos[ii].y;      body[ii]. z  = ibody.pos[ii].z;
     body[ii].vx  = ibody.vel[ii].x;      body[ii].vy = ibody.vel[ii].y;      body[ii].vz  = ibody.vel[ii].z;
@@ -255,9 +265,13 @@ void read_model(const bool without_subhalo, char *file,
     const real ymin = yy[INDEX2D(NFIELD, ny + 1, ff, 0)];
     const real vmin = vv[INDEX2D(NFIELD, nv + 1, ff, 0)];
 
-    const real dx = (xx[INDEX2D(NFIELD, nx + 1, ff, nx)] - xmin) / (real)nx;
-    const real dy = (yy[INDEX2D(NFIELD, ny + 1, ff, ny)] - ymin) / (real)ny;
-    const real dv = (vv[INDEX2D(NFIELD, nv + 1, ff, nv)] - vmin) / (real)nv;
+    const real xmax = xx[INDEX2D(NFIELD, nx + 1, ff, nx)];
+    const real ymax = yy[INDEX2D(NFIELD, ny + 1, ff, ny)];
+    const real vmax = vv[INDEX2D(NFIELD, nv + 1, ff, nv)];
+
+    const real dx = (xmax - xmin) / (real)nx;
+    const real dy = (ymax - ymin) / (real)ny;
+    const real dv = (vmax - vmin) / (real)nv;
 
     const real dxinv = UNITY / dx;
     const real dyinv = UNITY / dy;
@@ -302,13 +316,13 @@ void read_model(const bool without_subhalo, char *file,
       for(int ii = head[INDEX2D(NFIELD, kind, ff, kk)]; ii < head[INDEX2D(NFIELD, kind, ff, kk)] + num[INDEX2D(NFIELD, kind, ff, kk)]; ii++){
 	const int idx = list[ii];
 	const real mi = CAST_D2R(CAST_R2D(body[idx].m) * mass2astro);
-	const real xx =   xi[idx];
-	const real yy =  eta[idx];
-	const real vv = vlos[idx];
+	const real xp =   xi[idx];
+	const real yp =  eta[idx];
+	const real vp = vlos[idx];
 
-	const int l0 = (int)FLOOR((xx - xmin) * dxinv);
-	const int m0 = (int)FLOOR((yy - ymin) * dyinv);
-	const int n0 = (int)FLOOR((vv - vmin) * dvinv);
+	const int l0 = (int)FLOOR((xp - xmin) * dxinv);
+	const int m0 = (int)FLOOR((yp - ymin) * dyinv);
+	const int n0 = (int)FLOOR((vp - vmin) * dvinv);
 
 	for(int sy = 0; sy < 2 * ny_smooth + 1; sy++){
 	  const int mm = m0 + sy - ny_smooth;
@@ -342,45 +356,84 @@ void read_model(const bool without_subhalo, char *file,
       /** generate noise map */
       if( without_subhalo ){
 	/* field: ff, kind: kk */
+	for(int sn = 0; sn < NNOISE; sn++){
+	  for(int ii = 0; ii < nx * ny; ii++)
+	    map [INDEX(NFIELD, kind * (NMODEL + NNOISE), nx * ny, ff, INDEX2D(kind, NMODEL + NNOISE, kk, NMODEL + sn), ii)] = ZERO;
+	  for(int ii = 0; ii < ny * nv; ii++)
+	    vmap[INDEX(NFIELD, kind * (NMODEL + NNOISE), ny * nv, ff, INDEX2D(kind, NMODEL + NNOISE, kk, NMODEL + sn), ii)] = ZERO;
+	}
 
 	/* avg = mass / (nx * ny) for a grid point */
-	/* 1024 * 10 * pseudo-particles -> 1024 * 10 * nx * ny particles (10 is the ratio of maximum and minimum of S/N models) */
+	/* NUNIT * MAX_SN * pseudo-particles -> NUNIT * MAX_SN * nx * ny particles (MAX_SN is the ratio of maximum and minimum of S/N models) */
 	/* m_p = mass / (1024 * 10 * nx * ny) */
 
+	const real Nunit = NUNIT * nx * ny;
+	const real m_noise = mass / (real)Nunit;
 
 
+	for(int ii = 0; ii < Nunit; ii++){
+
+	  real xn, yn;
+	  while( true ){
+	    xn = xmin + (xmax - xmin) * UNIRAND(rand);
+	    yn = ymin + (ymax - ymin) * UNIRAND(rand);
+
+	    const real dx = xn -  xi0[ff];
+	    const real dy = yn - eta0[ff];
+	    if( dx * dx + dy * dy <= hsc_fov2 )
+	      break;
+	  }
+	  const real vn = vmin + (vmax - vmin) * UNIRAND(rand);
+
+	  const int l0 = (int)FLOOR((xn - xmin) * dxinv);
+	  const int m0 = (int)FLOOR((yn - ymin) * dyinv);
+	  const int n0 = (int)FLOOR((vn - vmin) * dvinv);
+
+	  for(int sy = 0; sy < 2 * ny_smooth + 1; sy++){
+	    const int mm = m0 + sy - ny_smooth;
+	    if( (mm >= 0) && (mm < ny) ){
+	      const real my = m_noise * psfy[sy];
+
+	      for(int sx = 0; sx < 2 * nx_smooth + 1; sx++){
+		const int ll = l0 + sx - nx_smooth;
+		if( (ll >= 0) && (ll < nx) ){
+		  const real mset = my * psfx[sx];
+
+		  for(int sn = 0; sn < NNOISE; sn++)
+		    map[INDEX(NFIELD * kind * (NMODEL + NNOISE), nx, ny, INDEX(NFIELD, kind, NMODEL + NNOISE, ff, kk, NMODEL + sn), ll, mm)] += mset / (real)(1 + sn);
+		}
+
+	      }
+
+	      for(int sv = 0; sv < 2 * nv_smooth + 1; sv++){
+		const int nn = n0 + sv - nv_smooth;
+		if( (nn >= 0) && (nn < nv) ){
+		  const real mset = my * psfv[sv];
+
+		  for(int sn = 0; sn < NNOISE; sn++)
+		    vmap[INDEX(NFIELD * kind * (NMODEL + NNOISE), ny, nv, INDEX(NFIELD, kind, NMODEL + NNOISE, ff, kk, NMODEL + sn), mm, nn)] += mset / (real)(1 + sn);
+		}
+	      }
+	    }
+	  }
+	}
+
+	for(int sn = 0; sn < NNOISE; sn++){
+	  for(int ii = 0; ii < nx * ny; ii++)
+	    map [INDEX(NFIELD, kind * (NMODEL + NNOISE), nx * ny, ff, INDEX2D(kind, NMODEL + NNOISE, kk, NMODEL + sn), ii)] *= dSxyinv;
+	  for(int ii = 0; ii < ny * nv; ii++)
+	    vmap[INDEX(NFIELD, kind * (NMODEL + NNOISE), ny * nv, ff, INDEX2D(kind, NMODEL + NNOISE, kk, NMODEL + sn), ii)] *= dfyvinv;
+	}
       }
-
-
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    free(erfx);    free(erfy);    free(erfv);
+    free(psfx);    free(psfy);    free(psfv);
   }
 
-
-
-
-  /** generate velocity maps */
-
-
-
-
-
+  free(list);
+  free(num);
+  free(head);
 
 
   __NOTE__("%s\n", "end");
@@ -408,7 +461,7 @@ int main(int argc, char **argv)
     __KILL__(stderr, "%s\n", "insufficient command line arguments");
   }/* if( argc < 5 ){ */
 
-  char   *file;  requiredCmdArg(getCmdArgStr(argc, (const char * const *)argv,     "file", &file));
+  char   *file;  requiredCmdArg(getCmdArgStr(argc, (const char * const *)argv,     "file", &file));/**< this would be "nws-continue" */
   int    start;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv,    "start", &start));
   int      end;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv,      "end", &end));
   int interval;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv, "interval", &interval));
@@ -518,7 +571,29 @@ int main(int argc, char **argv)
   real *vv;  vv = (real *)malloc(sizeof(real) * NFIELD * (nv + 1));  if( vv == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate vv");  }
 
 
+
+
+
+  /** initialize pseudo random number generator */
+  rand_state *rand;
+  initRandNum(&rand);
+#ifdef  USE_SFMTJUMP
+  for(int ii = 0; ii < mpi.rank; ii++)
+    SFMT_jump(rand, SFMTJUMP_10_100);
+#endif//USE_SFMTJUMP
+
+
   for(int filenum = start + mpi.rank * interval; filenum < end + 1; filenum += interval * mpi.size){
+    /** analyze snapshot without DM sub-halo and create noise maps*/
+    /** analyze snapshot with various mass of DM sub-halo */
+    for(int ii = 0; ii < NMODEL; ii++)
+      read_model(ii == 0, filenum, ii, body,
+		 Ntot, kind, bodyHead, bodyNum,
+		 nx, xx, ny, yy, nv, vv, map, vmap,
+		 rand);
+
+    /** dump results for visualization */
+    /* output xx, yy, vv, map, and vmap */
 
 
 
@@ -526,19 +601,659 @@ int main(int argc, char **argv)
 
 
 
-  /** analyze snapshot without DM sub-halo and create noise maps*/
 
 
-  /** analyze snapshot with various mass of DM sub-halo */
-
-
-  /** dump results for visualization */
-
-
-
+  }
 
 
   exitMPI();
 
   return (0);
 }
+
+
+#ifdef  USE_HDF5_FORMAT
+/**
+ * @fn writeM31coordinateData
+ *
+ * @brief Write analyzed profiles of the N-body simulation.
+ */
+void writeM31coordinateData
+(const double time, const ulong steps, char file[], const uint id, hdf5struct type, const int kind, int * restrict bodyHead,
+ const int nx, real * restrict xx, const int ny, real * restrict yy, const int nv, real * restrict vv,
+ real * restrict map, real * restrict vmap
+)
+{
+  __NOTE__("%s\n", "start");
+
+  /* create a new file (if the file already exists, the file is opened with read-write access, new data will overwrite any existing data) */
+  char filename[128];
+  sprintf(filename, "%s/%s.%s%.3u.h5", DATAFOLDER, file, "hsc-pfs", id);
+  hid_t target = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+
+  /* create the data space for the dataset */
+  /* preparation for data compression */
+  hid_t dataset, dataspace, property;
+#ifdef  USE_FILE_COMPRESSION
+  const hsize_t cdims_max = (MAXIMUM_CHUNK_SIZE_4BIT < MAXIMUM_CHUNK_SIZE) ? MAXIMUM_CHUNK_SIZE_4BIT : MAXIMUM_CHUNK_SIZE;
+  hsize_t cdims_loc[3];
+#ifdef  USE_SZIP_COMPRESSION
+  /* compression using szip */
+  const uint szip_options_mask = H5_SZIP_NN_OPTION_MASK;
+  const uint szip_pixels_per_block = 8;
+  const hsize_t szip_cdims[3] = {1, 1, 128 * szip_pixels_per_block};
+#endif//USE_SZIP_COMPRESSION
+#ifdef  USE_GZIP_COMPRESSION
+  /* compression using gzip */
+  const uint gzip_compress_level = 9;/**< 9 is the maximum compression ratio */
+  const hsize_t gzip_cdims[3] = {1, 1, 1024};
+#endif//USE_GZIP_COMPRESSION
+#else///USE_FILE_COMPRESSION
+  property = H5P_DEFAULT;
+#endif//USE_FILE_COMPRESSION
+
+
+  /* write attribute data */
+  /* create the data space for the attribute */
+  hsize_t attr_dims = 1;
+  dataspace = H5Screate_simple(1, &attr_dims, NULL);
+  hid_t attribute;
+  /* write current time */
+  double wtime = time * time2astro;
+  attribute = H5Acreate(target, "time", H5T_NATIVE_DOUBLE, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_DOUBLE, &wtime));
+  chkHDF5err(H5Aclose(attribute));
+  /* write # of steps */
+  attribute = H5Acreate(target, "steps", H5T_NATIVE_ULONG, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_ULONG, &steps));
+  chkHDF5err(H5Aclose(attribute));
+  /* write # of components */
+  attribute = H5Acreate(target, "kinds", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &kind));
+  chkHDF5err(H5Aclose(attribute));
+  /* write # of grid points */
+  attribute = H5Acreate(target, "nx", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &nx));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target, "ny", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &ny));
+  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Acreate(target, "nv", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &nv));
+  chkHDF5err(H5Aclose(attribute));
+  /* write flag about USE_DOUBLE_PRECISION */
+#ifdef  USE_DOUBLE_PRECISION
+  const int useDP = 1;
+#else///USE_DOUBLE_PRECISION
+  const int useDP = 0;
+#endif//USE_DOUBLE_PRECISION
+  attribute = H5Acreate(target, "useDP", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &useDP));
+  chkHDF5err(H5Aclose(attribute));
+  /* close the dataspace */
+  chkHDF5err(H5Sclose(dataspace));
+
+
+  for(int ii = 0; ii < kind; ii++){
+    char grp[16];
+    sprintf(grp, "component%d", ii);
+    hid_t group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    hsize_t attr_dims = 1;
+    hid_t attribute;
+
+    /** 2D (nx * ny) array */
+    hsize_t dims[2] = {nx, ny};
+    dataspace = H5Screate_simple(2, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+    cdims_loc[0] = gzip_cdims[1];
+    cdims_loc[1] = gzip_cdims[2];
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[1] < cdims_loc[1] ){
+      cdims_loc[1] = dims[1];
+      cdims_loc[0] = dims[1] / cdims_loc[1];
+    }/* if( dims[1] < cdims_loc[1] ){ */
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] * cdims_loc[1] > cdims_max )
+      cdims_loc[0] = cdims_max / cdims_loc[1];
+    chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+    for(int ff = 0; ff < NFIELD; ff++){
+      char dat[32];
+      sprintf(dat, "%s-map", field_name[ff]);
+      dataset = H5Dcreate(group, dat, type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &map[INDEX(NFIELD, kind * (NMODEL + NNOISE), nx * ny, ff, INDEX2D(kind, NMODEL + NNOISE, kk, modelID), 0)]));
+      chkHDF5err(H5Dclose(dataset));
+    }
+#ifdef  USE_GZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+    chkHDF5err(H5Sclose(dataspace));
+
+    /** 2D (ny * nv) array */
+    dims[0] = ny;
+    dims[1] = nv;
+    dataspace = H5Screate_simple(2, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+    cdims_loc[0] = gzip_cdims[1];
+    cdims_loc[1] = gzip_cdims[2];
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[1] < cdims_loc[1] ){
+      cdims_loc[1] = dims[1];
+      cdims_loc[0] = dims[1] / cdims_loc[1];
+    }/* if( dims[1] < cdims_loc[1] ){ */
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] * cdims_loc[1] > cdims_max )
+      cdims_loc[0] = cdims_max / cdims_loc[1];
+    chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+    for(int ff = 0; ff < NFIELD; ff++){
+      char dat[32];
+      sprintf(dat, "%s-vel", field_name[ff]);
+      dataset = H5Dcreate(group, dat, type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &vmap[INDEX(NFIELD, kind * (NMODEL + NNOISE), ny * nv, ff, INDEX2D(kind, NMODEL + NNOISE, kk, modelID), 0)]));
+      chkHDF5err(H5Dclose(dataset));
+    }
+#ifdef  USE_GZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+    chkHDF5err(H5Sclose(dataspace));
+
+
+
+
+
+
+
+
+
+
+    /* for(int kk = 0; kk < kind; kk++){ */
+    /*   for(int ii = 0; ii < nx * ny; ii++) */
+    /* 	map [INDEX(NFIELD, kind * (NMODEL + NNOISE), nx * ny, ff, INDEX2D(kind, NMODEL + NNOISE, kk, modelID), ii)] = ZERO; */
+    /*   for(int ii = 0; ii < ny * nv; ii++) */
+    /* 	vmap[INDEX(NFIELD, kind * (NMODEL + NNOISE), ny * nv, ff, INDEX2D(kind, NMODEL + NNOISE, kk, modelID), ii)] = ZERO; */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    dataspace = H5Screate_simple(2, dims, NULL);
+#ifdef  USE_SZIP_COMPRESSION
+    cdims_loc[0] = szip_cdims[0];
+    cdims_loc[1] = szip_cdims[1];
+    if( (dims[0] * dims[1]) > (hsize_t)szip_pixels_per_block ){
+      property = H5Pcreate(H5P_DATASET_CREATE);
+      if( dims[1] < cdims_loc[1] ){
+	cdims_loc[1] = dims[1];
+	cdims_loc[0] = dims[1] / cdims_loc[1];
+      }/* if( dims[1] < cdims_loc[1] ){ */
+      if( dims[0] < cdims_loc[0] )
+	cdims_loc[0] = dims[0];
+      if( cdims_loc[0] * cdims_loc[1] > cdims_max )
+	cdims_loc[0] = cdims_max / cdims_loc[1];
+      chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
+      chkHDF5err(H5Pset_szip(property, szip_options_mask, szip_pixels_per_block));
+    }
+    else
+      property = H5P_DEFAULT;
+#endif//USE_SZIP_COMPRESSION
+    dataset = H5Dcreate(group, "rho", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rho_map[INDEX2D(kind, nx3D * ny3D * nz3D, ii, 0)]));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_SZIP_COMPRESSION
+    if( (dims[0] * dims[1] * dims[2]) > (hsize_t)szip_pixels_per_block )
+      chkHDF5err(H5Pclose(property));
+#endif//USE_SZIP_COMPRESSION
+    /* close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+
+    /** 2D (nx * ny) array */
+    dims[0] = nx;
+    dims[1] = ny;
+    dataspace = H5Screate_simple(2, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+    cdims_loc[0] = gzip_cdims[1];
+    cdims_loc[1] = gzip_cdims[2];
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[1] < cdims_loc[1] ){
+      cdims_loc[1] = dims[1];
+      cdims_loc[0] = dims[1] / cdims_loc[1];
+    }/* if( dims[1] < cdims_loc[1] ){ */
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] * cdims_loc[1] > cdims_max )
+      cdims_loc[0] = cdims_max / cdims_loc[1];
+    chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+    dataset = H5Dcreate(group, "Sigma_xy", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &Sigma_xy[INDEX2D(kind, nx * ny, ii, 0)]));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_GZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+    /* close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+
+    /** 2D (ny * nz) array */
+    dims[0] = ny;
+    dims[1] = nz;
+    dataspace = H5Screate_simple(2, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+    cdims_loc[0] = gzip_cdims[1];
+    cdims_loc[1] = gzip_cdims[2];
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[1] < cdims_loc[1] ){
+      cdims_loc[1] = dims[1];
+      cdims_loc[0] = dims[1] / cdims_loc[1];
+    }/* if( dims[1] < cdims_loc[1] ){ */
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] * cdims_loc[1] > cdims_max )
+      cdims_loc[0] = cdims_max / cdims_loc[1];
+    chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+    dataset = H5Dcreate(group, "Sigma_yz", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &Sigma_yz[INDEX2D(kind, ny * nz, ii, 0)]));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_GZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+    /* close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+
+    /** 2D (nz * nx) array */
+    dims[0] = nz;
+    dims[1] = nx;
+    dataspace = H5Screate_simple(2, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+    cdims_loc[0] = gzip_cdims[1];
+    cdims_loc[1] = gzip_cdims[2];
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[1] < cdims_loc[1] ){
+      cdims_loc[1] = dims[1];
+      cdims_loc[0] = dims[1] / cdims_loc[1];
+    }/* if( dims[1] < cdims_loc[1] ){ */
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] * cdims_loc[1] > cdims_max )
+      cdims_loc[0] = cdims_max / cdims_loc[1];
+    chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+    dataset = H5Dcreate(group, "Sigma_zx", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &Sigma_zx[INDEX2D(kind, nz * nx, ii, 0)]));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_GZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+    /* close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+
+    /** 2D (nx * nv) array */
+    dims[0] = nx;
+    dims[1] = nv;
+    dataspace = H5Screate_simple(2, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+    cdims_loc[0] = gzip_cdims[1];
+    cdims_loc[1] = gzip_cdims[2];
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[1] < cdims_loc[1] ){
+      cdims_loc[1] = dims[1];
+      cdims_loc[0] = dims[1] / cdims_loc[1];
+    }/* if( dims[1] < cdims_loc[1] ){ */
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] * cdims_loc[1] > cdims_max )
+      cdims_loc[0] = cdims_max / cdims_loc[1];
+    chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+    dataset = H5Dcreate(group, "f_xv", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &f_xv[INDEX2D(kind, nx * nv, ii, 0)]));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_GZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+    /* close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+
+    /** 2D (ny * nv) array */
+    dims[0] = ny;
+    dims[1] = nv;
+    dataspace = H5Screate_simple(2, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+    cdims_loc[0] = gzip_cdims[1];
+    cdims_loc[1] = gzip_cdims[2];
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[1] < cdims_loc[1] ){
+      cdims_loc[1] = dims[1];
+      cdims_loc[0] = dims[1] / cdims_loc[1];
+    }/* if( dims[1] < cdims_loc[1] ){ */
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] * cdims_loc[1] > cdims_max )
+      cdims_loc[0] = cdims_max / cdims_loc[1];
+    chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+    dataset = H5Dcreate(group, "f_yv", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &f_yv[INDEX2D(kind, ny * nv, ii, 0)]));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_GZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+    /* close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+
+    /** 2D (nz * nv) array */
+    dims[0] = nz;
+    dims[1] = nv;
+    dataspace = H5Screate_simple(2, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+    cdims_loc[0] = gzip_cdims[1];
+    cdims_loc[1] = gzip_cdims[2];
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[1] < cdims_loc[1] ){
+      cdims_loc[1] = dims[1];
+      cdims_loc[0] = dims[1] / cdims_loc[1];
+    }/* if( dims[1] < cdims_loc[1] ){ */
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] * cdims_loc[1] > cdims_max )
+      cdims_loc[0] = cdims_max / cdims_loc[1];
+    chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+    dataset = H5Dcreate(group, "f_zv", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &f_zv[INDEX2D(kind, nz * nv, ii, 0)]));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_GZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+    /* close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+
+    /** 1D (nx) array */
+    dims[0] = nx + 1;
+    dataspace = H5Screate_simple(1, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+    cdims_loc[0] = gzip_cdims[2];
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] > cdims_max )
+      cdims_loc[0] = cdims_max;
+    chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+    dataset = H5Dcreate(group, "xi", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, xx));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_GZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+    /* close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+
+    /** 1D (nx3D) array */
+    dims[0] = nx3D + 1;
+    dataspace = H5Screate_simple(1, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+    cdims_loc[0] = gzip_cdims[2];
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] > cdims_max )
+      cdims_loc[0] = cdims_max;
+    chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+    dataset = H5Dcreate(group, "x", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, rho_xx));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_GZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+    /* close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+
+    /** 1D (ny) array */
+    dims[0] = ny + 1;
+    dataspace = H5Screate_simple(1, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+    cdims_loc[0] = gzip_cdims[2];
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] > cdims_max )
+      cdims_loc[0] = cdims_max;
+    chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+    dataset = H5Dcreate(group, "eta", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, yy));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_GZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+    /* close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+
+    /** 1D (ny3D) array */
+    dims[0] = ny3D + 1;
+    dataspace = H5Screate_simple(1, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+    cdims_loc[0] = gzip_cdims[2];
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] > cdims_max )
+      cdims_loc[0] = cdims_max;
+    chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+    dataset = H5Dcreate(group, "y", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, rho_yy));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_GZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+    /* close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+
+    /** 1D (nz) array */
+    dims[0] = nz + 1;
+    dataspace = H5Screate_simple(1, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+    cdims_loc[0] = gzip_cdims[2];
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] > cdims_max )
+      cdims_loc[0] = cdims_max;
+    chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+    dataset = H5Dcreate(group, "D", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, zz));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_GZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+    /* close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+
+    /** 1D (nz3D) array */
+    dims[0] = nz3D + 1;
+    dataspace = H5Screate_simple(1, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+    cdims_loc[0] = gzip_cdims[2];
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] > cdims_max )
+      cdims_loc[0] = cdims_max;
+    chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+    dataset = H5Dcreate(group, "z", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, rho_zz));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_GZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+    /* close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+
+    /** 1D (nv) array */
+    dims[0] = nv + 1;
+    dataspace = H5Screate_simple(1, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+    cdims_loc[0] = gzip_cdims[2];
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] > cdims_max )
+      cdims_loc[0] = cdims_max;
+    chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+    dataset = H5Dcreate(group, "vlos", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, vl));
+    chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_GZIP_COMPRESSION
+    chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+    /* close the dataspace */
+    chkHDF5err(H5Sclose(dataspace));
+    chkHDF5err(H5Gclose(group));
+
+
+    if( bodyNum[ii] > 0 ){
+      sprintf(grp, "obs%d", ii);
+      group = H5Gcreate(target, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+      /** 1D (num) arrays */
+      dims[0] = bodyNum[ii];
+      dataspace = H5Screate_simple(1, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+      cdims_loc[0] = gzip_cdims[2];
+      property = H5Pcreate(H5P_DATASET_CREATE);
+      if( dims[0] < cdims_loc[0] )
+	cdims_loc[0] = dims[0];
+      if( cdims_loc[0] > cdims_max )
+	cdims_loc[0] = cdims_max;
+      /* __FPRINTF__(stdout, "ii = %d, bodyNum = %d, dim = %llu, cdims_loc = %llu\n", ii, bodyNum[ii], dims[0], cdims_loc[0]); */
+      chkHDF5err(H5Pset_chunk(property, 1, cdims_loc));
+      chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
+      dataset = H5Dcreate(group, "xi", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &xi[bodyHead[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "eta", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &eta[bodyHead[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "dist", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &dist[bodyHead[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "vxi", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &vxi[bodyHead[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "veta", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &veta[bodyHead[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+      dataset = H5Dcreate(group, "vlos", type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
+      chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &vlos[bodyHead[ii]]));
+      chkHDF5err(H5Dclose(dataset));
+#ifdef  USE_GZIP_COMPRESSION
+      chkHDF5err(H5Pclose(property));
+#endif//USE_GZIP_COMPRESSION
+      /* close the dataspace */
+      chkHDF5err(H5Sclose(dataspace));
+      /* write attribute data */
+      attr_dims = 1;
+      dataspace = H5Screate_simple(1, &attr_dims, NULL);
+      /* write # of particles */
+      attribute = H5Acreate(group, "num", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+      chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &bodyNum[ii]));
+      chkHDF5err(H5Aclose(attribute));
+      chkHDF5err(H5Sclose(dataspace));
+      chkHDF5err(H5Gclose(group));
+    }
+  }/* for(int ii = 0; ii < kind; ii++){ */
+
+  /* close the file */
+  chkHDF5err(H5Fclose(target));
+
+
+#ifdef  HDF5_FOR_ZINDAIJI
+  sprintf(filename, "%s/%s_%s%.3u.h5", DATAFOLDER, file, "zindaiji", id);
+  bool dump_file = (0 != access(filename, F_OK));
+  if( !dump_file ){
+    struct stat stat_file;
+    stat(filename, &stat_file);
+    char tmpname[128];
+    sprintf(tmpname, "%s/%s.%s%.3u.h5", DATAFOLDER, file, SNAPSHOT, id);
+    struct stat stat_snap;
+    stat(tmpname, &stat_snap);
+    if( stat_snap.st_ctime > stat_file.st_ctime )
+      dump_file = true;
+  }/* if( !dump_file ){ */
+  if( dump_file ){
+    int Ntot = 0;
+    for(int kk = 0; kk < kind; kk++)
+      Ntot += bodyNum[kk];
+    static real ini[3], fin[3];
+    /* execute coordinate rotation */
+    const double velocity2com = 1.0 / velocity2astro;
+    const double vm31x_com = vm31x * velocity2com;
+    const double vm31y_com = vm31y * velocity2com;
+    const double vm31z_com = vm31z * velocity2com;
+    for(int ii = 0; ii < Ntot; ii++){
+      hdf5.idx[ii    ] = body[ii].idx;	hdf5.  m[ii        ] = body[ii]. m;	hdf5.pot[ii        ] = body[ii].pot;
+      ini[0] = CAST_D2R(CAST_R2D(body[ii].x) * length2astro);      ini[1] = CAST_D2R(CAST_R2D(body[ii].y) * length2astro);      ini[2] = CAST_D2R(CAST_R2D(body[ii].z) * length2astro);
+      rotateVector(ini, rot, fin);
+      fin[2] += zm31;
+      hdf5.pos[ii * 3] = fin[0];	hdf5.pos[ii * 3 + 1] = fin[1];	hdf5.pos[ii * 3 + 2] = fin[2];
+      ini[0] = body[ii].vx;      ini[1] = body[ii].vy;      ini[2] = body[ii].vz;
+      fin[0] = CAST_D2R(CAST_R2D(fin[0]) + vm31x_com);
+      fin[1] = CAST_D2R(CAST_R2D(fin[1]) + vm31y_com);
+      fin[2] = CAST_D2R(CAST_R2D(fin[2]) + vm31z_com);
+      hdf5.vel[ii * 3] = fin[0];	hdf5.vel[ii * 3 + 1] = fin[1];	hdf5.vel[ii * 3 + 2] = fin[2];
+      ini[0] = body[ii].ax;      ini[1] = body[ii].ay;      ini[2] = body[ii].az;
+      hdf5.acc[ii * 3] = fin[0];	hdf5.acc[ii * 3 + 1] = fin[1];	hdf5.acc[ii * 3 + 2] = fin[2];
+    }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
+    writeZindaijiFile(Ntot, hdf5, eps, kind, bodyHead, bodyNum, bodyType, time, file, id);
+  }/* if( dump_file ){ */
+  else{
+    fprintf(stdout, "# \"%s\" was not updated for reducing the elapsed time.\n", filename);
+    fflush(stdout);
+  }/* else{ */
+#endif//HDF5_FOR_ZINDAIJI
+
+
+  __NOTE__("%s\n", "end");
+}
+#endif//USE_HDF5_FORMAT
