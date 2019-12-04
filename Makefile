@@ -650,6 +650,7 @@ BULGE	:= $(BINDIR)/spheroid
 BHMASS	:= $(BINDIR)/blackhole
 M31OBS	:= $(BINDIR)/m31obs
 M31ENE	:= $(BINDIR)/m31phase
+SUBARU	:= $(BINDIR)/subaru
 PICKUP	:= $(BINDIR)/pickup
 OPTCFG	:= $(BINDIR)/showOptConfig
 SAMPLE	:= $(BINDIR)/sample
@@ -778,6 +779,7 @@ AM31SRC	:= m31obs.c
 EM31SRC	:= m31phase.c
 M31LIB	:= m31coord.c
 PICKSRC	:= pickup.c
+SOBSSRC	:= subaru.c
 #################################################################################################
 
 
@@ -996,6 +998,24 @@ OBJPICK	+= $(patsubst %.c, $(OBJDIR)/%.o,          $(notdir $(ALLCLIB)))
 endif
 OBJPICK	+= $(patsubst %.c, $(OBJDIR)/%.o,          $(notdir $(M31LIB)))
 #################################################################################################
+ifeq ($(DATAFILE_FORMAT_HDF5), 1)
+ifeq ($(USE_OFFICIAL_SFMT_JUMP), 1)
+OBJSOBS	:= $(patsubst %.c, $(OBJDIR)/%.mpi.smtj.hdf5.o, $(notdir $(SOBSSRC)))
+else
+OBJSOBS	:= $(patsubst %.c, $(OBJDIR)/%.mpi.sfmt.hdf5.o, $(notdir $(SOBSSRC)))
+endif
+OBJSOBS	+= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o, $(notdir $(FILELIB) $(ALLCLIB)))
+else
+ifeq ($(USE_OFFICIAL_SFMT_JUMP), 1)
+OBJSOBS	:= $(patsubst %.c, $(OBJDIR)/%.mpi.smtj.o,	   $(notdir $(SOBSSRC)))
+else
+OBJSOBS	:= $(patsubst %.c, $(OBJDIR)/%.mpi.sfmt.o,	   $(notdir $(SOBSSRC)))
+endif
+OBJSOBS	+= $(patsubst %.c, $(OBJDIR)/%.mpi.o,	   $(notdir $(FILELIB)))
+OBJSOBS	+= $(patsubst %.c, $(OBJDIR)/%.o,	   $(notdir $(ALLCLIB)))
+endif
+OBJSOBS	+= $(patsubst %.c, $(OBJDIR)/%.o,          $(notdir $(M31LIB)))
+#################################################################################################
 
 
 #################################################################################################
@@ -1005,7 +1025,7 @@ OBJPICK	+= $(patsubst %.c, $(OBJDIR)/%.o,          $(notdir $(M31LIB)))
 all:	$(GOTHIC) $(MAGI) $(EDITOR) $(EXTEND) $(PLTENE) $(PLTDST) $(ANALPRF)
 # TAGS is removed for Cygnus (command 'etags' is not found)
 #################################################################################################
-.PHONY:	gothic init magi cold editor extend plot bench sample disk anal mbh halo bulge m31 pickup sass
+.PHONY:	gothic init magi cold editor extend plot bench sample disk anal mbh halo bulge m31 pickup subaru sass
 gothic:	$(GOTHIC)
 init:	$(MAGI) $(MKCOLD) $(EDITOR)
 magi:	$(MAGI)
@@ -1020,8 +1040,9 @@ anal:	$(ANALACT) $(ANALERR) $(ANALPRF)
 mbh:	$(ANALMBH)
 halo:	$(DMHALO)
 bulge:	$(BULGE) $(BHMASS)
-m31:	$(M31OBS) $(M31ENE) $(PICKUP)
+m31:	$(M31OBS) $(M31ENE) $(PICKUP) $(SUBARU)
 pickup:	$(PICKUP)
+subaru:	$(SUBARU)
 sass:	$(GOTHIC).sass
 tags:	TAGS
 #################################################################################################
@@ -1217,6 +1238,23 @@ else
 $(PLTDISK):	$(OBJPDSK)	$(MYLIB)/lib$(LIBPREC)plplotlib.a	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a
 	$(VERBOSE)$(CC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPDSK) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)plplotlib $(CCLIB)
 endif
+ifeq ($(DATAFILE_FORMAT_HDF5), 1)
+ifeq ($(USE_OFFICIAL_SFMT_JUMP), 1)
+$(SUBARU):	$(OBJSOBS)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a	$(MYLIB)/lib$(LIBPREC)rand_sfmt$(SFMTPER).a	$(MYLIB)/libsfmt$(SFMTPER).a	$(MYLIB)/libsmtj$(SFMTPER).a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJSOBS) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rand_sfmt$(SFMTPER) -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(SMTJLIB) $(HDF5LIB) $(CCLIB)
+else
+$(SUBARU):	$(OBJSOBS)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a	$(MYLIB)/lib$(LIBPREC)rand_sfmt$(SFMTPER).a	$(MYLIB)/libsfmt$(SFMTPER).a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJSOBS) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rand_sfmt$(SFMTPER) -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(SFMTLIB) $(HDF5LIB) $(CCLIB)
+endif
+else
+ifeq ($(USE_OFFICIAL_SFMT_JUMP), 1)
+$(SUBARU):	$(OBJSOBS)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)rand_sfmt$(SFMTPER).a	$(MYLIB)/libsfmt$(SFMTPER).a	$(MYLIB)/libsmtj$(SFMTPER).a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJSOBS) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rand_sfmt$(SFMTPER) -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(SMTJLIB) $(CCLIB)
+else
+$(SUBARU):	$(OBJSOBS)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)rand_sfmt$(SFMTPER).a	$(MYLIB)/libsfmt$(SFMTPER).a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJSOBS) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rand_sfmt$(SFMTPER) -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(SFMTLIB) $(CCLIB)
+endif
+endif
 #################################################################################################
 # sass file
 $(GOTHIC).sass:	$(GOTHIC)
@@ -1265,7 +1303,7 @@ endif
 	$(VERBOSE)rm -f $(ANALMBH)
 	$(VERBOSE)rm -f $(DMHALO)
 	$(VERBOSE)rm -f $(BULGE) $(BHMASS)
-	$(VERBOSE)rm -f $(M31OBS) $(M31ENE) $(PICKUP)
+	$(VERBOSE)rm -f $(M31OBS) $(M31ENE) $(PICKUP) $(SUBARU)
 	$(VERBOSE)rm -f $(SAMPLE)
 #################################################################################################
 visit:	$(DIRBODY)/Makefile $(DIRSNAP)/Makefile $(DIRPLOT)/Makefile $(DIRPM31)/Makefile $(DIRAERR)/Makefile $(DIRDUMP)/Makefile $(DIRDISK)/Makefile $(DIRDIST)/Makefile $(DIRPROF)/Makefile
@@ -1596,5 +1634,11 @@ $(OBJDIR)/m31phase.mpi.o:	$(ANAL_DEP)	$(M31_DEP)
 $(OBJDIR)/dmhalo.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/myutil.h
 $(OBJDIR)/spheroid.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/myutil.h
 $(OBJDIR)/blackhole.o:	Makefile	$(MYINC)/common.mk	$(MYINC)/myutil.h
+
+
+$(OBJDIR)/subaru.mpi.smtj.hdf5.o:	$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/rotate.h	$(MYINC)/rand.h	$(MYINC)/hdf5lib.h	$(MYINC)/sfmtjump_polynomial.h
+$(OBJDIR)/subaru.mpi.sfmt.hdf5.o:	$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/rotate.h	$(MYINC)/rand.h	$(MYINC)/hdf5lib.h
+$(OBJDIR)/subaru.mpi.smtj.o:		$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/rotate.h	$(MYINC)/rand.h	$(MYINC)/sfmtjump_polynomial.h
+$(OBJDIR)/subaru.mpi.sfmt.o:		$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/rotate.h	$(MYINC)/rand.h
 #################################################################################################
 #################################################################################################
