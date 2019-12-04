@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/12/03 (Tue)
+ * @date 2019/12/04 (Wed)
  *
  * Copyright (C) 2019 Yohei Miki
  * All rights reserved.
@@ -764,6 +764,23 @@ void writeM31coordinateData
     chkHDF5err(H5Sclose(dataspace));
 
 
+    /** 1D (nx) array */
+    dims[0] = nx;
+    dataspace = H5Screate_simple(1, dims, NULL);
+#ifdef  USE_GZIP_COMPRESSION
+    cdims_loc[0] = gzip_cdims[2];
+    property = H5Pcreate(H5P_DATASET_CREATE);
+    if( dims[1] < cdims_loc[1] ){
+      cdims_loc[1] = dims[1];
+      cdims_loc[0] = dims[1] / cdims_loc[1];
+    }/* if( dims[1] < cdims_loc[1] ){ */
+    if( dims[0] < cdims_loc[0] )
+      cdims_loc[0] = dims[0];
+    if( cdims_loc[0] * cdims_loc[1] > cdims_max )
+      cdims_loc[0] = cdims_max / cdims_loc[1];
+    chkHDF5err(H5Pset_chunk(property, 2, cdims_loc));
+    chkHDF5err(H5Pset_deflate(property, gzip_compress_level));
+#endif//USE_GZIP_COMPRESSION
 
 
 
@@ -771,12 +788,6 @@ void writeM31coordinateData
 
 
 
-
-    /* for(int kk = 0; kk < kind; kk++){ */
-    /*   for(int ii = 0; ii < nx * ny; ii++) */
-    /* 	map [INDEX(NFIELD, kind * (NMODEL + NNOISE), nx * ny, ff, INDEX2D(kind, NMODEL + NNOISE, kk, modelID), ii)] = ZERO; */
-    /*   for(int ii = 0; ii < ny * nv; ii++) */
-    /* 	vmap[INDEX(NFIELD, kind * (NMODEL + NNOISE), ny * nv, ff, INDEX2D(kind, NMODEL + NNOISE, kk, modelID), ii)] = ZERO; */
 
 
 
