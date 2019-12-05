@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/12/04 (Wed)
+ * @date 2019/12/05 (Thu)
  *
  * Copyright (C) 2019 Yohei Miki
  * All rights reserved.
@@ -78,12 +78,16 @@
 
 
 /** 5 fields in Subaru/HSC observations by Komiyama et al. (2018): copied from py/m31.py, 4 additional fields proposed for HSC or PFS observations: copied from py/radec.py */
-#define NFIELD (9)
-const real  xi0[NFIELD] = {-4.653744156858361, -5.7227710294896745, -5.530826768687439, -4.842739589150247, -5.912437203950868, -4.05, -3.2, -6.1, -6.3};
-const real eta0[NFIELD] = { 3.635683362752261,  4.47091006650441  ,  5.816784796173433,  2.290423176281251,  3.125050968157858,  1.25,  0.2,  6.9,  8.2};
 const real hsc_fov = 0.75;/**< FoV is 0.75 degree in radius (HSC spec) */
 const real hsc_fov2 = 0.75 * 0.75;
-char *field_name[NFIELD] = {"f003", "f004", "f009", "f022", "f023", "S0", "S1", "N0", "N1"};
+/* #define NFIELD (9) */
+/* const real  xi0[NFIELD] = {-4.653744156858361, -5.7227710294896745, -5.530826768687439, -4.842739589150247, -5.912437203950868, -4.05, -3.2, -6.1, -6.3}; */
+/* const real eta0[NFIELD] = { 3.635683362752261,  4.47091006650441  ,  5.816784796173433,  2.290423176281251,  3.125050968157858,  1.25,  0.2,  6.9,  8.2}; */
+/* char *field_name[NFIELD] = {"f003", "f004", "f009", "f022", "f023", "S0", "S1", "N0", "N1"}; */
+#define NFIELD (5)
+const real  xi0[NFIELD] = {-4.653744156858361, -5.7227710294896745, -5.530826768687439, -4.842739589150247, -5.912437203950868/* , -4.05, -3.2, -6.1, -6.3 */};
+const real eta0[NFIELD] = { 3.635683362752261,  4.47091006650441  ,  5.816784796173433,  2.290423176281251,  3.125050968157858/* ,  1.25,  0.2,  6.9,  8.2 */};
+char *field_name[NFIELD] = {"f003", "f004", "f009", "f022", "f023"/* , "S0", "S1", "N0", "N1" */};
 
 
 /** snapshots without DM sub-halo interaction, M = 10^7, 10^7.5, 10^8, 10^8.5, 10^9, and 10^9.5 Msun */
@@ -95,15 +99,13 @@ char *modelTag[NMODEL] = {"nws-continue", "nws-test-m7_0-orbit1", "nws-test-m7_5
 /* char *modelTag[NMODEL] = {"nws-continue", "nws-test-m7_0-orbit7", "nws-test-m7_5-orbit7", "nws-test-m8_0-orbit7", "nws-test-m8_5-orbit7", "nws-test-m9_0-orbit7", "nws-test-m9_5-orbit7"}; */
 
 
-/** noise patterns: white noise (S/N = 1, 2, 3, 4, 5, 7, 8, 9, 10), stellar halo in M31, and MW foreground contamination (stellar halo and MW are in preparation) */
-#define NNOISE (10)
-#define MAX_SN (10)
+/** noise patterns: white noise (S/N = 1, 2, 3, 4, 5, 10), stellar halo in M31, and MW foreground contamination (stellar halo and MW are in preparation) */
+#define NNOISE (6)
+const int sn_val[NNOISE] = {1, 2, 3, 4, 5, 10};
+const real sn_inv[NNOISE] = {UNITY, HALF, ONE_THIRD, QUARTER, ONE_FIFTH, HALF * ONE_FIFTH};
 
-/** averaged number of noise particle per grid point */
-/* #define NUNIT (16384) */
-/* #define NUNIT (128) */
-#define NUNIT (16)
-/* #define NUNIT (64) */
+/** total number of noise particles */
+#define NDIST (16384)
 
 
 
@@ -544,6 +546,7 @@ void read_model
 	const real xp =   xi[idx];
 	const real yp =  eta[idx];
 	const real vp = vlos[idx];
+	mass += mi;
 
 	const int l0 = (int)FLOOR((xp - xmin) * dxinv);
 	const int m0 = (int)FLOOR((yp - ymin) * dyinv);
@@ -590,15 +593,10 @@ void read_model
 	}
 	__NOTE__("%s: noise map initialized: %d/%d for %s\n", field_name[ff], kk, kind, modelTag[modelID]);
 
-	/* avg = mass / (nx * ny) for a grid point */
-	/* NUNIT * MAX_SN * pseudo-particles -> NUNIT * MAX_SN * nx * ny particles (MAX_SN is the ratio of maximum and minimum of S/N models) */
-	/* m_p = mass / (1024 * 10 * nx * ny) */
-
-	const int Nunit = NUNIT * nx * ny;
-	const real m_noise = mass / (real)Nunit;
+	const real m_noise = mass / (real)NDIST;
 
 
-	for(int ii = 0; ii < Nunit; ii++){
+	for(int ii = 0; ii < NDIST; ii++){
 	  real xn, yn;
 	  while( true ){
 	    xn = xmin + (xmax - xmin) * UNIRAND(rand);
@@ -610,7 +608,7 @@ void read_model
 	      break;
 	  }
 	  const real vn = vmin + (vmax - vmin) * UNIRAND(rand);
-	  __NOTE__("%d/%d noise particle\n", ii, Nunit);
+	  __NOTE__("%d/%d noise particle\n", ii, NDIST);
 
 	  const int l0 = (int)FLOOR((xn - xmin) * dxinv);
 	  const int m0 = (int)FLOOR((yn - ymin) * dyinv);
@@ -627,7 +625,7 @@ void read_model
 		  const real mset = my * psfx[sx];
 
 		  for(int sn = 0; sn < NNOISE; sn++)
-		    map[INDEX(NFIELD * kind * (NMODEL + NNOISE), nx, ny, INDEX(NFIELD, kind, NMODEL + NNOISE, ff, kk, NMODEL + sn), ll, mm)] += mset / (real)(1 + sn);
+		    map[INDEX(NFIELD * kind * (NMODEL + NNOISE), nx, ny, INDEX(NFIELD, kind, NMODEL + NNOISE, ff, kk, NMODEL + sn), ll, mm)] += mset * sn_inv[sn];
 		}
 
 	      }
@@ -638,7 +636,7 @@ void read_model
 		  const real mset = my * psfv[sv];
 
 		  for(int sn = 0; sn < NNOISE; sn++)
-		    vmap[INDEX(NFIELD * kind * (NMODEL + NNOISE), ny, nv, INDEX(NFIELD, kind, NMODEL + NNOISE, ff, kk, NMODEL + sn), mm, nn)] += mset / (real)(1 + sn);
+		    vmap[INDEX(NFIELD * kind * (NMODEL + NNOISE), ny, nv, INDEX(NFIELD, kind, NMODEL + NNOISE, ff, kk, NMODEL + sn), mm, nn)] += mset * sn_inv[sn];
 		}
 	      }
 	    }
@@ -744,23 +742,23 @@ void writeSubaruMaps
   hid_t group = H5Gcreate(target, "subaru", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   attr_dims = 1;
   dataspace = H5Screate_simple(1, &attr_dims, NULL);
-  attribute = H5Acreate(target, "FoV", type.real, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  attribute = H5Acreate(group, "FoV", type.real, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, type.real, &hsc_fov));
   chkHDF5err(H5Aclose(attribute));
   int tmp = NFIELD;
-  attribute = H5Acreate(target, "Nfield", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  attribute = H5Acreate(group, "Nfield", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &tmp));
   chkHDF5err(H5Aclose(attribute));
   tmp = NMODEL;
-  attribute = H5Acreate(target, "Nmodel", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  attribute = H5Acreate(group, "Nmodel", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &tmp));
   chkHDF5err(H5Aclose(attribute));
   tmp = NNOISE;
-  attribute = H5Acreate(target, "Nnoise", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  attribute = H5Acreate(group, "Nnoise", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &tmp));
   chkHDF5err(H5Aclose(attribute));
-  tmp = NUNIT;
-  attribute = H5Acreate(target, "Nunit", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  tmp = NDIST;
+  attribute = H5Acreate(group, "Ndist", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &tmp));
   chkHDF5err(H5Aclose(attribute));
   chkHDF5err(H5Sclose(dataspace));
@@ -770,25 +768,32 @@ void writeSubaruMaps
 
   attr_dims = NFIELD;
   dataspace = H5Screate_simple(1, &attr_dims, NULL);
-  attribute = H5Acreate(target, "xi", type.real, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  attribute = H5Acreate(group, "xi", type.real, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, type.real, xi0));
   chkHDF5err(H5Aclose(attribute));
-  attribute = H5Acreate(target, "eta", type.real, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  attribute = H5Acreate(group, "eta", type.real, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, type.real, eta0));
   chkHDF5err(H5Aclose(attribute));
-  attribute = H5Acreate(target, "field", H5T_VARIABLE_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  attribute = H5Acreate(group, "field", H5T_VARIABLE_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_VARIABLE_STRING, field_name));
   chkHDF5err(H5Aclose(attribute));
   chkHDF5err(H5Sclose(dataspace));
 
   attr_dims = NMODEL;
   dataspace = H5Screate_simple(1, &attr_dims, NULL);
-  attribute = H5Acreate(target, "model", H5T_VARIABLE_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  attribute = H5Acreate(group, "model", H5T_VARIABLE_STRING, dataspace, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attribute, H5T_VARIABLE_STRING, modelTag));
   chkHDF5err(H5Aclose(attribute));
   chkHDF5err(H5Sclose(dataspace));
 
   chkHDF5err(H5Tclose(H5T_VARIABLE_STRING));
+
+  attr_dims = NNOISE;
+  dataspace = H5Screate_simple(1, &attr_dims, NULL);
+  attribute = H5Acreate(group, "SN", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, sn_val));
+  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Sclose(dataspace));
 
   chkHDF5err(H5Gclose(group));
 
@@ -825,7 +830,7 @@ void writeSubaruMaps
 	chkHDF5err(H5Dclose(dataset));
       }
       for(int noise = 0; noise < NNOISE; noise++){
-	sprintf(dat, "%s-SN%02d-map", field_name[ff], noise + 1);
+	sprintf(dat, "%s-SN%02d-map", field_name[ff], sn_val[noise]);
 	dataset = H5Dcreate(group, dat, type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
 	chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &map[INDEX(NFIELD, kind * (NMODEL + NNOISE), nx * ny, ff, INDEX2D(kind, NMODEL + NNOISE, ii, NMODEL + noise), 0)]));
 	chkHDF5err(H5Dclose(dataset));
@@ -864,7 +869,7 @@ void writeSubaruMaps
 	chkHDF5err(H5Dclose(dataset));
       }
       for(int noise = 0; noise < NNOISE; noise++){
-	sprintf(dat, "%s-SN%02d-vel", field_name[ff], noise + 1);
+	sprintf(dat, "%s-SN%02d-vel", field_name[ff], sn_val[noise]);
 	dataset = H5Dcreate(group, dat, type.real, dataspace, H5P_DEFAULT, property, H5P_DEFAULT);
 	chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, &vmap[INDEX(NFIELD, kind * (NMODEL + NNOISE), ny * nv, ff, INDEX2D(kind, NMODEL + NNOISE, ii, NMODEL + noise), 0)]));
 	chkHDF5err(H5Dclose(dataset));

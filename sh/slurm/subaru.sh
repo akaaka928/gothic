@@ -18,15 +18,18 @@ EXEC=bin/subaru
 # set number of grid points for density maps
 if [ -z "$NX" ]; then
     NX=256
+    # NX=128
+    # NX=32
 fi
 if [ -z "$NY" ]; then
     NY=256
-fi
-if [ -z "$NZ" ]; then
-    NZ=256
+    # NY=128
+    # NY=32
 fi
 if [ -z "$NV" ]; then
     NV=256
+    # NV=128
+    # NV=32
 fi
 ###############################################################
 if [ -z "$FILE" ]; then

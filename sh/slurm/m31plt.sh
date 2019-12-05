@@ -8,17 +8,18 @@
 
 # EXEC=py/shownws.py
 # EXEC=py/showgap.py
-EXEC=py/m31phase.py
+# EXEC=py/m31phase.py
+EXEC=py/subaru.py
 
 # SPECIFY="--specify"
 
 # TARGET="--files=nws-test-m95-orbit4"
 # TARGET="--files=nws-test-m95-orbit5"
-# TARGET="--files=nws-continue"
-TARGET="--files=nws-test-m9_5-orbit1-chosen"
+TARGET="--files=nws-continue"
+# TARGET="--files=nws-test-m9_5-orbit1-chosen"
 
-PDFFIGS="--pdf"
-CONTINUE="--continued"
+# PDFFIGS="--pdf"
+# CONTINUE="--continued"
 
 # use numactl if available
 if [ `which numactl` ]; then
