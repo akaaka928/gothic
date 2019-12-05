@@ -13,6 +13,10 @@ import utils as utils
 import m31 as m31
 
 
+smap_min, smap_max =
+vmap_min, vmap_max =
+
+
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -30,6 +34,9 @@ def get_option():
     argparser.add_argument('-m', '--monochrome',
                            action='store_true',
                            help='Whether to draw in monochrome')
+    argparser.add_argument('-s', '--specify',
+                           action='store_true',
+                           help='Whether to specify the plot range')
     return argparser.parse_args()
 
 # catch optional input arguments
@@ -37,6 +44,7 @@ args = get_option()
 filename = args.files
 outputPDF = args.pdf
 monochrome = args.monochrome
+specify = args.specify
 
 
 fs_base = 16
@@ -112,8 +120,6 @@ for fileid in range(init + rank, last + 1, size):
         yv_map = np.zeros((kind, Nfield, Nmodel, ny, nv))
         vv     = np.zeros((kind, Nfield, nv + 1))
 
-        nxpanel = Nmodel
-        nypanel = 2 # w/o or w/z noise
         for kk in range(kind):
             folder = 'component' + str(kk) + '/'
             for ff in range(Nfield):
@@ -132,3 +138,48 @@ for fileid in range(init + rank, last + 1, size):
     # xy_map = np.minimum(xy_map, Sigma_max)
     # yv_map = np.maximum(yv_map, phase_min)
     # yv_map = np.minimum(yv_map, phase_max)
+
+    nxpanel = Nmodel
+    nypanel = 2 # w/o or w/z noise
+    smap = np.zeros((nxpanel, nypanel, nx, ny))
+    vmap = np.zeros((nxpanel, nypanel, nv, ny))
+
+    for kk in range(kind):
+        for ff in range(Nfield):
+
+            for ii in range(Nmodel):
+                smap[ii][nypanel - 1] = xy_map[kk][ff][ii]
+                vmap[ii][nypanel - 1] = yv_map[kk][ff][ii]
+
+                # add noise component
+                for noise in range(Nnoise):
+                    smap[ii][0] = xy_map[kk][ff][ii] + xy_map[kk][ff][Nmodel + noise]
+                    vmap[ii][0] = yv_map[kk][ff][ii] + yv_map[kk][ff][Nmodel + noise]
+
+                    if !specify:
+                        smap_min =
+                        smap_max =
+                        vmap_min =
+                        vmap_max = 
+
+                    smap = np.maximum(smap, smap_min)
+                    smap = np.minimum(smap, smap_max)
+                    vmap = np.maximum(vmap, vmap_min)
+                    vmap = np.minimum(vmap, vmap_max)
+
+                    fig = utils.set_figure(nxpanel, nypanel)
+                    ax = [0] * nxpanel * nypanel
+                    utils.locate_panels(fig, ax, nxpanel, nypanel, True, True)
+
+                    xmin, xmax = xx[0][0], xx[0][nx]
+                    ymin, ymax = yy[0][0], yy[0][ny]
+                    vmin, vmax = vv[0][0], vv[0][nv]
+
+                    # adjust marker size and etcetra
+                    fs = fs_base# / np.sqrt(nypanel)
+                    tl = tl_base# / np.sqrt(nypanel)
+                    tw = tw_base# / np.sqrt(nypanel)
+
+                    for jj in range(nypanel):
+                        img_Sigma = ax[              jj].imshow(xy_map[jj].T, extent = [xmin, xmax, ymin, ymax], origin = 'lower', interpolation = 'none', norm = LogNorm(vmin = Sigma_min, vmax = Sigma_max), cmap = cmap_Sigma, aspect = 'auto', rasterized = True)
+                        img_phase = ax[2 * nypanel + jj].imshow(yv_map[jj]  , extent = [vmin, vmax, ymin, ymax], origin = 'lower', interpolation = 'none', norm = LogNorm(vmin = phase_min, vmax = phase_max), cmap = cmap_phase, aspect = 'auto', rasterized = True)
