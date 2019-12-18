@@ -1,6 +1,8 @@
 import numpy as np
 
 import m31 as m31
+# print(m31.vx(), m31.vy(), m31.vz())
+
 
 # rot: observed frame (x, y, z) ==>> M31 disk frame (X, Y, Z)
 # inv: M31 disk frame (X, Y, Z) ==>> observed frame (x, y, z)

@@ -6,10 +6,10 @@ zm31 = 776.0# same with Komiyama et al. (2018); median of NED
 year = 3.15576e+7# year in units of sec
 kpc2km = 3.0856775975e+21 * 1.0e-5
 
-# vm31x = zm31 * kpc2km * np.tan(np.deg2rad( 49.0 * 1.0e-6 / 3600.0)) / year# Gaia DR2 + HST (van der Marel et al. 2018)
-# vm31y = zm31 * kpc2km * np.tan(np.deg2rad(-38.0 * 1.0e-6 / 3600.0)) / year# Gaia DR2 + HST (van der Marel et al. 2018)
-vm31x = 0.0
-vm31y = 0.0
+vm31x = zm31 * kpc2km * np.tan(np.deg2rad( 49.0 * 1.0e-6 / 3600.0)) / year# Gaia DR2 + HST (van der Marel et al. 2019)
+vm31y = zm31 * kpc2km * np.tan(np.deg2rad(-38.0 * 1.0e-6 / 3600.0)) / year# Gaia DR2 + HST (van der Marel et al. 2019)
+# vm31x = 0.0
+# vm31y = 0.0
 vm31z = -300.0
 
 def distance():

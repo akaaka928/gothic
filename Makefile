@@ -66,6 +66,9 @@ USE_ZH78_RETROGRADING	:= 0
 DISABLE_SHIFT_CENTER	:= 0
 ADD_GAS_FOR_MAGI	:= 0
 #################################################################################################
+# Enable on-the-fly analysis
+ENABLE_ONLINE_ANALYSIS	:= 0
+#################################################################################################
 # Debugging options
 EVALUATE_FORCE_ERROR	:= 0
 #################################################################################################
@@ -601,6 +604,10 @@ ifeq ($(PREPARE_XDMF_FILES), 1)
 CCARG	+= -DPREPARE_XDMF_FILES
 endif
 #################################################################################################
+ifeq ($(ENABLE_ONLINE_ANALYSIS), 1)
+CCARG	+= -DONLINE_ANALYSIS
+endif
+#################################################################################################
 
 
 #################################################################################################
@@ -654,6 +661,9 @@ SUBARU	:= $(BINDIR)/subaru
 PICKUP	:= $(BINDIR)/pickup
 OPTCFG	:= $(BINDIR)/showOptConfig
 SAMPLE	:= $(BINDIR)/sample
+ifeq ($(ENABLE_ONLINE_ANALYSIS), 0)
+OBSERVE	:= $(BINDIR)/observation
+endif
 #################################################################################################
 ## Plugins for VisIt to read HDF5 files
 PLGDIR	:= plugins
@@ -780,6 +790,7 @@ EM31SRC	:= m31phase.c
 M31LIB	:= m31coord.c
 PICKSRC	:= pickup.c
 SOBSSRC	:= subaru.c
+OBSSRC	:= observation.c
 #################################################################################################
 
 
@@ -807,6 +818,10 @@ OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.mpi.o,      $(notdir $(LETHOST)))
 OBJMPGT	+= $(patsubst %.cu, $(OBJDIR)/%.mpi.o,      $(notdir $(EXCGGPU)))
 endif
 OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.o,          $(notdir $(BRNTLIB)))
+ifeq ($(ENABLE_ONLINE_ANALYSIS), 1)
+OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.ompmpi.hdf5.o, $(notdir $(OBSSRC)))
+OBJMPGT	+= $(patsubst %.c,  $(OBJDIR)/%.o, $(notdir $(M31LIB)))
+endif
 #################################################################################################
 OBJFIND	:= $(patsubst %.c, $(OBJDIR)/%.o, $(notdir $(FINDSRC)))
 OBJSMPL	:= $(patsubst %.c, $(OBJDIR)/%.o, $(notdir $(SMPLSRC)))
@@ -1016,6 +1031,12 @@ OBJSOBS	+= $(patsubst %.c, $(OBJDIR)/%.o,	   $(notdir $(ALLCLIB)))
 endif
 OBJSOBS	+= $(patsubst %.c, $(OBJDIR)/%.o,          $(notdir $(M31LIB)))
 #################################################################################################
+ifeq ($(ENABLE_ONLINE_ANALYSIS), 0)
+OBJOBS	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.hdf5.o, $(notdir $(OBSSRC)))
+OBJOBS	+= $(patsubst %.c, $(OBJDIR)/%.o, $(notdir $(M31LIB)))
+OBJOBS	+= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o, $(notdir $(FILELIB) $(ALLCLIB)))
+endif
+#################################################################################################
 
 
 #################################################################################################
@@ -1040,9 +1061,12 @@ anal:	$(ANALACT) $(ANALERR) $(ANALPRF)
 mbh:	$(ANALMBH)
 halo:	$(DMHALO)
 bulge:	$(BULGE) $(BHMASS)
-m31:	$(M31OBS) $(M31ENE) $(PICKUP) $(SUBARU)
+m31:	$(M31OBS) $(M31ENE) $(PICKUP) $(SUBARU) $(OBSERVE)
 pickup:	$(PICKUP)
 subaru:	$(SUBARU)
+ifeq ($(ENABLE_ONLINE_ANALYSIS), 0)
+obs:	$(OBSERVE)
+endif
 sass:	$(GOTHIC).sass
 tags:	TAGS
 #################################################################################################
@@ -1102,8 +1126,13 @@ endif
 endif
 else
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
+ifeq ($(ENABLE_ONLINE_ANALYSIS), 1)
+$(GOTHIC):	$(OBJMPGT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)cudalib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a	$(MYLIB)/lib$(LIBPREC)rotate.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)cudalib -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CULIB) $(OMPLIB) $(CCLIB)
+else
 $(GOTHIC):	$(OBJMPGT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)cudalib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)cudalib -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CULIB) $(CCLIB)
+endif
 else
 $(GOTHIC):	$(OBJMPGT)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)timer.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)cudalib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJMPGT) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)cudalib -l$(LIBPREC)mpilib $(CULIB) $(CCLIB)
@@ -1255,6 +1284,10 @@ $(SUBARU):	$(OBJSOBS)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)const
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJSOBS) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rand_sfmt$(SFMTPER) -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(SFMTLIB) $(CCLIB)
 endif
 endif
+ifeq ($(ENABLE_ONLINE_ANALYSIS), 0)
+$(OBSERVE):	$(OBJOBS)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJOBS) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(OMPLIB) $(CCLIB)
+endif
 #################################################################################################
 # sass file
 $(GOTHIC).sass:	$(GOTHIC)
@@ -1303,7 +1336,7 @@ endif
 	$(VERBOSE)rm -f $(ANALMBH)
 	$(VERBOSE)rm -f $(DMHALO)
 	$(VERBOSE)rm -f $(BULGE) $(BHMASS)
-	$(VERBOSE)rm -f $(M31OBS) $(M31ENE) $(PICKUP) $(SUBARU)
+	$(VERBOSE)rm -f $(M31OBS) $(M31ENE) $(PICKUP) $(SUBARU) $(OBSERVE)
 	$(VERBOSE)rm -f $(SAMPLE)
 #################################################################################################
 visit:	$(DIRBODY)/Makefile $(DIRSNAP)/Makefile $(DIRPLOT)/Makefile $(DIRPM31)/Makefile $(DIRAERR)/Makefile $(DIRDUMP)/Makefile $(DIRDISK)/Makefile $(DIRDIST)/Makefile $(DIRPROF)/Makefile
@@ -1447,6 +1480,9 @@ GOTHIC_DEP	+=	$(MISCDIR)/brent.h
 GOTHIC_DEP	+=	$(SORTDIR)/peano_dev.h
 GOTHIC_DEP	+=	$(TREEDIR)/neighbor_dev.h
 GOTHIC_DEP	+=	$(TREEDIR)/shrink_dev.h
+ifeq ($(ENABLE_ONLINE_ANALYSIS), 1)
+GOTHIC_DEP	+=	$(ANALDIR)/observation.h
+endif
 $(OBJDIR)/gothic.mpi.hdf5.o:	$(GOTHIC_DEP)	$(MYINC)/hdf5lib.h
 $(OBJDIR)/gothic.mpi.o:		$(GOTHIC_DEP)
 $(OBJDIR)/showOptConfig.o:	$(COMMON_DEP)	$(MYINC)/myutil.h	$(MYINC)/name.h
@@ -1640,5 +1676,12 @@ $(OBJDIR)/subaru.mpi.smtj.hdf5.o:	$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/rotate.h	$(MYI
 $(OBJDIR)/subaru.mpi.sfmt.hdf5.o:	$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/rotate.h	$(MYINC)/rand.h	$(MYINC)/hdf5lib.h
 $(OBJDIR)/subaru.mpi.smtj.o:		$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/rotate.h	$(MYINC)/rand.h	$(MYINC)/sfmtjump_polynomial.h
 $(OBJDIR)/subaru.mpi.sfmt.o:		$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/rotate.h	$(MYINC)/rand.h
+
+OBS_DEP	:=	Makefile	$(MYINC)/common.mk	$(MYINC)/macro.h	$(MYINC)/name.h	$(MYINC)/constants.h	$(MYINC)/rotate.h	$(MYINC)/hdf5lib.h
+OBS_DEP	+=	$(MISCDIR)/structure.h	$(MISCDIR)/allocate.h	$(ANALDIR)/m31coord.h	$(ANALDIR)/observation.h
+ifeq ($(ENABLE_ONLINE_ANALYSIS), 0)
+OBS_DEP	+=	$(MYINC)/myutil.h	$(FILEDIR)/io.h
+endif
+$(OBJDIR)/observation.ompmpi.hdf5.o:	$(OBS_DEP)
 #################################################################################################
 #################################################################################################
