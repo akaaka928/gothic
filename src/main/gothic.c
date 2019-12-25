@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/09/25 (Wed)
+ * @date 2019/12/25 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -74,6 +74,11 @@
 #include "../misc/brent.h"
 
 #include "../file/io.h"
+
+#ifdef  ONLINE_ANALYSIS
+#include "../anal/m31coord.h"
+#include "../anal/observation.h"
+#endif//ONLINE_ANALYSIS
 
 #include "../sort/peano.h"
 #include "../sort/peano_dev.h"
@@ -426,6 +431,12 @@ static inline void configDistribution
 
 
 #ifndef EXEC_BENCHMARK
+#ifdef  ONLINE_ANALYSIS
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#endif//ONLINE_ANALYSIS
 /**
  * @fn dumpSnapshot
  *
@@ -478,6 +489,13 @@ static inline void dumpSnapshot
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
  , char *accfile
 #endif//COMPARE_WITH_DIRECT_SOLVER
+#ifdef  ONLINE_ANALYSIS
+ , nbody_aos *body_anal
+ , real * restrict xi_all, real * restrict eta_all, real * restrict dist_all, real * restrict vxi_all, real * restrict veta_all, real * restrict vlos_all
+ , real * restrict map_all, real * restrict box_all
+ , real disk2obs[restrict][3], const real dphi
+ , real * restrict score_all, const int modelID
+#endif//ONLINE_ANALYSIS
  )
 {
   __NOTE__("%s\n", "start");
@@ -501,6 +519,7 @@ static inline void dumpSnapshot
 #       endif//LEAP_FROG_INTEGRATOR
 #endif//USE_HDF5_FORMAT
 
+#ifndef ONLINE_ANALYSIS
   /** report speed of N-body simulation */
 #ifdef  REPORT_COMPUTE_RATE
   static struct timespec clock;
@@ -620,10 +639,26 @@ static inline void dumpSnapshot
 #endif//USE_HDF5_FORMAT
 		   ibody_hst.acc, filename);
 #endif//COMPARE_WITH_DIRECT_SOLVER
+#else///ONLINE_ANALYSIS
 
+  mock_observation(num, body_anal,
+#ifdef  USE_HDF5_FORMAT
+		   *body,
+#else///USE_HDF5_FORMAT
+		   ibody_hst,
+#endif//USE_HDF5_FORMAT
+		   xi_all, eta_all, dist_all, vxi_all, veta_all, vlos_all, map_all, box_all, disk2obs, dphi,
+		   score_all, modelID, file, time, steps);
+
+#endif//ONLINE_ANALYSIS
 
   __NOTE__("%s\n", "end");
 }
+#ifdef  ONLINE_ANALYSIS
+#   if  ((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#pragma GCC diagnostic pop
+#endif//((__GNUC_MINOR__ + __GNUC__ * 10) >= 45)
+#endif//ONLINE_ANALYSIS
 
 
 #ifndef COMPARE_WITH_DIRECT_SOLVER
@@ -655,6 +690,9 @@ static inline void dumpRestarter
 #ifdef  REPORT_GPU_CLOCK_FREQUENCY
  , gpu_clock *deviceMonitors, int *monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
+#ifdef  ONLINE_ANALYSIS
+ , real * restrict score_all, const int modelID
+#endif//ONLINE_ANALYSIS
  )
 {
   __NOTE__("%s\n", "start");
@@ -683,6 +721,9 @@ static inline void dumpRestarter
 #ifdef  REPORT_GPU_CLOCK_FREQUENCY
 			     , true, deviceMonitors, *monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
+#ifdef  ONLINE_ANALYSIS
+			     , true, NANGLE, score_all, modelID
+#endif//ONLINE_ANALYSIS
 			     );
 #else///SERIALIZED_EXECUTION
   writeTentativeDataParallel(time, dt, steps, elapsed, num, ibody_hst, file, last, iocfg, Ntot
@@ -779,6 +820,12 @@ int main(int argc, char **argv)
     __FPRINTF__(stderr, "          -pot_file_disk=<char *>\n");
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  ONLINE_ANALYSIS
+    __FPRINTF__(stderr, "          -modelID=<int>\n");
+    __FPRINTF__(stderr, "          -logM_dm=<real> -logrs_dm=<real>\n");
+    __FPRINTF__(stderr, "          -logM_star=<real> -logr0_star=<real> -logrt_star=<real>\n");
+    __FPRINTF__(stderr, "          -theta=<real> -vrad=<real> -vtan=<real> -vangle=<real>\n");
+#endif//ONLINE_ANALYSIS
     __FPRINTF__(stderr, "          -dropPrevTune=<int> (optional)\n");
     __KILL__(stderr, "%s\n", "insufficient command line arguments");
   }
@@ -819,7 +866,6 @@ int main(int argc, char **argv)
     __KILL__(stderr, "ERROR: Invalid input arguments: Nx = %d, Ny = %d, Nz = %d while mpi.size = %d\n", Nx, Ny, Nz, mpi.size);
   }/* if( (Nx * Ny * Nz) != mpi.size ){ */
 #endif//SERIALIZED_EXECUTION
-
 
   /** read settings about the simulation */
   static ulong Ntot;
@@ -1584,6 +1630,33 @@ int main(int argc, char **argv)
 #endif//COMPARE_WITH_DIRECT_SOLVER
 
 
+#ifdef  ONLINE_ANALYSIS
+  static real disk2obs[3][3], obs2disk[3][3];/**< rotation matrix (disk frame <--> observed frame) */
+  nbody_aos *body_anal;/**< to split DM and stellar particles by sorting particle array */
+
+  real *xi_all, *eta_all, *dist_all, *vxi_all, *veta_all, *vlos_all;/**< for OpenMP */
+  real *map_all, *box_all;/**< for OpenMP */
+  real *score_all;
+
+  /** initialization of the analysis */
+  /** read number of components */
+  set_splitter(file);
+
+  /** memory allocation by function call, which supports OpenMP */
+  allocate_particle_arrays_for_analysis(Ntot, &body_anal, &xi_all, &eta_all, &dist_all, &vxi_all, &veta_all, &vlos_all);
+  allocate_observation_arrays_for_analysis(&map_all, &box_all, &score_all);
+
+
+  /** set coordinate transformation from M31's disk coordinate to observerd frame */
+  setRotationMatrix(obs2disk, disk2obs);
+  setNWstreamProperties();
+
+  const real dphi = TWO * M_PI / (real)NANGLE;
+
+  static int modelID = -1;
+#endif//ONLINE_ANALYSIS
+
+
   /** initialize the simulation run */
   /** variables for automatic optimization */
   static struct timespec start;
@@ -1639,6 +1712,9 @@ int main(int argc, char **argv)
      , &relEneErr
 #endif//MONITOR_ENERGY_ERROR
 #endif//USE_HDF5_FORMAT
+#ifdef  ONLINE_ANALYSIS
+     , score_all, &modelID
+#endif//ONLINE_ANALYSIS
      );
 #else///SERIALIZED_EXECUTION
   readTentativeDataParallel
@@ -2130,6 +2206,26 @@ int main(int argc, char **argv)
 
 
   if( steps == 0 ){
+#ifdef  ONLINE_ANALYSIS
+    /** read paramter-sets of the simulation */
+    requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv, "modelID", &modelID));
+    real logM_dm;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "logM_dm", &logM_dm));
+    real logrs_dm;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "logrs_dm", &logrs_dm));
+    real logM_star;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "logM_star", &logM_star));
+    real logr0_star;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "logr0_star", &logr0_star));
+    real logrt_star;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "logrt_star", &logrt_star));
+    real theta;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "theta", &theta));
+    real vrad;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "vrad", &vrad));
+    real vtan;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "vtan", &vtan));
+    real vangle;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "vangle", &vangle));
+
+    /** initialization for the analysis */
+    initialize_score(score_all, modelID, file,
+		     logM_dm, logrs_dm,
+		     logM_star, logr0_star, logrt_star,
+		     theta, vrad, vtan, vangle);
+#endif//ONLINE_ANALYSIS
+
 #ifdef  GADGET_MAC
     /** set Barnes-Hut MAC */
     enforceBarnesHutMAC_dev(Ni, ibody0_dev, numNode, soaNode_dev);
@@ -2399,6 +2495,11 @@ int main(int argc, char **argv)
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
        , accfile
 #endif//COMPARE_WITH_DIRECT_SOLVER
+#ifdef  ONLINE_ANALYSIS
+       , body_anal
+       , xi_all, eta_all, dist_all, vxi_all, veta_all, vlos_all, map_all, box_all
+       , disk2obs, dphi, score_all, modelID
+#endif//ONLINE_ANALYSIS
        );
 #endif//EXEC_BENCHMARK
 
@@ -3237,6 +3338,9 @@ int main(int argc, char **argv)
 #ifdef  REPORT_GPU_CLOCK_FREQUENCY
 	 , deviceMonitors, &monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
+#ifdef  ONLINE_ANALYSIS
+	 , score_all, modelID
+#endif//ONLINE_ANALYSIS
 	 );
 #endif//COMPARE_WITH_DIRECT_SOLVER
       rebuild.reuse = 0;
@@ -3296,6 +3400,11 @@ int main(int argc, char **argv)
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
 	 , accfile
 #endif//COMPARE_WITH_DIRECT_SOLVER
+#ifdef  ONLINE_ANALYSIS
+	 , body_anal
+	 , xi_all, eta_all, dist_all, vxi_all, veta_all, vlos_all, map_all, box_all
+	 , disk2obs, dphi, score_all, modelID
+#endif//ONLINE_ANALYSIS
 	 );
 
       rebuild.reuse = 0;
@@ -3386,6 +3495,9 @@ int main(int argc, char **argv)
 #ifdef  REPORT_GPU_CLOCK_FREQUENCY
      , deviceMonitors, &monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
+#ifdef  ONLINE_ANALYSIS
+     , score_all, modelID
+#endif//ONLINE_ANALYSIS
      );
 #endif//!defined(EXEC_BENCHMARK) && !defined(COMPARE_WITH_DIRECT_SOLVER)
 
@@ -3456,6 +3568,14 @@ int main(int argc, char **argv)
 #endif//MPI_ONE_SIDED_FOR_EXCG
 
 #endif//SERIALIZED_EXECUTION
+
+
+#ifdef  ONLINE_ANALYSIS
+  finalize_score(score_all, modelID, file);
+
+  release_particle_arrays_for_analysis(body_anal, xi_all, eta_all, dist_all, vxi_all, veta_all, vlos_all);
+  release_observation_arrays_for_analysis(map_all, box_all, score_all);
+#endif//ONLINE_ANALYSIS
 
 
   /** memory deallocation */

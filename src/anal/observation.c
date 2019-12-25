@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/12/18 (Wed)
+ * @date 2019/12/25 (Wed)
  *
  * Copyright (C) 2019 Yohei Miki
  * All rights reserved.
@@ -43,6 +43,7 @@
 
 /** gradient analysis (based on gaussian fitting results for >= 50% filled data) */
 static const real NWstream_angle = 69.0;/**< in units of degree */
+static real NWtheta, cos_t, sin_t;
 /* static const real hh = 0.113172;/\**< in units of degree, mesh width for the gradient analysis; h_10 *\/ */
 static const real NWstream_grad = -441.193 / 715.971;/**< NOTE: gradient must be normalized by the averaged count of particles */
 /* static const real NWstream_sigma = 35.1089 / 715.971;/\**< +-3 sigma is successful, +-15 sigma is rejected *\/ */
@@ -53,6 +54,10 @@ static const real grad_Ymax = 5.8871;
 /* NX = 32, NY = 64 grids -->> peak_pos = -3.62859, width_mean = 0.320655; width_mean is average of FWHM */
 static const real NWstream_axis = -3.62859;
 static const real NWstream_wide = 0.320655;
+static int nws_nwid68;
+static int nws_imin68, nws_imax68;/* minimum and maximum index including \pm FWHM / 2 regions (~ \pm 1 sigma) */
+static int nws_imin95, nws_imax95;/* minimum and maximum index including \pm FWHM regions (~ \pm 2 sigma) */
+/* static int nws_nwid; */
 /* jj = 0, ..., 11; 52, ..., 63 is ZERO (Ndat <-- number of non-zero entries in the histogram) */
 /* ver: min = 1.64314, max = 8.88616 */
 /* hor: -5.72077, max = -2.02292 */
@@ -60,6 +65,8 @@ static const real Xmin = -5.72077;
 static const real Xmax = -2.02292;
 static const real Ymin = 1.64314;
 static const real Ymax = 8.88616;
+static real dXinv, dY, dYinv;
+static int nws_jmin, nws_jmax, nws_jnum;
 
 /* Gaussian fitting in h = 0.1 is necessary to estimating number of stream particles */
 /* 3 parameters (axis, count, sigma) */
@@ -89,6 +96,7 @@ static const real edgeNE_xi [2] = {-6.185539790195583, -3.9488436954717683};
 static const real edgeNE_eta[2] = { 7.882569759192392,  1.6546637399150277};
 static const real edgeSW_xi [2] = {-6.359861226297341, -4.066319246109101};
 static const real edgeSW_eta[2] = { 6.40909029144571 , -0.22322771974637737};
+static real slopeNE, iceptNE, slopeSW, iceptSW;
 
 
 #define DISTANCE_NFIELD (4)
@@ -179,11 +187,12 @@ static const real nwsD_sys[DISTANCE_NFIELD] = {0.057, 0.057, 0.057, 0.057};
 
 
 /** minimum mass of the NW stream */
-/* at least 10^5.5 Msun in the stream regions */
+/** at least 10^5 Msun in the stream regions (update in 2019/12/25) <-- at least 10^5.5 Msun in the stream regions */
 /* estimation by Carlberg et al. (2011): 2.2e+6 Msun (M/L = 3, PAndAS data) */
 /* M/L = 1 corresponds to the lower limit: 7.3e+5 Msun */
 /* mismatch of region -->> 7.3e+5 / 2 = 3.6e+5 Msun (half is very pessimistic estimation) */
 /* Carlberg assumes distance to NW stream is equal to that to M31 -->> underestimate the absolute magnitude of NW stream (but, maybe slightly) */
+/** since the stream region is very limited, reduce the lower bound from 10^5.5 to 10^5 (update in 2019/12/25) */
 static real NWstream_mass;
 
 
@@ -198,17 +207,17 @@ static const real gc_xi  [NGC_INTERNAL + NGC_EXTERNAL] = {-5.260959997771581, -5
 static const real gc_eta [NGC_INTERNAL + NGC_EXTERNAL] = { 4.061434922115992,  4.137743013677189,  3.5546551505544537,  2.2086054244275655,            6.4598886185030535};
 static const real gc_vmin[NGC_INTERNAL + NGC_EXTERNAL] = {-444.0 - 21.0, -435.0 - 10.0, -447.0 - 13.0, -472.0 - 5.0,		-397.0 - 7.0};
 static const real gc_vmax[NGC_INTERNAL + NGC_EXTERNAL] = {-444.0 + 21.0, -435.0 + 10.0, -447.0 + 13.0, -472.0 + 5.0,		-397.0 + 7.0};
-
+static real gc_r2;
 
 
 
 
 #define NFIELD_HSC (5)
 /** f003, f004, f009, f022, f023 */
-const real hsc_xi [NFIELD_HSC] = {-4.653744156858361, -5.7227710294896745, -5.530826768687439, -4.842739589150247, -5.912437203950868};
-const real hsc_eta[NFIELD_HSC] = { 3.635683362752261,  4.47091006650441  ,  5.816784796173433,  2.290423176281251,  3.125050968157858};
-const real hsc_fov = (45.0 - 2.0) / 60.0;
-
+static const real hsc_xi [NFIELD_HSC] = {-4.653744156858361, -5.7227710294896745, -5.530826768687439, -4.842739589150247, -5.912437203950868};
+static const real hsc_eta[NFIELD_HSC] = { 3.635683362752261,  4.47091006650441  ,  5.816784796173433,  2.290423176281251,  3.125050968157858};
+static const real hsc_fov = (45.0 - 2.0) / 60.0;
+static real hsc_fov2;
 
 
       /* const double inv_sqrt2sig = M_SQRT1_2 / sigma; */
@@ -234,7 +243,7 @@ const real hsc_fov = (45.0 - 2.0) / 60.0;
 
 
 
-
+static int dm_head, dm_num, star_head, star_num;
 
 
 #ifdef  __ICC
@@ -262,7 +271,7 @@ int idxAscendingOrder(const void *a, const void *b)
 
 
 void set_splitter
-(int *kind, int **bodyHead, int **bodyNum, char *file
+(char *file
 #ifndef ONLINE_ANALYSIS
  , ulong *Ntot, int *unit
 #endif//ONLINE_ANALYSIS
@@ -279,27 +288,38 @@ void set_splitter
   }
 
   int unit_tmp;
+  int kind = 0;
   bool checker = true;
   checker &= (1 == fscanf(fp, "%d", &unit_tmp));
-  checker &= (1 == fscanf(fp, "%d\t%*d", kind));
-  *bodyHead = (int *)malloc(sizeof(int) * (*kind));  if( *bodyHead == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate bodyHead");  }
-  *bodyNum  = (int *)malloc(sizeof(int) * (*kind));  if( *bodyNum  == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate bodyNum");  }
-  for(int ii = 0; ii < (*kind); ii++)
-    checker &= (1 == fscanf(fp, "%d", &((*bodyNum)[ii])));
+  checker &= (1 == fscanf(fp, "%d\t%*d", &kind));
+  int *bodyHead, *bodyNum;
+  bodyHead = (int *)malloc(sizeof(int) * kind);  if( bodyHead == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate bodyHead");  }
+  bodyNum  = (int *)malloc(sizeof(int) * kind);  if( bodyNum  == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate bodyNum");  }
+  for(int ii = 0; ii < kind; ii++)
+    checker &= (1 == fscanf(fp, "%d", &(bodyNum[ii])));
   fclose(fp);
   if( !checker ){
     __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);
 }
-  (*bodyHead)[0] = 0;
-  for(int ii = 1; ii < (*kind); ii++)
-    (*bodyHead)[ii] = (*bodyHead)[ii - 1] + (*bodyNum)[ii - 1];
+  bodyHead[0] = 0;
+  for(int ii = 1; ii < kind; ii++)
+    bodyHead[ii] = bodyHead[ii - 1] + bodyNum[ii - 1];
+
+  dm_head   = bodyHead[0];
+  dm_num    = bodyNum [0];
+  star_head = bodyHead[1];
+  star_num  = bodyNum [1];
+
 
 #ifndef ONLINE_ANALYSIS
   *unit = unit_tmp;
   *Ntot = 0;
-  for(int ii = 0; ii < (*kind); ii++)
-    *Ntot += (*bodyNum)[ii];
+  for(int ii = 0; ii < kind; ii++)
+    *Ntot += bodyNum[ii];
 #endif//ONLINE_ANALYSIS
+
+  free(bodyHead);
+  free(bodyNum);
 
   __NOTE__("%s\n", "end");
 }
@@ -372,7 +392,7 @@ void allocate_observation_arrays_for_analysis(real **map, real **box, real **sco
 
   /** set the minimum mass of the NW stream */
   extern const double mass_astro2com;
-  NWstream_mass = POW(TEN, 5.5) * mass_astro2com;
+  NWstream_mass = POW(TEN, 5.0) * mass_astro2com;
 
 
   __NOTE__("%s\n", "end");
@@ -386,6 +406,53 @@ void release_observation_arrays_for_analysis(real *map, real *box, real *score)
   free(map);
   free(box);
   free(score);
+
+  __NOTE__("%s\n", "end");
+}
+
+
+void setNWstreamProperties(void)
+{
+  __NOTE__("%s\n", "start");
+
+  hsc_fov2 = hsc_fov * hsc_fov;
+
+  NWtheta = NWstream_angle * M_PI / 180.0;
+  cos_t = COS(HALF * M_PI - NWtheta);
+  sin_t = SIN(HALF * M_PI - NWtheta);
+
+  dXinv = (real)MAP_NX / (Xmax - Xmin);
+  /* const int nws_imid = (int)FLOOR(dXinv * (NWstream_axis - Xmin)); */
+  /* nws_nwid = (int)NEARBYINT(NWstream_wide * dXinv); */
+  /* if( (nws_nwid & 1) ){ */
+  /*   nws_imin = nws_imid - ((nws_nwid - 1) >> 1); */
+  /*   nws_imax = nws_imid + ((nws_nwid - 1) >> 1); */
+  /* } */
+  /* else{ */
+  /*   const int nws_next = (int)NEARBYINT(dXinv * (NWstream_axis - Xmin)); */
+  /*   nws_imin = nws_imid - (nws_nwid >> 1) + (nws_next == nws_imid); */
+  /*   nws_imax = nws_imin + nws_nwid - 1; */
+  /* } */
+  nws_imin68 = (int)FLOOR(dXinv * (NWstream_axis - HALF * NWstream_wide - Xmin));
+  nws_imax68 = (int) CEIL(dXinv * (NWstream_axis + HALF * NWstream_wide - Xmin));
+  nws_imin95 = (int)FLOOR(dXinv * (NWstream_axis -        NWstream_wide - Xmin));
+  nws_imax95 = (int) CEIL(dXinv * (NWstream_axis +        NWstream_wide - Xmin));
+  nws_nwid68 = nws_imax68 - nws_imin68 + 1;
+
+  dYinv = (real)MAP_NY / (Ymax - Ymin);
+  dY = (Ymax - Ymin) / (real)MAP_NY;
+  nws_jmin = (int) CEIL(dYinv * (grad_Ymin - Ymin));
+  nws_jmax = (int)FLOOR(dYinv * (grad_Ymax - Ymin));
+  nws_jnum = nws_jmax - nws_jmin + 1;
+
+  gc_r2 = ((Xmax - Xmin) / (real)MAP_NX) * ((Ymax - Ymin) / (real)MAP_NY);
+
+  /* xi = xi0 + slope * eta */
+  slopeNE = (edgeNE_xi[1] - edgeNE_xi[0]) / (edgeNE_eta[1] - edgeNE_eta[0]);
+  iceptNE = edgeNE_xi[0] - slopeNE * edgeNE_eta[0];
+  slopeSW = (edgeSW_xi[1] - edgeSW_xi[0]) / (edgeSW_eta[1] - edgeSW_eta[0]);
+  iceptSW = edgeSW_xi[0] - slopeSW * edgeSW_eta[0];
+
 
   __NOTE__("%s\n", "end");
 }
@@ -475,25 +542,30 @@ void initialize_score
 
   const int Nangle = NANGLE;
   attr = H5Acreate(group, "NANGLE", H5T_NATIVE_INT, dspc, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &Nangle));
+  chkHDF5err(H5Awrite(attr, H5T_NATIVE_INT, &Nangle));
   chkHDF5err(H5Aclose(attr));
 
   const int Nx = MAP_NX;
   attr = H5Acreate(group, "MAP_NX", H5T_NATIVE_INT, dspc, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &Nx));
+  chkHDF5err(H5Awrite(attr, H5T_NATIVE_INT, &Nx));
   chkHDF5err(H5Aclose(attr));
   const int Ny = MAP_NY;
   attr = H5Acreate(group, "MAP_NY", H5T_NATIVE_INT, dspc, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &Ny));
+  chkHDF5err(H5Awrite(attr, H5T_NATIVE_INT, &Ny));
   chkHDF5err(H5Aclose(attr));
 
   const int Nfield = DISTANCE_NFIELD;
   attr = H5Acreate(group, "DISTANCE_NFIELD", H5T_NATIVE_INT, dspc, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &Nfield));
+  chkHDF5err(H5Awrite(attr, H5T_NATIVE_INT, &Nfield));
   chkHDF5err(H5Aclose(attr));
   const int Ndepth = DISTANCE_NDEPTH;
   attr = H5Acreate(group, "DISTANCE_NDEPTH", H5T_NATIVE_INT, dspc, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &Ndepth));
+  chkHDF5err(H5Awrite(attr, H5T_NATIVE_INT, &Ndepth));
+  chkHDF5err(H5Aclose(attr));
+
+  const real gc_r = SQRT(gc_r2);
+  attr = H5Acreate(group, "gc_r", H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &gc_r));
   chkHDF5err(H5Aclose(attr));
 
   for(int ii = 0; ii < NANGLE; ii++){
@@ -561,12 +633,31 @@ void initialize_score
   attr = H5Acreate(group, ATTR_TAG_NWS_YMAX, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &grad_Ymax));
   chkHDF5err(H5Aclose(attr));
+  attr = H5Acreate(group, "nws_jnum", H5T_NATIVE_INT, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_NATIVE_INT, &nws_jnum));
+  chkHDF5err(H5Aclose(attr));
+  attr = H5Acreate(group, "nws_nwid68", H5T_NATIVE_INT, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_NATIVE_INT, &nws_nwid68));
+  chkHDF5err(H5Aclose(attr));
 
   attr = H5Acreate(group, ATTR_TAG_NWS_AXIS, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &NWstream_axis));
   chkHDF5err(H5Aclose(attr));
   attr = H5Acreate(group, ATTR_TAG_NWS_WIDTH, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &NWstream_wide));
+  chkHDF5err(H5Aclose(attr));
+
+  attr = H5Acreate(group, ATTR_TAG_MAP_XMIN, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &Xmin));
+  chkHDF5err(H5Aclose(attr));
+  attr = H5Acreate(group, ATTR_TAG_MAP_XMAX, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &Xmax));
+  chkHDF5err(H5Aclose(attr));
+  attr = H5Acreate(group, ATTR_TAG_MAP_YMIN, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &Ymin));
+  chkHDF5err(H5Aclose(attr));
+  attr = H5Acreate(group, ATTR_TAG_MAP_YMAX, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &Ymax));
   chkHDF5err(H5Aclose(attr));
 
   chkHDF5err(H5Sclose(dspc));
@@ -702,13 +793,19 @@ static inline real normalize_score(const real score, const int score_max, const 
 }
 
 void mock_observation
-  (const ulong Ntot, nbody_aos *body_anal, int * restrict bodyHead, int * restrict bodyNum,
+  (const ulong Ntot, nbody_aos *body_anal,
+#ifdef  USE_HDF5_FORMAT
+   nbody_hdf5 hdf5,
+#else///USE_HDF5_FORMAT
+   iparticle ibody,
+#endif//USE_HDF5_FORMAT
    real * restrict xi_all, real * restrict eta_all, real * restrict dist_all, real * restrict vxi_all, real * restrict veta_all, real * restrict vlos_all,
    real * restrict map_all, real * restrict box_all,
    real disk2obs[restrict][3], const real dphi,
    real * restrict score_best, const int modelID, char *file, const double time, const ulong step)
 {
   __NOTE__("%s\n", "start");
+
 
   char filename[256];
   sprintf(filename, "%s/%s_%s%d.h5", DATAFOLDER, file, FILE_TAG_SCORE, modelID);
@@ -720,51 +817,27 @@ void mock_observation
 #endif//USE_DOUBLE_PRECISION
 
 
-
-
-  const real hsc_fov2 = hsc_fov * hsc_fov;
-
-  const real NWtheta = NWstream_angle * M_PI / 180.0;
-  const real cost = COS(HALF * M_PI - NWtheta);
-  const real sint = SIN(HALF * M_PI - NWtheta);
-
-  const real dXinv = (real)MAP_NX / (Xmax - Xmin);
-  const int nws_imid = (int)FLOOR(dXinv * (NWstream_axis - Xmin));
-  const int nws_nwid = (int)NEARBYINT(NWstream_wide * dXinv);
-  int nws_imin, nws_imax;
-  if( (nws_nwid & 1) ){
-    nws_imin = nws_imid - ((nws_nwid - 1) >> 1);
-    nws_imax = nws_imid + ((nws_nwid - 1) >> 1);
+  for(int ii = 0; ii < (int)Ntot; ii++){
+#ifdef  USE_HDF5_FORMAT
+    body_anal[ii]. x  = hdf5.pos[ii * 3];      body_anal[ii]. y = hdf5.pos[ii * 3 + 1];      body_anal[ii].z   = hdf5.pos[ii * 3 + 2];
+    body_anal[ii].vx  = hdf5.vel[ii * 3];      body_anal[ii].vy = hdf5.vel[ii * 3 + 1];      body_anal[ii].vz  = hdf5.vel[ii * 3 + 2];
+    body_anal[ii].ax  = hdf5.acc[ii * 3];      body_anal[ii].ay = hdf5.acc[ii * 3 + 1];      body_anal[ii].az  = hdf5.acc[ii * 3 + 2];
+    body_anal[ii].idx = hdf5.idx[ii    ];      body_anal[ii]. m = hdf5.  m[ii        ];      body_anal[ii].pot = hdf5.pot[ii        ];
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    body_anal[ii].ax_ext = hdf5.acc_ext[ii * 3];      body_anal[ii].ay_ext = hdf5.acc_ext[ii * 3 + 1];      body_anal[ii].az_ext = hdf5.acc_ext[ii * 3 + 2];
+    body_anal[ii].pot_ext = hdf5.pot_ext[ii];
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+#else///USE_HDF5_FORMAT
+    body_anal[ii]. x  = ibody.pos[ii].x;      body_anal[ii]. y = ibody.pos[ii].y;      body_anal[ii]. z  = ibody.pos[ii].z;
+    body_anal[ii].vx  = ibody.vel[ii].x;      body_anal[ii].vy = ibody.vel[ii].y;      body_anal[ii].vz  = ibody.vel[ii].z;
+    body_anal[ii].ax  = ibody.acc[ii].x;      body_anal[ii].ay = ibody.acc[ii].y;      body_anal[ii].az  = ibody.acc[ii].z;
+    body_anal[ii].idx = ibody.idx[ii]  ;      body_anal[ii]. m = ibody.pos[ii].m;      body_anal[ii].pot = ibody.acc[ii].pot;
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    body_anal[ii].ax_ext = ibody.acc_ext[ii].x;      body_anal[ii].ay_ext = ibody.acc_ext[ii].y;      body_anal[ii].az_ext = ibody.acc_ext[ii].z;
+    body_anal[ii].pot_ext = ibody.acc_ext[ii].pot;
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+#endif//USE_HDF5_FORMAT
   }
-  else{
-    const int nws_next = (int)NEARBYINT(dXinv * (NWstream_axis - Xmin));
-    nws_imin = nws_imid - (nws_nwid >> 1) + (nws_next == nws_imid);
-    nws_imax = nws_imin + nws_nwid - 1;
-  }
-
-  const real dYinv = (real)MAP_NY / (Ymax - Ymin);
-  const real dY = (Ymax - Ymin) / (real)MAP_NY;
-  const int nws_jmin = (int) CEIL(dYinv * (grad_Ymin - Ymin));
-  const int nws_jmax = (int)FLOOR(dYinv * (grad_Ymax - Ymin));
-  const int nws_jnum = nws_jmax - nws_jmin + 1;
-
-  const real gc_r2 = ((Xmax - Xmin) / (real)MAP_NX) * ((Ymax - Ymin) / (real)MAP_NY);
-
-
-  const int dm_head = bodyHead[0];
-  const int dm_num  = bodyNum [0];
-  const int star_head = bodyHead[1];
-  const int star_num  = bodyNum [1];
-
-
-  /* xi = xi0 + slope * eta */
-  const real slopeNE = (edgeNE_xi[1] - edgeNE_xi[0]) / (edgeNE_eta[1] - edgeNE_eta[0]);
-  const real iceptNE = edgeNE_xi[0] - slopeNE * edgeNE_eta[0];
-  const real slopeSW = (edgeSW_xi[1] - edgeSW_xi[0]) / (edgeSW_eta[1] - edgeSW_eta[0]);
-  const real iceptSW = edgeSW_xi[0] - slopeSW * edgeSW_eta[0];
-
-
-
 
   /** index sort of the particle array */
   qsort(body_anal, Ntot, sizeof(nbody_aos), idxAscendingOrder);
@@ -810,8 +883,8 @@ void mock_observation
     for(int ii = star_head; ii < star_head + star_num; ii++){
       const real  xi = pi_xi [ii];
       const real eta = pi_eta[ii];
-      const real XX =  cost * xi + sint * eta;
-      const real YY = -sint * xi + cost * eta;
+      const real XX =  cos_t * xi + sin_t * eta;
+      const real YY = -sin_t * xi + cos_t * eta;
 
       /** pick up particles locate in Subaru/HSC fields and/or its surroundings */
       if( (XX > Xmin) && (XX < Xmax) && (YY > Ymin) && (YY < Ymax) ){
@@ -926,28 +999,51 @@ void mock_observation
     real Sxx = ZERO;
     real Sxy = ZERO;
     for(int jj = nws_jmin; jj < nws_jmax + 1; jj++){
-      real west = ZERO;
-      for(int ii = nws_imin - nws_nwid; ii < nws_imin; ii++)
-	west += map[INDEX2D(MAP_NY, MAP_NX, ii, jj)];
+      real side = ZERO;
+      /* for(int ii = nws_imin - nws_nwid; ii < nws_imin; ii++) */
+      for(int ii = 0; ii < nws_imin95; ii++)
+	side += map[INDEX2D(MAP_NY, MAP_NX, ii, jj)];
 
+      real halo = ZERO;
+      /** [-2 sigma : -1 sigma) */
+      for(int ii = nws_imin95; ii < nws_imin68; ii++)
+	halo += map[INDEX2D(MAP_NY, MAP_NX, ii, jj)];
+
+      /** [-1 sigma : +1 sigma] */
       real core = ZERO;
       real peak = ZERO;
-      int exist = 0;
-      for(int ii = nws_imin; ii < nws_imax + 1; ii++){
+      for(int ii = nws_imin68; ii < nws_imax68 + 1; ii++){
 	const real entry = map[INDEX2D(MAP_NY, MAP_NX, ii, jj)];
 	core += entry;
 
 	peak = FMAX(peak, entry);
-	if( entry >= HALF * peak )
-	  exist++;
       }
-      /** check the mass of the stream */
+
+      /* peak = FMAX(HALF * peak, FLT_MIN); */
+      /* peak = FMAX(ONE_THIRD * peak, FLT_MIN); */
+      peak = FMAX(QUARTER * peak, FLT_MIN);
+      int exist = 0;
+      for(int ii = nws_imin68; ii < nws_imax68 + 1; ii++)
+	if( map[INDEX2D(MAP_NY, MAP_NX, ii, jj)] >= peak )
+	  exist++;
+
+      /** (+1 sigma : +2 sigma] */
+      for(int ii = nws_imax68 + 1; ii < nws_imax95 + 1; ii++)
+	halo += map[INDEX2D(MAP_NY, MAP_NX, ii, jj)];
+
+      /* for(int ii = nws_imax + 1; ii < nws_imax + 1 + nws_nwid; ii++) */
+      for(int ii = nws_imax95 + 1; ii < MAP_NX; ii++)
+	side += map[INDEX2D(MAP_NY, MAP_NX, ii, jj)];
+
+      /** check the width of the stream */
+      /* core *= HALF; */
+      /* wrong_width += ((exist <= (nws_nwid >> 1)) || (west >= core) || (east >= core)); */
+      wrong_width += nws_nwid68 * (side >= core) + (nws_nwid68 - exist);
+      core += halo;
+      wrong_width += nws_nwid68 * (side >= core);
+
+      /** check the mass of the stream (including 95% of Gaussian) */
       mass_stream += core;
-
-      real east = ZERO;
-      for(int ii = nws_imax + 1; ii < nws_imax + 1 + nws_nwid; ii++)
-	east += map[INDEX2D(MAP_NY, MAP_NX, ii, jj)];
-
 
       /** check the gradient of the surface-density profile */
       /** assume sigma_i is a constant for all points */
@@ -956,23 +1052,21 @@ void mock_observation
       Sy += core;
       Sxx += ypos * ypos;
       Sxy += ypos * core;
-
-      /** check the width of the stream */
-      core *= HALF;
-      wrong_width += ((exist <= (nws_nwid >> 1)) || (west >= core) || (east >= core));
     }
-    /** check the width of the stream */
-    const real score_wide = (real)wrong_width;
-
     /** check the mass of the stream */
     const real score_mass = (real)(mass_stream < NWstream_mass);
 
-    /** check the gradient of the surface-density profile */
-    const real grad = (Sxy - Sx * Sy) / (Sxx - Sx * Sx);
-    const real mean = Sy / (real)nws_jnum;
-    const real grad_diff = ((grad / mean) - NWstream_grad) / NWstream_sigma;
-    const real score_grad = FMIN(grad_diff * grad_diff, SCORE_UPPER_BOUND);
+    /** check the width of the stream */
+    const real score_wide = (real)wrong_width;
 
+    /** check the gradient of the surface-density profile */
+    real score_grad = SCORE_UPPER_BOUND;
+    if( !score_mass ){
+      const real grad = (Sxy - Sx * Sy) / (Sxx - Sx * Sx);
+      const real mean = Sy / (real)nws_jnum;
+      const real grad_diff = ((grad / mean) - NWstream_grad) / NWstream_sigma;
+      score_grad = FMIN(grad_diff * grad_diff, SCORE_UPPER_BOUND);
+    }
 
     /** check the distance analysis [0 : DISTANCE_NFIELD] */
     int iscore_dist = 0;
@@ -989,7 +1083,8 @@ void mock_observation
     /** sum-up total score */
     const real score =  score_grad
       + normalize_score(score_mass,                           1, SCORE_UPPER_BOUND)
-      + normalize_score(score_wide,                    nws_jnum, SCORE_UPPER_BOUND)
+      /* + normalize_score(score_wide,                    nws_jnum, SCORE_UPPER_BOUND) */
+      + normalize_score(score_wide, (nws_nwid68 * 3) * nws_jnum, SCORE_UPPER_BOUND)
       + normalize_score(score_dist,             DISTANCE_NFIELD, SCORE_UPPER_BOUND)
       + normalize_score(score_vlos, NGC_INTERNAL + NGC_EXTERNAL, SCORE_UPPER_BOUND)
       ;
@@ -999,6 +1094,8 @@ void mock_observation
     const bool update_score = score < score_best[pp];
 #pragma omp critical (update)
     if( update_score ){
+      score_best[pp] = score;
+
       char grp[16];
       sprintf(grp, "%s/%s_%d", GROUP_TAG_DATA, GROUP_TAG_VIEW, pp);
       hid_t group = H5Gopen(target, grp, H5P_DEFAULT);
@@ -1062,7 +1159,6 @@ void mock_observation
 
       chkHDF5err(H5Gclose(group));
     }
-    score_best[pp] = score;
   }
 
 
@@ -1109,9 +1205,9 @@ int main(int argc, char **argv)
 
   real   eps;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "eps", &eps));
 
-
   ulong Ntot;
   int   unit;
+
 
 #ifdef  USE_HDF5_FORMAT
   static hdf5struct hdf5type;
@@ -1122,12 +1218,6 @@ int main(int argc, char **argv)
   real *hdf5_acc_ext, *hdf5_pot_ext;
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
   ulong *hdf5_idx;
-  allocSnapshotArray
-    (&hdf5_pos, &hdf5_vel, &hdf5_acc, &hdf5_m, &hdf5_pot, &hdf5_idx,
-#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-     &hdf5_acc_ext, &hdf5_pot_ext,
-#endif//SET_EXTERNAL_POTENTIAL_FIELD
-     (int)Ntot, &hdf5);
 #else///USE_HDF5_FORMAT
   iparticle ibody;
   ulong *idx;
@@ -1142,17 +1232,6 @@ int main(int argc, char **argv)
 #else///BLOCK_TIME_STEP
   real *vx, *vy, *vz;
 #endif//BLOCK_TIME_STEP
-  allocParticleData
-    ((int)Ntot, &ibody, &idx, &pos, &acc,
-#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-     &ext,
-#endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  BLOCK_TIME_STEP
-     &vel, &ti
-#else///BLOCK_TIME_STEP
-     &vx, &vy, &vz
-#endif//BLOCK_TIME_STEP
-     );
 #endif//USE_HDF5_FORMAT
 #endif//ONLINE_ANALYSIS
 
@@ -1169,20 +1248,39 @@ int main(int argc, char **argv)
   real *map_all, *box_all;/**< for OpenMP */
   real *score_all;
 
-  int kind;
-  int *bodyHead, *bodyNum;
-
-
 
   /** initialization of the analysis */
   /** read number of components */
-  set_splitter(&kind, &bodyHead, &bodyNum, file
+  set_splitter(file
 #ifndef ONLINE_ANALYSIS
 	       , &Ntot, &unit
 #endif//ONLINE_ANALYSIS
 	       );
+
 #ifndef ONLINE_ANALYSIS
   setPhysicalConstantsAndUnitSystem(unit, 1);
+
+#ifdef  USE_HDF5_FORMAT
+  allocSnapshotArray
+    (&hdf5_pos, &hdf5_vel, &hdf5_acc, &hdf5_m, &hdf5_pot, &hdf5_idx,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     &hdf5_acc_ext, &hdf5_pot_ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+     (int)Ntot, &hdf5);
+#else///USE_HDF5_FORMAT
+  allocParticleData
+    ((int)Ntot, &ibody, &idx, &pos, &acc,
+#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+     &ext,
+#endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  BLOCK_TIME_STEP
+     &vel, &ti
+#else///BLOCK_TIME_STEP
+     &vx, &vy, &vz
+#endif//BLOCK_TIME_STEP
+     );
+#endif//USE_HDF5_FORMAT
+
 #endif//ONLINE_ANALYSIS
 
   /** memory allocation by function call, which supports OpenMP */
@@ -1192,6 +1290,7 @@ int main(int argc, char **argv)
 
   /** set coordinate transformation from M31's disk coordinate to observerd frame */
   setRotationMatrix(obs2disk, disk2obs);
+  setNWstreamProperties();
 
 
   /** initialization for the analysis */
@@ -1211,41 +1310,24 @@ int main(int argc, char **argv)
     int unit_read;
 #ifdef  USE_HDF5_FORMAT
     readSnapshot(&unit_read, &time, &steps, Ntot, file, (uint)ifile, &hdf5, hdf5type);
-    for(int ii = 0; ii < (int)Ntot; ii++){
-      body_anal[ii]. x  = hdf5.pos[ii * 3];      body_anal[ii]. y = hdf5.pos[ii * 3 + 1];      body_anal[ii].z   = hdf5.pos[ii * 3 + 2];
-      body_anal[ii].vx  = hdf5.vel[ii * 3];      body_anal[ii].vy = hdf5.vel[ii * 3 + 1];      body_anal[ii].vz  = hdf5.vel[ii * 3 + 2];
-      body_anal[ii].ax  = hdf5.acc[ii * 3];      body_anal[ii].ay = hdf5.acc[ii * 3 + 1];      body_anal[ii].az  = hdf5.acc[ii * 3 + 2];
-      body_anal[ii].idx = hdf5.idx[ii    ];      body_anal[ii]. m = hdf5.  m[ii        ];      body_anal[ii].pot = hdf5.pot[ii        ];
-#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-      body_anal[ii].ax_ext = hdf5.acc_ext[ii * 3];      body_anal[ii].ay_ext = hdf5.acc_ext[ii * 3 + 1];      body_anal[ii].az_ext = hdf5.acc_ext[ii * 3 + 2];
-      body_anal[ii].pot_ext = hdf5.pot_ext[ii];
-#endif//SET_EXTERNAL_POTENTIAL_FIELD
-    }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 #else///USE_HDF5_FORMAT
     readSnapshot(&unit_read, &time, &steps, Ntot, file, ibody, (uint)ifile);
-    for(int ii = 0; ii < (int)Ntot; ii++){
-      body_anal[ii]. x  = ibody.pos[ii].x;      body_anal[ii]. y = ibody.pos[ii].y;      body_anal[ii]. z  = ibody.pos[ii].z;
-      body_anal[ii].vx  = ibody.vel[ii].x;      body_anal[ii].vy = ibody.vel[ii].y;      body_anal[ii].vz  = ibody.vel[ii].z;
-      body_anal[ii].ax  = ibody.acc[ii].x;      body_anal[ii].ay = ibody.acc[ii].y;      body_anal[ii].az  = ibody.acc[ii].z;
-      body_anal[ii].idx = ibody.idx[ii]  ;      body_anal[ii]. m = ibody.pos[ii].m;      body_anal[ii].pot = ibody.acc[ii].pot;
-#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
-      body_anal[ii].ax_ext = ibody.acc_ext[ii].x;      body_anal[ii].ay_ext = ibody.acc_ext[ii].y;      body_anal[ii].az_ext = ibody.acc_ext[ii].z;
-      body_anal[ii].pot_ext = ibody.acc_ext[ii].pot;
-#endif//SET_EXTERNAL_POTENTIAL_FIELD
-    }/* for(int ii = 0; ii < (int)Ntot; ii++){ */
 #endif//USE_HDF5_FORMAT
     if( unit_read != unit ){
       __KILL__(stderr, "ERROR: conflict about unit system detected (unit = %d, unit_read = %d)\n", unit, unit_read);
     }/* if( unit_read != unit ){ */
 #endif//ONLINE_ANALYSIS
 
-
-    mock_observation(Ntot, body_anal, bodyHead, bodyNum,
+    mock_observation(Ntot, body_anal,
+#ifdef  USE_HDF5_FORMAT
+		     hdf5,
+#else///USE_HDF5_FORMAT
+		     ibody,
+#endif//USE_HDF5_FORMAT
 		     xi_all, eta_all, dist_all, vxi_all, veta_all, vlos_all,
 		     map_all, box_all,
 		     disk2obs, dphi,
 		     score_all, modelID, file, time, steps);
-
 
 #ifndef ONLINE_ANALYSIS
   }
@@ -1254,9 +1336,6 @@ int main(int argc, char **argv)
 
   finalize_score(score_all, modelID, file);
 
-
-  free(bodyHead);
-  free(bodyNum);
 
   release_particle_arrays_for_analysis(body_anal, xi_all, eta_all, dist_all, vxi_all, veta_all, vlos_all);
   release_observation_arrays_for_analysis(map_all, box_all, score_all);

@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2018/07/14 (Sat)
+ * @date 2019/12/25 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -380,6 +380,9 @@ int main(int argc, char **argv)
 #   if  defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
      , false, NULL, 0
 #endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+#ifdef  ONLINE_ANALYSIS
+     , false, 0, NULL, 0
+#endif//ONLINE_ANALYSIS
      );
   removeHDF5DataType(hdf5type);
 #else///USE_HDF5_FORMAT

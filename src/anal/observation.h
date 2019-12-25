@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/12/18 (Wed)
+ * @date 2019/12/25 (Wed)
  *
  * Copyright (C) 2019 Yohei Miki
  * All rights reserved.
@@ -22,8 +22,10 @@
 
 
 /* 112 = 7 * 16 */
-#define NANGLE (112)
+/* #define NANGLE (56) */
+/* #define NANGLE (112) */
 /* #define NANGLE (224) */
+#define NANGLE (336)
 
 #define MAP_NX (32)
 #define MAP_NY (64)
@@ -71,6 +73,11 @@
 #define ATTR_TAG_NWS_WIDTH "width"
 #define ATTR_TAG_NWS_MASS  "minimum_mass"
 
+#define ATTR_TAG_MAP_XMIN  "Xmin"
+#define ATTR_TAG_MAP_XMAX  "Xmax"
+#define ATTR_TAG_MAP_YMIN  "Ymin"
+#define ATTR_TAG_MAP_YMAX  "Ymax"
+
 
 
 /* list of functions appeared in ``observation.c'' */
@@ -80,7 +87,7 @@ extern "C"
 #endif//__CUDACC__
 
   void set_splitter
-  (int *kind, int **bodyHead, int **bodyNum, char *file
+  (char *file
 #ifndef ONLINE_ANALYSIS
    , ulong *Ntot, int *unit
 #endif//ONLINE_ANALYSIS
@@ -91,6 +98,8 @@ extern "C"
 
   void allocate_observation_arrays_for_analysis(real **map, real **box, real **score);
   void  release_observation_arrays_for_analysis(real  *map, real  *box, real  *score);
+
+  void setNWstreamProperties(void);
 
   void initialize_score
   (real *score_best, const int modelID, char *file,
@@ -103,7 +112,12 @@ extern "C"
   void prepare_for_observation(const int num, nbody_aos *body, real disk2obs[restrict][3], real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vxi, real * restrict veta, real * restrict vlos, const real phi);
 
   void mock_observation
-  (const ulong Ntot, nbody_aos *body_anal, int * restrict bodyHead, int * restrict bodyNum,
+  (const ulong Ntot, nbody_aos *body_anal,
+#ifdef  USE_HDF5_FORMAT
+   nbody_hdf5 hdf5,
+#else///USE_HDF5_FORMAT
+   iparticle ibody,
+#endif//USE_HDF5_FORMAT
     real * restrict xi_all, real * restrict eta_all, real * restrict dist_all, real * restrict vxi_all, real * restrict veta_all, real * restrict vlos_all,
     real * restrict map_all, real * restrict box_all,
     real disk2obs[restrict][3], const real dphi,

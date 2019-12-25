@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/11/14 (Thu)
+ * @date 2019/12/25 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -138,6 +138,9 @@ extern "C"
 #endif//MONITOR_ENERGY_ERROR
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
+#ifdef  ONLINE_ANALYSIS
+			  , real * restrict score_all, int * restrict modelID
+#endif//ONLINE_ANALYSIS
 			  );
   void writeTentativeData
   (double  time, double  dt, ulong  steps, double elapsed, ulong num, iparticle body, char file[], int *last
@@ -153,6 +156,9 @@ extern "C"
 #   if  defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
    , const bool dumpGPUclock, gpu_clock *deviceMonitors, const int monitor_step
 #endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+#ifdef  ONLINE_ANALYSIS
+   , const bool dumpNWstream, const int Nscore, real * restrict score_all, const int modelID
+#endif//ONLINE_ANALYSIS
    );
 
   /* read/write particle data with MPI-IO */

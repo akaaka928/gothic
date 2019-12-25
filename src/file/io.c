@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/11/15 (Fri)
+ * @date 2019/12/25 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -725,6 +725,9 @@ void  readTentativeData(double *time, double *dt, ulong *steps, double *elapsed,
 #endif//MONITOR_ENERGY_ERROR
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
+#ifdef  ONLINE_ANALYSIS
+			, real * restrict score_all, int * restrict modelID
+#endif//ONLINE_ANALYSIS
 			)
 {
   __NOTE__("%s\n", "start");
@@ -968,6 +971,24 @@ void  readTentativeData(double *time, double *dt, ulong *steps, double *elapsed,
     *dropPrevTune = 1;
 #endif//RUN_WITHOUT_GOTHIC
 
+
+#ifdef  ONLINE_ANALYSIS
+  if( H5Lexists(target, "NWstream", H5P_DEFAULT) ){
+    group = H5Gopen(target, "NWstream", H5P_DEFAULT);
+
+    attribute = H5Aopen(group, "modelID", H5P_DEFAULT);
+    chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, modelID));
+    chkHDF5err(H5Aclose(attribute));
+
+    dataset = H5Dopen(group, "score", H5P_DEFAULT);
+    chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, score_all));
+    chkHDF5err(H5Dclose(dataset));
+
+    chkHDF5err(H5Gclose(group));
+  }
+#endif//ONLINE_ANALYSIS
+
+
   /* close the file */
   chkHDF5err(H5Fclose(target));
 #endif//USE_HDF5_FORMAT
@@ -1008,6 +1029,9 @@ void writeTentativeData
 #   if  defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
  , const bool dumpGPUclock, gpu_clock *deviceMonitors, const int monitor_step
 #endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+#ifdef  ONLINE_ANALYSIS
+ , const bool dumpNWstream, const int Nscore, real * restrict score_all, const int modelID
+#endif//ONLINE_ANALYSIS
  )
 {
   __NOTE__("%s\n", "start");
@@ -1317,6 +1341,30 @@ void writeTentativeData
   if( dumpGPUclock )
     appendGPUclockInfo(monitor_step, deviceMonitors, target, type);
 #endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+
+
+#ifdef  ONLINE_ANALYSIS
+  if( dumpNWstream ){
+    group = H5Gcreate(target, "NWstream", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+    dims = Nscore;
+    dataspace = H5Screate_simple(1, &dims, NULL);
+    dataset = H5Dcreate(group, "score", type.real, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, score_all));
+    chkHDF5err(H5Dclose(dataset));
+    chkHDF5err(H5Sclose(dataspace));
+
+    attr_dims = 1;
+    dataspace = H5Screate_simple(1, &attr_dims, NULL);
+    attribute = H5Acreate(group, "modelID", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &modelID));
+    chkHDF5err(H5Aclose(attribute));
+    chkHDF5err(H5Sclose(dataspace));
+
+    chkHDF5err(H5Gclose(group));
+  }
+#endif//ONLINE_ANALYSIS
+
 
   /* close the file */
   chkHDF5err(H5Fclose(target));

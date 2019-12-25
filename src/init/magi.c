@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/11/15 (Fri)
+ * @date 2019/12/25 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2292,6 +2292,9 @@ const int kidx_org = kidx;
 #   if  defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
 		     , false, NULL, 0
 #endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
+#ifdef  ONLINE_ANALYSIS
+		     , false, 0, NULL, 0
+#endif//ONLINE_ANALYSIS
 		     );
   updateConfigFile(last, file);
 
