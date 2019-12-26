@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/12/25 (Wed)
+ * @date 2019/12/26 (Thu)
  *
  * Copyright (C) 2019 Yohei Miki
  * All rights reserved.
@@ -20,6 +20,9 @@
 #include "macro.h"
 #include "../misc/structure.h"
 
+
+/* symmetry over the disk-plane (Northern or Southern hemisphere) */
+#define NFLIP (2)
 
 /* 112 = 7 * 16 */
 /* #define NANGLE (56) */
@@ -40,6 +43,7 @@
 
 #define ATTR_TAG_SCORE "score"
 #define ATTR_TAG_ANGLE "best_angle"
+#define ATTR_TAG_FACE  "best_face"
 #define ATTR_TAG_INDEX "best_index"
 #define ATTR_TAG_GRAD "score_grad"
 #define ATTR_TAG_MASS "score_mass"
@@ -63,6 +67,7 @@
 #define ATTR_TAG_ORBIT_VROT "orbit_vrot"
 
 #define ATTR_TAG_ANAL_PHI "angle_phi"
+#define ATTR_TAG_ANAL_INI "initial_hemisphere"
 
 #define ATTR_TAG_NWS_ANGLE "angle"
 #define ATTR_TAG_NWS_GRAD  "gradient_normalized"
@@ -109,7 +114,7 @@ extern "C"
 
   void finalize_score(real *score_final, const int modelID, char *file);
 
-  void prepare_for_observation(const int num, nbody_aos *body, real disk2obs[restrict][3], real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vxi, real * restrict veta, real * restrict vlos, const real phi);
+  void prepare_for_observation(const int num, nbody_aos *body, real disk2obs[restrict][3], real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vxi, real * restrict veta, real * restrict vlos, const real phi, const bool flip);
 
   void mock_observation
   (const ulong Ntot, nbody_aos *body_anal,

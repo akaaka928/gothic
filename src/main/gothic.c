@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/12/25 (Wed)
+ * @date 2019/12/26 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -722,7 +722,7 @@ static inline void dumpRestarter
 			     , true, deviceMonitors, *monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  ONLINE_ANALYSIS
-			     , true, NANGLE, score_all, modelID
+			     , true, NANGLE * NFLIP, score_all, modelID
 #endif//ONLINE_ANALYSIS
 			     );
 #else///SERIALIZED_EXECUTION

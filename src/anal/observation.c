@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/12/25 (Wed)
+ * @date 2019/12/26 (Thu)
  *
  * Copyright (C) 2019 Yohei Miki
  * All rights reserved.
@@ -380,7 +380,7 @@ void allocate_observation_arrays_for_analysis(real **map, real **box, real **sco
 
   *box = (real *)malloc(sizeof(real) * Nthreads * DISTANCE_NFIELD * DISTANCE_NDEPTH);  if( *box == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate box.");  }
 
-  *score = (real *)malloc(sizeof(real) * NANGLE);  if( *score == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate score.");  }
+  *score = (real *)malloc(sizeof(real) * NANGLE * NFLIP);  if( *score == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate score.");  }
 
 
   /** calculate distance to the NW stream */
@@ -468,7 +468,7 @@ void initialize_score
 
 
   const real worst_score = SCORE_UPPER_BOUND * 5 * 2;/**< 5 is # of criterion, 2 is just a safety parameter indicating that analysis is not yet performed */
-  for(int ii = 0; ii < NANGLE; ii++)
+  for(int ii = 0; ii < NANGLE * NFLIP; ii++)
     score_best[ii] = worst_score;
 
   char filename[256];
@@ -526,7 +526,11 @@ void initialize_score
   attr = H5Acreate(group, ATTR_TAG_ANGLE, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &tmp_phi));
   chkHDF5err(H5Aclose(attr));
-  const int tmp_idx = NANGLE;
+  const int tmp_face = NFLIP;
+  attr = H5Acreate(group, ATTR_TAG_FACE, H5T_NATIVE_INT, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_NATIVE_INT, &tmp_face));
+  chkHDF5err(H5Aclose(attr));
+  const int tmp_idx = NANGLE * NFLIP;
   attr = H5Acreate(group, ATTR_TAG_INDEX, H5T_NATIVE_INT, dspc, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attr, H5T_NATIVE_INT, &tmp_idx));
   chkHDF5err(H5Aclose(attr));
@@ -543,6 +547,10 @@ void initialize_score
   const int Nangle = NANGLE;
   attr = H5Acreate(group, "NANGLE", H5T_NATIVE_INT, dspc, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attr, H5T_NATIVE_INT, &Nangle));
+  chkHDF5err(H5Aclose(attr));
+  const int Nflip = NFLIP;
+  attr = H5Acreate(group, "NFLIP", H5T_NATIVE_INT, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_NATIVE_INT, &Nflip));
   chkHDF5err(H5Aclose(attr));
 
   const int Nx = MAP_NX;
@@ -568,44 +576,50 @@ void initialize_score
   chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &gc_r));
   chkHDF5err(H5Aclose(attr));
 
-  for(int ii = 0; ii < NANGLE; ii++){
-      char grp[16];
-      sprintf(grp, "%s_%d", GROUP_TAG_VIEW, ii);
-      hid_t subgrp = H5Gcreate(group, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  for(int ii = 0; ii < NANGLE * NFLIP; ii++){
+    char grp[16];
+    sprintf(grp, "%s_%d", GROUP_TAG_VIEW, ii);
+    hid_t subgrp = H5Gcreate(group, grp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-      attr = H5Acreate(subgrp, ATTR_TAG_SCORE, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
-      chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &worst_score));
-      chkHDF5err(H5Aclose(attr));
-      attr = H5Acreate(subgrp, ATTR_TAG_GRAD, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
-      chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &worst_score));
-      chkHDF5err(H5Aclose(attr));
-      attr = H5Acreate(subgrp, ATTR_TAG_MASS, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
-      chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &worst_score));
-      chkHDF5err(H5Aclose(attr));
-      attr = H5Acreate(subgrp, ATTR_TAG_WIDE, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
-      chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &worst_score));
-      chkHDF5err(H5Aclose(attr));
-      attr = H5Acreate(subgrp, ATTR_TAG_DIST, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
-      chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &worst_score));
-      chkHDF5err(H5Aclose(attr));
-      attr = H5Acreate(subgrp, ATTR_TAG_VLOS, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
-      chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &worst_score));
-      chkHDF5err(H5Aclose(attr));
-      const double time = 0.0;
-      attr = H5Acreate(subgrp, ATTR_TAG_TIME, H5T_NATIVE_DOUBLE, dspc, H5P_DEFAULT, H5P_DEFAULT);
-      chkHDF5err(H5Awrite(attr, H5T_NATIVE_DOUBLE, &time));
-      chkHDF5err(H5Aclose(attr));
-      const ulong step = 0;
-      attr = H5Acreate(subgrp, ATTR_TAG_STEP, H5T_NATIVE_ULONG, dspc, H5P_DEFAULT, H5P_DEFAULT);
-      chkHDF5err(H5Awrite(attr, H5T_NATIVE_ULONG, &step));
-      chkHDF5err(H5Aclose(attr));
+    attr = H5Acreate(subgrp, ATTR_TAG_SCORE, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &worst_score));
+    chkHDF5err(H5Aclose(attr));
+    attr = H5Acreate(subgrp, ATTR_TAG_GRAD, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &worst_score));
+    chkHDF5err(H5Aclose(attr));
+    attr = H5Acreate(subgrp, ATTR_TAG_MASS, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &worst_score));
+    chkHDF5err(H5Aclose(attr));
+    attr = H5Acreate(subgrp, ATTR_TAG_WIDE, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &worst_score));
+    chkHDF5err(H5Aclose(attr));
+    attr = H5Acreate(subgrp, ATTR_TAG_DIST, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &worst_score));
+    chkHDF5err(H5Aclose(attr));
+    attr = H5Acreate(subgrp, ATTR_TAG_VLOS, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &worst_score));
+    chkHDF5err(H5Aclose(attr));
+    const double time = 0.0;
+    attr = H5Acreate(subgrp, ATTR_TAG_TIME, H5T_NATIVE_DOUBLE, dspc, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attr, H5T_NATIVE_DOUBLE, &time));
+    chkHDF5err(H5Aclose(attr));
+    const ulong step = 0;
+    attr = H5Acreate(subgrp, ATTR_TAG_STEP, H5T_NATIVE_ULONG, dspc, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attr, H5T_NATIVE_ULONG, &step));
+    chkHDF5err(H5Aclose(attr));
 
-      const real phi = (real)ii * TWO * M_PI / (real)NANGLE;
-      attr = H5Acreate(subgrp, ATTR_TAG_ANAL_PHI, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
-      chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &phi));
-      chkHDF5err(H5Aclose(attr));
+    const int jphi = ii % NANGLE;
+    const real phi = (real)jphi * TWO * M_PI / (real)NANGLE;
+    attr = H5Acreate(subgrp, ATTR_TAG_ANAL_PHI, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &phi));
+    chkHDF5err(H5Aclose(attr));
 
-      chkHDF5err(H5Gclose(subgrp));
+    const int kflip = ii / NANGLE;
+    attr = H5Acreate(subgrp, ATTR_TAG_ANAL_INI, H5T_NATIVE_INT, dspc, H5P_DEFAULT, H5P_DEFAULT);
+    chkHDF5err(H5Awrite(attr, H5T_NATIVE_INT, &kflip));
+    chkHDF5err(H5Aclose(attr));
+
+    chkHDF5err(H5Gclose(subgrp));
   }
 
   chkHDF5err(H5Sclose(dspc));
@@ -676,9 +690,9 @@ void finalize_score(real *score_final, const int modelID, char *file)
   __NOTE__("%s\n", "start");
 
   real best_score = SCORE_UPPER_BOUND * 5 * 2;/**< 5 is # of criterion, 2 is just a safety parameter indicating that analysis is not yet performed */
-  int best_index = NANGLE;
+  int best_index = NANGLE * NFLIP;
 
-  for(int ii = 0; ii < NANGLE; ii++){
+  for(int ii = 0; ii < NANGLE * NFLIP; ii++){
     const real score = score_final[ii];
     if( score < best_score ){
       best_score = score;
@@ -701,9 +715,13 @@ void finalize_score(real *score_final, const int modelID, char *file)
   attr = H5Aopen(group, ATTR_TAG_SCORE, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &best_score));
   chkHDF5err(H5Aclose(attr));
-  const real best_angle = (real)best_index * TWO * M_PI / (real)NANGLE;
+  const real best_angle = (real)(best_index % NANGLE) * TWO * M_PI / (real)NANGLE;
   attr = H5Aopen(group, ATTR_TAG_ANGLE, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &best_angle));
+  chkHDF5err(H5Aclose(attr));
+  const int best_flip = best_index / NANGLE;
+  attr = H5Aopen(group, ATTR_TAG_FACE, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_NATIVE_INT, &best_flip));
   chkHDF5err(H5Aclose(attr));
   attr = H5Aopen(group, ATTR_TAG_INDEX, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attr, H5T_NATIVE_INT, &best_index));
@@ -726,7 +744,7 @@ void finalize_score(real *score_final, const int modelID, char *file)
 }
 
 
-void prepare_for_observation(const int num, nbody_aos *body, real disk2obs[restrict][3], real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vxi, real * restrict veta, real * restrict vlos, const real phi)
+void prepare_for_observation(const int num, nbody_aos *body, real disk2obs[restrict][3], real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vxi, real * restrict veta, real * restrict vlos, const real phi, const bool flip)
 {
   __NOTE__("%s\n", "start");
 
@@ -738,9 +756,16 @@ void prepare_for_observation(const int num, nbody_aos *body, real disk2obs[restr
   real view[3][3];
   const real cosp = COS(phi);
   const real sinp = SIN(phi);
-  view[0][0] = cosp;  view[0][1] = -sinp;  view[0][2] =	 ZERO;
-  view[1][0] = sinp;  view[1][1] =  cosp;  view[1][2] =	 ZERO;
-  view[2][0] = ZERO;  view[2][1] =  ZERO;  view[2][2] = UNITY;
+  if( !flip ){
+    view[0][0] =  cosp;  view[0][1] = -sinp;  view[0][2] =   ZERO;
+    view[1][0] =  sinp;  view[1][1] =  cosp;  view[1][2] =   ZERO;
+    view[2][0] =  ZERO;  view[2][1] =  ZERO;  view[2][2] =  UNITY;
+  }
+  else{
+    view[0][0] = -cosp;  view[0][1] =  sinp;  view[0][2] =   ZERO;
+    view[1][0] = -sinp;  view[1][1] = -cosp;  view[1][2] =   ZERO;
+    view[2][0] =  ZERO;  view[2][1] =  ZERO;  view[2][2] = -UNITY;
+  }
 
   real rot[3][3];
   for(int ii = 0; ii < 3; ii++)
@@ -845,9 +870,10 @@ void mock_observation
 
   /** data analysis using OpenMP: parallelization about viewing angle */
 #pragma omp parallel for num_threads(CPUS_PER_PROCESS)
-  for(int pp = 0; pp < NANGLE; pp++){
+  for(int pp = 0; pp < NANGLE * NFLIP; pp++){
     const int threadIdx = omp_get_thread_num();
-    const real phi = dphi * (real)pp;
+    const real phi = dphi * (real)(pp % NANGLE);
+    const bool flip = pp / NANGLE;
 
     real *pi_xi  ;    pi_xi   = &  xi_all[threadIdx * Ntot];
     real *pi_eta ;    pi_eta  = & eta_all[threadIdx * Ntot];
@@ -857,7 +883,7 @@ void mock_observation
     real *pi_vlos;    pi_vlos = &vlos_all[threadIdx * Ntot];
 
     /** coordinate transformation to observed frame */
-    prepare_for_observation(Ntot, body_anal, disk2obs, pi_xi, pi_eta, pi_dist, pi_vxi, pi_veta, pi_vlos, phi);
+    prepare_for_observation(Ntot, body_anal, disk2obs, pi_xi, pi_eta, pi_dist, pi_vxi, pi_veta, pi_vlos, phi, flip);
 
 
 
@@ -1311,7 +1337,7 @@ int main(int argc, char **argv)
 #ifdef  USE_HDF5_FORMAT
     readSnapshot(&unit_read, &time, &steps, Ntot, file, (uint)ifile, &hdf5, hdf5type);
 #else///USE_HDF5_FORMAT
-    readSnapshot(&unit_read, &time, &steps, Ntot, file, ibody, (uint)ifile);
+    readSnapshot(&unit_read, &time, &steps, Ntot, file, (uint)ifile, ibody);
 #endif//USE_HDF5_FORMAT
     if( unit_read != unit ){
       __KILL__(stderr, "ERROR: conflict about unit system detected (unit = %d, unit_read = %d)\n", unit, unit_read);
