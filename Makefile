@@ -67,7 +67,7 @@ DISABLE_SHIFT_CENTER	:= 0
 ADD_GAS_FOR_MAGI	:= 0
 #################################################################################################
 # Enable on-the-fly analysis
-ENABLE_ONLINE_ANALYSIS	:= 0
+ENABLE_ONLINE_ANALYSIS	:= 1
 #################################################################################################
 # Debugging options
 EVALUATE_FORCE_ERROR	:= 0
@@ -605,7 +605,7 @@ CCARG	+= -DPREPARE_XDMF_FILES
 endif
 #################################################################################################
 ifeq ($(ENABLE_ONLINE_ANALYSIS), 1)
-CCARG	+= -DONLINE_ANALYSIS
+CCARG	+= -DONLINE_ANALYSIS -DSUPPORT_CMAES_RESTART
 endif
 #################################################################################################
 
@@ -624,7 +624,8 @@ INITDIR	:= $(SRCDIR)/init
 PLOTDIR	:= $(SRCDIR)/plot
 PARADIR	:= $(SRCDIR)/para
 ANALDIR	:= $(SRCDIR)/anal
-VPATH	:= $(MAINDIR) $(MISCDIR) $(UTILDIR) $(FILEDIR) $(TIMEDIR) $(SORTDIR) $(TREEDIR) $(INITDIR) $(PLOTDIR) $(PARADIR) $(ANALDIR)
+FINDDIR	:= $(SRCDIR)/find
+VPATH	:= $(MAINDIR) $(MISCDIR) $(UTILDIR) $(FILEDIR) $(TIMEDIR) $(SORTDIR) $(TREEDIR) $(INITDIR) $(PLOTDIR) $(PARADIR) $(ANALDIR) $(FINDDIR)
 #################################################################################################
 ## Executables for collisionless N-body code
 GOTHIC	:= $(BINDIR)/gothic
@@ -663,6 +664,8 @@ OPTCFG	:= $(BINDIR)/showOptConfig
 SAMPLE	:= $(BINDIR)/sample
 ifeq ($(ENABLE_ONLINE_ANALYSIS), 0)
 OBSERVE	:= $(BINDIR)/observation
+else
+EVOLVE	:= $(BINDIR)/cmaes
 endif
 #################################################################################################
 ## Plugins for VisIt to read HDF5 files
@@ -791,6 +794,9 @@ M31LIB	:= m31coord.c
 PICKSRC	:= pickup.c
 SOBSSRC	:= subaru.c
 OBSSRC	:= observation.c
+EVOLSRC	:= generate.c
+CMALIB	:= cmaes.c
+CMAFILE	:= cmaes_io.c
 #################################################################################################
 
 
@@ -1035,6 +1041,18 @@ ifeq ($(ENABLE_ONLINE_ANALYSIS), 0)
 OBJOBS	:= $(patsubst %.c, $(OBJDIR)/%.ompmpi.hdf5.o, $(notdir $(OBSSRC)))
 OBJOBS	+= $(patsubst %.c, $(OBJDIR)/%.o, $(notdir $(M31LIB)))
 OBJOBS	+= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o, $(notdir $(FILELIB) $(ALLCLIB)))
+else
+OBJEVOL	:= $(patsubst %.c,  $(OBJDIR)/%.mpi.sfmt.hdf5.o, $(notdir $(EVOLSRC)))
+OBJCMA	:= $(patsubst %.c,  $(OBJDIR)/%.sfmt.o, $(notdir $(CMALIB)))
+ifeq ($(DATAFILE_FORMAT_HDF5), 1)
+ifeq ($(USE_OFFICIAL_SFMT), 1)
+OBJCMA	+= $(patsubst %.c,  $(OBJDIR)/%.mpi.sfmt.hdf5.o, $(notdir $(CMAFILE)))
+else
+OBJCMA	+= $(patsubst %.c,  $(OBJDIR)/%.mpi.hdf5.o, $(notdir $(CMAFILE)))
+endif
+else
+OBJCMA	+= $(patsubst %.c,  $(OBJDIR)/%.o,          $(notdir $(CMAFILE)))
+endif
 endif
 #################################################################################################
 
@@ -1061,11 +1079,13 @@ anal:	$(ANALACT) $(ANALERR) $(ANALPRF)
 mbh:	$(ANALMBH)
 halo:	$(DMHALO)
 bulge:	$(BULGE) $(BHMASS)
-m31:	$(M31OBS) $(M31ENE) $(PICKUP) $(SUBARU) $(OBSERVE)
+m31:	$(M31OBS) $(M31ENE) $(PICKUP) $(SUBARU) $(OBSERVE) $(EVOLVE)
 pickup:	$(PICKUP)
 subaru:	$(SUBARU)
 ifeq ($(ENABLE_ONLINE_ANALYSIS), 0)
 obs:	$(OBSERVE)
+else
+evol:	$(EVOLVE)
 endif
 sass:	$(GOTHIC).sass
 tags:	TAGS
@@ -1287,6 +1307,9 @@ endif
 ifeq ($(ENABLE_ONLINE_ANALYSIS), 0)
 $(OBSERVE):	$(OBJOBS)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJOBS) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(OMPLIB) $(CCLIB)
+else
+$(EVOLVE):	$(OBJEVOL) $(OBJCMA) $(MYLIB)/lib$(LIBPREC)myutil.a $(MYLIB)/lib$(LIBPREC)rand_sfmt$(SFMTPER).a $(MYLIB)/libsfmt$(SFMTPER).a $(MYLIB)/lib$(LIBPREC)hdf5lib.a $(MYLIB)/lib$(LIBPREC)mpilib.a $(MYLIB)/lib$(LIBPREC)constants.a $(MYLIB)/lib$(LIBPREC)timer.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEVOL) $(OBJCMA) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)rand_sfmt$(SFMTPER) -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(SFMTLIB) $(LAPACKLIB) $(CCLIB)
 endif
 #################################################################################################
 # sass file
@@ -1336,7 +1359,7 @@ endif
 	$(VERBOSE)rm -f $(ANALMBH)
 	$(VERBOSE)rm -f $(DMHALO)
 	$(VERBOSE)rm -f $(BULGE) $(BHMASS)
-	$(VERBOSE)rm -f $(M31OBS) $(M31ENE) $(PICKUP) $(SUBARU) $(OBSERVE)
+	$(VERBOSE)rm -f $(M31OBS) $(M31ENE) $(PICKUP) $(SUBARU) $(OBSERVE) $(EVOLVE)
 	$(VERBOSE)rm -f $(SAMPLE)
 #################################################################################################
 visit:	$(DIRBODY)/Makefile $(DIRSNAP)/Makefile $(DIRPLOT)/Makefile $(DIRPM31)/Makefile $(DIRAERR)/Makefile $(DIRDUMP)/Makefile $(DIRDISK)/Makefile $(DIRDIST)/Makefile $(DIRPROF)/Makefile
@@ -1683,5 +1706,13 @@ ifeq ($(ENABLE_ONLINE_ANALYSIS), 0)
 OBS_DEP	+=	$(MYINC)/myutil.h	$(FILEDIR)/io.h
 endif
 $(OBJDIR)/observation.ompmpi.hdf5.o:	$(OBS_DEP)
+#################################################################################################
+# ## $(FINDDIR)/*
+CMAES_DEP	:=	$(COMMON_DEP)	$(MYINC)/macro.h	$(MYINC)/name.h	$(MYINC)/myutil.h	$(MYINC)/timer.h	$(MYINC)/rand.h	$(FINDDIR)/cmaes.h	$(FINDDIR)/cmaes_io.h
+$(OBJDIR)/generate.mpi.sfmt.hdf5.o:	$(CMAES_DEP)	$(MYINC)/constants.h	$(MYINC)/mpilib.h	$(ANALDIR)/observation.h
+$(OBJDIR)/cmaes.sfmt.o:	$(CMAES_DEP)
+$(OBJDIR)/cmaes_io.mpi.sfmt.hdf5.o:	$(CMAES_DEP)
+$(OBJDIR)/cmaes_io.mpi.hdf5.o:	$(CMAES_DEP)
+$(OBJDIR)/cmaes_io.o:	$(CMAES_DEP)
 #################################################################################################
 #################################################################################################

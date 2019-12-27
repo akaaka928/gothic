@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/12/26 (Thu)
+ * @date 2019/12/27 (Fri)
  *
  * Copyright (C) 2019 Yohei Miki
  * All rights reserved.
@@ -459,7 +459,7 @@ void setNWstreamProperties(void)
 
 
 void initialize_score
-(real *score_best, const int modelID, char *file,
+(real *score_best, const int modelID, char *file, const double ft,
  const real logM_dm, const real logrs_dm,
  const real logM_star, const real logr0_star, const real logrt_star,
  const real theta, const real vr, const real vt, const real vangle)
@@ -488,6 +488,14 @@ void initialize_score
   group = H5Gcreate(target, GROUP_TAG_INFO, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   attr_dims = 1;
   dspc = H5Screate_simple(1, &attr_dims, NULL);
+
+  attr = H5Acreate(group, ATTR_TAG_FINISH_TIME, H5T_NATIVE_DOUBLE, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_NATIVE_DOUBLE, &ft));
+  chkHDF5err(H5Aclose(attr));
+  const double initial_time = -1.0;
+  attr = H5Acreate(group, ATTR_TAG_ANALYZED_TIME, H5T_NATIVE_DOUBLE, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_NATIVE_DOUBLE, &initial_time));
+  chkHDF5err(H5Aclose(attr));
 
   attr = H5Acreate(group, ATTR_TAG_DM_MASS, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &logM_dm));
@@ -818,16 +826,16 @@ static inline real normalize_score(const real score, const int score_max, const 
 }
 
 void mock_observation
-  (const ulong Ntot, nbody_aos *body_anal,
+(const ulong Ntot, nbody_aos *body_anal,
 #ifdef  USE_HDF5_FORMAT
-   nbody_hdf5 hdf5,
+ nbody_hdf5 hdf5,
 #else///USE_HDF5_FORMAT
-   iparticle ibody,
+ iparticle ibody,
 #endif//USE_HDF5_FORMAT
-   real * restrict xi_all, real * restrict eta_all, real * restrict dist_all, real * restrict vxi_all, real * restrict veta_all, real * restrict vlos_all,
-   real * restrict map_all, real * restrict box_all,
-   real disk2obs[restrict][3], const real dphi,
-   real * restrict score_best, const int modelID, char *file, const double time, const ulong step)
+ real * restrict xi_all, real * restrict eta_all, real * restrict dist_all, real * restrict vxi_all, real * restrict veta_all, real * restrict vlos_all,
+ real * restrict map_all, real * restrict box_all,
+ real disk2obs[restrict][3], const real dphi,
+ real * restrict score_best, const int modelID, char *file, const double time, const ulong step)
 {
   __NOTE__("%s\n", "start");
 
@@ -1188,6 +1196,14 @@ void mock_observation
   }
 
 
+  /** update time */
+  hid_t group = H5Gopen(target, GROUP_TAG_INFO, H5P_DEFAULT);
+  hid_t attr = H5Aopen(group, ATTR_TAG_ANALYZED_TIME, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_NATIVE_DOUBLE, &time));
+  chkHDF5err(H5Aclose(attr));
+  chkHDF5err(H5Gclose(group));
+
+
   chkHDF5err(H5Fclose(target));
 
 
@@ -1201,10 +1217,11 @@ void mock_observation
 int main(int argc, char **argv)
 {
 #ifndef ONLINE_ANALYSIS
-  if( argc < 15 ){
-    __FPRINTF__(stderr, "insufficient number of input parameters of %d (at least %d inputs are required).\n", argc, 15);
+  if( argc < 16 ){
+    __FPRINTF__(stderr, "insufficient number of input parameters of %d (at least %d inputs are required).\n", argc, 16);
     __FPRINTF__(stderr, "Usage is: %s\n", argv[0]);
     __FPRINTF__(stderr, "          -file=<char *>\n");
+    __FPRINTF__(stderr, "          -ft=<double>\n");
     __FPRINTF__(stderr, "          -start=<int> -end=<int> -interval=<int>\n");
     __FPRINTF__(stderr, "          -modelID=<int>\n");
     __FPRINTF__(stderr, "          -logM_dm=<real> -logrs_dm=<real>\n");
@@ -1233,6 +1250,8 @@ int main(int argc, char **argv)
 
   ulong Ntot;
   int   unit;
+
+  double ft;
 
 
 #ifdef  USE_HDF5_FORMAT
@@ -1286,6 +1305,11 @@ int main(int argc, char **argv)
 #ifndef ONLINE_ANALYSIS
   setPhysicalConstantsAndUnitSystem(unit, 1);
 
+  double tmp;
+  requiredCmdArg(getCmdArgDbl(argc, (const char * const *)argv, "ft", &tmp));
+  extern const double time_astro2com;
+  ft = (tmp * time_astro2com);
+
 #ifdef  USE_HDF5_FORMAT
   allocSnapshotArray
     (&hdf5_pos, &hdf5_vel, &hdf5_acc, &hdf5_m, &hdf5_pot, &hdf5_idx,
@@ -1320,7 +1344,7 @@ int main(int argc, char **argv)
 
 
   /** initialization for the analysis */
-  initialize_score(score_all, modelID, file,
+  initialize_score(score_all, modelID, file, ft,
 		   logM_dm, logrs_dm,
 		   logM_star, logr0_star, logrt_star,
 		   theta, vrad, vtan, vangle);

@@ -25,6 +25,7 @@ fi
 # cold collapse of a uniform sphere
 if [ $PROBLEM -eq 0 ]; then
     FILE=nws
+    FINISH=14000.0
     INI=0
     END=560
     INTERVAL=1
@@ -44,7 +45,7 @@ if [ $PROBLEM -eq 0 ]; then
 fi
 ###############################################################
 # set input arguments
-OPTION="-file=$FILE -start=$INI -end=$END -interval=$INTERVAL -modelID=$MODEL -logM_dm=$LOGM_DM -logrs_dm=$LOGRS_DM -logM_star=$LOGM_STAR -logr0_star=$LOGR0_STAR -logrt_star=$LOGRT_STAR -theta=$THETA -vrad=$VRAD -vtan=$VTAN -vangle=$VANGLE -eps=$EPS"
+OPTION="-file=$FILE -start=$INI -end=$END -interval=$INTERVAL -modelID=$MODEL -logM_dm=$LOGM_DM -logrs_dm=$LOGRS_DM -logM_star=$LOGM_STAR -logr0_star=$LOGR0_STAR -logrt_star=$LOGRT_STAR -theta=$THETA -vrad=$VRAD -vtan=$VTAN -vangle=$VANGLE -eps=$EPS -ft=$FINISH"
 ###############################################################
 # set environmental variables for OpenMP
 OMP_OPT_ENV="env OMP_DISPLAY_ENV=verbose OMP_PLACES=cores"

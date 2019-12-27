@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/12/26 (Thu)
+ * @date 2019/12/27 (Fri)
  *
  * Copyright (C) 2019 Yohei Miki
  * All rights reserved.
@@ -56,6 +56,8 @@
 #define DATA_TAG_MAP "map"
 #define DATA_TAG_BOX "box"
 
+#define ATTR_TAG_FINISH_TIME "finish_time"
+#define ATTR_TAG_ANALYZED_TIME "time"
 #define ATTR_TAG_DM_MASS "DM_mass"
 #define ATTR_TAG_DM_SIZE "DM_rs"
 #define ATTR_TAG_STAR_MASS "stellar_mass"
@@ -107,7 +109,7 @@ extern "C"
   void setNWstreamProperties(void);
 
   void initialize_score
-  (real *score_best, const int modelID, char *file,
+  (real *score_best, const int modelID, char *file, const double ft,
    const real logM_dm, const real logrs_dm,
    const real logM_star, const real logr0_star, const real logrt_star,
    const real theta, const real vr, const real vt, const real vangle);

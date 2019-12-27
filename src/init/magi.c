@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/12/25 (Wed)
+ * @date 2019/12/27 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1211,7 +1211,7 @@ int main(int argc, char **argv)
     __FPRINTF__(stderr, "          -Ntot=<unsigned long int>\n");
     __FPRINTF__(stderr, "          -config=<char *>\n");
     __FPRINTF__(stderr, "          -eps=<real> -eta=<real>\n");
-    __FPRINTF__(stderr, "          -ft=<real> -snapshotInterval=<real> -saveInterval=<real>\n");
+    __FPRINTF__(stderr, "          -ft=<double> -snapshotInterval=<double> -saveInterval=<double>\n");
     __FPRINTF__(stderr, "          -enforceInputSoftening=<int> (optional)\n");
     __FPRINTF__(stderr, "          -denoisingDistributionFunction=<int> (optional)\n");
 #ifdef  ENABLE_GASEOUS_COMPONENT

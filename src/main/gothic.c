@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/12/26 (Thu)
+ * @date 2019/12/27 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2220,7 +2220,7 @@ int main(int argc, char **argv)
     real vangle;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "vangle", &vangle));
 
     /** initialization for the analysis */
-    initialize_score(score_all, modelID, file,
+    initialize_score(score_all, modelID, file, ft,
 		     logM_dm, logrs_dm,
 		     logM_star, logr0_star, logrt_star,
 		     theta, vrad, vtan, vangle);

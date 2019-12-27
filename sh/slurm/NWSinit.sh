@@ -11,12 +11,12 @@
 ###############################################################
 # generation of the simulation
 if [ -z "$GENERATION" ]; then
-    GENERATION=0
+    GENERATION=1
 fi
 ###############################################################
 # number of runs in this generation
 if [ -z "$NRUN" ]; then
-    NRUN=128
+    NRUN=64
 fi
 ###############################################################
 
@@ -94,7 +94,7 @@ do
     # set model ID
     ID=`expr $ii - 1`
     FILE=gen${GENERATION}-run${ID}-magi
-    CONFIG=gen${GENERATION}/run${ID}-magi.cfg
+    CONFIG=nws-find/gen${GENERATION}/run${ID}-magi.cfg
 
     # set input arguments
     OPTION="-file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE -denoisingDistributionFunction=$DENOISE_DF"
