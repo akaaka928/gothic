@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/12/27 (Fri)
+ * @date 2020/01/05 (Sun)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2293,7 +2293,7 @@ const int kidx_org = kidx;
 		     , false, NULL, 0
 #endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
 #ifdef  ONLINE_ANALYSIS
-		     , false, 0, NULL, 0
+		     , false, 0, NULL
 #endif//ONLINE_ANALYSIS
 		     );
   updateConfigFile(last, file);
@@ -2885,6 +2885,7 @@ void outputFundamentalInformation
 #endif//MAKE_COLUMN_DENSITY_PROFILE
 #endif//USE_OSIPKOV_MERRITT_METHOD
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
+	fprintf(fp, "Escape velocity            v_esc is %e (= %e %s)\n", sqrt(2.0 * prf[ii][0].psi_tot), sqrt(2.0 * prf[ii][0].psi_tot) * velocity2astro, velocity_astro_unit_name);
 
 	int ll, rr;
 	double alpha, val;
@@ -2925,6 +2926,8 @@ void outputFundamentalInformation
 #endif//MAKE_COLUMN_DENSITY_PROFILE
 #endif//USE_OSIPKOV_MERRITT_METHOD
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
+	val = sqrt(2.0 * ((1.0 - alpha) * prf[ii][ll].psi_tot + alpha * prf[ii][rr].psi_tot));
+	fprintf(fp, "Escape velocity            v_esc is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
 
 #ifdef  USE_OSIPKOV_MERRITT_METHOD
 	/* physical quantities @ r = ra */
@@ -2957,6 +2960,9 @@ void outputFundamentalInformation
 	fprintf(fp, "Anisotropy parameter        beta is %e\n", val);
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
 
+	val = sqrt(2.0 * ((1.0 - alpha) * prf[ii][ll].psi_tot + alpha * prf[ii][rr].psi_tot));
+	fprintf(fp, "Escape velocity            v_esc is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+
 	/* physical quantities @ r = 2 ra */
 	findIdx_rad(2.0 * cfg[ii].ra, prf[ii], &ll, &rr);
 	alpha = (2.0 * cfg[ii].ra - prf[ii][ll].rad) / (prf[ii][rr].rad - prf[ii][ll].rad);
@@ -2987,6 +2993,9 @@ void outputFundamentalInformation
 	fprintf(fp, "Anisotropy parameter        beta is %e\n", val);
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
 
+	val = sqrt(2.0 * ((1.0 - alpha) * prf[ii][ll].psi_tot + alpha * prf[ii][rr].psi_tot));
+	fprintf(fp, "Escape velocity            v_esc is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+
 	/* physical quantities @ r = 3 ra */
 	findIdx_rad(3.0 * cfg[ii].ra, prf[ii], &ll, &rr);
 	alpha = (3.0 * cfg[ii].ra - prf[ii][ll].rad) / (prf[ii][rr].rad - prf[ii][ll].rad);
@@ -3016,6 +3025,9 @@ void outputFundamentalInformation
 	val = (1.0 - alpha) * prf[ii][ll].bet  + alpha * prf[ii][rr].bet;
 	fprintf(fp, "Anisotropy parameter        beta is %e\n", val);
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
+
+	val = sqrt(2.0 * ((1.0 - alpha) * prf[ii][ll].psi_tot + alpha * prf[ii][rr].psi_tot));
+	fprintf(fp, "Escape velocity            v_esc is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
 #endif//USE_OSIPKOV_MERRITT_METHOD
 
       /* physical quantities @ r = r_{1/2} */
@@ -3055,7 +3067,10 @@ void outputFundamentalInformation
 #endif//USE_OSIPKOV_MERRITT_METHOD
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
 
-      /* physical quantities @ r = R_{eff} */
+	val = sqrt(2.0 * ((1.0 - alpha) * prf[ii][ll].psi_tot + alpha * prf[ii][rr].psi_tot));
+	fprintf(fp, "Escape velocity            v_esc is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+
+	/* physical quantities @ r = R_{eff} */
 	findIdx_rad(cfg[ii].Reff, prf[ii], &ll, &rr);
 	alpha = (cfg[ii].Reff - prf[ii][ll].rad) / (prf[ii][rr].rad - prf[ii][ll].rad);
 
@@ -3091,6 +3106,17 @@ void outputFundamentalInformation
 #endif//MAKE_COLUMN_DENSITY_PROFILE
 #endif//USE_OSIPKOV_MERRITT_METHOD
 #endif//MAKE_VELOCITY_DISPERSION_PROFILE
+
+	val = sqrt(2.0 * ((1.0 - alpha) * prf[ii][ll].psi_tot + alpha * prf[ii][rr].psi_tot));
+	fprintf(fp, "Escape velocity            v_esc is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name);
+
+	/* /\* physical quantities @ r = 10 r_s *\/ */
+	/* findIdx_rad(10.0 * cfg[ii].rs, prf[ii], &ll, &rr); */
+	/* alpha = (10.0 * cfg[ii].rs - prf[ii][ll].rad) / (prf[ii][rr].rad - prf[ii][ll].rad); */
+	/* fprintf(fp, "#########\n"); */
+	/* fprintf(fp, "Representative quantities at r = 10 rs:\n"); */
+	/* val = sqrt(2.0 * ((1.0 - alpha) * prf[ii][ll].psi_tot + alpha * prf[ii][rr].psi_tot)); */
+	/* fprintf(fp, "Escape velocity            v_esc is %e (= %e %s)\n", val, val * velocity2astro, velocity_astro_unit_name); */
       }/* if( ii < skind ){ */
 
       fprintf(fp, "#############################################################################\n");

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/12/25 (Wed)
+ * @date 2020/01/03 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -139,7 +139,7 @@ extern "C"
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
 #ifdef  ONLINE_ANALYSIS
-			  , real * restrict score_all, int * restrict modelID
+			  , real * restrict score_all
 #endif//ONLINE_ANALYSIS
 			  );
   void writeTentativeData
@@ -157,7 +157,7 @@ extern "C"
    , const bool dumpGPUclock, gpu_clock *deviceMonitors, const int monitor_step
 #endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
 #ifdef  ONLINE_ANALYSIS
-   , const bool dumpNWstream, const int Nscore, real * restrict score_all, const int modelID
+   , const bool dumpNWstream, const int Nscore, real * restrict score_all
 #endif//ONLINE_ANALYSIS
    );
 

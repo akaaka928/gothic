@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/12/25 (Wed)
+ * @date 2020/01/03 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -726,7 +726,7 @@ void  readTentativeData(double *time, double *dt, ulong *steps, double *elapsed,
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
 #ifdef  ONLINE_ANALYSIS
-			, real * restrict score_all, int * restrict modelID
+			, real * restrict score_all
 #endif//ONLINE_ANALYSIS
 			)
 {
@@ -976,10 +976,6 @@ void  readTentativeData(double *time, double *dt, ulong *steps, double *elapsed,
   if( H5Lexists(target, "NWstream", H5P_DEFAULT) ){
     group = H5Gopen(target, "NWstream", H5P_DEFAULT);
 
-    attribute = H5Aopen(group, "modelID", H5P_DEFAULT);
-    chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, modelID));
-    chkHDF5err(H5Aclose(attribute));
-
     dataset = H5Dopen(group, "score", H5P_DEFAULT);
     chkHDF5err(H5Dread(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, score_all));
     chkHDF5err(H5Dclose(dataset));
@@ -1030,7 +1026,7 @@ void writeTentativeData
  , const bool dumpGPUclock, gpu_clock *deviceMonitors, const int monitor_step
 #endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
 #ifdef  ONLINE_ANALYSIS
- , const bool dumpNWstream, const int Nscore, real * restrict score_all, const int modelID
+ , const bool dumpNWstream, const int Nscore, real * restrict score_all
 #endif//ONLINE_ANALYSIS
  )
 {
@@ -1352,13 +1348,6 @@ void writeTentativeData
     dataset = H5Dcreate(group, "score", type.real, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     chkHDF5err(H5Dwrite(dataset, type.real, H5S_ALL, H5S_ALL, H5P_DEFAULT, score_all));
     chkHDF5err(H5Dclose(dataset));
-    chkHDF5err(H5Sclose(dataspace));
-
-    attr_dims = 1;
-    dataspace = H5Screate_simple(1, &attr_dims, NULL);
-    attribute = H5Acreate(group, "modelID", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, H5P_DEFAULT);
-    chkHDF5err(H5Awrite(attribute, H5T_NATIVE_INT, &modelID));
-    chkHDF5err(H5Aclose(attribute));
     chkHDF5err(H5Sclose(dataspace));
 
     chkHDF5err(H5Gclose(group));

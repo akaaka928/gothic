@@ -1,6 +1,6 @@
 #!/bin/bash
 ###############################################################
-#SBATCH -J NWSinit-magi # name of job
+#SBATCH -J NWSmagi      # name of job
 #SBATCH -t 02:00:00     # upper limit of elapsed time
 #SBATCH -p normal       # partition name
 #SBATCH --nodes=1       # number of nodes, set to SLURM_JOB_NUM_NODES
@@ -12,6 +12,11 @@
 # generation of the simulation
 if [ -z "$GENERATION" ]; then
     GENERATION=1
+fi
+###############################################################
+# name of the series
+if [ -z "$SERIES" ]; then
+    SERIES=cusp
 fi
 ###############################################################
 # number of runs in this generation
@@ -76,8 +81,8 @@ fi
 # job execution via SLURM
 ###############################################################
 # set stdout and stderr
-STDOUT=log/${FILE}_$SLURM_JOB_NAME.o${SLURM_JOB_ID}
-STDERR=log/${FILE}_$SLURM_JOB_NAME.e${SLURM_JOB_ID}
+STDOUT=log/${SERIES}_$SLURM_JOB_NAME.o${SLURM_JOB_ID}
+STDERR=log/${SERIES}_$SLURM_JOB_NAME.e${SLURM_JOB_ID}
 ###############################################################
 # start logging
 cd $SLURM_SUBMIT_DIR
@@ -94,7 +99,7 @@ do
     # set model ID
     ID=`expr $ii - 1`
     FILE=gen${GENERATION}-run${ID}-magi
-    CONFIG=nws-find/gen${GENERATION}/run${ID}-magi.cfg
+    CONFIG=$SERIES/gen${GENERATION}/run${ID}-magi.cfg
 
     # set input arguments
     OPTION="-file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE -denoisingDistributionFunction=$DENOISE_DF"

@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/12/27 (Fri)
+ * @date 2020/01/03 (Fri)
  *
  * Copyright (C) 2019 Yohei Miki
  * All rights reserved.
@@ -62,11 +62,11 @@
 #define ATTR_TAG_DM_SIZE "DM_rs"
 #define ATTR_TAG_STAR_MASS "stellar_mass"
 #define ATTR_TAG_STAR_CORE "stellar_r0"
-#define ATTR_TAG_STAR_EDGE "stellar_rt"
+#define ATTR_TAG_STAR_KING "stellar_W0"
 #define ATTR_TAG_ORBIT_THETA "orbit_theta"
-#define ATTR_TAG_ORBIT_VRAD "orbit_vrad"
-#define ATTR_TAG_ORBIT_VTAN "orbit_vtan"
-#define ATTR_TAG_ORBIT_VROT "orbit_vrot"
+#define ATTR_TAG_ORBIT_VR "orbit_vrad"
+#define ATTR_TAG_ORBIT_VT "orbit_vtheta"
+#define ATTR_TAG_ORBIT_VP "orbit_vphi"
 
 #define ATTR_TAG_ANAL_PHI "angle_phi"
 #define ATTR_TAG_ANAL_INI "initial_hemisphere"
@@ -84,6 +84,10 @@
 #define ATTR_TAG_MAP_XMAX  "Xmax"
 #define ATTR_TAG_MAP_YMIN  "Ymin"
 #define ATTR_TAG_MAP_YMAX  "Ymax"
+
+
+static const double initial_separation = 76.3;/**< = 10 rs */
+static const double velocity_normalization = 100.0;
 
 
 
@@ -108,13 +112,15 @@ extern "C"
 
   void setNWstreamProperties(void);
 
-  void initialize_score
-  (real *score_best, const int modelID, char *file, const double ft,
+  void register_model
+  (char *file,
    const real logM_dm, const real logrs_dm,
-   const real logM_star, const real logr0_star, const real logrt_star,
-   const real theta, const real vr, const real vt, const real vangle);
+   const real logM_star, const real logr0_star, const real logW0_star,
+   const real theta, const real vrad, const real vtheta, const real vphi);
 
-  void finalize_score(real *score_final, const int modelID, char *file);
+  void initialize_score(real *score_best, char *file, const double ft);
+
+  void   finalize_score(real *score_final, char *file);
 
   void prepare_for_observation(const int num, nbody_aos *body, real disk2obs[restrict][3], real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vxi, real * restrict veta, real * restrict vlos, const real phi, const bool flip);
 
@@ -128,7 +134,7 @@ extern "C"
     real * restrict xi_all, real * restrict eta_all, real * restrict dist_all, real * restrict vxi_all, real * restrict veta_all, real * restrict vlos_all,
     real * restrict map_all, real * restrict box_all,
     real disk2obs[restrict][3], const real dphi,
-    real * restrict score_best, const int modelID, char *file, const double time, const ulong step);
+    real * restrict score_best, char *file, const double time, const ulong step);
 
 #ifdef  __CUDACC__
 }

@@ -1043,6 +1043,7 @@ OBJOBS	+= $(patsubst %.c, $(OBJDIR)/%.o, $(notdir $(M31LIB)))
 OBJOBS	+= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o, $(notdir $(FILELIB) $(ALLCLIB)))
 else
 OBJEVOL	:= $(patsubst %.c,  $(OBJDIR)/%.mpi.sfmt.hdf5.o, $(notdir $(EVOLSRC)))
+OBJEVOL	+= $(patsubst %.c,  $(OBJDIR)/%.ompmpi.hdf5.o, $(notdir $(OBSSRC)))
 OBJCMA	:= $(patsubst %.c,  $(OBJDIR)/%.sfmt.o, $(notdir $(CMALIB)))
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 ifeq ($(USE_OFFICIAL_SFMT), 1)
@@ -1308,8 +1309,8 @@ ifeq ($(ENABLE_ONLINE_ANALYSIS), 0)
 $(OBSERVE):	$(OBJOBS)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJOBS) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(OMPLIB) $(CCLIB)
 else
-$(EVOLVE):	$(OBJEVOL) $(OBJCMA) $(MYLIB)/lib$(LIBPREC)myutil.a $(MYLIB)/lib$(LIBPREC)rand_sfmt$(SFMTPER).a $(MYLIB)/libsfmt$(SFMTPER).a $(MYLIB)/lib$(LIBPREC)hdf5lib.a $(MYLIB)/lib$(LIBPREC)mpilib.a $(MYLIB)/lib$(LIBPREC)constants.a $(MYLIB)/lib$(LIBPREC)timer.a
-	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEVOL) $(OBJCMA) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)rand_sfmt$(SFMTPER) -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(SFMTLIB) $(LAPACKLIB) $(CCLIB)
+$(EVOLVE):	$(OBJEVOL) $(OBJCMA) $(MYLIB)/lib$(LIBPREC)myutil.a $(MYLIB)/lib$(LIBPREC)rand_sfmt$(SFMTPER).a $(MYLIB)/libsfmt$(SFMTPER).a $(MYLIB)/lib$(LIBPREC)hdf5lib.a $(MYLIB)/lib$(LIBPREC)mpilib.a $(MYLIB)/lib$(LIBPREC)constants.a $(MYLIB)/lib$(LIBPREC)timer.a $(MYLIB)/lib$(LIBPREC)rotate.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEVOL) $(OBJCMA) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)rand_sfmt$(SFMTPER) -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(SFMTLIB) $(LAPACKLIB) $(OMPLIB) $(CCLIB)
 endif
 #################################################################################################
 # sass file

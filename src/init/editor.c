@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/12/25 (Wed)
+ * @date 2020/01/03 (Fri)
  *
  * Copyright (C) 2018 Yohei Miki
  * All rights reserved.
@@ -434,7 +434,7 @@ static inline void addSystem(object obj, component *cmp, ulong *head, const ipar
 #endif//RUN_WITHOUT_GOTHIC
 #endif//USE_HDF5_FORMAT
 #ifdef  ONLINE_ANALYSIS
-		     , NULL, NULL
+		     , NULL
 #endif//ONLINE_ANALYSIS
 		      );
   }
@@ -691,7 +691,7 @@ int main(int argc, char **argv)
 		     , false, NULL, 0
 #endif//defined(REPORT_GPU_CLOCK_FREQUENCY) && !defined(RUN_WITHOUT_GOTHIC)
 #ifdef  ONLINE_ANALYSIS
-		     , false, 0, NULL, 0
+		     , false, 0, NULL
 #endif//ONLINE_ANALYSIS
 		     );
   updateConfigFile(last, file);

@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/12/27 (Fri)
+ * @date 2020/01/03 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -494,7 +494,7 @@ static inline void dumpSnapshot
  , real * restrict xi_all, real * restrict eta_all, real * restrict dist_all, real * restrict vxi_all, real * restrict veta_all, real * restrict vlos_all
  , real * restrict map_all, real * restrict box_all
  , real disk2obs[restrict][3], const real dphi
- , real * restrict score_all, const int modelID
+ , real * restrict score_all
 #endif//ONLINE_ANALYSIS
  )
 {
@@ -648,7 +648,7 @@ static inline void dumpSnapshot
 		   ibody_hst,
 #endif//USE_HDF5_FORMAT
 		   xi_all, eta_all, dist_all, vxi_all, veta_all, vlos_all, map_all, box_all, disk2obs, dphi,
-		   score_all, modelID, file, time, steps);
+		   score_all, file, time, steps);
 
 #endif//ONLINE_ANALYSIS
 
@@ -691,7 +691,7 @@ static inline void dumpRestarter
  , gpu_clock *deviceMonitors, int *monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  ONLINE_ANALYSIS
- , real * restrict score_all, const int modelID
+ , real * restrict score_all
 #endif//ONLINE_ANALYSIS
  )
 {
@@ -722,7 +722,7 @@ static inline void dumpRestarter
 			     , true, deviceMonitors, *monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  ONLINE_ANALYSIS
-			     , true, NANGLE * NFLIP, score_all, modelID
+			     , true, NANGLE * NFLIP, score_all
 #endif//ONLINE_ANALYSIS
 			     );
 #else///SERIALIZED_EXECUTION
@@ -820,12 +820,6 @@ int main(int argc, char **argv)
     __FPRINTF__(stderr, "          -pot_file_disk=<char *>\n");
 #endif//SET_EXTERNAL_POTENTIAL_FIELD_DISK
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
-#ifdef  ONLINE_ANALYSIS
-    __FPRINTF__(stderr, "          -modelID=<int>\n");
-    __FPRINTF__(stderr, "          -logM_dm=<real> -logrs_dm=<real>\n");
-    __FPRINTF__(stderr, "          -logM_star=<real> -logr0_star=<real> -logrt_star=<real>\n");
-    __FPRINTF__(stderr, "          -theta=<real> -vrad=<real> -vtan=<real> -vangle=<real>\n");
-#endif//ONLINE_ANALYSIS
     __FPRINTF__(stderr, "          -dropPrevTune=<int> (optional)\n");
     __KILL__(stderr, "%s\n", "insufficient command line arguments");
   }
@@ -1652,8 +1646,6 @@ int main(int argc, char **argv)
   setNWstreamProperties();
 
   const real dphi = TWO * M_PI / (real)NANGLE;
-
-  static int modelID = -1;
 #endif//ONLINE_ANALYSIS
 
 
@@ -1713,7 +1705,7 @@ int main(int argc, char **argv)
 #endif//MONITOR_ENERGY_ERROR
 #endif//USE_HDF5_FORMAT
 #ifdef  ONLINE_ANALYSIS
-     , score_all, &modelID
+     , score_all
 #endif//ONLINE_ANALYSIS
      );
 #else///SERIALIZED_EXECUTION
@@ -2207,23 +2199,8 @@ int main(int argc, char **argv)
 
   if( steps == 0 ){
 #ifdef  ONLINE_ANALYSIS
-    /** read paramter-sets of the simulation */
-    requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv, "modelID", &modelID));
-    real logM_dm;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "logM_dm", &logM_dm));
-    real logrs_dm;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "logrs_dm", &logrs_dm));
-    real logM_star;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "logM_star", &logM_star));
-    real logr0_star;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "logr0_star", &logr0_star));
-    real logrt_star;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "logrt_star", &logrt_star));
-    real theta;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "theta", &theta));
-    real vrad;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "vrad", &vrad));
-    real vtan;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "vtan", &vtan));
-    real vangle;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "vangle", &vangle));
-
     /** initialization for the analysis */
-    initialize_score(score_all, modelID, file, ft,
-		     logM_dm, logrs_dm,
-		     logM_star, logr0_star, logrt_star,
-		     theta, vrad, vtan, vangle);
+    initialize_score(score_all, file, ft);
 #endif//ONLINE_ANALYSIS
 
 #ifdef  GADGET_MAC
@@ -2498,7 +2475,7 @@ int main(int argc, char **argv)
 #ifdef  ONLINE_ANALYSIS
        , body_anal
        , xi_all, eta_all, dist_all, vxi_all, veta_all, vlos_all, map_all, box_all
-       , disk2obs, dphi, score_all, modelID
+       , disk2obs, dphi, score_all
 #endif//ONLINE_ANALYSIS
        );
 #endif//EXEC_BENCHMARK
@@ -3339,7 +3316,7 @@ int main(int argc, char **argv)
 	 , deviceMonitors, &monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  ONLINE_ANALYSIS
-	 , score_all, modelID
+	 , score_all
 #endif//ONLINE_ANALYSIS
 	 );
 #endif//COMPARE_WITH_DIRECT_SOLVER
@@ -3403,7 +3380,7 @@ int main(int argc, char **argv)
 #ifdef  ONLINE_ANALYSIS
 	 , body_anal
 	 , xi_all, eta_all, dist_all, vxi_all, veta_all, vlos_all, map_all, box_all
-	 , disk2obs, dphi, score_all, modelID
+	 , disk2obs, dphi, score_all
 #endif//ONLINE_ANALYSIS
 	 );
 
@@ -3496,7 +3473,7 @@ int main(int argc, char **argv)
      , deviceMonitors, &monitor_step
 #endif//REPORT_GPU_CLOCK_FREQUENCY
 #ifdef  ONLINE_ANALYSIS
-     , score_all, modelID
+     , score_all
 #endif//ONLINE_ANALYSIS
      );
 #endif//!defined(EXEC_BENCHMARK) && !defined(COMPARE_WITH_DIRECT_SOLVER)
@@ -3571,7 +3548,7 @@ int main(int argc, char **argv)
 
 
 #ifdef  ONLINE_ANALYSIS
-  finalize_score(score_all, modelID, file);
+  finalize_score(score_all, file);
 
   release_particle_arrays_for_analysis(body_anal, xi_all, eta_all, dist_all, vxi_all, veta_all, vlos_all);
   release_observation_arrays_for_analysis(map_all, box_all, score_all);

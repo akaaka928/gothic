@@ -5,7 +5,7 @@
  *
  * @author Yohei MIKI (University of Tokyo)
  *
- * @date 2019/12/27 (Fri)
+ * @date 2020/01/05 (Sun)
  *
  * Copyright (C) 2019 Yohei MIKI
  * All rights reserved.
@@ -39,8 +39,12 @@
 
 #include "../anal/observation.h"
 
-#define SURVEYFOLDER "nws-find"
-#define SURVEYFILE "gen"
+static const int unit_system = GalacticScale;
+
+#define SURVEYGEN "gen"
+#define SURVEYTAG "run"
+
+#define CUSP_MODEL
 
 
 /** list of parameters: */
@@ -48,11 +52,11 @@
 /** (1) scale radius of DM component (log_10 r_s): (-infty : infty) */
 /** (2) mass of stellar component (log_10 M_star): (-infty : infty) */
 /** (3) scale radius of stellar component (log_10 r_0): (-infty : infty) */
-/** (4) dimensionless King parameter of stellar component (log_10 W_0): (-infty : infty) */
+/** (4) dimensionless King parameter of stellar component (log_10 W_0): (0.4 <= W_0 <= 12.0) */
 /** (5) polar angle of the satellite (theta): [0 : M_PI / 2] */
-/** (6) velocity of the satellite in radial direction (v_r): (infty : 0] */
-/** (7) velocity of the satellite along polar angle (v_t): (-infty : infty) */
-/** (8) velocity of the satellite along azimuthal angle (v_p): (-infty : infty) */
+/** (6) velocity of the satellite in radial direction (v_r / 100): (infty : 0] */
+/** (7) velocity of the satellite along polar angle (v_t / 100): (-infty : infty) */
+/** (8) velocity of the satellite along azimuthal angle (v_p / 100): (-infty : infty) */
 
 
 extern const double mass_astro2com;
@@ -60,7 +64,7 @@ extern const double rho_crit;
 extern const double length2astro;
 
 
-static inline void evaluate(struct cmaes_status *cma, const struct cmaes_config cfg)
+static inline void evaluate(struct cmaes_status *cma, const struct cmaes_config cfg, char *file)
 {
   if( cma->state == CMAES_STATE_SAMPLED ){
     const int gen = cma->gen;
@@ -68,7 +72,7 @@ static inline void evaluate(struct cmaes_status *cma, const struct cmaes_config 
     const int lambda = cfg.lambda;
 
     char folder[128];
-    sprintf(folder, "%s/%s/%s%d", CFGFOLDER, SURVEYFOLDER, SURVEYFILE, gen);
+    sprintf(folder, "%s/%s/%s%d", CFGFOLDER, file, SURVEYGEN, gen);
     struct stat stat_buf;
     if( stat(folder, &stat_buf) != 0 )
       mkdir(folder, 0775);
@@ -98,37 +102,50 @@ static inline void evaluate(struct cmaes_status *cma, const struct cmaes_config 
     if( !prepared ){
       /* write cfg files for MAGI and editor */
       for(int ii = 0; ii < lambda; ii++){
+	const double logM_dm = cma->xx[INDEX2D(lambda, ndim, ii, 0)];
+	const double logrs_dm = cma->xx[INDEX2D(lambda, ndim, ii, 1)];
+	const double logM_star = cma->xx[INDEX2D(lambda, ndim, ii, 2)];
+	const double logr0_star = cma->xx[INDEX2D(lambda, ndim, ii, 3)];
+	const double logW0_star = cma->xx[INDEX2D(lambda, ndim, ii, 4)];
+
 	char cfg_magi[256];
 	char ini_dark[256];
 	char ini_star[256];
 	sprintf(cfg_magi, "%s/run%d-magi.cfg", folder, ii);
 	sprintf(ini_dark, "%s/run%d-dark.ini", folder, ii);
 	sprintf(ini_star, "%s/run%d-star.ini", folder, ii);
+	char run_file[64];
+	sprintf(run_file, "%s-gen%d-run%d", file, gen, ii);
 
 	fp = fopen(cfg_magi, "w");
 	if( fp == NULL ){	  __KILL__(stderr, "ERROR: failure to open \"%s\"\n", cfg_magi);	}
-	fprintf(fp, "%d\n", GalacticScale);
+	fprintf(fp, "%d\n", unit_system);
 	fprintf(fp, "%d\n", 2);/* number of components */
+#ifdef  CUSP_MODEL
 	fprintf(fp, "%d\t../%s\t%d\t%d\n", 4, ini_dark, 0, 0);/**< 4 means NFW model */
+#else///CUSP_MODEL
+	fprintf(fp, "%d\t../%s\t%d\t%d\n", 2, ini_dark, 0, 0);/**< 2 means Burkert model */
+#endif//CUSP_MODEL
 	fprintf(fp, "%d\t../%s\t%d\t%d\n", 1, ini_star, 0, 0);/**< 1 means King model */
 	fclose(fp);
 
 	fp = fopen(ini_dark, "w");
 	if( fp == NULL ){	  __KILL__(stderr, "ERROR: failure to open \"%s\"\n", ini_dark);	}
-	const double M200 = pow(10.0, cma->xx[INDEX2D(lambda, ndim, ii, 0)]);
-	const double rs = pow(10.0, cma->xx[INDEX2D(lambda, ndim, ii, 1)]);
+	const double M200 = pow(10.0, logM_dm);
+	const double rs = pow(10.0, logrs_dm);
 	fprintf(fp, "%e\n", M200);/**< mass of DM component */
 	fprintf(fp, "%e\n", rs);/**< scale radius of DM component */
 	fprintf(fp, "%d\n", 1);/**< set explicit cutoff at r_200 */
 	const double r200 = cbrt(3.0 * (M200 * mass_astro2com) / (800.0 * M_PI * rho_crit)) * length2astro;
+	/* fprintf(stdout, "r200 = %e, M200 = %e, mass_astro2com = %e, rho_crit = %e, length2astro = %e\n", r200, M200, mass_astro2com, rho_crit, length2astro); */
 	fprintf(fp, "%e %e\n", r200, fmax(0.1 * r200, rs));
 	fclose(fp);
 
 	fp = fopen(ini_star, "w");
 	if( fp == NULL ){	  __KILL__(stderr, "ERROR: failure to open \"%s\"\n", ini_star);	}
-	fprintf(fp, "%e\n", pow(10.0, cma->xx[INDEX2D(lambda, ndim, ii, 2)]));/**< mass of stellar component */
-	fprintf(fp, "%e\n", pow(10.0, cma->xx[INDEX2D(lambda, ndim, ii, 3)]));/**< core radius of stellar component */
-	fprintf(fp, "%e\n", pow(10.0, cma->xx[INDEX2D(lambda, ndim, ii, 4)]));/**< dimensionless King parameter of stellar component */
+	fprintf(fp, "%e\n", pow(10.0, logM_star));/**< mass of stellar component */
+	fprintf(fp, "%e\n", pow(10.0, logr0_star));/**< core radius of stellar component */
+	fprintf(fp, "%e\n", pow(10.0, logW0_star));/**< dimensionless King parameter of stellar component */
 	fprintf(fp, "%d\n", 0);/**< does not set explicit cutoff */
 	fclose(fp);
 
@@ -138,9 +155,9 @@ static inline void evaluate(struct cmaes_status *cma, const struct cmaes_config 
 	sprintf(ini_edit, "%s/run%d-edit.ini", folder, ii);
 	fp = fopen(cfg_edit, "w");
 	if( fp == NULL ){	  __KILL__(stderr, "ERROR: failure to open \"%s\"\n", cfg_edit);	}
-	fprintf(fp, "%d\n", GalacticScale);
+	fprintf(fp, "%d\n", unit_system);
 	fprintf(fp, "%d\n", 1);/* number of input files */
-	fprintf(fp, "%s%d-run%d ../%s\n", SURVEYFILE, gen, ii, ini_edit);
+	fprintf(fp, "%s%d-run%d-magi ../%s\n", SURVEYGEN, gen, ii, ini_edit);
 	fclose(fp);
 
 	fp = fopen(ini_edit, "w");
@@ -150,12 +167,12 @@ static inline void evaluate(struct cmaes_status *cma, const struct cmaes_config 
 	fprintf(fp, "0.0 1.0 0.0\n");
 	fprintf(fp, "0.0 0.0 1.0\n");
 	/** calculate initial location and velocity of the satellite */
-	const double r0 = 76.3;/**< = 10 rs */
+	const double r0 = initial_separation;/**< = 10 rs */
 	const double theta = cma->xx[INDEX2D(lambda, ndim, ii, 5)];
 	const double phi = 0.0;
-	const double vr = cma->xx[INDEX2D(lambda, ndim, ii, 6)];
-	const double vt = cma->xx[INDEX2D(lambda, ndim, ii, 7)];
-	const double vp = cma->xx[INDEX2D(lambda, ndim, ii, 8)];
+	const double vr = velocity_normalization * cma->xx[INDEX2D(lambda, ndim, ii, 6)];
+	const double vt = velocity_normalization * cma->xx[INDEX2D(lambda, ndim, ii, 7)];
+	const double vp = velocity_normalization * cma->xx[INDEX2D(lambda, ndim, ii, 8)];
 	const double sint = sin(theta);
 	const double cost = cos(theta);
 	const double sinp = sin(phi);
@@ -170,6 +187,8 @@ static inline void evaluate(struct cmaes_status *cma, const struct cmaes_config 
 	fprintf(fp, "%e %e %e\n", vX, vY, vZ);
 	fprintf(fp, "0\n");/**< number of components to be removed */
 	fclose(fp);
+
+	register_model(run_file, logM_dm, logrs_dm, logM_star, logr0_star, logW0_star, theta, vr, vt, vp);
       }
 
       fp = fopen(summary, "w");
@@ -177,6 +196,16 @@ static inline void evaluate(struct cmaes_status *cma, const struct cmaes_config 
       fprintf(fp, "%d\n", gen);
       fprintf(fp, "%d\n", ndim);
       fprintf(fp, "%d\n", lambda);
+      fprintf(fp, "#mean value and its 1 sigma range of the input parameters:\n");
+      fprintf(fp, "\tM_dm = %e Msun; (%e:%e)\n", pow(10.0, cma->xmean[0]), pow(10.0, cma->xmean[0] - cma->sigma), pow(10.0, cma->xmean[0] + cma->sigma));
+      fprintf(fp, "\trs_dm = %e kpc; (%e:%e)\n", pow(10.0, cma->xmean[1]), pow(10.0, cma->xmean[1] - cma->sigma), pow(10.0, cma->xmean[1] + cma->sigma));
+      fprintf(fp, "\tM_star = %e Msun; (%e:%e)\n", pow(10.0, cma->xmean[2]), pow(10.0, cma->xmean[2] - cma->sigma), pow(10.0, cma->xmean[2] + cma->sigma));
+      fprintf(fp, "\tr0_star = %e kpc; (%e:%e)\n", pow(10.0, cma->xmean[3]), pow(10.0, cma->xmean[3] - cma->sigma), pow(10.0, cma->xmean[3] + cma->sigma));
+      fprintf(fp, "\tW0_star = %e; (%e:%e)\n", pow(10.0, cma->xmean[4]), pow(10.0, cma->xmean[4] - cma->sigma), pow(10.0, cma->xmean[4] + cma->sigma));
+      fprintf(fp, "\ttheta = %e; (%e:%e)\n", cma->xmean[5], cma->xmean[5] - cma->sigma, cma->xmean[5] + cma->sigma);
+      fprintf(fp, "\tv_rad = %e km/s; (%e:%e)\n", velocity_normalization * cma->xmean[6], velocity_normalization * (cma->xmean[6] - cma->sigma), velocity_normalization * (cma->xmean[6] + cma->sigma));
+      fprintf(fp, "\tv_theta = %e km/s; (%e:%e)\n", velocity_normalization * cma->xmean[7], velocity_normalization * (cma->xmean[7] - cma->sigma), velocity_normalization * (cma->xmean[7] + cma->sigma));
+      fprintf(fp, "\tv_phi = %e km/s; (%e:%e)\n", velocity_normalization * cma->xmean[8], velocity_normalization * (cma->xmean[8] - cma->sigma), velocity_normalization * (cma->xmean[8] + cma->sigma));
       fclose(fp);
 
       __KILL__(stderr, "ERROR: generate initial conditions and run N-body simulations for generation %d (%d offsprings)\n", gen, lambda);
@@ -193,7 +222,7 @@ static inline void evaluate(struct cmaes_status *cma, const struct cmaes_config 
       /** query the score of N-body simulations of this generation (presence of the score of ALL runs) */
       for(int ii = 0; ii < lambda; ii++){
 	char filename[256];
-	sprintf(filename, "%s/%s%d_%s%d.h5", DATAFOLDER, SURVEYFILE, gen, FILE_TAG_SCORE, lambda);
+	sprintf(filename, "%s/%s-%s%d-%s%d_%s.h5", DATAFOLDER, file, SURVEYGEN, gen, SURVEYTAG, ii, FILE_TAG_SCORE);
 	hid_t target = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
 
 	hid_t group = H5Gopen(target, GROUP_TAG_INFO, H5P_DEFAULT);
@@ -253,6 +282,16 @@ static inline void optimize(struct cmaes_status *cma, struct cmaes_config cfg, s
   const int ndim = cfg.ndim;
   const int lambda = cfg.lambda;
 
+  /* Representative quantities at r = 10 rs: */
+  /* Escape velocity            v_esc is 2.966149e+01 (= 2.900277e+02 km / s) */
+  const double vmax = 360.0;/**< = 1.2 v_esc @ r = 10 r_s */
+  const double vmax2 = vmax * vmax;
+
+  /* /\** set the minimum mass of the NW stream *\/ */
+  /* extern const double mass_astro2com; */
+  /* NWstream_mass = POW(TEN, 5.0) * mass_astro2com; */
+  const double logMstar_min = 5.0;
+
   while( true ){
     /** generate new search points */
     sampling(cma, cfg, gauss, rand
@@ -274,11 +313,28 @@ static inline void optimize(struct cmaes_status *cma, struct cmaes_config cfg, s
 #endif//SUPPORT_CMAES_RESTART
       for(int ii = 0; ii < lambda; ii++){
 	while( true ){
-	  const double theta = cma->xx[INDEX2D(lambda, ndim, ii, 5)];/**< polar angle of the satellite */
-	  const double vr = cma->xx[INDEX2D(lambda, ndim, ii, 6)];/**< infalling velocity of the satellite */
+	  const double theta = fabs(fmod(cma->xx[INDEX2D(lambda, ndim, ii, 5)], M_PI_2));/**< polar angle of the satellite */
+	  cma->xx[INDEX2D(lambda, ndim, ii, 5)] = theta;
 
-	  if( (theta >= 0.0) && (theta <= 0.5 * M_PI) &&
-	      (vr <= 0.0)
+	  const double M200 = pow(10.0, cma->xx[INDEX2D(lambda, ndim, ii, 0)]) + pow(10.0, cma->xx[INDEX2D(lambda, ndim, ii, 2)]);
+	  const double r200 = cbrt(3.0 * (M200 * mass_astro2com) / (800.0 * M_PI * rho_crit)) * length2astro;
+
+	  const double rs = pow(10.0, cma->xx[INDEX2D(lambda, ndim, ii, 1)]);
+	  const double r0 = pow(10.0, cma->xx[INDEX2D(lambda, ndim, ii, 3)]);
+
+	  const double logMstar = cma->xx[INDEX2D(lambda, ndim, ii, 2)];
+	  const double W0 = pow(10.0, cma->xx[INDEX2D(lambda, ndim, ii, 4)]);
+
+	  const double vr = velocity_normalization * cma->xx[INDEX2D(lambda, ndim, ii, 6)];/**< infalling velocity of the satellite */
+	  const double vt = velocity_normalization * cma->xx[INDEX2D(lambda, ndim, ii, 7)];/**< infalling velocity of the satellite */
+	  const double vp = velocity_normalization * cma->xx[INDEX2D(lambda, ndim, ii, 8)];/**< infalling velocity of the satellite */
+
+	  if( (vr <= 0.0) &&/**< consider only infalling satellite */
+	      (logMstar >= logMstar_min) &&/**< consider only satellite whose mass is greater than the NW stream*/
+	      (rs >= 0.01 * r200) && (rs < r200) &&/**< 1 <= C200 <= 100 for DM component */
+	      (r0 >= 0.001 * r200) && (r0 < r200) &&/**< 1 <= C200 <= 1000 for stellar component */
+	      ((vr * vr + vt * vt + vp * vp) <= vmax2) &&/**< v_max = 1.2 v_esc */
+	      (W0 >= 0.4) && (W0 <= 12.0)/**< remove unrealistic concentration for King sphere */
 	      )
 	    break;
 	  resampling(cma, cfg, gauss, rand, ii);
@@ -304,7 +360,7 @@ static inline void optimize(struct cmaes_status *cma, struct cmaes_config cfg, s
 
 
     /** evaluate the new search points */
-    evaluate(cma, cfg);
+    evaluate(cma, cfg, file);
 
     /** update the search distribution */
     update(cma, cfg);
@@ -352,6 +408,7 @@ int main(int argc, char **argv)
   }/* if( argc < 3 ){ */
   char *file;  requiredCmdArg(getCmdArgStr(argc, (const char * const *)(void *)argv, "file", &file));
 
+  setPhysicalConstantsAndUnitSystem(unit_system, 1);
 
   /** configure the CMA-ES procedure */
   static int gen = 0;

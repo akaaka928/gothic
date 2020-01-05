@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/12/27 (Fri)
+ * @date 2020/01/03 (Fri)
  *
  * Copyright (C) 2019 Yohei Miki
  * All rights reserved.
@@ -458,21 +458,17 @@ void setNWstreamProperties(void)
 }
 
 
-void initialize_score
-(real *score_best, const int modelID, char *file, const double ft,
+void register_model
+(char *file,
  const real logM_dm, const real logrs_dm,
- const real logM_star, const real logr0_star, const real logrt_star,
- const real theta, const real vr, const real vt, const real vangle)
+ const real logM_star, const real logr0_star, const real logW0_star,
+ const real theta, const real vr, const real vt, const real vp)
 {
   __NOTE__("%s\n", "start");
 
 
-  const real worst_score = SCORE_UPPER_BOUND * 5 * 2;/**< 5 is # of criterion, 2 is just a safety parameter indicating that analysis is not yet performed */
-  for(int ii = 0; ii < NANGLE * NFLIP; ii++)
-    score_best[ii] = worst_score;
-
   char filename[256];
-  sprintf(filename, "%s/%s_%s%d.h5", DATAFOLDER, file, FILE_TAG_SCORE, modelID);
+  sprintf(filename, "%s/%s_%s.h5", DATAFOLDER, file, FILE_TAG_SCORE);
   hid_t target = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 #ifdef  USE_DOUBLE_PRECISION
   const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_DOUBLE;
@@ -489,14 +485,6 @@ void initialize_score
   attr_dims = 1;
   dspc = H5Screate_simple(1, &attr_dims, NULL);
 
-  attr = H5Acreate(group, ATTR_TAG_FINISH_TIME, H5T_NATIVE_DOUBLE, dspc, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attr, H5T_NATIVE_DOUBLE, &ft));
-  chkHDF5err(H5Aclose(attr));
-  const double initial_time = -1.0;
-  attr = H5Acreate(group, ATTR_TAG_ANALYZED_TIME, H5T_NATIVE_DOUBLE, dspc, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attr, H5T_NATIVE_DOUBLE, &initial_time));
-  chkHDF5err(H5Aclose(attr));
-
   attr = H5Acreate(group, ATTR_TAG_DM_MASS, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &logM_dm));
   chkHDF5err(H5Aclose(attr));
@@ -510,21 +498,68 @@ void initialize_score
   attr = H5Acreate(group, ATTR_TAG_STAR_CORE, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &logr0_star));
   chkHDF5err(H5Aclose(attr));
-  attr = H5Acreate(group, ATTR_TAG_STAR_EDGE, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &logrt_star));
+  attr = H5Acreate(group, ATTR_TAG_STAR_KING, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &logW0_star));
   chkHDF5err(H5Aclose(attr));
 
   attr = H5Acreate(group, ATTR_TAG_ORBIT_THETA, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &theta));
   chkHDF5err(H5Aclose(attr));
-  attr = H5Acreate(group, ATTR_TAG_ORBIT_VRAD, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
+
+  attr = H5Acreate(group, ATTR_TAG_ORBIT_VR, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &vr));
   chkHDF5err(H5Aclose(attr));
-  attr = H5Acreate(group, ATTR_TAG_ORBIT_VTAN, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  attr = H5Acreate(group, ATTR_TAG_ORBIT_VT, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &vt));
   chkHDF5err(H5Aclose(attr));
-  attr = H5Acreate(group, ATTR_TAG_ORBIT_VROT, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
-  chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &vangle));
+  attr = H5Acreate(group, ATTR_TAG_ORBIT_VP, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &vp));
+  chkHDF5err(H5Aclose(attr));
+
+  chkHDF5err(H5Sclose(dspc));
+  chkHDF5err(H5Gclose(group));
+
+
+  chkHDF5err(H5Fclose(target));
+
+
+  __NOTE__("%s\n", "end");
+}
+
+
+void initialize_score(real *score_best, char *file, const double ft)
+{
+  __NOTE__("%s\n", "start");
+
+
+  const real worst_score = SCORE_UPPER_BOUND * 5 * 2;/**< 5 is # of criterion, 2 is just a safety parameter indicating that analysis is not yet performed */
+  for(int ii = 0; ii < NANGLE * NFLIP; ii++)
+    score_best[ii] = worst_score;
+
+  char filename[256];
+  sprintf(filename, "%s/%s_%s.h5", DATAFOLDER, file, FILE_TAG_SCORE);
+  hid_t target = H5Fopen(filename, H5F_ACC_RDWR, H5P_DEFAULT);
+#ifdef  USE_DOUBLE_PRECISION
+  const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_DOUBLE;
+#else///USE_DOUBLE_PRECISION
+  const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_FLOAT;
+#endif//USE_DOUBLE_PRECISION
+
+
+  hid_t group;
+  hsize_t attr_dims;
+  hid_t dspc, attr;
+  /** write various information of the simulation */
+  group = H5Gopen(target, GROUP_TAG_INFO, H5P_DEFAULT);
+  attr_dims = 1;
+  dspc = H5Screate_simple(1, &attr_dims, NULL);
+
+  attr = H5Acreate(group, ATTR_TAG_FINISH_TIME, H5T_NATIVE_DOUBLE, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_NATIVE_DOUBLE, &ft));
+  chkHDF5err(H5Aclose(attr));
+  const double initial_time = -1.0;
+  attr = H5Acreate(group, ATTR_TAG_ANALYZED_TIME, H5T_NATIVE_DOUBLE, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_NATIVE_DOUBLE, &initial_time));
   chkHDF5err(H5Aclose(attr));
 
   attr = H5Acreate(group, ATTR_TAG_SCORE, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
@@ -693,7 +728,7 @@ void initialize_score
 }
 
 
-void finalize_score(real *score_final, const int modelID, char *file)
+void finalize_score(real *score_final, char *file)
 {
   __NOTE__("%s\n", "start");
 
@@ -710,7 +745,7 @@ void finalize_score(real *score_final, const int modelID, char *file)
 
 
   char filename[256];
-  sprintf(filename, "%s/%s_%s%d.h5", DATAFOLDER, file, FILE_TAG_SCORE, modelID);
+  sprintf(filename, "%s/%s_%s.h5", DATAFOLDER, file, FILE_TAG_SCORE);
   hid_t target = H5Fopen(filename, H5F_ACC_RDWR, H5P_DEFAULT);
 #ifdef  USE_DOUBLE_PRECISION
   const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_DOUBLE;
@@ -835,13 +870,13 @@ void mock_observation
  real * restrict xi_all, real * restrict eta_all, real * restrict dist_all, real * restrict vxi_all, real * restrict veta_all, real * restrict vlos_all,
  real * restrict map_all, real * restrict box_all,
  real disk2obs[restrict][3], const real dphi,
- real * restrict score_best, const int modelID, char *file, const double time, const ulong step)
+ real * restrict score_best, char *file, const double time, const ulong step)
 {
   __NOTE__("%s\n", "start");
 
 
   char filename[256];
-  sprintf(filename, "%s/%s_%s%d.h5", DATAFOLDER, file, FILE_TAG_SCORE, modelID);
+  sprintf(filename, "%s/%s_%s.h5", DATAFOLDER, file, FILE_TAG_SCORE);
   hid_t target = H5Fopen(filename, H5F_ACC_RDWR, H5P_DEFAULT);
 #ifdef  USE_DOUBLE_PRECISION
   const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_DOUBLE;
@@ -1223,10 +1258,9 @@ int main(int argc, char **argv)
     __FPRINTF__(stderr, "          -file=<char *>\n");
     __FPRINTF__(stderr, "          -ft=<double>\n");
     __FPRINTF__(stderr, "          -start=<int> -end=<int> -interval=<int>\n");
-    __FPRINTF__(stderr, "          -modelID=<int>\n");
     __FPRINTF__(stderr, "          -logM_dm=<real> -logrs_dm=<real>\n");
-    __FPRINTF__(stderr, "          -logM_star=<real> -logr0_star=<real> -logrt_star=<real>\n");
-    __FPRINTF__(stderr, "          -theta=<real> -vrad=<real> -vtan=<real> -vangle=<real>\n");
+    __FPRINTF__(stderr, "          -logM_star=<real> -logr0_star=<real> -logW0_star=<real>\n");
+    __FPRINTF__(stderr, "          -theta=<real> -vrad=<real> -vtheta=<real> -vphi=<real>\n");
     __FPRINTF__(stderr, "          -eps=<real>\n");
     __KILL__(stderr, "%s\n", "insufficient command line arguments");
   }
@@ -1235,16 +1269,15 @@ int main(int argc, char **argv)
   int      end;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv,      "end", &end));
   int interval;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv, "interval", &interval));
 
-  int modelID;  requiredCmdArg(getCmdArgInt(argc, (const char * const *)argv, "modelID", &modelID));
   real logM_dm;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "logM_dm", &logM_dm));
   real logrs_dm;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "logrs_dm", &logrs_dm));
   real logM_star;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "logM_star", &logM_star));
   real logr0_star;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "logr0_star", &logr0_star));
-  real logrt_star;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "logrt_star", &logrt_star));
+  real logW0_star;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "logW0_star", &logW0_star));
   real theta;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "theta", &theta));
   real vrad;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "vrad", &vrad));
-  real vtan;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "vtan", &vtan));
-  real vangle;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "vangle", &vangle));
+  real vtheta;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "vtheta", &vtheta));
+  real vphi;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "vphi", &vphi));
 
   real   eps;  requiredCmdArg(getCmdArgReal(argc, (const char * const *)argv, "eps", &eps));
 
@@ -1344,10 +1377,11 @@ int main(int argc, char **argv)
 
 
   /** initialization for the analysis */
-  initialize_score(score_all, modelID, file, ft,
-		   logM_dm, logrs_dm,
-		   logM_star, logr0_star, logrt_star,
-		   theta, vrad, vtan, vangle);
+  register_model(file,
+		 logM_dm, logrs_dm,
+		 logM_star, logr0_star, logW0_star,
+		 theta, vrad, vtheta, vphi);
+  initialize_score(score_all, file, ft);
 
   const real dphi = TWO * M_PI / (real)NANGLE;
 
@@ -1377,14 +1411,14 @@ int main(int argc, char **argv)
 		     xi_all, eta_all, dist_all, vxi_all, veta_all, vlos_all,
 		     map_all, box_all,
 		     disk2obs, dphi,
-		     score_all, modelID, file, time, steps);
+		     score_all, file, time, steps);
 
 #ifndef ONLINE_ANALYSIS
   }
 #endif//ONLINE_ANALYSIS
 
 
-  finalize_score(score_all, modelID, file);
+  finalize_score(score_all, file);
 
 
   release_particle_arrays_for_analysis(body_anal, xi_all, eta_all, dist_all, vxi_all, veta_all, vlos_all);
