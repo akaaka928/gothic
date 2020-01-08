@@ -10,8 +10,9 @@
 
 ###############################################################
 # generation of the simulation
-if [ -z "$GENERATION" ]; then
-    GENERATION=1
+if [ -z "$GEN" ]; then
+    GEN=1
+    # GEN=2
 fi
 ###############################################################
 # name of the series
@@ -22,6 +23,7 @@ fi
 # number of runs in this generation
 if [ -z "$NRUN" ]; then
     NRUN=64
+    # NRUN=4
 fi
 ###############################################################
 
@@ -38,6 +40,7 @@ OMP_OPT_ENV="env OMP_DISPLAY_ENV=verbose OMP_PLACES=cores"
 # number of N-body particles
 if [ -z "$NTOT" ]; then
     NTOT=1048576
+    # NTOT=1024
 fi
 ###############################################################
 # dump file generation interval (in units of minute)
@@ -92,14 +95,14 @@ echo "start: $TIME"
 ###############################################################
 
 
-# generate $NRUN models in generation $GENERATION
+# generate $NRUN models in generation $GEN
 ###############################################################
 for ii in `seq 1 $NRUN`
 do
     # set model ID
     ID=`expr $ii - 1`
-    FILE=gen${GENERATION}-run${ID}-magi
-    CONFIG=$SERIES/gen${GENERATION}/run${ID}-magi.cfg
+    FILE=gen${GEN}-run${ID}-magi
+    CONFIG=$SERIES/gen${GEN}/run${ID}-magi.cfg
 
     # set input arguments
     OPTION="-file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE -denoisingDistributionFunction=$DENOISE_DF"

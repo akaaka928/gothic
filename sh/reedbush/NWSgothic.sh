@@ -1,10 +1,13 @@
 #!/bin/bash
 ###############################################################
-#SBATCH -J NWSedit      # name of job
-#SBATCH -t 02:00:00     # upper limit of elapsed time
-#SBATCH -p normal       # partition name
-#SBATCH --nodes=1       # number of nodes, set to SLURM_JOB_NUM_NODES
-#SBATCH --get-user-env  # retrieve the login environment variables
+#PBS -q l-regular
+#PBS -l select=16:mpiprocs=4:ompthreads=9
+#PBS -W group_list=jh180045l
+#PBS -l walltime=24:00:00
+#PBS -N NWSgothic
+###############################################################
+NGPUS_PER_NODE=4
+NGPUS_PER_SOCKET=2
 ###############################################################
 
 
@@ -12,7 +15,6 @@
 # generation of the simulation
 if [ -z "$GEN" ]; then
     GEN=1
-    # GEN=2
 fi
 ###############################################################
 # name of the series
@@ -23,7 +25,6 @@ fi
 # number of runs in this generation
 if [ -z "$NRUN" ]; then
     NRUN=64
-    # NRUN=4
 fi
 ###############################################################
 
@@ -31,11 +32,23 @@ fi
 ###############################################################
 # global configurations
 ###############################################################
-EXEC=bin/editor
+if [ -z "$EXEC" ]; then
+    EXEC=bin/gothic
+fi
 ###############################################################
-# dump file generation interval (in units of minute)
-if [ -z "$SAVE" ]; then
-    SAVE=55.0
+# value of accuracy controling parameter: GADGET MAC by Springel (2005)
+if [ -z "$ABSERR" ]; then
+    # ABSERR=1.250000000e-1
+    # ABSERR=6.250000000e-2
+    # ABSERR=3.125000000e-2
+    # ABSERR=1.562500000e-2
+    # ABSERR=7.812500000e-3
+    # ABSERR=3.906250000e-3
+    ABSERR=1.953125000e-3
+    # ABSERR=9.765625000e-4
+    # ABSERR=4.882812500e-4
+    # ABSERR=2.441406250e-4
+    # ABSERR=1.220703125e-4
 fi
 ###############################################################
 
@@ -43,77 +56,59 @@ fi
 ###############################################################
 # problem specific configurations
 ###############################################################
-# gravitational softening length
-if [ -z "$EPS" ]; then
-    EPS=1.5625e-2
+# reproduction of Komiyama et al. (2018) in the disk coordinate system
+if [ -z "$SPHEPOT" ]; then
+    SPHEPOT=m31
+fi
+if [ -z "$DISKPOT" ]; then
+    DISKPOT=m31
 fi
 ###############################################################
-# safety parameter for time steps
-if [ -z "$ETA" ]; then
-    ETA=0.5
-fi
-###############################################################
-# interval of snapshot files (in units of astrophysical unit)
-if [ -z "$INTERVAL" ]; then
-    INTERVAL=25.0
-fi
-###############################################################
-# final time of the simulation (in units of astrophysical unit)
-if [ -z "$FINISH" ]; then
-    FINISH=14000.0
-fi
+# set input arguments
+OPTION="-absErr=$ABSERR -pot_file_sphe=$SPHEPOT -pot_file_disk=$DISKPOT -jobID=$PBS_JOBID"
 ###############################################################
 
 
 ###############################################################
-# job execution via SLURM
+# job execution via PBS
 ###############################################################
 # set stdout and stderr
-STDOUT=log/${SERIES}_$SLURM_JOB_NAME.o${SLURM_JOB_ID}
-STDERR=log/${SERIES}_$SLURM_JOB_NAME.e${SLURM_JOB_ID}
+STDOUT=log/${SERIES}_$PBS_JOBNAME.o${PBS_JOBID}
+STDERR=log/${SERIES}_$PBS_JOBNAME.e${PBS_JOBID}
 ###############################################################
 # start logging
-cd $SLURM_SUBMIT_DIR
-echo "use $SLURM_JOB_CPUS_PER_NODE CPUs"
+cd $PBS_O_WORKDIR
 TIME=`date`
 echo "start: $TIME"
 ###############################################################
-
-
-# edit $NRUN models in generation $GEN
+export MODULEPATH=$MODULEPATH:/lustre/jh180045l/share/opt/Modules
+. /etc/profile.d/modules.sh
+module purge
+module load pbsutils
+module load intel
+module load cuda9/9.1.85 openmpi/gdr/2.1.2/intel phdf5/ompi
+module load cub
 ###############################################################
-LIST=${SERIES}-gen${GEN}.lst
-if [ -e $LIST ]; then
-    rm -f $LIST
-fi
+
+
 ###############################################################
-for ii in `seq 1 $NRUN`
-do
-    # set model ID
-    ID=`expr $ii - 1`
-    FILE=${SERIES}-gen${GEN}-run${ID}
-    CFG=$SERIES/gen${GEN}/run${ID}-edit.cfg
+FULL=${SERIES}-gen${GEN}.lst
+LIST=${SERIES}-gen${GEN}-split.lst
+split -d -n l/$PROCS $FULL $LIST
+# mpiexec -n $SLURM_NTASKS sh/slurm/compress_sub.sh $SUBLIST $SRCDIR $DSTDIR
+###############################################################
 
-    # set input arguments
-    OPTION="-file=$FILE -list=$CFG -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE"
-    # execute the job
-    if [ `which numactl` ]; then
-	echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-	numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
-    else
-	echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
-	$EXEC $OPTION 1>>$STDOUT 2>>$STDERR
-    fi
 
-    echo "$FILE" >> $LIST
-done
+###############################################################
+# execute the job
+mpirun sh/split.sh $EXEC log/${SERIES}_${REQUEST} $PBS_JOBID $NGPUS_PER_NODE $NGPUS_PER_SOCKET $LIST $OPTION
 ###############################################################
 
 
 ###############################################################
 # finish logging
 TIME=`date`
-echo "finish: $TIME"
+echo "finish: $TIME" 1>>$STDOUT 2>>$STDERR
 ###############################################################
 exit 0
 ###############################################################

@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2020/01/03 (Fri)
+ * @date 2020/01/07 (Tue)
  *
  * Copyright (C) 2019 Yohei Miki
  * All rights reserved.
@@ -912,7 +912,7 @@ void mock_observation
 
 
   /** data analysis using OpenMP: parallelization about viewing angle */
-#pragma omp parallel for num_threads(CPUS_PER_PROCESS)
+#pragma omp parallel for num_threads(CPUS_PER_PROCESS) schedule(guided)
   for(int pp = 0; pp < NANGLE * NFLIP; pp++){
     const int threadIdx = omp_get_thread_num();
     const real phi = dphi * (real)(pp % NANGLE);

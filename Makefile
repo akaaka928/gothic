@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2019/12/24 (Tue) 15:15:03
+# last updated on 2020/01/06 (Mon) 11:33:26
 # Makefile for C Programming
 # Gravitational octree code for collisionless N-body simulations on GPUs
 #################################################################################################
@@ -58,7 +58,7 @@ DUMPFILE_AS_ANTHEM	:= 0
 USE_OFFICIAL_SFMT	:= 1
 USE_OFFICIAL_SFMT_JUMP	:= 1
 USE_LIS_FOR_MAGI	:= 1
-SET_EXTERNAL_FIELD	:= 0
+SET_EXTERNAL_FIELD	:= 1
 SET_EXTERNAL_FIELD_DISK	:= 1
 ADAPTIVE_EXTERNAL_FIELD	:= 0
 USE_OSIPKOV_MERRITT	:= 0

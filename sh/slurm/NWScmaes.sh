@@ -12,6 +12,8 @@
 # generation of the sequences
 if [ -z "$GEN" ]; then
     GEN=1
+    # GEN=2
+    # GEN=3
 fi
 ###############################################################
 # name of the series
@@ -28,6 +30,7 @@ fi
 # number of runs in this generation
 if [ -z "$NRUN" ]; then
     NRUN=64
+    # NRUN=4
 fi
 ###############################################################
 
@@ -97,7 +100,9 @@ echo "use $SLURM_JOB_CPUS_PER_NODE CPUs"
 TIME=`date`
 echo "start: $TIME"
 ###############################################################
-mkdir cfg/${FILE}/gen${GEN}
+if [ ! -e cfg/${FILE}/gen${GEN} ]; then
+    mkdir cfg/${FILE}/gen${GEN}
+fi
 ###############################################################
 # execute the job
 if [ `which numactl` ]; then
