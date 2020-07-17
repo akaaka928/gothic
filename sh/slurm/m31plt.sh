@@ -9,7 +9,8 @@
 # EXEC=py/shownws.py
 # EXEC=py/showgap.py
 # EXEC=py/m31phase.py
-EXEC=py/subaru.py
+# EXEC=py/subaru.py
+EXEC=py/subaru_slide.py
 
 # SPECIFY="--specify"
 
@@ -18,7 +19,7 @@ EXEC=py/subaru.py
 TARGET="--files=nws-continue"
 # TARGET="--files=nws-test-m9_5-orbit1-chosen"
 
-# PDFFIGS="--pdf"
+PDFFIGS="--pdf"
 # CONTINUE="--continued"
 
 # use numactl if available

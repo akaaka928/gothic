@@ -5,7 +5,7 @@
  *
  * @author Yohei MIKI (University of Tokyo)
  *
- * @date 2020/01/05 (Sun)
+ * @date 2020/02/11 (Tue)
  *
  * Copyright (C) 2019 Yohei MIKI
  * All rights reserved.
@@ -330,9 +330,10 @@ static inline void optimize(struct cmaes_status *cma, struct cmaes_config cfg, s
 	  const double vp = velocity_normalization * cma->xx[INDEX2D(lambda, ndim, ii, 8)];/**< infalling velocity of the satellite */
 
 	  if( (vr <= 0.0) &&/**< consider only infalling satellite */
-	      (logMstar >= logMstar_min) &&/**< consider only satellite whose mass is greater than the NW stream*/
-	      (rs >= 0.01 * r200) && (rs < r200) &&/**< 1 <= C200 <= 100 for DM component */
-	      (r0 >= 0.001 * r200) && (r0 < r200) &&/**< 1 <= C200 <= 1000 for stellar component */
+	      (logMstar >= logMstar_min) &&/**< consider only satellite whose mass is greater than the NW stream */
+	      /* (M200 <= 1.0e+9) &&/\**< M200 is smaller than 10^9 Msun *\/ */
+	      /* (rs >= 0.3) && (r0 >= 0.3) &&/\**< rs >= 300 pc and r0 >= 300 pc *\/ */
+	      (rs < r200) && (r0 < r200) &&/**< C200 >= 1 for stellar and DM components */
 	      ((vr * vr + vt * vt + vp * vp) <= vmax2) &&/**< v_max = 1.2 v_esc */
 	      (W0 >= 0.4) && (W0 <= 12.0)/**< remove unrealistic concentration for King sphere */
 	      )

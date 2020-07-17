@@ -5,7 +5,7 @@
  *
  * @author Yohei MIKI (University of Tokyo)
  *
- * @date 2019/12/26 (Thu)
+ * @date 2020/01/27 (Mon)
  *
  * Copyright (C) 2019 Yohei MIKI
  * All rights reserved.
@@ -441,12 +441,13 @@ bool terminate
 
   /** function value converged */
   cma->funcRange = cma->score[cma->sorted[lambda - 1].idx] - cma->score[cma->sorted[0].idx];
-  if( cma->funcRange < cfg.ftol ){
+  if( cma->score[cma->sorted[0].idx] < 5.0 )
+    if( cma->funcRange < cfg.ftol ){
 #ifndef SUPPRESS_STATUS_REPORT
-    fprintf(stdout, "Differences of function (generation %d): range = %e while tolerance = %e\n", gen, cma->funcRange, cfg.ftol);
+      fprintf(stdout, "Differences of function (generation %d): range = %e while tolerance = %e\n", gen, cma->funcRange, cfg.ftol);
 #endif//SUPPRESS_STATUS_REPORT
-    satisfied = true;
-  }/* if( cma->funcRange < cfg.ftol ){ */
+      satisfied = true;
+    }/* if( cma->funcRange < cfg.ftol ){ */
 
   /** evolution of function value converged */
   const int numHist = (gen < cfg.maxHistory) ? gen : cfg.maxHistory;

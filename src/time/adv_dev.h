@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/28 (Fri)
+ * @date 2020/02/11 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -125,11 +125,17 @@ extern "C"
 #ifdef  EXEC_BENCHMARK
 		      , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
+#ifdef  ONLINE_ANALYSIS
+		      , const real dtmin
+#endif//ONLINE_ANALYSIS
 		      );
   void adjustParticleTime_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTRICT laneTime, const real eps, const real eta, const iparticle pi
 #ifdef  EXEC_BENCHMARK
 			      , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
+#ifdef  ONLINE_ANALYSIS
+			      , const real dtmin
+#endif//ONLINE_ANALYSIS
 			      );
   void setLaneTime_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTRICT laneTime, const iparticle pi
 #ifdef  EXEC_BENCHMARK

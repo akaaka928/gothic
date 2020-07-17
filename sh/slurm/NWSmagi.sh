@@ -23,7 +23,6 @@ fi
 # number of runs in this generation
 if [ -z "$NRUN" ]; then
     NRUN=64
-    # NRUN=4
 fi
 ###############################################################
 
@@ -40,7 +39,6 @@ OMP_OPT_ENV="env OMP_DISPLAY_ENV=verbose OMP_PLACES=cores"
 # number of N-body particles
 if [ -z "$NTOT" ]; then
     NTOT=1048576
-    # NTOT=1024
 fi
 ###############################################################
 # dump file generation interval (in units of minute)

@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2020/01/06 (Mon) 11:33:26
+# last updated on 2020/01/17 (Fri) 10:13:56
 # Makefile for C Programming
 # Gravitational octree code for collisionless N-body simulations on GPUs
 #################################################################################################
@@ -58,7 +58,7 @@ DUMPFILE_AS_ANTHEM	:= 0
 USE_OFFICIAL_SFMT	:= 1
 USE_OFFICIAL_SFMT_JUMP	:= 1
 USE_LIS_FOR_MAGI	:= 1
-SET_EXTERNAL_FIELD	:= 1
+SET_EXTERNAL_FIELD	:= 0
 SET_EXTERNAL_FIELD_DISK	:= 1
 ADAPTIVE_EXTERNAL_FIELD	:= 0
 USE_OSIPKOV_MERRITT	:= 0
@@ -67,7 +67,7 @@ DISABLE_SHIFT_CENTER	:= 0
 ADD_GAS_FOR_MAGI	:= 0
 #################################################################################################
 # Enable on-the-fly analysis
-ENABLE_ONLINE_ANALYSIS	:= 1
+ENABLE_ONLINE_ANALYSIS	:= 0
 #################################################################################################
 # Debugging options
 EVALUATE_FORCE_ERROR	:= 0
@@ -666,6 +666,8 @@ ifeq ($(ENABLE_ONLINE_ANALYSIS), 0)
 OBSERVE	:= $(BINDIR)/observation
 else
 EVOLVE	:= $(BINDIR)/cmaes
+EXCLUDE	:= $(BINDIR)/exclude
+SUSPEND	:= $(BINDIR)/suspend
 endif
 #################################################################################################
 ## Plugins for VisIt to read HDF5 files
@@ -797,6 +799,8 @@ OBSSRC	:= observation.c
 EVOLSRC	:= generate.c
 CMALIB	:= cmaes.c
 CMAFILE	:= cmaes_io.c
+EXITSRC	:= exclude.c
+SKIPSRC	:= suspend.c
 #################################################################################################
 
 
@@ -1054,6 +1058,10 @@ endif
 else
 OBJCMA	+= $(patsubst %.c,  $(OBJDIR)/%.o,          $(notdir $(CMAFILE)))
 endif
+OBJEXIT	:= $(patsubst %.c,  $(OBJDIR)/%.o, $(notdir $(EXITSRC)))
+OBJEXIT	+= $(patsubst %.c,  $(OBJDIR)/%.ompmpi.hdf5.o, $(notdir $(OBSSRC)))
+OBJSKIP	:= $(patsubst %.c,  $(OBJDIR)/%.o, $(notdir $(SKIPSRC)))
+OBJSKIP	+= $(patsubst %.c,  $(OBJDIR)/%.ompmpi.hdf5.o, $(notdir $(OBSSRC)))
 endif
 #################################################################################################
 
@@ -1067,7 +1075,7 @@ all:	$(GOTHIC) $(MAGI) $(EDITOR) $(EXTEND) $(PLTENE) $(PLTDST) $(ANALPRF)
 #################################################################################################
 .PHONY:	gothic init magi cold editor extend plot bench sample disk anal mbh halo bulge m31 pickup subaru sass
 gothic:	$(GOTHIC)
-init:	$(MAGI) $(MKCOLD) $(EDITOR)
+init:	$(MAGI) $(EDITOR)
 magi:	$(MAGI)
 cold:	$(MKCOLD)
 editor:	$(EDITOR)
@@ -1080,13 +1088,13 @@ anal:	$(ANALACT) $(ANALERR) $(ANALPRF)
 mbh:	$(ANALMBH)
 halo:	$(DMHALO)
 bulge:	$(BULGE) $(BHMASS)
-m31:	$(M31OBS) $(M31ENE) $(PICKUP) $(SUBARU) $(OBSERVE) $(EVOLVE)
+m31:	$(M31OBS) $(M31ENE) $(PICKUP) $(SUBARU) $(OBSERVE) $(EVOLVE) $(EXCLUDE) $(SUSPEND)
 pickup:	$(PICKUP)
 subaru:	$(SUBARU)
 ifeq ($(ENABLE_ONLINE_ANALYSIS), 0)
 obs:	$(OBSERVE)
 else
-evol:	$(EVOLVE)
+evol:	$(EVOLVE) $(EXCLUDE) $(SUSPEND)
 endif
 sass:	$(GOTHIC).sass
 tags:	TAGS
@@ -1311,6 +1319,10 @@ $(OBSERVE):	$(OBJOBS)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)const
 else
 $(EVOLVE):	$(OBJEVOL) $(OBJCMA) $(MYLIB)/lib$(LIBPREC)myutil.a $(MYLIB)/lib$(LIBPREC)rand_sfmt$(SFMTPER).a $(MYLIB)/libsfmt$(SFMTPER).a $(MYLIB)/lib$(LIBPREC)hdf5lib.a $(MYLIB)/lib$(LIBPREC)mpilib.a $(MYLIB)/lib$(LIBPREC)constants.a $(MYLIB)/lib$(LIBPREC)timer.a $(MYLIB)/lib$(LIBPREC)rotate.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEVOL) $(OBJCMA) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)timer -l$(LIBPREC)rotate -l$(LIBPREC)rand_sfmt$(SFMTPER) -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(SFMTLIB) $(LAPACKLIB) $(OMPLIB) $(CCLIB)
+$(EXCLUDE):	$(OBJEXIT) $(MYLIB)/lib$(LIBPREC)myutil.a $(MYLIB)/lib$(LIBPREC)constants.a $(MYLIB)/lib$(LIBPREC)rotate.a $(MYLIB)/lib$(LIBPREC)hdf5lib.a $(MYLIB)/lib$(LIBPREC)mpilib.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEXIT) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(OMPLIB) $(CCLIB)
+$(SUSPEND):	$(OBJSKIP) $(MYLIB)/lib$(LIBPREC)myutil.a $(MYLIB)/lib$(LIBPREC)constants.a $(MYLIB)/lib$(LIBPREC)rotate.a $(MYLIB)/lib$(LIBPREC)hdf5lib.a $(MYLIB)/lib$(LIBPREC)mpilib.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJSKIP) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(OMPLIB) $(CCLIB)
 endif
 #################################################################################################
 # sass file
@@ -1360,7 +1372,7 @@ endif
 	$(VERBOSE)rm -f $(ANALMBH)
 	$(VERBOSE)rm -f $(DMHALO)
 	$(VERBOSE)rm -f $(BULGE) $(BHMASS)
-	$(VERBOSE)rm -f $(M31OBS) $(M31ENE) $(PICKUP) $(SUBARU) $(OBSERVE) $(EVOLVE)
+	$(VERBOSE)rm -f $(M31OBS) $(M31ENE) $(PICKUP) $(SUBARU) $(OBSERVE) $(EVOLVE) $(EXCLUDE) $(SUSPEND)
 	$(VERBOSE)rm -f $(SAMPLE)
 #################################################################################################
 visit:	$(DIRBODY)/Makefile $(DIRSNAP)/Makefile $(DIRPLOT)/Makefile $(DIRPM31)/Makefile $(DIRAERR)/Makefile $(DIRDUMP)/Makefile $(DIRDISK)/Makefile $(DIRDIST)/Makefile $(DIRPROF)/Makefile
@@ -1715,5 +1727,7 @@ $(OBJDIR)/cmaes.sfmt.o:	$(CMAES_DEP)
 $(OBJDIR)/cmaes_io.mpi.sfmt.hdf5.o:	$(CMAES_DEP)
 $(OBJDIR)/cmaes_io.mpi.hdf5.o:	$(CMAES_DEP)
 $(OBJDIR)/cmaes_io.o:	$(CMAES_DEP)
+$(OBJDIR)/exclude.o:	$(COMMON_DEP)	$(MYINC)/macro.h	$(MYINC)/myutil.h	$(ANALDIR)/observation.h
+$(OBJDIR)/suspend.o:	$(COMMON_DEP)	$(MYINC)/macro.h	$(MYINC)/myutil.h	$(ANALDIR)/observation.h
 #################################################################################################
 #################################################################################################

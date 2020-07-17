@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2020/01/03 (Fri)
+ * @date 2020/01/11 (Sat)
  *
  * Copyright (C) 2019 Yohei Miki
  * All rights reserved.
@@ -119,8 +119,9 @@ extern "C"
    const real theta, const real vrad, const real vtheta, const real vphi);
 
   void initialize_score(real *score_best, char *file, const double ft);
-
   void   finalize_score(real *score_final, char *file);
+  void    exclude_model(char *file);
+  void    suspend_model(char *file);
 
   void prepare_for_observation(const int num, nbody_aos *body, real disk2obs[restrict][3], real * restrict xi, real * restrict eta, real * restrict dist, real * restrict vxi, real * restrict veta, real * restrict vlos, const real phi, const bool flip);
 

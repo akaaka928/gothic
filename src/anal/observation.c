@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2020/01/07 (Tue)
+ * @date 2020/01/17 (Fri)
  *
  * Copyright (C) 2019 Yohei Miki
  * All rights reserved.
@@ -235,7 +235,10 @@ static real hsc_fov2;
 
 
 
-
+static inline real set_worst_score(void){
+  /** 5 is # of criterion, 2 is just a safety parameter indicating that analysis is not yet performed */
+  return (SCORE_UPPER_BOUND * FIVE * TWO);
+}
 
 
 
@@ -386,13 +389,13 @@ void allocate_observation_arrays_for_analysis(real **map, real **box, real **sco
   /** calculate distance to the NW stream */
   for(int ff = 0; ff < DISTANCE_NFIELD; ff++){
     /* const real distance = POW10(0.2 * nwsD_mod[ff] - 2.0); */
-    nwsDmin[ff] = POW(TEN, 0.2 * (nwsD_mod[ff] - nwsD_ran[ff] - nwsD_sys[ff]) - TWO);
-    nwsDmax[ff] = POW(TEN, 0.2 * (nwsD_mod[ff] + nwsD_ran[ff] + nwsD_sys[ff]) - TWO);
+    nwsDmin[ff] = POW(TEN, ONE_FIFTH * (nwsD_mod[ff] - nwsD_ran[ff] - nwsD_sys[ff]) - TWO);
+    nwsDmax[ff] = POW(TEN, ONE_FIFTH * (nwsD_mod[ff] + nwsD_ran[ff] + nwsD_sys[ff]) - TWO);
   }
 
   /** set the minimum mass of the NW stream */
   extern const double mass_astro2com;
-  NWstream_mass = POW(TEN, 5.0) * mass_astro2com;
+  NWstream_mass = CAST_D2R(1.0e+5 * mass_astro2com);
 
 
   __NOTE__("%s\n", "end");
@@ -417,9 +420,9 @@ void setNWstreamProperties(void)
 
   hsc_fov2 = hsc_fov * hsc_fov;
 
-  NWtheta = NWstream_angle * M_PI / 180.0;
-  cos_t = COS(HALF * M_PI - NWtheta);
-  sin_t = SIN(HALF * M_PI - NWtheta);
+  NWtheta = NWstream_angle * CAST_D2R(M_PI / 180.0);
+  cos_t = COS(CAST_D2R(M_PI_2) - NWtheta);
+  sin_t = SIN(CAST_D2R(M_PI_2) - NWtheta);
 
   dXinv = (real)MAP_NX / (Xmax - Xmin);
   /* const int nws_imid = (int)FLOOR(dXinv * (NWstream_axis - Xmin)); */
@@ -532,7 +535,7 @@ void initialize_score(real *score_best, char *file, const double ft)
   __NOTE__("%s\n", "start");
 
 
-  const real worst_score = SCORE_UPPER_BOUND * 5 * 2;/**< 5 is # of criterion, 2 is just a safety parameter indicating that analysis is not yet performed */
+  const real worst_score = set_worst_score();
   for(int ii = 0; ii < NANGLE * NFLIP; ii++)
     score_best[ii] = worst_score;
 
@@ -652,7 +655,7 @@ void initialize_score(real *score_best, char *file, const double ft)
     chkHDF5err(H5Aclose(attr));
 
     const int jphi = ii % NANGLE;
-    const real phi = (real)jphi * TWO * M_PI / (real)NANGLE;
+    const real phi = (real)jphi * TWO * CAST_D2R(M_PI) / (real)NANGLE;
     attr = H5Acreate(subgrp, ATTR_TAG_ANAL_PHI, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
     chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &phi));
     chkHDF5err(H5Aclose(attr));
@@ -732,7 +735,7 @@ void finalize_score(real *score_final, char *file)
 {
   __NOTE__("%s\n", "start");
 
-  real best_score = SCORE_UPPER_BOUND * 5 * 2;/**< 5 is # of criterion, 2 is just a safety parameter indicating that analysis is not yet performed */
+  real best_score = set_worst_score();
   int best_index = NANGLE * NFLIP;
 
   for(int ii = 0; ii < NANGLE * NFLIP; ii++){
@@ -758,7 +761,7 @@ void finalize_score(real *score_final, char *file)
   attr = H5Aopen(group, ATTR_TAG_SCORE, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &best_score));
   chkHDF5err(H5Aclose(attr));
-  const real best_angle = (real)(best_index % NANGLE) * TWO * M_PI / (real)NANGLE;
+  const real best_angle = (real)(best_index % NANGLE) * TWO * CAST_D2R(M_PI) / (real)NANGLE;
   attr = H5Aopen(group, ATTR_TAG_ANGLE, H5P_DEFAULT);
   chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &best_angle));
   chkHDF5err(H5Aclose(attr));
@@ -782,6 +785,85 @@ void finalize_score(real *score_final, char *file)
 
   chkHDF5err(H5Fclose(target));
 
+
+  __NOTE__("%s\n", "end");
+}
+
+
+void exclude_model(char *file)
+{
+  __NOTE__("%s\n", "start");
+
+
+  const real worst_score = set_worst_score() * TWO;
+
+  char filename[256];
+  sprintf(filename, "%s/%s_%s.h5", DATAFOLDER, file, FILE_TAG_SCORE);
+  hid_t target = H5Fopen(filename, H5F_ACC_RDWR, H5P_DEFAULT);
+#ifdef  USE_DOUBLE_PRECISION
+  const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_DOUBLE;
+#else///USE_DOUBLE_PRECISION
+  const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_FLOAT;
+#endif//USE_DOUBLE_PRECISION
+
+  hsize_t attr_dims = 1;
+  hid_t dspc = H5Screate_simple(1, &attr_dims, NULL);
+
+  hid_t group;
+  hid_t attr;
+  group = H5Gopen(target, GROUP_TAG_INFO, H5P_DEFAULT);
+  attr = H5Acreate(group, ATTR_TAG_SCORE, H5T_GOTHIC_REAL, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &worst_score));
+  chkHDF5err(H5Aclose(attr));
+  const double time = 0.0;
+  attr = H5Acreate(group, ATTR_TAG_FINISH_TIME, H5T_NATIVE_DOUBLE, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_NATIVE_DOUBLE, &time));
+  chkHDF5err(H5Aclose(attr));
+  attr = H5Acreate(group, ATTR_TAG_ANALYZED_TIME, H5T_NATIVE_DOUBLE, dspc, H5P_DEFAULT, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_NATIVE_DOUBLE, &time));
+  chkHDF5err(H5Aclose(attr));
+
+  chkHDF5err(H5Sclose(dspc));
+  chkHDF5err(H5Gclose(group));
+
+  chkHDF5err(H5Fclose(target));
+
+
+  __NOTE__("%s\n", "end");
+}
+
+
+void suspend_model(char *file)
+{
+  __NOTE__("%s\n", "start");
+
+  char filename[256];
+  sprintf(filename, "%s/%s_%s.h5", DATAFOLDER, file, FILE_TAG_SCORE);
+  hid_t target = H5Fopen(filename, H5F_ACC_RDWR, H5P_DEFAULT);
+  hid_t group = H5Gopen(target, GROUP_TAG_INFO, H5P_DEFAULT);
+  hid_t attr;
+
+  const double time = 0.0;
+  attr = H5Aopen(group, ATTR_TAG_FINISH_TIME, H5P_DEFAULT);
+  chkHDF5err(H5Awrite(attr, H5T_NATIVE_DOUBLE, &time));
+  chkHDF5err(H5Aclose(attr));
+
+#ifdef  USE_DOUBLE_PRECISION
+  const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_DOUBLE;
+#else///USE_DOUBLE_PRECISION
+  const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_FLOAT;
+#endif//USE_DOUBLE_PRECISION
+  const real initial_score = set_worst_score();
+  const real suspend_score = initial_score * CAST_D2R(1.5);
+  attr = H5Aopen(group, ATTR_TAG_SCORE, H5P_DEFAULT);
+  real tentative_score;
+  chkHDF5err(H5Aread(attr, H5T_GOTHIC_REAL, &tentative_score));
+  if( tentative_score >= initial_score )
+    chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &suspend_score));
+  chkHDF5err(H5Aclose(attr));
+
+  chkHDF5err(H5Gclose(group));
+  chkHDF5err(H5Fclose(target));
 
   __NOTE__("%s\n", "end");
 }

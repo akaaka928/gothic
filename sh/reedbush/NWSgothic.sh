@@ -5,9 +5,14 @@
 #PBS -W group_list=jh180045l
 #PBS -l walltime=24:00:00
 #PBS -N NWSgothic
+#PBS -M ymiki@cc.u-tokyo.ac.jp
+#PBS -m abe
 ###############################################################
 NGPUS_PER_NODE=4
 NGPUS_PER_SOCKET=2
+###############################################################
+NQUEUES=16
+PROCS=`expr $NQUEUES \* $NGPUS_PER_NODE`
 ###############################################################
 
 
@@ -19,7 +24,7 @@ fi
 ###############################################################
 # name of the series
 if [ -z "$SERIES" ]; then
-    SERIES=cusp
+    SERIES=core
 fi
 ###############################################################
 # number of runs in this generation
@@ -64,8 +69,13 @@ if [ -z "$DISKPOT" ]; then
     DISKPOT=m31
 fi
 ###############################################################
+# set minimum dt
+if [ -z "$DTMIN" ]; then
+    DTMIN=1.220703125e-2
+fi
+###############################################################
 # set input arguments
-OPTION="-absErr=$ABSERR -pot_file_sphe=$SPHEPOT -pot_file_disk=$DISKPOT -jobID=$PBS_JOBID"
+OPTION="-absErr=$ABSERR -pot_file_sphe=$SPHEPOT -pot_file_disk=$DISKPOT -jobID=$PBS_JOBID -dtmin=$DTMIN"
 ###############################################################
 
 
@@ -94,8 +104,7 @@ module load cub
 ###############################################################
 FULL=${SERIES}-gen${GEN}.lst
 LIST=${SERIES}-gen${GEN}-split.lst
-split -d -n l/$PROCS $FULL $LIST
-# mpiexec -n $SLURM_NTASKS sh/slurm/compress_sub.sh $SUBLIST $SRCDIR $DSTDIR
+# split -d -n l/$PROCS $FULL $LIST
 ###############################################################
 
 

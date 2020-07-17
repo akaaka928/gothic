@@ -1,12 +1,18 @@
-#!/bin/sh
-#$ -cwd
-#$ -l f_node=16
-#$ -l h_rt=24:00:00
-#$ -N NWSgothic
+#!/bin/bash
+#PBS -A GALAXY
+#PBS -q gpu
+#PBS -N gothic
+#PBS -b 16
+#PBS -l elapstim_req=24:00:00
+#PBS -T mvapich
+#PBS -v NQSV_MPI_VER=2.3.1/intel-cuda10.1
+#PBS -M ymiki@cc.u-tokyo.ac.jp
+#PBS -m be
 ###############################################################
 NGPUS_PER_NODE=4
-NGPUS_PER_SOCKET=2
+NGPUS_PER_SOCKET=4
 ###############################################################
+NQUEUES=16
 PROCS=`expr $NQUEUES \* $NGPUS_PER_NODE`
 ###############################################################
 
@@ -19,7 +25,7 @@ fi
 ###############################################################
 # name of the series
 if [ -z "$SERIES" ]; then
-    SERIES=core
+    SERIES=cusp
 fi
 ###############################################################
 # number of runs in this generation
@@ -70,28 +76,27 @@ if [ -z "$DTMIN" ]; then
 fi
 ###############################################################
 # set input arguments
-OPTION="-absErr=$ABSERR -pot_file_sphe=$SPHEPOT -pot_file_disk=$DISKPOT -jobID=$JOB_ID -dtmin=$DTMIN"
+OPTION="-absErr=$ABSERR -pot_file_sphe=$SPHEPOT -pot_file_disk=$DISKPOT -jobID=$PBS_JOBID -dtmin=$DTMIN"
 ###############################################################
 
 
 ###############################################################
-# job execution via UNIVA Grid Engine
+# job execution via PBS
 ###############################################################
 # set stdout and stderr
-STDOUT=log/${SERIES}_$REQUEST.o$JOB_ID
-STDERR=log/${SERIES}_$REQUEST.e$JOB_ID
+STDOUT=log/${SERIES}_$PBS_JOBNAME.o${PBS_JOBID}
+STDERR=log/${SERIES}_$PBS_JOBNAME.e${PBS_JOBID}
 ###############################################################
-# load modules
-. /etc/profile.d/modules.sh
-export MODULEPATH=$MODULEPATH:/gs/hs1/jh180045/share/opt/Modules
-module load intel/19.0.0.117 cuda/9.2.148 openmpi/2.1.2-opa10.9
-module load cub phdf5
-module list 1>>$STDOUT 2>>$STDERR
-export OMP_NUM_THREADS=7
-###############################################################
-cat $PE_HOSTFILE 1>>$STDOUT 2>>$STDERR
+# start logging
+cd $PBS_O_WORKDIR
 TIME=`date`
-echo "start: $TIME" 1>>$STDOUT 2>>$STDERR
+echo "start: $TIME"
+###############################################################
+module purge
+export MODULEPATH=$MODULEPATH:/work/CSPP/ymiki/opt/module
+module load mvapich/2.3.1/intel-cuda10.1
+module load phdf5
+module load cub
 ###############################################################
 
 
@@ -104,19 +109,8 @@ LIST=${SERIES}-gen${GEN}-split.lst
 
 ###############################################################
 # execute the job
-# if [ `which numactl` ]; then
-#     # run with numactl
-#     echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
-#     numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
-# else
-#     # run without numactl
-#     echo "$EXEC $OPTION 1>>$STDOUT 2>>$STDERR" 1>>$STDOUT 2>>$STDERR
-#     $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
-# fi
-mpirun -np $PROCS -npernode $NGPUS_PER_NODE -x LD_LIBRARY_PATH -x PATH -x OMP_NUM_THREADS sh/split.sh $EXEC log/${SERIES}_${REQUEST} $JOB_ID $NGPUS_PER_NODE $NGPUS_PER_SOCKET $LIST $OPTION
-# mpirun -tag-output -mca pml cm -mca mtl psm2 -np $PROCS -npernode $NGPUS_PER_NODE --bind-to core -cpu-set 0,7,14,21 -x CUDA_VISIBLE_DEVICES=0,1,2,3 -x PSM2_CUDA=1 -x PSM2_GPUDIRECT=1 -x LD_LIBRARY_PATH -x PATH $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
+mpiexec ${NQSII_MPIOPTS} -np ${PROCS} -ppn ${NGPUS_PER_NODE} -genv MV2_NUM_HCAS 4 -genv MV2_ENABLE_AFFINITY 0 sh/cygnus/NWSsplit.sh $EXEC log/${SERIES}_${REQUEST} $PBS_JOBID $NGPUS_PER_NODE $NGPUS_PER_SOCKET $LIST $OPTION
 ###############################################################
-
 
 
 ###############################################################

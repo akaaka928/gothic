@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/01/03 (Fri)
+ * @date 2020/02/12 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -2502,11 +2502,21 @@ int main(int argc, char **argv)
 
   /** initialize time step */
 #ifdef  BLOCK_TIME_STEP
+#ifdef  ONLINE_ANALYSIS
+  static real dtmin = ZERO;
+  extern const double time2astro;
+  if( optionalCmdArg(getCmdArgDbl(argc, (const char * const *)(void *)argv, "dtmin", &tmp)) != myUtilAvail )
+    tmp = 0.0;
+  dtmin = CAST_D2R(tmp / time2astro);
+#endif//ONLINE_ANALYSIS
   adjustParticleTime_dev
     (Ngrp, laneInfo_dev, laneTime_dev, eps, eta, ibody0_dev
 #ifdef  EXEC_BENCHMARK
      , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
+#ifdef  ONLINE_ANALYSIS
+     , dtmin
+#endif//ONLINE_ANALYSIS
      );
 #endif//BLOCK_TIME_STEP
 
@@ -3237,6 +3247,9 @@ int main(int argc, char **argv)
 #ifdef  EXEC_BENCHMARK
        , &execTime[steps - bench_begin]
 #endif//EXEC_BENCHMARK
+#ifdef  ONLINE_ANALYSIS
+       , dtmin
+#endif//ONLINE_ANALYSIS
        );
 #else///BLOCK_TIME_STEP
 #ifndef LEAP_FROG_INTEGRATOR

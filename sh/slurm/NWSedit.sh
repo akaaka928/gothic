@@ -32,6 +32,7 @@ fi
 # global configurations
 ###############################################################
 EXEC=bin/editor
+EXCLUDE=bin/exclude
 ###############################################################
 # dump file generation interval (in units of minute)
 if [ -z "$SAVE" ]; then
@@ -42,6 +43,11 @@ fi
 
 ###############################################################
 # problem specific configurations
+###############################################################
+# enforce inputted softening length
+if [ -z "$ENFORCE_SOFTENING" ]; then
+    ENFORCE_SOFTENING=1
+fi
 ###############################################################
 # gravitational softening length
 if [ -z "$EPS" ]; then
@@ -95,7 +101,7 @@ do
     CFG=$SERIES/gen${GEN}/run${ID}-edit.cfg
 
     # set input arguments
-    OPTION="-file=$FILE -list=$CFG -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE"
+    OPTION="-file=$FILE -list=$CFG -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE -enforceInputSoftening=$ENFORCE_SOFTENING"
     # execute the job
     if [ `which numactl` ]; then
 	echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
@@ -105,7 +111,11 @@ do
 	$EXEC $OPTION 1>>$STDOUT 2>>$STDERR
     fi
 
-    echo "$FILE" >> $LIST
+    if [ -e dat/${FILE}.tmp0.h5 ]; then
+	echo "$FILE" >> $LIST
+    else
+	numactl --localalloc $EXCLUDE -file=$FILE -ft=$FINISH
+    fi
 done
 ###############################################################
 

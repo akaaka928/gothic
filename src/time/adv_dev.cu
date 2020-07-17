@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/28 (Fri)
+ * @date 2020/02/11 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -543,7 +543,11 @@ __device__ __forceinline__ real setParticleTime
 #ifndef OMIT_VELOCITY_FOR_TIME_STEP
  const velocity vi,
 #endif//OMIT_VELOCITY_FOR_TIME_STEP
- const real eps, const real eta)
+ const real eps, const real eta
+#ifdef  ONLINE_ANALYSIS
+ , const real dtmin
+#endif//ONLINE_ANALYSIS
+)
 {
   /** estimate the required time step to resolve eps */
 #ifndef OMIT_VELOCITY_FOR_TIME_STEP
@@ -552,11 +556,19 @@ __device__ __forceinline__ real setParticleTime
   const real a2 = FLT_MIN + ai.x * ai.x + ai.y * ai.y + ai.z * ai.z;  const real adt = SQRT(eps * RSQRT(a2));
 
   /** set new time step */
+#ifndef ONLINE_ANALYSIS
 #ifndef OMIT_VELOCITY_FOR_TIME_STEP
   return (LDEXP(UNITY, (int)FLOOR(LOG2(eta * FMIN(vdt, adt)))));
 #else///OMIT_VELOCITY_FOR_TIME_STEP
   return (LDEXP(UNITY, (int)FLOOR(LOG2(eta * adt))));
 #endif//OMIT_VELOCITY_FOR_TIME_STEP
+#else///ONLINE_ANALYSIS
+#ifndef OMIT_VELOCITY_FOR_TIME_STEP
+  return (LDEXP(UNITY, (int)FLOOR(LOG2(FMAX(eta * FMIN(vdt, adt), dtmin)))));
+#else///OMIT_VELOCITY_FOR_TIME_STEP
+  return (LDEXP(UNITY, (int)FLOOR(LOG2(FMAX(eta * adt           , dtmin)))));
+#endif//OMIT_VELOCITY_FOR_TIME_STEP
+#endif//ONLINE_ANALYSIS
 }
 
 
@@ -671,7 +683,11 @@ __global__ void correction_kernel
  const int Nsink, READ_ONLY int * RESTRICT sinkidx, READ_ONLY position * RESTRICT sinkpos, READ_ONLY velocity * RESTRICT sinkvel, velocity * RESTRICT BHsum,
 #endif//SET_SINK_PARTICLES
  READ_ONLY position * RESTRICT jpos, READ_ONLY velocity * RESTRICT jvel,
- const int reuseTree)
+ const int reuseTree
+#ifdef  ONLINE_ANALYSIS
+ , const real dtmin
+#endif//ONLINE_ANALYSIS
+)
 {
   const int tidx = THREADIDX_X1D;
   const int lane    = tidx          & (DIV_NWARP(TSUB) - 1);
@@ -723,9 +739,13 @@ __global__ void correction_kernel
     vi.dt = setParticleTime
       (ai,
 #ifndef OMIT_VELOCITY_FOR_TIME_STEP
-    vi,
+       vi,
 #endif//OMIT_VELOCITY_FOR_TIME_STEP
-    eps, eta);
+       eps, eta
+#ifdef  ONLINE_ANALYSIS
+       , dtmin
+#endif//ONLINE_ANALYSIS
+       );
     /** store vi */
     ivel[idx] = vi;
 
@@ -802,6 +822,9 @@ __global__ void adjustParticleTime_kernel
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
  , READ_ONLY acceleration * RESTRICT iacc_ext
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  ONLINE_ANALYSIS
+ , const real dtmin
+#endif//ONLINE_ANALYSIS
 )
 {
   const int tidx = THREADIDX_X1D;
@@ -840,9 +863,13 @@ __global__ void adjustParticleTime_kernel
     vi.dt = setParticleTime
       (ai,
 #ifndef OMIT_VELOCITY_FOR_TIME_STEP
-    vi,
+       vi,
 #endif//OMIT_VELOCITY_FOR_TIME_STEP
-    eps, eta);
+       eps, eta
+#ifdef  ONLINE_ANALYSIS
+       , dtmin
+#endif//ONLINE_ANALYSIS
+       );
     /** store vi */
     ivel[idx] = vi;
 
@@ -1000,6 +1027,9 @@ void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTR
 #ifdef  EXEC_BENCHMARK
 		    , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
+#ifdef  ONLINE_ANALYSIS
+		    , const real dtmin
+#endif//ONLINE_ANALYSIS
 		    )
 {
   __NOTE__("%s\n", "start");
@@ -1044,7 +1074,11 @@ void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTR
 #ifdef  SET_SINK_PARTICLES
 	   Nbh, bh.list, bh.pos, bh.vel, bh.mom,
 #endif//SET_SINK_PARTICLES
-	   pi.jpos, pi.jvel, reuseTree);
+	   pi.jpos, pi.jvel, reuseTree
+#ifdef  ONLINE_ANALYSIS
+	   , dtmin
+#endif//ONLINE_ANALYSIS
+	   );
       else{
 	const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
 	int hidx = 0;
@@ -1062,7 +1096,11 @@ void correction_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double * RESTR
 #ifdef  SET_SINK_PARTICLES
 	     Nbh, bh.list, bh.pos, bh.vel, bh.mom,
 #endif//SET_SINK_PARTICLES
-	     pi.jpos, pi.jvel, reuseTree);
+	     pi.jpos, pi.jvel, reuseTree
+#ifdef  ONLINE_ANALYSIS
+	     , dtmin
+#endif//ONLINE_ANALYSIS
+	     );
 
 	  hidx += Nsub;
 	  Nrem -= Nblck;
@@ -1107,6 +1145,9 @@ void adjustParticleTime_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double
 #ifdef  EXEC_BENCHMARK
 			    , wall_clock_time *elapsed
 #endif//EXEC_BENCHMARK
+#ifdef  ONLINE_ANALYSIS
+			    , const real dtmin
+#endif//ONLINE_ANALYSIS
 			    )
 {
   __NOTE__("%s\n", "start");
@@ -1124,6 +1165,9 @@ void adjustParticleTime_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
        , pi.acc_ext
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  ONLINE_ANALYSIS
+       , dtmin
+#endif//ONLINE_ANALYSIS
        );
   else{
     const int Niter = BLOCKSIZE(Nrem, MAX_BLOCKS_PER_GRID);
@@ -1139,6 +1183,9 @@ void adjustParticleTime_dev(const int Ngrp, laneinfo * RESTRICT laneInfo, double
 #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
 	 , pi.acc_ext
 #endif//SET_EXTERNAL_POTENTIAL_FIELD
+#ifdef  ONLINE_ANALYSIS
+	 , dtmin
+#endif//ONLINE_ANALYSIS
 	 );
 
       hidx += Nsub;
