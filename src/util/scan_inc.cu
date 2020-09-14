@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/01 (Fri)
+ * @date 2020/09/14 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -52,48 +52,48 @@ __device__ __forceinline__ Type prefixSumWarp
 
   Type tmp;
   tmp = __SHFL_UP(SHFL_MASK_32, val,  1, warpSize);  if( lane >=  1 )    val += tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   tmp = __SHFL_UP(SHFL_MASK_32, val,  2, warpSize);  if( lane >=  2 )    val += tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   tmp = __SHFL_UP(SHFL_MASK_32, val,  4, warpSize);  if( lane >=  4 )    val += tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   tmp = __SHFL_UP(SHFL_MASK_32, val,  8, warpSize);  if( lane >=  8 )    val += tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   tmp = __SHFL_UP(SHFL_MASK_32, val, 16, warpSize);  if( lane >= 16 )    val += tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 #else///USE_WARP_SHUFFLE_FUNC_SCAN_INC
 
   smem[tidx] = val;  if( lane >=  1 )    val += smem[tidx -  1];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;  if( lane >=  2 )    val += smem[tidx -  2];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;  if( lane >=  4 )    val += smem[tidx -  4];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;  if( lane >=  8 )    val += smem[tidx -  8];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;  if( lane >= 16 )    val += smem[tidx - 16];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;
 
 #endif//USE_WARP_SHUFFLE_FUNC_SCAN_INC
@@ -163,9 +163,9 @@ __device__ __forceinline__ Type PREFIX_SUM_BLCK(Type val, volatile Type * __rest
 
 
   /** 2. prefix sum about tail of each warp */
-#   if  (__CUDA_ARCH__ >= 700) && (NTHREADS_SCAN_INC > 32)
+#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (NTHREADS_SCAN_INC > 32)
   thread_block_tile<NTHREADS_SCAN_INC >> 5> tile = tiled_partition<NTHREADS_SCAN_INC >> 5>(this_thread_block());
-#endif//(__CUDA_ARCH__ >= 700) && (NTHREADS_SCAN_INC > 32)
+#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (NTHREADS_SCAN_INC > 32)
   __syncthreads();
 
   /** warpSize = 32 = 2^5; NTHREADS_SCAN_INC <= 1024 --> NTHREADS_SCAN_INC >> 5 <= 32 = warpSize */
@@ -177,29 +177,29 @@ __device__ __forceinline__ Type PREFIX_SUM_BLCK(Type val, volatile Type * __rest
     Type tmp;
 #   if  (NTHREADS_SCAN_INC >> 5) >=  2
     tmp = __SHFL_UP(SHFL_MASK_SCAN_INC, val,  1, groupSize);    if( lane >=  1 )      val += tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  (NTHREADS_SCAN_INC >> 5) >=  4
     tmp = __SHFL_UP(SHFL_MASK_SCAN_INC, val,  2, groupSize);    if( lane >=  2 )      val += tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  (NTHREADS_SCAN_INC >> 5) >=  8
     tmp = __SHFL_UP(SHFL_MASK_SCAN_INC, val,  4, groupSize);    if( lane >=  4 )      val += tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  (NTHREADS_SCAN_INC >> 5) >= 16
     tmp = __SHFL_UP(SHFL_MASK_SCAN_INC, val,  8, groupSize);    if( lane >=  8 )      val += tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  (NTHREADS_SCAN_INC >> 5) == 32
     tmp = __SHFL_UP(SHFL_MASK_SCAN_INC, val, 16, groupSize);    if( lane >= 16 )      val += tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #endif//(NTHREADS_SCAN_INC >> 5) == 32
 #endif//(NTHREADS_SCAN_INC >> 5) >= 16
 #endif//(NTHREADS_SCAN_INC >> 5) >=  8
@@ -210,33 +210,33 @@ __device__ __forceinline__ Type PREFIX_SUM_BLCK(Type val, volatile Type * __rest
     smem[tidx] = val;
 #   if  (NTHREADS_SCAN_INC >> 5) >=  2
     if( lane >=  1 )      val += smem[tidx -  1];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     smem[tidx] = val;
 #   if  (NTHREADS_SCAN_INC >> 5) >=  4
     if( lane >=  2 )      val += smem[tidx -  2];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     smem[tidx] = val;
 #   if  (NTHREADS_SCAN_INC >> 5) >=  8
     if( lane >=  4 )      val += smem[tidx -  4];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     smem[tidx] = val;
 #   if  (NTHREADS_SCAN_INC >> 5) >= 16
     if( lane >=  8 )      val += smem[tidx -  8];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     smem[tidx] = val;
 #   if  (NTHREADS_SCAN_INC >> 5) == 32
     if( lane >= 16 )      val += smem[tidx - 16];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     smem[tidx] = val;
 #endif//(NTHREADS_SCAN_INC >> 5) == 32
 #endif//(NTHREADS_SCAN_INC >> 5) >= 16

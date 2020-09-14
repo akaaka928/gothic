@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/01 (Fri)
+ * @date 2020/09/14 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -127,25 +127,25 @@ __device__ __forceinline__ Type getMinlocWarp
 {
   Type tmp;
   stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^  1]);  if( tmp.val < val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^  2]);  if( tmp.val < val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^  4]);  if( tmp.val < val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^  8]);  if( tmp.val < val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^ 16]);  if( tmp.val < val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   stloc((Type *)smem, tidx, val);
 
   val = ldloc(smem[head]);
@@ -166,25 +166,25 @@ __device__ __forceinline__ Type getMaxlocWarp
   Type tmp;
 
   stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^  1]);  if( tmp.val > val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^  2]);  if( tmp.val > val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^  4]);  if( tmp.val > val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^  8]);  if( tmp.val > val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   stloc((Type *)smem, tidx, val);  tmp = ldloc(smem[tidx ^ 16]);  if( tmp.val > val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   stloc((Type *)smem, tidx, val);
 
   val = ldloc(smem[head]);
@@ -352,9 +352,9 @@ __device__ __forceinline__ Type GET_MINLOC_BLCK(Type val, volatile Type * __rest
   Type ret = getMinlocWarp(val, smem, tidx, head);
 
   /** 2. reduction among warps */
-#   if  (__CUDA_ARCH__ >= 700) && (NTHREADS_COMPARE_INC > 32)
+#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (NTHREADS_COMPARE_INC > 32)
   thread_block_tile<NTHREADS_COMPARE_INC >> 5> tile = tiled_partition<NTHREADS_COMPARE_INC >> 5>(this_thread_block());
-#endif//(__CUDA_ARCH__ >= 700) && (NTHREADS_COMPARE_INC > 32)
+#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (NTHREADS_COMPARE_INC > 32)
   __syncthreads();
   /** warpSize = 32 = 2^5; NTHREADS_COMPARE_INC <= 1024 --> NTHREADS_COMPARE_INC >> 5 <= 32 = warpSize */
   if( tidx < (NTHREADS_COMPARE_INC >> 5) ){
@@ -364,33 +364,33 @@ __device__ __forceinline__ Type GET_MINLOC_BLCK(Type val, volatile Type * __rest
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  2
     Type tmp;
     tmp = ldloc(smem[tidx ^  1]);    if( tmp.val < val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  4
     tmp = ldloc(smem[tidx ^  2]);    if( tmp.val < val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  8
     tmp = ldloc(smem[tidx ^  4]);    if( tmp.val < val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >= 16
     tmp = ldloc(smem[tidx ^  8]);    if( tmp.val < val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) == 32
     tmp = ldloc(smem[tidx ^ 16]);    if( tmp.val < val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #endif//(NTHREADS_COMPARE_INC >> 5) == 32
 #endif//(NTHREADS_COMPARE_INC >> 5) >= 16
@@ -420,9 +420,9 @@ __device__ __forceinline__ Type GET_MAXLOC_BLCK(Type val, volatile Type * __rest
   Type ret = getMaxlocWarp(val, smem, tidx, head);
 
   /** 2. reduction among warps */
-#   if  (__CUDA_ARCH__ >= 700) && (NTHREADS_COMPARE_INC > 32)
+#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (NTHREADS_COMPARE_INC > 32)
   thread_block_tile<NTHREADS_COMPARE_INC >> 5> tile = tiled_partition<NTHREADS_COMPARE_INC >> 5>(this_thread_block());
-#endif//(__CUDA_ARCH__ >= 700) && (NTHREADS_COMPARE_INC > 32)
+#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (NTHREADS_COMPARE_INC > 32)
   __syncthreads();
   /** warpSize = 32 = 2^5; NTHREADS_COMPARE_INC <= 1024 --> NTHREADS_COMPARE_INC >> 5 <= 32 = warpSize */
   if( tidx < (NTHREADS_COMPARE_INC >> 5) ){
@@ -432,33 +432,33 @@ __device__ __forceinline__ Type GET_MAXLOC_BLCK(Type val, volatile Type * __rest
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  2
     Type tmp;
     tmp = ldloc(smem[tidx ^  1]);    if( tmp.val > val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  4
     tmp = ldloc(smem[tidx ^  2]);    if( tmp.val > val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  8
     tmp = ldloc(smem[tidx ^  4]);    if( tmp.val > val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >= 16
     tmp = ldloc(smem[tidx ^  8]);    if( tmp.val > val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) == 32
     tmp = ldloc(smem[tidx ^ 16]);    if( tmp.val > val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #endif//(NTHREADS_COMPARE_INC >> 5) == 32
 #endif//(NTHREADS_COMPARE_INC >> 5) >= 16
@@ -490,9 +490,9 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_BLCK(Type * __restrict__ minlo
 
   /** 2. reduction among warps */
   /** warpSize = 32 = 2^5; NTHREADS_COMPARE_INC <= 1024 --> NTHREADS_COMPARE_INC >> 5 <= 32 = warpSize */
-#   if  (__CUDA_ARCH__ >= 700) && (NTHREADS_COMPARE_INC > 32)
+#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (NTHREADS_COMPARE_INC > 32)
   thread_block_tile<NTHREADS_COMPARE_INC >> 5> tile = tiled_partition<NTHREADS_COMPARE_INC >> 5>(this_thread_block());
-#endif//(__CUDA_ARCH__ >= 700) && (NTHREADS_COMPARE_INC > 32)
+#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (NTHREADS_COMPARE_INC > 32)
   __syncthreads();
   if( tidx == head ){
     stloc((Type *)smem,                                head >> 5 , *minloc);/**< := smem[                              (tidx / warpSize)] = minloc; */
@@ -507,33 +507,33 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_BLCK(Type * __restrict__ minlo
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  2
     Type tmp;
     tmp = ldloc(smem[tidx ^  1]);    if( tmp.val < val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  4
     tmp = ldloc(smem[tidx ^  2]);    if( tmp.val < val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  8
     tmp = ldloc(smem[tidx ^  4]);    if( tmp.val < val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >= 16
     tmp = ldloc(smem[tidx ^  8]);    if( tmp.val < val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) == 32
     tmp = ldloc(smem[tidx ^ 16]);    if( tmp.val < val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #endif//(NTHREADS_COMPARE_INC >> 5) == 32
 #endif//(NTHREADS_COMPARE_INC >> 5) >= 16
@@ -549,33 +549,33 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_BLCK(Type * __restrict__ minlo
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  2
     Type tmp;
     tmp = ldloc(smem[tidx ^  1]);    if( tmp.val > val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  4
     tmp = ldloc(smem[tidx ^  2]);    if( tmp.val > val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >=  8
     tmp = ldloc(smem[tidx ^  4]);    if( tmp.val > val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) >= 16
     tmp = ldloc(smem[tidx ^  8]);    if( tmp.val > val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #   if  (NTHREADS_COMPARE_INC >> 5) == 32
     tmp = ldloc(smem[tidx ^ 16]);    if( tmp.val > val.val )      val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     stloc((Type *)smem, tidx, val);
 #endif//(NTHREADS_COMPARE_INC >> 5) == 32
 #endif//(NTHREADS_COMPARE_INC >> 5) >= 16

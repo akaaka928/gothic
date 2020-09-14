@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/24 (Thu)
+ * @date 2020/09/14 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -223,9 +223,9 @@ __global__ void countContinuousNeighbor_kernel(const int Ni, position * RESTRICT
 	break;
       }/* if( r2 > r2max ){ */
     }/* for(int ii = 0; ii < NEIGHBOR_NUM_LANE; ii++){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
     /** commit the derived maximum number as neighbor particles within rmax */
     inum[gidx] = nmax;
