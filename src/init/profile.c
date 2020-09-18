@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/11/14 (Thu)
+ * @date 2020/09/18 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -70,14 +70,14 @@ void setDensityProfilePlummer(profile *prf, const double rs)
 #pragma omp parallel for
   for(int ii = 0; ii < NRADBIN; ii++){
     const double rad_rs = prf[ii].rad * rsinv;
-    const double x2_pls_1 = 1.0 + rad_rs * rad_rs;
-    const double     inv = 1.0 / x2_pls_1;
-    const double sqrtinv = sqrt(inv);
+    const double sqrtinv = 1.0 / sqrt(1.0 + rad_rs * rad_rs);
+    const double     inv = sqrtinv * sqrtinv;
     const double pow_m5_2 = inv * inv * sqrtinv;
 
     prf[ii].  rho     = pow_m5_2;
     prf[ii]. drho_dr  = - 5.0 * rad_rs * pow_m5_2 * inv * rsinv;
-    prf[ii].d2rho_dr2 = 5.0 * pow_m5_2 * inv * (7.0 * rad_rs * rad_rs * inv - 1.0) * rsinv * rsinv;
+    /* prf[ii].d2rho_dr2 = 5.0 * pow_m5_2 * inv * (7.0 * rad_rs * rad_rs * inv - 1.0) * rsinv * rsinv; */
+    prf[ii].d2rho_dr2 = 5.0 * pow_m5_2 * (6.0 * rad_rs * rad_rs - 1.0) * inv * inv * rsinv * rsinv;
   }/* for(int ii = 0; ii < NRADBIN; ii++){ */
 
   __NOTE__("%s\n", "end");
