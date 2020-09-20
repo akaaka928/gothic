@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/09/18 (Fri)
+ * @date 2020/09/19 (Sat)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -136,7 +136,7 @@ void setDensityProfileHernquist(profile *prf, const double rs)
     const double tmp = rad_rs * rad_rs_p1;
     const double inv = 1.0 / (tmp * rad_rs_p1);
 
-    prf[ii].  rho     = 1.0 * inv * inv * tmp;
+    prf[ii].  rho     = inv * inv * tmp;
     prf[ii]. drho_dr  = - (1.0 + 4.0 * rad_rs) * inv * inv * rsinv;
     prf[ii].d2rho_dr2 = 2.0 * (1.0 + 5.0 * rad_rs * (1.0 + 2.0 * rad_rs)) * inv * inv * inv * rad_rs_p1 * rsinv * rsinv;
   }/* for(int ii = 0; ii < NRADBIN; ii++){ */
@@ -196,7 +196,7 @@ void setDensityProfileMoore(profile *prf, const double rs)
     const double sqrtinv  = sqrt(inv);
     const double pow_m5_2 = inv * inv * sqrtinv;
 
-    prf[ii].  rho     =  1.0 * inv * sqrtinv;
+    prf[ii].  rho     =  inv * sqrtinv;
     prf[ii]. drho_dr  = -1.5 * (1.0 + 2.0 * rad_rs) * pow_m5_2 * rsinv;
     prf[ii].d2rho_dr2 =  0.75 * (5.0 + 16.0 * rad_rs * (1.0 + rad_rs)) * pow_m5_2 * inv * rsinv * rsinv;
   }/* for(int ii = 0; ii < NRADBIN; ii++){ */
@@ -284,8 +284,7 @@ void setDensityProfileTwoPower(profile *prf, const double rs, const double alpha
 
   /** set density profile */
   const double rsinv = 1.0 / rs;
-  const double binv  = 1.0 / beta;
-  const double agbi  = (alpha - gam) * binv;
+  const double agbi  = (alpha - gam) / beta;
   const double b1g2  = 1.0 + beta + 2.0 * gam;
   const double a1    = 1.0 + alpha;
   const double g1    = 1.0 + gam;
