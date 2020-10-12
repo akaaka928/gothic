@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2019/08/18 (Sun)
+ * @date 2020/09/14 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -387,7 +387,7 @@ void calcExternalForce_spherical
   /* common in DIV_NWARP(TSUB) (<= 32) threads for BLOCK_TIME_STEP */
   real aa, dxinv;
   int ii = bisec(rr, num, xx, &aa, &dxinv);
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     /** synchronization to reduce warp divergence */
 #   if  !defined(BLOCK_TIME_STEP) || (DIV_NWARP(TSUB) == 32)
     __syncwarp();
@@ -395,7 +395,7 @@ void calcExternalForce_spherical
     thread_block_tile<DIV_NWARP(TSUB)> tile = tiled_partition<DIV_NWARP(TSUB)>(this_thread_block());
     tile.sync();
 #endif//!defined(BLOCK_TIME_STEP) || (DIV_NWARP(TSUB) == 32)
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   const real xl = xx[ii];
   const real xr = xx[ii + 1];
@@ -462,9 +462,9 @@ __global__ void calcExternalGravity_kernel
   laneinfo info = {NUM_BODY_MAX, 0};
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   if( lane < info.num ){
     const int ii = info.head + lane;
@@ -565,16 +565,16 @@ __global__ void calcExternalDiskGravity_kernel
   const int lane    = THREADIDX_X1D & (DIV_NWARP(TSUB) - 1);
   const int laneIdx = GLOBALIDX_X1D /  DIV_NWARP(TSUB);
 
-#   if  (__CUDA_ARCH__ >= 700) && (DIV_NWARP(TSUB) < 32)
+#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (DIV_NWARP(TSUB) < 32)
   thread_block_tile<DIV_NWARP(TSUB)> tile = tiled_partition<DIV_NWARP(TSUB)>(this_thread_block());
-#endif//(__CUDA_ARCH__ >= 700) && (DIV_NWARP(TSUB) < 32)
+#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (DIV_NWARP(TSUB) < 32)
 
   laneinfo info = {NUM_BODY_MAX, 0};
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   if( lane < info.num ){
     const int ii = info.head + lane;
@@ -698,14 +698,14 @@ __global__ void calcExternalDiskGravity_kernel
       ai.pot = pot;
     }/* else{ */
 #endif//ADAPTIVE_GRIDDED_EXTERNAL_POTENTIAL_FIELD
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     /** synchronization to reduce warp divergence */
 #   if  !defined(BLOCK_TIME_STEP) || (DIV_NWARP(TSUB) == 32)
     __syncwarp();
 #else///!defined(BLOCK_TIME_STEP) || (DIV_NWARP(TSUB) == 32)
     tile.sync();
 #endif//!defined(BLOCK_TIME_STEP) || (DIV_NWARP(TSUB) == 32)
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
     /** store acceleration */
     atomicAdd(&(acc[ii].x  ), ai.x  );

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/01 (Fri)
+ * @date 2020/09/14 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -49,25 +49,25 @@ __device__ __forceinline__ Type prefixSumVec4Warp(Type val, const int lane, vola
   stvec((Type *)smem, tidx, val);
 
   if( lane >=  1 ){    tmp = ldvec(smem[tidx -  1]);    val.x += tmp.x;    val.y += tmp.y;    val.z += tmp.z;    val.w += tmp.w;    stvec((Type *)smem, tidx, val);  }
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   if( lane >=  2 ){    tmp = ldvec(smem[tidx -  2]);    val.x += tmp.x;    val.y += tmp.y;    val.z += tmp.z;    val.w += tmp.w;    stvec((Type *)smem, tidx, val);  }
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   if( lane >=  4 ){    tmp = ldvec(smem[tidx -  4]);    val.x += tmp.x;    val.y += tmp.y;    val.z += tmp.z;    val.w += tmp.w;    stvec((Type *)smem, tidx, val);  }
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   if( lane >=  8 ){    tmp = ldvec(smem[tidx -  8]);    val.x += tmp.x;    val.y += tmp.y;    val.z += tmp.z;    val.w += tmp.w;    stvec((Type *)smem, tidx, val);  }
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   if( lane >= 16 ){    tmp = ldvec(smem[tidx - 16]);    val.x += tmp.x;    val.y += tmp.y;    val.z += tmp.z;    val.w += tmp.w;    stvec((Type *)smem, tidx, val);  }
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   return (val);
 }
@@ -110,9 +110,9 @@ __device__ __forceinline__ Type PREFIX_SUM_VEC4_BLCK(Type val, volatile Type * _
 
 
   /** 2. prefix sum about tail of each warp */
-#   if  (__CUDA_ARCH__ >= 700) && (NTHREADS_SCAN_VEC4_INC > 32)
+#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (NTHREADS_SCAN_VEC4_INC > 32)
   thread_block_tile<NTHREADS_SCAN_VEC4_INC >> 5> tile = tiled_partition<NTHREADS_SCAN_VEC4_INC >> 5>(this_thread_block());
-#endif//(__CUDA_ARCH__ >= 700) && (NTHREADS_SCAN_VEC4_INC > 32)
+#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (NTHREADS_SCAN_VEC4_INC > 32)
   __syncthreads();
 
   /** warpSize = 32 = 2^5; NTHREADS_SCAN_VEC4_INC <= 1024 --> NTHREADS_SCAN_VEC4_INC >> 5 <= 32 = warpSize */
@@ -123,24 +123,24 @@ __device__ __forceinline__ Type PREFIX_SUM_VEC4_BLCK(Type val, volatile Type * _
 #   if  (NTHREADS_SCAN_VEC4_INC >> 5) >=  2
     Type tmp;
     if( lane >=  1 ){      tmp = ldvec(smem[tidx -  1]);      val.x += tmp.x;      val.y += tmp.y;      val.z += tmp.z;      val.w += tmp.w;      stvec((Type *)smem, tidx, val);    }
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  (NTHREADS_SCAN_VEC4_INC >> 5) >=  4
     if( lane >=  2 ){      tmp = ldvec(smem[tidx -  2]);      val.x += tmp.x;      val.y += tmp.y;      val.z += tmp.z;      val.w += tmp.w;      stvec((Type *)smem, tidx, val);    }
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  (NTHREADS_SCAN_VEC4_INC >> 5) >=  8
     if( lane >=  4 ){      tmp = ldvec(smem[tidx -  4]);      val.x += tmp.x;      val.y += tmp.y;      val.z += tmp.z;      val.w += tmp.w;      stvec((Type *)smem, tidx, val);    }
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  (NTHREADS_SCAN_VEC4_INC >> 5) >= 16
     if( lane >=  8 ){      tmp = ldvec(smem[tidx -  8]);      val.x += tmp.x;      val.y += tmp.y;      val.z += tmp.z;      val.w += tmp.w;      stvec((Type *)smem, tidx, val);    }
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     tile.sync();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  (NTHREADS_SCAN_VEC4_INC >> 5) == 32
     if( lane >= 16 ){      tmp = ldvec(smem[tidx - 16]);      val.x += tmp.x;      val.y += tmp.y;      val.z += tmp.z;      val.w += tmp.w;      stvec((Type *)smem, tidx, val);    }
 #endif//(NTHREADS_SCAN_VEC4_INC >> 5) == 32

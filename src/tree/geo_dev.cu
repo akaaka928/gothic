@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/24 (Thu)
+ * @date 2020/09/14 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -113,9 +113,9 @@ __global__ void calc_r2max_kernel
   laneinfo info = {NUM_BODY_MAX, 0};
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   real r2 = ZERO;
   position cen = *cen_dev;
@@ -129,9 +129,9 @@ __global__ void calc_r2max_kernel
     const real dz = pi.z - cen.z;
     r2 = FLT_MIN + dx * dx + dy * dy + dz * dz;
   }/* if( lane < info.num ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   r2 = GET_MAX_BLCK(r2, smem, tidx, tidx - lane);
   if( tidx == 0 ){
@@ -159,9 +159,9 @@ __global__ void calc_amin_kernel
   laneinfo info = {NUM_BODY_MAX, 0};
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   real a2 = REAL_MAX;
 
@@ -171,9 +171,9 @@ __global__ void calc_amin_kernel
 
     a2 = FLT_MIN + ai.x * ai.x + ai.y * ai.y + ai.z * ai.z;
   }/* if( lane < info.num ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   a2 = GET_MIN_BLCK(a2, smem, tidx, tidx - lane);
   if( tidx == 0 ){

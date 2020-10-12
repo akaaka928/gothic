@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/01 (Fri)
+ * @date 2020/09/14 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -168,55 +168,55 @@ __device__ __forceinline__ Type GET_MINLOC_TSUB_NWARP
   Type tmp;
   smem[tidx] = val;
 
-#   if  (__CUDA_ARCH__ >= 700) && (TSUB_TN_COMPARE_INC < 32)
+#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB_TN_COMPARE_INC < 32)
   thread_block_tile<TSUB_TN_COMPARE_INC> tile = tiled_partition<TSUB_TN_COMPARE_INC>(this_thread_block());
-#endif//(__CUDA_ARCH__ >= 700) && (TSUB_TN_COMPARE_INC < 32)
+#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB_TN_COMPARE_INC < 32)
 
 #   if  TSUB_TN_COMPARE_INC >= ( 2 * NWARP_TN_COMPARE_INC)
   tmp = smem[tidx ^ (     NWARP_TN_COMPARE_INC)];  if( tmp.val < val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_TN_COMPARE_INC == 32
   __syncwarp();
 #else///TSUB_TN_COMPARE_INC == 32
   tile.sync();
 #endif//TSUB_TN_COMPARE_INC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;
 #   if  TSUB_TN_COMPARE_INC >= ( 4 * NWARP_TN_COMPARE_INC)
   tmp = smem[tidx ^ ( 2 * NWARP_TN_COMPARE_INC)];  if( tmp.val < val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_TN_COMPARE_INC == 32
   __syncwarp();
 #else///TSUB_TN_COMPARE_INC == 32
   tile.sync();
 #endif//TSUB_TN_COMPARE_INC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;
 #   if  TSUB_TN_COMPARE_INC >= ( 8 * NWARP_TN_COMPARE_INC)
   tmp = smem[tidx ^ ( 4 * NWARP_TN_COMPARE_INC)];  if( tmp.val < val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_TN_COMPARE_INC == 32
   __syncwarp();
 #else///TSUB_TN_COMPARE_INC == 32
   tile.sync();
 #endif//TSUB_TN_COMPARE_INC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;
 #   if  TSUB_TN_COMPARE_INC >= (16 * NWARP_TN_COMPARE_INC)
   tmp = smem[tidx ^ ( 8 * NWARP_TN_COMPARE_INC)];  if( tmp.val < val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_TN_COMPARE_INC == 32
   __syncwarp();
 #else///TSUB_TN_COMPARE_INC == 32
   tile.sync();
 #endif//TSUB_TN_COMPARE_INC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;
 #   if  TSUB_TN_COMPARE_INC == (32 * NWARP_TN_COMPARE_INC)
   tmp = smem[tidx ^ (16 * NWARP_TN_COMPARE_INC)];  if( tmp.val < val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;
 #endif//TSUB_TN_COMPARE_INC == (32 * NWARP_TN_COMPARE_INC)
 #endif//TSUB_TN_COMPARE_INC >= (16 * NWARP_TN_COMPARE_INC)
@@ -242,55 +242,55 @@ __device__ __forceinline__ Type GET_MAXLOC_TSUB_NWARP
   Type tmp;
   smem[tidx] = val;
 
-#   if  (__CUDA_ARCH__ >= 700) && (TSUB_TN_COMPARE_INC < 32)
+#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB_TN_COMPARE_INC < 32)
   thread_block_tile<TSUB_TN_COMPARE_INC> tile = tiled_partition<TSUB_TN_COMPARE_INC>(this_thread_block());
-#endif//(__CUDA_ARCH__ >= 700) && (TSUB_TN_COMPARE_INC < 32)
+#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB_TN_COMPARE_INC < 32)
 
 #   if  TSUB_TN_COMPARE_INC >= ( 2 * NWARP_TN_COMPARE_INC)
   tmp = smem[tidx ^ (     NWARP_TN_COMPARE_INC)];  if( tmp.val > val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_TN_COMPARE_INC == 32
   __syncwarp();
 #else///TSUB_TN_COMPARE_INC == 32
   tile.sync();
 #endif//TSUB_TN_COMPARE_INC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;
 #   if  TSUB_TN_COMPARE_INC >= ( 4 * NWARP_TN_COMPARE_INC)
   tmp = smem[tidx ^ ( 2 * NWARP_TN_COMPARE_INC)];  if( tmp.val > val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_TN_COMPARE_INC == 32
   __syncwarp();
 #else///TSUB_TN_COMPARE_INC == 32
   tile.sync();
 #endif//TSUB_TN_COMPARE_INC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;
 #   if  TSUB_TN_COMPARE_INC >= ( 8 * NWARP_TN_COMPARE_INC)
   tmp = smem[tidx ^ ( 4 * NWARP_TN_COMPARE_INC)];  if( tmp.val > val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_TN_COMPARE_INC == 32
   __syncwarp();
 #else///TSUB_TN_COMPARE_INC == 32
   tile.sync();
 #endif//TSUB_TN_COMPARE_INC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;
 #   if  TSUB_TN_COMPARE_INC >= (16 * NWARP_TN_COMPARE_INC)
   tmp = smem[tidx ^ ( 8 * NWARP_TN_COMPARE_INC)];  if( tmp.val > val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_TN_COMPARE_INC == 32
   __syncwarp();
 #else///TSUB_TN_COMPARE_INC == 32
   tile.sync();
 #endif//TSUB_TN_COMPARE_INC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;
 #   if  TSUB_TN_COMPARE_INC == (32 * NWARP_TN_COMPARE_INC)
   tmp = smem[tidx ^ (16 * NWARP_TN_COMPARE_INC)];  if( tmp.val > val.val )    val = tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;
 #endif//TSUB_TN_COMPARE_INC == (32 * NWARP_TN_COMPARE_INC)
 #endif//TSUB_TN_COMPARE_INC >= (16 * NWARP_TN_COMPARE_INC)

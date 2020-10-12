@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/11/21 (Wed)
+ * @date 2020/09/14 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -425,9 +425,9 @@ __global__ void initTreeCellOffset_kernel
     tmp_null_cell.num  = piNum;
     tmp_hkey           = 0;
   }/* if( ii == 0 ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   if( ii < cellNum ){
     /** store initialized information on tree-cell */
@@ -509,9 +509,9 @@ makeTree_kernel
 
   const int  idx = DIV_TSUB_MAKE_TREE(tidx);
 
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   thread_block_tile<TSUB_MAKE_TREE> tile = tiled_partition<TSUB_MAKE_TREE>(this_thread_block());
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   /** initialize number of tree cells */
   int numCell = 1;
@@ -586,9 +586,9 @@ makeTree_kernel
 	    leaf[cidx] = false;
 	    hkey_sm[tidx] = peano[root.head + itail];
 	  }/* if( lane == 0 ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	  tile.sync();/**< tile.sync() to reduce warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 	  /** find CELL_UNIT - 1 (== TSUB_MAKE_TREE - 1 == 7) boundaries (in maximum) */
 	  if( lane < (CELL_UNIT - 1) ){
@@ -615,16 +615,16 @@ makeTree_kernel
 	      itail++;
 	    cell_sm[tidx].num = itail;
 	  }/* if( lane < (CELL_UNIT - 1) ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	  tile.sync();/**< tile.sync() for consistency */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 	  /** assume implicit synchronization within a warp */
 	  if( lane > 0 )
 	    cell_sm[tidx].head = cell_sm[tidx - 1].num;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	  tile.sync();/**< tile.sync() to reduce warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	  cell_sm[tidx].num -= cell_sm[tidx].head;
 	  cell_sm[tidx].head += root.head;
 
@@ -635,18 +635,18 @@ makeTree_kernel
 	    addChild = 1;
 #endif//SPLIT_CHILD_CELL
 	}/* if( node ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	__syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 	/** calculate prefix sum about addChild */
 	int headIdx, scanNum;
 	int targetIdx = PREFIX_SUM_GRID_WITH_PARTITION(addChild, smem, scanLane, tidx, &headIdx, &scanNum, gmem, bidx, bnumSub, gsync0Loc, gsync1Loc);
 	if( bidx + tidx == 0 )
 	  *scanNum_gm = scanNum;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	__syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 	targetIdx += tail - addChild;/**< this must be an exclusive scan */
 
@@ -658,9 +658,9 @@ makeTree_kernel
 	/** if performance is too low due to uncoalesced store, then try to implement coalesced version (probably, use additional shared memory to stock splitted child cells) */
 	if( (node) && (lane == 0) )
 	  children[cidx] = ((tag - 1) << IDXBITS) + targetIdx;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	__syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 #ifdef  SPLIT_CHILD_CELL
 	treecell childCell = cell_sm[tidx];
@@ -762,9 +762,9 @@ __device__ __forceinline__ void linkNode
 
   if( nadd > 0 )
     *ptag = ((nadd - 1) << IDXBITS) + headIdx;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   /** when the tree cell is a leaf cell, then more index specifies the cell itself */
   if( (head != NULL_CELL) && leaf_cell ){
@@ -777,9 +777,9 @@ __device__ __forceinline__ void linkNode
       jtag[head + jj] = jidx;
     }/* for(int jj = 0; jj < nadd; jj++){ */
   }/* if( (head != NULL_CELL) && lear_cell ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   *phead += scanNum;
 }
@@ -1235,9 +1235,9 @@ __global__ void enforceBarnesHutMAC
     const acceleration iacc = {UNITY, ZERO, ZERO, ZERO};
     ai[gidx] = iacc;
   }/* if( gidx < Ni ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   if( gidx < Nj ){
     /** load position and MAC of j-particle */
@@ -1518,9 +1518,9 @@ calcMultipole_kernel
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
   const int hbuf = DIV_TSUB_MAC(head) * TSUB_MAC * NBUF_MAC;/**< head index of the shared array close and queue within a thread group */
 
-#   if  (__CUDA_ARCH__ >= 700) && (TSUB_MAC < 32)
+#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB_MAC < 32)
   thread_block_tile<TSUB_MAC> tile = tiled_partition<TSUB_MAC>(this_thread_block());
-#endif//(__CUDA_ARCH__ >= 700) && (TSUB_MAC < 32)
+#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB_MAC < 32)
 
 #ifdef  USE_COOPERATIVE_GROUPS
   grid_group grid = this_grid();
@@ -1581,14 +1581,14 @@ calcMultipole_kernel
 /* #ifndef NDEBUG */
 /* 	  if( (lane == 0) && (levelIdx == 15)  && (ii > 3) && (bidx == 305) ) */
 /* 	    printf("l%d: %d; %d, %d: cidx = %d\n", __LINE__, ii, bidx, tidx, cidx); */
-/* #   if  __CUDA_ARCH__ >= 700 */
+/* #ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP */
 /* 	  /\** synchronization to reduce warp divergence *\/ */
 /* #   if  TSUB_MAC == 32 */
 /* 	  __syncwarp(); */
 /* #else///TSUB_MAC == 32 */
 /* 	  tile.sync(); */
 /* #endif//TSUB_MAC == 32 */
-/* #endif//__CUDA_ARCH__ >= 700 */
+/* #endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP */
 /* #endif//NDEBUG */
 	  /** when the tree cell is a node cell, then calculate multipole moment(s) of the cell */
 	  jparticle jcom = {ZERO, ZERO, ZERO, ZERO};
@@ -1624,14 +1624,14 @@ calcMultipole_kernel
 	    mjrj2 += mr2[sidx];
 #endif//WS93_MAC
 	  }/* for(int jj = lane; jj < cnum; jj += TSUB_MAC){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	  /** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 	  __syncwarp();
 #else///TSUB_MAC == 32
 	  tile.sync();
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 	  /** sum up partial sums within TSUB_MAC threads */
 	  pj_sm[tidx] = jcom;
@@ -1655,11 +1655,11 @@ calcMultipole_kernel
 
 #ifdef  WS93_MAC
 #   if  defined(USE_WARP_SHUFFLE_FUNC_MAC) && (TSUB_MAC < 32)
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	  const uint SHFL_MASK_TSUB_MAC = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
-#else///__CUDA_ARCH__ >= 700
+#else///ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	  const uint SHFL_MASK_TSUB_MAC = SHFL_MASK_32;
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #endif//defined(USE_WARP_SHUFFLE_FUNC_MAC) && (TSUB_MAC < 32)
 	  mjrj2 = TOTAL_SUM_TSUB(mjrj2
 #ifdef  USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
@@ -1670,14 +1670,14 @@ calcMultipole_kernel
 				 );
 	  if( lane == 0 )
 	    mr2[jidx] = mjrj2;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	  /** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 	  __syncwarp();
 #else///TSUB_MAC == 32
 	  tile.sync();
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #endif//WS93_MAC
 
 
@@ -1702,14 +1702,14 @@ calcMultipole_kernel
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 	    mj[jidx] =  mj_loc;
 	  }/* if( lane == 0 ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	  /** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 	  __syncwarp();
 #else///TSUB_MAC == 32
 	  tile.sync();
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 #ifdef  COUNT_INTERACTIONS
 	  local.nodeNum++;
@@ -1729,14 +1729,14 @@ calcMultipole_kernel
 /* 	  if( (cidx == 3504557) || (cidx == 3504558) ) */
 /* 	    printf("l%d: inum = %d(%d) @ (%d, %d)\n", __LINE__, inum, NI_BMAX_ESTIMATE, bidx, tidx); */
 /* #endif//NDEBUG */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	  /** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 	  __syncwarp();
 #else///TSUB_MAC == 32
 	  tile.sync();
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 	  /** pick up NI_BMAX_ESTIMATE i-particles in maximum to estimate bmax */
 	  while( inum > NI_BMAX_ESTIMATE ){
@@ -1744,14 +1744,14 @@ calcMultipole_kernel
 /* 	    /\* if( lane == 0 ) *\/ */
 /* 	    if( (lane == 0) && (levelIdx == 15) && (bidx == 305) && (ii > 3) && ((tidx == 80) || (tidx == 96)) ) */
 /* 	      printf("l%d: inum = %d @ (%d, %d)\n", __LINE__, inum, bidx, tidx); */
-/* #   if  __CUDA_ARCH__ >= 700 */
+/* #ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP */
 /* 	    /\** synchronization to reduce warp divergence *\/ */
 /* #   if  TSUB_MAC == 32 */
 /* 	    __syncwarp(); */
 /* #else///TSUB_MAC == 32 */
 /* 	    tile.sync(); */
 /* #endif//TSUB_MAC == 32 */
-/* #endif//__CUDA_ARCH__ >= 700 */
+/* #endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP */
 /* #endif//NDEBUG */
 	    real rmin = ZERO;
 	    int Nloc = 0;
@@ -1781,23 +1781,23 @@ calcMultipole_kernel
 /* 		if( (cidx == 3504557) || (cidx == 3504558) ) */
 /* 		  printf("l%d: cnum = %d (%d/%d) @ (%d, %d)\n", __LINE__, cnum, iter, Niter, bidx, tidx); */
 /* #endif//NDEBUG */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 		/** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 		__syncwarp();
 #else///TSUB_MAC == 32
 		tile.sync();
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
 #   if  TSUB_MAC < 32
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 		uint SHFL_MASK_TSUB_MAC = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
-#else///__CUDA_ARCH__ >= 700
+#else///ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 		const uint SHFL_MASK_TSUB_MAC = SHFL_MASK_32;
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #endif//TSUB_MAC < 32
 		smem = PREFIX_SUM_TSUB(cnum, lane, SHFL_MASK_TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
@@ -1839,14 +1839,14 @@ calcMultipole_kernel
 		    pjidx[shead + jj] = chead;
 		    chead++;
 		  }/* for(int jj = 0; jj < unum; jj++){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 		  /** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 		  __syncwarp();
 #else///TSUB_MAC == 32
 		  tile.sync();
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 		  cnum -= unum;
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
 		  const int Ntmp = smem         - (NBUF_MAC * TSUB_MAC);/**< Ntmp is a temporal buffer */
@@ -1870,9 +1870,9 @@ calcMultipole_kernel
 #endif//NBUF_MAC == 2
 
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
-#   if  (TSUB_MAC < 32) && (__CUDA_ARCH__ >= 700)
+#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB_MAC < 32)
 		  SHFL_MASK_TSUB_MAC = __activemask();/**< mask may be change from the previous one */
-#endif//(TSUB_MAC < 32) && (__CUDA_ARCH__ >= 700)
+#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB_MAC < 32)
 		  int stail = __SHFL(SHFL_MASK_TSUB_MAC, smem, TSUB_MAC - 1, TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
 		  int stail =                            smem[tail].i                 ;
@@ -1911,7 +1911,7 @@ calcMultipole_kernel
 /* 		  if( (cidx == 3504557) || (cidx == 3504558) ) */
 /* 		    printf("l%d: rmin = %e (%d/%d) @ (%d, %d)\n", __LINE__, rmin, ll, lend, bidx, tidx); */
 /* #endif//NDEBUG */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 		  /** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 		  __syncwarp();
@@ -1921,7 +1921,7 @@ calcMultipole_kernel
 		  SHFL_MASK_TSUB_MAC = __activemask();/**< mask may be change from the previous one */
 #endif//USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 		  /** share rmin within TSUB_MAC threads */
 		  rmin = GET_MAX_TSUB(rmin
@@ -1956,7 +1956,7 @@ calcMultipole_kernel
 		      list1[dst] = pjidx_loc.ia[jj];
 		      rjbuf[dst] = rjmax_loc.ra[jj];
 		    }/* if( share ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 		    /** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 		    __syncwarp();
@@ -1966,7 +1966,7 @@ calcMultipole_kernel
 		    SHFL_MASK_TSUB_MAC = __activemask();/**< mask may be change from the previous one */
 #endif//USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
 		    Nloc += __SHFL(SHFL_MASK_TSUB_MAC, smem, TSUB_MAC - 1, TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
@@ -1982,7 +1982,7 @@ calcMultipole_kernel
 		      Nbuf += Nloc;
 		      Nloc = 0;
 		    }/* if( Nloc > ((NBUF_MAC - 1) * TSUB_MAC) ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 		    /** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 		    __syncwarp();
@@ -1992,7 +1992,7 @@ calcMultipole_kernel
 		    SHFL_MASK_TSUB_MAC = __activemask();/**< mask may be change from the previous one */
 #endif//USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 		  }/* for(int jj = 0; jj < NBUF_MAC; jj++){ */
 
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
@@ -2022,26 +2022,26 @@ calcMultipole_kernel
 		rjbuf[hbuf + ll] = rjmaxBuf[bufHead + ll];
 	      }/* for(int ll = lane; ll < TSUB_MAC * NBUF_MAC; ll += TSUB_MAC){ */
 	    }/* if( Nbuf != 0 ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	    /** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 	    __syncwarp();
 #else///TSUB_MAC == 32
 	    tile.sync();
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 	    Ntry = Nbuf + Nloc;
 	    if( (lane == 0) && (Ntry > NUM_ALLOC_MACBUF) )
 	      atomicAdd(overflow, 1);
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	    /** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 	    __syncwarp();
 #else///TSUB_MAC == 32
 	    tile.sync();
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 
 	    /** list up all child nodes that satisfy rjmax > rmin */
@@ -2071,21 +2071,21 @@ calcMultipole_kernel
 		    add = 1;
 		  }/* if( rjbuf[cellIdx] > rmin ){ */
 		}/* if( cellIdx < krem ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 		/** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 		__syncwarp();
 #else///TSUB_MAC == 32
 		tile.sync();
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 #   if  defined(USE_WARP_SHUFFLE_FUNC_MAC) && (TSUB_MAC < 32)
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 		uint SHFL_MASK_TSUB_MAC = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
-#else///__CUDA_ARCH__ >= 700
+#else///ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 		const uint SHFL_MASK_TSUB_MAC = SHFL_MASK_32;
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #endif//defined(USE_WARP_SHUFFLE_FUNC_MAC) && (TSUB_MAC < 32)
 
 		/** remove duplicated tree cells */
@@ -2110,7 +2110,7 @@ calcMultipole_kernel
 		    iadd = 0;
 		  }/* if( ((smidx > 0) && (list0[hbuf + smidx - 1] == cellIdx)) || ((Nbuf > 0) && (smidx == 0) && (more0Buf[bufHead + Nbuf - 1] == cellIdx)) ){ */
 		}/* if( add ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 		/** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 		__syncwarp();
@@ -2120,7 +2120,7 @@ calcMultipole_kernel
 		SHFL_MASK_TSUB_MAC = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 		/** save tree cells on the local buffer */
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
@@ -2137,7 +2137,7 @@ calcMultipole_kernel
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
 		  list0[hbuf + smidx] = cellIdx;
 		}/* if( add ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 		/** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 		__syncwarp();
@@ -2147,7 +2147,7 @@ calcMultipole_kernel
 		SHFL_MASK_TSUB_MAC = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
 		Nloc += __SHFL(SHFL_MASK_TSUB_MAC, smem, TSUB_MAC - 1, TSUB_MAC);
@@ -2162,7 +2162,7 @@ calcMultipole_kernel
 		  Nbuf += Nloc;
 		  Nloc  = 0;
 		}/* if( Nloc > ((NBUF_MAC - 1) * TSUB_MAC) ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 		/** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 		__syncwarp();
@@ -2172,7 +2172,7 @@ calcMultipole_kernel
 		SHFL_MASK_TSUB_MAC = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 		/** sum up iadd within TSUB_MAC threads */
 		iadd = TOTAL_SUM_TSUB(iadd
@@ -2214,14 +2214,14 @@ calcMultipole_kernel
 /* 	      printf("l%d: inum = %d(%d) @ (%d, %d)\n", __LINE__, inum, NI_BMAX_ESTIMATE, bidx, tidx); */
 /* #endif//NDEBUG */
 
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	    /** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 	    __syncwarp();
 #else///TSUB_MAC == 32
 	    tile.sync();
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	  }/* while( inum > NI_BMAX_ESTIMATE ){ */
 
 
@@ -2243,22 +2243,22 @@ calcMultipole_kernel
 /* 	  if( (cidx == 3504557) || (cidx == 3504558) ) */
 /* 	    printf("l%d: pnum = %d @ (%d, %d)\n", __LINE__, pnum, bidx, tidx); */
 /* #endif//NDEBUG */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	    /** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 	    __syncwarp();
 #else///TSUB_MAC == 32
 	    tile.sync();
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
 #   if  TSUB_MAC < 32
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 		uint SHFL_MASK_TSUB_MAC = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
-#else///__CUDA_ARCH__ >= 700
+#else///ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 		const uint SHFL_MASK_TSUB_MAC = SHFL_MASK_32;
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #endif//TSUB_MAC < 32
 	    smem = PREFIX_SUM_TSUB(pnum, lane, SHFL_MASK_TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
@@ -2268,7 +2268,7 @@ calcMultipole_kernel
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
 	    for(int jj = 0; jj < pnum; jj++)
 	      list1[hbuf + Ncand + smem         - pnum + jj] = cand.head + jj;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	    /** synchronization for consistency */
 #   if  TSUB_MAC == 32
 	    __syncwarp();
@@ -2276,19 +2276,19 @@ calcMultipole_kernel
 	    tile.sync();
 	    SHFL_MASK_TSUB_MAC = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	    Ncand += __SHFL(SHFL_MASK_TSUB_MAC, smem, TSUB_MAC - 1, TSUB_MAC);
 #else///USE_WARP_SHUFFLE_FUNC_MAC
 	    for(int jj = 0; jj < pnum; jj++)
 	      list1[hbuf + Ncand + smem[tidx].i - pnum + jj] = cand.head + jj;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	    /** synchronization for consistency */
 #   if  TSUB_MAC == 32
 	    __syncwarp();
 #else///TSUB_MAC == 32
 	    tile.sync();
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	    Ncand += smem[tail].i;
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
 /* #ifndef NDEBUG */
@@ -2314,21 +2314,21 @@ calcMultipole_kernel
 /* 	  if( (lane == 0) && (levelIdx == 15) && (ii > 3) && (bidx == 305) && ((tidx == 80) || (tidx == 96)) ) */
 /* 	    printf("l%d: jbmax = %e @ (%d, %d)\n", __LINE__, jbmax, bidx, tidx); */
 /* #endif//NDEBUG */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	  /** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 	  __syncwarp();
 #else///TSUB_MAC == 32
 	  tile.sync();
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 #   if  defined(USE_WARP_SHUFFLE_FUNC_MAC) && (TSUB_MAC < 32)
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	  uint SHFL_MASK_TSUB_MAC = __activemask();/**< multiple groups of lanes may call the below warp shuffle instructions */
-#else///__CUDA_ARCH__ >= 700
+#else///ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	  const uint SHFL_MASK_TSUB_MAC = SHFL_MASK_32;
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #endif//defined(USE_WARP_SHUFFLE_FUNC_MAC) && (TSUB_MAC < 32)
 	  jbmax = GET_MAX_TSUB(jbmax
 #ifdef  USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
@@ -2346,14 +2346,14 @@ calcMultipole_kernel
 /* 	  if( (cidx == 3504557) || (cidx == 3504558) ) */
 /* 	    printf("l%d: jbmax = %e @ (%d, %d)\n", __LINE__, jbmax, bidx, tidx); */
 /* #endif//NDEBUG */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	  /** synchronization to reduce warp divergence */
 #   if  TSUB_MAC == 32
 	  __syncwarp();
 #else///TSUB_MAC == 32
 	  tile.sync();
 #endif//TSUB_MAC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 #ifdef  GADGET_MAC
 	  jcom.w  = mac_delta * mtot * jbmax * jbmax;
@@ -2386,9 +2386,9 @@ calcMultipole_kernel
 #endif//COUNT_INTERACTIONS
 	}/* if( !leaf[cidx] ){ */
       }/* if( root.head != NULL_CELL ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
       __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     }/* for(int ii = 0; ii < BLOCKSIZE(clev.num, bnum * NGROUPS_MAC); ii++){ */
 
 
@@ -2479,9 +2479,9 @@ __device__ __forceinline__ void copyData_g2g
       floc = ftmp;
 #endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
     }/* if( !grpIdx ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
     /** store to the destination array on the global memory */
     ubuf[dstHead + gidx] = uloc;
@@ -2530,9 +2530,9 @@ checkOutflow_kernel
   const int lane = tidx & (TSUB_OUTFLOW - 1);  /**< for local summation */
   const int lane32 = tidx & (warpSize - 1);  /**< for globalPrefixSum */
 
-/* #   if  (__CUDA_ARCH__ >= 700) && (TSUB_OUTFLOW < 32) */
+/* #   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB_OUTFLOW < 32) */
 /*   thread_block_tile<TSUB_OUTFLOW> tile = tiled_partition<TSUB_OUTFLOW>(this_thread_block()); */
-/* #endif//(__CUDA_ARCH__ >= 700) && (TSUB_OUTFLOW < 32) */
+/* #endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB_OUTFLOW < 32) */
 
   __shared__ int smem[NTHREADS_OUTFLOW];
 
@@ -2561,9 +2561,9 @@ checkOutflow_kernel
 	      list |= 1 << (DIV_TSUB_OUTFLOW(jj));
 	    }/* if( detectOuterParticle(pj[jhead + jj], CAST_R2F(bmax[jhead + jj])) ){ */
 	}/* for(uint jj = lane; jj < jnum; jj += TSUB_OUTFLOW){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
       __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
       /** exclusive scan within a grid */
       int scanNum;
@@ -2590,9 +2590,9 @@ checkOutflow_kernel
 	  }/* if( (list >> DIV_TSUB_OUTFLOW(jj)) & 1 ){ */
 	  if( kk == num )
 	    break;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	  __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	}/* for(int jj = 0; jj < DIV_TSUB_OUTFLOW(NLEAF); jj++){ */
       }/* if( num != 0 ){ */
 
@@ -2623,9 +2623,9 @@ checkOutflow_kernel
     hbuf += checked;
     if( (rem == 0) && (hbuf > (checked + bnum * NGROUPS_OUTFLOW)) )
       hbuf = tbuf = 0;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
     /** pick up tree nodes and check the position */
     const uint jnum  = (root >> IDXBITS) + 1;
@@ -2640,9 +2640,9 @@ checkOutflow_kernel
 	    list |= 1 << (DIV_TSUB_OUTFLOW(jj));
 	  }/* if( detectOuterParticle(pj[jhead + jj], CAST_R2F(bmax[jhead + jj])) ){ */
       }/* for(uint jj = lane; jj < jnum; jj += TSUB_OUTFLOW){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
     /** exclusive scan within a grid */
     int scanNum;
@@ -2696,9 +2696,9 @@ checkOutflow_kernel
 	}/* if( (list >> DIV_TSUB_OUTFLOW(jj)) & 1 ){ */
 	if( kk == num )
 	  break;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	__syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
       }/* for(uint jj = lane; jj < jnum; jj += TSUB_OUTFLOW){ */
     }/* if( num != 0 ){ */
 
@@ -2706,9 +2706,9 @@ checkOutflow_kernel
     rem  += scanNum;
     if( (gidx == 0) && (tbuf > bufSize) )
       atomicAdd(overflow, 1);
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
     globalSync(tidx, bidx, bnum, gsync0, gsync1);
 
@@ -2718,9 +2718,9 @@ checkOutflow_kernel
 		   fbuf,
 #endif//defined(USE_PARENT_MAC_FOR_EXTERNAL_PARTICLES) || defined(TIME_BASED_MODIFICATION)
 		   0, 0, tbuf - hbuf, hbuf, gidx, bnum * NTHREADS_OUTFLOW, tidx, bidx, bnum, gsync0, gsync1);
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   }/* while( true ){ */
 }
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)

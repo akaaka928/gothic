@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/28 (Fri)
+ * @date 2020/09/14 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -182,9 +182,9 @@ calcPHkey_kernel
       min.z = fminf(min.z, pz);      max.z = fmaxf(max.z, pz);
     }/* if( ii < num ){ */
   }/* for(int ih = ihead; ih < itail; ih += NTHREADS_PH){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 
   /** get the box size within a warp */
@@ -202,9 +202,9 @@ calcPHkey_kernel
 
     *center_dev = center;
   }/* if( (tidx + bidx) == 0 ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #endif//RETURN_CENTER_BY_PHKEY_GENERATOR
 
 #ifdef  SHARE_PH_BOX_BOUNDARY
@@ -224,9 +224,9 @@ calcPHkey_kernel
   /** store diameter to global memory (purpose: detect external particles) */
   if( (bidx + tidx) == 0 )
     *length = diameter;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
   const float dinv = 1.0f / diameter;
 
@@ -272,9 +272,9 @@ calcPHkey_kernel
       idx[ii] = ii;
       key[ii] = tkey;
     }/* if( ii < num ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     __syncwarp();/**< __syncwarp() to reduce warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   }/* for(int ih = ihead; ih < itail; ih += bnum * NTHREADS_PH){ */
 }
 
@@ -470,9 +470,9 @@ __global__ void get_center_kernel(const int num, position * RESTRICT ipos, veloc
       vel_loc.z += mass * vz;
     }/* if( ii < nhalf ){ */
   }/* for(int ih = ihead; ih < itail; ih += NTHREADS_RESET_COM){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   __shared__ double4 smem[NTHREADS_RESET_COM];
   com_loc = TOTAL_SUM_VEC4_GRID(com_loc,            smem, tidx, hidx, com_all, bidx, bnum, gsync0, gsync1);

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/01 (Fri)
+ * @date 2020/09/14 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -46,54 +46,54 @@ __device__ __forceinline__ Type PREFIX_SUM_TSUB
 #endif//USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
  )
 {
-#   if  (__CUDA_ARCH__ >= 700) && (TSUB_SCAN_INC < 32)
+#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB_SCAN_INC < 32)
   thread_block_tile<TSUB_SCAN_INC> tile = tiled_partition<TSUB_SCAN_INC>(this_thread_block());
-#endif//(__CUDA_ARCH__ >= 700) && (TSUB_SCAN_INC < 32)
+#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB_SCAN_INC < 32)
 
 #ifdef  USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
 
   Type tmp;
 #   if  TSUB_SCAN_INC >=  2
   tmp = __SHFL_UP(mask, val,  1, TSUB_SCAN_INC);  if( lane >=  1 )    val += tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_SCAN_INC == 32
   __syncwarp();
 #else///TSUB_SCAN_INC == 32
   tile.sync();
 #endif//TSUB_SCAN_INC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_SCAN_INC >=  4
   tmp = __SHFL_UP(mask, val,  2, TSUB_SCAN_INC);  if( lane >=  2 )    val += tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_SCAN_INC == 32
   __syncwarp();
 #else///TSUB_SCAN_INC == 32
   tile.sync();
 #endif//TSUB_SCAN_INC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_SCAN_INC >=  8
   tmp = __SHFL_UP(mask, val,  4, TSUB_SCAN_INC);  if( lane >=  4 )    val += tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_SCAN_INC == 32
   __syncwarp();
 #else///TSUB_SCAN_INC == 32
   tile.sync();
 #endif//TSUB_SCAN_INC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_SCAN_INC >= 16
   tmp = __SHFL_UP(mask, val,  8, TSUB_SCAN_INC);  if( lane >=  8 )    val += tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_SCAN_INC == 32
   __syncwarp();
 #else///TSUB_SCAN_INC == 32
   tile.sync();
 #endif//TSUB_SCAN_INC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_SCAN_INC == 32
   tmp = __SHFL_UP(mask, val, 16, TSUB_SCAN_INC);  if( lane >= 16 )    val += tmp;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #endif//TSUB_SCAN_INC == 32
 #endif//TSUB_SCAN_INC >= 16
 #endif//TSUB_SCAN_INC >=  8
@@ -105,49 +105,49 @@ __device__ __forceinline__ Type PREFIX_SUM_TSUB
   smem[tidx] = val;
 #   if  TSUB_SCAN_INC >=  2
   if( lane >=  1 )    val += smem[tidx -  1];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_SCAN_INC == 32
   __syncwarp();
 #else///TSUB_SCAN_INC == 32
   tile.sync();
 #endif//TSUB_SCAN_INC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;
 #   if  TSUB_SCAN_INC >=  4
   if( lane >=  2 )    val += smem[tidx -  2];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_SCAN_INC == 32
   __syncwarp();
 #else///TSUB_SCAN_INC == 32
   tile.sync();
 #endif//TSUB_SCAN_INC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;
 #   if  TSUB_SCAN_INC >=  8
   if( lane >=  4 )    val += smem[tidx -  4];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_SCAN_INC == 32
   __syncwarp();
 #else///TSUB_SCAN_INC == 32
   tile.sync();
 #endif//TSUB_SCAN_INC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;
 #   if  TSUB_SCAN_INC >= 16
   if( lane >=  8 )    val += smem[tidx -  8];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB_SCAN_INC == 32
   __syncwarp();
 #else///TSUB_SCAN_INC == 32
   tile.sync();
 #endif//TSUB_SCAN_INC == 32
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;
 #   if  TSUB_SCAN_INC == 32
   if( lane >= 16 )    val += smem[tidx - 16];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   smem[tidx] = val;
 #endif//TSUB_SCAN_INC == 32
 #endif//TSUB_SCAN_INC >= 16

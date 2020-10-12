@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/24 (Thu)
+ * @date 2020/09/14 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -191,9 +191,9 @@ __device__ __forceinline__ float findFarthestParticle
 	  for(int jj = 1; jj < nodenum; jj++)
 	    cnum += (1 + (more[nodehead + jj] >> IDXBITS));
 	}/* if( target < Nsweep ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	__syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 	PREFIX_SUM_BLCK(cnum, (int *)smem, lane, tidx);
 	const int lend = BLOCKSIZE(smem[tail].i, NTHREADS_EB * NBUF_EB);
@@ -249,9 +249,9 @@ __device__ __forceinline__ float findFarthestParticle
 	      rjmax_loc.ra[kk] = rjmax;
 	    }/* if( rjmax > rmin ){ */
 	  }/* for(int kk = 0; kk < NBUF_EB; kk++){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	  __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 	  /** share rmin within NTHREADS_EB threads */
 	  rmin = GET_MAX_BLCK(rmin, (float *)smem, tidx, head);
@@ -315,9 +315,9 @@ __device__ __forceinline__ float findFarthestParticle
     Ntry = Nbuf + Nloc;
     if( (tidx == 0) && (Ntry > bufSize) )
       atomicAdd(overflow, 1);
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
     /** list up all child nodes that satisfy rjmax > rmin */
     inum = 0;
@@ -345,9 +345,9 @@ __device__ __forceinline__ float findFarthestParticle
 	    add = 1;
 	  }/* if( rjbuf[cellIdx] > rmin ){ */
 	}/* if( cellIdx < krem ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	__syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 	/** remove duplicated tree cells */
 	PREFIX_SUM_BLCK(add, (int *)smem, lane, tidx);
@@ -363,9 +363,9 @@ __device__ __forceinline__ float findFarthestParticle
 	    iadd = 0;
 	  }/* if( ((smidx > 0) && (list0[smidx - 1] == cellIdx)) || ((Nbuf > 0) && (smidx == 0) && (more0Buf[Nbuf - 1] == cellIdx)) ){ */
 	}/* if( add ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 	__syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 	/** save tree cells on the local buffer */
 	PREFIX_SUM_BLCK(add, (int *)smem, lane, tidx);
@@ -416,9 +416,9 @@ __device__ __forceinline__ float findFarthestParticle
     Ntry = Nloc + Nbuf;
     if( (tidx == 0) && (Ntry > bufSize) )
       atomicAdd(overflow, 1);
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   }/* while( inum > NI_R2MAX_ESTIMATE ){ */
 
 
@@ -432,9 +432,9 @@ __device__ __forceinline__ float findFarthestParticle
       cand = cell[list0[tidx + iter * NTHREADS_EB]];
       pnum = cand.num;
     }/* if( tidx < Ntry ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
     __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
     PREFIX_SUM_BLCK(pnum, (int *)smem, lane, tidx);
 
@@ -463,9 +463,9 @@ __device__ __forceinline__ float findFarthestParticle
     };/* if( r2 > r2max->val ){ */
 
   }/* for(int jj = tidx; jj < Ncand; jj += NTHREADS_EB){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 
   *r2max = GET_MAXLOC_BLCK(*r2max, (floc *)rjbuf, tidx, head);
@@ -508,9 +508,9 @@ __global__ void getApproxEnclosingBall_kernel
   __shared__ position smem;
   if( tidx == 0 )
     smem = *ebs;
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   __syncthreads();
   position cen = smem;
@@ -685,9 +685,9 @@ __device__ __forceinline__ float findFarthestParticle
 
     }/* if( ii < itail ){ */
   }/* for(int ih = ihead; ih < itail; ih += NTHREADS_EB){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   /** global reduction */
   *r2max = GET_MAXLOC_GRID(*r2max, smem, tidx, head, gmem, bidx, bnum, gsync0, gsync1);

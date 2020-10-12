@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/02/11 (Tue)
+ * @date 2020/09/14 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -97,9 +97,9 @@ __global__ void adjustTimeStep_kernel
   laneinfo info = {NUM_BODY_MAX, 0};
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   if( lane < info.num ){
     const int idx = info.head + lane;
@@ -296,9 +296,9 @@ __global__ void setTimeStep_kernel
 #endif//OMIT_VELOCITY_FOR_TIME_STEP
     }/* if( ii < Ni ){ */
   }/* for(int ih = 0; ih < Ni; ih += NTHREADS_TIME){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 
   /** find the minimum time step */
@@ -474,9 +474,9 @@ __global__ void prediction_kernel
     vj.y += dt_2 * aj.y;    pj.y += dt * vj.y;
     vj.z += dt_2 * aj.z;    pj.z += dt * vj.z;
   }/* if( jj < Nj ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   jpos[jj] = pj;
   jvel[jj] = vj;
@@ -701,9 +701,9 @@ __global__ void correction_kernel
   laneinfo info = {NUM_BODY_MAX, 0};
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   ibody_time ti = {0.0, DBL_MAX};
 
@@ -792,9 +792,9 @@ __global__ void correction_kernel
 
 #endif//SET_SINK_PARTICLES
   }/* if( lane < info.num ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
 
   /** get minimum ti.t1 of this group (TSUB threads) */
@@ -839,9 +839,9 @@ __global__ void adjustParticleTime_kernel
   laneinfo info = {NUM_BODY_MAX, 0};
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   ibody_time ti = {0.0, DBL_MAX};
 
@@ -877,9 +877,9 @@ __global__ void adjustParticleTime_kernel
     ti.t1 = ti.t0 + (double)vi.dt;
     time[idx] = ti;
   }/* if( lane < info.num ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   /** get minimum ti.t1 of this group (TSUB threads) */
 #ifdef  USE_WARP_SHUFFLE_FUNC_TIME
@@ -912,17 +912,17 @@ __global__ void setLaneTime_kernel(const int laneNum, READ_ONLY laneinfo * RESTR
   laneinfo info = {NUM_BODY_MAX, 0};
   if( laneIdx < laneNum )
     info = laneInfo[laneIdx];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   ibody_time ti = {0.0, DBL_MAX};
 
   if( lane < info.num )
     ti = time[info.head + lane];
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   /** get minimum ti.t1 of this group (TSUB threads) */
 #ifdef  USE_WARP_SHUFFLE_FUNC_TIME
@@ -1276,9 +1276,9 @@ __global__ void advPos_kernel
     pi.y += dt * vy[ii];
     pi.z += dt * vz[ii];
   }/* if( ii < Ni ){ */
-#   if  __CUDA_ARCH__ >= 700
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   __syncwarp();/**< __syncwarp() to remove warp divergence */
-#endif//__CUDA_ARCH__ >= 700
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 
   ipos[ii] = pi;
 }
