@@ -64,7 +64,7 @@ plt.rcParams['pdf.use14corefonts'] = True
 plt.rcParams['text.usetex'] = True
 
 # use packages
-plt.rcParams['text.latex.preamble'] = [r'\usepackage{physics,siunitx}']
+plt.rcParams['text.latex.preamble'] = r'\usepackage{physics,siunitx}'
 
 # set font size
 plt.rcParams['font.size'] = fs_base

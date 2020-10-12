@@ -162,7 +162,7 @@ plt.rcParams['font.size'] = 14
 plt.rcParams['xtick.direction'] = 'in'
 plt.rcParams['ytick.direction'] = 'in'
 
-plt.rcParams['text.latex.preamble'] = [r"\usepackage{siunitx}"]
+plt.rcParams['text.latex.preamble'] = r"\usepackage{siunitx}"
 
 # cores = mp.cpu_count()
 cores = int(np.ceil(mp.cpu_count() / 2))

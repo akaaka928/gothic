@@ -97,8 +97,7 @@ plt.rcParams['ps.useafm'] = True
 plt.rcParams['pdf.use14corefonts'] = True
 plt.rcParams['text.usetex'] = True
 
-plt.rcParams['text.latex.preamble'] = [r"\usepackage{amsmath}"]
-plt.rcParams['text.latex.preamble'] = [r"\usepackage{siunitx}"]
+plt.rcParams['text.latex.preamble'] = r"\usepackage{amsmath,siunitx}"
 
 # set font size
 plt.rcParams['font.size'] = 18

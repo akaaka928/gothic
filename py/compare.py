@@ -313,7 +313,7 @@ plt.rcParams['font.size'] = 28
 plt.rcParams['xtick.direction'] = 'in'
 plt.rcParams['ytick.direction'] = 'in'
 
-plt.rcParams['text.latex.preamble'] = [r"\usepackage{bm}"]
+plt.rcParams['text.latex.preamble'] = r"\usepackage{bm}"
 
 cores = mp.cpu_count()
 pool = mp.Pool(cores)
