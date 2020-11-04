@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/12/17 (Mon)
+ * @date 2020/11/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -160,11 +160,16 @@
 #ifndef HUNT_WALK_PARAMETER
 /* the below macro is enabled in the default option; switched off in the parameter survey mode to use -D and -U from Makefile */
 #define USE_WARP_SHUFFLE_FUNC
+#define USE_WARP_REDUCE_FUNCTIONS
 #endif//HUNT_WALK_PARAMETER
 
 #   if  defined(USE_WARP_SHUFFLE_FUNC) && (GPUVER < 30)
 #undef          USE_WARP_SHUFFLE_FUNC
 #endif//defined(USE_WARP_SHUFFLE_FUNC) && (GPUVER < 30)
+
+#   if  defined(USE_WARP_REDUCE_FUNCTIONS) && !defined(ENABLE_WARP_REDUCE_FUNCTIONS)
+#undef          USE_WARP_REDUCE_FUNCTIONS
+#endif//defined(USE_WARP_REDUCE_FUNCTIONS) && !defined(ENABLE_WARP_REDUCE_FUNCTIONS)
 
 
 /**

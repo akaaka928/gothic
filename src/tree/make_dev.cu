@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/09/14 (Mon)
+ * @date 2020/11/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -483,6 +483,9 @@ __global__ void initTreeLink_kernel(int *jtag)
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE
 #define USE_WARP_SHUFFLE_FUNC_SCAN_INC
 #endif//USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE
+#ifdef  USE_WARP_REDUCE_FUNCTIONS_MAKE_TREE_STRUCTURE
+#define USE_WARP_REDUCE_FUNCTIONS_SCAN_INC
+#endif//USE_WARP_REDUCE_FUNCTIONS_MAKE_TREE_STRUCTURE
 #include "../util/scan_inc.cu"
 __global__ void
 #ifndef USE_OCCUPANCY_CALCULATOR
@@ -1456,6 +1459,9 @@ __global__ void copyRealBody_kernel
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
 #define USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
+#ifdef  USE_WARP_REDUCE_FUNCTIONS_MAC
+#define USE_WARP_REDUCE_FUNCTIONS_SCAN_TSUB_INC
+#endif//USE_WARP_REDUCE_FUNCTIONS_MAC
 #include "../util/scan_tsub_inc.cu"
 
 
@@ -1463,6 +1469,9 @@ __global__ void copyRealBody_kernel
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAC
 #define USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_INC
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
+#ifdef  USE_WARP_REDUCE_FUNCTIONS_MAC
+#define USE_WARP_REDUCE_FUNCTIONS_COMPARE_TSUB_INC
+#endif//USE_WARP_REDUCE_FUNCTIONS_MAC
 #include "../util/compare_tsub_inc.cu"
 
 

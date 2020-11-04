@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/29 (Tue)
+ * @date 2020/11/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -28,6 +28,10 @@
 #   if  defined(USE_WARP_SHUFFLE_FUNC_SCAN_INC) && (GPUVER < 30)
 #undef          USE_WARP_SHUFFLE_FUNC_SCAN_INC
 #endif//defined(USE_WARP_SHUFFLE_FUNC_SCAN_INC) && (GPUVER < 30)
+
+#   if  defined(USE_WARP_REDUCE_FUNCTIONS_SCAN_INC) && !defined(ENABLE_WARP_REDUCE_FUNCTIONS)
+#undef          USE_WARP_REDUCE_FUNCTIONS_SCAN_INC
+#endif//defined(USE_WARP_REDUCE_FUNCTIONS_SCAN_INC) && !defined(ENABLE_WARP_REDUCE_FUNCTIONS)
 
 
 #   if  NTHREADS_SCAN_INC ==   32

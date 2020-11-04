@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/09/14 (Mon)
+ * @date 2020/11/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -167,6 +167,10 @@ __device__ __forceinline__ Type PREFIX_SUM_TSUB
  * @brief Get total sum within a group of TSUB_SCAN_INC threads.
  * @detail implicit synchronization within TSUB_SCAN_INC (<= 32) threads (a warp) is assumed.
  */
+#ifdef  USE_WARP_REDUCE_FUNCTIONS_SCAN_TSUB_INC
+__device__ __forceinline__      int TOTAL_SUM_TSUB(     int val, const uint mask){  return (__reduce_add_sync(mask, val));}
+__device__ __forceinline__ unsigned TOTAL_SUM_TSUB(unsigned val, const uint mask){  return (__reduce_add_sync(mask, val));}
+#endif//USE_WARP_REDUCE_FUNCTIONS_SCAN_TSUB_INC
 template <typename Type>
 __device__ __forceinline__ Type TOTAL_SUM_TSUB
 (Type val

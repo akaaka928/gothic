@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/09/14 (Mon)
+ * @date 2020/11/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -31,12 +31,28 @@ using namespace cooperative_groups;
 #endif//(GPUGEN >= 70) && !defined(_COOPERATIVE_GROUPS_H_)
 
 
+#ifdef  USE_WARP_REDUCE_FUNCTIONS_COMPARE_TSUB_NWARP_INC
+__device__ __forceinline__ uint flipFP32(const uint src){  uint mask = -int(src >> 31)   | 0x80000000;  return (src ^ mask);}
+__device__ __forceinline__ uint undoFP32(const uint src){  uint mask = ((src >> 31) - 1) | 0x80000000;  return (src ^ mask);}
+#endif//USE_WARP_REDUCE_FUNCTIONS_COMPARE_TSUB_NWARP_INC
+
+
 /**
  * @fn GET_MIN_TSUB_NWARP
  *
  * @brief Get minimum value within a group of TSUB_TN_COMPARE_INC threads (NWARP_TN_COMPARE_INC continuous threads have the identical value).
  * @detail implicit synchronization within TSUB_TN_COMPARE_INC (<= 32) threads (a warp) is assumed.
  */
+#ifdef  USE_WARP_REDUCE_FUNCTIONS_COMPARE_TSUB_NWARP_INC
+__device__ __forceinline__      int GET_MIN_TSUB_NWARP(     int val, const uint mask){  return (__reduce_min_sync(mask, val));}
+__device__ __forceinline__ unsigned GET_MIN_TSUB_NWARP(unsigned val, const uint mask){  return (__reduce_min_sync(mask, val));}
+__device__ __forceinline__    float GET_MIN_TSUB_NWARP(   float val, const uint mask){
+  union {uint u; float f;} tmp;
+  tmp.f = val;
+  tmp.u = undoFP32(GET_MIN_TSUB_NWARP(flipFP32(tmp.u), mask));
+  return (tmp.f);
+}
+#endif//USE_WARP_REDUCE_FUNCTIONS_COMPARE_TSUB_NWARP_INC
 template <typename Type>
 __device__ __forceinline__ Type GET_MIN_TSUB_NWARP
 (Type val
@@ -99,6 +115,16 @@ __device__ __forceinline__ Type GET_MIN_TSUB_NWARP
  * @brief Get maximum value within a group of TSUB_TN_COMPARE_INC threads (NWARP_TN_COMPARE_INC continuous threads have the identical value).
  * @detail implicit synchronization within TSUB_TN_COMPARE_INC (<= 32) threads (a warp) is assumed.
  */
+#ifdef  USE_WARP_REDUCE_FUNCTIONS_COMPARE_TSUB_NWARP_INC
+__device__ __forceinline__      int GET_MAX_TSUB_NWARP(     int val, const uint mask){  return (__reduce_max_sync(mask, val));}
+__device__ __forceinline__ unsigned GET_MAX_TSUB_NWARP(unsigned val, const uint mask){  return (__reduce_max_sync(mask, val));}
+__device__ __forceinline__    float GET_MAX_TSUB_NWARP(   float val, const uint mask){
+  union {uint u; float f;} tmp;
+  tmp.f = val;
+  tmp.u = undoFP32(GET_MAX_TSUB_NWARP(flipFP32(tmp.u), mask));
+  return (tmp.f);
+}
+#endif//USE_WARP_REDUCE_FUNCTIONS_COMPARE_TSUB_NWARP_INC
 template <typename Type>
 __device__ __forceinline__ Type GET_MAX_TSUB_NWARP
 (Type val

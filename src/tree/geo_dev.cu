@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/09/14 (Mon)
+ * @date 2020/11/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -66,6 +66,9 @@ __global__ void init_amin_kernel(const int num, real *amin)
 #ifdef  USE_WARP_SHUFFLE_FUNC
 #define USE_WARP_SHUFFLE_FUNC_COMPARE_INC
 #endif//USE_WARP_SHUFFLE_FUNC
+#ifdef  USE_WARP_REDUCE_FUNCTIONS
+#define USE_WARP_REDUCE_FUNCTIONS_COMPARE_INC
+#endif//USE_WARP_REDUCE_FUNCTIONS
 #define NTHREADS_COMPARE_INC NTHREADS
 #include "../util/compare_inc.cu"
 

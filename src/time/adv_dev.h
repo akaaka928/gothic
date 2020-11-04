@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/02/11 (Tue)
+ * @date 2020/11/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -36,11 +36,16 @@
 #ifndef HUNT_TIME_PARAMETER
 /* the below macro is enabled in the default option; switched off in the parameter survey mode to use -D and -U from Makefile */
 #define USE_WARP_SHUFFLE_FUNC_TIME
+#define USE_WARP_REDUCE_FUNCTIONS_TIME
 #endif//HUNT_TIME_PARAMETER
 
 #   if  defined(USE_WARP_SHUFFLE_FUNC_TIME) && (GPUVER < 30)
 #undef          USE_WARP_SHUFFLE_FUNC_TIME
 #endif//defined(USE_WARP_SHUFFLE_FUNC_TIME) && (GPUVER < 30)
+
+#   if  defined(USE_WARP_REDUCE_FUNCTIONS_TIME) && !defined(ENABLE_WARP_REDUCE_FUNCTIONS)
+#undef          USE_WARP_REDUCE_FUNCTIONS_TIME
+#endif//defined(USE_WARP_REDUCE_FUNCTIONS_TIME) && !defined(ENABLE_WARP_REDUCE_FUNCTIONS)
 
 
 /**

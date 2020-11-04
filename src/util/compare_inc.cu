@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/09/14 (Mon)
+ * @date 2020/11/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -35,12 +35,29 @@
 using namespace cooperative_groups;
 #endif//(GPUGEN >= 70) && !defined(_COOPERATIVE_GROUPS_H_)
 
+
+#ifdef  USE_WARP_REDUCE_FUNCTIONS_COMPARE_INC
+__device__ __forceinline__ uint flipFP32(const uint src){  uint mask = -int(src >> 31)   | 0x80000000;  return (src ^ mask);}
+__device__ __forceinline__ uint undoFP32(const uint src){  uint mask = ((src >> 31) - 1) | 0x80000000;  return (src ^ mask);}
+#endif//USE_WARP_REDUCE_FUNCTIONS_COMPARE_INC
+
+
 /**
  * @fn getMinWarp
  *
  * @brief Get minimum value within a warp.
  * @detail implicit synchronization within 32 threads (a warp) is assumed.
  */
+#ifdef  USE_WARP_REDUCE_FUNCTIONS_COMPARE_INC
+__device__ __forceinline__      int getMinWarp(     int val){  return (__reduce_min_sync(SHFL_MASK_32, val));}
+__device__ __forceinline__ unsigned getMinWarp(unsigned val){  return (__reduce_min_sync(SHFL_MASK_32, val));}
+__device__ __forceinline__    float getMinWarp(   float val){
+  union {uint u; float f;} tmp;
+  tmp.f = val;
+  tmp.u = undoFP32(getMinWarp(flipFP32(tmp.u)));
+  return (tmp.f);
+}
+#endif//USE_WARP_REDUCE_FUNCTIONS_COMPARE_INC
 template <typename Type>
 __device__ __forceinline__ Type getMinWarp
 (Type val
@@ -81,6 +98,16 @@ __device__ __forceinline__ Type getMinWarp
  * @brief Get maximum value within a warp.
  * @detail implicit synchronization within 32 threads (a warp) is assumed.
  */
+#ifdef  USE_WARP_REDUCE_FUNCTIONS_COMPARE_INC
+__device__ __forceinline__      int getMaxWarp(     int val){  return (__reduce_max_sync(SHFL_MASK_32, val));}
+__device__ __forceinline__ unsigned getMaxWarp(unsigned val){  return (__reduce_max_sync(SHFL_MASK_32, val));}
+__device__ __forceinline__    float getMaxWarp(   float val){
+  union {uint u; float f;} tmp;
+  tmp.f = val;
+  tmp.u = undoFP32(getMaxWarp(flipFP32(tmp.u)));
+  return (tmp.f);
+}
+#endif//USE_WARP_REDUCE_FUNCTIONS_COMPARE_INC
 template <typename Type>
 __device__ __forceinline__ Type getMaxWarp
 (Type val
@@ -199,6 +226,63 @@ __device__ __forceinline__ Type getMaxlocWarp
  *
  * @brief Get minimum value within a block.
  */
+#ifdef  USE_WARP_REDUCE_FUNCTIONS_COMPARE_INC
+__device__ __forceinline__ int GET_MIN_BLCK(int val, volatile int * __restrict__ smem, const int tidx, const int head)
+{
+  /** 1. reduction within warp */
+  int ret = getMinWarp(val);
+  smem[tidx] = ret;
+
+
+  /** 2. reduction among warps */
+  __syncthreads();
+
+  /** warpSize = 32 = 2^5; NTHREADS_COMPARE_INC <= 1024 --> NTHREADS_COMPARE_INC >> 5 <= 32 = warpSize */
+  if( tidx < (NTHREADS_COMPARE_INC >> 5) ){
+    val = smem[tidx * warpSize];
+
+    const uint mask = __activemask();
+    smem[tidx] = __reduce_min_sync(mask, val);
+  }/* if( tidx < (NTHREADS_COMPARE_INC >> 5) ){ */
+  __syncthreads();
+
+  ret = smem[0];
+  __syncthreads();
+
+  return (ret);
+}
+__device__ __forceinline__ unsigned GET_MIN_BLCK(unsigned val, volatile unsigned * __restrict__ smem, const int tidx, const int head)
+{
+  /** 1. reduction within warp */
+  unsigned ret = getMinWarp(val);
+  smem[tidx] = ret;
+
+
+  /** 2. reduction among warps */
+  __syncthreads();
+
+  /** warpSize = 32 = 2^5; NTHREADS_COMPARE_INC <= 1024 --> NTHREADS_COMPARE_INC >> 5 <= 32 = warpSize */
+  if( tidx < (NTHREADS_COMPARE_INC >> 5) ){
+    val = smem[tidx * warpSize];
+
+    const uint mask = __activemask();
+    smem[tidx] = __reduce_min_sync(mask, val);
+  }/* if( tidx < (NTHREADS_COMPARE_INC >> 5) ){ */
+  __syncthreads();
+
+  ret = smem[0];
+  __syncthreads();
+
+  return (ret);
+}
+__device__ __forceinline__ float GET_MIN_BLCK(float val, volatile float * __restrict__ smem, const int tidx, const int head)
+{
+  union {uint u; float f;} tmp;
+  tmp.f = val;
+  tmp.u = undoFP32(GET_MIN_BLCK(flipFP32(tmp.u), (unsigned *)smem, tidx, head));
+  return (tmp.f);
+}
+#endif//USE_WARP_REDUCE_FUNCTIONS_COMPARE_INC
 template <typename Type>
 __device__ __forceinline__ Type GET_MIN_BLCK(Type val, volatile Type * __restrict__ smem, const int tidx, const int head)
 {
@@ -272,6 +356,63 @@ __device__ __forceinline__ Type GET_MIN_BLCK(Type val, volatile Type * __restric
  *
  * @brief Get maximum value within a block.
  */
+#ifdef  USE_WARP_REDUCE_FUNCTIONS_COMPARE_INC
+__device__ __forceinline__ int GET_MAX_BLCK(int val, volatile int * __restrict__ smem, const int tidx, const int head)
+{
+  /** 1. reduction within warp */
+  int ret = getMaxWarp(val);
+  smem[tidx] = ret;
+
+
+  /** 2. reduction among warps */
+  __syncthreads();
+
+  /** warpSize = 32 = 2^5; NTHREADS_COMPARE_INC <= 1024 --> NTHREADS_COMPARE_INC >> 5 <= 32 = warpSize */
+  if( tidx < (NTHREADS_COMPARE_INC >> 5) ){
+    val = smem[tidx * warpSize];
+
+    const uint mask = __activemask();
+    smem[tidx] = __reduce_max_sync(mask, val);
+  }/* if( tidx < (NTHREADS_COMPARE_INC >> 5) ){ */
+  __syncthreads();
+
+  ret = smem[0];
+  __syncthreads();
+
+  return (ret);
+}
+__device__ __forceinline__ unsigned GET_MAX_BLCK(unsigned val, volatile unsigned * __restrict__ smem, const int tidx, const int head)
+{
+  /** 1. reduction within warp */
+  unsigned ret = getMaxWarp(val);
+  smem[tidx] = ret;
+
+
+  /** 2. reduction among warps */
+  __syncthreads();
+
+  /** warpSize = 32 = 2^5; NTHREADS_COMPARE_INC <= 1024 --> NTHREADS_COMPARE_INC >> 5 <= 32 = warpSize */
+  if( tidx < (NTHREADS_COMPARE_INC >> 5) ){
+    val = smem[tidx * warpSize];
+
+    const uint mask = __activemask();
+    smem[tidx] = __reduce_max_sync(mask, val);
+  }/* if( tidx < (NTHREADS_COMPARE_INC >> 5) ){ */
+  __syncthreads();
+
+  ret = smem[0];
+  __syncthreads();
+
+  return (ret);
+}
+__device__ __forceinline__ float GET_MAX_BLCK(float val, volatile float * __restrict__ smem, const int tidx, const int head)
+{
+  union {uint u; float f;} tmp;
+  tmp.f = val;
+  tmp.u = undoFP32(GET_MAX_BLCK(flipFP32(tmp.u), (unsigned *)smem, tidx, head));
+  return (tmp.f);
+}
+#endif//USE_WARP_REDUCE_FUNCTIONS_COMPARE_INC
 template <typename Type>
 __device__ __forceinline__ Type GET_MAX_BLCK(Type val, volatile Type * __restrict__ smem, const int tidx, const int head)
 {
@@ -598,6 +739,16 @@ __device__ __forceinline__ void GET_MINLOC_MAXLOC_BLCK(Type * __restrict__ minlo
  *
  * @brief Get minimum value within a grid.
  */
+#ifdef  USE_WARP_REDUCE_FUNCTIONS_COMPARE_INC
+__device__ __forceinline__ float GET_MIN_GRID(float val, volatile float * __restrict__ smem, const int tidx, const int head,
+					      volatile float * __restrict__ gmem, const int bidx, const int bnum, int * __restrict__ gsync0, int * __restrict__ gsync1)
+{
+  union {uint u; float f;} tmp;
+  tmp.f = val;
+  tmp.u = undoFP32(GET_MIN_GRID(flipFP32(tmp.u), (unsigned *)smem, tidx, head, (unsigned *)gmem, bidx, bnum, gsync0, gsync1));
+  return (tmp.f);
+}
+#endif//USE_WARP_REDUCE_FUNCTIONS_COMPARE_INC
 template <typename Type>
 __device__ __forceinline__ Type GET_MIN_GRID
 (Type val, volatile Type * __restrict__ smem, const int tidx, const int head,
@@ -662,6 +813,16 @@ __device__ __forceinline__ Type GET_MIN_GRID
  *
  * @brief Get maximum value within a grid.
  */
+#ifdef  USE_WARP_REDUCE_FUNCTIONS_COMPARE_INC
+__device__ __forceinline__ float GET_MAX_GRID(float val, volatile float * __restrict__ smem, const int tidx, const int head,
+					      volatile float * __restrict__ gmem, const int bidx, const int bnum, int * __restrict__ gsync0, int * __restrict__ gsync1)
+{
+  union {uint u; float f;} tmp;
+  tmp.f = val;
+  tmp.u = undoFP32(GET_MAX_GRID(flipFP32(tmp.u), (unsigned *)smem, tidx, head, (unsigned *)gmem, bidx, bnum, gsync0, gsync1));
+  return (tmp.f);
+}
+#endif//USE_WARP_REDUCE_FUNCTIONS_COMPARE_INC
 template <typename Type>
 __device__ __forceinline__ Type GET_MAX_GRID
 (Type val, volatile Type * __restrict__ smem, const int tidx, const int head,

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/23 (Wed)
+ * @date 2020/11/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -65,6 +65,11 @@ typedef struct
 #   if  defined(USE_WARP_SHUFFLE_FUNC_EB) && (GPUVER < 30)
 #undef          USE_WARP_SHUFFLE_FUNC_EB
 #endif//defined(USE_WARP_SHUFFLE_FUNC_EB) && (GPUVER < 30)
+
+#define USE_WARP_REDUCE_FUNCTIONS_EB
+#   if  defined(USE_WARP_REDUCE_FUNCTIONS_EB) && !defined(ENABLE_WARP_REDUCE_FUNCTIONS)
+#undef          USE_WARP_REDUCE_FUNCTIONS_EB
+#endif//defined(USE_WARP_REDUCE_FUNCTIONS_EB) && !defined(ENABLE_WARP_REDUCE_FUNCTIONS)
 
 
 #ifdef  OCTREE_BASED_SEARCH

@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2020/01/17 (Fri) 10:13:56
+# last updated on 2020/11/04 (Wed) 17:55:30
 # Makefile for C Programming
 # Gravitational octree code for collisionless N-body simulations on GPUs
 #################################################################################################
@@ -446,6 +446,7 @@ NUM_NWARP	:= 4
 NUM_NLOOP	:= 1
 LEV_NEIGHBOR	:= 1
 USE_WARPSHUFFLE	:= 1
+USE_WARPREDUCE	:= 1
 PREF_SHARED_MEM	:= 1
 #################################################################################################
 ifeq ($(MEASURE_ELAPSED_TIME), 1)
@@ -471,6 +472,10 @@ ifeq ($(USE_WARPSHUFFLE), 1)
 CCARG	+= -DUSE_WARP_SHUFFLE_FUNC
 CUARG	+= -DUSE_WARP_SHUFFLE_FUNC
 endif
+ifeq ($(USE_WARPREDUCE), 1)
+CCARG	+= -DUSE_WARP_REDUCE_FUNCTIONS
+CUARG	+= -DUSE_WARP_REDUCE_FUNCTIONS
+endif
 endif
 #################################################################################################
 ifeq ($(HUNT_OPTIMAL_MAKE_TREE), 1)
@@ -488,6 +493,10 @@ ifeq ($(USE_WARPSHUFFLE), 1)
 CCARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE
 CUARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE
 endif
+ifeq ($(USE_WARPREDUCE), 1)
+CCARG	+= -DUSE_WARP_REDUCE_FUNCTIONS_MAKE_TREE_STRUCTURE
+CUARG	+= -DUSE_WARP_REDUCE_FUNCTIONS_MAKE_TREE_STRUCTURE
+endif
 endif
 #################################################################################################
 ifeq ($(HUNT_OPTIMAL_MAKE_NODE), 1)
@@ -499,6 +508,10 @@ ifeq ($(USE_WARPSHUFFLE), 1)
 CCARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAC
 CUARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAC
 endif
+ifeq ($(USE_WARPREDUCE), 1)
+CCARG	+= -DUSE_WARP_REDUCE_FUNCTIONS_MAC
+CUARG	+= -DUSE_WARP_REDUCE_FUNCTIONS_MAC
+endif
 endif
 #################################################################################################
 ifeq ($(HUNT_OPTIMAL_NEIGHBOUR), 1)
@@ -506,10 +519,10 @@ CCARG	+= -DHUNT_FIND_PARAMETER
 CUARG	+= -DHUNT_FIND_PARAMETER
 CCARG	+= -DNTHREADS_SHRINK="($(NUM_NTHREADS))" -DNTHREADS_FACILE_NS="($(NUM_NTHREADS))" -DNTHREADS_NEIGHBOR="($(NUM_NTHREADS))" -DTSUB_NEIGHBOR="($(NUM_TSUB))"
 CUARG	+= -DNTHREADS_SHRINK="($(NUM_NTHREADS))" -DNTHREADS_FACILE_NS="($(NUM_NTHREADS))" -DNTHREADS_NEIGHBOR="($(NUM_NTHREADS))" -DTSUB_NEIGHBOR="($(NUM_TSUB))"
-ifeq ($(USE_WARPSHUFFLE), 1)
-CCARG	+= -DUSE_WARP_SHUFFLE_FUNC_NEIGHBOR
-CUARG	+= -DUSE_WARP_SHUFFLE_FUNC_NEIGHBOR
-endif
+# ifeq ($(USE_WARPSHUFFLE), 1)
+# CCARG	+= -DUSE_WARP_SHUFFLE_FUNC_NEIGHBOR
+# CUARG	+= -DUSE_WARP_SHUFFLE_FUNC_NEIGHBOR
+# endif
 ifeq ($(PREF_SHARED_MEM), 1)
 CCARG	+= -DSMEM_PREF_FOR_NEIGHBOR_SEARCH
 CUARG	+= -DSMEM_PREF_FOR_NEIGHBOR_SEARCH
@@ -524,6 +537,10 @@ CUARG	+= -DNTHREADS_TIME="($(NUM_NTHREADS))"
 ifeq ($(USE_WARPSHUFFLE), 1)
 CCARG	+= -DUSE_WARP_SHUFFLE_FUNC_TIME
 CUARG	+= -DUSE_WARP_SHUFFLE_FUNC_TIME
+endif
+ifeq ($(USE_WARPREDUCE), 1)
+CCARG	+= -DUSE_WARP_REDUCE_FUNCTIONS_TIME
+CUARG	+= -DUSE_WARP_REDUCE_FUNCTIONS_TIME
 endif
 endif
 #################################################################################################
@@ -543,10 +560,10 @@ CCARG	+= -DNTHREADS_MAKE_TREE="($(NUM_NTHREADS))" -DNTHREADS_LINK_TREE="($(NUM_N
 CUARG	+= -DNTHREADS_MAKE_TREE="($(NUM_NTHREADS))" -DNTHREADS_LINK_TREE="($(NUM_NTHREADS))" -DNTHREADS_TRIM_TREE="($(NUM_NTHREADS))"
 CCARG	+= -DNTHREADS_PH="($(NUM_NTHREADS))"
 CUARG	+= -DNTHREADS_PH="($(NUM_NTHREADS))"
-ifeq ($(USE_WARPSHUFFLE), 1)
-CCARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAKE_TREE -DUSE_WARP_SHUFFLE_FUNC_LINK_TREE
-CUARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAKE_TREE -DUSE_WARP_SHUFFLE_FUNC_LINK_TREE
-endif
+# ifeq ($(USE_WARPSHUFFLE), 1)
+# CCARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAKE_TREE -DUSE_WARP_SHUFFLE_FUNC_LINK_TREE
+# CUARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAKE_TREE -DUSE_WARP_SHUFFLE_FUNC_LINK_TREE
+# endif
 endif
 #################################################################################################
 ifeq ($(CHECK_CALL_MAKE_NODE), 1)
@@ -556,15 +573,19 @@ ifeq ($(USE_WARPSHUFFLE), 1)
 CCARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAC
 CUARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAC
 endif
+ifeq ($(USE_WARPREDUCE), 1)
+CCARG	+= -DUSE_WARP_REDUCE_FUNCTIONS_MAC
+CUARG	+= -DUSE_WARP_REDUCE_FUNCTIONS_MAC
+endif
 endif
 #################################################################################################
 ifeq ($(CHECK_CALL_NEIGHBOUR), 1)
 CCARG	+= -DNTHREADS_SHRINK="($(NUM_NTHREADS))" -DNTHREADS_FACILE_NS="($(NUM_NTHREADS))" -DNTHREADS_NEIGHBOR="($(NUM_NTHREADS))" -DTSUB_NEIGHBOR="($(NUM_TSUB))"
 CUARG	+= -DNTHREADS_SHRINK="($(NUM_NTHREADS))" -DNTHREADS_FACILE_NS="($(NUM_NTHREADS))" -DNTHREADS_NEIGHBOR="($(NUM_NTHREADS))" -DTSUB_NEIGHBOR="($(NUM_TSUB))"
-ifeq ($(USE_WARPSHUFFLE), 1)
-CCARG	+= -DUSE_WARP_SHUFFLE_FUNC_NEIGHBOR
-CUARG	+= -DUSE_WARP_SHUFFLE_FUNC_NEIGHBOR
-endif
+# ifeq ($(USE_WARPSHUFFLE), 1)
+# CCARG	+= -DUSE_WARP_SHUFFLE_FUNC_NEIGHBOR
+# CUARG	+= -DUSE_WARP_SHUFFLE_FUNC_NEIGHBOR
+# endif
 ifeq ($(PREF_SHARED_MEM), 1)
 CCARG	+= -DSMEM_PREF_FOR_NEIGHBOR_SEARCH
 CUARG	+= -DSMEM_PREF_FOR_NEIGHBOR_SEARCH

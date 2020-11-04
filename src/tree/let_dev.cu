@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/09/14 (Mon)
+ * @date 2020/11/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -163,6 +163,9 @@ void releaseLETtopology
 #ifdef  USE_WARP_SHUFFLE_FUNC_MAKE_LET
 #define USE_WARP_SHUFFLE_FUNC_SCAN_INC
 #endif//USE_WARP_SHUFFLE_FUNC_MAKE_LET
+#ifdef  USE_WARP_REDUCE_FUNCTIONS_MAKE_LET
+#define USE_WARP_REDUCE_FUNCTIONS_SCAN_INC
+#endif//USE_WARP_REDUCE_FUNCTIONS_MAKE_LET
 #include "../util/scan_inc.cu"
 
 

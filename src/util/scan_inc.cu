@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/09/14 (Mon)
+ * @date 2020/11/04 (Wed)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -108,6 +108,10 @@ __device__ __forceinline__ Type prefixSumWarp
  * @brief Get total sum within a warp.
  * @detail implicit synchronization within 32 threads (a warp) is assumed.
  */
+#ifdef  USE_WARP_REDUCE_FUNCTIONS_SCAN_INC
+__device__ __forceinline__      int totalSumWarp(     int val){  return (__reduce_add_sync(SHFL_MASK_32, val));}
+__device__ __forceinline__ unsigned totalSumWarp(unsigned val){  return (__reduce_add_sync(SHFL_MASK_32, val));}
+#endif//USE_WARP_REDUCE_FUNCTIONS_SCAN_INC
 template <typename Type>
 __device__ __forceinline__ Type totalSumWarp
 (Type val
@@ -415,6 +419,56 @@ __device__ __forceinline__ Type PREFIX_SUM_GRID_WITH_PARTITION
  *
  * @brief Get total sum within a block.
  */
+#ifdef  USE_WARP_REDUCE_FUNCTIONS_SCAN_INC
+__device__ __forceinline__ int TOTAL_SUM_BLCK(int val, volatile int * __restrict__ smem, const int tidx, const int head)
+{
+  /** 1. total sum within a warp */
+  val = totalSumWarp(val);
+  if( tidx == head )
+    smem[tidx] = val;
+
+
+  /** 2. reduction of partial sum */
+  __syncthreads();
+
+  /** warpSize = 32 = 2^5; NTHREADS_SCAN_INC <= 1024 --> NTHREADS_SCAN_INC >> 5 <= 32 = warpSize */
+  if( tidx < (NTHREADS_SCAN_INC >> 5) ){
+    val = smem[tidx * warpSize];
+
+    const uint mask = __activemask();
+    smem[tidx] = __reduce_add_sync(mask, val);
+  }/* if( tidx < (NTHREADS_SCAN_INC >> 5) ){ */
+  __syncthreads();
+  val = smem[0];
+  __syncthreads();
+
+  return (val);
+}
+__device__ __forceinline__ unsigned TOTAL_SUM_BLCK(unsigned val, volatile unsigned * __restrict__ smem, const int tidx, const int head)
+{
+  /** 1. total sum within a warp */
+  val = totalSumWarp(val);
+  if( tidx == head )
+    smem[tidx] = val;
+
+
+  /** 2. reduction of partial sum */
+  __syncthreads();
+
+  /** warpSize = 32 = 2^5; NTHREADS_SCAN_INC <= 1024 --> NTHREADS_SCAN_INC >> 5 <= 32 = warpSize */
+  if( tidx < (NTHREADS_SCAN_INC >> 5) ){
+    val = smem[tidx * warpSize];
+
+    const uint mask = __activemask();
+    smem[tidx] = __reduce_add_sync(mask, val);
+  }/* if( tidx < (NTHREADS_SCAN_INC >> 5) ){ */
+  __syncthreads();
+  val = smem[0];
+  __syncthreads();
+
+  return (val);
+}
+#endif//USE_WARP_REDUCE_FUNCTIONS_SCAN_INC
 template <typename Type>
 __device__ __forceinline__ Type TOTAL_SUM_BLCK(Type val, volatile Type * __restrict__ smem, const int tidx, const int head)
 {
