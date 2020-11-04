@@ -28,8 +28,20 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=24
     # PROBLEM=40
     # PROBLEM=41
-    PROBLEM=42
+    # PROBLEM=42
     # PROBLEM=43
+    # PROBLEM=44
+    # PROBLEM=45
+    # PROBLEM=46
+    # PROBLEM=47
+    PROBLEM=50
+    # PROBLEM=51
+    # PROBLEM=52
+    # PROBLEM=53
+    # PROBLEM=54
+    # PROBLEM=55
+    # PROBLEM=56
+    # PROBLEM=57
 fi
 ###############################################################
 # dump file generation interval (in units of minute)
@@ -207,6 +219,126 @@ if [ $PROBLEM -eq 43 ]; then
     EPS=1.5625e-2
     ETA=0.5
     FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 44 ]; then
+    FILE=subhalo4-backward
+    CFG=nws/subhalo4-backward.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 45 ]; then
+    FILE=subhalo5-backward
+    CFG=nws/subhalo5-backward.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 46 ]; then
+    FILE=subhalo6-backward
+    CFG=nws/subhalo6-backward.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1200.0
+    INTERVAL=25.0
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 47 ]; then
+    FILE=subhalo7-backward
+    CFG=nws/subhalo7-backward.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1200.0
+    INTERVAL=25.0
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 50 ]; then
+    FILE=subhalo10-backward
+    CFG=nws/subhalo10-backward.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=800.0
+    INTERVAL=25.0
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 51 ]; then
+    FILE=subhalo11-backward
+    CFG=nws/subhalo11-backward.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=800.0
+    INTERVAL=25.0
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 52 ]; then
+    FILE=subhalo12-backward
+    CFG=nws/subhalo12-backward.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 53 ]; then
+    FILE=subhalo13-backward
+    CFG=nws/subhalo13-backward.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 54 ]; then
+    FILE=subhalo14-backward
+    CFG=nws/subhalo14-backward.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 55 ]; then
+    FILE=subhalo15-backward
+    CFG=nws/subhalo15-backward.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 56 ]; then
+    FILE=subhalo16-backward
+    CFG=nws/subhalo16-backward.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1200.0
+    INTERVAL=25.0
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 57 ]; then
+    FILE=subhalo17-backward
+    CFG=nws/subhalo17-backward.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=1200.0
     INTERVAL=25.0
 fi
 ###############################################################

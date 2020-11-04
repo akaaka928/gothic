@@ -5,8 +5,8 @@
 #PBS -b 1
 #PBS -l elapstim_req=00:10:00
 #PBS -v OMP_NUM_THREADS=24
-#PBS -T mvapich
-#PBS -v NQSV_MPI_VER=2.3.1/intel-cuda10.1
+#PBS -T openmpi
+#PBS -v NQSV_MPI_VER=gdr/4.0.3/intel19.0.5-cuda10.2
 ###############################################################
 
 
@@ -311,8 +311,8 @@ TIME=`date`
 echo "start: $TIME"
 ###############################################################
 module purge
-export MODULEPATH=$MODULEPATH:/work/CSPP/ymiki/opt/module
-module load mvapich/2.3.1/intel-cuda10.1
+export MODULEPATH=/work/GALAXY/share/opt/modules:/work/GALAXY/ymiki/opt/module:$MODULEPATH
+module load openmpi/$NQSV_MPI_VER
 module load gsl lis
 module load phdf5
 ###############################################################

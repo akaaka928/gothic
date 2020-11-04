@@ -4,8 +4,8 @@
 #PBS -N mass90-snap220_vel140
 #PBS -b 1
 #PBS -l elapstim_req=24:00:00
-#PBS -T mvapich
-#PBS -v NQSV_MPI_VER=2.3.1/intel-cuda10.1
+#PBS -T openmpi
+#PBS -v NQSV_MPI_VER=gdr/4.0.3/intel19.0.5-cuda10.2
 ###############################################################
 # HALO=test
 # HALO=prada
@@ -93,8 +93,8 @@ TIME=`date`
 echo "start: $TIME"
 ###############################################################
 module purge
-export MODULEPATH=$MODULEPATH:/work/CSPP/ymiki/opt/module
-module load mvapich/2.3.1/intel-cuda10.1
+export MODULEPATH=/work/GALAXY/share/opt/modules:/work/GALAXY/ymiki/opt/module:$MODULEPATH
+module load openmpi/$NQSV_MPI_VER
 module load phdf5
 module load cub
 ###############################################################
@@ -105,7 +105,7 @@ PROCS=3
 PROCS_PER_NODE=3
 # PROCS=2
 # PROCS_PER_NODE=2
-mpiexec ${NQSII_MPIOPTS} -np ${PROCS} -genv MV2_NUM_HCAS 4 sh/cygnus/nws/sweep.sh $EXEC ${MASS} ${EPOCH} ${FILE}_$PBS_JOBNAME $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_NODE $OPTION
+mpiexec ${NQSII_MPIOPTS} -np ${PROCS} -x UCX_MAX_RNDV_RAILS=4 sh/cygnus/nws/sweep.sh $EXEC ${MASS} ${EPOCH} ${FILE}_$PBS_JOBNAME $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_NODE $OPTION
 ###############################################################
 # finish logging
 TIME=`date`

@@ -4,8 +4,8 @@
 #PBS -N gothic
 #PBS -b 1
 #PBS -l elapstim_req=24:00:00
-#PBS -T mvapich
-#PBS -v NQSV_MPI_VER=2.3.1/intel-cuda10.1
+#PBS -T openmpi
+#PBS -v NQSV_MPI_VER=gdr/4.0.3/intel19.0.5-cuda10.2
 ###############################################################
 
 
@@ -89,8 +89,8 @@ TIME=`date`
 echo "start: $TIME"
 ###############################################################
 module purge
-export MODULEPATH=$MODULEPATH:/work/CSPP/ymiki/opt/module
-module load mvapich/2.3.1/intel-cuda10.1
+export MODULEPATH=/work/GALAXY/share/opt/modules:/work/GALAXY/ymiki/opt/module:$MODULEPATH
+module load openmpi/$NQSV_MPI_VER
 module load phdf5
 module load cub
 ###############################################################
@@ -99,7 +99,7 @@ module load cub
 # PROCS_PER_NODE=4
 # # PROCS=2
 # # PROCS_PER_NODE=2
-# mpiexec ${NQSII_MPIOPTS} -np ${PROCS} -genv MV2_NUM_HCAS 4 sh/cygnus/split.sh $EXEC ${FILE}_$PBS_JOBNAME $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_NODE $OPTION
+# mpiexec ${NQSII_MPIOPTS} -np ${PROCS} -x UCX_MAX_RNDV_RAILS=4 sh/cygnus/nws/split.sh $EXEC ${FILE} ${FILE}_$PBS_JOBNAME $PBS_JOBID $PROCS_PER_NODE $PROCS_PER_NODE $OPTION
 numactl --cpunodebind=0 --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 ###############################################################
 # finish logging

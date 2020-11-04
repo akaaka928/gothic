@@ -5,8 +5,8 @@
 #PBS -b 1
 #PBS -l elapstim_req=00:5:00
 #PBS -v OMP_NUM_THREADS=24
-#PBS -T mvapich
-#PBS -v NQSV_MPI_VER=2.3.1/intel-cuda10.1
+#PBS -T openmpi
+#PBS -v NQSV_MPI_VER=gdr/4.0.3/intel19.0.5-cuda10.2
 ###############################################################
 
 
@@ -17,18 +17,20 @@ EXEC=bin/editor
 ###############################################################
 # problem ID
 if [ -z "$PROBLEM" ]; then
+    # collision with live halo (orbit 0 and 1)
     # PROBLEM=68
     # PROBLEM=69
     # PROBLEM=70
     # PROBLEM=71
 
+    # collision with live halo (orbit 2 and 3)
     # PROBLEM=108
     # PROBLEM=109
     # PROBLEM=110
     # PROBLEM=111
 
     # collision with live halo (orbit 4 and 5)
-    PROBLEM=148
+    # PROBLEM=148
     # PROBLEM=149
     # PROBLEM=150
     # PROBLEM=151
@@ -557,6 +559,36 @@ if [ $PROBLEM -eq 191 ]; then
     FINISH=14000.0
     INTERVAL=25.0
 fi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ###############################################################
 # set input arguments
 OPTION="-file=$FILE -list=$CFG -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE"
@@ -580,8 +612,8 @@ TIME=`date`
 echo "start: $TIME"
 ###############################################################
 module purge
-export MODULEPATH=$MODULEPATH:/work/CSPP/ymiki/opt/module
-module load mvapich/2.3.1/intel-cuda10.1
+export MODULEPATH=/work/GALAXY/share/opt/modules:/work/GALAXY/ymiki/opt/module:$MODULEPATH
+module load openmpi/$NQSV_MPI_VER
 module load phdf5
 ###############################################################
 # execute the job

@@ -27,8 +27,20 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=22
     # PROBLEM=30
     # PROBLEM=31
-    PROBLEM=32
+    # PROBLEM=32
     # PROBLEM=33
+    # PROBLEM=34
+    # PROBLEM=35
+    # PROBLEM=36
+    # PROBLEM=37
+    PROBLEM=40
+    # PROBLEM=41
+    # PROBLEM=42
+    # PROBLEM=43
+    # PROBLEM=44
+    # PROBLEM=45
+    # PROBLEM=46
+    # PROBLEM=47
 fi
 ###############################################################
 # topology of MPI processes
@@ -137,6 +149,90 @@ fi
 # throwing DM subhalo toward NW stream
 if [ $PROBLEM -eq 33 ]; then
     FILE=subhalo3-backward
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 34 ]; then
+    FILE=subhalo4-backward
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 35 ]; then
+    FILE=subhalo5-backward
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 36 ]; then
+    FILE=subhalo6-backward
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 37 ]; then
+    FILE=subhalo7-backward
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 40 ]; then
+    FILE=subhalo10-backward
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 41 ]; then
+    FILE=subhalo11-backward
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 42 ]; then
+    FILE=subhalo12-backward
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 43 ]; then
+    FILE=subhalo13-backward
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 44 ]; then
+    FILE=subhalo14-backward
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 45 ]; then
+    FILE=subhalo15-backward
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 46 ]; then
+    FILE=subhalo16-backward
+    SPHEPOT=m31
+    DISKPOT=m31
+fi
+###############################################################
+# throwing DM subhalo toward NW stream
+if [ $PROBLEM -eq 47 ]; then
+    FILE=subhalo17-backward
     SPHEPOT=m31
     DISKPOT=m31
 fi
