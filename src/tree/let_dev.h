@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/11/04 (Wed)
+ * @date 2020/11/16 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -81,10 +81,10 @@
 #undef          USE_WARP_SHUFFLE_FUNC_MAKE_LET
 #endif//defined(USE_WARP_SHUFFLE_FUNC_MAKE_LET) && (GPUGEN < 30)
 
-#define USE_WARP_REDUCE_FUNCTIONS_MAKE_LET
-#   if  defined(USE_WARP_REDUCE_FUNCTIONS_MAKE_LET) && !defined(ENABLE_WARP_REDUCE_FUNCTIONS)
-#undef          USE_WARP_REDUCE_FUNCTIONS_MAKE_LET
-#endif//defined(USE_WARP_REDUCE_FUNCTIONS_MAKE_LET) && !defined(ENABLE_WARP_REDUCE_FUNCTIONS)
+#define USE_WARP_REDUCE_FUNC_MAKE_LET
+#   if  defined(USE_WARP_REDUCE_FUNC_MAKE_LET) && !defined(ENABLE_WARP_REDUCE_FUNC)
+#undef          USE_WARP_REDUCE_FUNC_MAKE_LET
+#endif//defined(USE_WARP_REDUCE_FUNC_MAKE_LET) && !defined(ENABLE_WARP_REDUCE_FUNC)
 
 
 #ifdef  DIV_NTHREADS_MAKE_LET

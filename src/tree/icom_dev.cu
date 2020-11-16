@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/11/04 (Wed)
+ * @date 2020/11/16 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -42,9 +42,9 @@
 #   if  defined(USE_WARP_SHUFFLE_FUNC_EB) && !defined(USE_WARP_SHUFFLE_FUNC_COMPARE_INC)
 #define  USE_WARP_SHUFFLE_FUNC_COMPARE_INC
 #endif//defined(USE_WARP_SHUFFLE_FUNC_EB) && !defined(USE_WARP_SHUFFLE_FUNC_COMPARE_INC)
-#   if  defined(USE_WARP_REDUCE_FUNCTIONS_EB) && !defined(USE_WARP_REDUCE_FUNCTIONS_COMPARE_INC)
-#define USE_WARP_REDUCE_FUNCTIONS_COMPARE_INC
-#endif//defined(USE_WARP_REDUCE_FUNCTIONS_EB) && !defined(USE_WARP_REDUCE_FUNCTIONS_COMPARE_INC)
+#   if  defined(USE_WARP_REDUCE_FUNC_EB) && !defined(USE_WARP_REDUCE_FUNC_COMPARE_INC)
+#define USE_WARP_REDUCE_FUNC_COMPARE_INC
+#endif//defined(USE_WARP_REDUCE_FUNC_EB) && !defined(USE_WARP_REDUCE_FUNC_COMPARE_INC)
 #define NTHREADS_COMPARE_INC NTHREADS_EB
 #include "../util/compare_inc.cu"
 
@@ -54,9 +54,9 @@
 #   if  defined(USE_WARP_SHUFFLE_FUNC_EB) && !defined(USE_WARP_SHUFFLE_FUNC_SCAN_INC)
 #define  USE_WARP_SHUFFLE_FUNC_SCAN_INC
 #endif//defined(USE_WARP_SHUFFLE_FUNC_EB) && !defined(USE_WARP_SHUFFLE_FUNC_SCAN_INC)
-#   if  defined(USE_WARP_REDUCE_FUNCTIONS_EB) && !defined(USE_WARP_REDUCE_FUNCTIONS_SCAN_INC)
-#define USE_WARP_REDUCE_FUNCTIONS_SCAN_INC
-#endif//defined(USE_WARP_REDUCE_FUNCTIONS_EB) && !defined(USE_WARP_REDUCE_FUNCTIONS_SCAN_INC)
+#   if  defined(USE_WARP_REDUCE_FUNC_EB) && !defined(USE_WARP_REDUCE_FUNC_SCAN_INC)
+#define USE_WARP_REDUCE_FUNC_SCAN_INC
+#endif//defined(USE_WARP_REDUCE_FUNC_EB) && !defined(USE_WARP_REDUCE_FUNC_SCAN_INC)
 #define NTHREADS_SCAN_INC NTHREADS_EB
 #include "../util/scan_inc.cu"
 

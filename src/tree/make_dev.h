@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/11/04 (Wed)
+ * @date 2020/11/16 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -41,7 +41,7 @@
 #ifndef HUNT_NODE_PARAMETER
 /* the below macro is enabled in the default option; switched off in the parameter survey mode to use -D and -U from Makefile */
 #define USE_WARP_SHUFFLE_FUNC_MAC
-#define USE_WARP_REDUCE_FUNCTIONS_MAC
+#define USE_WARP_REDUCE_FUNC_MAC
 
 /** for better performance on V100 GPUs */
 #   if  defined(USE_WARP_SHUFFLE_FUNC_MAC) && (GPUVER >= 70)
@@ -54,9 +54,9 @@
 #undef          USE_WARP_SHUFFLE_FUNC_MAC
 #endif//defined(USE_WARP_SHUFFLE_FUNC_MAC) && (GPUVER < 30)
 
-#   if  defined(USE_WARP_REDUCE_FUNCTIONS_MAC) && !defined(ENABLE_WARP_REDUCE_FUNCTIONS)
-#undef          USE_WARP_REDUCE_FUNCTIONS_MAC
-#endif//defined(USE_WARP_REDUCE_FUNCTIONS_MAC) && !defined(ENABLE_WARP_REDUCE_FUNCTIONS)
+#   if  defined(USE_WARP_REDUCE_FUNC_MAC) && !defined(ENABLE_WARP_REDUCE_FUNC)
+#undef          USE_WARP_REDUCE_FUNC_MAC
+#endif//defined(USE_WARP_REDUCE_FUNC_MAC) && !defined(ENABLE_WARP_REDUCE_FUNC)
 
 
 /**
@@ -180,7 +180,7 @@
 #ifndef HUNT_MAKE_PARAMETER
 /* the below macro is disabled in the default option for better performance; switched off in the parameter survey mode to use -D from Makefile */
 /* #define USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE */
-#define USE_WARP_REDUCE_FUNCTIONS_MAKE_TREE_STRUCTURE
+#define USE_WARP_REDUCE_FUNC_MAKE_TREE_STRUCTURE
 
 /** for better performance on P100 and V100 GPUs */
 #   if  !defined(USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE) && (GPUVER >= 60)
@@ -193,9 +193,9 @@
 #undef          USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE
 #endif//defined(USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE) && (GPUVER < 30)
 
-#   if  defined(USE_WARP_REDUCE_FUNCTIONS_MAKE_TREE_STRUCTURE) && !defined(ENABLE_WARP_REDUCE_FUNCTIONS)
-#undef          USE_WARP_REDUCE_FUNCTIONS_MAKE_TREE_STRUCTURE
-#endif//defined(USE_WARP_REDUCE_FUNCTIONS_MAKE_TREE_STRUCTURE) && !defined(ENABLE_WARP_REDUCE_FUNCTIONS)
+#   if  defined(USE_WARP_REDUCE_FUNC_MAKE_TREE_STRUCTURE) && !defined(ENABLE_WARP_REDUCE_FUNC)
+#undef          USE_WARP_REDUCE_FUNC_MAKE_TREE_STRUCTURE
+#endif//defined(USE_WARP_REDUCE_FUNC_MAKE_TREE_STRUCTURE) && !defined(ENABLE_WARP_REDUCE_FUNC)
 
 
 /**

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/11/04 (Wed)
+ * @date 2020/11/16 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -805,9 +805,9 @@ __global__ void trimAcc_kernel(acceleration * RESTRICT acc, READ_ONLY position *
 #ifdef  USE_WARP_SHUFFLE_FUNC
 #define USE_WARP_SHUFFLE_FUNC_SCAN_TSUB_INC
 #endif//USE_WARP_SHUFFLE_FUNC
-#ifdef  USE_WARP_REDUCE_FUNCTIONS
-#define USE_WARP_REDUCE_FUNCTIONS_SCAN_TSUB_INC
-#endif//USE_WARP_REDUCE_FUNCTIONS
+#ifdef  USE_WARP_REDUCE_FUNC
+#define USE_WARP_REDUCE_FUNC_SCAN_TSUB_INC
+#endif//USE_WARP_REDUCE_FUNC
 #include "../util/scan_tsub_inc.cu"
 
 
@@ -856,9 +856,9 @@ __device__ __forceinline__
 #ifdef  USE_WARP_SHUFFLE_FUNC
 #define USE_WARP_SHUFFLE_FUNC_COMPARE_TSUB_NWARP_INC
 #endif//USE_WARP_SHUFFLE_FUNC
-#ifdef  USE_WARP_REDUCE_FUNCTIONS
-#define USE_WARP_REDUCE_FUNCTIONS_COMPARE_TSUB_NWARP_INC
-#endif//USE_WARP_REDUCE_FUNCTIONS
+#ifdef  USE_WARP_REDUCE_FUNC
+#define USE_WARP_REDUCE_FUNC_COMPARE_TSUB_NWARP_INC
+#endif//USE_WARP_REDUCE_FUNC
 #include "../util/compare_tsub_nwarp_inc.cu"
 
 
