@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/09/14 (Mon)
+ * @date 2020/11/16 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -240,6 +240,11 @@ void setTimeStep_dev
 #define SHFL_MASK_WARPS SHFL_MASK_32
 #endif//NTHREADS_TIME == 1024
 #endif//USE_WARP_SHUFFLE_FUNC_TIME
+#ifdef  USE_WARP_REDUCE_FUNC_TIME
+#define USE_WARP_REDUCE_FUNC_COMPARE_INC
+#define NTHREADS_COMPARE_INC NTHREADS_TIME
+#include "../util/compare_inc.cu"
+#endif//USE_WARP_REDUCE_FUNC_TIME
 /**
  * @fn setTimeStep_kernel
  *
@@ -302,6 +307,10 @@ __global__ void setTimeStep_kernel
 
 
   /** find the minimum time step */
+#   if  defined(USE_WARP_REDUCE_FUNC_TIME) && !defined(USE_DOUBLE_PRECISION)
+  __shared__ real dtmin[NTHREADS_TIME];
+  dtloc = GET_MIN_BLCK(dtloc, dtmin, tidx, tidx & 0xffffffe0);
+#else///defined(USE_WARP_REDUCE_FUNC_TIME) && !defined(USE_DOUBLE_PRECISION)
 #ifdef  USE_WARP_SHUFFLE_FUNC_TIME
   __shared__ real dtmin[32];
 #else///USE_WARP_SHUFFLE_FUNC_TIME
@@ -309,8 +318,8 @@ __global__ void setTimeStep_kernel
 #endif//USE_WARP_SHUFFLE_FUNC_TIME
 
   /** find minimum time step within a warp */
-  real dttmp;
 #ifdef  USE_WARP_SHUFFLE_FUNC_TIME
+  real dttmp;
   dttmp = __SHFL_XOR(SHFL_MASK_32, dtloc,  1, warpSize);  dtloc = FMIN(dtloc, dttmp);
   dttmp = __SHFL_XOR(SHFL_MASK_32, dtloc,  2, warpSize);  dtloc = FMIN(dtloc, dttmp);
   dttmp = __SHFL_XOR(SHFL_MASK_32, dtloc,  4, warpSize);  dtloc = FMIN(dtloc, dttmp);
@@ -376,6 +385,7 @@ __global__ void setTimeStep_kernel
     dtloc = dtmin[0];
 #endif//USE_WARP_SHUFFLE_FUNC_TIME
   }/* if( tidx < (NTHREADS_TIME >> 5) ){ */
+#endif//defined(USE_WARP_REDUCE_FUNC_TIME) && !defined(USE_DOUBLE_PRECISION)
 
 
   if( tidx == 0 )
