@@ -1,7 +1,7 @@
 #!/bin/bash
 ###############################################################
 #SBATCH -J compress            # name of job
-#SBATCH -t 24:00:00            # upper limit of elapsed time
+#SBATCH -t UNLIMITED           # upper limit of elapsed time
 #SBATCH -p normal              # partition name
 #SBATCH --nodes=1              # number of nodes, set to SLURM_JOB_NUM_NODES
 #SBATCH --ntasks=16            # number of total MPI processes, set to SLURM_NTASKS
@@ -16,7 +16,6 @@ if [ ! -e $DSTDIR ]; then
     mkdir $DSTDIR
 fi
 
-LOG=compress.log
 LIST=compress_list.txt
 if [ -e $LIST ]; then
     rm -f $LIST

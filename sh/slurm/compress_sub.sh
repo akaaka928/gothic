@@ -22,6 +22,8 @@ if [ "$int" -le "$digit" ]; then
     done
 fi
 LIST=${1}${zeros}${RANK}
+OUT=compress${zeros}${RANK}.out
+ERR=compress${zeros}${RANK}.err
 
 SRCDIR=$2
 DSTDIR=$3
@@ -41,7 +43,10 @@ while read LINE; do
     if [ $? -eq 0 ]; then
     	# $? is 0 if h5diff returns no error
     	$NUMACTL rm -f $SRC
-    	echo $SRC is compressed: $DST | tee -a $LOG
+    	echo $SRC is compressed: $DST | tee -a $OUT
+    else
+	$NUMACTL rm -f $DST
+    	echo WARNING: $SRC is NOT compressed | tee -a $ERR
     fi
 done < $LIST
 rm -f $LIST
