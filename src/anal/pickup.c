@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/09/26 (Thu)
+ * @date 2020/11/20 (Fri)
  *
  * Copyright (C) 2019 Yohei Miki
  * All rights reserved.
@@ -200,30 +200,30 @@ static void read_boundary(char *filename, int *mode, int *Ngrp, domain **box)
     int specify = 0;
     /** mode: 0: (X, Y, Z), 1: (x, y, z), 2: (xi, eta, D) */
     box_checker &= (2 == fscanf(fpbox, "%d\t%le", &specify, &range));
-    if( specify )      (*box)[ii].xmin = CAST_D2R(range * ((*mode != 2) ? length_astro2com : 1.0));    specify = 0;
+    if( specify ){      (*box)[ii].xmin = CAST_D2R(range * ((*mode != 2) ? length_astro2com : 1.0));    }    specify = 0;
     box_checker &= (2 == fscanf(fpbox, "%d\t%le", &specify, &range));
-    if( specify )      (*box)[ii].xmax = CAST_D2R(range * ((*mode != 2) ? length_astro2com : 1.0));    specify = 0;
+    if( specify ){      (*box)[ii].xmax = CAST_D2R(range * ((*mode != 2) ? length_astro2com : 1.0));    }    specify = 0;
     box_checker &= (2 == fscanf(fpbox, "%d\t%le", &specify, &range));
-    if( specify )      (*box)[ii].ymin = CAST_D2R(range * ((*mode != 2) ? length_astro2com : 1.0));    specify = 0;
+    if( specify ){      (*box)[ii].ymin = CAST_D2R(range * ((*mode != 2) ? length_astro2com : 1.0));    }    specify = 0;
     box_checker &= (2 == fscanf(fpbox, "%d\t%le", &specify, &range));
-    if( specify )      (*box)[ii].ymax = CAST_D2R(range * ((*mode != 2) ? length_astro2com : 1.0));    specify = 0;
+    if( specify ){      (*box)[ii].ymax = CAST_D2R(range * ((*mode != 2) ? length_astro2com : 1.0));    }    specify = 0;
     box_checker &= (2 == fscanf(fpbox, "%d\t%le", &specify, &range));
-    if( specify )      (*box)[ii].zmin = CAST_D2R(range * length_astro2com);    specify = 0;
+    if( specify ){      (*box)[ii].zmin = CAST_D2R(range * length_astro2com);    }    specify = 0;
     box_checker &= (2 == fscanf(fpbox, "%d\t%le", &specify, &range));
-    if( specify )      (*box)[ii].zmax = CAST_D2R(range * length_astro2com);    specify = 0;
+    if( specify ){      (*box)[ii].zmax = CAST_D2R(range * length_astro2com);    }    specify = 0;
 
     box_checker &= (2 == fscanf(fpbox, "%d\t%le", &specify, &range));
-    if( specify )      (*box)[ii].vxmin = CAST_D2R(range * velocity_astro2com);    specify = 0;
+    if( specify ){      (*box)[ii].vxmin = CAST_D2R(range * velocity_astro2com);    }    specify = 0;
     box_checker &= (2 == fscanf(fpbox, "%d\t%le", &specify, &range));
-    if( specify )      (*box)[ii].vxmax = CAST_D2R(range * velocity_astro2com);    specify = 0;
+    if( specify ){      (*box)[ii].vxmax = CAST_D2R(range * velocity_astro2com);    }    specify = 0;
     box_checker &= (2 == fscanf(fpbox, "%d\t%le", &specify, &range));
-    if( specify )      (*box)[ii].vymin = CAST_D2R(range * velocity_astro2com);    specify = 0;
+    if( specify ){      (*box)[ii].vymin = CAST_D2R(range * velocity_astro2com);    }    specify = 0;
     box_checker &= (2 == fscanf(fpbox, "%d\t%le", &specify, &range));
-    if( specify )      (*box)[ii].vymax = CAST_D2R(range * velocity_astro2com);    specify = 0;
+    if( specify ){      (*box)[ii].vymax = CAST_D2R(range * velocity_astro2com);    }    specify = 0;
     box_checker &= (2 == fscanf(fpbox, "%d\t%le", &specify, &range));
-    if( specify )      (*box)[ii].vzmin = CAST_D2R(range * velocity_astro2com);    specify = 0;
+    if( specify ){      (*box)[ii].vzmin = CAST_D2R(range * velocity_astro2com);    }    specify = 0;
     box_checker &= (2 == fscanf(fpbox, "%d\t%le", &specify, &range));
-    if( specify )      (*box)[ii].vzmax = CAST_D2R(range * velocity_astro2com);    specify = 0;
+    if( specify ){      (*box)[ii].vzmax = CAST_D2R(range * velocity_astro2com);    }    specify = 0;
 
     check_boundary(&(*box)[ii].xmin, &(*box)[ii].xmax);
     check_boundary(&(*box)[ii].ymin, &(*box)[ii].ymax);

@@ -679,6 +679,7 @@ BULGE	:= $(BINDIR)/spheroid
 BHMASS	:= $(BINDIR)/blackhole
 M31OBS	:= $(BINDIR)/m31obs
 M31ENE	:= $(BINDIR)/m31phase
+M31PRD	:= $(BINDIR)/m31pred
 SUBARU	:= $(BINDIR)/subaru
 PICKUP	:= $(BINDIR)/pickup
 OPTCFG	:= $(BINDIR)/showOptConfig
@@ -813,6 +814,7 @@ SPHESRC	:= spheroid.c
 SMBHSRC	:= blackhole.c
 AM31SRC	:= m31obs.c
 EM31SRC	:= m31phase.c
+PM31SRC	:= m31pred.c
 M31LIB	:= m31coord.c
 PICKSRC	:= pickup.c
 SOBSSRC	:= subaru.c
@@ -1037,6 +1039,14 @@ OBJEM31	+= $(patsubst %.c, $(OBJDIR)/%.o,	   $(notdir $(ALLCLIB)))
 endif
 #################################################################################################
 ifeq ($(DATAFILE_FORMAT_HDF5), 1)
+OBJPM31	:= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o, $(notdir $(PM31SRC) $(FILELIB) $(ALLCLIB)))
+else
+OBJPM31	:= $(patsubst %.c, $(OBJDIR)/%.mpi.o,      $(notdir $(PM31SRC) $(FILELIB)))
+OBJPM31	+= $(patsubst %.c, $(OBJDIR)/%.o,          $(notdir $(ALLCLIB)))
+endif
+OBJPM31	+= $(patsubst %.c, $(OBJDIR)/%.o,          $(notdir $(M31LIB)))
+#################################################################################################
+ifeq ($(DATAFILE_FORMAT_HDF5), 1)
 OBJPICK	:= $(patsubst %.c, $(OBJDIR)/%.mpi.hdf5.o, $(notdir $(PICKSRC) $(FILELIB) $(ALLCLIB)))
 else
 OBJPICK	:= $(patsubst %.c, $(OBJDIR)/%.mpi.o,      $(notdir $(PICKSRC) $(FILELIB)))
@@ -1109,7 +1119,7 @@ anal:	$(ANALACT) $(ANALERR) $(ANALPRF)
 mbh:	$(ANALMBH)
 halo:	$(DMHALO)
 bulge:	$(BULGE) $(BHMASS)
-m31:	$(M31OBS) $(M31ENE) $(PICKUP) $(SUBARU) $(OBSERVE) $(EVOLVE) $(EXCLUDE) $(SUSPEND)
+m31:	$(M31OBS) $(M31ENE) $(M31PRD) $(PICKUP) $(SUBARU) $(OBSERVE) $(EVOLVE) $(EXCLUDE) $(SUSPEND)
 pickup:	$(PICKUP)
 subaru:	$(SUBARU)
 ifeq ($(ENABLE_ONLINE_ANALYSIS), 0)
@@ -1241,6 +1251,8 @@ $(M31OBS):	$(OBJAM31)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)const
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAM31) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CCLIB)
 $(M31ENE):	$(OBJEM31)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEM31) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CCLIB)
+$(M31PRD):	$(OBJPM31)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPM31) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CCLIB)
 $(PICKUP):	$(OBJPICK)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a	$(MYLIB)/lib$(LIBPREC)hdf5lib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPICK) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)hdf5lib -l$(LIBPREC)mpilib $(HDF5LIB) $(CCLIB)
 else
@@ -1284,6 +1296,8 @@ $(M31OBS):	$(OBJAM31)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)const
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJAM31) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)mpilib $(CCLIB)
 $(M31ENE):	$(OBJEM31)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJEM31) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)mpilib $(CCLIB)
+$(M31PRD):	$(OBJPM31)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a
+	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPM31) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)mpilib $(CCLIB)
 $(PICKUP):	$(OBJPICK)	$(MYLIB)/lib$(LIBPREC)myutil.a	$(MYLIB)/lib$(LIBPREC)constants.a	$(MYLIB)/lib$(LIBPREC)mpilib.a	$(MYLIB)/lib$(LIBPREC)rotate.a
 	$(VERBOSE)$(MPICC) $(CCFLAG) $(CCDBG) $(PROFILE) -o $@ $(OBJPICK) -L$(MYLIB) -l$(LIBPREC)myutil -l$(LIBPREC)constants -l$(LIBPREC)rotate -l$(LIBPREC)mpilib $(CCLIB)
 endif
@@ -1393,7 +1407,7 @@ endif
 	$(VERBOSE)rm -f $(ANALMBH)
 	$(VERBOSE)rm -f $(DMHALO)
 	$(VERBOSE)rm -f $(BULGE) $(BHMASS)
-	$(VERBOSE)rm -f $(M31OBS) $(M31ENE) $(PICKUP) $(SUBARU) $(OBSERVE) $(EVOLVE) $(EXCLUDE) $(SUSPEND)
+	$(VERBOSE)rm -f $(M31OBS) $(M31ENE) $(M31PRD) $(PICKUP) $(SUBARU) $(OBSERVE) $(EVOLVE) $(EXCLUDE) $(SUSPEND)
 	$(VERBOSE)rm -f $(SAMPLE)
 #################################################################################################
 visit:	$(DIRBODY)/Makefile $(DIRSNAP)/Makefile $(DIRPLOT)/Makefile $(DIRPM31)/Makefile $(DIRAERR)/Makefile $(DIRDUMP)/Makefile $(DIRDISK)/Makefile $(DIRDIST)/Makefile $(DIRPROF)/Makefile
@@ -1719,6 +1733,8 @@ $(OBJDIR)/extract.mpi.hdf5.o:	$(ANAL_DEP)	$(MYINC)/hdf5lib.h
 $(OBJDIR)/extract.mpi.o:	$(ANAL_DEP)
 $(OBJDIR)/m31obs.mpi.hdf5.o:	$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/rotate.h	$(MYINC)/hdf5lib.h
 $(OBJDIR)/m31obs.mpi.o:		$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/rotate.h
+$(OBJDIR)/m31pred.mpi.hdf5.o:	$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/rotate.h	$(MYINC)/hdf5lib.h
+$(OBJDIR)/m31pred.mpi.o:	$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/rotate.h
 $(OBJDIR)/pickup.mpi.hdf5.o:	$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/rotate.h	$(MYINC)/hdf5lib.h
 $(OBJDIR)/pickup.mpi.o:		$(ANAL_DEP)	$(M31_DEP)	$(MYINC)/rotate.h
 $(OBJDIR)/m31coord.o:		$(COMMON_DEP)	$(MYINC)/constants.h	$(MYINC)/rotate.h	$(MISCDIR)/structure.h	$(M31_DEP)
