@@ -22,8 +22,8 @@ if [ "$int" -le "$digit" ]; then
     done
 fi
 LIST=${1}${zeros}${RANK}
-OUT=compress${zeros}${RANK}.out
-ERR=compress${zeros}${RANK}.err
+OUT=compress.o${SLURM_JOB_ID}_${zeros}${RANK}
+ERR=compress.e${SLURM_JOB_ID}_${zeros}${RANK}
 
 SRCDIR=$2
 DSTDIR=$3
@@ -46,7 +46,7 @@ while read LINE; do
     	echo $SRC is compressed: $DST | tee -a $OUT
     else
 	$NUMACTL rm -f $DST
-    	echo WARNING: $SRC is NOT compressed | tee -a $ERR
+    	echo WARNING: $SRC was NOT compressed | tee -a $ERR
     fi
 done < $LIST
 rm -f $LIST
