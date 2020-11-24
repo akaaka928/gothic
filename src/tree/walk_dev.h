@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/11/16 (Mon)
+ * @date 2020/11/24 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -161,6 +161,7 @@
 /* the below macro is enabled in the default option; switched off in the parameter survey mode to use -D and -U from Makefile */
 #define USE_WARP_SHUFFLE_FUNC
 #define USE_WARP_REDUCE_FUNC
+#define USE_L2_SET_ASIDE_POLICY
 #endif//HUNT_WALK_PARAMETER
 
 #   if  defined(USE_WARP_SHUFFLE_FUNC) && (GPUVER < 30)
@@ -170,6 +171,34 @@
 #   if  defined(USE_WARP_REDUCE_FUNC) && !defined(ENABLE_WARP_REDUCE_FUNC)
 #undef          USE_WARP_REDUCE_FUNC
 #endif//defined(USE_WARP_REDUCE_FUNC) && !defined(ENABLE_WARP_REDUCE_FUNC)
+
+#   if  defined(USE_L2_SET_ASIDE_POLICY) && !defined(ENABLE_L2_SET_ASIDE)
+#undef          USE_L2_SET_ASIDE_POLICY
+#endif//defined(USE_L2_SET_ASIDE_POLICY) && !defined(ENABLE_L2_SET_ASIDE)
+
+
+#ifdef  USE_L2_SET_ASIDE_POLICY
+/**
+ * @def NLEVEL_TREE_NODE_L2_PERSISTING
+ *
+ * @brief number of levels for tree nodes persisting on L2 cache (40 MB)
+ */
+#ifndef NLEVEL_TREE_NODE_L2_PERSISTING
+#define NLEVEL_TREE_NODE_L2_PERSISTING (5)
+#endif//NLEVEL_TREE_NODE_L2_PERSISTING
+/* more(4 byte) + jpos(16 byte) + mj(4 byte or 8 byte for w/o or w/ INDIVIDUAL_GRAVITATIONAL_SOFTENING) per tree node */
+/* Lev = 1: Nnode = 1 -> 24 byte or 28 byte */
+/* Lev = 2: Nnode = 1 + 8 = 9 -> 216 byte or 252 byte */
+/* Lev = 2: Nnode = 9 + 64 = 73 -> 1752 byte or 2044 byte */
+/* Lev = 3: Nnode = 73 + 512 = 585 -> ~14 KiB or ~16 KiB */
+/* Lev = 4: Nnode = 585 + 4096 = 4681 -> ~110 KiB or ~128 KiB */
+/* Lev = 5: Nnode = 4681 + 32768 = 37449 -> ~878 KiB or ~1 MiB */
+/* Lev = 6: Nnode = 37449 + 262144 = 299593 -> ~6.9 MiB or ~8 MiB */
+#endif//USE_L2_SET_ASIDE_POLICY
+
+
+
+
 
 
 /**

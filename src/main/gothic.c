@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/02/12 (Wed)
+ * @date 2020/11/24 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1417,6 +1417,9 @@ int main(int argc, char **argv)
 #endif//!defined(SERIALIZED_EXECUTION) && defined(CARE_EXTERNAL_PARTICLES)
      &more0Buf, &more1Buf, &rjmaxBuf, &makeFail, &soaMakeBuf, devProp);
   soaNode_dev.jtag = jtag_dev;
+#ifdef  USE_L2_SET_ASIDE_POLICY
+  setL2persistent_walk_dev(sinfo, soaNode_dev);
+#endif//USE_L2_SET_ASIDE_POLICY
 
 
 #ifndef SERIALIZED_EXECUTION

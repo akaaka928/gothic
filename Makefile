@@ -447,6 +447,8 @@ NUM_NLOOP	:= 1
 LEV_NEIGHBOR	:= 1
 USE_WARPSHUFFLE	:= 1
 USE_WARPREDUCE	:= 1
+USE_L2SETASIDE	:= 1
+NUM_TREELEV_L2	:= 5
 PREF_SHARED_MEM	:= 1
 #################################################################################################
 ifeq ($(MEASURE_ELAPSED_TIME), 1)
@@ -475,6 +477,10 @@ endif
 ifeq ($(USE_WARPREDUCE), 1)
 CCARG	+= -DUSE_WARP_REDUCE_FUNCTIONS
 CUARG	+= -DUSE_WARP_REDUCE_FUNCTIONS
+endif
+ifeq ($(USE_L2SETASIDE), 1)
+CCARG	+= -DUSE_L2_SET_ASIDE_POLICY -DNLEVEL_TREE_NODE_L2_PERSISTING="($(NUM_TREELEV_L2))"
+CUARG	+= -DUSE_L2_SET_ASIDE_POLICY -DNLEVEL_TREE_NODE_L2_PERSISTING="($(NUM_TREELEV_L2))"
 endif
 endif
 #################################################################################################
