@@ -43,10 +43,10 @@ while read LINE; do
     if [ $? -eq 0 ]; then
     	# $? is 0 if h5diff returns no error
     	$NUMACTL rm -f $SRC
-    	echo $SRC is compressed: $DST | tee -a $OUT
+    	echo $DST | tee -a $OUT
     else
 	$NUMACTL rm -f $DST
-    	echo WARNING: $SRC was NOT compressed | tee -a $ERR
+    	echo $SRC | tee -a $ERR
     fi
 done < $LIST
 rm -f $LIST
