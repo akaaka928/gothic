@@ -23,9 +23,10 @@ from argparse import ArgumentParser
 def get_option():
     argparser = ArgumentParser()
     argparser.add_argument('-f', '--files', type=str,
+                           default='nws-test-m9_5-orbit7',
                            help='Name of the target files')
     argparser.add_argument('-r', '--ref', type=str,
-                           default='../cont/dat/nws-continue',
+                           default='cont/dat/nws-continue',
                            help='Name of the target files')
     argparser.add_argument('-c', '--continued',
                            action='store_true',
@@ -76,15 +77,15 @@ time_offset = 0.0
 if continued:
     # time_offset = -775.0
     # time_offset = -4875.0
-    time_offset = -1000.0
-    # time_offset = -1200.0
+    # time_offset = -1000.0
+    time_offset = -1200.0
 
 
 Nskip = 0
 init = 0
-# last = 264
+last = 264
 # last = 428
-last = 560
+# last = 560
 Sigma_min, Sigma_max = 3.1e+4, 1.0e+8
 phase_min, phase_max = 1.0e+4, 3.1e+6
 lab = ['DM subhalo', 'star']
@@ -92,9 +93,9 @@ lab = ['DM subhalo', 'star']
 
 
 preset_xmin, preset_xmax = -2.0, -8.0
-preset_ymin, preset_ymax = 1.0, 7.0
-preset_vxmin, preset_vxmax = -480.0, -380.0
-preset_vymin, preset_vymax = -480.0, -380.0
+preset_ymin, preset_ymax = 1.3, 7.3
+preset_vxmin, preset_vxmax = -90.0, 110.0
+preset_vymin, preset_vymax = -190.0, 10.0
 # xtics = [-8.0, -6.0, -4.0, -2.0, 0.0, 2.0, 4.0, 6.0]
 # ytics = [-2.0, 0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0]
 # ztics = [750.0, 800.0, 850.0, 900.0, 950.0]
@@ -193,11 +194,11 @@ for fileid in range(init + rank, last + 1, size):
 
     # read reference snapshot
     with h5py.File(prd_ref, 'r') as h5file:
-        # read attributes
-        time = h5file['/'].attrs['time'][0] + time_offset
-        useDegree = h5file['/'].attrs['useDegree'][0]
+        # # read attributes
+        # time = h5file['/'].attrs['time'][0] + time_offset
+        # useDegree = h5file['/'].attrs['useDegree'][0]
+        # kind = h5file['/'].attrs['kinds'][0]
 
-        kind = h5file['/'].attrs['kinds'][0]
         ny = h5file['/'].attrs['ny'][0]
         nvx = h5file['/'].attrs['nvxi'][0]
         nvy = h5file['/'].attrs['nveta'][0]
@@ -276,7 +277,7 @@ for fileid in range(init + rank, last + 1, size):
 
     for jj in range(nypanel):
         img_xxyy = ax[              jj].imshow(xy_map[jj].T, extent = [xmin, xmax, ymin, ymax], origin = 'lower', interpolation = 'none', norm = LogNorm(vmin = Sigma_min, vmax = Sigma_max), cmap = cmap_Sigma, aspect = 'auto', rasterized = True)
-        img_yyvx = ax[    nypanel + jj].imshow(yy_vx[jj], extent = [vxmin, vymax, ymin, ymax], origin = 'lower', interpolation = 'none', norm = LogNorm(vmin = phase_min, vmax = phase_max), cmap = cmap_phase, aspect = 'auto', rasterized = True)
+        img_yyvx = ax[    nypanel + jj].imshow(yy_vx[jj], extent = [vxmin, vxmax, ymin, ymax], origin = 'lower', interpolation = 'none', norm = LogNorm(vmin = phase_min, vmax = phase_max), cmap = cmap_phase, aspect = 'auto', rasterized = True)
         img_yyvy = ax[2 * nypanel + jj].imshow(yy_vy[jj], extent = [vymin, vymax, ymin, ymax], origin = 'lower', interpolation = 'none', norm = LogNorm(vmin = phase_min, vmax = phase_max), cmap = cmap_phase, aspect = 'auto', rasterized = True)
 
 
@@ -371,10 +372,7 @@ for fileid in range(init + rank, last + 1, size):
                     note += '~' + 'w/ DM subhalo perturbation'
                 else:
                     note += '~' + 'w/o DM subhalo perturbation'
-            if ii == 1:
-                cmap_here = cmap_depth
-                note = ''
-            if ii == 2:
+            else:
                 cmap_here = cmap_phase
                 note = ''
             at.text(0.03, 0.97, caption + note, color = col_caption, fontsize = fs, horizontalalignment = 'left', verticalalignment = 'top', transform = at.transAxes, bbox = dict(facecolor = get_cmap(cmap_here)(0), edgecolor = 'None', alpha = 0.75))
@@ -400,11 +398,11 @@ for fileid in range(init + rank, last + 1, size):
 
         cax = fig.add_axes([x0, y1, x1 - x0, 0.05 / nypanel])
         if ii == 0:
-            bar = fig.colorbar(img_Sigma, cax = cax, orientation = 'horizontal')
+            bar = fig.colorbar(img_xxyy, cax = cax, orientation = 'horizontal')
         if ii == 1:
-            bar = fig.colorbar(img_depth, cax = cax, orientation = 'horizontal')
+            bar = fig.colorbar(img_yyvx, cax = cax, orientation = 'horizontal')
         if ii == 2:
-            bar = fig.colorbar(img_phase, cax = cax, orientation = 'horizontal')
+            bar = fig.colorbar(img_yyvy, cax = cax, orientation = 'horizontal')
         bar.solids.set_edgecolor('face')
         if useDegree:
             if ii == 0:

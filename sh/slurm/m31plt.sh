@@ -10,17 +10,19 @@
 # EXEC=py/showgap.py
 # EXEC=py/m31phase.py
 # EXEC=py/subaru.py
-EXEC=py/subaru_slide.py
+# EXEC=py/subaru_slide.py
+EXEC=py/predpm.py
 
-# SPECIFY="--specify"
+SPECIFY="--specify"
 
 # TARGET="--files=nws-test-m95-orbit4"
 # TARGET="--files=nws-test-m95-orbit5"
-TARGET="--files=nws-continue"
+# TARGET="--files=nws-continue"
 # TARGET="--files=nws-test-m9_5-orbit1-chosen"
+TARGET="--files=nws-test-m9_5-orbit7"
 
-PDFFIGS="--pdf"
-# CONTINUE="--continued"
+# PDFFIGS="--pdf"
+CONTINUE="--continued"
 
 # use numactl if available
 if [ `which numactl` ]; then

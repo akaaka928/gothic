@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2020/11/20 (Fri)
+ * @date 2020/11/26 (Thu)
  *
  * Copyright (C) 2020 Yohei Miki
  * All rights reserved.
@@ -330,8 +330,8 @@ int main(int argc, char **argv)
     writeM31predictionData
       (time, file, filenum, hdf5type, kind,
        nx, xx, ny, yy, nz, zz,
-       nvxi, vxi, f_xi_vxi, f_eta_vxi, f_D_vxi,
-       nveta, veta, f_xi_veta, f_eta_veta, f_D_veta);
+       nvxi, vx, f_xi_vxi, f_eta_vxi, f_D_vxi,
+       nveta, vy, f_xi_veta, f_eta_veta, f_D_veta);
 #endif//USE_HDF5_FORMAT
   }/* for(int filenum = start + mpi.rank * interval; filenum < end + 1; filenum += interval * mpi.size){ */
 
