@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/09/14 (Mon)
+ * @date 2020/11/30 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -30,10 +30,10 @@
 
 #include "walk_dev.h"
 
-#   if  (GPUGEN >= 70) && !defined(_COOPERATIVE_GROUPS_H_) && (TSUB < 32)
+#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && !defined(_COOPERATIVE_GROUPS_H_) && (TSUB < 32)
 #include <cooperative_groups.h>
 using namespace cooperative_groups;
-#endif//(GPUGEN >= 70) && !defined(_COOPERATIVE_GROUPS_H_) && (TSUB < 32)
+#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && !defined(_COOPERATIVE_GROUPS_H_) && (TSUB < 32)
 
 
 #ifdef  USE_DOUBLE_PRECISION

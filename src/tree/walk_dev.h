@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/11/24 (Tue)
+ * @date 2020/11/30 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -187,8 +187,8 @@
 #define NLEVEL_TREE_NODE_L2_PERSISTING (5)
 #endif//NLEVEL_TREE_NODE_L2_PERSISTING
 /* more(4 byte) + jpos(16 byte) + mj(4 byte or 8 byte for w/o or w/ INDIVIDUAL_GRAVITATIONAL_SOFTENING) per tree node */
-/* Lev = 1: Nnode = 1 -> 24 byte or 28 byte */
-/* Lev = 2: Nnode = 1 + 8 = 9 -> 216 byte or 252 byte */
+/* Lev = 0: Nnode = 1 -> 24 byte or 28 byte */
+/* Lev = 1: Nnode = 1 + 8 = 9 -> 216 byte or 252 byte */
 /* Lev = 2: Nnode = 9 + 64 = 73 -> 1752 byte or 2044 byte */
 /* Lev = 3: Nnode = 73 + 512 = 585 -> ~14 KiB or ~16 KiB */
 /* Lev = 4: Nnode = 585 + 4096 = 4681 -> ~110 KiB or ~128 KiB */
@@ -487,6 +487,16 @@
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 
 
+#   if  (SMEM_SIZE_SM_PREF / NBLOCKS_PER_SM) > MAX_SMEM_SIZE_PER_BLOCK
+/* use dynamic allocation for shared memory */
+#define SMEM_SIZE_CALC_ACC (SMEM_SIZE_SM_PREF / NBLOCKS_PER_SM)
+#else///(SMEM_SIZE_SM_PREF / NBLOCKS_PER_SM) > MAX_SMEM_SIZE_PER_BLOCK
+/* use static allocation for shared memory */
+#define SMEM_SIZE_CALC_ACC SMEM_SIZE
+#endif//(SMEM_SIZE_SM_PREF / NBLOCKS_PER_SM) > MAX_SMEM_SIZE_PER_BLOCK
+
+
+
 /**
  * @def NSTOCK
  *
@@ -603,6 +613,10 @@ extern "C"
 {
 #endif//__CUDACC__
   muse setCUDAstreams_dev(cudaStream_t **stream, kernelStream *sinfo, deviceInfo *info);
+
+#ifdef  USE_L2_SET_ASIDE_POLICY
+  void setL2persistent_walk_dev(kernelStream sinfo, const soaTreeNode tree);
+#endif//USE_L2_SET_ASIDE_POLICY
 
   muse allocParticleDataSoA_dev
   (const int num

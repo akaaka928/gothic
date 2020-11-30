@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/11/16 (Mon)
+ * @date 2020/11/30 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -70,16 +70,16 @@
 #endif//NTHREADS_MAKE_LET > 1024
 
 /** maximum value of NTHREADS_MAKE_LET on Fermi generation GPUs is 512 */
-#   if  (NTHREADS_MAKE_LET > 512) && (GPUGEN < 30)
+#   if  (NTHREADS_MAKE_LET > 512) && (GPUVER < 30)
 #undef   NTHREADS_MAKE_LET
 #define  NTHREADS_MAKE_LET  (512)
-#endif//(NTHREADS_MAKE_LET > 512) && (GPUGEN < 30)
+#endif//(NTHREADS_MAKE_LET > 512) && (GPUVER < 30)
 
 
 #define USE_WARP_SHUFFLE_FUNC_MAKE_LET
-#   if  defined(USE_WARP_SHUFFLE_FUNC_MAKE_LET) && (GPUGEN < 30)
+#   if  defined(USE_WARP_SHUFFLE_FUNC_MAKE_LET) && (GPUVER < 30)
 #undef          USE_WARP_SHUFFLE_FUNC_MAKE_LET
-#endif//defined(USE_WARP_SHUFFLE_FUNC_MAKE_LET) && (GPUGEN < 30)
+#endif//defined(USE_WARP_SHUFFLE_FUNC_MAKE_LET) && (GPUVER < 30)
 
 #define USE_WARP_REDUCE_FUNC_MAKE_LET
 #   if  defined(USE_WARP_REDUCE_FUNC_MAKE_LET) && !defined(ENABLE_WARP_REDUCE_FUNC)
@@ -131,15 +131,15 @@
 #define NQUEUE_LET (DIV_NTHREADS_MAKE_LET((SMEM_SIZE_L1_PREF >> 2) / NBLOCKS_PER_SM) - 1)
 #endif//NBLOCKS_PER_SM == 2
 #endif//SMPREF_LET == 1
-/* #   if  GPUGEN >= 60 */
+/* #   if  GPUVER >= 60 */
 /* #define NQUEUE_LET (DIV_NTHREADS_MAKE_LET(16384 / NBLOCKS_PER_SM) - 1) */
-/* #else///GPUGEN >= 60 */
+/* #else///GPUVER >= 60 */
 /* #   if  SMPREF_LET == 1 */
 /* #define NQUEUE_LET (DIV_NTHREADS_MAKE_LET(12288 / NBLOCKS_PER_SM) - 1) */
 /* #else///SMPREF_LET == 1 */
 /* #define NQUEUE_LET (DIV_NTHREADS_MAKE_LET( 4096 / NBLOCKS_PER_SM) - 1) */
 /* #endif//SMPREF_LET == 1 */
-/* #endif//GPUGEN >= 60 */
+/* #endif//GPUVER >= 60 */
 #endif//NQUEUE_LET
 
 

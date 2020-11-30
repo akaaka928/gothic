@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/11/16 (Mon)
+ * @date 2020/11/30 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -20,10 +20,10 @@
 #include <stdbool.h>
 #include <helper_cuda.h>
 
-#   if  defined(USE_COOPERATIVE_GROUPS) || (GPUGEN >= 70)
+#   if  defined(USE_COOPERATIVE_GROUPS) || !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP)
 #include <cooperative_groups.h>
 using namespace cooperative_groups;
-#endif//defined(USE_COOPERATIVE_GROUPS) || (GPUGEN >= 70)
+#endif//defined(USE_COOPERATIVE_GROUPS) || !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP)
 
 #include "macro.h"
 #include "cudalib.h"

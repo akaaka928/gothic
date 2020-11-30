@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/11/16 (Mon)
+ * @date 2020/11/30 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -29,10 +29,10 @@
 #ifndef SCAN_INC_CU_MULTI_CALL
 #define SCAN_INC_CU_MULTI_CALL
 
-#   if  (GPUGEN >= 70) && !defined(_COOPERATIVE_GROUPS_H_)
+#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && !defined(_COOPERATIVE_GROUPS_H_)
 #include <cooperative_groups.h>
 using namespace cooperative_groups;
-#endif//(GPUGEN >= 70) && !defined(_COOPERATIVE_GROUPS_H_)
+#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && !defined(_COOPERATIVE_GROUPS_H_)
 
 /**
  * @fn prefixSumWarp
@@ -168,7 +168,7 @@ __device__ __forceinline__ Type PREFIX_SUM_BLCK(Type val, volatile Type * __rest
 
   /** 2. prefix sum about tail of each warp */
 #   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (NTHREADS_SCAN_INC > 32)
-  thread_block_tile<NTHREADS_SCAN_INC >> 5> tile = tiled_partition<NTHREADS_SCAN_INC >> 5>(this_thread_block());
+  thread_block_tile<(NTHREADS_SCAN_INC >> 5)> tile = tiled_partition<(NTHREADS_SCAN_INC >> 5)>(this_thread_block());
 #endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (NTHREADS_SCAN_INC > 32)
   __syncthreads();
 

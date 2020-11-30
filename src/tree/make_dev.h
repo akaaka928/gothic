@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/11/16 (Mon)
+ * @date 2020/11/30 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -322,11 +322,11 @@
  */
 #ifndef NTHREADS_INIT_LINK
 #   if  (GPUVER >= 30)
-#   if  (GPUGEN == 60) || (GPUGEN == 61)
+#   if  (GPUVER == 60) || (GPUVER == 61)
 #define NTHREADS_INIT_LINK (256)
-#else///(GPUGEN == 60) || (GPUGEN == 61)
+#else///(GPUVER == 60) || (GPUVER == 61)
 #define NTHREADS_INIT_LINK (512)
-#endif//(GPUGEN == 60) || (GPUGEN == 61)
+#endif//(GPUVER == 60) || (GPUVER == 61)
 #else///(GPUVER >= 30)
 #define NTHREADS_INIT_LINK (256)
 #endif//(GPUVER >= 30)
@@ -342,9 +342,9 @@
 #   if  (GPUVER >= 70)
 #define NTHREADS_INIT_CELL (512)
 #else///(GPUVER >= 70)
-#   if  (GPUGEN == 60) || (GPUGEN == 61)
+#   if  (GPUVER == 60) || (GPUVER == 61)
 #define NTHREADS_INIT_CELL (128)
-#else///(GPUGEN == 60) || (GPUGEN == 61)
+#else///(GPUVER == 60) || (GPUVER == 61)
 #   if  (GPUVER >= 52)
 #define NTHREADS_INIT_CELL (256)
 #else///(GPUVER >= 52)
@@ -354,7 +354,7 @@
 #define NTHREADS_INIT_CELL (512)
 #endif//(GPUVER >= 30)
 #endif//(GPUVER >= 52)
-#endif//(GPUGEN == 60) || (GPUGEN == 61)
+#endif//(GPUVER == 60) || (GPUVER == 61)
 #endif//(GPUVER >= 70)
 #endif//NTHREADS_INIT_CELL
 

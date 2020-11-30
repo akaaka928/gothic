@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/09/14 (Mon)
+ * @date 2020/11/30 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -25,10 +25,10 @@
 #include "../util/vector_inc.cu"
 #include "../util/scan_vec4_tsub_nwarp_inc.cuh"
 
-#   if  (GPUGEN >= 70) && !defined(_COOPERATIVE_GROUPS_H_)
+#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && !defined(_COOPERATIVE_GROUPS_H_)
 #include <cooperative_groups.h>
 using namespace cooperative_groups;
-#endif//(GPUGEN >= 70) && !defined(_COOPERATIVE_GROUPS_H_)
+#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && !defined(_COOPERATIVE_GROUPS_H_)
 
 
 /**

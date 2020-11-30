@@ -1,23 +1,19 @@
 #!/bin/bash
-###############################################################
 #SBATCH -J gothic             # name of job
 #SBATCH -t 24:00:00           # upper limit of elapsed time
-# #SBATCH -t 00:10:00           # upper limit of elapsed time
-#SBATCH -p normal             # partition name
+#SBATCH -p amdrome            # partition name
+#SBATCH -w amd2     # use compute node equips NVIDIA A100 PCIe
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
 #SBATCH --ntasks=1            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
-#SBATCH --ntasks-per-socket=1 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
-# #SBATCH --ntasks=2            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
-# #SBATCH --ntasks-per-socket=2 # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET (must be equal to number of GPUs per socket)
-#SBATCH --get-user-env        # retrieve the login environment variables
-###############################################################
+#SBATCH --gpus-per-node=1
+##SBATCH --gpu-freq=210 # requested GPU frequency: 210 MHz--1410 MHz (bin = 15 MHz)
 
 
-###############################################################
+
+
 # global configurations
-###############################################################
 EXEC=bin/gothic
-###############################################################
+
 # problem ID
 if [ -z "$PROBLEM" ]; then
     # PROBLEM=2
@@ -27,7 +23,7 @@ if [ -z "$PROBLEM" ]; then
     PROBLEM=27
     # PROBLEM=62
 fi
-###############################################################
+
 # topology of MPI processes
 if [ -z "$NX" ]; then
     NX=2
@@ -48,7 +44,7 @@ if [ $PROCS -ne $SLURM_NTASKS ]; then
     echo "product of $NX, $NY, and $NZ must be equal to the number of total MPI processes ($SLURM_NTASKS)"
     exit 1
 fi
-###############################################################
+
 # value of accuracy controling parameter: GADGET MAC by Springel (2005)
 if [ -z "$ABSERR" ]; then
     # ABSERR=1.250000000e-1
@@ -64,15 +60,14 @@ if [ -z "$ABSERR" ]; then
     # ABSERR=1.220703125e-4
     # ABSERR=6.103515625e-5
 fi
-###############################################################
+
 if [ -z "$REBUILD" ]; then
     REBUILD=16
 fi
-###############################################################
+
 if [ -z "$BRENT" ]; then
     BRENT=1.0
 fi
-###############################################################
 
 
 ###############################################################
@@ -482,25 +477,28 @@ fi
 if [ $PROBLEM -eq 165 ]; then
     FILE=m09ra1_8
 fi
-###############################################################
+
 # set input arguments
 OPTION="-absErr=$ABSERR -file=$FILE -Nx=$NX -Ny=$NY -Nz=$NZ -rebuild_interval=$REBUILD -brent_frac=$BRENT -jobID=$SLURM_JOB_ID"
-###############################################################
 
 
-###############################################################
 # job execution via SLURM
-###############################################################
 # set number of MPI processes per node
 PROCS_PER_NODE=`expr $SLURM_NTASKS / $SLURM_JOB_NUM_NODES`
-###############################################################
+
+export MODULEPATH=$HOME/opt/modules:$MODULEPATH
+module purge
+module load cuda cub
+module load openmpi
+module load phdf5
+
 # start logging
 cd $SLURM_SUBMIT_DIR
 echo "use $SLURM_JOB_NUM_NODES nodes"
 echo "use $SLURM_JOB_CPUS_PER_NODE CPUs per node"
 TIME=`date`
 echo "start: $TIME"
-###############################################################
+
 # execute the job
 if [ $PROCS -gt 1 ]; then
     echo "mpiexec -n $SLURM_NTASKS sh/wrapper.sh $EXEC log/${FILE}_${SLURM_JOB_NAME} $SLURM_JOB_ID $PROCS_PER_NODE $SLURM_NTASKS_PER_SOCKET $OPTION"
@@ -519,8 +517,9 @@ else
 	$EXEC $OPTION 1>>$STDOUT 2>>$STDERR
     fi
 fi
-###############################################################
+
 # finish logging
 TIME=`date`
 echo "finish: $TIME"
-###############################################################
+
+exit 0

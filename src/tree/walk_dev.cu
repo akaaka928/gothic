@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/11/25 (Wed)
+ * @date 2020/11/30 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -68,10 +68,10 @@ nvmlDevice_t deviceHandler;
 #endif//((__CUDACC_VER_MINOR__ + 10 * __CUDACC_VER_MAJOR__) >= 80) && !defined(DISABLE_NVML_FOR_CLOCK_FREQ)
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO) || defined(REPORT_GPU_CLOCK_FREQUENCY)
 
-#   if  (GPUGEN >= 70) && (TSUB < 32)
+#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)
 #include <cooperative_groups.h>
 using namespace cooperative_groups;
-#endif//(GPUGEN >= 70) && (TSUB < 32)
+#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)
 
 
 __constant__  real newton;
@@ -164,10 +164,10 @@ void setL2persistent_walk_dev(kernelStream sinfo, const soaTreeNode tree)
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 
 
-  for(int ii = 0; ii < sinfo->num; ii++){
+  for(int ii = 0; ii < sinfo.num; ii++){
+    cudaStreamSetAttribute(sinfo.stream[ii], cudaStreamAttributeAccessPolicyWindow, &attr_mj);
     cudaStreamSetAttribute(sinfo.stream[ii], cudaStreamAttributeAccessPolicyWindow, &attr_more);
     cudaStreamSetAttribute(sinfo.stream[ii], cudaStreamAttributeAccessPolicyWindow, &attr_jpos);
-    cudaStreamSetAttribute(sinfo.stream[ii], cudaStreamAttributeAccessPolicyWindow, &attr_mj);
   }
 
 }
@@ -2522,7 +2522,7 @@ static inline void callCalcGravityFunc
   if( grpNum > 0 ){
 #endif//defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
     if( blck <= MAX_BLOCKS_PER_GRID ){
-      calcAcc_kernel<<<blck, thrd, SMEM_SIZE, sinfo->stream[*sidx]>>>
+      calcAcc_kernel<<<blck, thrd, SMEM_SIZE_CALC_ACC, sinfo->stream[*sidx]>>>
 	(laneInfo,
 #ifdef  BLOCK_TIME_STEP
 	 pi.jpos,
@@ -2575,7 +2575,7 @@ static inline void callCalcGravityFunc
 	if( Nblck > Nrem )	  Nblck = Nrem;
 
 	int Nsub = Nblck * NGROUPS;
-	calcAcc_kernel<<<Nblck, thrd, SMEM_SIZE, sinfo->stream[*sidx]>>>
+	calcAcc_kernel<<<Nblck, thrd, SMEM_SIZE_CALC_ACC, sinfo->stream[*sidx]>>>
 	  (&laneInfo[hidx],
 #ifdef  BLOCK_TIME_STEP
 	   pi.jpos,

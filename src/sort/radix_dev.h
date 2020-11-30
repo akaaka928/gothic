@@ -42,9 +42,9 @@
 
 
 //-------------------------------------------------------------------------
-#   if  defined(USE_WARP_SHUFFLE_FUNC_SORT) && (GPUGEN < 30)
+#   if  defined(USE_WARP_SHUFFLE_FUNC_SORT) && (GPUVER < 30)
 #undef          USE_WARP_SHUFFLE_FUNC_SORT
-#endif//defined(USE_WARP_SHUFFLE_FUNC_SORT) && (GPUGEN < 30)
+#endif//defined(USE_WARP_SHUFFLE_FUNC_SORT) && (GPUVER < 30)
 //-------------------------------------------------------------------------
 #ifdef  CHECK_2BITS
 //-------------------------------------------------------------------------

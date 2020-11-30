@@ -1,17 +1,13 @@
 #!/bin/bash
 #SBATCH -J magi               # name of job
-#SBATCH -t 02:00:00           # upper limit of elapsed time
-#SBATCH -p normal             # partition name
+#SBATCH -t 00:30:00           # upper limit of elapsed time
+#SBATCH -p amdrome            # partition name
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
-#SBATCH --get-user-env        # retrieve the login environment variables
-###############################################################
 
 
-###############################################################
 # global configurations
-###############################################################
 EXEC=bin/magi
-###############################################################
+
 # problem ID
 if [ -z "$PROBLEM" ]; then
     # PROBLEM=2
@@ -44,7 +40,7 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=100
     # PROBLEM=1000
 fi
-###############################################################
+
 # number of N-body particles
 if [ -z "$NTOT" ]; then
     # NTOT=128
@@ -60,11 +56,11 @@ if [ -z "$NTOT" ]; then
     # NTOT=131072
     # NTOT=262144
     # NTOT=524288
-    NTOT=1048576
+    # NTOT=1048576
     # NTOT=1900000
     # NTOT=2097152
     # NTOT=4194304
-    # NTOT=8388608
+    NTOT=8388608
     # NTOT=16777216
     # NTOT=33554432
     # NTOT=67108864
@@ -76,17 +72,16 @@ if [ -z "$NTOT" ]; then
     # NTOT=4294967296
     # NTOT=8589934592
 fi
-###############################################################
+
 # dump file generation interval (in units of minute)
 if [ -z "$SAVE" ]; then
     SAVE=55.0
 fi
-###############################################################
+
 # denoise distribution function
 if [ -z "$DENOISE_DF" ]; then
     DENOISE_DF=1
 fi
-###############################################################
 
 
 ###############################################################
@@ -1863,37 +1858,40 @@ if [ $PROBLEM -eq 1000 ]; then
     INTERVAL=25.0
     FINISH=1175.0
 fi
-###############################################################
+
 # set input arguments
 if [ $PROBLEM -ge 1 ]; then
     OPTION="-file=$FILE -config=$CONFIG -Ntot=$NTOT -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE -denoisingDistributionFunction=$DENOISE_DF"
 else
     OPTION="-file=$FILE -unit=$UNIT -Ntot=$NTOT -Mtot=$MTOT -virial=$VIRIAL -rad=$RAD -eps=$EPS -ft=$FINISH -eta=$ETA -snapshotInterval=$INTERVAL -saveInterval=$SAVE"
 fi
-###############################################################
+
 if [ $PROBLEM -ge 1000 ]; then
     OPTION="$OPTION -gas_config=$GAS_CONFIG"
 fi
-###############################################################
+
 # set environmental variables for OpenMP
 OMP_OPT_ENV="env OMP_DISPLAY_ENV=verbose OMP_PLACES=cores"
 # OMP_OPT_ENV="env KMP_AFFINITY=verbose,granularity=core,scatter"
-###############################################################
 
 
-###############################################################
 # job execution via SLURM
-###############################################################
 # set stdout and stderr
 STDOUT=log/${FILE}_$SLURM_JOB_NAME.o${SLURM_JOB_ID}
 STDERR=log/${FILE}_$SLURM_JOB_NAME.e${SLURM_JOB_ID}
-###############################################################
+
+export MODULEPATH=$HOME/opt/modules:$MODULEPATH
+module purge
+module load openmpi
+module load phdf5
+module load gsl lis
+
 # start logging
 cd $SLURM_SUBMIT_DIR
 echo "use $SLURM_JOB_CPUS_PER_NODE CPUs"
 TIME=`date`
 echo "start: $TIME"
-###############################################################
+
 # execute the job
 if [ `which numactl` ]; then
     # run with numactl
@@ -1904,10 +1902,9 @@ else
     echo "$OMP_OPT_ENV $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
     $OMP_OPT_ENV $EXEC $OPTION 1>>$STDOUT 2>>$STDERR
 fi
-###############################################################
+
 # finish logging
 TIME=`date`
 echo "finish: $TIME"
-###############################################################
+
 exit 0
-###############################################################
