@@ -7,7 +7,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/05/23 (Wed)
+ * @date 2020/12/01 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -28,7 +28,7 @@
 #include "cudalib.h"
 
 
-/* #define USE_ATOMIC_OPS_FOR_GSYNC */
+#define USE_ATOMIC_OPS_FOR_GSYNC
 
 
 /**
@@ -48,40 +48,45 @@ __device__ __forceinline__ void globalSync(const int tidx, const int bidx, const
 __device__ __forceinline__ void globalSync(const int tidx, const int bidx, const int bnum, volatile int * gsync0, volatile int * gsync1)
 #endif//USE_ATOMIC_OPS_FOR_GSYNC
 {
+/* #ifndef NDEBUG */
+/*   if(tidx == 0) */
+/*     printf("l%d: bidx = %d: sync %d blocks..\n", __LINE__, bidx, bnum); */
+/* #endif//NDEBUG */
   /** Phase 0. tell */
   __syncthreads();
 #ifdef  USE_ATOMIC_OPS_FOR_GSYNC
-  if( tidx == 0 )
+  if(tidx == 0)
     atomicOr(&gsync0[bidx], 1);
 #else///USE_ATOMIC_OPS_FOR_GSYNC
-  if( tidx == 0 )
+  if(tidx == 0)
     gsync0[bidx] = 1;
 #endif//USE_ATOMIC_OPS_FOR_GSYNC
 
 
   /** Phase 1. watch */
-  if( bidx == 0 ){
+  if(bidx == 0){
+    const int tnum = BLOCKDIM_X1D;
 #ifdef  USE_ATOMIC_OPS_FOR_GSYNC
-    for(int ii = tidx; ii < bnum; ii += BLOCKDIM_X1D)
-      while( true )
-	if( atomicAnd(&gsync0[ii], 0) )
+    for(int ii = tidx; ii < bnum; ii += tnum)
+      while(true)
+	if(atomicAnd(&gsync0[ii], 0) == 1)
 	  break;
 #else///USE_ATOMIC_OPS_FOR_GSYNC
-    for(int ii = tidx; ii < bnum; ii += BLOCKDIM_X1D)
-      while( true )
-      	if( gsync0[ii] ){
+    for(int ii = tidx; ii < bnum; ii += tnum)
+      while(true)
+      	if(gsync0[ii] == 1){
       	  gsync0[ii] = 0;
       	  break;
-      	}/* if( gsync0[ii] ){ */
+      	}
 #endif//USE_ATOMIC_OPS_FOR_GSYNC
 
     __syncthreads();
 
 #ifdef  USE_ATOMIC_OPS_FOR_GSYNC
-    for(int ii = tidx; ii < bnum; ii += BLOCKDIM_X1D)
+    for(int ii = tidx; ii < bnum; ii += tnum)
       atomicOr(&gsync1[ii], 1);
 #else///USE_ATOMIC_OPS_FOR_GSYNC
-    for(int ii = tidx; ii < bnum; ii += BLOCKDIM_X1D)
+    for(int ii = tidx; ii < bnum; ii += tnum)
       gsync1[ii] = 1;
 #endif//USE_ATOMIC_OPS_FOR_GSYNC
   }/* if( bidx == 0 ){ */
@@ -89,19 +94,23 @@ __device__ __forceinline__ void globalSync(const int tidx, const int bidx, const
 
   /** Phase 2. check */
 #ifdef  USE_ATOMIC_OPS_FOR_GSYNC
-  if( tidx == 0 )
-    while( true )
-      if( atomicAnd(&gsync1[bidx], 1) )
+  if(tidx == 0)
+    while(true)
+      if(atomicAnd(&gsync1[bidx], 0) == 1)
   	break;
 #else///USE_ATOMIC_OPS_FOR_GSYNC
-  if( tidx == 0 )
-    while( true )
-      if( gsync1[bidx] ){
+  if(tidx == 0)
+    while(true)
+      if(gsync1[bidx] == 1){
   	gsync1[bidx] = 0;
   	break;
       }/* if( gsync1[bidx] ){ */
 #endif//USE_ATOMIC_OPS_FOR_GSYNC
 
+/* #ifndef NDEBUG */
+/*   if(tidx == 0) */
+/*     printf("l%d: bidx = %d: %d blocks synchronized\n", __LINE__, bidx, bnum); */
+/* #endif//NDEBUG */
   __syncthreads();
 }
 
