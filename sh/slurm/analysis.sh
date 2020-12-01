@@ -18,11 +18,11 @@ EXEC=bin/extract
 # problem ID
 if [ -z "$PROBLEM" ]; then
     # PROBLEM=2
-    PROBLEM=10
+    # PROBLEM=10
     # PROBLEM=14
     # PROBLEM=22
     # PROBLEM=26
-    # PROBLEM=27
+    PROBLEM=27
     # PROBLEM=62
     # PROBLEM=130
     # PROBLEM=131

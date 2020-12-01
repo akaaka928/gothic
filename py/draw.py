@@ -9,7 +9,13 @@ from matplotlib.colors import LogNorm # for logarithmic plot in imshow
 import matplotlib.ticker as ticker
 
 import os.path as path
-import multiprocessing as mp
+
+
+from mpi4py import MPI
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
+# import multiprocessing as mp
 
 import utils as utils
 
@@ -33,16 +39,16 @@ tw_base = 1.0
 # ytics = [-10, -5, 0, 5, 10]
 # lab = ["DM halo", "stellar halo", "bulge", "central BH", "thick disk", "thin disk"]
 
-# filename = "m31"
-# Nskip = 1
-# skip = [0]
-# init = 0
-# last = 47
-# fmin, fmax = 1.0e-3, 1.0e+1
-# fvmin, fvmax = 1.0e+4, 1.0e+8
-# xtics = [-10, -5, 0, 5, 10]
-# ytics = [-10, -5, 0, 5, 10]
-# lab = ["DM halo", "stellar halo", "bulge", "disk"]
+filename = "m31"
+Nskip = 1
+skip = [0]
+init = 0
+last = 47
+fmin, fmax = 1.0e-3, 1.0e+1
+fvmin, fvmax = 1.0e+4, 1.0e+8
+xtics = [-10, -5, 0, 5, 10]
+ytics = [-10, -5, 0, 5, 10]
+lab = ["DM halo", "stellar halo", "bulge", "disk"]
 
 # filename = "k17disk"
 # Nskip = 2
@@ -285,14 +291,14 @@ tw_base = 1.0
 # fvmin, fvmax = 3.1e+4, 1.0e+8
 # lab = ["halo"]
 
-filename = "m12ra1"
-Nskip = 0
-init = 0
-last = 140
-# last = 0
-fmin, fmax = 1.0e-4, 1.0e-1
-fvmin, fvmax = 3.1e+4, 1.0e+8
-lab = ["halo"]
+# filename = "m12ra1"
+# Nskip = 0
+# init = 0
+# last = 140
+# # last = 0
+# fmin, fmax = 1.0e-4, 1.0e-1
+# fvmin, fvmax = 3.1e+4, 1.0e+8
+# lab = ["halo"]
 
 # filename = "m12ra1_2"
 # Nskip = 0
@@ -702,8 +708,8 @@ def draw_figure(fileid, kind, sphe):
 
 
 
-def wrapper(argv):
-    return draw_figure(*argv)
+# def wrapper(argv):
+#     return draw_figure(*argv)
 
 
 # embed fonts
@@ -732,8 +738,11 @@ txtfile.close()
 
 
 my_cmap = utils.generate_cmap(["darkblue", "deepskyblue", "lime", "yellow", "red", "magenta", "white"])
-cores = int(np.ceil(mp.cpu_count() / 2))
-pool = mp.Pool(cores)
-args = [(ii, Nkind, Nsphe) for ii in range(init, last + 1, 1)]
-pool.map(wrapper, args)
-pool.close()
+# cores = int(np.ceil(mp.cpu_count() / 2))
+# pool = mp.Pool(cores)
+# args = [(ii, Nkind, Nsphe) for ii in range(init, last + 1, 1)]
+# pool.map(wrapper, args)
+# pool.close()
+# def draw_figure(fileid, kind, sphe):
+for fileid in range(init + rank, last + 1, size):
+    draw_figure(fileid, Nkind, Nsphe)

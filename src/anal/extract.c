@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/09/26 (Thu)
+ * @date 2020/11/30 (Mon)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -19,7 +19,7 @@
  *
  * @brief On to enable Szip compression for HDF5 files (default is ON).
  */
-#define USE_SZIP_COMPRESSION
+/* #define USE_SZIP_COMPRESSION */
 
 /**
  * @def USE_GZIP_COMPRESSION

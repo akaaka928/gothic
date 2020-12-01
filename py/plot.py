@@ -7,7 +7,12 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 import os.path as path
-import multiprocessing as mp
+
+from mpi4py import MPI
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
+# import multiprocessing as mp
 
 import utils as utils
 
@@ -24,10 +29,10 @@ osipkov_merritt = False
 # # last = 0
 # lab = ["DM halo", "stellar halo", "bulge", "central BH", "thick disk", "thin disk"]
 
-# filename = "m31"
-# init = 0
-# last = 47
-# lab = ["DM halo", "stellar halo", "bulge", "disk"]
+filename = "m31"
+init = 0
+last = 47
+lab = ["DM halo", "stellar halo", "bulge", "disk"]
 
 # filename = "k17disk"
 # init = 0
@@ -90,12 +95,12 @@ osipkov_merritt = False
 # lab = ["halo"]
 # osipkov_merritt = True
 
-filename = "m12ra1"
-init = 0
-last = 140
-# last = 0
-lab = ["halo"]
-osipkov_merritt = True
+# filename = "m12ra1"
+# init = 0
+# last = 140
+# # last = 0
+# lab = ["halo"]
+# osipkov_merritt = True
 
 # filename = "m12ra1_2"
 # init = 0
@@ -201,6 +206,7 @@ ls = ["-", ":", "-.", "--"]
 Ncol = 8
 col = ["black", "red", "blue", "magenta", "green", "brown", "cyan", "yellow"]
 
+# measure of the thickness, according to Rodionov & Sotnikova (2013)
 thicknessMeasure = 1.82
 
 
@@ -263,8 +269,6 @@ def draw_figure(fileid, kind, sphe, radmin, radmax, rhomin, rhomax, encmin, encm
             sigp = h5file[folder + "sigp"]
             sigz = h5file[folder + "sigz"]
 
-            # measure of the thickness, according to Rodionov & Sotnikova (2013)
-            ver *= thicknessMeasure
 
             if add_ini_sphe:
                 ax_rho[0].plot(sphe_rad[ii], sphe_rho[ii], linestyle = ls[ii % Nls], color = col[ii % Ncol])
@@ -288,7 +292,7 @@ def draw_figure(fileid, kind, sphe, radmin, radmax, rhomin, rhomax, encmin, encm
                 ax_sig[0].plot(rad, sig, pt[ii % Npt], linestyle = "None" if add_ini_sphe else ls[ii % Nls], color = col[ii % Ncol], label = lab[ii])
             ax_Sig[0].plot(hor, Sig, pt[ii % Npt], linestyle = "None" if add_ini_sphe else ls[ii % Nls], color = col[ii % Ncol], label = lab[ii])
             if ii >= sphe:
-                ax_ver[0].plot(hor, ver, pt[(ii - sphe) % Npt], linestyle = ls[(ii - sphe) % Nls], color = col[(ii - sphe) % Ncol], label = lab[ii])
+                ax_ver[0].plot(hor, ver * thicknessMeasure, pt[(ii - sphe) % Npt], linestyle = ls[(ii - sphe) % Nls], color = col[(ii - sphe) % Ncol], label = lab[ii])
                 ax_sig2D[0].plot(hor, sigR, pt[0 % Npt], linestyle = ls[(ii - sphe) % Nls], color = col[(ii - sphe) % Ncol], label = r"$\sigma_R$" + " (" + lab[ii] + ")")
                 ax_sig2D[0].plot(hor, sigp, pt[1 % Npt], linestyle = ls[(ii - sphe) % Nls], color = col[(ii - sphe) % Ncol], label = r"$\sigma_p$" + " (" + lab[ii] + ")")
                 ax_sig2D[0].plot(hor, sigz, pt[2 % Npt], linestyle = ls[(ii - sphe) % Nls], color = col[(ii - sphe) % Ncol], label = r"$\sigma_z$" + " (" + lab[ii] + ")")
@@ -528,8 +532,11 @@ else:
 # add_ini_disk = path.isfile(diskfile)
 
 
-cores = int(np.ceil(mp.cpu_count() / 2))
-pool = mp.Pool(cores)
-args = [(ii, Nkind, Nsphe, radmin, radmax, rhomin, rhomax, encmin, encmax, sigmin, sigmax, betmin, betmax, hormin, hormax, Sigmin, Sigmax, sigRmin, sigRmax, sigpmin, sigpmax, sigzmin, sigzmax, diskmin, diskmax, add_ini_sphe, sphe_rad, sphe_rho, sphe_enc, sphe_Sig, sphe_sig, sphe_sgt, sphe_bet) for ii in range(init, last + 1, 1)]
-pool.map(wrapper, args)
-pool.close()
+# cores = int(np.ceil(mp.cpu_count() / 2))
+# pool = mp.Pool(cores)
+# args = [(ii, Nkind, Nsphe, radmin, radmax, rhomin, rhomax, encmin, encmax, sigmin, sigmax, betmin, betmax, hormin, hormax, Sigmin, Sigmax, sigRmin, sigRmax, sigpmin, sigpmax, sigzmin, sigzmax, diskmin, diskmax, add_ini_sphe, sphe_rad, sphe_rho, sphe_enc, sphe_Sig, sphe_sig, sphe_sgt, sphe_bet) for ii in range(init, last + 1, 1)]
+# pool.map(wrapper, args)
+# pool.close()
+# def draw_figure(fileid, kind, sphe, radmin, radmax, rhomin, rhomax, encmin, encmax, sigmin, sigmax, betmin, betmax, hormin, hormax, Sigmin, Sigmax, sigRmin, sigRmax, sigpmin, sigpmax, sigzmin, sigzmax, diskmin, diskmax, add_ini_sphe, sphe_rad, sphe_rho, sphe_enc, sphe_Sig, sphe_sig, sphe_sgt, sphe_bet):
+for fileid in range(init + rank, last + 1, size):
+    draw_figure(fileid, Nkind, Nsphe, radmin, radmax, rhomin, rhomax, encmin, encmax, sigmin, sigmax, betmin, betmax, hormin, hormax, Sigmin, Sigmax, sigRmin, sigRmax, sigpmin, sigpmax, sigzmin, sigzmax, diskmin, diskmax, add_ini_sphe, sphe_rad, sphe_rho, sphe_enc, sphe_Sig, sphe_sig, sphe_sgt, sphe_bet)
