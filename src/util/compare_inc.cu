@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/11/30 (Mon)
+ * @date 2020/12/01 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -37,8 +37,8 @@ using namespace cooperative_groups;
 
 
 #ifdef  USE_WARP_REDUCE_FUNC_COMPARE_INC
-__device__ __forceinline__ uint flipFP32(const uint src){  uint mask = -int(src >> 31)   | 0x80000000;  return (src ^ mask);}
-__device__ __forceinline__ uint undoFP32(const uint src){  uint mask = ((src >> 31) - 1) | 0x80000000;  return (src ^ mask);}
+__device__ __forceinline__ uint flipFP32(const uint src){  uint mask = -int(src >> 31)   | 0x80000000;  return (src ^ mask);}/**< 32 bit int: 1 shift(1 cycle) + 1 cast(4 cycles) + 1 multiply(1 cycle) + 1 bitwise OR(1 cycle) + 1 bitwise XOR(1 cycle) -->> corresopnding to 8 cycles */
+__device__ __forceinline__ uint undoFP32(const uint src){  uint mask = ((src >> 31) - 1) | 0x80000000;  return (src ^ mask);}/**< 32 bit int: 1 shift(1 cycle) + 1 add(1 cycle) + 1 bitwise OR(1 cycle) + 1 bitwise XOR(1 cycle) -->> corresponding to 4 cycles */
 #endif//USE_WARP_REDUCE_FUNC_COMPARE_INC
 
 
@@ -54,7 +54,7 @@ __device__ __forceinline__ unsigned getMinWarp(unsigned val){  return (__reduce_
 __device__ __forceinline__    float getMinWarp(   float val){
   union {uint u; float f;} tmp;
   tmp.f = val;
-  tmp.u = undoFP32(getMinWarp(flipFP32(tmp.u)));
+  tmp.u = undoFP32(getMinWarp(flipFP32(tmp.u)));/**< corresponding to 4 + 4 + 8 = 16 cycles */
   return (tmp.f);
 }
 #endif//USE_WARP_REDUCE_FUNC_COMPARE_INC
@@ -69,12 +69,13 @@ __device__ __forceinline__ Type getMinWarp
 #ifdef  USE_WARP_SHUFFLE_FUNC_COMPARE_INC
 
   Type tmp;
-  tmp = __SHFL_XOR(SHFL_MASK_32, val,  1, warpSize);  val = getMinVal(val, tmp);
-  tmp = __SHFL_XOR(SHFL_MASK_32, val,  2, warpSize);  val = getMinVal(val, tmp);
-  tmp = __SHFL_XOR(SHFL_MASK_32, val,  4, warpSize);  val = getMinVal(val, tmp);
-  tmp = __SHFL_XOR(SHFL_MASK_32, val,  8, warpSize);  val = getMinVal(val, tmp);
-  tmp = __SHFL_XOR(SHFL_MASK_32, val, 16, warpSize);  val = getMinVal(val, tmp);
-  val = __SHFL(SHFL_MASK_32, val, 0, warpSize);
+  tmp = __SHFL_XOR(SHFL_MASK_32, val,  1, warpSize);  val = getMinVal(val, tmp);/**< corresponding to 2 + 1 = 3 cycles */
+  tmp = __SHFL_XOR(SHFL_MASK_32, val,  2, warpSize);  val = getMinVal(val, tmp);/**< corresponding to 2 + 1 = 3 cycles */
+  tmp = __SHFL_XOR(SHFL_MASK_32, val,  4, warpSize);  val = getMinVal(val, tmp);/**< corresponding to 2 + 1 = 3 cycles */
+  tmp = __SHFL_XOR(SHFL_MASK_32, val,  8, warpSize);  val = getMinVal(val, tmp);/**< corresponding to 2 + 1 = 3 cycles */
+  tmp = __SHFL_XOR(SHFL_MASK_32, val, 16, warpSize);  val = getMinVal(val, tmp);/**< corresponding to 2 + 1 = 3 cycles */
+  val = __SHFL(SHFL_MASK_32, val, 0, warpSize);/**< corresponding to 2 cycles */
+  /** corresponding to 17 cycles in total */
 
 #else///USE_WARP_SHUFFLE_FUNC_COMPARE_INC
 
