@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2020/11/04 (Wed) 17:55:30
+# last updated on 2020/12/03 (Thu) 17:05:23
 # Makefile for C Programming
 # Gravitational octree code for collisionless N-body simulations on GPUs
 #################################################################################################
@@ -444,6 +444,7 @@ NUM_NTHREADS	:= 512
 NUM_TSUB	:= 32
 NUM_NWARP	:= 4
 NUM_NLOOP	:= 1
+NUM_BLOCKS_SM	:= 2
 LEV_NEIGHBOR	:= 1
 USE_WARPSHUFFLE	:= 1
 USE_WARPREDUCE	:= 1
@@ -464,8 +465,8 @@ endif
 ifeq ($(HUNT_OPTIMAL_WALK_TREE), 1)
 CCARG	+= -DHUNT_WALK_PARAMETER
 CUARG	+= -DHUNT_WALK_PARAMETER
-CCARG	+= -DNTHREADS="($(NUM_NTHREADS))" -DTSUB="($(NUM_TSUB))" -DNLOOP="($(NUM_NLOOP))"
-CUARG	+= -DNTHREADS="($(NUM_NTHREADS))" -DTSUB="($(NUM_TSUB))" -DNLOOP="($(NUM_NLOOP))"
+CCARG	+= -DNTHREADS="($(NUM_NTHREADS))" -DTSUB="($(NUM_TSUB))" -DNLOOP="($(NUM_NLOOP))" -DNBLOCKS_PER_SM="($(NUM_BLOCKS_SM))"
+CUARG	+= -DNTHREADS="($(NUM_NTHREADS))" -DTSUB="($(NUM_TSUB))" -DNLOOP="($(NUM_NLOOP))" -DNBLOCKS_PER_SM="($(NUM_BLOCKS_SM))"
 ifeq ($(IJ_PARALLELIZED_WALK), 1)
 CCARG	+= -DNWARP="($(NUM_NWARP))"
 CUARG	+= -DNWARP="($(NUM_NWARP))"
@@ -475,8 +476,8 @@ CCARG	+= -DUSE_WARP_SHUFFLE_FUNC
 CUARG	+= -DUSE_WARP_SHUFFLE_FUNC
 endif
 ifeq ($(USE_WARPREDUCE), 1)
-CCARG	+= -DUSE_WARP_REDUCE_FUNCTIONS
-CUARG	+= -DUSE_WARP_REDUCE_FUNCTIONS
+CCARG	+= -DUSE_WARP_REDUCE_FUNC
+CUARG	+= -DUSE_WARP_REDUCE_FUNC
 endif
 ifeq ($(USE_L2SETASIDE), 1)
 CCARG	+= -DUSE_L2_SET_ASIDE_POLICY -DNLEVEL_TREE_NODE_L2_PERSISTING="($(NUM_TREELEV_L2))"
@@ -500,8 +501,8 @@ CCARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE
 CUARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE
 endif
 ifeq ($(USE_WARPREDUCE), 1)
-CCARG	+= -DUSE_WARP_REDUCE_FUNCTIONS_MAKE_TREE_STRUCTURE
-CUARG	+= -DUSE_WARP_REDUCE_FUNCTIONS_MAKE_TREE_STRUCTURE
+CCARG	+= -DUSE_WARP_REDUCE_FUNC_MAKE_TREE_STRUCTURE
+CUARG	+= -DUSE_WARP_REDUCE_FUNC_MAKE_TREE_STRUCTURE
 endif
 endif
 #################################################################################################
@@ -515,8 +516,8 @@ CCARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAC
 CUARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAC
 endif
 ifeq ($(USE_WARPREDUCE), 1)
-CCARG	+= -DUSE_WARP_REDUCE_FUNCTIONS_MAC
-CUARG	+= -DUSE_WARP_REDUCE_FUNCTIONS_MAC
+CCARG	+= -DUSE_WARP_REDUCE_FUNC_MAC
+CUARG	+= -DUSE_WARP_REDUCE_FUNC_MAC
 endif
 endif
 #################################################################################################
@@ -545,8 +546,8 @@ CCARG	+= -DUSE_WARP_SHUFFLE_FUNC_TIME
 CUARG	+= -DUSE_WARP_SHUFFLE_FUNC_TIME
 endif
 ifeq ($(USE_WARPREDUCE), 1)
-CCARG	+= -DUSE_WARP_REDUCE_FUNCTIONS_TIME
-CUARG	+= -DUSE_WARP_REDUCE_FUNCTIONS_TIME
+CCARG	+= -DUSE_WARP_REDUCE_FUNC_TIME
+CUARG	+= -DUSE_WARP_REDUCE_FUNC_TIME
 endif
 endif
 #################################################################################################
@@ -580,8 +581,8 @@ CCARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAC
 CUARG	+= -DUSE_WARP_SHUFFLE_FUNC_MAC
 endif
 ifeq ($(USE_WARPREDUCE), 1)
-CCARG	+= -DUSE_WARP_REDUCE_FUNCTIONS_MAC
-CUARG	+= -DUSE_WARP_REDUCE_FUNCTIONS_MAC
+CCARG	+= -DUSE_WARP_REDUCE_FUNC_MAC
+CUARG	+= -DUSE_WARP_REDUCE_FUNC_MAC
 endif
 endif
 #################################################################################################

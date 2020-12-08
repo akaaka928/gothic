@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/11/30 (Mon)
+ * @date 2020/12/03 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -140,34 +140,35 @@ void setL2persistent_walk_dev(kernelStream sinfo, const soaTreeNode tree)
     num += (1 << (3 * ii));
 
   /** common settings for all arrays */
-  cudaStreamAttrValue attr_more, attr_jpos, attr_mj;
-  attr_more.accessPolicyWindow.hitRatio = 1.0;/**< perhaps, 1.0 is the best choise */
+  /* cudaStreamAttrValue attr_more, attr_mj; */
+  /* attr_more.accessPolicyWindow.hitRatio = 1.0;/\**< perhaps, 1.0 is the best choise *\/ */
+  /* attr_mj  .accessPolicyWindow.hitRatio = 1.0;/\**< perhaps, 1.0 is the best choise *\/ */
+  /* attr_more.accessPolicyWindow. hitProp = cudaAccessPropertyPersisting; */
+  /* attr_mj  .accessPolicyWindow. hitProp = cudaAccessPropertyPersisting; */
+  /* attr_more.accessPolicyWindow.missProp = cudaAccessPropertyStreaming; */
+  /* attr_mj  .accessPolicyWindow.missProp = cudaAccessPropertyStreaming; */
+  cudaStreamAttrValue attr_jpos;
   attr_jpos.accessPolicyWindow.hitRatio = 1.0;/**< perhaps, 1.0 is the best choise */
-  attr_mj  .accessPolicyWindow.hitRatio = 1.0;/**< perhaps, 1.0 is the best choise */
-  attr_more.accessPolicyWindow. hitProp = cudaAccessPropertyPersisting;
   attr_jpos.accessPolicyWindow. hitProp = cudaAccessPropertyPersisting;
-  attr_mj  .accessPolicyWindow. hitProp = cudaAccessPropertyPersisting;
-  attr_more.accessPolicyWindow.missProp = cudaAccessPropertyStreaming;
   attr_jpos.accessPolicyWindow.missProp = cudaAccessPropertyStreaming;
-  attr_mj  .accessPolicyWindow.missProp = cudaAccessPropertyStreaming;
 
   /** individual settings */
-  attr_more.accessPolicyWindow.base_ptr = reinterpret_cast<void *>(tree.more);
+/*   attr_more.accessPolicyWindow.base_ptr = reinterpret_cast<void *>(tree.more); */
+/*   attr_mj  .accessPolicyWindow.base_ptr = reinterpret_cast<void *>(tree.mj); */
+/*   attr_more.accessPolicyWindow.num_bytes = num *  4; */
+/* #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING */
+/*   attr_mj  .accessPolicyWindow.num_bytes = num *  8; */
+/* #else///INDIVIDUAL_GRAVITATIONAL_SOFTENING */
+/*   attr_mj  .accessPolicyWindow.num_bytes = num *  4; */
+/* #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING */
   attr_jpos.accessPolicyWindow.base_ptr = reinterpret_cast<void *>(tree.jpos);
-  attr_mj  .accessPolicyWindow.base_ptr = reinterpret_cast<void *>(tree.mj);
-  attr_more.accessPolicyWindow.num_bytes = num *  4;
   attr_jpos.accessPolicyWindow.num_bytes = num * 16;
-#ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
-  attr_mj  .accessPolicyWindow.num_bytes = num *  8;
-#else///INDIVIDUAL_GRAVITATIONAL_SOFTENING
-  attr_mj  .accessPolicyWindow.num_bytes = num *  4;
-#endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 
 
   for(int ii = 0; ii < sinfo.num; ii++){
-    cudaStreamSetAttribute(sinfo.stream[ii], cudaStreamAttributeAccessPolicyWindow, &attr_mj);
-    cudaStreamSetAttribute(sinfo.stream[ii], cudaStreamAttributeAccessPolicyWindow, &attr_more);
-    cudaStreamSetAttribute(sinfo.stream[ii], cudaStreamAttributeAccessPolicyWindow, &attr_jpos);
+    /* checkCudaErrors(cudaStreamSetAttribute(sinfo.stream[ii], cudaStreamAttributeAccessPolicyWindow, &attr_mj)); */
+    /* checkCudaErrors(cudaStreamSetAttribute(sinfo.stream[ii], cudaStreamAttributeAccessPolicyWindow, &attr_more)); */
+    checkCudaErrors(cudaStreamSetAttribute(sinfo.stream[ii], cudaStreamAttributeAccessPolicyWindow, &attr_jpos));
   }
 
 }

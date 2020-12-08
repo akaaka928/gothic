@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2018/06/05 (Tue)
+ * @date 2020/12/08 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -45,11 +45,15 @@
  * @brief number of threads per block for facileNeighborSearching_kernel
  */
 #ifndef NTHREADS_FACILE_NS
+#   if  GPUVER >= 80
+#define NTHREADS_FACILE_NS (256)
+#else///GPUVER >= 80
 #   if  GPUVER >= 60
 #define NTHREADS_FACILE_NS (512)
 #else///GPUVER >= 60
 #define NTHREADS_FACILE_NS (256)
 #endif//GPUVER >= 60
+#endif//GPUVER >= 80
 #endif//NTHREADS_FACILE_NS
 
 

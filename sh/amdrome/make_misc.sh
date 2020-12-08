@@ -1,0 +1,120 @@
+#!/bin/bash
+#SBATCH -J make_misc # name of job
+#SBATCH -p amdrome   # partition name
+#SBATCH -w amd2      # use compute node equips NVIDIA A100 PCIe
+#SBATCH --nodes=1    # number of nodes, set to SLURM_JOB_NUM_NODES
+
+TIME=00:02:30
+
+export MODULEPATH=$HOME/opt/modules:$MODULEPATH
+module purge
+
+module load openmpi
+module load phdf5
+module load gsl lis
+module load cuda cub
+
+cd $SLURM_SUBMIT_DIR
+module list
+
+
+LOGDIR=bench
+LOG=${LOGDIR}/make_misc.log
+ERR=${LOGDIR}/make_misc.err
+make clean
+
+
+
+LIST=./run_misc.sh
+echo "#!/bin/bash" > $LIST
+echo "#SBATCH -J hunt_misc" >> $LIST
+echo "#SBATCH -p amdrome" >> $LIST
+echo "#SBATCH -w amd2" >> $LIST
+echo "#SBATCH --nodes=1" >> $LIST
+echo "#SBATCH --gpus-per-node=1" >> $LIST
+echo "#SBATCH --gpu-freq=1410" >> $LIST
+echo "" >> $LIST
+echo "export MODULEPATH=\$HOME/opt/modules:\$MODULEPATH" >> $LIST
+echo "module purge" >> $LIST
+echo "module load openmpi" >> $LIST
+echo "module load phdf5" >> $LIST
+echo "module load gsl lis" >> $LIST
+echo "module load cuda cub" >> $LIST
+echo "cd \$SLURM_SUBMIT_DIR" >> $LIST
+echo "module list" >> $LIST
+echo "" >> $LIST
+
+
+FILE=m31
+ABSERR=1.953125000e-3
+
+
+INDEX=0
+for NTHREADS in 512 256 128 1024
+do
+    # pad 0s for NTHREADS
+    digit=4
+    input="`echo ${#NTHREADS}`"
+    if [ "$input" -le "$digit" ]; then
+	rem=`expr $digit - $input`
+	zeros=""
+	count=0
+	while [ "$count" -lt "$rem" ]; do
+	    zeros="`echo ${zeros}0`"
+	    count=`expr $count + 1`
+	done
+    fi
+    TOTZEROS=$zeros
+
+    for TSUB in 32 16 8 4 2 1
+    do
+	# pad 0s for TSUB
+	digit=2
+	input="`echo ${#TSUB}`"
+	if [ "$input" -le "$digit" ]; then
+	    rem=`expr $digit - $input`
+	    zeros=""
+	    count=0
+	    while [ "$count" -lt "$rem" ]; do
+		zeros="`echo ${zeros}0`"
+		count=`expr $count + 1`
+	    done
+	fi
+	SUBZEROS=$zeros
+
+	for USE_WS in 1 0
+	do
+
+	    for USE_WR in 1 0
+	    do
+
+		for SM_PREF in 1 0 # only for HUNT_OPTIMAL_NEIGHBOUR=1
+		do
+
+		    # logging
+		    EXEC=bin/tot${TOTZEROS}${NTHREADS}sub${SUBZEROS}${TSUB}ws${USE_WS}wr${USE_WR}sm${SM_PREF}
+		    echo "## generate $EXEC" >> $LOG
+
+		    make gothic MEASURE_ELAPSED_TIME=1 HUNT_OPTIMAL_WALK_TREE=0 HUNT_OPTIMAL_INTEGRATE=0 HUNT_OPTIMAL_MAKE_TREE=1 HUNT_OPTIMAL_MAKE_NODE=1 HUNT_OPTIMAL_NEIGHBOUR=1 HUNT_OPTIMAL_SEPARATION=0 NUM_NTHREADS=$NTHREADS NUM_TSUB=$TSUB USE_WARPSHUFFLE=$USE_WS USE_WARPREDUCE=$USE_WR PREF_SHARED_MEM=$SM_PREF ADOPT_GADGET_TYPE_MAC=1 1>>$LOG 2>>$ERR
+
+		    # rename the executable
+		    mv bin/gothic $EXEC
+		    make clean
+
+		    # generate job lists instead of running the execution file
+		    if [ -e $EXEC ]; then
+			TARGET=log/${EXEC##*/}
+			echo "srun -t ${TIME} numactl --cpunodebind=0 --localalloc ${EXEC} -absErr=${ABSERR} -file=${FILE} -jobID=${INDEX} 1>>${TARGET}.o 2>>${TARGET}.e" >> $LIST
+			INDEX=`expr $INDEX + 1`
+		    fi
+		done
+	    done
+	done
+    done
+done
+
+
+chmod +x $LIST
+
+
+exit 0

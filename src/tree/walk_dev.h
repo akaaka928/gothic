@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/11/30 (Mon)
+ * @date 2020/12/04 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -194,6 +194,15 @@
 /* Lev = 4: Nnode = 585 + 4096 = 4681 -> ~110 KiB or ~128 KiB */
 /* Lev = 5: Nnode = 4681 + 32768 = 37449 -> ~878 KiB or ~1 MiB */
 /* Lev = 6: Nnode = 37449 + 262144 = 299593 -> ~6.9 MiB or ~8 MiB */
+/** jpos(16 byte) per tree node */
+/** Lev = 0: Nnode = 1 -> 16 byte */
+/** Lev = 1: Nnode = 1 + 8 = 9 -> 144 byte */
+/** Lev = 2: Nnode = 9 + 64 = 73 -> 1168 byte */
+/** Lev = 3: Nnode = 73 + 512 = 585 -> 9360 byte ~9 KiB */
+/** Lev = 4: Nnode = 585 + 4096 = 4681 -> 74896 byte ~73 KiB */
+/** Lev = 5: Nnode = 4681 + 32768 = 37449 -> 599184 byte ~585 KiB */
+/** Lev = 6: Nnode = 37449 + 262144 = 299593 -> 4793488 byte ~4.6 MiB */
+/** Lev = 7: Nnode = 299593 + 2097152 = 2396745 -> 38347920 byte ~37 MiB */
 #endif//USE_L2_SET_ASIDE_POLICY
 
 
@@ -447,13 +456,6 @@
 #   if  NBLOCKS_PER_SM == 2
 /** (capacity of shared memory / sizeof(float)) / NBLOCKS_PER_SM */
 #define NSM4TRAVERSAL (SMEM_SIZE_SM_PREF >> 3)
-/* #   if  GPUVER >= 60 */
-/* /\** 8192 = 8 * 1024 = 16 * 1024 / 2 = (64KiB / sizeof(float)) / NBLOCKS_PER_SM on newer GPUs *\/ */
-/* #define NSM4TRAVERSAL (8192) */
-/* #else///GPUVER >= 60 */
-/* /\** 6144 = 6 * 1024 = 12 * 1024 / 2 = (48KiB / sizeof(float)) / NBLOCKS_PER_SM on older GPUs *\/ */
-/* #define NSM4TRAVERSAL (6144) */
-/* #endif//GPUVER >= 60 */
 #   if  NLOOP > ((NSM4TRAVERSAL / (4 * NTHREADS)) - 2)
 #undef  NLOOP
 #define NLOOP   ((NSM4TRAVERSAL / (4 * NTHREADS)) - 2)
@@ -466,13 +468,6 @@
 #else///NBLOCKS_PER_SM == 2
 /** capacity of shared memory / sizeof(float) */
 #define NSM4TRAVERSAL (SMEM_SIZE_SM_PREF >> 2)
-/* #   if  GPUVER >= 60 */
-/* /\** 16384 = 16 * 1024 = 64KiB / sizeof(float) on newer GPUs *\/ */
-/* #define NSM4TRAVERSAL (16384) */
-/* #else///GPUVER >= 60 */
-/* /\** 12288 = 12 * 1024 = 48KiB / sizeof(float) on older GPUs *\/ */
-/* #define NSM4TRAVERSAL (12288) */
-/* #endif//GPUVER >= 60 */
 #   if  NLOOP > ((NSM4TRAVERSAL / (4 * NTHREADS * NBLOCKS_PER_SM)) - 2)
 #undef  NLOOP
 #define NLOOP   ((NSM4TRAVERSAL / (4 * NTHREADS * NBLOCKS_PER_SM)) - 2)

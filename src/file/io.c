@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/01/03 (Fri)
+ * @date 2020/12/08 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -5594,15 +5594,16 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
   newFile = (0 != access(filename, F_OK));
   fp = fopen(filename, "a");  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
   if( newFile ){
-    fprintf(fp, "#%s\t%s\t%s\t%s\t%s\t%s\t%s", "calcGravity_dev", "NTHREADS", "TSUB", "NWARP", "NLOOP",
-	    "USE_WARP_SHUFFLE_FUNC", "GET_BUFID");
+    fprintf(fp, "#%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", "calcGravity_dev", "NTHREADS", "TSUB", "NWARP", "NLOOP",
+	    "USE_WARP_SHUFFLE_FUNC", "GET_BUFID",
+	    "NBLOCKS_PER_SM", "USE_WARP_REDUCE_FUNC", "USE_L2_SET_ASIDE_POLICY", "NLEVEL_TREE_NODE_L2_PERSISTING");
 #ifdef  NEIGHBOR_PHKEY_LEVEL
     fprintf(fp, "\t%s", "NEIGHBOR_PHKEY_LEVEL");
 #endif//NEIGHBOR_PHKEY_LEVEL
     fprintf(fp, "\t%s", "NEIGHBOR_LENGTH_SHRINK_FACTOR");
     fprintf(fp, "\n");
   }/* if( newFile ){ */
-  fprintf(fp, "%e\t%d\t%d\t%d\t%d\t%d\t%d",
+  fprintf(fp, "%e\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d",
 	  inv * mean.calcGravity_dev,
 	  NTHREADS, TSUB, NWARP, NLOOP
 	  /* use warp shuffle instruction or not */
@@ -5621,6 +5622,18 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
 	  , 0
 #endif//TRY_MODE_ABOUT_BUFFER
 #endif//USE_SMID_TO_GET_BUFID
+	  , NBLOCKS_PER_SM
+#ifdef  USE_WARP_REDUCE_FUNC
+	  , 1
+#else///USE_WARP_REDUCE_FUNC
+	  , 0
+#endif//USE_WARP_REDUCE_FUNC
+#ifdef  USE_L2_SET_ASIDE_POLICY
+	  , 1
+#else///USE_L2_SET_ASIDE_POLICY
+	  , 0
+#endif//USE_L2_SET_ASIDE_POLICY
+	  , NLEVEL_TREE_NODE_L2_PERSISTING
 	  );
   /* criterion about PH-key level to split i-particles */
 #ifdef  NEIGHBOR_PHKEY_LEVEL
@@ -5643,16 +5656,16 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
   fp = fopen(filename, "a");  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
   if( newFile ){
     fprintf(fp, "#%s\t%s\t%s\t%s\t%s\t%s\t%s", "makeTree", "sortParticlesPHcurve", "genPHkey_kernel", "rsortKey_library", "NTHREADS_PH", "sortBody_kernel", "NTHREADS_PHSORT");
-  fprintf(fp, "\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
+  fprintf(fp, "\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
 	  "makeTree_kernel", "linkTree_kernel", "trimTree_kernel",
 	  "NTHREADS_MAKE_TREE", "TSUB_MAKE_TREE", "NTHREADS_LINK_TREE", "NTHREADS_TRIM_TREE",
-	  "USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE");
+	  "USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE", "USE_WARP_REDUCE_FUNC_MAKE_TREE_STRUCTURE");
   fprintf(fp, "\t%s\t%s\t%s\t%s\t%s\t%s", "initTreeLink_kernel", "initTreeCell_kernel", "initTreeNode_kernel", "initTreeBody_kernel", "copyRealBody_kernel", "Ttot");
   fprintf(fp, "\n");
   }/* if( newFile ){ */
   fprintf(fp, "%e\t%e\t%e\t%e\t%d\t%e\t%d", invSteps * mean.makeTree, invSteps * mean.sortParticlesPHcurve,
 	  invSteps * mean.genPHkey_kernel, invSteps * mean.rsortKey_library, NTHREADS_PH, invSteps * mean.sortBody_kernel, NTHREADS_PHSORT);
-  fprintf(fp, "\t%e\t%e\t%e\t%d\t%d\t%d\t%d\t%d",
+  fprintf(fp, "\t%e\t%e\t%e\t%d\t%d\t%d\t%d\t%d\t%d",
 	  invSteps * mean.makeTree_kernel, invSteps * mean.linkTree_kernel, invSteps * mean.trimTree_kernel,
 	  NTHREADS_MAKE_TREE, TSUB_MAKE_TREE, NTHREADS_LINK_TREE, NTHREADS_TRIM_TREE
 	  /* use warp shuffle for making tree structure instruction or not */
@@ -5661,6 +5674,11 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
 #else///USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE
 	  , 0
 #endif//USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE
+#ifdef  USE_WARP_REDUCE_FUNC_MAKE_TREE_STRUCTURE
+	  , 1
+#else///USE_WARP_REDUCE_FUNC_MAKE_TREE_STRUCTURE
+	  , 0
+#endif//USE_WARP_REDUCE_FUNC_MAKE_TREE_STRUCTURE
 	  );
   fprintf(fp, "\t%e\t%e\t%e\t%e\t%e\t%d", invSteps * mean.initTreeLink_kernel, invSteps * mean.initTreeCell_kernel, invSteps * mean.initTreeNode_kernel, inv * mean.initTreeBody_kernel, inv * mean.copyRealBody_kernel, NTHREADS_INIT_BODY);
   fprintf(fp, "\n");
@@ -5672,9 +5690,9 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
   newFile = (0 != access(filename, F_OK));
   fp = fopen(filename, "a");  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
   if( newFile )
-    fprintf(fp, "#%s\t%s\t%s\t%s\n",
-	    "calcMultipole", "NTHREADS_MAC", "TSUB_MAC", "USE_WARP_SHUFFLE_FUNC_MAC");
-  fprintf(fp, "%e\t%d\t%d\t%d\n",
+    fprintf(fp, "#%s\t%s\t%s\t%s\t%s\n",
+	    "calcMultipole", "NTHREADS_MAC", "TSUB_MAC", "USE_WARP_SHUFFLE_FUNC_MAC", "USE_WARP_REDUCE_FUNC_MAC");
+  fprintf(fp, "%e\t%d\t%d\t%d\t%d\n",
 	  inv * mean.calcMultipole_dev,
 	  NTHREADS_MAC, TSUB_MAC
 	  /* use warp shuffle instruction or not */
@@ -5683,6 +5701,11 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
 #else///USE_WARP_SHUFFLE_FUNC_MAC
 	  , 0
 #endif//USE_WARP_SHUFFLE_FUNC_MAC
+#ifdef  USE_WARP_REDUCE_FUNC_MAC
+	  , 1
+#else///USE_WARP_REDUCE_FUNC_MAC
+	  , 0
+#endif//USE_WARP_REDUCE_FUNC_MAC
 	  );
   fclose(fp);
 #endif//HUNT_NODE_PARAMETER
@@ -5697,7 +5720,7 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
 #else///BLOCK_TIME_STEP
     fprintf(fp, "#%s\t%s\t%s", "advPos_dev", "advVel_dev", "setTimeStep_dev");
 #endif//BLOCK_TIME_STEP
-    fprintf(fp, "\t%s\t%s\n", "NTHREADS_TIME", "USE_WARP_SHUFFLE_FUNC_TIME");
+    fprintf(fp, "\t%s\t%s\t%s\n", "NTHREADS_TIME", "USE_WARP_SHUFFLE_FUNC_TIME", "USE_WARP_REDUCE_FUNC_TIME");
   }/* if( newFile ){ */
 #ifdef  BLOCK_TIME_STEP
   fprintf(fp, "%e\t%e\t%e\t%e\t%e",
@@ -5706,12 +5729,17 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
 #else///BLOCK_TIME_STEP
   fprintf(fp, "%e\t%e\t%e", inv * mean.advPos_dev, inv * mean.advVel_dev, inv * mean.setTimeStep_dev);
 #endif//BLOCK_TIME_STEP
-  fprintf(fp, "\t%d\t%d\n", NTHREADS_TIME
+  fprintf(fp, "\t%d\t%d\t%d\n", NTHREADS_TIME
 #ifdef  USE_WARP_SHUFFLE_FUNC_TIME
 	  , 1
 #else///USE_WARP_SHUFFLE_FUNC_TIME
 	  , 0
 #endif//USE_WARP_SHUFFLE_FUNC_TIME
+#ifdef  USE_WARP_REDUCE_FUNC_TIME
+	  , 1
+#else///USE_WARP_REDUCE_FUNC_TIME
+	  , 0
+#endif//USE_WARP_REDUCE_FUNC_TIME
 	  );
   fclose(fp);
 #endif//HUNT_TIME_PARAMETER
@@ -5721,24 +5749,23 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
   newFile = (0 != access(filename, F_OK));
   fp = fopen(filename, "a");  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
   if( newFile )
-    fprintf(fp, "#%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-	    "examineNeighbor_dev", "searchNeighbor_dev", "searchNeighbor_kernel", "sortNeighbors", "countNeighbors_kernel", "commitNeighbors",
-	    "NTHREADS_SHRINK", "NTHREADS_FACILE_NS", "NTHREADS_NEIGHBOR", "TSUB_NEIGHBOR", "NEIGHBOR_NUM",
-	    "SMEM_PREF_FOR_NEIGHBOR_SEARCH", "USE_WARP_SHUFFLE_FUNC_NEIGHBOR");
-  fprintf(fp, "%e\t%e\t%e\t%e\t%e\t%e\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
-	  invSteps * mean.examineNeighbor_dev, invSteps * mean.searchNeighbor_dev, invSteps * mean.searchNeighbor_kernel, invSteps * mean.sortNeighbors, invSteps * mean.countNeighbors_kernel, invSteps * mean.commitNeighbors,
-	  NTHREADS_SHRINK, NTHREADS_FACILE_NS, NTHREADS_NEIGHBOR, TSUB_NEIGHBOR, NEIGHBOR_NUM
+    fprintf(fp, "#%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
+	    , "examineNeighbor_dev", "searchNeighbor_dev"
+	    , "facileNeighborSearching_kernel", "NTHREADS_FACILE_NS", "NEIGHBOR_NUM", "SMEM_PREF_FOR_NEIGHBOR_SEARCH"
+	    , "sortNeighbors"
+	    , "countContinuousNeighbors_kernel", "NTHREADS_SHRINK"
+	    , "commitNeighbors");
+  fprintf(fp, "%e\t%e\t%e\t%d\t%d\t%d\t%e\t%e\t%d\t%e\n"
+	  , invSteps * mean.examineNeighbor_dev, invSteps * mean.searchNeighbor_dev
+	  , invSteps * mean.searchNeighbor_kernel, NTHREADS_FACILE_NS, NEIGHBOR_NUM
 #ifdef  SMEM_PREF_FOR_NEIGHBOR_SEARCH
 	  , 1
 #else///SMEM_PREF_FOR_NEIGHBOR_SEARCH
 	  , 0
 #endif//SMEM_PREF_FOR_NEIGHBOR_SEARCH
-#ifdef  USE_WARP_SHUFFLE_FUNC_NEIGHBOR
-	  , 1
-#else///USE_WARP_SHUFFLE_FUNC_NEIGHBOR
-	  , 0
-#endif//USE_WARP_SHUFFLE_FUNC_NEIGHBOR
-	  );
+	  , invSteps * mean.sortNeighbors
+	  , invSteps * mean.countNeighbors_kernel, NTHREADS_SHRINK
+	  , invSteps * mean.commitNeighbors);
   fclose(fp);
 #endif//HUNT_FIND_PARAMETER
 
