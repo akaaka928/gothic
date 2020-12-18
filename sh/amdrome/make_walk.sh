@@ -4,7 +4,7 @@
 #SBATCH -w amd2      # use compute node equips NVIDIA A100 PCIe
 #SBATCH --nodes=1    # number of nodes, set to SLURM_JOB_NUM_NODES
 
-TIME=00:03:00
+TIME=00:02:30
 
 export MODULEPATH=$HOME/opt/modules:$MODULEPATH
 module purge
@@ -24,10 +24,14 @@ ERR=${LOGDIR}/make_walk.err
 make clean
 
 
-SM_CAPACITY=167936 # in units of byte, for NVIDIA A100
+SHARED_MEM_PER_SM=167936 # in units of byte, for NVIDIA A100
+MAX_REGISTERS_PER_SM=65536
+MAX_BLOCKS_PER_SM=32
+
+REGISTERS_PER_BLOCK=64 # typical value, not always correct
 
 
-LIST=./run_misc.sh
+LIST=./run_walk.sh
 echo "#!/bin/bash" > $LIST
 echo "#SBATCH -J hunt_walk" >> $LIST
 echo "#SBATCH -p amdrome" >> $LIST
@@ -52,6 +56,7 @@ ABSERR=1.953125000e-3
 
 
 INDEX=0
+# for NTHREADS in 1024
 for NTHREADS in 512 256 128 1024
 do
     # pad 0s for NTHREADS
@@ -68,14 +73,34 @@ do
     fi
     TOTZEROS=$zeros
 
+    # maximum number of blocks per SM (based on GPU spec)
+    MAX_NBLOCKS_SM=$MAX_BLOCKS_PER_SM
+    MIN_NBLOCKS_SM=2
+
+    # maximum number of blocks per SM (based on register usage)
+    MAX_BLOCKS_PER_SM_REGISTER=`echo "scale=0; (2 * $MAX_REGISTERS_PER_SM) / ($REGISTERS_PER_BLOCK * $NTHREADS)" | bc`
+    if [ $MAX_NBLOCKS_SM -gt $MAX_BLOCKS_PER_SM_REGISTER ]; then
+    	MAX_NBLOCKS_SM=$MAX_BLOCKS_PER_SM_REGISTER
+    fi
+
     for USE_WS in 1 0
     do
+	# maximum number of blocks per SM (based on shared memory usage)
+	MAX_BLOCKS_PER_SM_SHARED_MEM=`echo "scale=0; $SHARED_MEM_PER_SM / (4 * $NTHREADS * (10 - $USE_WS))" | bc`
+	if [ $MAX_NBLOCKS_SM -gt $MAX_BLOCKS_PER_SM_SHARED_MEM ]; then
+    	    MAX_NBLOCKS_SM=$MAX_BLOCKS_PER_SM_SHARED_MEM
+	fi
 
-	MAX_NBLOCKS_SM=`echo "scale=0; $SM_CAPACITY / (4 * $NTHREADS * (10 - $USE_WS))" | bc`
-	for (( NBLOCKS_SM = 2 ; NBLOCKS_SM <= $MAX_NBLOCKS_SM ; NBLOCKS_SM += 1 ))
+	if [ $MIN_NBLOCKS_SM -gt $MAX_NBLOCKS_SM ]; then
+    	    MIN_NBLOCKS_SM=1
+	fi
+	for (( NBLOCKS_SM = $MIN_NBLOCKS_SM ; NBLOCKS_SM <= $MAX_NBLOCKS_SM ; NBLOCKS_SM += 1 ))
 	do
+	    MAX_NLOOP=`echo "scale=0; ($SHARED_MEM_PER_SM / (4 * $NTHREADS * $NBLOCKS_SM)) - (6 - $USE_WS)" | bc`
+	    if [ $MAX_NLOOP -gt 8 ]; then
+    		MAX_NLOOP=8
+	    fi
 
-	    MAX_NLOOP=`echo "scale=0; ($SM_CAPACITY / (4 * $NTHREADS * $NBLOCKS_SM)) - (6 - $USE_WS)" | bc`
 	    for (( NLOOP = 1 ; NLOOP <= $MAX_NLOOP ; NLOOP += 1 ))
 	    do
 		# pad 0s for NLOOP
@@ -93,7 +118,8 @@ do
 		LOOPZEROS=$zeros
 
 		# for NWARP in 2 4 1 8 16 32
-		for NWARP in 2 4 1 8
+		# for NWARP in 2 4 1 8
+		for NWARP in 2 1 4
 		do
 		    # pad 0s for NWARP
 		    digit=2
@@ -110,7 +136,8 @@ do
 		    WARPZEROS=$zeros
 
 		    # for TSUB in 32 16 8 4 2 1
-		    for TSUB in 32 16 8
+		    # for TSUB in 32
+		    for TSUB in 32 16
 		    do
 			# pad 0s for TSUB
 			digit=2
@@ -131,12 +158,14 @@ do
 
 			    for USE_L2_ASIDE in 1 0
 			    do
+				MIN_L2_TREELEV=3
 				MAX_L2_TREELEV=7
 				if [ $USE_L2_ASIDE -eq 0 ]; then
-				    MAX_L2_TREELEV=1
+				    MIN_L2_TREELEV=0
+				    MAX_L2_TREELEV=0
 				fi
 
-				for (( L2_TREELEV = 1 ; L2_TREELEV <= $MAX_L2_TREELEV ; L2_TREELEV += 1 ))
+				for (( L2_TREELEV = $MIN_L2_TREELEV ; L2_TREELEV <= $MAX_L2_TREELEV ; L2_TREELEV += 1 ))
 				do
 
 				    # logging

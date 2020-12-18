@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/12/08 (Tue)
+ * @date 2020/12/17 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -5629,11 +5629,10 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
 	  , 0
 #endif//USE_WARP_REDUCE_FUNC
 #ifdef  USE_L2_SET_ASIDE_POLICY
-	  , 1
+	  , 1, NLEVEL_TREE_NODE_L2_PERSISTING
 #else///USE_L2_SET_ASIDE_POLICY
-	  , 0
+	  , 0, 0
 #endif//USE_L2_SET_ASIDE_POLICY
-	  , NLEVEL_TREE_NODE_L2_PERSISTING
 	  );
   /* criterion about PH-key level to split i-particles */
 #ifdef  NEIGHBOR_PHKEY_LEVEL

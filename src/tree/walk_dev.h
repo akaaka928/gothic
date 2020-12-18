@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/12/04 (Fri)
+ * @date 2020/12/18 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -407,20 +407,28 @@
 #endif//NLOOP
 
 
+#define SMEM_SIZE_CALC_ACC (SMEM_SIZE_SM_PREF / NBLOCKS_PER_SM)
+#   if  SMEM_SIZE_CALC_ACC > MAX_SMEM_SIZE_BLOCK
+#undef  SMEM_SIZE_CALC_ACC
+#define SMEM_SIZE_CALC_ACC (MAX_SMEM_SIZE_BLOCK)
+#endif//SMEM_SIZE_CALC_ACC > MAX_SMEM_SIZE_BLOCK
 
+
+#   if  SMEM_SIZE_CALC_ACC > MAX_STATIC_SMEM_SIZE_BLOCK
+/* use dynamic allocation for shared memory */
+#define DYNAMIC_SMEM_SIZE_CALC_ACC SMEM_SIZE_CALC_ACC
+#else///SMEM_SIZE_CALC_ACC > MAX_STATIC_SMEM_SIZE_BLOCK
+/* use static allocation for shared memory */
+#define DYNAMIC_SMEM_SIZE_CALC_ACC SMEM_SIZE
+#endif//SMEM_SIZE_CALC_ACC > MAX_STATIC_SMEM_SIZE_BLOCK
+
+
+
+/** capacity of shared memory per block in units of sizeof(float) */
+#define NSM4TRAVERSAL (SMEM_SIZE_CALC_ACC >> 2)
 
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
 
-#   if  NBLOCKS_PER_SM == 2
-/** (capacity of shared memory / sizeof(float)) / NBLOCKS_PER_SM */
-#define NSM4TRAVERSAL (SMEM_SIZE_SM_PREF >> 3)
-/* #   if  GPUVER >= 60 */
-/* /\** 8192 = 8 * 1024 = 16 * 1024 / 2 = (64KiB / sizeof(float)) / NBLOCKS_PER_SM on newer GPUs *\/ */
-/* #define NSM4TRAVERSAL (8192) */
-/* #else///GPUVER >= 60 */
-/* /\** 6144 = 6 * 1024 = 12 * 1024 / 2 = (48KiB / sizeof(float)) / NBLOCKS_PER_SM on older GPUs *\/ */
-/* #define NSM4TRAVERSAL (6144) */
-/* #endif//GPUVER >= 60 */
 #   if  NLOOP > ((NSM4TRAVERSAL / (5 * NTHREADS)) - 2)
 #undef  NLOOP
 #define NLOOP   ((NSM4TRAVERSAL / (5 * NTHREADS)) - 2)
@@ -430,32 +438,9 @@
 #else///USE_WARP_SHUFFLE_FUNC
 #define NQUEUE  (DIV_NTHREADS(NSM4TRAVERSAL) - 5 * (1 + NLOOP) - 1)
 #endif//USE_WARP_SHUFFLE_FUNC
-#else///NBLOCKS_PER_SM == 2
-/** capacity of shared memory / sizeof(float) */
-#define NSM4TRAVERSAL (SMEM_SIZE_SM_PREF >> 2)
-/* #   if  GPUVER >= 60 */
-/* /\** 16384 = 16 * 1024 = 64KiB / sizeof(float) on newer GPUs *\/ */
-/* #define NSM4TRAVERSAL (16384) */
-/* #else///GPUVER >= 60 */
-/* /\** 12288 = 12 * 1024 = 48KiB / sizeof(float) on older GPUs *\/ */
-/* #define NSM4TRAVERSAL (12288) */
-/* #endif//GPUVER >= 60 */
-#   if  NLOOP > ((NSM4TRAVERSAL / (5 * NTHREADS * NBLOCKS_PER_SM)) - 2)
-#undef  NLOOP
-#define NLOOP   ((NSM4TRAVERSAL / (5 * NTHREADS * NBLOCKS_PER_SM)) - 2)
-#endif//NLOOP > ((6144 / (5 * NTHREADS)) - 2)
-#ifdef  USE_WARP_SHUFFLE_FUNC
-#define NQUEUE  (DIV_NTHREADS(NSM4TRAVERSAL / NBLOCKS_PER_SM) - 5 * (1 + NLOOP))
-#else///USE_WARP_SHUFFLE_FUNC
-#define NQUEUE  (DIV_NTHREADS(NSM4TRAVERSAL / NBLOCKS_PER_SM) - 5 * (1 + NLOOP) - 1)
-#endif//USE_WARP_SHUFFLE_FUNC
-#endif//NBLOCKS_PER_SM == 2
 
 #else///INDIVIDUAL_GRAVITATIONAL_SOFTENING
 
-#   if  NBLOCKS_PER_SM == 2
-/** (capacity of shared memory / sizeof(float)) / NBLOCKS_PER_SM */
-#define NSM4TRAVERSAL (SMEM_SIZE_SM_PREF >> 3)
 #   if  NLOOP > ((NSM4TRAVERSAL / (4 * NTHREADS)) - 2)
 #undef  NLOOP
 #define NLOOP   ((NSM4TRAVERSAL / (4 * NTHREADS)) - 2)
@@ -465,31 +450,8 @@
 #else///USE_WARP_SHUFFLE_FUNC
 #define NQUEUE  (DIV_NTHREADS(NSM4TRAVERSAL) - 4 * (1 + NLOOP) - 1)
 #endif//USE_WARP_SHUFFLE_FUNC
-#else///NBLOCKS_PER_SM == 2
-/** capacity of shared memory / sizeof(float) */
-#define NSM4TRAVERSAL (SMEM_SIZE_SM_PREF >> 2)
-#   if  NLOOP > ((NSM4TRAVERSAL / (4 * NTHREADS * NBLOCKS_PER_SM)) - 2)
-#undef  NLOOP
-#define NLOOP   ((NSM4TRAVERSAL / (4 * NTHREADS * NBLOCKS_PER_SM)) - 2)
-#endif//NLOOP > ((NSM4TRAVERSAL / (4 * NTHREADS * NBLOCKS_PER_SM)) - 2)
-#ifdef  USE_WARP_SHUFFLE_FUNC
-#define NQUEUE  (DIV_NTHREADS(NSM4TRAVERSAL / NBLOCKS_PER_SM) - 4 * (1 + NLOOP))
-#else///USE_WARP_SHUFFLE_FUNC
-#define NQUEUE  (DIV_NTHREADS(NSM4TRAVERSAL / NBLOCKS_PER_SM) - 4 * (1 + NLOOP) - 1)
-#endif//USE_WARP_SHUFFLE_FUNC
-#endif//NBLOCKS_PER_SM == 2
 
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
-
-
-#   if  (SMEM_SIZE_SM_PREF / NBLOCKS_PER_SM) > MAX_SMEM_SIZE_PER_BLOCK
-/* use dynamic allocation for shared memory */
-#define SMEM_SIZE_CALC_ACC (SMEM_SIZE_SM_PREF / NBLOCKS_PER_SM)
-#else///(SMEM_SIZE_SM_PREF / NBLOCKS_PER_SM) > MAX_SMEM_SIZE_PER_BLOCK
-/* use static allocation for shared memory */
-#define SMEM_SIZE_CALC_ACC SMEM_SIZE
-#endif//(SMEM_SIZE_SM_PREF / NBLOCKS_PER_SM) > MAX_SMEM_SIZE_PER_BLOCK
-
 
 
 /**

@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/12/03 (Thu)
+ * @date 2020/12/18 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -1543,9 +1543,9 @@ __device__ __forceinline__ double atomicAdd(double* address, double val)
  * @param (bufSize) size of the buffer
  * @return (overflow) a variable to detect buffer overflow
  */
-#   if  (SMEM_SIZE_SM_PREF / NBLOCKS_PER_SM) > MAX_SMEM_SIZE_PER_BLOCK
+#   if  SMEM_SIZE_CALC_ACC > MAX_STATIC_SMEM_SIZE_BLOCK
 extern __shared__ real dynamic_shared_memory[];
-#endif//(SMEM_SIZE_SM_PREF / NBLOCKS_PER_SM) > MAX_SMEM_SIZE_PER_BLOCK
+#endif//SMEM_SIZE_CALC_ACC > MAX_STATIC_SMEM_SIZE_BLOCK
 #define TSUB_TN_SCAN_VEC4_INC TSUB
 #define NWARP_TN_SCAN_VEC4_INC NWARP
 #include "../util/scan_vec4_tsub_nwarp_inc.cu"
@@ -1597,7 +1597,7 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 #endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)
 
   /** shared quantities in the thread parallelized version */
-#   if  (SMEM_SIZE_SM_PREF / NBLOCKS_PER_SM) > MAX_SMEM_SIZE_PER_BLOCK
+#   if  SMEM_SIZE_CALC_ACC > MAX_STATIC_SMEM_SIZE_BLOCK
   jnode* pj = (jnode*)dynamic_shared_memory;
   uint* queue = (uint *)&pj[NTHREADS * (NLOOP + 1)];
 #ifndef USE_WARP_SHUFFLE_FUNC
@@ -1610,7 +1610,7 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
   real* eps2 = (real*)&queue[NTHREADS * NQUEUE];
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
 #endif//USE_WARP_SHUFFLE_FUNC
-#else///(SMEM_SIZE_SM_PREF / NBLOCKS_PER_SM) > MAX_SMEM_SIZE_PER_BLOCK
+#else///SMEM_SIZE_CALC_ACC > MAX_STATIC_SMEM_SIZE_BLOCK
   __shared__ jnode   pj[NTHREADS * (NLOOP + 1)];
   __shared__ uint queue[NTHREADS * NQUEUE];
 #ifndef USE_WARP_SHUFFLE_FUNC
@@ -1619,7 +1619,7 @@ __global__ void __launch_bounds__(NTHREADS, NBLOCKS_PER_SM) calcAcc_kernel
 #ifdef  INDIVIDUAL_GRAVITATIONAL_SOFTENING
   __shared__ real  eps2[NTHREADS * (NLOOP + 1)];
 #endif//INDIVIDUAL_GRAVITATIONAL_SOFTENING
-#endif//(SMEM_SIZE_SM_PREF / NBLOCKS_PER_SM) > MAX_SMEM_SIZE_PER_BLOCK
+#endif//SMEM_SIZE_CALC_ACC > MAX_STATIC_SMEM_SIZE_BLOCK
 
   const int hq = lane + DIV_TSUB(head) * TSUB * NQUEUE;/**< head index of the shared array close and queue within a thread group */
   const int hp =        DIV_TSUB(head) * TSUB * (NLOOP + 1);/**< head index of the shared array pj within a thread group */
@@ -2523,7 +2523,7 @@ static inline void callCalcGravityFunc
   if( grpNum > 0 ){
 #endif//defined(BLOCK_TIME_STEP) && !defined(SERIALIZED_EXECUTION)
     if( blck <= MAX_BLOCKS_PER_GRID ){
-      calcAcc_kernel<<<blck, thrd, SMEM_SIZE_CALC_ACC, sinfo->stream[*sidx]>>>
+      calcAcc_kernel<<<blck, thrd, DYNAMIC_SMEM_SIZE_CALC_ACC, sinfo->stream[*sidx]>>>
 	(laneInfo,
 #ifdef  BLOCK_TIME_STEP
 	 pi.jpos,
@@ -2576,7 +2576,7 @@ static inline void callCalcGravityFunc
 	if( Nblck > Nrem )	  Nblck = Nrem;
 
 	int Nsub = Nblck * NGROUPS;
-	calcAcc_kernel<<<Nblck, thrd, SMEM_SIZE_CALC_ACC, sinfo->stream[*sidx]>>>
+	calcAcc_kernel<<<Nblck, thrd, DYNAMIC_SMEM_SIZE_CALC_ACC, sinfo->stream[*sidx]>>>
 	  (&laneInfo[hidx],
 #ifdef  BLOCK_TIME_STEP
 	   pi.jpos,
@@ -3671,9 +3671,9 @@ void setGlobalConstants_walk_dev_cu
 #endif//GPUVER < 70
 #endif//SMPREF == 1
 
-#   if  (SMEM_SIZE_SM_PREF / NBLOCKS_PER_SM) > MAX_SMEM_SIZE_PER_BLOCK
-  checkCudaErrors(cudaFuncSetAttribute(calcAcc_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, SMEM_SIZE_SM_PREF / NBLOCKS_PER_SM));
-#endif//(SMEM_SIZE_SM_PREF / NBLOCKS_PER_SM) > MAX_SMEM_SIZE_PER_BLOCK
+#   if  SMEM_SIZE_CALC_ACC > MAX_STATIC_SMEM_SIZE_BLOCK
+  checkCudaErrors(cudaFuncSetAttribute(calcAcc_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, SMEM_SIZE_CALC_ACC));
+#endif//SMEM_SIZE_CALC_ACC > MAX_STATIC_SMEM_SIZE_BLOCK
 
 #   if  WIDEBANK == 0
   checkCudaErrors(cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeFourByte));
