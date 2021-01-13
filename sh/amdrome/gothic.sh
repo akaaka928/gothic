@@ -4,9 +4,10 @@
 #SBATCH -p amdrome            # partition name
 #SBATCH -w amd2     # use compute node equips NVIDIA A100 PCIe
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
-#SBATCH --ntasks=1            # number of total MPI processes, set to SLURM_NTASKS (must be equal to number of GPUs)
 #SBATCH --gpus-per-node=1
-##SBATCH --gpu-freq=210 # requested GPU frequency: 210 MHz--1410 MHz (bin = 15 MHz)
+#SBATCH --cpus-per-gpu=1
+##SBATCH --gpu-freq=1410 # requested GPU frequency: 210 MHz--1410 MHz (bin = 15 MHz)
+#SBATCH --mem=2048 # in units of MB
 
 
 

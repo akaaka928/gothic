@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/12/18 (Fri)
+ * @date 2020/12/24 (Thu)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -184,7 +184,7 @@
  * @brief number of levels for tree nodes persisting on L2 cache (40 MB)
  */
 #ifndef NLEVEL_TREE_NODE_L2_PERSISTING
-#define NLEVEL_TREE_NODE_L2_PERSISTING (5)
+#define NLEVEL_TREE_NODE_L2_PERSISTING (7)
 #endif//NLEVEL_TREE_NODE_L2_PERSISTING
 /* more(4 byte) + jpos(16 byte) + mj(4 byte or 8 byte for w/o or w/ INDIVIDUAL_GRAVITATIONAL_SOFTENING) per tree node */
 /* Lev = 0: Nnode = 1 -> 24 byte or 28 byte */
@@ -253,7 +253,11 @@
  * @detail determined by capacity of the shared memory
  */
 #ifndef NBLOCKS_PER_SM
+#   if  GPUVER >= 80
+#define NBLOCKS_PER_SM (3)
+#else///GPUVER >= 80
 #define NBLOCKS_PER_SM (2)
+#endif//GPUVER >= 80
 #endif//NBLOCKS_PER_SM
 
 
@@ -399,11 +403,15 @@
  * @brief a parameter to increase arithmetic intensity
  */
 #ifndef NLOOP
+#   if  GPUVER >= 80
+#define NLOOP (4)
+#else///GPUVER >= 80
 #   if  GPUVER >= 70
 #define NLOOP (3)
 #else///GPUVER >= 70
 #define NLOOP (1)
 #endif//GPUVER >= 70
+#endif//GPUVER >= 80
 #endif//NLOOP
 
 

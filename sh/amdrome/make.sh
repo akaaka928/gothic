@@ -4,6 +4,8 @@
 #SBATCH -p amdrome  # partition name
 #SBATCH -w amd2     # use compute node equips NVIDIA A100 PCIe
 #SBATCH --nodes=1   # number of nodes, set to SLURM_JOB_NUM_NODES
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=64
 
 
 

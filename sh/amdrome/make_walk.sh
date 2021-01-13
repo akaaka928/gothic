@@ -3,6 +3,8 @@
 #SBATCH -p amdrome   # partition name
 #SBATCH -w amd2      # use compute node equips NVIDIA A100 PCIe
 #SBATCH --nodes=1    # number of nodes, set to SLURM_JOB_NUM_NODES
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=64
 
 TIME=00:02:30
 
@@ -38,6 +40,7 @@ echo "#SBATCH -p amdrome" >> $LIST
 echo "#SBATCH -w amd2" >> $LIST
 echo "#SBATCH --nodes=1" >> $LIST
 echo "#SBATCH --gpus-per-node=1" >> $LIST
+echo "#SBATCH --cpus-per-gpu=1" >> $LIST
 echo "#SBATCH --gpu-freq=1410" >> $LIST
 echo "" >> $LIST
 echo "export MODULEPATH=\$HOME/opt/modules:\$MODULEPATH" >> $LIST
