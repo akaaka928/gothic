@@ -74,6 +74,14 @@
 
 
 /**
+ * @def ADOPT_MIKI2013_PERFORMANCE_MODEL
+ *
+ * @brief activates performance model based on Miki et al. (2013, Computer Physics Communications, 184, 2159-2168)
+ */
+#define ADOPT_MIKI2013_PERFORMANCE_MODEL
+
+
+/**
  * @def PARTIAL_SUM_ACCELERATION
  *
  * @brief activates accumulation with partial sum to reduce floating-point number operation errors

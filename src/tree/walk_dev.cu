@@ -2731,11 +2731,13 @@ static inline void callCalcGravityFunc_parallel
 #endif//SERIALIZED_EXECUTION
 
 
+#ifdef  ADOPT_MIKI2013_PERFORMANCE_MODEL
 static inline double Miki2013model(const int Nblk, const int Nsm)
 {
   const int Nhide = Nblk / Nsm;
   return ((double)(Nhide + ((Nblk % Nsm) > 0)));
 }
+#endif//ADOPT_MIKI2013_PERFORMANCE_MODEL
 
 
 /**
@@ -2867,8 +2869,11 @@ void calcGravity_dev
 #ifdef  BLOCK_TIME_STEP
       const double block = (double)BLOCKSIZE(BLOCKSIZE(grpNum, NGROUPS), NBLOCKS_PER_SM * devProp.numSM);
       const double share = (double)BLOCKSIZE(BLOCKSIZE(totNum, NGROUPS), NBLOCKS_PER_SM * devProp.numSM);
-      // *reduce = share / block;
+#ifdef  ADOPT_MIKI2013_PERFORMANCE_MODEL
       *reduce = Miki2013model(BLOCKSIZE(totNum, NGROUPS), devProp.numSM) / Miki2013model(BLOCKSIZE(grpNum, NGROUPS), devProp.numSM);
+#else///ADOPT_MIKI2013_PERFORMANCE_MODEL
+      *reduce = share / block;
+#endif//ADOPT_MIKI2013_PERFORMANCE_MODEL
 #endif//BLOCK_TIME_STEP
 
       /** gravity from j-particles within local process */
