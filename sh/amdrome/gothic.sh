@@ -10,6 +10,9 @@
 #SBATCH --mem=2048 # in units of MB
 
 
+if [ -z "$SLURM_NTASKS" ]; then
+    SLURM_NTASKS=1
+fi
 
 
 # global configurations
