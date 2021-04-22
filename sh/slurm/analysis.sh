@@ -2,7 +2,7 @@
 ###############################################################
 #SBATCH -J analysis            # name of job
 #SBATCH -t 04:00:00            # upper limit of elapsed time
-#SBATCH -p normal              # partition name
+#SBATCH -p regular              # partition name
 #SBATCH --nodes=1              # number of nodes, set to SLURM_JOB_NUM_NODES
 #SBATCH --ntasks=16            # number of total MPI processes, set to SLURM_NTASKS
 #SBATCH --ntasks-per-socket=8  # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET
