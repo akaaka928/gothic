@@ -1,4 +1,4 @@
-import numpy as np
+import numpy
 import math
 import h5py
 
@@ -253,21 +253,21 @@ def draw_figure(fileid, kind, sphe, radmin, radmax, rhomin, rhomax, encmin, encm
         num = h5file["attr" + str(ii)].attrs["number"][0]
         if (num > 1):
             folder = "rad" + str(ii) + "/"
-            rad = h5file[folder + "rad"]
-            rho = h5file[folder + "rho"]
-            enc = h5file[folder + "enc"]
-            sig = h5file[folder + "sig"]
+            rad = numpy.array(h5file[folder + "rad"])
+            rho = numpy.array(h5file[folder + "rho"])
+            enc = numpy.array(h5file[folder + "enc"])
+            sig = numpy.array(h5file[folder + "sig"])
             if osipkov_merritt:
-                sgt = h5file[folder + "tan"]
-                bet = h5file[folder + "bet"]
+                sgt = numpy.array(h5file[folder + "tan"])
+                bet = numpy.array(h5file[folder + "bet"])
 
             folder = "hor" + str(ii) + "/"
-            hor = h5file[folder + "hor"]
-            ver = h5file[folder + "height"]
-            Sig = h5file[folder + "Sigma"]
-            sigR = h5file[folder + "sigR"]
-            sigp = h5file[folder + "sigp"]
-            sigz = h5file[folder + "sigz"]
+            hor = numpy.array(h5file[folder + "hor"])
+            ver = numpy.array(h5file[folder + "height"])
+            Sig = numpy.array(h5file[folder + "Sigma"])
+            sigR = numpy.array(h5file[folder + "sigR"])
+            sigp = numpy.array(h5file[folder + "sigp"])
+            sigz = numpy.array(h5file[folder + "sigz"])
 
 
             if add_ini_sphe:
@@ -509,14 +509,14 @@ if add_ini_sphe:
         sphe_bet = [0]
     for kk in range(sphe_Nanal):
         folder = "data" + str(kk) + "/"
-        sphe_rad[kk] = data_file[folder + "rad"]
-        sphe_rho[kk] = data_file[folder + "rho"]
-        sphe_enc[kk] = data_file[folder + "enc"]
-        sphe_Sig[kk] = data_file[folder + "Sigma"]
-        sphe_sig[kk] = data_file[folder + "sigma_r"]
+        sphe_rad[kk] = numpy.array(data_file[folder + "rad"])
+        sphe_rho[kk] = numpy.array(data_file[folder + "rho"])
+        sphe_enc[kk] = numpy.array(data_file[folder + "enc"])
+        sphe_Sig[kk] = numpy.array(data_file[folder + "Sigma"])
+        sphe_sig[kk] = numpy.array(data_file[folder + "sigma_r"])
         if osipkov_merritt:
-            sphe_sgt[kk] = data_file[folder + "sigma_t"]
-            sphe_bet[kk] = data_file[folder + "beta"]
+            sphe_sgt[kk] = numpy.array(data_file[folder + "sigma_t"])
+            sphe_bet[kk] = numpy.array(data_file[folder + "beta"])
     data_file.close()
 else:
     sphe_rad = [0]
@@ -532,7 +532,7 @@ else:
 # add_ini_disk = path.isfile(diskfile)
 
 
-# cores = int(np.ceil(mp.cpu_count() / 2))
+# cores = int(numpy.ceil(mp.cpu_count() / 2))
 # pool = mp.Pool(cores)
 # args = [(ii, Nkind, Nsphe, radmin, radmax, rhomin, rhomax, encmin, encmax, sigmin, sigmax, betmin, betmax, hormin, hormax, Sigmin, Sigmax, sigRmin, sigRmax, sigpmin, sigpmax, sigzmin, sigzmax, diskmin, diskmax, add_ini_sphe, sphe_rad, sphe_rho, sphe_enc, sphe_Sig, sphe_sig, sphe_sgt, sphe_bet) for ii in range(init, last + 1, 1)]
 # pool.map(wrapper, args)
