@@ -6,7 +6,7 @@
  * @author Yohei Miki (University of Tokyo)
  * @author Masayuki Umemura (University of Tsukuba)
  *
- * @date 2020/12/24 (Thu)
+ * @date 2021/04/23 (Fri)
  *
  * Copyright (C) 2017 Yohei Miki and Masayuki Umemura
  * All rights reserved.
@@ -78,7 +78,7 @@
  *
  * @brief activates performance model based on Miki et al. (2013, Computer Physics Communications, 184, 2159-2168)
  */
-#define ADOPT_MIKI2013_PERFORMANCE_MODEL
+/* #define ADOPT_MIKI2013_PERFORMANCE_MODEL */
 
 
 /**
