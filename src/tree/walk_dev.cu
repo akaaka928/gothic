@@ -943,6 +943,9 @@ __device__ __forceinline__ void copyData_s2s(uint *src, int sidx, uint *dst, int
 #endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 }
 
+#ifdef  ENABLE_ASYNC_MEMCPY_TO_SHARED_MEMORY
+#include <cuda/barrier>
+#endif//ENABLE_ASYNC_MEMCPY_TO_SHARED_MEMORY
 /**
  * @fn copyData_g2s
  *
@@ -950,15 +953,27 @@ __device__ __forceinline__ void copyData_s2s(uint *src, int sidx, uint *dst, int
  */
 __device__ __forceinline__ void copyData_g2s(uint * RESTRICT gbuf, size_t srcHead, uint * RESTRICT sbuf, int dstHead, int numCopy, const int lane)
 {
-#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)
+#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && ((TSUB < 32) ||  ENABLE_ASYNC_MEMCPY_TO_SHARED_MEMORY)
   thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
-#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)
+#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && ((TSUB < 32) ||  ENABLE_ASYNC_MEMCPY_TO_SHARED_MEMORY)
 
+#ifdef  ENABLE_ASYNC_MEMCPY_TO_SHARED_MEMORY
+  cuda::barrier<cuda::thread_scope_system> bar;
+  init(&bar, 1);
+
+  cuda::memcpy_async(
+#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
+        tile,
+#endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
+        &sbuf[dstHead], &gbuf[srcHead], sizeof(uint) * numCopy, bar);
+  bar.arrive_and_wait();
+#else///ENABLE_ASYNC_MEMCPY_TO_SHARED_MEMORY
   /** fraction processing at loading from the head of destination array */
   const int numTemp = TSUB - (int)(srcHead & (TSUB - 1));/**< TSUB - (srcHead % TSUB) */
   const int numHead = (numTemp < numCopy) ? numTemp : numCopy;
-  if( lane < numHead )
+  if( lane < numHead ){
     sbuf[dstHead + lane] = gbuf[srcHead + lane];
+  }
 #ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   /** synchronization to reduce warp divergence */
 #   if  TSUB == 32
@@ -972,10 +987,11 @@ __device__ __forceinline__ void copyData_g2s(uint * RESTRICT gbuf, size_t srcHea
   numCopy -= numHead;
 
   /** sequential load from source on the global memory and store to destination on the shared memory */
-  for(int ii = lane; ii < numCopy; ii += TSUB)
+  for(int ii = lane; ii < numCopy; ii += TSUB){
     sbuf[dstHead + ii] = gbuf[srcHead + ii];
-#ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
-  /** synchronization to reduce warp divergence */
+    }
+#endif//ENABLE_ASYNC_MEMCPY_TO_SHARED_MEMORY
+    /** synchronization to reduce warp divergence */
 #   if  TSUB == 32
   __syncwarp();
 #else///TSUB == 32
