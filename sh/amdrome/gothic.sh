@@ -492,7 +492,7 @@ PROCS_PER_NODE=`expr $SLURM_NTASKS / $SLURM_JOB_NUM_NODES`
 
 export MODULEPATH=$HOME/opt/modules:$MODULEPATH
 module purge
-module load cuda cub
+module load cuda
 module load openmpi
 module load phdf5
 

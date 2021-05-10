@@ -15,7 +15,7 @@ module purge
 module load openmpi
 module load phdf5
 module load gsl lis
-module load cuda cub
+module load cuda
 
 cd $SLURM_SUBMIT_DIR
 module list
