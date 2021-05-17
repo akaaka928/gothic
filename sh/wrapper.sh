@@ -5,7 +5,8 @@ if [ $# -lt 5 ]; then
 fi
 
 # obtain rank of MPI process
-RANK=${MV2_COMM_WORLD_RANK:=${PMI_RANK:=${OMPI_COMM_WORLD_RANK:=0}}}
+RANK=${MV2_COMM_WORLD_RANK:=${PMIX_RANK:=${PMI_RANK:=${OMPI_COMM_WORLD_RANK:=0}}}}
+# PMIX_RANK for Fujitsu MPI, PJM_MPI_PROC or OMPI_UNIVERSE_SIZE for MPI_SIZE
 
 # set stdout and stderr for each MPI process
 LOGNAME=$2

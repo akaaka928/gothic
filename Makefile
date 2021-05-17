@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2021/04/19 (Mon) 11:47:10
+# last updated on 2021/05/15 (Sat) 17:02:03
 # Makefile for C Programming
 # Gravitational octree code for collisionless N-body simulations on GPUs
 #################################################################################################
@@ -104,22 +104,18 @@ MYDIR	:= $(HOME)
 MYINC	:= $(MYDIR)/inc
 MYLIB	:= $(MYDIR)/lib
 #################################################################################################
-# Reedbush
-ifeq ($(findstring reedbush, $(HOSTNAME)), reedbush)
-MYDIR	:= /lustre/jh180045l/$(USER)
+# Wisteria/BDEC-01 (Aquarius)
+ifeq ($(findstring wisteria, $(HOSTNAME)), wisteria)
+MYDIR	:= /work/gr16/$(USER)
 MYINC	:= $(MYDIR)/inc
-MYLIB	:= $(MYDIR)/lib
+MYLIB	:= $(MYDIR)/lib/aqu
 endif
 #################################################################################################
-# TSUBAME 3.0
-ifeq ($(findstring login, $(HOSTNAME)), login)
-MYDIR	:= /gs/hs1/jh180045/$(USER)
+# Wisteria/BDEC-01 (Odyssey)
+ifeq ($(findstring wo, $(HOSTNAME)), wo)
+MYDIR	:= /work/gr16/$(USER)
 MYINC	:= $(MYDIR)/inc
-MYLIB	:= $(MYDIR)/lib
-ifeq ($(USE_MPI_GET_FOR_LET), 1)
-# tentative treatment to switch off one-sided communication on TSUBAME 3.0
-USE_MPI_GET_FOR_LET	:= 0
-endif
+MYLIB	:= $(MYDIR)/lib/ody
 endif
 #################################################################################################
 # Server at ITC
@@ -1397,6 +1393,14 @@ zip:
 	$(VERBOSE)mv       $(DATE)tree.tar.xz pub/
 #################################################################################################
 clean:
+	$(VERBOSE)rm -f TAGS gmon.out
+	$(VERBOSE)rm -f $(ASMDIR)/*.s
+	$(VERBOSE)rm -f $(BINDIR)/*.log
+	$(VERBOSE)rm -f $(OBJDIR)/*.log
+	$(VERBOSE)rm -f $(OBJDIR)/*.o
+	$(VERBOSE)rm -f $(OBJMPGT) $(GOTHIC).sass
+#################################################################################################
+fullclean:
 	$(VERBOSE)rm -f TAGS gmon.out
 	$(VERBOSE)rm -f $(ASMDIR)/*.s
 	$(VERBOSE)rm -f $(BINDIR)/*.log
