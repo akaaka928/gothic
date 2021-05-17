@@ -1,7 +1,7 @@
 #!/bin/bash
 #PJM -g gr16
 #PJM -N magi
-#PJM -L rscgrp=debug-o
+#PJM -L rscgrp=short-o
 #PJM -L node=1
 #PJM --omp thread=48
 #PJM -L elapse=0:10:00
