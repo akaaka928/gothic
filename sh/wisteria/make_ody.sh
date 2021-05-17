@@ -16,4 +16,5 @@ export MODULEPATH="/work/gr16/share/modules/lib:$MODULEPATH"
 module load lis
 
 make dir
+make clean
 make -j init extend anal m31
