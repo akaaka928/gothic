@@ -5,6 +5,7 @@
 #PJM -L gpu=1
 #PJM --mpi proc=1
 #PJM -L elapse=3:00:00
+#PJM -s
 
 
 # global configurations

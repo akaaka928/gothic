@@ -3,7 +3,6 @@
 #SBATCH -t 02:00:00           # upper limit of elapsed time
 #SBATCH -p regular            # partition name
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
-#SBATCH --get-user-env  # retrieve the login environment variables
 
 
 # job execution via SLURM
@@ -35,9 +34,9 @@ echo "use $SLURM_JOB_CPUS_PER_NODE CPUs per node"
 TIME=`date`
 echo "start: $TIME"
 
-# module purge
-# module load intelmpi
-# module load texlive
+module purge
+module load openmpi
+module load texlive
 
 # job execution by using SLURM
 echo $LOADEDMODULES | grep -e openmpi -e intelmpi -e mvapich -e mvapich2

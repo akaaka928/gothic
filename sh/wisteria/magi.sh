@@ -5,6 +5,7 @@
 #PJM -L node=1
 #PJM --omp thread=48
 #PJM -L elapse=0:10:00
+#PJM -s
 
 
 # global configurations

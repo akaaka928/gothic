@@ -3,8 +3,9 @@
 #PJM -N analysis
 #PJM -L rscgrp=short-o
 #PJM -L node=1
-#PJM --mpi proc=48
+#PJM --mpi proc=8
 #PJM -L elapse=1:00:00
+#PJM -s
 
 
 ###############################################################
