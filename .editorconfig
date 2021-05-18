@@ -15,7 +15,7 @@ indent_style = space
 indent_size = 2
 
 # configuration for scripts
-[*.{sh,py}]
+[*.{sh,py,xcr}]
 indent_style = tab
 tab_width = 4
 

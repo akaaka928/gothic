@@ -1,0 +1,105 @@
+# submit multiple jobs by using Xcrypt
+
+# # Xcrypt specific settings
+# use base qw(limit core);
+# use File::Copy;
+# limit::initialize(2);# limitation on Aquarius
+
+# global settings
+$id_name = "hunt_misc";
+$num_trials = 1;
+
+# list of parameters in GOTHIC
+# my @list_Ttot = (512, 256, 128, 1024);
+# my @list_Tsub = (32, 16, 8, 4, 2, 1);
+# my @list_ws = (1, 0);
+# my @list_wr = (1, 0);
+# my @list_sm = (1, 0);
+my @list_Ttot = (512, 256);
+my @list_Tsub = (32, 16);
+my @list_ws = (1);
+my @list_wr = (1);
+my @list_sm = (1);
+$num_Ttot = scalar @list_Ttot;
+$num_Tsub = scalar @list_Tsub;
+$num_ws = scalar @list_ws;
+$num_wr = scalar @list_wr;
+$num_sm = scalar @list_sm;
+
+# modules settings for Aquarius <- meaningless??
+`module purge`;
+`module load cuda`;
+`module load gcc ompi-cuda`;
+`export MODULEPATH=/work/gr16/share/modules/lib:\$MODULEPATH`;
+`module load phdf5`;
+`module load cub`;
+# local $list = `module list`;
+# print($list);
+
+# compilation
+my @target = ();
+for(local $Ttot = 0; $Ttot < $num_Ttot; $Ttot++){
+	for(local $Tsub = 0; $Tsub < $num_Tsub; $Tsub++){
+		for(local $ws = 0; $ws < $num_ws; $ws++){
+			for(local $wr = 0; $wr < $num_wr; $wr++){
+				for(local $sm = 0; $sm < $num_sm; $sm++){
+					local $exec = sprintf("tot%04dsub%02dws%dwr%dsm%d", $list_Ttot[$Ttot], $list_Tsub[$Tsub], $list_ws[$ws], $list_wr[$wr], $list_sm[$sm]);
+					# tt{$name_Ttot[$Ttot]}ts{$name_Tsub[$Tsub]}ws{$name_ws[$ws]}wr{$name_wr[$wr]}sm{$name_sm[$sm]};
+					`make gothic MEASURE_ELAPSED_TIME=1 HUNT_OPTIMAL_WALK_TREE=0 HUNT_OPTIMAL_INTEGRATE=0 HUNT_OPTIMAL_MAKE_TREE=1 HUNT_OPTIMAL_MAKE_NODE=1 HUNT_OPTIMAL_NEIGHBOUR=1 HUNT_OPTIMAL_SEPARATION=0 NUM_NTHREADS=$list_Ttot[$Ttot] NUM_TSUB=$list_Tsub[$Tsub] USE_WARPSHUFFLE=$list_ws[$ws] USE_WARPREDUCE=$list_wr[$wr] PREF_SHARED_MEM=$list_sm[$sm] ADOPT_GADGET_TYPE_MAC=1`;
+					`mv bin/gothic bin/$exec`;
+					`make clean`;
+
+					if(-e sprintf("bin/%s", $exec)){
+						push(@target, $exec);
+						# print "$exec exists\n"
+					}
+					# else{
+					# 	print "$exec is missing\n"
+					# }
+				}
+			}
+		}
+	}
+}
+$num_target = scalar @target;
+
+# # confirmation
+# for(local $i = 0; $i <= $#target; $i++){
+# 	print "$target[$i]\n"
+# }
+# print "$num_target binaries\n"
+
+# # Xcrypt specific settings
+# %template = (
+# 	'id' => "$id_name",
+# 	'RANGE0' => [0..$num_target-1],
+
+# 	# commands executed on compute node
+# 	'exe0' => 'module purge',
+# 	'exe1' => 'module load cuda gcc ompi-cuda',
+# 	'exe2' => 'export MODULEPATH=/work/gr16/share/modules/lib:$MODULEPATH',
+# 	'exe3' => 'module load phdf5 cub',
+# 	'exe4' => 'module list',
+# 	'exe5' => 'numactl --localalloc',
+# 	'arg5_0' => sprintf("bin/", $target[$VALUE[0]]),
+# 	'arg5_1' => '-absErr=1.953125000e-3',
+# 	'arg5_2' => '-file=m31',
+# 	'arg5_3' => sprintf("-jobID=%d", $VALUE[0]),
+# 	'arg5_4' => sprintf("1>>%s_%d.log", $target[$VALUE[0]], $VALUE[0]),
+# 	'arg5_5' => sprintf("2>>%s_%d.err", $target[$VALUE[0]], $VALUE[0]),
+
+# 	# settings for job script
+# 	'JS_group' => 'gr16',
+# 	'JS_queue' => 'share',
+# 	'JS_gpu' => '1',
+# 	'JS_limit_time' => '00:03:00',
+
+# 	# commands executed before job submission
+# 	'before' => sub{
+# 		print "launch $self->{id}\n";
+# 	},
+# 	'after' => sub{
+# 		print "finish $self->{id}\n";
+# 	}
+# );
+# prepare_submit_sync(%template);
