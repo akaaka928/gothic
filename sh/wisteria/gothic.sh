@@ -505,8 +505,8 @@ if [ $PROCS -gt 1 ]; then
     mpiexec sh/wrapper.sh $EXEC log/${FILE}_${PJM_JOBNAME} $PJM_JOBID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION
 else
     # set stdout and stderr
-    STDOUT=log/${FILE}_$PJM_JOBNAME.o${PJM_JOBID}
-    STDERR=log/${FILE}_$PJM_JOBNAME.e${PJM_JOBID}
+    STDOUT=log/${FILE}_${PJM_JOBNAME}.o${PJM_JOBID}
+    STDERR=log/${FILE}_${PJM_JOBNAME}.e${PJM_JOBID}
     if [ `which numactl` ]; then
 	# run with numactl
 	echo "numactl --localalloc $EXEC $OPTION 1>>$STDOUT 2>>$STDERR"
