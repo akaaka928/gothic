@@ -1400,7 +1400,7 @@ zip:
 	$(VERBOSE)mkdir pub; \
 	fi
 	$(VERBOSE)tar -acvf $(DATE)tree.tar.xz \
-	README.md LICENSE.txt Makefile $(SRCDIR) sh cfg plt py plugins/README \
+	README.md LICENSE.txt Makefile $(SRCDIR) sh cfg plt py xcr plugins/README \
 	$(XMLBODY) $(SRCBODY) $(XMLSNAP) $(SRCSNAP) $(XMLAERR) $(SRCAERR) $(XMLDUMP) $(SRCDUMP) $(XMLDISK) $(SRCDISK) $(XMLDIST) $(SRCDIST) $(XMLPROF) $(SRCPROF)
 	$(VERBOSE)mv       $(DATE)tree.tar.xz pub/
 #################################################################################################
