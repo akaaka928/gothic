@@ -76,11 +76,7 @@
  */
 #ifndef NTHREADS_PHSORT
 #   if  GPUVER >= 80
-#   if  GPUGEN < 80
-#define NTHREADS_PHSORT (128)
-#else///GPUGEN < 80
 #define NTHREADS_PHSORT (256)
-#endif//GPUGEN < 80
 #else///GPUVER >= 80
 #   if  GPUVER == 52
 #define NTHREADS_PHSORT (1024)

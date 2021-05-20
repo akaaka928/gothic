@@ -81,7 +81,7 @@
 #   if  GPUVER >= 80
 #   if  GPUGEN <= 60
 /** Pascal mode */
-#define NTHREADS_MAC (512)
+#define NTHREADS_MAC (128)
 #else///GPUGEN <= 60
 /** Ampere mode */
 #define NTHREADS_MAC (128)
@@ -430,7 +430,11 @@
  * @brief number of threads per block for initTreeBody_kernel
  */
 #ifndef NTHREADS_INIT_BODY
+#   if  GPUVER >= 80
+#define NTHREADS_INIT_BODY (1024)
+#else///GPUVER >= 80
 #define NTHREADS_INIT_BODY (128)
+#endif//GPUVER >= 80
 #endif//NTHREADS_INIT_BODY
 
 
