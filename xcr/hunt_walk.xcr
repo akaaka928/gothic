@@ -1,9 +1,9 @@
 # submit multiple jobs by using Xcrypt
 
-# # Xcrypt specific settings
-# use base qw(limit core);
-# use File::Copy;
-# limit::initialize(2);# limitation on Aquarius
+# Xcrypt specific settings
+use base qw(limit core);
+use File::Copy;
+limit::initialize(2);# limitation on Aquarius
 
 # global settings
 $id_name = "hunt_walk";
@@ -22,50 +22,37 @@ my $bin = "bin";
 my @target = glob('bin/tot*');
 $num_target = scalar @target;
 
-# confirmation
-for(local $i = 0; $i <= $#target; $i++){
-	print "$target[$i]\n";
-}
-print "$num_target binaries\n";
+# # confirmation
+# for(local $i = 0; $i <= $#target; $i++){
+# 	print "$target[$i]\n";
+# }
+# print "$num_target binaries\n";
 
 # count number of job-packets
 $num_procs = $num_nodes * $GPUs_per_node;
 $num_pools = (1 + int(($num_target - 1) / $num_procs));
-print "$num_pools submissions\n";
+# print "$num_pools submissions\n";
 
+# prepare to duplicate outputs
+my $series = "m31";
+for(local $i = 0; $i < $num_procs; $i++){
+    # cp dat/m31.* -> dat/m31_$i.*
+    copy(sprintf("dat/%s.run.dat", $series), sprintf("dat/%s_%d.run.dat", $series, $i));
+    copy(sprintf("dat/%s.cfg.dat", $series), sprintf("dat/%s_%d.cfg.dat", $series, $i));
+    copy(sprintf("dat/%s.tmp0.h5", $series), sprintf("dat/%s_%d.tmp0.h5", $series, $i));
+}
 
-
-# # taken from sh/slurm/compress.sh
-# LIST=compress_list.txt
-# if [ -e $LIST ]; then
-#     rm -f $LIST
-# fi
-# # ls -1 $SRCDIR/*.snp???.h5 > $LIST
-# ls -1 $SRCDIR/*.h5 > $LIST
-# SUBLIST=compress_sub
-# split -d -n l/$SLURM_NTASKS $LIST $SUBLIST
-# rm -f $LIST
-
-
-# # taken from sh/slurm/compress_sub.sh
-# while read LINE; do
-#     FILE=${LINE##*/}
-#     SRC=$SRCDIR/$FILE
-#     DST=$DSTDIR/$FILE
-#     $NUMACTL h5repack -f SHUF -f GZIP=9 -i $SRC -o $DST
-#     $NUMACTL h5diff -n 1 $SRC $DST
-#     if [ $? -eq 0 ]; then
-# 		# $? is 0 if h5diff returns no error
-# 		$NUMACTL rm -f $SRC
-# 		echo $DST | tee -a $OUT
-#     else
-# 		$NUMACTL rm -f $DST
-# 		echo $SRC | tee -a $ERR
-#     fi
-# done < $LIST
-# rm -f $LIST
-
-
+# split EXEC list
+local $full_list = "EXEC_ALL";
+open(OUT, ">$full_list") or die "$!";
+for(local $i = 0; $i < $num_target; $i++){
+	print OUT "$target[$i]\n";
+}
+close(OUT);
+my $part_list = "EXEC_SUB";
+my $digits = 5;
+`split -d -l $num_procs --suffix-length=$digits $full_list $part_list`;
+unlink $full_list;
 
 
 # Xcrypt specific settings
@@ -82,14 +69,14 @@ print "$num_pools submissions\n";
 	'exe3' => 'module load phdf5 cub',
 	'exe4' => 'module list',
 	# job execution
-	'exe5'    => 'mpiexec sh/wisteria/split_gpu.sh',
+	'exe5'    => 'mpiexec sh/wisteria/split_hunt_walk.sh',
 	'arg5_0@' => sub{"--wrapper-Nprocs_node=$GPUs_per_node"},
 	'arg5_1@' => sub{"--wrapper-Nprocs_socket=$GPUs_per_socket"},
-	# pass EXEC list via --wrapper-HOGE option
-	'arg5_3@' => sub{"--wrapper-jobID-head=$VALUE[0]"},
-	'arg5_4@' => sub{"--wrapper-jobID-unit=$num_procs"},# -jobID= $VALUE[0] * $num_procs + MPI_RANK
+    'arg5_2@' => sub{"--wrapper-EXEC-list=$part_list"},
+    'arg5_3@' => sub{"--wrapper-packetID=$VALUE[0]"},
+	'arg5_4@' => sub{"--wrapper-digits=$digits"},
 	'arg5_5'  => '-absErr=1.953125000e-3',
-	'arg5_6'  => '-file=m31',
+	'arg5_6@' => sub{"--wrapper-series=$series"},
 	'arg5_7'  => '--wrapper-logdir=log',
 	# 'arg5_0@' => sub{"$bin/$target[$VALUE[0]]"},
 	# 'arg5_3@' => sub{"-jobID=$VALUE[0]"},
@@ -99,11 +86,9 @@ print "$num_pools submissions\n";
 	# commands executed before job submission
 	'before' => sub{
 		print "launch $self->{id}\n";
-		# generate EXEC list (up to $num_nodes * $GPUs_per_node files)
 	},
 	'after' => sub{
 		print "finish $self->{id}\n";
-		# remove EXEC list
 	},
 
 	# settings for job script

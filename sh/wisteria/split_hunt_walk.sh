@@ -1,27 +1,21 @@
 #!/bin/sh
 
-# read input key-value pairs and extract EXEC (with options)
-EXEC=""
+# read input key-value pairs and extract options
 for arg in "$@"
 do
 	IFS='=' read -r key val <<< "$arg"
 	case $key in
 		--wrapper-Nprocs_node) PROCS_PER_NODE=${val};;
 		--wrapper-Nprocs_socket) PROCS_PER_SOCKET=${val};;
-		--wrapper-stdout) STDOUT=${val};;
-		--wrapper-stderr) STDERR=${val};;
+		--wrapper-EXEC-list) EXEC_LIST=${val};;
+		--wrapper-packetID) PACKET_ID=${val};;
+		--wrapper-digits) digit=${val};;
+		--wrapper-series) SERIES=${val};;
+		--wrapper-logdir) LOGDIR=${val};;
 		--wrapper-omp_env) OMP_ENV=${val};;
-		*) EXEC="$EXEC $arg";;
+		*) OPTION="$arg";;
 	esac
 done
-
-# set stdout and stderr (if necessary)
-if [ -z "$STDOUT" ]; then
-	STDOUT=stdout.o${$}
-fi
-if [ -z "$STDERR" ]; then
-	STDERR=stdout.e${$}
-fi
 
 # obtain rank of MPI process
 MPI_RANK=${MV2_COMM_WORLD_RANK:=${PMI_RANK:=${OMPI_COMM_WORLD_RANK:=${PMIX_RANK:=0}}}}
@@ -54,12 +48,31 @@ if [ `which numactl` ]; then
     NUMACTL="numactl --cpunodebind=$SOCKET --localalloc"
 fi
 
-# # set stdout and stderr for each MPI process (if desired)
-# STDOUT=${STDOUT}_${MPI_RANK}
-# STDERR=${STDERR}_${MPI_RANK}
+
+# pick up the EXEC
+int="`echo ${#PACKET_ID}`"
+if [ "$int" -le "$digit" ]; then
+    rem=`expr $digit - $int`
+    zeros=""
+    count=0
+    while [ "$count" -lt "$rem" ]; do
+	zeros="`echo ${zeros}0`"
+	count=`expr $count + 1`
+    done
+fi
+LIST=${EXEC_LIST}${zeros}${PACKET_ID}
+LINE=`expr $RANK + 1`
+EXEC=`sed -n ${LINE}P ${LIST}`
+
+# set filename
+FILE=${SERIES}_${RANK}
+
+# set stdout and stderr
+STDOUT=${LOGDIR}/${FILE}_${PACKET_ID}.log
+STDERR=${LOGDIR}/${FILE}_${PACKET_ID}.log
 
 # execute job
-echo "$OMP_ENV $NUMACTL $EXEC 1>>$STDOUT 2>>$STDERR"
-$OMP_ENV $NUMACTL $EXEC 1>>$STDOUT 2>>$STDERR
+echo "$OMP_ENV $NUMACTL $EXEC -file=${FILE} -jobID=${PACKET_ID} $OPTION 1>>$STDOUT 2>>$STDERR"
+$OMP_ENV $NUMACTL $EXEC -file=${FILE} -jobID=${PACKET_ID} $OPTION 1>>$STDOUT 2>>$STDERR
 
 exit 0
