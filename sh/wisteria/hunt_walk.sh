@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # modules settings for Aquarius
 module purge
@@ -49,7 +49,8 @@ do
     MIN_NBLOCKS_SM=2
 
     # maximum number of blocks per SM (based on register usage)
-    MAX_BLOCKS_PER_SM_REGISTER=`echo "scale=0; (2 * $MAX_REGISTERS_PER_SM) / ($REGISTERS_PER_BLOCK * $NTHREADS)" | bc`# 2 is safety factor (REGISTERS_PER_BLOCK is just a typical value)
+	# 2 is safety factor (REGISTERS_PER_BLOCK is just a typical value)
+    MAX_BLOCKS_PER_SM_REGISTER=`echo "scale=0; (2 * $MAX_REGISTERS_PER_SM) / ($REGISTERS_PER_BLOCK * $NTHREADS)" | bc`
     if [ $MAX_NBLOCKS_SM -gt $MAX_BLOCKS_PER_SM_REGISTER ]; then
 		MAX_NBLOCKS_SM=$MAX_BLOCKS_PER_SM_REGISTER
     fi
