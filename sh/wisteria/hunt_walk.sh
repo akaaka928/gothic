@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # modules settings for Aquarius
 module purge
@@ -26,6 +26,7 @@ REGISTERS_PER_BLOCK=64 # typical value, not always correct
 
 
 # compilation
+LIST="EXEC_ALL"
 # INDEX=0
 # for NTHREADS in 1024
 for NTHREADS in 512 256 128 1024
@@ -49,8 +50,7 @@ do
     MIN_NBLOCKS_SM=2
 
     # maximum number of blocks per SM (based on register usage)
-	# 2 is safety factor (REGISTERS_PER_BLOCK is just a typical value)
-    MAX_BLOCKS_PER_SM_REGISTER=`echo "scale=0; (2 * $MAX_REGISTERS_PER_SM) / ($REGISTERS_PER_BLOCK * $NTHREADS)" | bc`
+    MAX_BLOCKS_PER_SM_REGISTER=`echo "scale=0; (2 * $MAX_REGISTERS_PER_SM) / ($REGISTERS_PER_BLOCK * $NTHREADS)" | bc`# 2 is safety factor (REGISTERS_PER_BLOCK is just a typical value)
     if [ $MAX_NBLOCKS_SM -gt $MAX_BLOCKS_PER_SM_REGISTER ]; then
 		MAX_NBLOCKS_SM=$MAX_BLOCKS_PER_SM_REGISTER
     fi
@@ -150,7 +150,10 @@ do
 									mv bin/gothic $EXEC
 									make clean
 
-									# # generate job lists instead of running the execution file
+									# generate job lists instead of running the execution file
+									if [ -e $EXEC ]; then
+									    echo "${EXEC}" >> $LIST
+									fi
 									# if [ -e $EXEC ]; then
 									# 	TARGET=log/${EXEC##*/}
 									# 	echo "srun -t ${TIME} numactl --cpunodebind=0 --localalloc ${EXEC} -absErr=${ABSERR} -file=${FILE} -jobID=$INDEX 1>>${TARGET}.o 2>>${TARGET}.e" >> $LIST

@@ -10,17 +10,16 @@ $id_name = "hunt_walk";
 $num_trials = 1;
 
 # usage of Aquarius
-$num_nodes = 1;
+$num_nodes = 2;
 
 # configuration of Aquarius
 $GPUs_per_node = 8;
 $GPUs_per_socket = 4;
 
 
-# list up compiled binaries
-my $bin = "bin";
-my @target = glob('bin/tot*');
-$num_target = scalar @target;
+# # list up compiled binaries
+# my @target = glob('bin/tot*');
+# $num_target = scalar @target;
 
 # # confirmation
 # for(local $i = 0; $i <= $#target; $i++){
@@ -28,13 +27,10 @@ $num_target = scalar @target;
 # }
 # print "$num_target binaries\n";
 
-# count number of job-packets
-$num_procs = $num_nodes * $GPUs_per_node;
-$num_pools = (1 + int(($num_target - 1) / $num_procs));
-# print "$num_pools submissions\n";
 
-# prepare to duplicate outputs
+# prepare to duplicated runs
 my $series = "m31";
+$num_procs = $num_nodes * $GPUs_per_node;
 for(local $i = 0; $i < $num_procs; $i++){
     # cp dat/m31.* -> dat/m31_$i.*
     copy(sprintf("dat/%s.run.dat", $series), sprintf("dat/%s_%d.run.dat", $series, $i));
@@ -42,23 +38,34 @@ for(local $i = 0; $i < $num_procs; $i++){
     copy(sprintf("dat/%s.tmp0.h5", $series), sprintf("dat/%s_%d.tmp0.h5", $series, $i));
 }
 
+
 # split EXEC list
 local $full_list = "EXEC_ALL";
-open(OUT, ">$full_list") or die "$!";
-for(local $i = 0; $i < $num_target; $i++){
-	print OUT "$target[$i]\n";
-}
-close(OUT);
+# open(OUT, ">$full_list") or die "$!";
+# for(local $i = 0; $i < $num_target; $i++){
+# 	print OUT "$target[$i]\n";
+# }
+# close(OUT);
 my $part_list = "EXEC_SUB";
 my $digits = 5;
 `split -d -l $num_procs --suffix-length=$digits $full_list $part_list`;
-unlink $full_list;
+# unlink $full_list;
+
+
+
+# count number of job-packets
+# $num_pools = (1 + int(($num_target - 1) / $num_procs));
+# print "$num_pools submissions\n";
+my @target = glob(sprintf("%s%s", $part_list, '*'));
+$num_target = scalar @target;
+
+
 
 
 # Xcrypt specific settings
 %template = (
 	'id' => "$id_name",
-	'RANGE0' => [0..$num_pools-1],
+	'RANGE0' => [0..$num_target-1],
 	'RANGE1' => [0..$num_trials-1],
 
 	# commands executed on compute node
@@ -69,11 +76,11 @@ unlink $full_list;
 	'exe3' => 'module load phdf5 cub',
 	'exe4' => 'module list',
 	# job execution
-	'exe5'    => 'mpiexec sh/wisteria/split_hunt_walk.sh',
+	'exe5@'   => sub{"mpiexec -machinefile \$PJM_O_NODEINF -n \$PJM_MPI_PROC -npernode $GPUs_per_node sh/wisteria/split_hunt_walk.sh"},
 	'arg5_0@' => sub{"--wrapper-Nprocs_node=$GPUs_per_node"},
 	'arg5_1@' => sub{"--wrapper-Nprocs_socket=$GPUs_per_socket"},
-    'arg5_2@' => sub{"--wrapper-EXEC-list=$part_list"},
-    'arg5_3@' => sub{"--wrapper-packetID=$VALUE[0]"},
+	'arg5_2@' => sub{"--wrapper-EXEC-list=$part_list"},
+	'arg5_3@' => sub{"--wrapper-packetID=$VALUE[0]"},
 	'arg5_4@' => sub{"--wrapper-digits=$digits"},
 	'arg5_5'  => '-absErr=1.953125000e-3',
 	'arg5_6@' => sub{"--wrapper-series=$series"},

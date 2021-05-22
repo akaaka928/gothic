@@ -61,11 +61,11 @@ if [ "$int" -le "$digit" ]; then
     done
 fi
 LIST=${EXEC_LIST}${zeros}${PACKET_ID}
-LINE=`expr $RANK + 1`
+LINE=`expr $MPI_RANK + 1`
 EXEC=`sed -n ${LINE}P ${LIST}`
 
 # set filename
-FILE=${SERIES}_${RANK}
+FILE=${SERIES}_${MPI_RANK}
 
 # set stdout and stderr
 STDOUT=${LOGDIR}/${FILE}_${PACKET_ID}.log
