@@ -30,6 +30,7 @@ if [ -z "$PROCS_PER_NODE" ]; then
 		PROCS_PER_NODE=$MPI_SIZE
 	fi
 fi
+DEVICE_ID=`expr $MPI_RANK % $PROCS_PER_NODE`
 
 # set number of MPI processes per socket (if necessary)
 if [ -z "$PROCS_PER_SOCKET" ]; then
@@ -72,7 +73,8 @@ STDOUT=${LOGDIR}/${FILE}_${PACKET_ID}.log
 STDERR=${LOGDIR}/${FILE}_${PACKET_ID}.log
 
 # execute job
-echo "$OMP_ENV $NUMACTL $EXEC -file=${FILE} -jobID=${PACKET_ID} $OPTION 1>>$STDOUT 2>>$STDERR"
-$OMP_ENV $NUMACTL $EXEC -file=${FILE} -jobID=${PACKET_ID} $OPTION 1>>$STDOUT 2>>$STDERR
+echo "rank ${MPI_RANK} on ${HOSTNAME}"
+echo "$OMP_ENV $NUMACTL $EXEC -file=${FILE} -jobID=${PACKET_ID} -deviceID=${DEVICE_ID} $OPTION 1>>$STDOUT 2>>$STDERR"
+$OMP_ENV $NUMACTL $EXEC -file=${FILE} -jobID=${PACKET_ID} -deviceID=${DEVICE_ID} $OPTION 1>>$STDOUT 2>>$STDERR
 
 exit 0
