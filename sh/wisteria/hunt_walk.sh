@@ -146,14 +146,14 @@ do
 									# compile the N-body code w/ neighbor searching
 									make gothic MEASURE_ELAPSED_TIME=1 HUNT_OPTIMAL_WALK_TREE=1 HUNT_OPTIMAL_INTEGRATE=1 HUNT_OPTIMAL_MAKE_TREE=0 HUNT_OPTIMAL_MAKE_NODE=0 HUNT_OPTIMAL_NEIGHBOUR=0 HUNT_OPTIMAL_SEPARATION=1 NUM_NTHREADS=$NTHREADS NUM_TSUB=$TSUB NUM_NLOOP=${NLOOP} NUM_NWARP=${NWARP} NUM_BLOCKS_SM=${NBLOCKS_SM} USE_WARPSHUFFLE=${USE_WS} USE_WARPREDUCE=${USE_WR} USE_L2SETASIDE=${USE_L2_ASIDE} NUM_TREELEV_L2=${L2_TREELEV} ADOPT_GADGET_TYPE_MAC=1 1>>$LOG 2>>$ERR
 
-									# rename the executable
-									mv bin/gothic $EXEC
-									make clean
+									if [ -e bin/gothic ]; then
+									    # rename the executable
+									    mv bin/gothic $EXEC
 
-									# generate job lists instead of running the execution file
-									if [ -e $EXEC ]; then
+									    # generate job lists instead of running the execution file
 									    echo "${EXEC}" >> $LIST
 									fi
+									make clean
 									# if [ -e $EXEC ]; then
 									# 	TARGET=log/${EXEC##*/}
 									# 	echo "srun -t ${TIME} numactl --cpunodebind=0 --localalloc ${EXEC} -absErr=${ABSERR} -file=${FILE} -jobID=$INDEX 1>>${TARGET}.o 2>>${TARGET}.e" >> $LIST

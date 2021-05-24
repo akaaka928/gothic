@@ -3,14 +3,15 @@
 # Xcrypt specific settings
 use base qw(limit core);
 use File::Copy;
-limit::initialize(2);# limitation on Aquarius
+# limit::initialize(2);# limitation on Aquarius
+limit::initialize(1);# sequential run
 
 # global settings
 $id_name = "hunt_walk";
 $num_trials = 1;
 
 # usage of Aquarius
-$num_nodes = 2;
+$num_nodes = 1;
 
 # configuration of Aquarius
 $GPUs_per_node = 8;
