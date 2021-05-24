@@ -63,6 +63,9 @@ do
 			MAX_NBLOCKS_SM=$MAX_BLOCKS_PER_SM_SHARED_MEM
 		fi
 
+		if [ $MAX_NBLOCKS_SM -gt 8 ]; then
+			MAX_NBLOCKS_SM=8
+		fi
 		if [ $MIN_NBLOCKS_SM -gt $MAX_NBLOCKS_SM ]; then
 			MIN_NBLOCKS_SM=1
 		fi
