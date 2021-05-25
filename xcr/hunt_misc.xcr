@@ -73,13 +73,13 @@ $num_target = scalar @target;
 	'arg5_4@' => sub{"1>>log/$target[$VALUE[0]]_$VALUE[0].log"},
 	'arg5_5@' => sub{"2>>log/$target[$VALUE[0]]_$VALUE[0].err"},
 
-	# # commands executed before job submission
-	# 'before' => sub{
-	# 	print "launch $self->{id}\n";
-	# },
-	# 'after' => sub{
-	# 	print "finish $self->{id}\n";
-	# },
+	# commands executed before job submission
+	'before' => sub{
+		print "launch $self->{id}\n";
+	},
+	'after' => sub{
+		print "finish $self->{id}\n";
+	},
 
 	# settings for job script
 	'JS_queue' => 'share',

@@ -8,30 +8,22 @@ limit::initialize(1);# sequential run
 
 # global settings
 $id_name = "hunt_walk";
+my $series = "m31";
 $num_trials = 1;
-
-# usage of Aquarius
-$num_nodes = 1;
 
 # configuration of Aquarius
 $GPUs_per_node = 8;
 $GPUs_per_socket = 4;
 
+# usage of Aquarius
+$num_nodes = 1;
+$num_procs = $num_nodes * $GPUs_per_node;
 
 # # list up compiled binaries
 # my @target = glob('bin/tot*');
 # $num_target = scalar @target;
 
-# # confirmation
-# for(local $i = 0; $i <= $#target; $i++){
-# 	print "$target[$i]\n";
-# }
-# print "$num_target binaries\n";
-
-
 # prepare to duplicated runs
-my $series = "m31";
-$num_procs = $num_nodes * $GPUs_per_node;
 for(local $i = 0; $i < $num_procs; $i++){
     # cp dat/m31.* -> dat/m31_$i.*
     copy(sprintf("dat/%s.run.dat", $series), sprintf("dat/%s_%d.run.dat", $series, $i));
@@ -39,28 +31,16 @@ for(local $i = 0; $i < $num_procs; $i++){
     copy(sprintf("dat/%s.tmp0.h5", $series), sprintf("dat/%s_%d.tmp0.h5", $series, $i));
 }
 
-
 # split EXEC list
 local $full_list = "EXEC_ALL";
-# open(OUT, ">$full_list") or die "$!";
-# for(local $i = 0; $i < $num_target; $i++){
-# 	print OUT "$target[$i]\n";
-# }
-# close(OUT);
 my $part_list = "EXEC_SUB";
 my $digits = 5;
 `split -d -l $num_procs --suffix-length=$digits $full_list $part_list`;
-# unlink $full_list;
-
-
 
 # count number of job-packets
 # $num_pools = (1 + int(($num_target - 1) / $num_procs));
-# print "$num_pools submissions\n";
 my @target = glob(sprintf("%s%s", $part_list, '*'));
 $num_target = scalar @target;
-
-
 
 
 # Xcrypt specific settings
@@ -86,10 +66,6 @@ $num_target = scalar @target;
 	'arg5_5'  => '-absErr=1.953125000e-3',
 	'arg5_6@' => sub{"--wrapper-series=$series"},
 	'arg5_7'  => '--wrapper-logdir=log',
-	# 'arg5_0@' => sub{"$bin/$target[$VALUE[0]]"},
-	# 'arg5_3@' => sub{"-jobID=$VALUE[0]"},
-	# 'arg5_4@' => sub{"1>>log/$target[$VALUE[0]]_$VALUE[0].log"},
-	# 'arg5_5@' => sub{"2>>log/$target[$VALUE[0]]_$VALUE[0].err"},
 
 	# commands executed before job submission
 	'before' => sub{
