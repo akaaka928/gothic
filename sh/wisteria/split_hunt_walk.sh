@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # read input key-value pairs and extract options
+OPTION=""
 for arg in "$@"
 do
 	IFS='=' read -r key val <<< "$arg"
