@@ -6,7 +6,8 @@ use File::Copy;
 limit::initialize(1);# sequential run
 
 # global settings
-$id_name = "survey_adep";
+$id_name = "survey_ndep";
+my $series = "m31";
 
 # configuration of Aquarius
 $GPUs_per_node = 8;
@@ -14,20 +15,11 @@ $GPUs_per_socket = 4;
 
 # usage of Aquarius
 $num_nodes = 1;
-$num_prec = scalar @prec_list;
-
-# prepare to duplicated runs
-my $series = "m31";
 $num_procs = $num_nodes * $GPUs_per_node;
-for(local $i = 0; $i < $num_procs; $i++){
-    # cp dat/m31.* -> dat/m31_$i.*
-    copy(sprintf("dat/%s.run.dat", $series), sprintf("dat/%s_%d.run.dat", $series, $i));
-    copy(sprintf("dat/%s.cfg.dat", $series), sprintf("dat/%s_%d.cfg.dat", $series, $i));
-    copy(sprintf("dat/%s.tmp0.h5", $series), sprintf("dat/%s_%d.tmp0.h5", $series, $i));
-}
 
-# list up the accuracy controling parameter and set iteration counts
-my @prec_list = (5.0e-1, 2.5e-1, 1.25e-1, 6.25e-2, 3.125e-2, 1.5625e-2, 7.8125e-3, 3.90625e-3, 1.953125e-3, 9.765625e-4, 4.8828125e-4, 2.44140625e-4, 1.220703125e-4, 6.103515625e-5, 3.0517578125e-5, 1.52587890625e-5, 7.62939453125e-6, 3.814697265625e-6, 1.9073486328125e-6, 9.5367431640625e-7);
+# list up the total number of N-body particles and set iteration counts
+my @Ntot_list = ("N001k", "N002k", "N004k", "N008k", "N016k", "N032k", "N064k", "N128k", "N256k", "N512k", "N001M", "N002M", "N004M", "N008M", "N016M", "N032M");
+$num_Ntot = scalar @Ntot_list;
 my $Ngroup = 3;
 my @head_list = (0, 12, 16);
 my @iter_list = (1024 / $num_procs, 128 / $num_procs, 16 / $num_procs);
@@ -35,7 +27,13 @@ my @num_list = ();
 for(local $i = 0; $i < $Ngroup-1; $i++){
 	push @num_list, $head_list[$i+1] - $head_list[$i];
 }
-push @num_list, $num_prec - $head_list[$Ngroup - 1];
+push @num_list, $num_Ntot - $head_list[$Ngroup - 1];
+
+# set file list
+my @file_list = ();
+for(local $i = 0; $i < $num_Ntot; $i++){
+	push @file_list, $series . '_' . $Ntot_list[$i];
+}
 
 
 # Xcrypt specific settings
@@ -56,11 +54,11 @@ push @num_list, $num_prec - $head_list[$Ngroup - 1];
 	'exe5@'   => sub{"mpiexec -machinefile \$PJM_O_NODEINF -n \$PJM_MPI_PROC -npernode $GPUs_per_node sh/wisteria/split_gpu_benchmark.sh"},
 	'arg5_0@' => sub{"--wrapper-Nprocs_node=$GPUs_per_node"},
 	'arg5_1@' => sub{"--wrapper-Nprocs_socket=$GPUs_per_socket"},
-	'arg5_2@' => sub{"--wrapper-series=$series"},
+	'arg5_2@' => sub{"--wrapper-series=$file_list[$head_list[$VALUE[0]]+$VALUE[1]]"},
 	'arg5_3'  => '--wrapper-logdir=log',
 	'arg5_4@' => sub{"--wrapper-packetID=$VALUE[2]"},
 	'arg5_5'  => 'bin/gothic',
-	'arg5_6@' => sub{"-absErr=$prec_list[$head_list[$VALUE[0]]+$VALUE[1]]"},
+	'arg5_6'  => '-absErr=1.953125000e-3',
 
 	# commands executed before job submission
 	'before' => sub{
@@ -71,7 +69,7 @@ push @num_list, $num_prec - $head_list[$Ngroup - 1];
 	},
 
 	# settings for job script
-	'JS_queue' => 'short-a',# short (1 hour) may be too short for the most accurate runs (regular-a??)
+	'JS_queue' => 'short-a',
 	'JS_phnode@' => sub{"$num_nodes"},# number of nodes
 	'JS_node@' => sub{"$num_procs"}# number of MPI processes
 	# 'JS_limit_time' => '00:03:00'
