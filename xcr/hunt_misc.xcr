@@ -38,18 +38,18 @@ for(local $Ttot = 0; $Ttot < $num_Ttot; $Ttot++){
 				for(local $sm = 0; $sm < $num_sm; $sm++){
 					local $exec = sprintf("tot%04dsub%02dws%dwr%dsm%d", $list_Ttot[$Ttot], $list_Tsub[$Tsub], $list_ws[$ws], $list_wr[$wr], $list_sm[$sm]);
 					`make gothic MEASURE_ELAPSED_TIME=1 HUNT_OPTIMAL_WALK_TREE=0 HUNT_OPTIMAL_INTEGRATE=0 HUNT_OPTIMAL_MAKE_TREE=1 HUNT_OPTIMAL_MAKE_NODE=1 HUNT_OPTIMAL_NEIGHBOUR=1 HUNT_OPTIMAL_SEPARATION=0 NUM_NTHREADS=$list_Ttot[$Ttot] NUM_TSUB=$list_Tsub[$Tsub] USE_WARPSHUFFLE=$list_ws[$ws] USE_WARPREDUCE=$list_wr[$wr] PREF_SHARED_MEM=$list_sm[$sm] ADOPT_GADGET_TYPE_MAC=1`;
-					`mv bin/gothic $bin/$exec`;
-					`make clean`;
-
-					if(-e "$bin/$exec"){
+					if(-e "bin/gothic"){
+						`mv bin/gothic $bin/$exec`;
 						push(@target, $exec);
 					}
+					`make clean`;
 				}
 			}
 		}
 	}
 }
 $num_target = scalar @target;
+
 
 # Xcrypt specific settings
 %template = (
