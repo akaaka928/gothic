@@ -14,7 +14,7 @@ do
 		--wrapper-series) SERIES=${val};;
 		--wrapper-logdir) LOGDIR=${val};;
 		--wrapper-omp_env) OMP_ENV=${val};;
-		*) OPTION="$arg";;
+		*) OPTION="$OPTION $arg";;
 	esac
 done
 

@@ -12,7 +12,7 @@ do
 		--wrapper-logdir) LOGDIR=${val};;
 		--wrapper-packetID) PACKET_ID=${val};;
 		--wrapper-omp_env) OMP_ENV=${val};;
-		*) EXEC="$arg";;
+		*) EXEC="$EXEC $arg";;
 	esac
 done
 
@@ -58,7 +58,7 @@ STDERR=${LOGDIR}/${FILE}_${PACKET_ID}.log
 
 # execute job
 echo "rank ${MPI_RANK} on ${HOSTNAME}"
-echo "$OMP_ENV $NUMACTL $EXEC -file=${FILE} -jobID=${PACKET_ID} -deviceID=${DEVICE_ID} $EXEC 1>>$STDOUT 2>>$STDERR"
-$OMP_ENV $NUMACTL $EXEC -file=${FILE} -jobID=${PACKET_ID} -deviceID=${DEVICE_ID} $EXEC 1>>$STDOUT 2>>$STDERR
+echo "$OMP_ENV $NUMACTL $EXEC -file=${FILE} -jobID=${PACKET_ID} -deviceID=${DEVICE_ID} 1>>$STDOUT 2>>$STDERR"
+$OMP_ENV $NUMACTL $EXEC -file=${FILE} -jobID=${PACKET_ID} -deviceID=${DEVICE_ID} 1>>$STDOUT 2>>$STDERR
 
 exit 0
