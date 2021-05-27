@@ -55,7 +55,7 @@
  */
 #ifndef NTHREADS_TIME
 #   if  GPUVER >= 80
-#define NTHREADS_TIME (1024)
+#define NTHREADS_TIME (256)
 #else///GPUVER >= 80
 #   if  GPUVER >= 60
 #define NTHREADS_TIME (128)

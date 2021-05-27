@@ -192,7 +192,7 @@
  * @brief number of levels for tree nodes persisting on L2 cache (40 MB)
  */
 #ifndef NLEVEL_TREE_NODE_L2_PERSISTING
-#define NLEVEL_TREE_NODE_L2_PERSISTING (7)
+#define NLEVEL_TREE_NODE_L2_PERSISTING (6)
 #endif//NLEVEL_TREE_NODE_L2_PERSISTING
 /* more(4 byte) + jpos(16 byte) + mj(4 byte or 8 byte for w/o or w/ INDIVIDUAL_GRAVITATIONAL_SOFTENING) per tree node */
 /* Lev = 0: Nnode = 1 -> 24 byte or 28 byte */
@@ -226,6 +226,9 @@
  */
 #ifdef  IJ_PARALLELIZATION
 #ifndef NWARP
+#   if  GPUVER >= 80
+#define NWARP (1)
+#else///GPUVER >= 80
 #   if  GPUVER >= 70
 #define NWARP (2)
 #else///GPUVER >= 70
@@ -239,6 +242,7 @@
 #endif//GPUVER >= 52
 #endif//GPUVER >= 60
 #endif//GPUVER >= 70
+#endif//GPUVER >= 80
 #endif//NWARP
 #else///IJ_PARALLELIZATION
 /** NWARP must be unity */
@@ -275,11 +279,15 @@
  * @brief number of threads per block for calcAcc_kernel
  */
 #ifndef NTHREADS
+#   if  GPUVER >= 80
+#define NTHREADS (256)
+#else///GPUVER >= 80
 #   if  GPUVER >= 30
 #define NTHREADS (512)
 #else///GPUVER >= 30
 #define NTHREADS (256)
 #endif//GPUVER >= 30
+#endif//GPUVER >= 80
 #endif//NTHREADS
 
 /** NTHREADS must be equal or smaller than 1024 (limitation comes from reduction defined in ../tree/geo_dev.cu) */
@@ -412,7 +420,7 @@
  */
 #ifndef NLOOP
 #   if  GPUVER >= 80
-#define NLOOP (4)
+#define NLOOP (1)
 #else///GPUVER >= 80
 #   if  GPUVER >= 70
 #define NLOOP (3)
