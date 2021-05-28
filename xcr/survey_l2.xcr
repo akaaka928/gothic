@@ -19,15 +19,6 @@ $num_procs = $num_nodes * $GPUs_per_node;
 # iteration counts
 $num_trials = 1024 / $num_procs;
 
-# prepare to duplicated runs
-my $series = "m31";
-for(local $i = 0; $i < $num_procs; $i++){
-    # cp dat/m31.* -> dat/m31_$i.*
-    copy(sprintf("dat/%s.run.dat", $series), sprintf("dat/%s_%d.run.dat", $series, $i));
-    copy(sprintf("dat/%s.cfg.dat", $series), sprintf("dat/%s_%d.cfg.dat", $series, $i));
-    copy(sprintf("dat/%s.tmp0.h5", $series), sprintf("dat/%s_%d.tmp0.h5", $series, $i));
-}
-
 # list of parameters in GOTHIC
 my @list_l2 = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 $num_l2 = scalar @list_l2;
@@ -52,6 +43,17 @@ for(local $l2 = 0; $l2 < $num_l2; $l2++){
 	`make clean`;
 }
 $num_target = scalar @target;
+
+# prepare to duplicated runs
+my $series = "m31";
+for(local $i = 0; $i < $num_procs; $i++){
+	for(local $j = 0; $j < $num_l2; $l2++){
+		# cp dat/m31.* -> dat/m31_$i.*
+		copy(sprintf("dat/%s.run.dat", $series), sprintf("dat/%s_lev%d_dev%d.run.dat", $series, $j, $i));
+		copy(sprintf("dat/%s.cfg.dat", $series), sprintf("dat/%s_lev%d_dev%d.cfg.dat", $series, $j, $i));
+		copy(sprintf("dat/%s.tmp0.h5", $series), sprintf("dat/%s_lev%d_dev%d.tmp0.h5", $series, $j, $i));
+	}
+}
 
 
 # Xcrypt specific settings
@@ -88,7 +90,7 @@ $num_target = scalar @target;
 	# settings for job script
 	'JS_queue' => 'short-a',
 	'JS_phnode@' => sub{"$num_nodes"},# number of nodes
-	'JS_node@' => sub{"$num_procs"}# number of MPI processes
-	# 'JS_limit_time' => '00:03:00'
+	'JS_node@' => sub{"$num_procs"},# number of MPI processes
+	'JS_limit_time' => '00:10:00'
 );
 prepare_submit_sync(%template);

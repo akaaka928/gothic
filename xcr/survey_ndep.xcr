@@ -67,6 +67,6 @@ for(local $i = 0; $i < $num_Ntot; $i++){
 	'JS_queue' => 'short-a',
 	'JS_phnode@' => sub{"$num_nodes"},# number of nodes
 	'JS_node@' => sub{"$num_procs"}# number of MPI processes
-	# 'JS_limit_time' => '00:03:00'
+	'JS_limit_time' => '00:10:00'
 );
 prepare_submit_sync(%template);
