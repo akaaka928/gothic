@@ -31,6 +31,15 @@ for(local $i = 0; $i < $num_Ntot; $i++){
 	push @file_list, $series . '_' . $Ntot_list[$i];
 }
 
+# prepare to duplicated runs
+for(local $i = 0; $i < $num_Ntot; $i++){
+	for(local $j = 0; $j < $num_procs; $j++){
+		copy(sprintf("dat/%s.run.dat", $series), sprintf("dat/%s_%d.run.dat", $file_list[$i], $j));
+		copy(sprintf("dat/%s.cfg.dat", $series), sprintf("dat/%s_%d.cfg.dat", $file_list[$i], $j));
+		copy(sprintf("dat/%s.tmp0.h5", $series), sprintf("dat/%s_%d.tmp0.h5", $file_list[$i], $j));
+	}
+}
+
 
 # Xcrypt specific settings
 %template = (

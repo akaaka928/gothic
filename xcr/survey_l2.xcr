@@ -46,12 +46,14 @@ $num_target = scalar @target;
 
 # prepare to duplicated runs
 my $series = "m31";
-for(local $i = 0; $i < $num_procs; $i++){
-	for(local $j = 0; $j < $num_l2; $l2++){
-		# cp dat/m31.* -> dat/m31_$i.*
-		copy(sprintf("dat/%s.run.dat", $series), sprintf("dat/%s_lev%d_dev%d.run.dat", $series, $j, $i));
-		copy(sprintf("dat/%s.cfg.dat", $series), sprintf("dat/%s_lev%d_dev%d.cfg.dat", $series, $j, $i));
-		copy(sprintf("dat/%s.tmp0.h5", $series), sprintf("dat/%s_lev%d_dev%d.tmp0.h5", $series, $j, $i));
+my @file_list = ();
+for(local $i = 0; $i < $num_l2; $i++){
+	local $file = sprintf("%s_lev%d", $series, $i);
+	push(@file_list, $file);
+	for(local $j = 0; $j < $num_procs; $j++){
+		copy(sprintf("dat/%s.run.dat", $series), sprintf("dat/%s_%d.run.dat", $file, $j));
+		copy(sprintf("dat/%s.cfg.dat", $series), sprintf("dat/%s_%d.cfg.dat", $file, $j));
+		copy(sprintf("dat/%s.tmp0.h5", $series), sprintf("dat/%s_%d.tmp0.h5", $file, $j));
 	}
 }
 
@@ -73,7 +75,7 @@ for(local $i = 0; $i < $num_procs; $i++){
 	'exe5@'   => sub{"mpiexec -machinefile \$PJM_O_NODEINF -n \$PJM_MPI_PROC -npernode $GPUs_per_node sh/wisteria/split_gpu_benchmark.sh"},
 	'arg5_0@' => sub{"--wrapper-Nprocs_node=$GPUs_per_node"},
 	'arg5_1@' => sub{"--wrapper-Nprocs_socket=$GPUs_per_socket"},
-	'arg5_2@' => sub{"--wrapper-series=$series"},
+	'arg5_2@' => sub{"--wrapper-series=$file_list[$VALUE[0]]"},
 	'arg5_3'  => '--wrapper-logdir=log',
 	'arg5_4@' => sub{"--wrapper-packetID=$VALUE[1]"},
 	'arg5_5@' => sub{"$bin/$target[$VALUE[0]]"},
