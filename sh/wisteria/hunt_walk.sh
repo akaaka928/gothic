@@ -4,7 +4,9 @@
 module purge
 module load cuda
 module load gcc ompi-cuda
-export MODULEPATH="/work/gr16/share/modules/lib:$MODULEPATH"
+
+# load my modules
+module use /work/gr16/share/modules/lib
 module load phdf5
 module load cub
 module list

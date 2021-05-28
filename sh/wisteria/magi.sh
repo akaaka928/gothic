@@ -1888,8 +1888,8 @@ module load fj fjmpi
 module load gsl
 module load phdf5
 
-# load myown modules
-export MODULEPATH="/work/gr16/share/modules/lib:$MODULEPATH"
+# load my modules
+module use /work/gr16/share/modules/lib
 module load lis
 
 # start logging

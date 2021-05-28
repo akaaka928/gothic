@@ -42,7 +42,7 @@ for(local $i = 0; $i < $num_Ntot; $i++){
 	# module settings
 	'exe0' => 'module purge',
 	'exe1' => 'module load cuda gcc ompi-cuda',
-	'exe2' => 'export MODULEPATH=/work/gr16/share/modules/lib:$MODULEPATH',
+	'exe2' => 'module use /work/gr16/share/modules/lib',
 	'exe3' => 'module load phdf5 cub',
 	'exe4' => 'module list',
 	# job execution
