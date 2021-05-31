@@ -84,6 +84,6 @@ $num_target = scalar @target;
 	# settings for job script
 	'JS_queue' => 'share',
 	'JS_gpu' => '1',
-	'JS_limit_time' => '00:03:00'
+	'JS_limit_time' => '00:05:00'
 );
 prepare_submit_sync(%template);
