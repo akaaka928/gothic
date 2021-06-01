@@ -65,8 +65,8 @@ do
 			MAX_NBLOCKS_SM=$MAX_BLOCKS_PER_SM_SHARED_MEM
 		fi
 
-		if [ $MAX_NBLOCKS_SM -gt 8 ]; then
-			MAX_NBLOCKS_SM=8
+		if [ $MAX_NBLOCKS_SM -gt 4 ]; then
+			MAX_NBLOCKS_SM=4
 		fi
 		if [ $MIN_NBLOCKS_SM -gt $MAX_NBLOCKS_SM ]; then
 			MIN_NBLOCKS_SM=1
@@ -75,8 +75,8 @@ do
 		for (( NBLOCKS_SM = $MIN_NBLOCKS_SM ; NBLOCKS_SM <= $MAX_NBLOCKS_SM ; NBLOCKS_SM += 1 ))
 		do
 			MAX_NLOOP=`echo "scale=0; ($SHARED_MEM_PER_SM / (4 * $NTHREADS * $NBLOCKS_SM)) - (6 - $USE_WS)" | bc`
-			if [ $MAX_NLOOP -gt 8 ]; then
-				MAX_NLOOP=8
+			if [ $MAX_NLOOP -gt 4 ]; then
+				MAX_NLOOP=4
 			fi
 
 			for (( NLOOP = 1 ; NLOOP <= $MAX_NLOOP ; NLOOP += 1 ))

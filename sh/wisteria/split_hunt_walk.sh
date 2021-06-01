@@ -14,6 +14,7 @@ do
 		--wrapper-series) SERIES=${val};;
 		--wrapper-logdir) LOGDIR=${val};;
 		--wrapper-omp_env) OMP_ENV=${val};;
+		--wrapper-index) INDEX=${val};;
 		*) OPTION="$OPTION $arg";;
 	esac
 done
@@ -70,12 +71,12 @@ EXEC=`sed -n ${LINE}P ${LIST}`
 FILE=${SERIES}_${MPI_RANK}
 
 # set stdout and stderr
-STDOUT=${LOGDIR}/${FILE}_${PACKET_ID}.log
-STDERR=${LOGDIR}/${FILE}_${PACKET_ID}.log
+STDOUT=${LOGDIR}/${FILE}_${INDEX}.log
+STDERR=${LOGDIR}/${FILE}_${INDEX}.log
 
 # execute job
 echo "rank ${MPI_RANK} on ${HOSTNAME}"
-echo "$OMP_ENV $NUMACTL $EXEC -file=${FILE} -jobID=${PACKET_ID} -deviceID=${DEVICE_ID} $OPTION 1>>$STDOUT 2>>$STDERR"
-$OMP_ENV $NUMACTL $EXEC -file=${FILE} -jobID=${PACKET_ID} -deviceID=${DEVICE_ID} $OPTION 1>>$STDOUT 2>>$STDERR
+echo "$OMP_ENV $NUMACTL $EXEC -file=${FILE} -jobID=${INDEX} -deviceID=${DEVICE_ID} $OPTION 1>>$STDOUT 2>>$STDERR"
+$OMP_ENV $NUMACTL $EXEC -file=${FILE} -jobID=${INDEX} -deviceID=${DEVICE_ID} $OPTION 1>>$STDOUT 2>>$STDERR
 
 exit 0

@@ -9,7 +9,7 @@ limit::initialize(1);# sequential run
 # global settings
 $id_name = "hunt_walk";
 my $series = "m31";
-$num_trials = 1;
+$num_trials = 5;
 
 # configuration of Aquarius
 $GPUs_per_node = 8;
@@ -66,6 +66,10 @@ $num_target = scalar @target;
 	'arg5_5'  => '-absErr=1.953125000e-3',
 	'arg5_6@' => sub{"--wrapper-series=$series"},
 	'arg5_7'  => '--wrapper-logdir=log',
+	'arg5_8@' => sub{
+		local $index = $VALUE[0] * $num_trials + $VALUE[1];
+		return("--wrapper-index=$index");
+	},
 
 	# commands executed before job submission
 	'before' => sub{
