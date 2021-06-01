@@ -83,6 +83,7 @@ HUNT_OPTIMAL_MAKE_TREE	:= 0
 HUNT_OPTIMAL_MAKE_NODE	:= 0
 HUNT_OPTIMAL_NEIGHBOUR	:= 0
 HUNT_OPTIMAL_SEPARATION	:= 0
+HUNT_OPTIMAL_L2LEVEL	:= 0
 MEASURE_NI_DEPENDENCE	:= 0
 #################################################################################################
 # Checking options
@@ -487,6 +488,11 @@ ifeq ($(USE_WARPREDUCE), 1)
 CCARG	+= -DUSE_WARP_REDUCE_FUNC
 CUARG	+= -DUSE_WARP_REDUCE_FUNC
 endif
+endif
+#################################################################################################
+ifeq ($(HUNT_OPTIMAL_L2LEVEL), 1)
+CCARG	+= -DHUNT_WALK_L2LEV_PARAMETER
+CUARG	+= -DHUNT_WALK_L2LEV_PARAMETER
 ifeq ($(USE_L2SETASIDE), 1)
 CCARG	+= -DUSE_L2_SET_ASIDE_POLICY -DNLEVEL_TREE_NODE_L2_PERSISTING="($(NUM_TREELEV_L2))"
 CUARG	+= -DUSE_L2_SET_ASIDE_POLICY -DNLEVEL_TREE_NODE_L2_PERSISTING="($(NUM_TREELEV_L2))"

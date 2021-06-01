@@ -169,8 +169,12 @@
 /* the below macro is enabled in the default option; switched off in the parameter survey mode to use -D and -U from Makefile */
 #define USE_WARP_SHUFFLE_FUNC
 #define USE_WARP_REDUCE_FUNC
-#define USE_L2_SET_ASIDE_POLICY
 #endif//HUNT_WALK_PARAMETER
+
+#ifndef HUNT_WALK_L2LEV_PARAMETER
+/* the below macro is enabled in the default option; switched off in the parameter survey mode to use -D and -U from Makefile */
+#define USE_L2_SET_ASIDE_POLICY
+#endif//HUNT_WALK_L2LEV_PARAMETER
 
 #   if  defined(USE_WARP_SHUFFLE_FUNC) && (GPUVER < 30)
 #undef          USE_WARP_SHUFFLE_FUNC

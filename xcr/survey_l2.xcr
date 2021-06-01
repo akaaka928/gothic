@@ -35,7 +35,12 @@ my $bin = "bin";
 my @target = ();
 for(local $l2 = 0; $l2 < $num_l2; $l2++){
 	local $exec = sprintf("l2lev%02d", $list_l2[$l2]);
-	`make gothic MEASURE_ELAPSED_TIME=1 -DNLEVEL_TREE_NODE_L2_PERSISTING=$list_l2[$l2] ADOPT_GADGET_TYPE_MAC=1`;
+	local $use = 1;
+	if($l2 == 0){
+		$use = 0;
+	}
+	`make gothic MEASURE_ELAPSED_TIME=1 HUNT_OPTIMAL_L2LEVEL=1 USE_L2SETASIDE=$use NUM_TREELEV_L2=$list_l2[$l2] ADOPT_GADGET_TYPE_MAC=1`;
+
 	if(-e "bin/gothic"){
 		`mv bin/gothic $bin/$exec`;
 		push(@target, $exec);
