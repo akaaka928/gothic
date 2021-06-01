@@ -17,7 +17,7 @@ $num_nodes = 1;
 $num_procs = $num_nodes * $GPUs_per_node;
 
 # iteration counts
-$num_trials = 1024 / $num_procs;
+$num_trials = 128 / $num_procs;
 
 # list of parameters in GOTHIC
 my @list_l2 = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
@@ -35,7 +35,7 @@ my $bin = "bin";
 my @target = ();
 for(local $l2 = 0; $l2 < $num_l2; $l2++){
 	local $exec = sprintf("l2lev%02d", $list_l2[$l2]);
-	`make gothic MEASURE_ELAPSED_TIME=1 HUNT_OPTIMAL_WALK_TREE=1 HUNT_OPTIMAL_INTEGRATE=1 HUNT_OPTIMAL_MAKE_TREE=0 HUNT_OPTIMAL_MAKE_NODE=0 HUNT_OPTIMAL_NEIGHBOUR=0 HUNT_OPTIMAL_SEPARATION=1 USE_L2SETASIDE=$list_l2[$l2] ADOPT_GADGET_TYPE_MAC=1`;
+	`make gothic MEASURE_ELAPSED_TIME=1 -DNLEVEL_TREE_NODE_L2_PERSISTING=$list_l2[$l2] ADOPT_GADGET_TYPE_MAC=1`;
 	if(-e "bin/gothic"){
 		`mv bin/gothic $bin/$exec`;
 		push(@target, $exec);

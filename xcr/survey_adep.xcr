@@ -23,7 +23,7 @@ $num_prec = scalar @prec_list;
 my $Ngroup = 3;
 # my @head_list = (0, 12, 16);
 my @head_list = (0, 11, 15);
-my @iter_list = (1024 / $num_procs, 128 / $num_procs, 16 / $num_procs);
+my @iter_list = (128 / $num_procs, 128 / $num_procs, 16 / $num_procs);
 my @num_list = ();
 for(local $i = 0; $i < $Ngroup-1; $i++){
 	push @num_list, $head_list[$i+1] - $head_list[$i];

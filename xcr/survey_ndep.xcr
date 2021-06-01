@@ -18,7 +18,7 @@ $num_nodes = 1;
 $num_procs = $num_nodes * $GPUs_per_node;
 
 # iteration counts
-$num_trials = 1024 / $num_procs;
+$num_trials = 128 / $num_procs;
 
 # list up the total number of N-body particles and set iteration counts
 # my @Ntot_list = ("N001k", "N002k", "N004k", "N008k", "N016k", "N032k", "N064k", "N128k", "N256k", "N512k", "N001M", "N002M", "N004M", "N008M", "N016M", "N032M");
