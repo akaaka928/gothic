@@ -32,7 +32,7 @@
 /**
  * @def NTHREADS_PH
  *
- * @brief number of threads per block for calcPHkey_kernel
+ * @brief number of threads per block for calcPHkey_kernel (listed as genPHkey_kernel)
  */
 #ifndef NTHREADS_PH
 #   if  (GPUVER >= 80)
@@ -72,7 +72,7 @@
 /**
  * @def NTHREADS_PHSORT
  *
- * @brief number of threads per block for sortParticlesPHcurve_kernel
+ * @brief number of threads per block for sortParticlesPHcurve_kernel (listed as sortBody_kernel)
  */
 #ifndef NTHREADS_PHSORT
 #   if  GPUVER >= 80

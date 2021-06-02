@@ -241,15 +241,11 @@
  * @brief number of threads per block for linkTree_kernel
  */
 #ifndef NTHREADS_LINK_TREE
-#   if  (GPUVER >= 80)
-#define NTHREADS_LINK_TREE (512)
-#else///(GPUVER >= 80)
 #   if  (GPUVER >= 30)
 #define NTHREADS_LINK_TREE (256)
 #else///(GPUVER >= 30)
 #define NTHREADS_LINK_TREE (128)
 #endif//(GPUVER >= 30)
-#endif//(GPUVER >= 80)
 #endif//NTHREADS_LINK_TREE
 
 
