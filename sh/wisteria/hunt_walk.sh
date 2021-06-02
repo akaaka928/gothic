@@ -52,7 +52,8 @@ do
     MIN_NBLOCKS_SM=2
 
     # maximum number of blocks per SM (based on register usage)
-    MAX_BLOCKS_PER_SM_REGISTER=`echo "scale=0; (2 * $MAX_REGISTERS_PER_SM) / ($REGISTERS_PER_BLOCK * $NTHREADS)" | bc`# 2 is safety factor (REGISTERS_PER_BLOCK is just a typical value)
+	# 2 is safety factor (REGISTERS_PER_BLOCK is just a typical value)
+    MAX_BLOCKS_PER_SM_REGISTER=`echo "scale=0; (2 * $MAX_REGISTERS_PER_SM) / ($REGISTERS_PER_BLOCK * $NTHREADS)" | bc`
     if [ $MAX_NBLOCKS_SM -gt $MAX_BLOCKS_PER_SM_REGISTER ]; then
 		MAX_NBLOCKS_SM=$MAX_BLOCKS_PER_SM_REGISTER
     fi
@@ -136,7 +137,7 @@ do
 							for USE_L2_ASIDE in 1 0
 							do
 								MIN_L2_TREELEV=5
-								MAX_L2_TREELEV=7
+								MAX_L2_TREELEV=8
 								if [ $USE_L2_ASIDE -eq 0 ]; then
 									MIN_L2_TREELEV=0
 									MAX_L2_TREELEV=0
