@@ -13,7 +13,7 @@ do
 		--wrapper-digits) digit=${val};;
 		--wrapper-series) SERIES=${val};;
 		--wrapper-logdir) LOGDIR=${val};;
-		--wrapper-omp_env) OMP_ENV=${val};;
+		# --wrapper-omp_env) OMP_ENV=${val};;
 		--wrapper-index) INDEX=${val};;
 		*) OPTION="$OPTION $arg";;
 	esac
@@ -24,7 +24,7 @@ MPI_RANK=${MV2_COMM_WORLD_RANK:=${PMI_RANK:=${OMPI_COMM_WORLD_RANK:=${PMIX_RANK:
 
 # set number of MPI processes per node (if necessary)
 if [ -z "$PROCS_PER_NODE" ]; then
-	CORES_PER_NODE=`grep processor /proc/cpuinfo | wc -l`
+	CORES_PER_NODE=`LANG=C /usr/bin/lscpu | /usr/bin/sed -n 's/^CPU(s): *//p'`
 	MPI_SIZE=${MV2_COMM_WORLD_SIZE:=${PMI_SIZE:=${OMPI_COMM_WORLD_SIZE:=${OMPI_UNIVERSE_SIZE:=0}}}}
 	PROCS_PER_NODE=`expr $MPI_SIZE / $CORES_PER_NODE`
 	if [ $PROCS_PER_NODE -lt 1 ]; then
@@ -34,21 +34,25 @@ if [ -z "$PROCS_PER_NODE" ]; then
 fi
 DEVICE_ID=`expr $MPI_RANK % $PROCS_PER_NODE`
 
-# set number of MPI processes per socket (if necessary)
-if [ -z "$PROCS_PER_SOCKET" ]; then
-	SOCKETS_PER_NODE=`lscpu | grep NUMA | grep CPU | wc -l`
-	PROCS_PER_SOCKET=`expr $PROCS_PER_NODE / $SOCKETS_PER_NODE`
-	if [ $PROCS_PER_SOCKET -lt 1 ]; then
-		# when $PROCS_PER_NODE < $SOCKETS_PER_NODE; i.e. a single socket can cover all MPI processes in this node
-		PROCS_PER_SOCKET=$PROCS_PER_NODE
-	fi
-fi
-
 # configuration on NUMA node
 if [ `which numactl` ]; then
+	DOMAINS_PER_NODE=`LANG=C /usr/bin/lscpu | /usr/bin/sed -n 's/^NUMA node(s): *//p'`
+	SOCKETS_PER_NODE=`LANG=C /usr/bin/lscpu | /usr/bin/sed -n 's/^Socket(s): *//p'`
+	DOMAINS_PER_SOCKET=`expr $DOMAINS_PER_NODE / $SOCKETS_PER_NODE`
+
+	# set number of MPI processes per socket (if necessary)
+	if [ -z "$PROCS_PER_SOCKET" ]; then
+		PROCS_PER_SOCKET=`expr $PROCS_PER_NODE / $SOCKETS_PER_NODE`
+		if [ $PROCS_PER_SOCKET -lt 1 ]; then
+			# when $PROCS_PER_NODE < $SOCKETS_PER_NODE; i.e. a single socket can cover all MPI processes in this node
+			PROCS_PER_SOCKET=$PROCS_PER_NODE
+		fi
+	fi
+
     TEMPID=`expr $MPI_RANK % $PROCS_PER_NODE`
     SOCKET=`expr $TEMPID / $PROCS_PER_SOCKET`
-    NUMACTL="numactl --cpunodebind=$SOCKET --localalloc"
+    NUMAID=`expr $SOCKET \* $DOMAINS_PER_SOCKET`
+    NUMACTL="numactl --cpunodebind=$NUMAID --localalloc"
 fi
 
 
@@ -73,6 +77,9 @@ FILE=${SERIES}_${MPI_RANK}
 # set stdout and stderr
 STDOUT=${LOGDIR}/${FILE}_${INDEX}.log
 STDERR=${LOGDIR}/${FILE}_${INDEX}.log
+
+# OMP_ENV="env KMP_AFFINITY=verbose,granularity=core,balanced" # for Intel Compilers
+OMP_ENV="env OMP_DISPLAY_ENV=verbose OMP_PLACES=cores" # for GCC
 
 # execute job
 echo "rank ${MPI_RANK} on ${HOSTNAME}"
