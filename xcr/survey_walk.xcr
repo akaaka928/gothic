@@ -1,0 +1,74 @@
+# submit multiple jobs by using Xcrypt
+
+# Xcrypt specific settings
+use base qw(limit core);
+use File::Copy;
+limit::initialize(1);# sequential run
+
+# global settings
+$id_name = "hunt_walk";
+my $series = "m31";
+
+# configuration of Aquarius
+$GPUs_per_node = 8;
+$GPUs_per_socket = 4;
+
+# usage of Aquarius
+$num_nodes = 1;
+$num_procs = $num_nodes * $GPUs_per_node;
+
+# prepare to duplicated runs
+for(local $i = 0; $i < $num_procs; $i++){
+    # cp dat/m31.* -> dat/m31_$i.*
+    copy(sprintf("dat/%s.run.dat", $series), sprintf("dat/%s_%d.run.dat", $series, $i));
+    copy(sprintf("dat/%s.cfg.dat", $series), sprintf("dat/%s_%d.cfg.dat", $series, $i));
+    copy(sprintf("dat/%s.tmp0.h5", $series), sprintf("dat/%s_%d.tmp0.h5", $series, $i));
+}
+
+# split EXEC list
+local $full_list = "EXEC_ALL";
+
+# count number of job-packets
+my $num_target = `cat $full_list | wc -l`;
+
+
+# Xcrypt specific settings
+%template = (
+	'id' => "$id_name",
+	'RANGE0' => [0..$num_target-1],
+
+	# commands executed on compute node
+	# module settings
+	'exe0' => 'module purge',
+	'exe1' => 'module load cuda gcc ompi-cuda',
+	'exe2' => 'module use /work/gr16/share/modules/lib',
+	'exe3' => 'module load phdf5 cub',
+	'exe4' => 'module list',
+	# tentative treatments for CUDA aware MPI
+	'exe5' => 'export UCX_MAX_RNDV_RAILS=1',
+	# job execution
+	'exe6@'   => sub{"mpiexec -machinefile \$PJM_O_NODEINF -n \$PJM_MPI_PROC -npernode $GPUs_per_node sh/wisteria/copy_hunt_walk.sh"},
+	'arg6_0@' => sub{"--wrapper-Nprocs_node=$GPUs_per_node"},
+	'arg6_1@' => sub{"--wrapper-Nprocs_socket=$GPUs_per_socket"},
+	'arg6_2@' => sub{"--wrapper-EXEC-list=$full_list"},
+	'arg6_3@' => sub{"--wrapper-packetID=$VALUE[0]"},
+	'arg6_4'  => '-absErr=1.953125000e-3',
+	'arg6_5@' => sub{"--wrapper-series=$series"},
+	'arg6_6'  => '--wrapper-logdir=log',
+	# 'arg6_4@' => sub{"--wrapper-digits=$digits"},
+
+	# commands executed before job submission
+	'before' => sub{
+		print "launch $self->{id}\n";
+	},
+	'after' => sub{
+		print "finish $self->{id}\n";
+	},
+
+	# settings for job script
+	'JS_queue' => 'short-a',
+	'JS_phnode@' => sub{"$num_nodes"},# number of nodes
+	'JS_node@' => sub{"$num_procs"},# number of MPI processes
+	'JS_limit_time' => '00:05:00'
+);
+prepare_submit_sync(%template);
