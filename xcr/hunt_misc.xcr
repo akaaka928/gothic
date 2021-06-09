@@ -23,11 +23,19 @@ $num_wr = scalar @list_wr;
 $num_sm = scalar @list_sm;
 
 # modules settings for Aquarius
+my $cuda = "cuda/11.1";
+my $gcc = "gcc/8.3.1";
+my $mpi = "ompi/4.1.1";
+my $phdf5 = "phdf5/1.12.0";
+my $cub = "cub/1.10.0";
 require "/usr/share/Modules/init/perl.pm";
 &module('purge');
-&module('load', 'cuda', 'gcc', 'ompi-cuda');
+&module('load', $cuda);
+&module('load', $gcc);
+&module('load', $ompi);
 &module('use', '/work/gr16/share/modules/lib');
-&module('load', 'phdf5', 'cub');
+&module('load', $phdf5);
+&module('load', $cub);
 
 # compilation
 my $bin = "bin";
@@ -60,11 +68,11 @@ $num_target = scalar @target;
 
 	# commands executed on compute node
 	# module settings
-	'exe0' => 'module purge',
-	'exe1' => 'module load cuda gcc ompi-cuda',
-	'exe2' => 'module use /work/gr16/share/modules/lib',
-	'exe3' => 'module load phdf5 cub',
-	'exe4' => 'module list',
+	'exe0'  => 'module purge',
+	'exe1@' => sub{"module load $cuda $gcc $mpi"},
+	'exe2'  => 'module use /work/gr16/share/modules/lib',
+	'exe3@' => sub{"module load $phdf5 $cub"},
+	'exe4'  => 'module list',
 	# job execution
 	'exe5'    => 'numactl --localalloc',
 	'arg5_0@' => sub{"$bin/$target[$VALUE[0]]"},
