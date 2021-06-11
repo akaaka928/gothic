@@ -965,7 +965,8 @@ __device__ __forceinline__ void copyData_g2s(uint * RESTRICT gbuf, size_t srcHea
 #endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)
 
 #ifdef  ENABLE_ASYNC_MEMCPY_G2S
-  cuda::pipeline pipe;
+  const auto shape = cuda::aligned_size_t<alignof(uint)>(sizeof(uint));
+  cuda::pipeline<cuda::thread_scope_thread> pipe = cuda::make_pipeline();
 #endif//ENABLE_ASYNC_MEMCPY_G2S
 //   // cooperative_groups::memcpy_async(tile, &sbuf[dstHead], &gbuf[srcHead], sizeof(uint) * numCopy);
 //   // cooperative_groups::wait(tile);
@@ -974,7 +975,9 @@ __device__ __forceinline__ void copyData_g2s(uint * RESTRICT gbuf, size_t srcHea
   const int numHead = (numTemp < numCopy) ? numTemp : numCopy;
   if( lane < numHead ){
 #ifdef  ENABLE_ASYNC_MEMCPY_G2S
-    cuda::memcpy_async(&sbuf[dstHead + lane], &gbuf[srcHead + lane], pipe);
+    pipe.producer_acquire();
+    cuda::memcpy_async(&sbuf[dstHead + lane], &gbuf[srcHead + lane], shape, pipe);
+    pipe.producer_commit();
 #else///ENABLE_ASYNC_MEMCPY_G2S
     sbuf[dstHead + lane] = gbuf[srcHead + lane];
 #endif//ENABLE_ASYNC_MEMCPY_G2S
@@ -994,14 +997,16 @@ __device__ __forceinline__ void copyData_g2s(uint * RESTRICT gbuf, size_t srcHea
   /** sequential load from source on the global memory and store to destination on the shared memory */
   for(int ii = lane; ii < numCopy; ii += TSUB){
 #ifdef  ENABLE_ASYNC_MEMCPY_G2S
-    cuda::memcpy_async(&sbuf[dstHead + ii], &gbuf[srcHead + ii], pipe);
+    pipe.producer_acquire();
+    cuda::memcpy_async(&sbuf[dstHead + ii], &gbuf[srcHead + ii], shape, pipe);
+    pipe.producer_commit();
 #else///ENABLE_ASYNC_MEMCPY_G2S
     sbuf[dstHead + ii] = gbuf[srcHead + ii];
 #endif//ENABLE_ASYNC_MEMCPY_G2S
   }
 #ifdef  ENABLE_ASYNC_MEMCPY_G2S
   /** wait completion of asynchronous memcpy */
-  pipe.commit_and_wait();
+  pipe.consumer_wait();
 #endif//ENABLE_ASYNC_MEMCPY_G2S
   /** synchronization to reduce warp divergence */
 #ifdef  ENABLE_IMPLICIT_SYNC_WITHIN_WARP
@@ -1011,6 +1016,9 @@ __device__ __forceinline__ void copyData_g2s(uint * RESTRICT gbuf, size_t srcHea
   tile.sync();
 #endif//TSUB == 32
 #endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
+#ifdef  ENABLE_ASYNC_MEMCPY_G2S
+  pipe.consumer_release();
+#endif//ENABLE_ASYNC_MEMCPY_G2S
 }
 
 /**
