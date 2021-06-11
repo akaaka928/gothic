@@ -68,14 +68,21 @@ nvmlDevice_t deviceHandler;
 #endif//((__CUDACC_VER_MINOR__ + 10 * __CUDACC_VER_MAJOR__) >= 80) && !defined(DISABLE_NVML_FOR_CLOCK_FREQ)
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO) || defined(REPORT_GPU_CLOCK_FREQUENCY)
 
-#   if  (!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)) || defined(ENABLE_ASYNC_MEMCPY_G2S)
+// #   if  (!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)) || defined(ENABLE_ASYNC_MEMCPY_G2S)
+// #include <cooperative_groups.h>
+// #ifdef  ENABLE_ASYNC_MEMCPY_G2S
+// #include <cooperative_groups/memcpy_async.h>
+// #endif//ENABLE_ASYNC_MEMCPY_G2S
+// using namespace cooperative_groups;
+// #endif//(!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)) || defined(ENABLE_ASYNC_MEMCPY_G2S)
+#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)
 #include <cooperative_groups.h>
+#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)
 #ifdef  ENABLE_ASYNC_MEMCPY_G2S
-#include <cooperative_groups/memcpy_async.h>
+// #include <cuda/pipeline>///< if compiled with -std=c++11
+// #include <cuda_pipeline_primitives.h>///< if compiled without -std=c++11
+#include <cuda/pipeline>
 #endif//ENABLE_ASYNC_MEMCPY_G2S
-using namespace cooperative_groups;
-#endif//(!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)) || defined(ENABLE_ASYNC_MEMCPY_G2S)
-
 
 __constant__  real newton;
 __constant__  real epsinv;
@@ -953,19 +960,24 @@ __device__ __forceinline__ void copyData_s2s(uint *src, int sidx, uint *dst, int
  */
 __device__ __forceinline__ void copyData_g2s(uint * RESTRICT gbuf, size_t srcHead, uint * RESTRICT sbuf, int dstHead, int numCopy, const int lane)
 {
-#   if  (!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)) || defined(ENABLE_ASYNC_MEMCPY_G2S)
+#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)
   thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
-#endif//(!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)) || defined(ENABLE_ASYNC_MEMCPY_G2S)
+#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)
 
 #ifdef  ENABLE_ASYNC_MEMCPY_G2S
-  cooperative_groups::memcpy_async(tile, &sbuf[dstHead], &gbuf[srcHead], sizeof(uint) * numCopy);
-  cooperative_groups::wait(tile);
-#else///ENABLE_ASYNC_MEMCPY_G2S
+  cuda::pipeline pipe;
+#endif//ENABLE_ASYNC_MEMCPY_G2S
+//   // cooperative_groups::memcpy_async(tile, &sbuf[dstHead], &gbuf[srcHead], sizeof(uint) * numCopy);
+//   // cooperative_groups::wait(tile);
   /** fraction processing at loading from the head of destination array */
   const int numTemp = TSUB - (int)(srcHead & (TSUB - 1));/**< TSUB - (srcHead % TSUB) */
   const int numHead = (numTemp < numCopy) ? numTemp : numCopy;
   if( lane < numHead ){
+#ifdef  ENABLE_ASYNC_MEMCPY_G2S
+    cuda::memcpy_async(&sbuf[dstHead + lane], &gbuf[srcHead + lane], pipe);
+#else///ENABLE_ASYNC_MEMCPY_G2S
     sbuf[dstHead + lane] = gbuf[srcHead + lane];
+#endif//ENABLE_ASYNC_MEMCPY_G2S
   }
 #ifndef ENABLE_IMPLICIT_SYNC_WITHIN_WARP
   /** synchronization to reduce warp divergence */
@@ -981,9 +993,17 @@ __device__ __forceinline__ void copyData_g2s(uint * RESTRICT gbuf, size_t srcHea
 
   /** sequential load from source on the global memory and store to destination on the shared memory */
   for(int ii = lane; ii < numCopy; ii += TSUB){
+#ifdef  ENABLE_ASYNC_MEMCPY_G2S
+    cuda::memcpy_async(&sbuf[dstHead + ii], &gbuf[srcHead + ii], pipe);
+#else///ENABLE_ASYNC_MEMCPY_G2S
     sbuf[dstHead + ii] = gbuf[srcHead + ii];
-    }
-    /** synchronization to reduce warp divergence */
+#endif//ENABLE_ASYNC_MEMCPY_G2S
+  }
+#ifdef  ENABLE_ASYNC_MEMCPY_G2S
+  /** wait completion of asynchronous memcpy */
+  pipe.commit_and_wait();
+#endif//ENABLE_ASYNC_MEMCPY_G2S
+  /** synchronization to reduce warp divergence */
 #ifdef  ENABLE_IMPLICIT_SYNC_WITHIN_WARP
 #   if  TSUB == 32
   __syncwarp();
@@ -991,7 +1011,6 @@ __device__ __forceinline__ void copyData_g2s(uint * RESTRICT gbuf, size_t srcHea
   tile.sync();
 #endif//TSUB == 32
 #endif//ENABLE_IMPLICIT_SYNC_WITHIN_WARP
-#endif//ENABLE_ASYNC_MEMCPY_G2S
 }
 
 /**
