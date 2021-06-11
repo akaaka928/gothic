@@ -22,7 +22,7 @@ $num_ws = scalar @list_ws;
 $num_wr = scalar @list_wr;
 $num_sm = scalar @list_sm;
 
-# modules settings for Aquarius
+# modules on Aquarius
 my $cuda = "cuda/11.1";
 my $gcc = "gcc/8.3.1";
 my $mpi = "ompi/4.1.1";
