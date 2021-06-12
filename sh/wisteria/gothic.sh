@@ -486,13 +486,14 @@ PROCS_PER_SOCKET=4
 
 # default module settings for Aquarius
 module purge
-module load cuda
-module load gcc ompi-cuda
+module load cuda/11.1
+module load gcc/8.3.1
+module load ompi/4.1.1
 
 # load my modules
 module use /work/gr16/share/modules/lib
-module load phdf5
-module load cub
+module load phdf5/1.12.0
+module load cub/1.12.0
 
 # start logging
 cd $PJM_O_WORKDIR

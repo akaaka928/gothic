@@ -9,7 +9,7 @@ module load ompi/4.1.1
 # load my modules
 module use /work/gr16/share/modules/lib
 module load phdf5/1.12.0
-module load cub/1.10.0
+module load cub/1.12.0
 module list
 
 
