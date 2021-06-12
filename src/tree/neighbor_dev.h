@@ -46,7 +46,7 @@
  */
 #ifndef NTHREADS_FACILE_NS
 #   if  GPUVER >= 80
-#define NTHREADS_FACILE_NS (128)
+#define NTHREADS_FACILE_NS (256)
 #else///GPUVER >= 80
 #   if  GPUVER >= 60
 #define NTHREADS_FACILE_NS (512)

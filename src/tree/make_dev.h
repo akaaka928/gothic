@@ -81,10 +81,10 @@
 #   if  GPUVER >= 80
 #   if  GPUGEN <= 60
 /** Pascal mode */
-#define NTHREADS_MAC (128)
+#define NTHREADS_MAC (512)
 #else///GPUGEN <= 60
 /** Ampere mode */
-#define NTHREADS_MAC (128)
+#define NTHREADS_MAC (512)
 #endif//GPUGEN <= 60
 #else///GPUVER >= 80
 #   if  (GPUVER == 52) || (GPUVER == 60) || (GPUVER == 61)
@@ -241,11 +241,15 @@
  * @brief number of threads per block for linkTree_kernel
  */
 #ifndef NTHREADS_LINK_TREE
+#   if  (GPUVER >= 80)
+#define NTHREADS_LINK_TREE (512)
+#else///(GPUVER >= 80)
 #   if  (GPUVER >= 30)
 #define NTHREADS_LINK_TREE (256)
 #else///(GPUVER >= 30)
 #define NTHREADS_LINK_TREE (128)
 #endif//(GPUVER >= 30)
+#endif//(GPUVER >= 80)
 #endif//NTHREADS_LINK_TREE
 
 
@@ -371,7 +375,7 @@
  */
 #ifndef NTHREADS_INIT_CELL
 #   if  (GPUVER >= 80)
-#define NTHREADS_INIT_CELL (128)
+#define NTHREADS_INIT_CELL (512)
 #else///(GPUVER >= 80)
 #   if  (GPUVER >= 70)
 #define NTHREADS_INIT_CELL (512)
@@ -402,7 +406,7 @@
 #ifndef NTHREADS_INIT_NODE
 #   if  GPUVER >= 80
 #   if  GPUGEN <= 60
-#define NTHREADS_INIT_NODE (1024)
+#define NTHREADS_INIT_NODE (512)
 #else///GPUGEN <= 60
 #define NTHREADS_INIT_NODE (512)
 #endif//GPUGEN <= 60
@@ -427,7 +431,7 @@
  */
 #ifndef NTHREADS_INIT_BODY
 #   if  GPUVER >= 80
-#define NTHREADS_INIT_BODY (1024)
+#define NTHREADS_INIT_BODY (256)
 #else///GPUVER >= 80
 #define NTHREADS_INIT_BODY (128)
 #endif//GPUVER >= 80
