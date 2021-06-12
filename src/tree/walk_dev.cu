@@ -68,20 +68,16 @@ nvmlDevice_t deviceHandler;
 #endif//((__CUDACC_VER_MINOR__ + 10 * __CUDACC_VER_MAJOR__) >= 80) && !defined(DISABLE_NVML_FOR_CLOCK_FREQ)
 #endif//!defined(SERIALIZED_EXECUTION) || defined(PRINT_PSEUDO_PARTICLE_INFO) || defined(REPORT_GPU_CLOCK_FREQUENCY)
 
-// #   if  (!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)) || defined(ENABLE_ASYNC_MEMCPY_G2S)
-// #include <cooperative_groups.h>
-// #ifdef  ENABLE_ASYNC_MEMCPY_G2S
-// #include <cooperative_groups/memcpy_async.h>
-// #endif//ENABLE_ASYNC_MEMCPY_G2S
-// using namespace cooperative_groups;
-// #endif//(!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)) || defined(ENABLE_ASYNC_MEMCPY_G2S)
 #   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)
 #include <cooperative_groups.h>
 #endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)
 #ifdef  ENABLE_ASYNC_MEMCPY_G2S
-// #include <cuda/pipeline>///< if compiled with -std=c++11
-// #include <cuda_pipeline_primitives.h>///< if compiled without -std=c++11
+#   if  GPUGEN >= 70
+// CUDA synchronization primitives are only supported for sm_70 and up
 #include <cuda/pipeline>
+#else///GPUGEN >= 70
+#include <cooperative_groups/memcpy_async.h>
+#endif//GPUGEN >= 70
 #endif//ENABLE_ASYNC_MEMCPY_G2S
 
 __constant__  real newton;
@@ -960,16 +956,19 @@ __device__ __forceinline__ void copyData_s2s(uint *src, int sidx, uint *dst, int
  */
 __device__ __forceinline__ void copyData_g2s(uint * RESTRICT gbuf, size_t srcHead, uint * RESTRICT sbuf, int dstHead, int numCopy, const int lane)
 {
-#   if  !defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)
-  thread_block_tile<TSUB> tile = tiled_partition<TSUB>(this_thread_block());
-#endif//!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)
+#   if  (!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)) || (defined(ENABLE_ASYNC_MEMCPY_G2S) && (GPUGEN < 70))
+  cooperative_groups::thread_block_tile<TSUB> tile = cooperative_groups::tiled_partition<TSUB>(cooperative_groups::this_thread_block());
+#endif//(!defined(ENABLE_IMPLICIT_SYNC_WITHIN_WARP) && (TSUB < 32)) || (defined(ENABLE_ASYNC_MEMCPY_G2S) && (GPUGEN < 70))
+
+#   if  defined(ENABLE_ASYNC_MEMCPY_G2S) && (GPUGEN < 70)
+  cooperative_groups::memcpy_async(tile, &sbuf[dstHead], &gbuf[srcHead], sizeof(uint) * numCopy);
+  cooperative_groups::wait(tile);
+#else///defined(ENABLE_ASYNC_MEMCPY_G2S) && (GPUGEN < 70)
 
 #ifdef  ENABLE_ASYNC_MEMCPY_G2S
   const auto shape = cuda::aligned_size_t<alignof(uint)>(sizeof(uint));
   cuda::pipeline<cuda::thread_scope_thread> pipe = cuda::make_pipeline();
 #endif//ENABLE_ASYNC_MEMCPY_G2S
-//   // cooperative_groups::memcpy_async(tile, &sbuf[dstHead], &gbuf[srcHead], sizeof(uint) * numCopy);
-//   // cooperative_groups::wait(tile);
   /** fraction processing at loading from the head of destination array */
   const int numTemp = TSUB - (int)(srcHead & (TSUB - 1));/**< TSUB - (srcHead % TSUB) */
   const int numHead = (numTemp < numCopy) ? numTemp : numCopy;
@@ -1019,6 +1018,7 @@ __device__ __forceinline__ void copyData_g2s(uint * RESTRICT gbuf, size_t srcHea
 #ifdef  ENABLE_ASYNC_MEMCPY_G2S
   pipe.consumer_release();
 #endif//ENABLE_ASYNC_MEMCPY_G2S
+#endif//defined(ENABLE_ASYNC_MEMCPY_G2S) && (GPUGEN < 70)
 }
 
 /**
