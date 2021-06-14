@@ -196,7 +196,7 @@
  * @brief number of levels for tree nodes persisting on L2 cache (40 MB)
  */
 #ifndef NLEVEL_TREE_NODE_L2_PERSISTING
-#define NLEVEL_TREE_NODE_L2_PERSISTING (6)
+#define NLEVEL_TREE_NODE_L2_PERSISTING (7)
 #endif//NLEVEL_TREE_NODE_L2_PERSISTING
 /* more(4 byte) + jpos(16 byte) + mj(4 byte or 8 byte for w/o or w/ INDIVIDUAL_GRAVITATIONAL_SOFTENING) per tree node */
 /* Lev = 0: Nnode = 1 -> 24 byte or 28 byte */
@@ -231,7 +231,7 @@
 #ifdef  IJ_PARALLELIZATION
 #ifndef NWARP
 #   if  GPUVER >= 80
-#define NWARP (1)
+#define NWARP (2)
 #else///GPUVER >= 80
 #   if  GPUVER >= 70
 #define NWARP (2)
@@ -270,7 +270,7 @@
  */
 #ifndef NBLOCKS_PER_SM
 #   if  GPUVER >= 80
-#define NBLOCKS_PER_SM (3)
+#define NBLOCKS_PER_SM (4)
 #else///GPUVER >= 80
 #define NBLOCKS_PER_SM (2)
 #endif//GPUVER >= 80
@@ -284,7 +284,7 @@
  */
 #ifndef NTHREADS
 #   if  GPUVER >= 80
-#define NTHREADS (256)
+#define NTHREADS (512)
 #else///GPUVER >= 80
 #   if  GPUVER >= 30
 #define NTHREADS (512)
@@ -424,7 +424,7 @@
  */
 #ifndef NLOOP
 #   if  GPUVER >= 80
-#define NLOOP (1)
+#define NLOOP (3)
 #else///GPUVER >= 80
 #   if  GPUVER >= 70
 #define NLOOP (3)
