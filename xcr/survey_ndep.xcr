@@ -14,7 +14,7 @@ $GPUs_per_node = 8;
 $GPUs_per_socket = 4;
 
 # usage of Aquarius
-$num_nodes = 4;
+$num_nodes = 2;
 $num_procs = $num_nodes * $GPUs_per_node;
 
 # modules on Aquarius
