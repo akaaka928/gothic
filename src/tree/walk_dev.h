@@ -196,7 +196,7 @@
  * @brief number of levels for tree nodes persisting on L2 cache (40 MB)
  */
 #ifndef NLEVEL_TREE_NODE_L2_PERSISTING
-#define NLEVEL_TREE_NODE_L2_PERSISTING (7)
+#define NLEVEL_TREE_NODE_L2_PERSISTING (8)
 #endif//NLEVEL_TREE_NODE_L2_PERSISTING
 /* more(4 byte) + jpos(16 byte) + mj(4 byte or 8 byte for w/o or w/ INDIVIDUAL_GRAVITATIONAL_SOFTENING) per tree node */
 /* Lev = 0: Nnode = 1 -> 24 byte or 28 byte */
