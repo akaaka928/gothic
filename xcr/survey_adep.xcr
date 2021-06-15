@@ -46,42 +46,45 @@ for(local $i = 0; $i < $num_procs; $i++){
 }
 
 
-# Xcrypt specific settings
-%template = (
-	'id' => "$id_name",
-	'RANGE0' => [0..$Ngroup-1],
-	'RANGE1@' => sub{"[0..$num_list[$VALUE[0]]-1]"},
-	'RANGE2@' => sub{"[0..$iter_list[$VALUE[0]]-1]"},
+for(local $i = 0; $i < $Ngroup; $i++){
+	$id_tag = sprintf("%s_%d", $id_name, $i);
 
-	# commands executed on compute node
-	# module settings
-	'exe0'  => 'module purge',
-	'exe1@' => sub{"module load $cuda $gcc $mpi"},
-	'exe2'  => 'module use /work/gr16/share/modules/lib',
-	'exe3@' => sub{"module load $phdf5 $cub"},
-	'exe4'  => 'module list',
-	# job execution
-	'exe5@'   => sub{"mpiexec -machinefile \$PJM_O_NODEINF -n \$PJM_MPI_PROC -npernode $GPUs_per_node sh/wisteria/split_gpu_benchmark.sh"},
-	'arg5_0@' => sub{"--wrapper-Nprocs_node=$GPUs_per_node"},
-	'arg5_1@' => sub{"--wrapper-Nprocs_socket=$GPUs_per_socket"},
-	'arg5_2@' => sub{"--wrapper-series=$series"},
-	'arg5_3'  => '--wrapper-logdir=log',
-	'arg5_4@' => sub{"--wrapper-packetID=$VALUE[2]"},
-	'arg5_5'  => 'bin/gothic',
-	'arg5_6@' => sub{"-absErr=$prec_list[$head_list[$VALUE[0]]+$VALUE[1]]"},
+	# Xcrypt specific settings
+	%template = (
+		'id' => "$id_tag",
+		'RANGE0' => [0..$num_list[$i]-1],
+		'RANGE1' => [0..$iter_list[$i]-1],
 
-	# commands executed before job submission
-	'before' => sub{
-		print "launch $self->{id}\n";
-	},
-	'after' => sub{
-		print "finish $self->{id}\n";
-	},
+		# commands executed on compute node
+		# module settings
+		'exe0'  => 'module purge',
+		'exe1@' => sub{"module load $cuda $gcc $mpi"},
+		'exe2'  => 'module use /work/gr16/share/modules/lib',
+		'exe3@' => sub{"module load $phdf5 $cub"},
+		'exe4'  => 'module list',
+		# job execution
+		'exe5@'   => sub{"mpiexec -machinefile \$PJM_O_NODEINF -n \$PJM_MPI_PROC -npernode $GPUs_per_node sh/wisteria/split_gpu_benchmark.sh"},
+		'arg5_0@' => sub{"--wrapper-Nprocs_node=$GPUs_per_node"},
+		'arg5_1@' => sub{"--wrapper-Nprocs_socket=$GPUs_per_socket"},
+		'arg5_2@' => sub{"--wrapper-series=$series"},
+		'arg5_3'  => '--wrapper-logdir=log',
+		'arg5_4@' => sub{"--wrapper-packetID=$VALUE[1]"},
+		'arg5_5'  => 'bin/gothic',
+		'arg5_6@' => sub{"-absErr=$prec_list[$head_list[$i]+$VALUE[0]]"},
 
-	# settings for job script
-	'JS_queue' => 'short-a',# short (1 hour) may be too short for the most accurate runs (regular-a??)
-	'JS_phnode@' => sub{"$num_nodes"},# number of nodes
-	'JS_node@' => sub{"$num_procs"}# number of MPI processes
-	# 'JS_limit_time' => '00:03:00'
-);
+		# commands executed before job submission
+		'before' => sub{
+			print "launch $self->{id}\n";
+		},
+		'after' => sub{
+			print "finish $self->{id}\n";
+		},
+
+		# settings for job script
+		'JS_queue' => 'short-a',# short (1 hour) may be too short for the most accurate runs (regular-a??)
+		'JS_phnode@' => sub{"$num_nodes"},# number of nodes
+		'JS_node@' => sub{"$num_procs"}# number of MPI processes
+		# 'JS_limit_time' => '00:03:00'
+	);
+}
 prepare_submit_sync(%template);
