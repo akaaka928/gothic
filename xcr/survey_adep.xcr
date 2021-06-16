@@ -68,7 +68,13 @@ for(local $i = 0; $i < $Ngroup; $i++){
 		'arg5_1@' => sub{"--wrapper-Nprocs_socket=$GPUs_per_socket"},
 		'arg5_2@' => sub{"--wrapper-series=$series"},
 		'arg5_3'  => '--wrapper-logdir=log',
-		'arg5_4@' => sub{"--wrapper-packetID=$VALUE[1]"},
+		'arg5_4@' => sub{
+			local $index = $VALUE[0] * $iter_list[$i] + $VALUE[1];
+			for(local $j = 0; $j < $i; $j++){
+				$index += $num_list[$j] * $iter_list[$j];
+			}
+			return ("--wrapper-packetID=$index");
+		},
 		'arg5_5'  => 'bin/gothic',
 		'arg5_6@' => sub{"-absErr=$prec_list[$head_list[$i]+$VALUE[0]]"},
 
