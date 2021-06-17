@@ -32,7 +32,7 @@ require "/usr/share/Modules/init/perl.pm";
 &module('purge');
 &module('load', $cuda);
 &module('load', $gcc);
-&module('load', $ompi);
+&module('load', $mpi);
 &module('use', '/work/gr16/share/modules/lib');
 &module('load', $phdf5);
 &module('load', $cub);
