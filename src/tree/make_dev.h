@@ -84,7 +84,7 @@
 #define NTHREADS_MAC (512)
 #else///GPUGEN <= 60
 /** Ampere mode */
-#define NTHREADS_MAC (512)
+#define NTHREADS_MAC (128)
 #endif//GPUGEN <= 60
 #else///GPUVER >= 80
 #   if  (GPUVER == 52) || (GPUVER == 60) || (GPUVER == 61)
@@ -203,7 +203,7 @@
 #ifndef HUNT_MAKE_PARAMETER
 /* the below macro is disabled in the default option for better performance; switched off in the parameter survey mode to use -D from Makefile */
 /* #define USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE */
-#define USE_WARP_REDUCE_FUNC_MAKE_TREE_STRUCTURE
+// #define USE_WARP_REDUCE_FUNC_MAKE_TREE_STRUCTURE
 
 /** for better performance on P100, V100, and A100 GPUs */
 #   if  !defined(USE_WARP_SHUFFLE_FUNC_MAKE_TREE_STRUCTURE) && (GPUVER >= 60)
@@ -242,7 +242,13 @@
  */
 #ifndef NTHREADS_LINK_TREE
 #   if  (GPUVER >= 80)
+#   if  GPUGEN <= 60
+// Pascal mode
 #define NTHREADS_LINK_TREE (512)
+#else///GPUGEN <= 60
+// Ampere mode
+#define NTHREADS_LINK_TREE (256)
+#endif//GPUGEN <= 60
 #else///(GPUVER >= 80)
 #   if  (GPUVER >= 30)
 #define NTHREADS_LINK_TREE (256)
@@ -404,13 +410,6 @@
  * @brief number of threads per block for initTreeNode_kernel
  */
 #ifndef NTHREADS_INIT_NODE
-#   if  GPUVER >= 80
-#   if  GPUGEN <= 60
-#define NTHREADS_INIT_NODE (512)
-#else///GPUGEN <= 60
-#define NTHREADS_INIT_NODE (512)
-#endif//GPUGEN <= 60
-#else///GPUVER >= 80
 #   if  GPUVER >= 70
 #define NTHREADS_INIT_NODE (512)
 #else///GPUVER >= 70
@@ -420,7 +419,6 @@
 #define NTHREADS_INIT_NODE (128)
 #endif//GPUVER >= 30
 #endif//GPUVER >= 70
-#endif//GPUVER >= 80
 #endif//NTHREADS_INIT_NODE
 
 
