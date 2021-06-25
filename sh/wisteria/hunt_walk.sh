@@ -59,7 +59,7 @@ do
 		MAX_NBLOCKS_SM=$MAX_BLOCKS_PER_SM_REGISTER
     fi
 
-    for USE_WS in 1 0
+    for USE_WS in 0 1
     do
 		# maximum number of blocks per SM (based on shared memory usage)
 		MAX_BLOCKS_PER_SM_SHARED_MEM=`echo "scale=0; $SHARED_MEM_PER_SM / (4 * $NTHREADS * (10 - $USE_WS))" | bc`
