@@ -483,6 +483,100 @@
 
 
 /**
+ * @def NUNROLL
+ *
+ * @brief number of unroll counts for calc_interaction()
+ * @detail must <= NLOOP * TSUB / NWARP
+ */
+#ifndef NUNROLL
+#define NUNROLL (NLOOP * TSUB / NWARP)
+#endif//NUNROLL
+
+// 2^n, 3 * 2^n, 5 * 2^n, and 7 * 2^n are covered
+#   if  NUNROLL == 1
+#define PRAGMA_UNROLL _Pragma("unroll 1")
+# elif  NUNROLL == 2
+#define PRAGMA_UNROLL _Pragma("unroll 2")
+# elif  NUNROLL == 4
+#define PRAGMA_UNROLL _Pragma("unroll 4")
+# elif  NUNROLL == 8
+#define PRAGMA_UNROLL _Pragma("unroll 8")
+# elif  NUNROLL == 16
+#define PRAGMA_UNROLL _Pragma("unroll 16")
+# elif  NUNROLL == 32
+#define PRAGMA_UNROLL _Pragma("unroll 32")
+# elif  NUNROLL == 64
+#define PRAGMA_UNROLL _Pragma("unroll 64")
+# elif  NUNROLL == 128
+#define PRAGMA_UNROLL _Pragma("unroll 128")
+# elif  NUNROLL == 256
+#define PRAGMA_UNROLL _Pragma("unroll 256")
+# elif  NUNROLL == 512
+#define PRAGMA_UNROLL _Pragma("unroll 512")
+# elif  NUNROLL == 1024
+#define PRAGMA_UNROLL _Pragma("unroll 1024")
+# elif  NUNROLL == 2048
+#define PRAGMA_UNROLL _Pragma("unroll 2048")
+# elif  NUNROLL == 3
+#define PRAGMA_UNROLL _Pragma("unroll 3")
+# elif  NUNROLL == 6
+#define PRAGMA_UNROLL _Pragma("unroll 6")
+# elif  NUNROLL == 12
+#define PRAGMA_UNROLL _Pragma("unroll 12")
+# elif  NUNROLL == 24
+#define PRAGMA_UNROLL _Pragma("unroll 24")
+# elif  NUNROLL == 48
+#define PRAGMA_UNROLL _Pragma("unroll 48")
+# elif  NUNROLL == 96
+#define PRAGMA_UNROLL _Pragma("unroll 96")
+# elif  NUNROLL == 192
+#define PRAGMA_UNROLL _Pragma("unroll 192")
+# elif  NUNROLL == 384
+#define PRAGMA_UNROLL _Pragma("unroll 384")
+# elif  NUNROLL == 768
+#define PRAGMA_UNROLL _Pragma("unroll 768")
+# elif  NUNROLL == 1536
+#define PRAGMA_UNROLL _Pragma("unroll 1536")
+# elif  NUNROLL == 5
+#define PRAGMA_UNROLL _Pragma("unroll 5")
+# elif  NUNROLL == 10
+#define PRAGMA_UNROLL _Pragma("unroll 10")
+# elif  NUNROLL == 20
+#define PRAGMA_UNROLL _Pragma("unroll 20")
+# elif  NUNROLL == 40
+#define PRAGMA_UNROLL _Pragma("unroll 40")
+# elif  NUNROLL == 80
+#define PRAGMA_UNROLL _Pragma("unroll 80")
+# elif  NUNROLL == 160
+#define PRAGMA_UNROLL _Pragma("unroll 160")
+# elif  NUNROLL == 320
+#define PRAGMA_UNROLL _Pragma("unroll 320")
+# elif  NUNROLL == 640
+#define PRAGMA_UNROLL _Pragma("unroll 640")
+# elif  NUNROLL == 1280
+#define PRAGMA_UNROLL _Pragma("unroll 1280")
+# elif  NUNROLL == 7
+#define PRAGMA_UNROLL _Pragma("unroll 7")
+# elif  NUNROLL == 14
+#define PRAGMA_UNROLL _Pragma("unroll 14")
+# elif  NUNROLL == 28
+#define PRAGMA_UNROLL _Pragma("unroll 28")
+# elif  NUNROLL == 56
+#define PRAGMA_UNROLL _Pragma("unroll 56")
+# elif  NUNROLL == 112
+#define PRAGMA_UNROLL _Pragma("unroll 112")
+# elif  NUNROLL == 224
+#define PRAGMA_UNROLL _Pragma("unroll 224")
+# elif  NUNROLL == 448
+#define PRAGMA_UNROLL _Pragma("unroll 448")
+# elif  NUNROLL == 896
+#define PRAGMA_UNROLL _Pragma("unroll 896")
+# elif  NUNROLL == 1792
+#define PRAGMA_UNROLL _Pragma("unroll 1792")
+#endif
+
+
+/**
  * @def NSTOCK
  *
  * @brief a parameter to increase arithmetic intensity

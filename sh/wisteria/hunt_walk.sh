@@ -99,7 +99,7 @@ do
 
 				# for NWARP in 2 4 1 8 16 32
 				# for NWARP in 2 4 1 8
-				for NWARP in 2 1 4
+				for NWARP in 1 2 4
 				do
 					# pad 0s for NWARP
 					digit=2
@@ -116,7 +116,8 @@ do
 					WARPZEROS=$zeros
 
 					# for TSUB in 32 16 8 4 2 1
-					for TSUB in 32 16
+					# for TSUB in 32 16
+					for TSUB in 32
 					do
 						# pad 0s for TSUB
 						digit=2
@@ -132,40 +133,75 @@ do
 						fi
 						SUBZEROS=$zeros
 
-						for USE_WR in 1 0
-						do
-
-							for USE_L2_ASIDE in 1 0
+                        MAX_NUNROLL=`echo "scale=0; ($TSUB / $NWARP)" | bc`
+						NUNROLL_LIST=()
+						if [ $NLOOP -eq 3 -o $NLOOP -eq 5 -o $NLOOP -eq 7 ]; then
+							for (( val = 1 ; val <= $MAX_NUNROLL ; val *= 2 ))
 							do
-								MIN_L2_TREELEV=5
-								MAX_L2_TREELEV=8
-								if [ $USE_L2_ASIDE -eq 0 ]; then
-									MIN_L2_TREELEV=0
-									MAX_L2_TREELEV=0
-								fi
+								add=`echo "scale=0; $NLOOP * $val" | bc`
+								NUNROLL_LIST=("${NUNROLL_LIST[@]}" $add)
+							done
+						fi
+						if [ $NLOOP -eq 2 -o $NLOOP -eq 4 -o $NLOOP -eq 8 ]; then
+							MAX_NUNROLL=`echo "scale=0; ($NLOOP * $MAX_NUNROLL)" | bc`
+						fi
+						for (( add = 1 ; add <= $MAX_NUNROLL ; add *= 2 ))
+						do
+							NUNROLL_LIST=("${NUNROLL_LIST[@]}" $add)
+						done
+                        for NUNROLL in ${NUNROLL_LIST[@]}
+                        do
+                            # pad 0s for NUNROLL
+                            digit=4
+                            input="`echo ${#NUNROLL}`"
+                            if [ "$input" -le "$digit" ]; then
+                                rem=`expr $digit - $input`
+                                zeros=""
+                                count=0
+                                while [ "$count" -lt "$rem" ]; do
+                                    zeros="`echo ${zeros}0`"
+                                    count=`expr $count + 1`
+                                done
+                            fi
+                            URLZEROS=$zeros
 
-								for (( L2_TREELEV = $MIN_L2_TREELEV ; L2_TREELEV <= $MAX_L2_TREELEV ; L2_TREELEV += 1 ))
-								do
-									# logging
-									EXEC=bin/tot${TOTZEROS}${NTHREADS}sub${SUBZEROS}${TSUB}blk${NBLOCKS_SM}loop${LOOPZEROS}${NLOOP}ijp${WARPZEROS}${NWARP}ws${USE_WS}wr${USE_WR}l2a${USE_L2_ASIDE}lev${L2_TREELEV}
-									echo "## generate $EXEC" >> $LOG
+                            for USE_WR in 1 0
+                            do
 
-									# compile the N-body code w/ neighbor searching
-									make gothic MEASURE_ELAPSED_TIME=1 HUNT_OPTIMAL_WALK_TREE=1 HUNT_OPTIMAL_INTEGRATE=1 HUNT_OPTIMAL_MAKE_TREE=0 HUNT_OPTIMAL_MAKE_NODE=0 HUNT_OPTIMAL_NEIGHBOUR=0 HUNT_OPTIMAL_SEPARATION=1 HUNT_OPTIMAL_L2LEVEL=1 NUM_NTHREADS=$NTHREADS NUM_TSUB=$TSUB NUM_NLOOP=${NLOOP} NUM_NWARP=${NWARP} NUM_BLOCKS_SM=${NBLOCKS_SM} USE_WARPSHUFFLE=${USE_WS} USE_WARPREDUCE=${USE_WR} USE_L2SETASIDE=${USE_L2_ASIDE} NUM_TREELEV_L2=${L2_TREELEV} ADOPT_GADGET_TYPE_MAC=1 1>>$LOG 2>>$ERR
+                                for USE_L2_ASIDE in 1 0
+                                do
+                                    # MIN_L2_TREELEV=5
+                                    # MAX_L2_TREELEV=8
+                                    MIN_L2_TREELEV=7
+                                    MAX_L2_TREELEV=7
+                                    if [ $USE_L2_ASIDE -eq 0 ]; then
+                                        MIN_L2_TREELEV=0
+                                        MAX_L2_TREELEV=0
+                                    fi
 
-									if [ -e bin/gothic ]; then
-										# rename the executable
-										mv bin/gothic $EXEC
+                                    for (( L2_TREELEV = $MIN_L2_TREELEV ; L2_TREELEV <= $MAX_L2_TREELEV ; L2_TREELEV += 1 ))
+                                    do
+                                        # logging
+                                        EXEC=bin/tot${TOTZEROS}${NTHREADS}sub${SUBZEROS}${TSUB}blk${NBLOCKS_SM}loop${LOOPZEROS}${NLOOP}ijp${WARPZEROS}${NWARP}url${URLZEROS}${NUNROLL}ws${USE_WS}wr${USE_WR}l2a${USE_L2_ASIDE}lev${L2_TREELEV}
+                                        echo "## generate $EXEC" >> $LOG
 
-										# generate job lists instead of running the execution file
-										echo "${EXEC}" >> $LIST
-									fi
-									make clean
-									# if [ -e $EXEC ]; then
-									# 	TARGET=log/${EXEC##*/}
-									# 	echo "srun -t ${TIME} numactl --cpunodebind=0 --localalloc ${EXEC} -absErr=${ABSERR} -file=${FILE} -jobID=$INDEX 1>>${TARGET}.o 2>>${TARGET}.e" >> $LIST
-									# 	INDEX=`expr $INDEX + 1`
-									# fi
+                                        # compile the N-body code w/ neighbor searching
+                                        make -j4 gothic MEASURE_ELAPSED_TIME=1 HUNT_OPTIMAL_WALK_TREE=1 HUNT_OPTIMAL_INTEGRATE=1 HUNT_OPTIMAL_MAKE_TREE=0 HUNT_OPTIMAL_MAKE_NODE=0 HUNT_OPTIMAL_NEIGHBOUR=0 HUNT_OPTIMAL_SEPARATION=1 HUNT_OPTIMAL_L2LEVEL=1 NUM_NTHREADS=$NTHREADS NUM_TSUB=$TSUB NUM_NLOOP=${NLOOP} NUM_NWARP=${NWARP} NUM_NUNROLL=${NUNROLL} NUM_BLOCKS_SM=${NBLOCKS_SM} USE_WARPSHUFFLE=${USE_WS} USE_WARPREDUCE=${USE_WR} USE_L2SETASIDE=${USE_L2_ASIDE} NUM_TREELEV_L2=${L2_TREELEV} ADOPT_GADGET_TYPE_MAC=1 1>>$LOG 2>>$ERR
+
+                                        if [ -e bin/gothic ]; then
+                                            # rename the executable
+                                            mv bin/gothic $EXEC
+
+                                            # generate job lists instead of running the execution file
+                                            echo "${EXEC}" >> $LIST
+                                        fi
+                                        make clean
+                                        # if [ -e $EXEC ]; then
+                                        # 	TARGET=log/${EXEC##*/}
+                                        # 	echo "srun -t ${TIME} numactl --cpunodebind=0 --localalloc ${EXEC} -absErr=${ABSERR} -file=${FILE} -jobID=$INDEX 1>>${TARGET}.o 2>>${TARGET}.e" >> $LIST
+                                        # 	INDEX=`expr $INDEX + 1`
+                                        # fi
+                                    done
 								done
 							done
 						done

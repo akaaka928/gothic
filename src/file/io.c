@@ -5594,7 +5594,7 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
   newFile = (0 != access(filename, F_OK));
   fp = fopen(filename, "a");  if( fp == NULL ){    __KILL__(stderr, "ERROR: failure to open \"%s\"\n", filename);  }
   if( newFile ){
-    fprintf(fp, "#%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", "calcGravity_dev", "NTHREADS", "TSUB", "NWARP", "NLOOP",
+    fprintf(fp, "#%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", "calcGravity_dev", "NTHREADS", "TSUB", "NWARP", "NLOOP", "NUNROLL",
 	    "USE_WARP_SHUFFLE_FUNC", "GET_BUFID",
 	    "NBLOCKS_PER_SM", "USE_WARP_REDUCE_FUNC", "USE_L2_SET_ASIDE_POLICY", "NLEVEL_TREE_NODE_L2_PERSISTING");
 #ifdef  NEIGHBOR_PHKEY_LEVEL
@@ -5603,9 +5603,9 @@ void dumpBenchmark(int jobID, char file[], int steps, wall_clock_time *dat)
     fprintf(fp, "\t%s", "NEIGHBOR_LENGTH_SHRINK_FACTOR");
     fprintf(fp, "\n");
   }/* if( newFile ){ */
-  fprintf(fp, "%e\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d",
+  fprintf(fp, "%e\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d",
 	  inv * mean.calcGravity_dev,
-	  NTHREADS, TSUB, NWARP, NLOOP
+	  NTHREADS, TSUB, NWARP, NLOOP, NUNROLL
 	  /* use warp shuffle instruction or not */
 #ifdef  USE_WARP_SHUFFLE_FUNC
 	  , 1

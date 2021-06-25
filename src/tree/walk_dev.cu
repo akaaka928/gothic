@@ -1329,10 +1329,11 @@ __device__ __forceinline__ void calc_interaction
   acceleration acc     = {ZERO, ZERO, ZERO, ZERO};
 #endif//PARTIAL_SUM_ACCELERATION
 
-#pragma unroll
 #ifdef  IJ_PARALLELIZATION
+PRAGMA_UNROLL
   for(int jj = lane; jj < NLOOP * TSUB; jj += NWARP)
 #else///IJ_PARALLELIZATION
+PRAGMA_UNROLL
   for(int jj = 0; jj < NLOOP * TSUB; jj++)
 #endif//IJ_PARALLELIZATION
     {
