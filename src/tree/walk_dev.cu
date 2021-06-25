@@ -877,7 +877,6 @@ __device__ __forceinline__
 			    , const uint shfl_mask_tsub
 #else///USE_WARP_SHUFFLE_FUNC
 			    , volatile uint_real * smem, const int tidx, const int tail
-			    , const uint shfl_mask_tsub
 #endif//USE_WARP_SHUFFLE_FUNC
 			    )
 {
