@@ -231,7 +231,7 @@
 #ifdef  IJ_PARALLELIZATION
 #ifndef NWARP
 #   if  GPUVER >= 80
-#define NWARP (2)
+#define NWARP (1)
 #else///GPUVER >= 80
 #   if  GPUVER >= 70
 #define NWARP (2)
@@ -270,7 +270,7 @@
  */
 #ifndef NBLOCKS_PER_SM
 #   if  GPUVER >= 80
-#define NBLOCKS_PER_SM (4)
+#define NBLOCKS_PER_SM (3)
 #else///GPUVER >= 80
 #define NBLOCKS_PER_SM (2)
 #endif//GPUVER >= 80
@@ -284,7 +284,7 @@
  */
 #ifndef NTHREADS
 #   if  GPUVER >= 80
-#define NTHREADS (512)
+#define NTHREADS (256)
 #else///GPUVER >= 80
 #   if  GPUVER >= 30
 #define NTHREADS (512)
@@ -424,7 +424,7 @@
  */
 #ifndef NLOOP
 #   if  GPUVER >= 80
-#define NLOOP (3)
+#define NLOOP (4)
 #else///GPUVER >= 80
 #   if  GPUVER >= 70
 #define NLOOP (3)

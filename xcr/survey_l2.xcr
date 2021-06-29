@@ -26,9 +26,23 @@ my $cub = "cub/1.12.1";
 # iteration counts
 $num_trials = 1024 / $num_procs;
 
+# list of fixed parameters in GOTHIC
+my $Ttot = 256;
+my $Tsub = 32;
+my $Nloop = 4;
+my $Nwarp = 1;
+my $Nblck = 3;
+my $use_wr = 0;
+
 # list of parameters in GOTHIC
-my @list_l2 = (0, 1, 2, 3, 4, 5, 6, 7, 8);
+# my @list_l2 = (0, 1, 2, 3, 4, 5, 6, 7, 8);
+my @list_l2 = (0, 4, 5, 6, 7, 8);
 $num_l2 = scalar @list_l2;
+# NUNROLL <= (NLOOP * TSUB / NWARP), where NLOOP = 4, TSUB = 32, NWARP = 1
+my @list_url = (1, 2, 4, 8, 16, 32, 64, 128);
+$num_url = scalar @list_url;
+my @list_ws = (1, 0);
+$num_ws = scalar @list_ws;
 
 # modules settings for Aquarius
 require "/usr/share/Modules/init/perl.pm";
@@ -41,18 +55,28 @@ require "/usr/share/Modules/init/perl.pm";
 my $bin = "bin";
 my @target = ();
 for(local $l2 = 0; $l2 < $num_l2; $l2++){
-	local $exec = sprintf("l2lev%02d", $list_l2[$l2]);
-	local $use = 1;
-	if($l2 == 0){
-		$use = 0;
+	local $l2lev = $list_l2[$l2];
+	local $use_l2 = 1;
+	if($l2lev == 0){
+		$use_l2 = 0;
 	}
-	`make gothic MEASURE_ELAPSED_TIME=1 HUNT_OPTIMAL_L2LEVEL=1 USE_L2SETASIDE=$use NUM_TREELEV_L2=$list_l2[$l2] ADOPT_GADGET_TYPE_MAC=1`;
+	for(local $ws = 0; $ws < $num_ws; $ws++){
+		local $use_ws = $list_ws[$ws];
+		for(local $url = 0; $url < $num_url; $url++){
+			local $Nunroll = $list_url[$url];
 
-	if(-e "bin/gothic"){
-		`mv bin/gothic $bin/$exec`;
-		push(@target, $exec);
+			local $exec = sprintf("l2lev%02dws%durl%04d", $l2lev, $use_ws, $Nunroll);
+			# `make gothic MEASURE_ELAPSED_TIME=1 HUNT_OPTIMAL_L2LEVEL=1 USE_L2SETASIDE=$use_l2 NUM_TREELEV_L2=$list_l2[$l2] ADOPT_GADGET_TYPE_MAC=1`;
+			`make -j4 gothic MEASURE_ELAPSED_TIME=1 HUNT_OPTIMAL_WALK_TREE=1 HUNT_OPTIMAL_INTEGRATE=1 HUNT_OPTIMAL_MAKE_TREE=0 HUNT_OPTIMAL_MAKE_NODE=0 HUNT_OPTIMAL_NEIGHBOUR=0 HUNT_OPTIMAL_SEPARATION=1 HUNT_OPTIMAL_L2LEVEL=1 NUM_NTHREADS=$Ttot NUM_TSUB=$Tsub NUM_NLOOP=$Nloop NUM_NWARP=$Nwarp NUM_NUNROLL=$Nunroll NUM_BLOCKS_SM=$Nblck USE_WARPSHUFFLE=$use_ws USE_WARPREDUCE=$use_wr USE_L2SETASIDE=$use_l2 NUM_TREELEV_L2=$l2lev ADOPT_GADGET_TYPE_MAC=1`;
+
+			if(-e "bin/gothic"){
+				`mv bin/gothic $bin/$exec`;
+				push(@target, $exec);
+			}
+			`make clean`;
+
+		}
 	}
-	`make clean`;
 }
 $num_target = scalar @target;
 
@@ -60,12 +84,16 @@ $num_target = scalar @target;
 my $series = "m31";
 my @file_list = ();
 for(local $i = 0; $i < $num_l2; $i++){
-	local $file = sprintf("%s_lev%d", $series, $i);
-	push(@file_list, $file);
-	for(local $j = 0; $j < $num_procs; $j++){
-		copy(sprintf("dat/%s.run.dat", $series), sprintf("dat/%s_%d.run.dat", $file, $j));
-		copy(sprintf("dat/%s.cfg.dat", $series), sprintf("dat/%s_%d.cfg.dat", $file, $j));
-		copy(sprintf("dat/%s.tmp0.h5", $series), sprintf("dat/%s_%d.tmp0.h5", $file, $j));
+	for(local $j = 0; $j < $num_ws; $j++){
+		for(local $k = 0; $k < $num_url; $k++){
+			local $file = sprintf("%s_lev%d_ws%d_url%04d", $series, $list_l2[$i], $list_ws[$j], $list_url[$k]);
+			push(@file_list, $file);
+			for(local $p = 0; $p < $num_procs; $p++){
+				copy(sprintf("dat/%s.run.dat", $series), sprintf("dat/%s_%d.run.dat", $file, $p));
+				copy(sprintf("dat/%s.cfg.dat", $series), sprintf("dat/%s_%d.cfg.dat", $file, $p));
+				copy(sprintf("dat/%s.tmp0.h5", $series), sprintf("dat/%s_%d.tmp0.h5", $file, $p));
+			}
+		}
 	}
 }
 
