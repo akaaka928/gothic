@@ -172,8 +172,8 @@
 #endif//HUNT_WALK_PARAMETER
 
 #ifndef HUNT_WALK_L2LEV_PARAMETER
-/* the below macro is enabled in the default option; switched off in the parameter survey mode to use -D and -U from Makefile */
-#define USE_L2_SET_ASIDE_POLICY
+/* the below macro is disabled in the default option for the performance; switched off in the parameter survey mode to use -D and -U from Makefile */
+// #define USE_L2_SET_ASIDE_POLICY
 #endif//HUNT_WALK_L2LEV_PARAMETER
 
 #   if  defined(USE_WARP_SHUFFLE_FUNC) && (GPUVER < 30)
@@ -489,7 +489,8 @@
  * @detail must <= NLOOP * TSUB / NWARP
  */
 #ifndef NUNROLL
-#define NUNROLL (NLOOP * TSUB / NWARP)
+// #define NUNROLL (NLOOP * TSUB / NWARP)
+#define NUNROLL (16)
 #endif//NUNROLL
 
 // 2^n, 3 * 2^n, 5 * 2^n, and 7 * 2^n are covered
