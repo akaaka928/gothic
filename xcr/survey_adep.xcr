@@ -17,19 +17,19 @@ $num_nodes = 2;
 $num_procs = $num_nodes * $GPUs_per_node;
 
 # modules on Aquarius
-my $cuda = "cuda/11.2";
+my $cuda = "cuda/11.1";
 my $gcc = "gcc/8.3.1";
 my $mpi = "ompi/4.1.1";
 my $phdf5 = "phdf5/1.12.0";
 my $cub = "cub/1.12.1";
 
 # list up the accuracy controling parameter and set iteration counts
-my @prec_list = (5.0e-1, 2.5e-1, 1.25e-1, 6.25e-2, 3.125e-2, 1.5625e-2, 7.8125e-3, 3.90625e-3, 1.953125e-3, 9.765625e-4, 4.8828125e-4, 2.44140625e-4, 1.220703125e-4, 6.103515625e-5, 3.0517578125e-5, 1.52587890625e-5, 7.62939453125e-6, 3.814697265625e-6, 1.9073486328125e-6, 9.5367431640625e-7);
-# my @prec_list = (5.0e-1, 2.5e-1, 1.25e-1, 6.25e-2, 3.125e-2, 1.5625e-2, 7.8125e-3, 3.90625e-3, 9.765625e-4, 4.8828125e-4, 2.44140625e-4, 1.220703125e-4, 6.103515625e-5, 3.0517578125e-5, 1.52587890625e-5, 7.62939453125e-6, 3.814697265625e-6, 1.9073486328125e-6, 9.5367431640625e-7);
+# my @prec_list = (5.0e-1, 2.5e-1, 1.25e-1, 6.25e-2, 3.125e-2, 1.5625e-2, 7.8125e-3, 3.90625e-3, 1.953125e-3, 9.765625e-4, 4.8828125e-4, 2.44140625e-4, 1.220703125e-4, 6.103515625e-5, 3.0517578125e-5, 1.52587890625e-5, 7.62939453125e-6, 3.814697265625e-6, 1.9073486328125e-6, 9.5367431640625e-7);
+my @prec_list = (5.0e-1, 2.5e-1, 1.25e-1, 6.25e-2, 3.125e-2, 1.5625e-2, 7.8125e-3, 3.90625e-3, 9.765625e-4, 4.8828125e-4, 2.44140625e-4, 1.220703125e-4, 6.103515625e-5, 3.0517578125e-5, 1.52587890625e-5, 7.62939453125e-6, 3.814697265625e-6, 1.9073486328125e-6, 9.5367431640625e-7);
 $num_prec = scalar @prec_list;
 my $Ngroup = 3;
-my @head_list = (0, 12, 16);
-# my @head_list = (0, 11, 15);
+# my @head_list = (0, 12, 16);
+my @head_list = (0, 11, 15);
 my @iter_list = (1024 / $num_procs, 128 / $num_procs, 16 / $num_procs);
 my @num_list = ();
 for(local $i = 0; $i < $Ngroup-1; $i++){
@@ -46,51 +46,54 @@ for(local $i = 0; $i < $num_procs; $i++){
 }
 
 
-for(local $i = 0; $i < $Ngroup; $i++){
-	$id_tag = sprintf("%s_%d", $id_name, $i);
+# outermost loop (hand-unrolled)
+my $grp = 0;
+# my $grp = 1;
+# my $grp = 2;
 
-	# Xcrypt specific settings
-	%template = (
-		'id' => "$id_tag",
-		'RANGE0' => [0..$num_list[$i]-1],
-		'RANGE1' => [0..$iter_list[$i]-1],
+$id_tag = sprintf("%s_%d", $id_name, $grp);
+# Xcrypt specific settings
+%template = (
+	'id' => "$id_tag",
+	'RANGE0' => [0..$num_list[$grp]-1],
+	'RANGE1' => [0..$iter_list[$grp]-1],
 
-		# commands executed on compute node
-		# module settings
-		'exe0'  => 'module purge',
-		'exe1@' => sub{"module load $cuda $gcc $mpi"},
-		'exe2'  => 'module use /work/gr16/share/modules/lib',
-		'exe3@' => sub{"module load $phdf5 $cub"},
-		'exe4'  => 'module list',
-		# job execution
-		'exe5@'   => sub{"mpiexec -machinefile \$PJM_O_NODEINF -n \$PJM_MPI_PROC -npernode $GPUs_per_node sh/wisteria/split_gpu_benchmark.sh"},
-		'arg5_0@' => sub{"--wrapper-Nprocs_node=$GPUs_per_node"},
-		'arg5_1@' => sub{"--wrapper-Nprocs_socket=$GPUs_per_socket"},
-		'arg5_2@' => sub{"--wrapper-series=$series"},
-		'arg5_3'  => '--wrapper-logdir=log',
-		'arg5_4@' => sub{
-			local $index = $VALUE[0] * $iter_list[$i] + $VALUE[1];
-			for(local $j = 0; $j < $i; $j++){
-				$index += $num_list[$j] * $iter_list[$j];
-			}
-			return ("--wrapper-packetID=$index");
-		},
-		'arg5_5'  => 'bin/gothic',
-		'arg5_6@' => sub{"-absErr=$prec_list[$head_list[$i]+$VALUE[0]]"},
+	# commands executed on compute node
+	# module settings
+	'exe0'  => 'module purge',
+	'exe1@' => sub{"module load $cuda $gcc $mpi"},
+	'exe2'  => 'module use /work/gr16/share/modules/lib',
+	'exe3@' => sub{"module load $phdf5 $cub"},
+	'exe4'  => 'module list',
+	# job execution
+	'exe5@'   => sub{"mpiexec -machinefile \$PJM_O_NODEINF -n \$PJM_MPI_PROC -npernode $GPUs_per_node sh/wisteria/split_gpu_benchmark.sh"},
+	'arg5_0@' => sub{"--wrapper-Nprocs_node=$GPUs_per_node"},
+	'arg5_1@' => sub{"--wrapper-Nprocs_socket=$GPUs_per_socket"},
+	'arg5_2@' => sub{"--wrapper-series=$series"},
+	'arg5_3'  => '--wrapper-logdir=log',
+	'arg5_4@' => sub{
+		local $index = $VALUE[0] * $iter_list[$grp] + $VALUE[1];
+		for(local $j = 0; $j < $grp; $j++){
+			$index += $num_list[$j] * $iter_list[$j];
+		}
+		return ("--wrapper-packetID=$index");
+	},
+	'arg5_5'  => 'bin/gothic',
+	'arg5_6@' => sub{"-absErr=$prec_list[$head_list[$grp]+$VALUE[0]]"},
 
-		# commands executed before job submission
-		'before' => sub{
-			print "launch $self->{id}\n";
-		},
-		'after' => sub{
-			print "finish $self->{id}\n";
-		},
+	# commands executed before job submission
+	'before' => sub{
+		print "launch $self->{id}\n";
+	},
+	'after' => sub{
+		print "finish $self->{id}\n";
+	},
 
-		# settings for job script
-		'JS_queue' => 'short-a',# short (1 hour) may be too short for the most accurate runs (regular-a??)
-		'JS_phnode@' => sub{"$num_nodes"},# number of nodes
-		'JS_node@' => sub{"$num_procs"}# number of MPI processes
-		# 'JS_limit_time' => '00:03:00'
-	);
-}
+	# settings for job script
+	'JS_queue' => 'short-a',# short (1 hour) may be too short for the most accurate runs (regular-a??)
+	'JS_phnode@' => sub{"$num_nodes"},# number of nodes
+	'JS_node@' => sub{"$num_procs"}# number of MPI processes
+	# 'JS_limit_time' => '00:03:00'
+);
+
 prepare_submit_sync(%template);

@@ -17,7 +17,7 @@ $num_nodes = 2;
 $num_procs = $num_nodes * $GPUs_per_node;
 
 # modules on Aquarius
-my $cuda = "cuda/11.2";
+my $cuda = "cuda/11.1";
 my $gcc = "gcc/8.3.1";
 my $mpi = "ompi/4.1.1";
 my $phdf5 = "phdf5/1.12.0";
