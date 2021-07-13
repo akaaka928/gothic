@@ -1,5 +1,5 @@
 #################################################################################################
-# last updated on 2021/06/01 (Tue) 13:09:52
+# last updated on 2021/07/09 (Fri) 13:19:07
 # Makefile for C Programming
 # Gravitational octree code for collisionless N-body simulations on GPUs
 #################################################################################################
@@ -1407,7 +1407,7 @@ zip:
 	$(VERBOSE)mkdir pub; \
 	fi
 	$(VERBOSE)tar -acvf $(DATE)tree.tar.xz \
-	README.md LICENSE.txt Makefile $(SRCDIR) sh cfg plt py xcr jl plugins/README \
+	README.md LICENSE.txt Makefile $(SRCDIR) sh cfg plt py xcr jl plugins/README .editorconfig \
 	$(XMLBODY) $(SRCBODY) $(XMLSNAP) $(SRCSNAP) $(XMLAERR) $(SRCAERR) $(XMLDUMP) $(SRCDUMP) $(XMLDISK) $(SRCDISK) $(XMLDIST) $(SRCDIST) $(XMLPROF) $(SRCPROF)
 	$(VERBOSE)mv       $(DATE)tree.tar.xz pub/
 #################################################################################################
