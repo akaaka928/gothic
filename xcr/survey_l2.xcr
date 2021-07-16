@@ -29,27 +29,36 @@ $num_trials = 128 / $num_procs;
 # list of fixed parameters in GOTHIC
 my $Ttot = 256;
 my $Tsub = 32;
-my $Nloop = 4;
+# my $Nloop = 4;
 my $Nwarp = 1;
 my $Nblck = 3;
-my $use_wr = 0;
+my $use_ws = 0;
 
 # list of parameters in GOTHIC
 # my @list_l2 = (0, 1, 2, 3, 4, 5, 6, 7, 8);
 my @list_l2 = (0, 4, 5, 6, 7, 8);
 $num_l2 = scalar @list_l2;
-# NUNROLL <= (NLOOP * TSUB / NWARP), where NLOOP = 4, TSUB = 32, NWARP = 1
-my @list_url = (1, 2, 4, 8, 16, 32, 64, 128);
-$num_url = scalar @list_url;
-my @list_ws = (1, 0);
-$num_ws = scalar @list_ws;
+# # NUNROLL <= (NLOOP * TSUB / NWARP), where NLOOP = 4, TSUB = 32, NWARP = 1
+# my @list_url = (1, 2, 4, 8, 16, 32, 64, 128);
+# $num_url = scalar @list_url;
+my @list_wr = (1, 0);
+$num_wr = scalar @list_wr;
+my @list_Nloop = (3, 4);
+$num_Nloop = scalar @list_Nloop;
+my @list_url3 = (1, 2, 4, 8, 16, 32, 3, 6, 12, 24, 48, 96);
+my @list_url4 = (1, 2, 4, 8, 16, 32, 64, 128);
+$num_url3 = scalar @list_url3;
+$num_url4 = scalar @list_url4;
 
 # modules settings for Aquarius
 require "/usr/share/Modules/init/perl.pm";
 &module('purge');
-&module('load', 'cuda', 'gcc', 'ompi-cuda');
+&module('load', $cuda);
+&module('load', $gcc);
+&module('load', $mpi);
 &module('use', '/work/gr16/share/modules/lib');
-&module('load', 'phdf5', 'cub');
+&module('load', $phdf5);
+&module('load', $cub);
 
 # compilation
 my $bin = "bin";
@@ -60,21 +69,26 @@ for(local $l2 = 0; $l2 < $num_l2; $l2++){
 	if($l2lev == 0){
 		$use_l2 = 0;
 	}
-	for(local $ws = 0; $ws < $num_ws; $ws++){
-		local $use_ws = $list_ws[$ws];
-		for(local $url = 0; $url < $num_url; $url++){
-			local $Nunroll = $list_url[$url];
+	for(local $wr = 0; $wr < $num_wr; $wr++){
+		local $use_wr = $list_wr[$wr];
+		for(local $loop = 0; $loop < $num_Nloop; $loop++){
+			local $Nloop = $list_Nloop[$loop];
+			$num_url = ($Nloop == 3) ? $num_url3 : $num_url4;
+			for(local $url = 0; $url < $num_url; $url++){
+				# local $Nunroll = $list_url[$loop]->[$url];
+                local $Nunroll = ($Nloop == 3) ? $list_url3[$url] : $list_url4[$url];
 
-			local $exec = sprintf("l2lev%02dws%durl%04d", $l2lev, $use_ws, $Nunroll);
-			# `make gothic MEASURE_ELAPSED_TIME=1 HUNT_OPTIMAL_L2LEVEL=1 USE_L2SETASIDE=$use_l2 NUM_TREELEV_L2=$list_l2[$l2] ADOPT_GADGET_TYPE_MAC=1`;
-			`make -j4 gothic MEASURE_ELAPSED_TIME=1 HUNT_OPTIMAL_WALK_TREE=1 HUNT_OPTIMAL_INTEGRATE=1 HUNT_OPTIMAL_MAKE_TREE=0 HUNT_OPTIMAL_MAKE_NODE=0 HUNT_OPTIMAL_NEIGHBOUR=0 HUNT_OPTIMAL_SEPARATION=1 HUNT_OPTIMAL_L2LEVEL=1 NUM_NTHREADS=$Ttot NUM_TSUB=$Tsub NUM_NLOOP=$Nloop NUM_NWARP=$Nwarp NUM_NUNROLL=$Nunroll NUM_BLOCKS_SM=$Nblck USE_WARPSHUFFLE=$use_ws USE_WARPREDUCE=$use_wr USE_L2SETASIDE=$use_l2 NUM_TREELEV_L2=$l2lev ADOPT_GADGET_TYPE_MAC=1`;
+				local $exec = sprintf("l2lev%02dwr%dloop%durl%03d", $l2lev, $use_wr, $Nloop, $Nunroll);
+				# `make gothic MEASURE_ELAPSED_TIME=1 HUNT_OPTIMAL_L2LEVEL=1 USE_L2SETASIDE=$use_l2 NUM_TREELEV_L2=$list_l2[$l2] ADOPT_GADGET_TYPE_MAC=1`;
+				`make -j4 gothic MEASURE_ELAPSED_TIME=1 HUNT_OPTIMAL_WALK_TREE=1 HUNT_OPTIMAL_INTEGRATE=1 HUNT_OPTIMAL_MAKE_TREE=0 HUNT_OPTIMAL_MAKE_NODE=0 HUNT_OPTIMAL_NEIGHBOUR=0 HUNT_OPTIMAL_SEPARATION=1 HUNT_OPTIMAL_L2LEVEL=1 NUM_NTHREADS=$Ttot NUM_TSUB=$Tsub NUM_NLOOP=$Nloop NUM_NWARP=$Nwarp NUM_NUNROLL=$Nunroll NUM_BLOCKS_SM=$Nblck USE_WARPSHUFFLE=$use_ws USE_WARPREDUCE=$use_wr USE_L2SETASIDE=$use_l2 NUM_TREELEV_L2=$l2lev ADOPT_GADGET_TYPE_MAC=1`;
 
-			if(-e "bin/gothic"){
-				`mv bin/gothic $bin/$exec`;
-				push(@target, $exec);
+				if(-e "bin/gothic"){
+					`mv bin/gothic $bin/$exec`;
+					push(@target, $exec);
+				}
+				`make clean`;
+
 			}
-			`make clean`;
-
 		}
 	}
 }
@@ -84,14 +98,19 @@ $num_target = scalar @target;
 my $series = "m31";
 my @file_list = ();
 for(local $i = 0; $i < $num_l2; $i++){
-	for(local $j = 0; $j < $num_ws; $j++){
-		for(local $k = 0; $k < $num_url; $k++){
-			local $file = sprintf("%s_lev%d_ws%d_url%04d", $series, $list_l2[$i], $list_ws[$j], $list_url[$k]);
-			push(@file_list, $file);
-			for(local $p = 0; $p < $num_procs; $p++){
-				copy(sprintf("dat/%s.run.dat", $series), sprintf("dat/%s_%d.run.dat", $file, $p));
-				copy(sprintf("dat/%s.cfg.dat", $series), sprintf("dat/%s_%d.cfg.dat", $file, $p));
-				copy(sprintf("dat/%s.tmp0.h5", $series), sprintf("dat/%s_%d.tmp0.h5", $file, $p));
+	for(local $j = 0; $j < $num_wr; $j++){
+		for(local $l = 0; $l < $num_Nloop; $l++){
+            local $Nloop = $list_Nloop[$l];
+			$num_url = ($Nloop == 3) ? $num_url3 : $num_url4;
+			for(local $k = 0; $k < $num_url; $k++){
+                local $Nunroll = ($Nloop == 3) ? $list_url3[$k] : $list_url4[$k];
+				local $file = sprintf("%s_lev%d_wr%d_loop%d_url%03d", $series, $list_l2[$i], $list_wr[$j], $Nloop, $Nunroll);
+				push(@file_list, $file);
+				for(local $p = 0; $p < $num_procs; $p++){
+					copy(sprintf("dat/%s.run.dat", $series), sprintf("dat/%s_%d.run.dat", $file, $p));
+					copy(sprintf("dat/%s.cfg.dat", $series), sprintf("dat/%s_%d.cfg.dat", $file, $p));
+					copy(sprintf("dat/%s.tmp0.h5", $series), sprintf("dat/%s_%d.tmp0.h5", $file, $p));
+				}
 			}
 		}
 	}
