@@ -173,7 +173,9 @@
 
 #ifndef HUNT_WALK_L2LEV_PARAMETER
 /* the below macro is disabled in the default option for the performance; switched off in the parameter survey mode to use -D and -U from Makefile */
-// #define USE_L2_SET_ASIDE_POLICY
+#   if  GPUGEN >= 80
+#define USE_L2_SET_ASIDE_POLICY
+#endif//GPUGEN >= 80
 #endif//HUNT_WALK_L2LEV_PARAMETER
 
 #   if  defined(USE_WARP_SHUFFLE_FUNC) && (GPUVER < 30)
@@ -490,7 +492,11 @@
  */
 #ifndef NUNROLL
 // #define NUNROLL (NLOOP * TSUB / NWARP)
+#   if  GPUGEN >= 80
+#define NUNROLL (8)
+#else///GPUGEN >= 80
 #define NUNROLL (16)
+#endif///GPUGEN >= 80
 #endif//NUNROLL
 
 // 2^n, 3 * 2^n, 5 * 2^n, and 7 * 2^n are covered
