@@ -273,12 +273,11 @@ int idxAscendingOrder(const void *a, const void *b)
 #endif//__ICC
 
 
-void set_splitter
-(char *file
-#ifndef ONLINE_ANALYSIS
- , ulong *Ntot, int *unit
-#endif//ONLINE_ANALYSIS
- )
+void set_splitter(char *file
+  #ifndef ONLINE_ANALYSIS
+  , ulong *Ntot, int *unit
+  #endif//ONLINE_ANALYSIS
+  )
 {
   __NOTE__("%s\n", "start");
 
@@ -298,15 +297,17 @@ void set_splitter
   int *bodyHead, *bodyNum;
   bodyHead = (int *)malloc(sizeof(int) * kind);  if( bodyHead == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate bodyHead");  }
   bodyNum  = (int *)malloc(sizeof(int) * kind);  if( bodyNum  == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate bodyNum");  }
-  for(int ii = 0; ii < kind; ii++)
+  for(int ii = 0; ii < kind; ii++){
     checker &= (1 == fscanf(fp, "%d", &(bodyNum[ii])));
+  }
   fclose(fp);
   if( !checker ){
     __KILL__(stderr, "ERROR: failure to read \"%s\"\n", filename);
-}
+  }
   bodyHead[0] = 0;
-  for(int ii = 1; ii < kind; ii++)
+  for(int ii = 1; ii < kind; ii++){
     bodyHead[ii] = bodyHead[ii - 1] + bodyNum[ii - 1];
+  }
 
   dm_head   = bodyHead[0];
   dm_num    = bodyNum [0];
@@ -314,12 +315,13 @@ void set_splitter
   star_num  = bodyNum [1];
 
 
-#ifndef ONLINE_ANALYSIS
+  #ifndef ONLINE_ANALYSIS
   *unit = unit_tmp;
   *Ntot = 0;
-  for(int ii = 0; ii < kind; ii++)
+  for(int ii = 0; ii < kind; ii++){
     *Ntot += bodyNum[ii];
-#endif//ONLINE_ANALYSIS
+  }
+  #endif//ONLINE_ANALYSIS
 
   free(bodyHead);
   free(bodyNum);
@@ -333,9 +335,9 @@ void allocate_particle_arrays_for_analysis(const ulong Ntot, nbody_aos **body, r
   __NOTE__("%s\n", "start");
 
   static int Nthreads = 1;
-#ifdef  CPUS_PER_PROCESS
+  #ifdef  CPUS_PER_PROCESS
   Nthreads = CPUS_PER_PROCESS;
-#endif//CPUS_PER_PROCESS
+  #endif//CPUS_PER_PROCESS
   __NOTE__("Nthreads = %d\n", Nthreads);
 
   *body = (nbody_aos *)malloc(sizeof(nbody_aos) * Ntot);
@@ -374,9 +376,9 @@ void allocate_observation_arrays_for_analysis(real **map, real **box, real **sco
   __NOTE__("%s\n", "start");
 
   static int Nthreads = 1;
-#ifdef  CPUS_PER_PROCESS
+  #ifdef  CPUS_PER_PROCESS
   Nthreads = CPUS_PER_PROCESS;
-#endif//CPUS_PER_PROCESS
+  #endif//CPUS_PER_PROCESS
   __NOTE__("Nthreads = %d\n", Nthreads);
 
   *map = (real *)malloc(sizeof(real) * Nthreads * MAP_NY * MAP_NX);  if( *map == NULL ){    __KILL__(stderr, "%s\n", "ERROR: failure to allocate map.");  }
@@ -461,11 +463,11 @@ void setNWstreamProperties(void)
 }
 
 
-void register_model
-(char *file,
- const real logM_dm, const real logrs_dm,
- const real logM_star, const real logr0_star, const real logW0_star,
- const real theta, const real vr, const real vt, const real vp)
+void register_model(
+  char *file,
+  const real logM_dm, const real logrs_dm,
+  const real logM_star, const real logr0_star, const real logW0_star,
+  const real theta, const real vr, const real vt, const real vp)
 {
   __NOTE__("%s\n", "start");
 
@@ -473,11 +475,11 @@ void register_model
   char filename[256];
   sprintf(filename, "%s/%s_%s.h5", DATAFOLDER, file, FILE_TAG_SCORE);
   hid_t target = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-#ifdef  USE_DOUBLE_PRECISION
+  #ifdef  USE_DOUBLE_PRECISION
   const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_DOUBLE;
-#else///USE_DOUBLE_PRECISION
+  #else///USE_DOUBLE_PRECISION
   const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_FLOAT;
-#endif//USE_DOUBLE_PRECISION
+  #endif//USE_DOUBLE_PRECISION
 
 
   hid_t group;
@@ -542,11 +544,11 @@ void initialize_score(real *score_best, char *file, const double ft)
   char filename[256];
   sprintf(filename, "%s/%s_%s.h5", DATAFOLDER, file, FILE_TAG_SCORE);
   hid_t target = H5Fopen(filename, H5F_ACC_RDWR, H5P_DEFAULT);
-#ifdef  USE_DOUBLE_PRECISION
+  #ifdef  USE_DOUBLE_PRECISION
   const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_DOUBLE;
-#else///USE_DOUBLE_PRECISION
+  #else///USE_DOUBLE_PRECISION
   const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_FLOAT;
-#endif//USE_DOUBLE_PRECISION
+  #endif//USE_DOUBLE_PRECISION
 
 
   hid_t group;
@@ -740,7 +742,7 @@ void finalize_score(real *score_final, char *file)
 
   for(int ii = 0; ii < NANGLE * NFLIP; ii++){
     const real score = score_final[ii];
-    if( score < best_score ){
+    if(score < best_score){
       best_score = score;
       best_index = ii;
     }
@@ -750,11 +752,11 @@ void finalize_score(real *score_final, char *file)
   char filename[256];
   sprintf(filename, "%s/%s_%s.h5", DATAFOLDER, file, FILE_TAG_SCORE);
   hid_t target = H5Fopen(filename, H5F_ACC_RDWR, H5P_DEFAULT);
-#ifdef  USE_DOUBLE_PRECISION
+  #ifdef  USE_DOUBLE_PRECISION
   const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_DOUBLE;
-#else///USE_DOUBLE_PRECISION
+  #else///USE_DOUBLE_PRECISION
   const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_FLOAT;
-#endif//USE_DOUBLE_PRECISION
+  #endif//USE_DOUBLE_PRECISION
 
   hid_t group = H5Gopen(target, GROUP_TAG_INFO, H5P_DEFAULT);
   hid_t attr;
@@ -800,11 +802,11 @@ void exclude_model(char *file)
   char filename[256];
   sprintf(filename, "%s/%s_%s.h5", DATAFOLDER, file, FILE_TAG_SCORE);
   hid_t target = H5Fopen(filename, H5F_ACC_RDWR, H5P_DEFAULT);
-#ifdef  USE_DOUBLE_PRECISION
+  #ifdef  USE_DOUBLE_PRECISION
   const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_DOUBLE;
-#else///USE_DOUBLE_PRECISION
+  #else///USE_DOUBLE_PRECISION
   const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_FLOAT;
-#endif//USE_DOUBLE_PRECISION
+  #endif//USE_DOUBLE_PRECISION
 
   hsize_t attr_dims = 1;
   hid_t dspc = H5Screate_simple(1, &attr_dims, NULL);
@@ -848,18 +850,19 @@ void suspend_model(char *file)
   chkHDF5err(H5Awrite(attr, H5T_NATIVE_DOUBLE, &time));
   chkHDF5err(H5Aclose(attr));
 
-#ifdef  USE_DOUBLE_PRECISION
+  #ifdef  USE_DOUBLE_PRECISION
   const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_DOUBLE;
-#else///USE_DOUBLE_PRECISION
+  #else///USE_DOUBLE_PRECISION
   const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_FLOAT;
-#endif//USE_DOUBLE_PRECISION
+  #endif//USE_DOUBLE_PRECISION
   const real initial_score = set_worst_score();
   const real suspend_score = initial_score * CAST_D2R(1.5);
   attr = H5Aopen(group, ATTR_TAG_SCORE, H5P_DEFAULT);
   real tentative_score;
   chkHDF5err(H5Aread(attr, H5T_GOTHIC_REAL, &tentative_score));
-  if( tentative_score >= initial_score )
+  if(tentative_score >= initial_score){
     chkHDF5err(H5Awrite(attr, H5T_GOTHIC_REAL, &suspend_score));
+  }
   chkHDF5err(H5Aclose(attr));
 
   chkHDF5err(H5Gclose(group));
@@ -881,7 +884,7 @@ void prepare_for_observation(const int num, nbody_aos *body, real disk2obs[restr
   real view[3][3];
   const real cosp = COS(phi);
   const real sinp = SIN(phi);
-  if( !flip ){
+  if(!flip){
     view[0][0] =  cosp;  view[0][1] = -sinp;  view[0][2] =   ZERO;
     view[1][0] =  sinp;  view[1][1] =  cosp;  view[1][2] =   ZERO;
     view[2][0] =  ZERO;  view[2][1] =  ZERO;  view[2][2] =  UNITY;
@@ -893,13 +896,18 @@ void prepare_for_observation(const int num, nbody_aos *body, real disk2obs[restr
   }
 
   real rot[3][3];
-  for(int ii = 0; ii < 3; ii++)
-    for(int jj = 0; jj < 3; jj++)
+  for(int ii = 0; ii < 3; ii++){
+    for(int jj = 0; jj < 3; jj++){
       rot[ii][jj] = ZERO;
-  for(int ii = 0; ii < 3; ii++)
-    for(int kk = 0; kk < 3; kk++)
-      for(int jj = 0; jj < 3; jj++)
-	rot[ii][jj] += disk2obs[ii][kk] * view[kk][jj];
+    }
+  }
+  for(int ii = 0; ii < 3; ii++){
+    for(int kk = 0; kk < 3; kk++){
+      for(int jj = 0; jj < 3; jj++){
+        rot[ii][jj] += disk2obs[ii][kk] * view[kk][jj];
+      }
+    }
+  }
 
 
   for(int ii = 0; ii < num; ii++){
@@ -944,15 +952,15 @@ static inline real normalize_score(const real score, const int score_max, const 
 
 void mock_observation
 (const ulong Ntot, nbody_aos *body_anal,
-#ifdef  USE_HDF5_FORMAT
- nbody_hdf5 hdf5,
-#else///USE_HDF5_FORMAT
- iparticle ibody,
-#endif//USE_HDF5_FORMAT
- real * restrict xi_all, real * restrict eta_all, real * restrict dist_all, real * restrict vxi_all, real * restrict veta_all, real * restrict vlos_all,
- real * restrict map_all, real * restrict box_all,
- real disk2obs[restrict][3], const real dphi,
- real * restrict score_best, char *file, const double time, const ulong step)
+  #ifdef  USE_HDF5_FORMAT
+  nbody_hdf5 hdf5,
+  #else///USE_HDF5_FORMAT
+  iparticle ibody,
+  #endif//USE_HDF5_FORMAT
+  real * restrict xi_all, real * restrict eta_all, real * restrict dist_all, real * restrict vxi_all, real * restrict veta_all, real * restrict vlos_all,
+  real * restrict map_all, real * restrict box_all,
+  real disk2obs[restrict][3], const real dphi,
+  real * restrict score_best, char *file, const double time, const ulong step)
 {
   __NOTE__("%s\n", "start");
 
@@ -960,33 +968,33 @@ void mock_observation
   char filename[256];
   sprintf(filename, "%s/%s_%s.h5", DATAFOLDER, file, FILE_TAG_SCORE);
   hid_t target = H5Fopen(filename, H5F_ACC_RDWR, H5P_DEFAULT);
-#ifdef  USE_DOUBLE_PRECISION
+  #ifdef  USE_DOUBLE_PRECISION
   const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_DOUBLE;
-#else///USE_DOUBLE_PRECISION
+  #else///USE_DOUBLE_PRECISION
   const hid_t H5T_GOTHIC_REAL = H5T_NATIVE_FLOAT;
-#endif//USE_DOUBLE_PRECISION
+  #endif//USE_DOUBLE_PRECISION
 
 
   for(int ii = 0; ii < (int)Ntot; ii++){
-#ifdef  USE_HDF5_FORMAT
+    #ifdef  USE_HDF5_FORMAT
     body_anal[ii]. x  = hdf5.pos[ii * 3];      body_anal[ii]. y = hdf5.pos[ii * 3 + 1];      body_anal[ii].z   = hdf5.pos[ii * 3 + 2];
     body_anal[ii].vx  = hdf5.vel[ii * 3];      body_anal[ii].vy = hdf5.vel[ii * 3 + 1];      body_anal[ii].vz  = hdf5.vel[ii * 3 + 2];
     body_anal[ii].ax  = hdf5.acc[ii * 3];      body_anal[ii].ay = hdf5.acc[ii * 3 + 1];      body_anal[ii].az  = hdf5.acc[ii * 3 + 2];
     body_anal[ii].idx = hdf5.idx[ii    ];      body_anal[ii]. m = hdf5.  m[ii        ];      body_anal[ii].pot = hdf5.pot[ii        ];
-#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
     body_anal[ii].ax_ext = hdf5.acc_ext[ii * 3];      body_anal[ii].ay_ext = hdf5.acc_ext[ii * 3 + 1];      body_anal[ii].az_ext = hdf5.acc_ext[ii * 3 + 2];
     body_anal[ii].pot_ext = hdf5.pot_ext[ii];
-#endif//SET_EXTERNAL_POTENTIAL_FIELD
-#else///USE_HDF5_FORMAT
+    #endif//SET_EXTERNAL_POTENTIAL_FIELD
+    #else///USE_HDF5_FORMAT
     body_anal[ii]. x  = ibody.pos[ii].x;      body_anal[ii]. y = ibody.pos[ii].y;      body_anal[ii]. z  = ibody.pos[ii].z;
     body_anal[ii].vx  = ibody.vel[ii].x;      body_anal[ii].vy = ibody.vel[ii].y;      body_anal[ii].vz  = ibody.vel[ii].z;
     body_anal[ii].ax  = ibody.acc[ii].x;      body_anal[ii].ay = ibody.acc[ii].y;      body_anal[ii].az  = ibody.acc[ii].z;
     body_anal[ii].idx = ibody.idx[ii]  ;      body_anal[ii]. m = ibody.pos[ii].m;      body_anal[ii].pot = ibody.acc[ii].pot;
-#ifdef  SET_EXTERNAL_POTENTIAL_FIELD
+    #ifdef  SET_EXTERNAL_POTENTIAL_FIELD
     body_anal[ii].ax_ext = ibody.acc_ext[ii].x;      body_anal[ii].ay_ext = ibody.acc_ext[ii].y;      body_anal[ii].az_ext = ibody.acc_ext[ii].z;
     body_anal[ii].pot_ext = ibody.acc_ext[ii].pot;
-#endif//SET_EXTERNAL_POTENTIAL_FIELD
-#endif//USE_HDF5_FORMAT
+    #endif//SET_EXTERNAL_POTENTIAL_FIELD
+    #endif//USE_HDF5_FORMAT
   }
 
   /** index sort of the particle array */
@@ -994,7 +1002,7 @@ void mock_observation
 
 
   /** data analysis using OpenMP: parallelization about viewing angle */
-#pragma omp parallel for num_threads(CPUS_PER_PROCESS) schedule(guided)
+  #pragma omp parallel for num_threads(CPUS_PER_PROCESS) schedule(guided)
   for(int pp = 0; pp < NANGLE * NFLIP; pp++){
     const int threadIdx = omp_get_thread_num();
     const real phi = dphi * (real)(pp % NANGLE);
@@ -1016,18 +1024,21 @@ void mock_observation
     int Nmatch_vlos_gc_internal = 0;
     int Nmatch_vlos_gc_external = 0;
     int mismatch_vlos_gc[NGC_INTERNAL + NGC_EXTERNAL];
-    for(int ii = 0; ii < NGC_INTERNAL + NGC_EXTERNAL; ii++)
+    for(int ii = 0; ii < NGC_INTERNAL + NGC_EXTERNAL; ii++){
       mismatch_vlos_gc[ii] = 1;/**< 1 means that no particle in the specified field satisfies the criterion, 0 means that there is at least one particle that satisfies the criterion */
+    }
 
     real *map;
     map = &map_all[threadIdx * MAP_NY * MAP_NX];
-    for(int ii = 0; ii < MAP_NY * MAP_NX; ii++)
+    for(int ii = 0; ii < MAP_NY * MAP_NX; ii++){
       map[ii] = ZERO;
+    }
 
     real *box;
     box = &box_all[threadIdx * DISTANCE_NFIELD * DISTANCE_NDEPTH];
-    for(int ii = 0; ii < DISTANCE_NFIELD * DISTANCE_NDEPTH; ii++)
+    for(int ii = 0; ii < DISTANCE_NFIELD * DISTANCE_NDEPTH; ii++){
       box[ii] = ZERO;
+    }
 
 
     /* pick up particles in Subaru HSC fields, follow analysis for Komiyama-san's data (for stellar particles) */
@@ -1038,105 +1049,107 @@ void mock_observation
       const real YY = -sin_t * xi + cos_t * eta;
 
       /** pick up particles locate in Subaru/HSC fields and/or its surroundings */
-      if( (XX > Xmin) && (XX < Xmax) && (YY > Ymin) && (YY < Ymax) ){
-	/** generate mass distribution map */
-	const real mi = body_anal[ii].m;
-	map[INDEX2D(MAP_NY, MAP_NX, (int)FLOOR(dYinv * (YY - Ymin)), (int)FLOOR(dXinv * (XX - Xmin)))] += mi;
+      if((XX > Xmin) && (XX < Xmax) && (YY > Ymin) && (YY < Ymax)){
+        /** generate mass distribution map */
+        const real mi = body_anal[ii].m;
+        map[INDEX2D(MAP_NY, MAP_NX, (int)FLOOR(dYinv * (YY - Ymin)), (int)FLOOR(dXinv * (XX - Xmin)))] += mi;
 
-	/** pick up particles locate in Subaru/HSC fields */
-	bool include = false;
-	for(int ff = 0; ff < NFIELD_HSC; ff++){
-	  const real dx =  xi - hsc_xi [ff];
-	  const real dy = eta - hsc_eta[ff];
+        /** pick up particles locate in Subaru/HSC fields */
+        bool include = false;
+        for(int ff = 0; ff < NFIELD_HSC; ff++){
+          const real dx =  xi - hsc_xi [ff];
+          const real dy = eta - hsc_eta[ff];
 
-	  include |= ((dx * dx + dy * dy) <= hsc_fov2);
+          include |= ((dx * dx + dy * dy) <= hsc_fov2);
 
-	  if( include )
-	    break;
-	}
+          if(include){
+            break;
+          }
+        }
 
-	/** the candidate particle locate in Subaru/HSC fields */
-	if( include ){
-	  /** distance analysis */
-	  if( (xi >= (iceptSW + slopeSW * eta)) && (xi <= (iceptNE + slopeNE * eta)) ){
-	    int ff = DISTANCE_NFIELD - 1;
-	    if      ( eta >= distance_eta[0] )	      ff = 0;
-	    else if ( eta >= distance_eta[1] )	      ff = 1;
-	    else if ( eta >= distance_eta[2] )	      ff = 2;
+        /** the candidate particle locate in Subaru/HSC fields */
+        if(include){
+          /** distance analysis */
+          if( (xi >= (iceptSW + slopeSW * eta)) && (xi <= (iceptNE + slopeNE * eta)) ){
+            int ff = DISTANCE_NFIELD - 1;
+            if      (eta >= distance_eta[0]){	      ff = 0;}
+            else if (eta >= distance_eta[1]){	      ff = 1;}
+            else if (eta >= distance_eta[2]){	      ff = 2;}
 
-	    const real dist = pi_dist[ii];
-	    if      ( dist < nwsDmin[ff] )	      box[INDEX2D(DISTANCE_NFIELD, DISTANCE_NDEPTH, ff, 0)] += mi;
-	    else if ( dist > nwsDmax[ff] )	      box[INDEX2D(DISTANCE_NFIELD, DISTANCE_NDEPTH, ff, 2)] += mi;
-	    else	                              box[INDEX2D(DISTANCE_NFIELD, DISTANCE_NDEPTH, ff, 1)] += mi;
+            const real dist = pi_dist[ii];
+            if      (dist < nwsDmin[ff]){	      box[INDEX2D(DISTANCE_NFIELD, DISTANCE_NDEPTH, ff, 0)] += mi;}
+            else if (dist > nwsDmax[ff]){	      box[INDEX2D(DISTANCE_NFIELD, DISTANCE_NDEPTH, ff, 2)] += mi;}
+            else{	                              box[INDEX2D(DISTANCE_NFIELD, DISTANCE_NDEPTH, ff, 1)] += mi;}
+          }
 
-	  }
+          /** line-of-sight velocity analysis for stellar particles (gc_internal) */
+          if(Nmatch_vlos_gc_internal < NGC_INTERNAL){
+            for(int ff = 0; ff < NGC_INTERNAL; ff++){
+              if(mismatch_vlos_gc[ff]){
+                const real dx =  xi - gc_xi [ff];
+                const real dy = eta - gc_eta[ff];
 
-	  /** line-of-sight velocity analysis for stellar particles (gc_internal) */
-	  if( Nmatch_vlos_gc_internal < NGC_INTERNAL )
-	    for(int ff = 0; ff < NGC_INTERNAL; ff++)
-	      if( mismatch_vlos_gc[ff] ){
-		const real dx =  xi - gc_xi [ff];
-		const real dy = eta - gc_eta[ff];
-
-		if( (dx * dx + dy * dy) <= gc_r2 ){
-		  const real vlos = pi_vlos[ii];
-		  if( (vlos >= gc_vmin[ff]) && (vlos <= gc_vmax[ff]) ){
-		    mismatch_vlos_gc[ff] = 0;
-		    Nmatch_vlos_gc_internal++;
-		  }
-		}
-	      }
-
-	}
+                if((dx * dx + dy * dy) <= gc_r2){
+                  const real vlos = pi_vlos[ii];
+                  if((vlos >= gc_vmin[ff]) && (vlos <= gc_vmax[ff])){
+                    mismatch_vlos_gc[ff] = 0;
+                    Nmatch_vlos_gc_internal++;
+                  }
+                }
+              }
+            }
+          }
+        }
       }
       else{
-	/** line-of-sight velocity analysis for stellar particles (gc_external) */
-	if( Nmatch_vlos_gc_external < NGC_EXTERNAL )
-	  for(int ff = NGC_INTERNAL; ff < NGC_INTERNAL + NGC_EXTERNAL; ff++)
-	    if( mismatch_vlos_gc[ff] ){
-	      const real dx =  xi - gc_xi [ff];
-	      const real dy = eta - gc_eta[ff];
+        /** line-of-sight velocity analysis for stellar particles (gc_external) */
+        if(Nmatch_vlos_gc_external < NGC_EXTERNAL){
+          for(int ff = NGC_INTERNAL; ff < NGC_INTERNAL + NGC_EXTERNAL; ff++){
+            if(mismatch_vlos_gc[ff]){
+              const real dx =  xi - gc_xi [ff];
+              const real dy = eta - gc_eta[ff];
 
-	      if( (dx * dx + dy * dy) <= gc_r2 ){
-		const real vlos = pi_vlos[ii];
-		if( (vlos >= gc_vmin[ff]) && (vlos <= gc_vmax[ff]) ){
-		  mismatch_vlos_gc[ff] = 0;
-		  Nmatch_vlos_gc_external++;
-		}
-	      }
-	    }
+              if((dx * dx + dy * dy) <= gc_r2){
+                const real vlos = pi_vlos[ii];
+                if( (vlos >= gc_vmin[ff]) && (vlos <= gc_vmax[ff]) ){
+                  mismatch_vlos_gc[ff] = 0;
+                  Nmatch_vlos_gc_external++;
+                }
+              }
+            }
+          }
+        }
       }
-
-
     }
 
 
     /** line-of-sight velocity analysis for DM particles (when no stellar particle satisfies the condition) */
     Nmatch_vlos_gc_internal += Nmatch_vlos_gc_external;
-    if( Nmatch_vlos_gc_internal < (NGC_INTERNAL + NGC_EXTERNAL) )
+    if(Nmatch_vlos_gc_internal < (NGC_INTERNAL + NGC_EXTERNAL)){
       for(int ii = dm_head; ii < dm_head + dm_num; ii++){
-	const real  xi = pi_xi [ii];
-	const real eta = pi_eta[ii];
+        const real  xi = pi_xi [ii];
+        const real eta = pi_eta[ii];
 
-	for(int ff = 0; ff < NGC_INTERNAL + NGC_EXTERNAL; ff++)
-	  if( mismatch_vlos_gc[ff] ){
-	    const real dx =  xi - gc_xi [ff];
-	    const real dy = eta - gc_eta[ff];
+        for(int ff = 0; ff < NGC_INTERNAL + NGC_EXTERNAL; ff++){
+          if(mismatch_vlos_gc[ff]){
+            const real dx =  xi - gc_xi [ff];
+            const real dy = eta - gc_eta[ff];
 
-	    if( (dx * dx + dy * dy) <= gc_r2 ){
-	      const real vlos = pi_vlos[ii];
-	      if( (vlos >= gc_vmin[ff]) && (vlos <= gc_vmax[ff]) ){
-		mismatch_vlos_gc[ff] = 0;
-		Nmatch_vlos_gc_internal++;
-	      }
-	    }
-	  }
+            if((dx * dx + dy * dy) <= gc_r2){
+              const real vlos = pi_vlos[ii];
+              if((vlos >= gc_vmin[ff]) && (vlos <= gc_vmax[ff])){
+                mismatch_vlos_gc[ff] = 0;
+                Nmatch_vlos_gc_internal++;
+              }
+            }
+          }
+        }
 
-	if( Nmatch_vlos_gc_internal == (NGC_INTERNAL + NGC_EXTERNAL) )
-	  break;
+        if(Nmatch_vlos_gc_internal == (NGC_INTERNAL + NGC_EXTERNAL)){
+          break;
+        }
       }
-
-
+    }
 
 
     /** check the stream like structure (using XY map) */
@@ -1152,39 +1165,45 @@ void mock_observation
     for(int jj = nws_jmin; jj < nws_jmax + 1; jj++){
       real side = ZERO;
       /* for(int ii = nws_imin - nws_nwid; ii < nws_imin; ii++) */
-      for(int ii = 0; ii < nws_imin95; ii++)
-	side += map[INDEX2D(MAP_NY, MAP_NX, ii, jj)];
+      for(int ii = 0; ii < nws_imin95; ii++){
+        side += map[INDEX2D(MAP_NY, MAP_NX, ii, jj)];
+      }
 
       real halo = ZERO;
       /** [-2 sigma : -1 sigma) */
-      for(int ii = nws_imin95; ii < nws_imin68; ii++)
-	halo += map[INDEX2D(MAP_NY, MAP_NX, ii, jj)];
+      for(int ii = nws_imin95; ii < nws_imin68; ii++){
+        halo += map[INDEX2D(MAP_NY, MAP_NX, ii, jj)];
+      }
 
       /** [-1 sigma : +1 sigma] */
       real core = ZERO;
       real peak = ZERO;
       for(int ii = nws_imin68; ii < nws_imax68 + 1; ii++){
-	const real entry = map[INDEX2D(MAP_NY, MAP_NX, ii, jj)];
-	core += entry;
+        const real entry = map[INDEX2D(MAP_NY, MAP_NX, ii, jj)];
+        core += entry;
 
-	peak = FMAX(peak, entry);
+        peak = FMAX(peak, entry);
       }
 
       /* peak = FMAX(HALF * peak, FLT_MIN); */
       /* peak = FMAX(ONE_THIRD * peak, FLT_MIN); */
       peak = FMAX(QUARTER * peak, FLT_MIN);
       int exist = 0;
-      for(int ii = nws_imin68; ii < nws_imax68 + 1; ii++)
-	if( map[INDEX2D(MAP_NY, MAP_NX, ii, jj)] >= peak )
-	  exist++;
+      for(int ii = nws_imin68; ii < nws_imax68 + 1; ii++){
+        if(map[INDEX2D(MAP_NY, MAP_NX, ii, jj)] >= peak){
+          exist++;
+        }
+      }
 
       /** (+1 sigma : +2 sigma] */
-      for(int ii = nws_imax68 + 1; ii < nws_imax95 + 1; ii++)
-	halo += map[INDEX2D(MAP_NY, MAP_NX, ii, jj)];
+      for(int ii = nws_imax68 + 1; ii < nws_imax95 + 1; ii++){
+        halo += map[INDEX2D(MAP_NY, MAP_NX, ii, jj)];
+      }
 
       /* for(int ii = nws_imax + 1; ii < nws_imax + 1 + nws_nwid; ii++) */
-      for(int ii = nws_imax95 + 1; ii < MAP_NX; ii++)
-	side += map[INDEX2D(MAP_NY, MAP_NX, ii, jj)];
+      for(int ii = nws_imax95 + 1; ii < MAP_NX; ii++){
+        side += map[INDEX2D(MAP_NY, MAP_NX, ii, jj)];
+      }
 
       /** check the width of the stream */
       /* core *= HALF; */
@@ -1212,7 +1231,7 @@ void mock_observation
 
     /** check the gradient of the surface-density profile */
     real score_grad = SCORE_UPPER_BOUND;
-    if( !score_mass ){
+    if(!score_mass){
       const real grad = (Sxy - Sx * Sy) / (Sxx - Sx * Sx);
       const real mean = Sy / (real)nws_jnum;
       const real grad_diff = ((grad / mean) - NWstream_grad) / NWstream_sigma;
@@ -1243,8 +1262,8 @@ void mock_observation
 
     /** if the score is good, update the status and dump to the HDF5 file */
     const bool update_score = score < score_best[pp];
-#pragma omp critical (update)
-    if( update_score ){
+    #pragma omp critical (update)
+    if(update_score){
       score_best[pp] = score;
 
       char grp[16];
@@ -1280,32 +1299,32 @@ void mock_observation
 
 
       /** update data (tentative results or NULL) */
-      if( H5Lexists(group, DATA_TAG_MAP, H5P_DEFAULT) ){
-	hid_t dset = H5Dopen(group, DATA_TAG_MAP, H5P_DEFAULT);
-	chkHDF5err(H5Dwrite(dset, H5T_GOTHIC_REAL, H5S_ALL, H5S_ALL, H5P_DEFAULT, map));
-	chkHDF5err(H5Dclose(dset));
+      if(H5Lexists(group, DATA_TAG_MAP, H5P_DEFAULT)){
+        hid_t dset = H5Dopen(group, DATA_TAG_MAP, H5P_DEFAULT);
+        chkHDF5err(H5Dwrite(dset, H5T_GOTHIC_REAL, H5S_ALL, H5S_ALL, H5P_DEFAULT, map));
+        chkHDF5err(H5Dclose(dset));
       }
       else{
-	hsize_t dims[2] = {MAP_NY, MAP_NX};
-	hid_t dspace = H5Screate_simple(2, dims, NULL);
-	hid_t dset = H5Dcreate(group, DATA_TAG_MAP, H5T_GOTHIC_REAL, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-	chkHDF5err(H5Dwrite(dset, H5T_GOTHIC_REAL, H5S_ALL, H5S_ALL, H5P_DEFAULT, map));
-	chkHDF5err(H5Dclose(dset));
-	chkHDF5err(H5Sclose(dspace));
+        hsize_t dims[2] = {MAP_NY, MAP_NX};
+        hid_t dspace = H5Screate_simple(2, dims, NULL);
+        hid_t dset = H5Dcreate(group, DATA_TAG_MAP, H5T_GOTHIC_REAL, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        chkHDF5err(H5Dwrite(dset, H5T_GOTHIC_REAL, H5S_ALL, H5S_ALL, H5P_DEFAULT, map));
+        chkHDF5err(H5Dclose(dset));
+        chkHDF5err(H5Sclose(dspace));
       }
 
-      if( H5Lexists(group, DATA_TAG_BOX, H5P_DEFAULT) ){
-	hid_t dset = H5Dopen(group, DATA_TAG_BOX, H5P_DEFAULT);
-	chkHDF5err(H5Dwrite(dset, H5T_GOTHIC_REAL, H5S_ALL, H5S_ALL, H5P_DEFAULT, box));
-	chkHDF5err(H5Dclose(dset));
+      if(H5Lexists(group, DATA_TAG_BOX, H5P_DEFAULT)){
+        hid_t dset = H5Dopen(group, DATA_TAG_BOX, H5P_DEFAULT);
+        chkHDF5err(H5Dwrite(dset, H5T_GOTHIC_REAL, H5S_ALL, H5S_ALL, H5P_DEFAULT, box));
+        chkHDF5err(H5Dclose(dset));
       }
       else{
-	hsize_t dims[2] = {DISTANCE_NFIELD, DISTANCE_NDEPTH};
-	hid_t dspace = H5Screate_simple(2, dims, NULL);
-	hid_t dset = H5Dcreate(group, DATA_TAG_BOX, H5T_GOTHIC_REAL, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-	chkHDF5err(H5Dwrite(dset, H5T_GOTHIC_REAL, H5S_ALL, H5S_ALL, H5P_DEFAULT, box));
-	chkHDF5err(H5Dclose(dset));
-	chkHDF5err(H5Sclose(dspace));
+        hsize_t dims[2] = {DISTANCE_NFIELD, DISTANCE_NDEPTH};
+        hid_t dspace = H5Screate_simple(2, dims, NULL);
+        hid_t dset = H5Dcreate(group, DATA_TAG_BOX, H5T_GOTHIC_REAL, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        chkHDF5err(H5Dwrite(dset, H5T_GOTHIC_REAL, H5S_ALL, H5S_ALL, H5P_DEFAULT, box));
+        chkHDF5err(H5Dclose(dset));
+        chkHDF5err(H5Sclose(dspace));
       }
 
       chkHDF5err(H5Gclose(group));
