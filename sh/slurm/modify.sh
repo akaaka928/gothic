@@ -2,7 +2,7 @@
 ###############################################################
 #SBATCH -J editor             # name of job
 #SBATCH -t 00:30:00           # upper limit of elapsed time
-#SBATCH -p normal             # partition name
+#SBATCH -p regular            # partition name
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
 #SBATCH --get-user-env        # retrieve the login environment variables
 ###############################################################
@@ -21,7 +21,7 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=10
     # PROBLEM=11
     # PROBLEM=12
-    # PROBLEM=13
+    PROBLEM=13
     # PROBLEM=21
     # PROBLEM=22
     # PROBLEM=23
@@ -34,7 +34,7 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=45
     # PROBLEM=46
     # PROBLEM=47
-    PROBLEM=50
+    # PROBLEM=50
     # PROBLEM=51
     # PROBLEM=52
     # PROBLEM=53

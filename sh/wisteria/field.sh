@@ -1,5 +1,5 @@
 #!/bin/bash
-#PJM -g gr16
+#PJM -g gr31
 #PJM -N gothic
 #PJM -L rscgrp=share
 #PJM -L gpu=1
@@ -15,6 +15,9 @@ EXEC=bin/gothic
 if [ -z "$PROBLEM" ]; then
     # reproduction of Komiyama et al. (2018)
     PROBLEM=13
+
+    # test-run for on-the-fly analysis
+    PROBLEM=20
 
     # continue N-body simulation to compare results with DM sub-halo free simulation
     # PROBLEM=40
@@ -79,6 +82,10 @@ fi
 if [ $PROBLEM -eq 13 ]; then
     FILE=k18nws
 fi
+# test-run for on-the-fly analysis
+if [ $PROBLEM -eq 20 ]; then
+    FILE=nws
+fi
 # continue N-body simulation to reproduce NW stream
 if [ $PROBLEM -eq 40 ]; then
     FILE=nws-continue
@@ -100,9 +107,9 @@ module load gcc/8.3.1
 module load ompi/4.1.1
 
 # load my modules
-module use /work/gr16/share/modules/lib
-module load phdf5/1.12.0
-module load cub/1.12.1
+module use /work/gr31/share/ymiki/opt/modules/lib
+module load cub/1.14.0
+module load phdf5/1.12.1
 
 # start logging
 cd $PJM_O_WORKDIR

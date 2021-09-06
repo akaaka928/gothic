@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -J magi               # name of job
 #SBATCH -t 02:00:00           # upper limit of elapsed time
-#SBATCH -p normal             # partition name
+#SBATCH -p regular            # partition name
 #SBATCH --nodes=1             # number of nodes, set to SLURM_JOB_NUM_NODES
 #SBATCH --get-user-env        # retrieve the login environment variables
 ###############################################################
@@ -31,6 +31,7 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=62
     # PROBLEM=63
     # PROBLEM=64
+    # PROBLEM=65
     # PROBLEM=90
     # PROBLEM=91
     # PROBLEM=92
@@ -657,6 +658,16 @@ fi
 if [ $PROBLEM -eq 64 ]; then
     FILE=sat
     CONFIG=nws/cusp.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    INTERVAL=100.0
+    FINISH=14000.0
+fi
+###############################################################
+# dynamical stability of a progenitor model for NW stream
+if [ $PROBLEM -eq 65 ]; then
+    FILE=sat
+    CONFIG=nws/test.cfg
     EPS=1.5625e-2
     ETA=0.5
     INTERVAL=100.0
