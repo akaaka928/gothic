@@ -5,7 +5,7 @@
  *
  * @author Yohei Miki (University of Tokyo)
  *
- * @date 2019/09/26 (Thu)
+ * @date 2021/09/07 (Tue)
  *
  * Copyright (C) 2017 Yohei Miki
  * All rights reserved.
@@ -21,21 +21,21 @@
  */
 #define USE_DEGREE_FOR_SURFACE_DENSITY_MAP
 
-/**
- * @def USE_SZIP_COMPRESSION
- *
- * @brief On to enable Szip compression for HDF5 files (default is ON).
- */
-#define USE_SZIP_COMPRESSION
+/* /\** */
+/*  * @def USE_SZIP_COMPRESSION */
+/*  * */
+/*  * @brief On to enable Szip compression for HDF5 files (default is ON). */
+/*  *\/ */
+/* #define USE_SZIP_COMPRESSION */
 
-/**
- * @def USE_GZIP_COMPRESSION
- *
- * @brief On to enable gzip compression for HDF5 files (default is ON).
- *
- * @detail currently, h5py does not accept Szip compression in default.
- */
-#define USE_GZIP_COMPRESSION
+/* /\** */
+/*  * @def USE_GZIP_COMPRESSION */
+/*  * */
+/*  * @brief On to enable gzip compression for HDF5 files (default is ON). */
+/*  * */
+/*  * @detail currently, h5py does not accept Szip compression in default. */
+/*  *\/ */
+/* #define USE_GZIP_COMPRESSION */
 
 #   if  defined(USE_SZIP_COMPRESSION) || defined(USE_GZIP_COMPRESSION)
 #define USE_FILE_COMPRESSION

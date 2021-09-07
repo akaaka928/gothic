@@ -2,7 +2,7 @@
 ###############################################################
 #SBATCH -J m31obs              # name of job
 #SBATCH -t 08:00:00            # upper limit of elapsed time
-#SBATCH -p normal              # partition name
+#SBATCH -p regular             # partition name
 #SBATCH --nodes=1              # number of nodes, set to SLURM_JOB_NUM_NODES
 #SBATCH --ntasks=16             # number of total MPI processes, set to SLURM_NTASKS
 #SBATCH --ntasks-per-socket=8  # number of MPI processes per socket, set to SLURM_NTASKS_PER_SOCKET
@@ -198,8 +198,8 @@ fi
 # END=696
 # START=327
 # END=327
-START=0
-END=264
+# START=0
+# END=264
 ###############################################################
 # set input arguments
 OPTION="-file=$FILE -start=$START -end=$END -interval=$INCREMENT -ncrit=$NCRIT -nxi=$NX -ximin=$XIMIN -ximax=$XIMAX -neta=$NY -etamin=$ETAMIN -etamax=$ETAMAX -nD=$NZ -Dmin=$DMIN -Dmax=$DMAX -nvlos=$NV -vlosmin=$VMIN -vlosmax=$VMAX -nx3D=$NX3D -ny3D=$NY3D -nz3D=$NZ3D"

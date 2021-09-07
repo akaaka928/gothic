@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -J m31plt      # name of job
 #SBATCH -t 08:00:00    # upper limit of elapsed time
-#SBATCH -p normal      # partition name
+#SBATCH -p regular     # partition name
 #SBATCH --nodes=1      # number of nodes, set to SLURM_JOB_NUM_NODES
 #SBATCH --ntasks=16    # number of total MPI processes, set to SLURM_NTASKS
 #SBATCH --get-user-env # retrieve the login environment variables
