@@ -21,7 +21,10 @@ if [ -z "$PROBLEM" ]; then
     # PROBLEM=10
     # PROBLEM=11
     # PROBLEM=12
-    PROBLEM=13
+    # PROBLEM=13
+    # PROBLEM=14
+    # PROBLEM=15
+    PROBLEM=16
     # PROBLEM=21
     # PROBLEM=22
     # PROBLEM=23
@@ -124,11 +127,42 @@ fi
 ###############################################################
 # reproduction of Komiyama et al. (2018) in the disk coordinate system
 if [ $PROBLEM -eq 13 ]; then
+    FILE=k18nws
+    CFG=nws/satellite.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=14000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# reproduction of Komiyama et al. (2018) in the disk coordinate system
+if [ $PROBLEM -eq 14 ]; then
     FILE=nws
     CFG=nws/satellite.cfg
     EPS=1.5625e-2
     ETA=0.5
     FINISH=14000.0
+    INTERVAL=25.0
+fi
+###############################################################
+# reproduction of Komiyama et al. (2018) in the disk coordinate system
+if [ $PROBLEM -eq 15 ]; then
+    FILE=nws
+    CFG=nws/satellite.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    # FINISH=14000.0
+    FINISH=8150.0
+    INTERVAL=25.0
+fi
+###############################################################
+# continue N-body simulation to reproduce NW stream
+if [ $PROBLEM -eq 16 ]; then
+    FILE=nws-continue
+    CFG=nws/continue.cfg
+    EPS=1.5625e-2
+    ETA=0.5
+    FINISH=5850.0
     INTERVAL=25.0
 fi
 ###############################################################

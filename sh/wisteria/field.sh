@@ -14,13 +14,14 @@ EXEC=bin/gothic
 # problem ID
 if [ -z "$PROBLEM" ]; then
     # reproduction of Komiyama et al. (2018)
-    PROBLEM=13
+    # PROBLEM=13
 
-    # test-run for on-the-fly analysis
-    PROBLEM=20
+    # test-run for on-the-fly analysis (initial-condition)
+    # PROBLEM=20
 
+    # test-run for on-the-fly analysis (present-day)
     # continue N-body simulation to compare results with DM sub-halo free simulation
-    # PROBLEM=40
+    PROBLEM=40
 fi
 
 # topology of MPI processes
