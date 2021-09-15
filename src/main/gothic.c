@@ -2202,6 +2202,12 @@ int main(int argc, char **argv)
 
   if( steps == 0 ){
 #ifdef  ONLINE_ANALYSIS
+    // if the score file is missing, then create a tentative one
+    char score_file[256];
+    sprintf(score_file, "%s/%s_%s.h5", DATAFOLDER, file, FILE_TAG_SCORE);
+    if(0 != access(score_file, F_OK)){
+      register_model(file, UNITY, UNITY, UNITY, UNITY, UNITY, ZERO, ZERO, ZERO, ZERO);
+    }
     /** initialization for the analysis */
     initialize_score(score_all, file, ft);
 #endif//ONLINE_ANALYSIS
