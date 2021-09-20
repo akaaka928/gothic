@@ -1,0 +1,280 @@
+#############################################################################
+#############################################################################
+Fundamental information about the particle distribution
+	generated on Mon Sep  6 14:10:11 2021
+Physical quantities in Computational and Astrophysical units is listed
+#############################################################################
+#############################################################################
+Total mass of the system  Mtot is 8.880000e+03 (= 8.880000e+11 Msun)
+Total number of particles Ntot is 1048576 (= 2^20)
+Number of components      kind is 4
+#############################################################################
+Length of Plummer softening  is 1.562500e-02 (= 1.562500e-02 kpc)
+Snapshot interval            is 2.500000e-01 (= 2.500000e+01 Myr)
+Final time of the simulation is 1.175000e+01 (= 1.175000e+03 Myr)
+#############################################################################
+#############################################################################
+#############################################################################
+#############################################################################
+0-th component: NFW model
+#############################################################################
+Total number of particles Ntot is 957654 (about 2^19)
+Range of idx for the component is [0, 957653]
+Mass of each N-body particle m is 8.468612e-03 (= 8.468612e+05 Msun)
+#############################################################################
+Total mass of the component Mtot is 8.110000e+03 (= 8.110000e+11 Msun)
+Scale radius of the component rs is 7.630000e+00 (= 7.630000e+00 kpc)
+Scale density of the component rho0 is 5.720226e-01 (= 3.871375e-04 E-20 g / cm3)
+#############################################################################
+#############################################################################
+Representative scales:
+Half-mass radius         r_{1/2} is 5.813151e+01 (= 5.813151e+01 kpc)
+Effective radius         R_{eff} is 1.644001e+01 (= 1.644001e+01 kpc)
+#########
+Representative quantities at the center:
+Volume density               rho is 4.576543e+06 (= 3.097345e+03 E-20 g / cm3)
+Column density             Sigma is 1.036362e+02 (= 2.164283e+00 g / cm2)
+Velocity dispersion      sigma_r is 3.410307e+00 (= 3.334572e+01 km / s)
+LoS velocity dispersion  sig_los is 1.744135e+01 (= 1.705401e+02 km / s)
+Escape velocity            v_esc is 1.002995e+02 (= 9.807212e+02 km / s)
+#########
+Representative quantities at the scale radius:
+Volume density               rho is 1.430056e-01 (= 9.678439e-05 E-20 g / cm3)
+Column density             Sigma is 2.885682e+00 (= 6.026306e-02 g / cm2)
+Enclosed mass of this component  is 6.167157e+02 (= 6.167157e+10 Msun); fraction is 7.604386e-02
+Enclosed mass of  all components is 1.106376e+03 (= 1.106376e+11 Msun)
+Velocity dispersion      sigma_r is 1.673306e+01 (= 1.636146e+02 km / s)
+LoS velocity dispersion  sig_los is 1.554931e+01 (= 1.520399e+02 km / s)
+Escape velocity            v_esc is 5.705123e+01 (= 5.578425e+02 km / s)
+#########
+Representative quantities at the half-mass radius:
+Volume density               rho is 1.010722e-03 (= 6.840435e-07 E-20 g / cm3)
+Column density             Sigma is 1.196371e-01 (= 2.498437e-03 g / cm2)
+Enclosed mass of this component  is 4.055000e+03 (= 4.055000e+11 Msun); fraction is 5.000000e-01
+Enclosed mass of  all components is 4.821151e+03 (= 4.821151e+11 Msun)
+Velocity dispersion      sigma_r is 1.053327e+01 (= 1.029935e+02 km / s)
+LoS velocity dispersion  sig_los is 9.664326e+00 (= 9.449703e+01 km / s)
+Escape velocity            v_esc is 3.270609e+01 (= 3.197976e+02 km / s)
+#########
+Representative quantities at the effective radius:
+Volume density               rho is 2.667669e-02 (= 1.805444e-05 E-20 g / cm3)
+Column density             Sigma is 1.021690e+00 (= 2.133643e-02 g / cm2)
+Enclosed mass of this component  is 1.487518e+03 (= 1.487518e+11 Msun); fraction is 1.834178e-01
+Enclosed mass of  all components is 2.146254e+03 (= 2.146254e+11 Msun)
+Velocity dispersion      sigma_r is 1.451787e+01 (= 1.419546e+02 km / s)
+LoS velocity dispersion  sig_los is 1.345442e+01 (= 1.315563e+02 km / s)
+Escape velocity            v_esc is 4.792351e+01 (= 4.685923e+02 km / s)
+#############################################################################
+Cutoff radius of the component   is 2.500000e+02 (= 2.500000e+02 kpc)
+Cutoff  width of the component   is 2.500000e+01 (= 2.500000e+01 kpc)
+Cutoff radius over scale radius  is 3.276540e+01
+Cutoff  width over scale radius  is 3.276540e+00
+Cutoff energy of the component   is 5.603605e+01 (= 5.357481e+03 E+10 erg / g) (= 1.171979e-02 G Mtot / rs)
+#############################################################################
+Total number of particles within the scale length is       1.306430e+05
+Enclosed mass of all components within the scale length is 1.106376e+03 (= 1.106376e+11 Msun)
+Free-fall time at the scale length                      is 3.318292e-01 (= 3.318292e+01 Myr)
+Two-body relaxation time at the scale length            is 2.188225e+02 (= 2.188225e+04 Myr)
+#############################################################################
+Snapshot interval in the unit of free-fall time           is 7.533996e-01
+Snapshot interval in the unit of two-body relaxation time is 1.142478e-03
+#############################################################################
+Final time of the simulation in the unit of free-fall time           is 3.540978e+01
+Final time of the simulation in the unit of two-body relaxation time is 5.369648e-02
+#############################################################################
+#############################################################################
+
+#############################################################################
+#############################################################################
+1-th component: Sersic profile (spherical)
+#############################################################################
+Total number of particles Ntot is 9446 (about 2^13)
+Range of idx for the component is [957654, 967099]
+Mass of each N-body particle m is 8.469193e-03 (= 8.469193e+05 Msun)
+#############################################################################
+Total mass of the component Mtot is 8.000000e+01 (= 8.000000e+09 Msun)
+Scale radius of the component rs is 9.000000e+00 (= 9.000000e+00 kpc)
+Sersic index                   n is 2.200000e+00
+Dimensionless scale factor     b is 4.071528e+00
+Scale density of the component rho0 is 5.180647e+00 (= 3.506196e-03 E-20 g / cm3)
+#############################################################################
+#############################################################################
+Representative scales:
+Half-mass radius         r_{1/2} is 1.438466e+01 (= 1.438466e+01 kpc)
+Effective radius         R_{eff} is 5.413745e+00 (= 5.413745e+00 kpc)
+#########
+Representative quantities at the center:
+Volume density               rho is 1.893493e-01 (= 1.281492e-04 E-20 g / cm3)
+Column density             Sigma is 5.196013e-01 (= 1.085108e-02 g / cm2)
+Velocity dispersion      sigma_r is 4.129282e+01 (= 4.037580e+02 km / s)
+LoS velocity dispersion  sig_los is 2.715204e+01 (= 2.654906e+02 km / s)
+Escape velocity            v_esc is 1.002995e+02 (= 9.807212e+02 km / s)
+#########
+Representative quantities at the scale radius:
+Volume density               rho is 3.186591e-03 (= 2.156644e-06 E-20 g / cm3)
+Column density             Sigma is 6.053796e-02 (= 1.264243e-03 g / cm2)
+Enclosed mass of this component  is 2.476895e+01 (= 2.476895e+09 Msun); fraction is 3.096119e-01
+Enclosed mass of  all components is 1.284413e+03 (= 1.284413e+11 Msun)
+Velocity dispersion      sigma_r is 1.493082e+01 (= 1.459924e+02 km / s)
+LoS velocity dispersion  sig_los is 1.394814e+01 (= 1.363838e+02 km / s)
+Escape velocity            v_esc is 5.514630e+01 (= 5.392163e+02 km / s)
+#########
+Representative quantities at the half-mass radius:
+Volume density               rho is 9.268738e-04 (= 6.272963e-07 E-20 g / cm3)
+Column density             Sigma is 2.448472e-02 (= 5.113259e-04 g / cm2)
+Enclosed mass of this component  is 4.000000e+01 (= 4.000000e+09 Msun); fraction is 5.000000e-01
+Enclosed mass of  all components is 1.927888e+03 (= 1.927888e+11 Msun)
+Velocity dispersion      sigma_r is 1.319394e+01 (= 1.290093e+02 km / s)
+LoS velocity dispersion  sig_los is 1.238474e+01 (= 1.210970e+02 km / s)
+Escape velocity            v_esc is 4.955460e+01 (= 4.845411e+02 km / s)
+#########
+Representative quantities at the effective radius:
+Volume density               rho is 9.492166e-03 (= 6.424176e-06 E-20 g / cm3)
+Column density             Sigma is 1.282049e-01 (= 2.677363e-03 g / cm2)
+Enclosed mass of this component  is 1.248362e+01 (= 1.248362e+09 Msun); fraction is 1.560452e-01
+Enclosed mass of  all components is 8.087340e+02 (= 8.087340e+10 Msun)
+Velocity dispersion      sigma_r is 1.682295e+01 (= 1.644935e+02 km / s)
+LoS velocity dispersion  sig_los is 1.556378e+01 (= 1.521814e+02 km / s)
+Escape velocity            v_esc is 6.090638e+01 (= 5.955379e+02 km / s)
+#############################################################################
+Cutoff radius of the component   is 1.760000e+02 (= 1.760000e+02 kpc)
+Cutoff  width of the component   is 2.000000e+01 (= 2.000000e+01 kpc)
+Cutoff radius over scale radius  is 1.955556e+01
+Cutoff  width over scale radius  is 2.222222e+00
+Cutoff energy of the component   is 7.845999e+01 (= 7.501384e+03 E+10 erg / g) (= 1.962227e+00 G Mtot / rs)
+#############################################################################
+Total number of particles within the scale length is       1.516660e+05
+Enclosed mass of all components within the scale length is 1.284413e+03 (= 1.284413e+11 Msun)
+Free-fall time at the scale length                      is 3.945396e-01 (= 3.945396e+01 Myr)
+Two-body relaxation time at the scale length            is 2.941966e+02 (= 2.941966e+04 Myr)
+#############################################################################
+Snapshot interval in the unit of free-fall time           is 6.336499e-01
+Snapshot interval in the unit of two-body relaxation time is 8.497719e-04
+#############################################################################
+Final time of the simulation in the unit of free-fall time           is 2.978155e+01
+Final time of the simulation in the unit of two-body relaxation time is 3.993928e-02
+#############################################################################
+#############################################################################
+
+#############################################################################
+#############################################################################
+2-th component: Hernquist model
+#############################################################################
+Total number of particles Ntot is 38258 (about 2^15)
+Range of idx for the component is [967100, 1005357]
+Mass of each N-body particle m is 8.468817e-03 (= 8.468817e+05 Msun)
+#############################################################################
+Total mass of the component Mtot is 3.240000e+02 (= 3.240000e+10 Msun)
+Scale radius of the component rs is 6.100000e-01 (= 6.100000e-01 kpc)
+Scale density of the component rho0 is 2.757990e+02 (= 1.866572e-01 E-20 g / cm3)
+#############################################################################
+#############################################################################
+Representative scales:
+Half-mass radius         r_{1/2} is 1.092796e+00 (= 1.092796e+00 kpc)
+Effective radius         R_{eff} is 3.589764e-01 (= 3.589764e-01 kpc)
+#########
+Representative quantities at the center:
+Volume density               rho is 1.764089e+08 (= 1.193913e+05 E-20 g / cm3)
+Column density             Sigma is 3.060329e+03 (= 6.391030e+01 g / cm2)
+Velocity dispersion      sigma_r is 3.124873e+00 (= 3.055476e+01 km / s)
+LoS velocity dispersion  sig_los is 1.134393e+01 (= 1.109200e+02 km / s)
+Escape velocity            v_esc is 1.002995e+02 (= 9.807212e+02 km / s)
+#########
+Representative quantities at the scale radius:
+Volume density               rho is 3.447488e+01 (= 2.333215e-02 E-20 g / cm3)
+Column density             Sigma is 4.475141e+01 (= 9.345647e-01 g / cm2)
+Enclosed mass of this component  is 9.833363e+01 (= 9.833363e+09 Msun); fraction is 3.034989e-01
+Enclosed mass of  all components is 1.093617e+02 (= 1.093617e+10 Msun)
+Velocity dispersion      sigma_r is 1.713560e+01 (= 1.675506e+02 km / s)
+LoS velocity dispersion  sig_los is 1.645645e+01 (= 1.609099e+02 km / s)
+Escape velocity            v_esc is 8.363385e+01 (= 8.177653e+02 km / s)
+#########
+Representative quantities at the half-mass radius:
+Volume density               rho is 7.077585e+00 (= 4.790019e-03 E-20 g / cm3)
+Column density             Sigma is 1.470508e+01 (= 3.070932e-01 g / cm2)
+Enclosed mass of this component  is 1.620000e+02 (= 1.620000e+10 Msun); fraction is 5.000000e-01
+Enclosed mass of  all components is 1.954081e+02 (= 1.954081e+10 Msun)
+Velocity dispersion      sigma_r is 1.576366e+01 (= 1.541358e+02 km / s)
+LoS velocity dispersion  sig_los is 1.516089e+01 (= 1.482420e+02 km / s)
+Escape velocity            v_esc is 7.776275e+01 (= 7.603581e+02 km / s)
+#########
+Representative quantities at the effective radius:
+Volume density               rho is 1.169248e+02 (= 7.913321e-02 E-20 g / cm3)
+Column density             Sigma is 1.015167e+02 (= 2.120021e+00 g / cm2)
+Enclosed mass of this component  is 5.398429e+01 (= 5.398429e+09 Msun); fraction is 1.666182e-01
+Enclosed mass of  all components is 5.789668e+01 (= 5.789668e+09 Msun)
+Velocity dispersion      sigma_r is 1.801823e+01 (= 1.761809e+02 km / s)
+LoS velocity dispersion  sig_los is 1.738789e+01 (= 1.700175e+02 km / s)
+Escape velocity            v_esc is 8.839573e+01 (= 8.643266e+02 km / s)
+#############################################################################
+Cutoff radius of the component   is 6.100000e+00 (= 6.100000e+00 kpc)
+Cutoff  width of the component   is 6.100000e-01 (= 6.100000e-01 kpc)
+Cutoff radius over scale radius  is 1.000000e+01
+Cutoff  width over scale radius  is 1.000000e+00
+Cutoff energy of the component   is 1.109521e+03 (= 1.060789e+05 E+10 erg / g) (= 4.643752e-01 G Mtot / rs)
+#############################################################################
+Total number of particles within the scale length is       1.291300e+04
+Enclosed mass of all components within the scale length is 1.093617e+02 (= 1.093617e+10 Msun)
+Free-fall time at the scale length                      is 2.385840e-02 (= 2.385840e+00 Myr)
+Two-body relaxation time at the scale length            is 2.627202e+00 (= 2.627202e+02 Myr)
+#############################################################################
+Snapshot interval in the unit of free-fall time           is 1.047849e+01
+Snapshot interval in the unit of two-body relaxation time is 9.515828e-02
+#############################################################################
+Final time of the simulation in the unit of free-fall time           is 4.924891e+02
+Final time of the simulation in the unit of two-body relaxation time is 4.472439e+00
+#############################################################################
+#############################################################################
+
+#############################################################################
+#############################################################################
+3-th component: Exponential disk
+#############################################################################
+Total number of particles Ntot is 43218 (about 2^15)
+Range of idx for the component is [1005358, 1048575]
+Mass of each N-body particle m is 8.468694e-03 (= 8.468694e+05 Msun)
+#############################################################################
+Total mass of the component Mtot is 3.660000e+02 (= 3.660000e+10 Msun)
+Scale radius of the component rs is 5.400000e+00 (= 5.400000e+00 kpc)
+#############################################################################
+Scale height of the component zd is 6.000000e-01 (= 6.000000e-01 kpc)
+``ENABLE_VARIABLE_SCALE_HEIGHT'' is on.
+Dimming height of the component is 16.000000 times zd
+Retrograding fraction (input)    is 0.000000e+00
+Retrograding fraction (output)   is 2.313851e-05
+Central surface density   Sigma0 is 1.998780e+00 (= 4.174147e-02 g / cm2)
+Circular speed at scale radius   is 2.607893e+01 (= 2.549977e+02 km / s)
+Maximum circular speed           is 2.845347e+01 (= 2.782158e+02 km / s)
+Circular speed is maximized      at 7.792969e-01 (= 7.792969e-01 kpc)
+``ENFORCE_EPICYCLIC_APPROXIMATION'' is off.
+Horizontal velocity dispersion   is 6.180613e+00 (= 6.043356e+01 km / s)
+Vertical   velocity dispersion   is 1.495501e+01 (= 1.462290e+02 km / s)
+Toomre's Q-value at scale radius is 2.295290e+00
+Minimum of Toomre's Q-value      is 1.844408e+00 at R = 1.234375e+01 (= 1.234375e+01 kpc), when excluding central region (estimation from scale height profile)
+Minimum of Toomre's Q-value      is 1.844408e+00 at R = 1.234375e+01 (= 1.234375e+01 kpc)
+#############################################################################
+Representative scales:
+Half-mass radius         r_{1/2} is 9.334803e+00 (= 9.334803e+00 kpc)
+Effective radius         R_{eff} is 9.058097e+00 (= 9.058097e+00 kpc)
+#############################################################################
+Cutoff radius of the component   is 5.400000e+01 (= 5.400000e+01 kpc)
+Cutoff  width of the component   is 5.400000e+00 (= 5.400000e+00 kpc)
+Cutoff radius over scale radius  is 1.000000e+01
+Cutoff  width over scale radius  is 1.000000e+00
+Cutoff energy of the component   is 0.000000e+00 (= 0.000000e+00 E+10 erg / g) (= 0.000000e+00 G Mtot / rs)
+#############################################################################
+Total number of particles within the scale length is       9.527100e+04
+Enclosed mass of all components within the scale length is 8.068277e+02 (= 8.068277e+10 Msun)
+Free-fall time at the scale length                      is 2.313553e-01 (= 2.313553e+01 Myr)
+Rotation time scale at the scale length                 is 1.301020e+00 (= 5.623472e+00 x tff = 1.301020e+02 Myr)
+Two-body relaxation time at the scale length            is 1.178378e+02 (= 1.178378e+04 Myr)
+#############################################################################
+Snapshot interval in the unit of free-fall time           is 1.080589e+00
+Snapshot interval in the unit of rotation time scale      is 1.921569e-01
+Snapshot interval in the unit of two-body relaxation time is 2.121560e-03
+#############################################################################
+Final time of the simulation in the unit of free-fall time           is 5.078769e+01
+Final time of the simulation in the unit of rotation time scale      is 9.031376e+00
+Final time of the simulation in the unit of two-body relaxation time is 9.971333e-02
+#############################################################################
+#############################################################################

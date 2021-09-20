@@ -1,0 +1,126 @@
+#####################################################################################
+Physical Constants in CGS unit are tabulated below:
+ G  = 6.674080e-08 cm^3 /(g s^2)
+k_B = 1.380650e-16 erg/K
+m_p = 1.672622e-24 g
+#####################################################################################
+Astrophysical Constants in CGS unit are tabulated below:
+Msun = 1.988400e+33 g
+Lsun = 3.845000e+33 erg/s
+Rsun = 6.955100e+10 cm
+  pc = 3.085678e+18 cm
+ kpc = 3.085678e+21 cm
+ Mpc = 3.085678e+24 cm
+  AU = 1.495979e+13 cm
+  yr = 3.155760e+07 s
+ Myr = 3.155760e+13 s
+ Gyr = 3.155760e+16 s
+#####################################################################################
+Constants about State of Fluid are tabulated below:
+mean molecular weight = 1.300000
+heat capacity ratio   = 1.666667
+#####################################################################################
+Cosmological parameters in CGS units are tabulated below:
+       h = 6.766000e-01
+     H_0 = 2.192711e-18 sec^-1
+rho_crit = 8.599098e-30 g cm^-3
+#####################################################################################
+Useful conversion factors are tabulated below:
+Msun pc^-3 = 6.767872e-23    g cm^-3
+   g cm^-3 = 1.477569e+22 Msun pc^-3
+Msun pc^-2 = 2.088347e-04    g cm^-2
+   g cm^-2 = 4.788476e+03 Msun pc^-2
+ pc Myr^-1 = 9.777922e-01 km   s^-1
+ km   s^-1 = 1.022712e+00 pc Myr^-1
+#####################################################################################
+#####################################################################################
+Computational Unit system which applied is
+	for Galactic Scale
+#####################################################################################
+Definition of Computational Unit are tabulated below:
+       mass unit = 1.000000e+08 (Msun)
+     length unit = 1.000000e+00 (kpc)
+       time unit = 1.000000e+02 (Myr)
+temperature unit = 1.000000e+04 (K)
+#####################################################################################
+Corresponding Computational Unit are tabulated below:
+       velocity: 1 C.U. = 9.777922e+00 (km / s)
+   acceleration: 1 C.U. = 9.777922e-02 (km / s / Myr)
+        density: 1 C.U. = 6.767872e-04 (E-20 g / cm3)
+ number density: 1 C.U. = 3.112512e+00 (/ cm3)
+ column density: 1 C.U. = 2.088347e-02 (g / cm2)
+         energy: 1 C.U. = 1.901065e+03 (E+50 erg)
+specific energy: 1 C.U. = 9.560776e+01 (E+10 erg / g)
+       pressure: 1 C.U. = 6.470611e-02 (E-10 erg / cm3)
+    temperature: 1 C.U. = 1.000000e+04 (K)
+#####################################################################################
+Physical Constants in Computational unit are tabulated below:
+ G  = 4.498332e+00
+k_B = 7.262512e-66
+m_p = 8.411898e-66
+k_B / m_p = 8.633619e-01
+#####################################################################################
+Conversion Factor from Astrophysical Unit to Computational Unit are tabulated below:
+       mass_astro2com = 1.000000e-08
+     length_astro2com = 1.000000e+00
+       time_astro2com = 1.000000e-02
+temperature_astro2com = 1.000000e-04
+    density_astro2com = 1.477569e+03
+   ndensity_astro2com = 3.212839e-01
+col_density_astro2com = 4.788476e+01
+colndensity_astro2com = 1.041210e-22
+   velocity_astro2com = 1.022712e-01
+      accel_astro2com = 1.022712e+01
+     energy_astro2com = 5.260210e-04
+    senergy_astro2com = 1.045940e-02
+   pressure_astro2com = 1.545449e+01
+#####################################################################################
+Conversion Factor from Computational Unit to Astrophysical Unit are tabulated below:
+       mass2astro = 1.000000e+08
+     length2astro = 1.000000e+00
+       time2astro = 1.000000e+02
+temperature2astro = 1.000000e+04
+    density2astro = 6.767872e-04
+   ndensity2astro = 3.112512e+00
+col_density2astro = 2.088347e-02
+colndensity2astro = 9.604209e+21
+   velocity2astro = 9.777922e+00
+      accel2astro = 9.777922e-02
+     energy2astro = 1.901065e+03
+    senergy2astro = 9.560776e+01
+   pressure2astro = 6.470611e-02
+#####################################################################################
+Conversion Factor from Computational Unit to CGS are tabulated below:
+       mass2cgs = 1.988400e+41
+     length2cgs = 3.085678e+21
+       time2cgs = 3.155760e+15
+temperature2cgs = 1.000000e+04
+    density2cgs = 6.767872e-24
+   ndensity2cgs = 3.112512e+00
+col_density2cgs = 2.088347e-02
+colndensity2cgs = 9.604209e+21
+   velocity2cgs = 9.777922e+05
+      accel2cgs = 3.098437e-10
+     energy2cgs = 1.901065e+53
+    senergy2cgs = 9.560776e+11
+   pressure2cgs = 6.470611e-12
+#####################################################################################
+Conversion Factor from CGS to Computational Unit are tabulated below:
+       mass2com = 5.029169e-42
+     length2com = 3.240779e-22
+       time2com = 3.168809e-16
+temperature2com = 1.000000e-04
+    density2com = 1.477569e+23
+   ndensity2com = 3.212839e-01
+col_density2com = 4.788476e+01
+colndensity2com = 1.041210e-22
+   velocity2com = 1.022712e-06
+      accel2com = 3.227434e+09
+     energy2com = 5.260210e-54
+    senergy2com = 1.045940e-12
+   pressure2com = 1.545449e+11
+#####################################################################################
+Cosmological parameters in Computational Unit are tabulated below:
+  H_0    = 6.919670e-03
+rho_crit = 1.270576e-06
+#####################################################################################

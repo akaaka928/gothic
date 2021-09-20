@@ -1,0 +1,40 @@
+#############################################################################
+#############################################################################
+Fundamental information about the particle distribution
+	generated on Mon Sep  6 14:14:10 2021
+Physical quantities in Computational and Astrophysical units is listed
+#############################################################################
+#############################################################################
+Total number of particles Ntot is 1048576 (= 2^20)
+Number of components      kind is 2
+Number of original objects     is 1
+Number of original components  is 2
+	0-th object: contains 2 components
+#############################################################################
+Length of Plummer softening  is 1.562500e-02 (= 1.562500e-02 kpc)
+Snapshot interval            is 2.500000e-01 (= 2.500000e+01 Myr)
+Final time of the simulation is 1.400000e+02 (= 1.400000e+04 Myr)
+#############################################################################
+#############################################################################
+
+#############################################################################
+#############################################################################
+0-th object: sat (2 components)
+#############################################################################
+rotation matrix is
+	9.910257e-01 3.349337e-02 -1.294069e-01
+	3.349337e-02 8.749971e-01 4.829681e-01
+	1.294069e-01 -4.829681e-01 8.660229e-01
+initial position is (2.556563e+01, -1.895850e+02, -2.378530e+02) = (2.556563e+01 kpc, -1.895850e+02 kpc, -2.378530e+02 kpc)
+initial velocity is (2.061426e+00, -2.115776e+00, 1.907126e+00) = (2.015646e+01 km / s, -2.068789e+01 km / s, 1.864773e+01 km / s)
+#############################################################################
+0-th component in original file:
+	number of particles is 943719 (about 2^19)
+	range of idx for the component is [0, 943718]
+	this is a spherical component
+1-th component in original file:
+	number of particles is 104857 (about 2^16)
+	range of idx for the component is [943719, 1048575]
+	this is a spherical component
+#############################################################################
+
