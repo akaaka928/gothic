@@ -1,0 +1,30 @@
+# EditorConfig for GOTHIC and MAGI
+
+# top-most EditorConfig file
+root = true
+
+# Unix-style newlines with a newline ending every file
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+
+# configuration for C and CUDA files
+[*.{c,h,cu,cuh}]
+indent_style = space
+indent_size = 2
+
+# configuration for scripts
+[*.{sh,py,xcr}]
+indent_style = tab
+tab_width = 4
+
+# configuration for Makefile
+[Makefile]
+indent_style = tab
+tab_width = 4
+
+# configuration for markdown
+[*.md]
+indent_style = space
+indent_size = 2
