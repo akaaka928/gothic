@@ -1,0 +1,822 @@
+/*****************************************************************************
+*
+* Copyright (c) 2000 - 2016, Lawrence Livermore National Security, LLC
+* Produced at the Lawrence Livermore National Laboratory
+* LLNL-CODE-442911
+* All rights reserved.
+*
+* This file is  part of VisIt. For  details, see https://visit.llnl.gov/.  The
+* full copyright notice is contained in the file COPYRIGHT located at the root
+* of the VisIt distribution or at http://www.llnl.gov/visit/copyright.html.
+*
+* Redistribution  and  use  in  source  and  binary  forms,  with  or  without
+* modification, are permitted provided that the following conditions are met:
+*
+*  - Redistributions of  source code must  retain the above  copyright notice,
+*    this list of conditions and the disclaimer below.
+*  - Redistributions in binary form must reproduce the above copyright notice,
+*    this  list of  conditions  and  the  disclaimer (as noted below)  in  the
+*    documentation and/or other materials provided with the distribution.
+*  - Neither the name of  the LLNS/LLNL nor the names of  its contributors may
+*    be used to endorse or promote products derived from this software without
+*    specific prior written permission.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT  HOLDERS AND CONTRIBUTORS "AS IS"
+* AND ANY EXPRESS OR  IMPLIED WARRANTIES, INCLUDING,  BUT NOT  LIMITED TO, THE
+* IMPLIED WARRANTIES OF MERCHANTABILITY AND  FITNESS FOR A PARTICULAR  PURPOSE
+* ARE  DISCLAIMED. IN  NO EVENT  SHALL LAWRENCE  LIVERMORE NATIONAL  SECURITY,
+* LLC, THE  U.S.  DEPARTMENT OF  ENERGY  OR  CONTRIBUTORS BE  LIABLE  FOR  ANY
+* DIRECT,  INDIRECT,   INCIDENTAL,   SPECIAL,   EXEMPLARY,  OR   CONSEQUENTIAL
+* DAMAGES (INCLUDING, BUT NOT  LIMITED TO, PROCUREMENT OF  SUBSTITUTE GOODS OR
+* SERVICES; LOSS OF  USE, DATA, OR PROFITS; OR  BUSINESS INTERRUPTION) HOWEVER
+* CAUSED  AND  ON  ANY  THEORY  OF  LIABILITY,  WHETHER  IN  CONTRACT,  STRICT
+* LIABILITY, OR TORT  (INCLUDING NEGLIGENCE OR OTHERWISE)  ARISING IN ANY  WAY
+* OUT OF THE  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+* DAMAGE.
+*
+*****************************************************************************/
+
+// ************************************************************************* //
+//                            avtMAGI_diskFileFormat.C                           //
+// ************************************************************************* //
+
+#include <avtMAGI_diskFileFormat.h>
+
+#include <string>
+
+#include <vtkDoubleArray.h>
+#include <vtkFloatArray.h>
+#include <vtkRectilinearGrid.h>
+#include <vtkStructuredGrid.h>
+#include <vtkUnstructuredGrid.h>
+
+#define SET_DOMAIN_BOUNDARY
+#include <avtDatabaseMetaData.h>
+#ifdef  SET_DOMAIN_BOUNDARY
+#include <avtStructuredDomainBoundaries.h>
+#endif//SET_DOMAIN_BOUNDARY
+#include <avtStructuredDomainNesting.h>
+#include <avtVariableCache.h>
+
+#include <DBOptionsAttributes.h>
+#include <Expression.h>
+
+#include <InvalidVariableException.h>
+
+
+// to use ostringstream
+#include <iostream>
+
+//-------------------------------------------------------------------------
+// HDF5 related original routines
+//-------------------------------------------------------------------------
+#include <hdf5.h>
+//-------------------------------------------------------------------------
+#define chkHDF5err(err) __chkHDF5err(err, __FILE__, __LINE__)
+//-------------------------------------------------------------------------
+#define __FPRINTF__(dst, ...)				\
+  {								\
+    fprintf(dst, "%s(%d): %s\n", __FILE__, __LINE__, __func__);	\
+    fprintf(dst, ##__VA_ARGS__);				\
+    fflush(NULL);						\
+  }
+//-------------------------------------------------------------------------
+#if defined(MPI_INCLUDED) || defined(OMPI_MPI_H)
+#     define __KILL__(dst, ...)		\
+  {						\
+    __FPRINTF__(dst, ##__VA_ARGS__);		\
+    MPI_Abort(MPI_COMM_WORLD, 1);		\
+  }
+#else
+#     define __KILL__(dst, ...)		\
+  {						\
+    __FPRINTF__(dst, ##__VA_ARGS__);		\
+    exit(EXIT_FAILURE);				\
+  }
+#endif
+//-------------------------------------------------------------------------
+void __chkHDF5err(herr_t err, const char *file, const int line)
+{
+  //-----------------------------------------------------------------------
+  /* Returns a non-negative value if successful; otherwise returns a negative value. */
+  if( err < 0 ){
+    fprintf(stderr, "Error is detected at %s(%d)\n", file, line);
+    __KILL__(stderr, "HDF5 error, error ID is %d\n", err);
+  }/* if( err < 0 ){ */
+  //-----------------------------------------------------------------------
+}
+//-------------------------------------------------------------------------
+#define INDEX2D(nx, ny, ii, jj) ((ii) * (ny) + (jj))
+//-------------------------------------------------------------------------
+
+
+using     std::string;
+
+
+// ****************************************************************************
+//  Method: avtMAGI_diskFileFormat constructor
+//
+//  Programmer: ymiki -- generated by xml2avt
+//  Creation:   Mon Nov 14 19:54:49 PST 2016
+//
+// ****************************************************************************
+
+avtMAGI_diskFileFormat::avtMAGI_diskFileFormat(const char *filename)
+    : avtSTMDFileFormat(&filename, 1)
+{
+    // INITIALIZE DATA MEMBERS
+}
+
+
+// ****************************************************************************
+//  Method: avtMAGI_diskFileFormat::FreeUpResources
+//
+//  Purpose:
+//      When VisIt is done focusing on a particular timestep, it asks that
+//      timestep to free up any resources (memory, file descriptors) that
+//      it has associated with it.  This method is the mechanism for doing
+//      that.
+//
+//  Programmer: ymiki -- generated by xml2avt
+//  Creation:   Mon Nov 14 19:54:49 PST 2016
+//
+// ****************************************************************************
+
+void
+avtMAGI_diskFileFormat::FreeUpResources(void)
+{
+}
+
+
+// ****************************************************************************
+//  Method: avtMAGI_diskFileFormat::PopulateDatabaseMetaData
+//
+//  Purpose:
+//      This database meta-data object is like a table of contents for the
+//      file.  By populating it, you are telling the rest of VisIt what
+//      information it can request from you.
+//
+//  Programmer: ymiki -- generated by xml2avt
+//  Creation:   Mon Nov 14 19:54:49 PST 2016
+//
+// ****************************************************************************
+
+void
+avtMAGI_diskFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md)
+{
+  const int nDims = 2;
+  // open the target file
+  const char* filename = GetFilename();
+  hid_t target = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+  // read number of data groups contained in the file (written as an attribute)
+  int kind;
+  hid_t attribute = H5Aopen(target, "kinds", H5P_DEFAULT);
+  chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &kind));
+  chkHDF5err(H5Aclose(attribute));
+  int maxLev;
+  attribute = H5Aopen(target, "maxLev", H5P_DEFAULT);
+  chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &maxLev));
+  chkHDF5err(H5Aclose(attribute));
+  const int nLevels = maxLev;// # of all resolution levels
+  const int nBlocks = maxLev;// # of all patches
+  hid_t str4format = H5Tcopy(H5T_C_S1);
+  const int charSize = 16;
+  chkHDF5err(H5Tset_size(str4format, charSize));
+  char length_unit[charSize], density_unit[charSize], senergy_unit[charSize], Sigma_unit[charSize], velocity_unit[charSize], time_unit[charSize], freq_unit[charSize];
+  attribute = H5Aopen(target,   "length_astro_unit_name", H5P_DEFAULT);  chkHDF5err(H5Aread(attribute, str4format,   length_unit));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Aopen(target,  "density_astro_unit_name", H5P_DEFAULT);  chkHDF5err(H5Aread(attribute, str4format,  density_unit));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Aopen(target,  "senergy_astro_unit_name", H5P_DEFAULT);  chkHDF5err(H5Aread(attribute, str4format,  senergy_unit));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Aopen(target, "velocity_astro_unit_name", H5P_DEFAULT);  chkHDF5err(H5Aread(attribute, str4format, velocity_unit));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Aopen(target,     "time_astro_unit_name", H5P_DEFAULT);  chkHDF5err(H5Aread(attribute, str4format,     time_unit));  chkHDF5err(H5Aclose(attribute));
+  attribute = H5Aopen(target, "col_density_astro_unit_name", H5P_DEFAULT);  chkHDF5err(H5Aread(attribute, str4format, Sigma_unit));  chkHDF5err(H5Aclose(attribute));
+  chkHDF5err(H5Tclose(str4format));
+
+  char grp[16];
+  int *parent = new int[nBlocks];
+  for(int ii = 0; ii < nBlocks; ii++){
+    sprintf(grp, "data%d/patch%d", 0, ii);
+    hid_t patch = H5Gopen(target, grp, H5P_DEFAULT);
+    attribute = H5Aopen(patch, "parent", H5P_DEFAULT);
+    chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &parent[ii]));
+    chkHDF5err(H5Aclose(attribute));
+    chkHDF5err(H5Gclose(patch));
+  }// for(int ii = 0; ii < nBlocks; ii++){
+
+  sprintf(freq_unit, "1 / %s", time_unit);
+
+  for(int ii = 0; ii < kind; ii++){
+    // set subgroup
+    std::ostringstream oss;
+    oss << "data" << ii;
+    string meshname = oss.str();
+
+    // add rectilinear mesh (R, z)
+    avtMeshMetaData *mmd = new avtMeshMetaData;
+    mmd->name = meshname;
+    mmd->spatialDimension = nDims;
+    mmd->topologicalDimension = nDims;
+    mmd->meshType = AVT_AMR_MESH;
+    mmd->numGroups = nLevels;
+    mmd->numBlocks = nBlocks;
+    mmd->xLabel = "R";    mmd->xUnits = length_unit;
+    mmd->yLabel = "z";    mmd->yUnits = length_unit;
+
+    // create ratios for avtStructuredDomainNesting
+    avtStructuredDomainNesting *dn = new avtStructuredDomainNesting(nBlocks, nLevels);
+    dn->SetNumDimensions(nDims);
+    bool *levelCSset = new bool[nLevels];
+    for(int lev = 0; lev < nLevels; lev++){
+      std::vector<int> ratios;
+      int rr = (lev == 0) ? 1 : 2;
+      for(int kk = 0; kk < nDims; kk++)
+    	ratios.push_back(rr);
+      dn->SetLevelRefinementRatios(lev, ratios);
+      levelCSset[lev] = false;
+    }// for(int lev = 0; lev < nLevels; lev++){
+
+#ifdef  SET_DOMAIN_BOUNDARY
+    // create ratios for avtRectilinearDomainBoundaries
+    avtStructuredDomainBoundaries *sdb = new avtRectilinearDomainBoundaries(true);
+    sdb->SetNumDomains(nBlocks);
+#endif//SET_DOMAIN_BOUNDARY
+
+    // fill in metadata, domain nesting, and domain boundaries by reading the target file
+    std::vector<int>                groupIds(nBlocks);
+    std::vector<std::string> blockPieceNames(nBlocks);
+    for(int bidx = 0; bidx < nBlocks; bidx++){
+      // get the nested level and level-appropriate IJK indexing for the block
+      int level = 0;
+      int ijk_num [3] = {0, 0, 0};
+      int ijk_head[3] = {0, 0, 0};
+      int ijk_tail[3] = {0, 0, 0};
+      double width[3] = {0.0, 0.0, 0.0};
+      sprintf(grp, "data%d/patch%d", 0, bidx);
+      hid_t patch = H5Gopen(target, grp, H5P_DEFAULT);
+      attribute = H5Aopen(patch, "level", H5P_DEFAULT);
+      chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &level));
+      chkHDF5err(H5Aclose(attribute));
+      attribute = H5Aopen(patch, "head", H5P_DEFAULT);
+      chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, ijk_head));
+      chkHDF5err(H5Aclose(attribute));
+      attribute = H5Aopen(patch,  "num", H5P_DEFAULT);
+      chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, ijk_num));
+      chkHDF5err(H5Aclose(attribute));
+      attribute = H5Aopen(patch, "width", H5P_DEFAULT);
+      chkHDF5err(H5Aread(attribute, H5T_NATIVE_DOUBLE, width));
+      chkHDF5err(H5Aclose(attribute));
+      chkHDF5err(H5Gclose(patch));
+
+      // for(int kk = 0; kk < nDims; kk++)
+      // 	ijk_num[kk]++;
+
+      for(int kk = 0; kk < nDims; kk++)
+      	ijk_tail[kk] = ijk_head[kk] + ijk_num[kk] - 1;
+
+      // fill in metadata
+      sprintf(grp, "patch%d", bidx);
+      blockPieceNames[bidx] = grp;
+      groupIds       [bidx] = level;
+
+      // fill in avtStructuredDomainNesting
+      if( !levelCSset[level] ){
+      	std::vector<double> cs;
+      	for(int kk = 0; kk < nDims; kk++)
+      	  cs.push_back(width[kk]);
+      	dn->SetLevelCellSizes(level, cs);
+      	levelCSset[level] = true;
+      }// if( !levelCSset[level] ){
+
+      // connect pathces with the corresponding parent patch (except 0)
+      std::vector<int> logicalExtents(nDims * 2);
+      for(int kk = 0; kk < nDims; kk++){
+      	logicalExtents[        kk] = ijk_head[kk];
+      	logicalExtents[nDims + kk] = ijk_tail[kk];
+      }// for(int kk = 0; kk < nDims; kk++){
+      std::vector<int> childPatches;
+      for(int cidx = 1; cidx < nBlocks; cidx++)
+      	if( (cidx != bidx) && (parent[cidx] == bidx) )
+      	  childPatches.push_back(cidx);
+      dn->SetNestingForDomain(bidx, level, childPatches, logicalExtents);
+
+#ifdef  SET_DOMAIN_BOUNDARY
+      // fill in avtRectilinearDomainBoundaries
+      int *boundary = new int[nDims * 2];
+      for(int jj = 0; jj < nDims; jj++){
+      	boundary[     jj << 1 ] =     ijk_head[jj];
+      	boundary[1 + (jj << 1)] = 1 + ijk_tail[jj];
+      }// for(int jj = 0; jj < nDims; jj++){
+      sdb->SetIndicesForAMRPatch(bidx, level, boundary);
+      delete [] boundary;
+#endif//SET_DOMAIN_BOUNDARY
+
+    }// for(int bidx = 0; bidx < nBlocks; bidx++){
+
+    delete [] levelCSset;
+    void_ref_ptr vr = void_ref_ptr(dn, avtStructuredDomainNesting::Destruct);
+    cache->CacheVoidRef(meshname.c_str(), AUXILIARY_DATA_DOMAIN_NESTING_INFORMATION, timestep, -1, vr);
+
+#ifdef  SET_DOMAIN_BOUNDARY
+    sdb->CalculateBoundaries();
+    void_ref_ptr vsdb = void_ref_ptr(sdb, avtStructuredDomainBoundaries::Destruct);
+    cache->CacheVoidRef("any_mesh", AUXILIARY_DATA_DOMAIN_BOUNDARY_INFORMATION, timestep, -1, vsdb);
+#endif//SET_DOMAIN_BOUNDARY
+
+    // AMR mesh metadata
+    mmd->groupOrigin = 0;    mmd->groupTitle =  "Levels";    mmd->groupPieceName = "level";    mmd->groupIds   = groupIds;
+    mmd->blockOrigin = 0;    mmd->blockTitle = "Patches";    mmd->blockPieceName = "patch";    mmd->blockNames = blockPieceNames;
+
+    md->Add(mmd);
+
+
+    // add physical variables
+    std::ostringstream var;
+    // add scalar variables
+    avtScalarMetaData *rho = new avtScalarMetaData;    rho->meshName = meshname;    rho->centering = AVT_ZONECENT;    rho->hasUnits = true;
+    var << meshname << "/rho";    rho->name = var.str();    rho->units = density_unit;    md->Add(rho);    var.str("");
+    avtScalarMetaData *pot = new avtScalarMetaData;    pot->meshName = meshname;    pot->centering = AVT_ZONECENT;    pot->hasUnits = true;
+    var << meshname << "/Phi";    pot->name = var.str();    pot->units = senergy_unit;    md->Add(pot);    var.str("");
+    if( kind > 1 ){
+      avtScalarMetaData *frc = new avtScalarMetaData;      frc->meshName = meshname;      frc->centering = AVT_ZONECENT;      frc->hasUnits = false;
+      var << meshname << "/fraction";      frc->name = var.str();      md->Add(frc);      var.str("");
+    }// if( kind > 1 ){
+
+    // add rectilinear mesh (R)
+    oss.str("");
+    oss << "hor_data" << ii;
+    string gridname = oss.str();
+    avtMeshMetaData *hor = new avtMeshMetaData;
+    hor->name = gridname;
+    hor->spatialDimension = 1;
+    hor->topologicalDimension = 1;
+    hor->meshType = AVT_RECTILINEAR_MESH;
+    hor->numBlocks = 1;
+    hor->xLabel = "R";    hor->xUnits = length_unit;
+    md->Add(hor);
+
+    // add physical variables
+    // add scalar variables
+    avtScalarMetaData *Sigma  = new avtScalarMetaData;    Sigma ->meshName = gridname;    Sigma ->centering = AVT_NODECENT;    Sigma ->hasUnits = true;
+    var << gridname << "/Sigma" ;    Sigma ->name = var.str();    Sigma ->units =    Sigma_unit;    md->Add(Sigma );    var.str("");
+    avtScalarMetaData *sigmaz = new avtScalarMetaData;    sigmaz->meshName = gridname;    sigmaz->centering = AVT_NODECENT;    sigmaz->hasUnits = true;
+    var << gridname << "/sigmaz";    sigmaz->name = var.str();    sigmaz->units = velocity_unit;    md->Add(sigmaz);    var.str("");
+    avtScalarMetaData *sigmaR = new avtScalarMetaData;    sigmaR->meshName = gridname;    sigmaR->centering = AVT_NODECENT;    sigmaR->hasUnits = true;
+    var << gridname << "/sigmaR";    sigmaR->name = var.str();    sigmaR->units = velocity_unit;    md->Add(sigmaR);    var.str("");
+    avtScalarMetaData *sigmap = new avtScalarMetaData;    sigmap->meshName = gridname;    sigmap->centering = AVT_NODECENT;    sigmap->hasUnits = true;
+    var << gridname << "/sigmap";    sigmap->name = var.str();    sigmap->units = velocity_unit;    md->Add(sigmap);    var.str("");
+    avtScalarMetaData *vcirc = new avtScalarMetaData;    vcirc->meshName = gridname;    vcirc->centering = AVT_NODECENT;    vcirc->hasUnits = true;
+    var << gridname << "/vcirc";    vcirc->name = var.str();    vcirc->units = velocity_unit;    md->Add(vcirc);    var.str("");
+    avtScalarMetaData *kappa = new avtScalarMetaData;    kappa->meshName = gridname;    kappa->centering = AVT_NODECENT;    kappa->hasUnits = true;
+    var << gridname << "/kappa";    kappa->name = var.str();    kappa->units = freq_unit;    md->Add(kappa);    var.str("");
+    avtScalarMetaData *Omega = new avtScalarMetaData;    Omega->meshName = gridname;    Omega->centering = AVT_NODECENT;    Omega->hasUnits = true;
+    var << gridname << "/Omega";    Omega->name = var.str();    Omega->units = freq_unit;    md->Add(Omega);    var.str("");
+    avtScalarMetaData *lambda = new avtScalarMetaData;    lambda->meshName = gridname;    lambda->centering = AVT_NODECENT;    lambda->hasUnits = true;
+    var << gridname << "/lambda";    lambda->name = var.str();    lambda->units = length_unit;    md->Add(lambda);    var.str("");
+    avtScalarMetaData *toomre = new avtScalarMetaData;    toomre->meshName = gridname;    toomre->centering = AVT_NODECENT;    toomre->hasUnits = false;
+    var << gridname << "/Toomre's Q";    toomre->name = var.str();    md->Add(toomre);    var.str("");
+    avtScalarMetaData *zd     = new avtScalarMetaData;    zd    ->meshName = gridname;    zd    ->centering = AVT_NODECENT;    zd    ->hasUnits = true;
+    var << gridname << "/zd"    ;    zd    ->name = var.str();    zd    ->units =   length_unit;    md->Add(zd    );    var.str("");
+  }// for(int ii = 0; ii < kind; ii++){
+
+  delete [] parent;
+
+  // close the target file
+  chkHDF5err(H5Fclose(target));
+}
+
+
+// ****************************************************************************
+//  Method: avtMAGI_diskFileFormat::GetMesh
+//
+//  Purpose:
+//      Gets the mesh associated with this file.  The mesh is returned as a
+//      derived type of vtkDataSet (ie vtkRectilinearGrid, vtkStructuredGrid,
+//      vtkUnstructuredGrid, etc).
+//
+//  Arguments:
+//      domain      The index of the domain.  If there are NDomains, this
+//                  value is guaranteed to be between 0 and NDomains-1,
+//                  regardless of block origin.
+//      meshname    The name of the mesh of interest.  This can be ignored if
+//                  there is only one mesh.
+//
+//  Programmer: ymiki -- generated by xml2avt
+//  Creation:   Mon Nov 14 19:54:49 PST 2016
+//
+// ****************************************************************************
+
+vtkDataSet *
+avtMAGI_diskFileFormat::GetMesh(int domain, const char *meshname)
+{
+  if( strncmp("hor_data", meshname, 8) == 0 ){
+    // extract gridname from meshname (gridname = hor_meshname)
+    const string str = meshname;
+    string::size_type pos = str.find_first_of("_");
+    string gridname = str.substr(pos + 1, str.size() - pos);
+
+    // open the target file
+    const char* filename = GetFilename();
+    hid_t target = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+
+    // read useDP
+    int useDP;
+    hid_t attribute = H5Aopen(target, "useDP", H5P_DEFAULT);
+    chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &useDP));
+    chkHDF5err(H5Aclose(attribute));
+
+    const int ndims = 1;
+    int dims[3] = {1, 1, 1};
+    // read number of nodes from the file (written as an attribute)
+    char patch[64];
+    // sprintf(patch, "%s/%s%d", gridname.c_str(), "patch", domain);
+    sprintf(patch, "%s/%s", gridname.c_str(), "1D_data");
+    hid_t group = H5Gopen(target, patch, H5P_DEFAULT);
+    attribute = H5Aopen(group, "num", H5P_DEFAULT);
+    chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, dims));
+    chkHDF5err(H5Aclose(attribute));
+    dims[1] = dims[2] = 1;
+
+    if( useDP == 0 ){
+      vtkFloatArray *coords[3] = {0, 0, 0};
+      // read the X coordinates from the file
+      coords[0] = vtkFloatArray::New();
+      coords[0]->SetNumberOfTuples(dims[0]);
+      float *hor = (float *)coords[0]->GetVoidPointer(0);
+      hid_t dataset = H5Dopen(group, "radius", H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, hor));
+      chkHDF5err(H5Dclose(dataset));
+
+      // disable the Y coordinates
+      coords[1] = vtkFloatArray::New();
+      coords[1]->SetNumberOfTuples(1);
+      coords[1]->SetComponent(0, 0, 0.);
+
+      // disable the Z coordinates
+      coords[2] = vtkFloatArray::New();
+      coords[2]->SetNumberOfTuples(1);
+      coords[2]->SetComponent(0, 0, 0.);
+
+      // close the target file
+      chkHDF5err(H5Gclose(group));
+      chkHDF5err(H5Fclose(target));
+
+      // create the vtkRectilinearGrid object and set its dimensions and coordinates
+      vtkRectilinearGrid *rgrid = vtkRectilinearGrid::New();
+      rgrid->SetDimensions(dims);
+      rgrid->SetXCoordinates(coords[0]);
+      rgrid->SetYCoordinates(coords[1]);
+      rgrid->SetZCoordinates(coords[2]);
+
+      coords[0]->Delete();
+      coords[1]->Delete();
+      coords[2]->Delete();
+
+      return rgrid;
+    }// if( useDP == 0 ){
+    else{
+      vtkDoubleArray *coords[3] = {0, 0, 0};
+      // read the X coordinates from the file
+      coords[0] = vtkDoubleArray::New();
+      coords[0]->SetNumberOfTuples(dims[0]);
+      double *hor = (double *)coords[0]->GetVoidPointer(0);
+      hid_t dataset = H5Dopen(group, "radius", H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, hor));
+      chkHDF5err(H5Dclose(dataset));
+
+      // disable the Y coordinates
+      coords[1] = vtkDoubleArray::New();
+      coords[1]->SetNumberOfTuples(1);
+      coords[1]->SetComponent(0, 0, 0.);
+
+      // disable the Z coordinates
+      coords[2] = vtkDoubleArray::New();
+      coords[2]->SetNumberOfTuples(1);
+      coords[2]->SetComponent(0, 0, 0.);
+
+      // close the target file
+      chkHDF5err(H5Gclose(group));
+      chkHDF5err(H5Fclose(target));
+
+      // create the vtkRectilinearGrid object and set its dimensions and coordinates
+      vtkRectilinearGrid *rgrid = vtkRectilinearGrid::New();
+      rgrid->SetDimensions(dims);
+      rgrid->SetXCoordinates(coords[0]);
+      rgrid->SetYCoordinates(coords[1]);
+      rgrid->SetZCoordinates(coords[2]);
+
+      coords[0]->Delete();
+      coords[1]->Delete();
+      coords[2]->Delete();
+
+      return rgrid;
+    }// else{
+  }// if( strncmp("hor_data", meshname, 8) == 0 ){
+  else{
+    if( strncmp("data", meshname, 4) == 0 ){
+      // open the target file
+      const char* filename = GetFilename();
+      hid_t target = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+
+      // read useDP
+      int useDP;
+      hid_t attribute = H5Aopen(target, "useDP", H5P_DEFAULT);
+      chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &useDP));
+      chkHDF5err(H5Aclose(attribute));
+
+      const int ndims = 2;
+      int dims[3] = {1, 1, 1};
+      // read number of nodes from the file (written as an attribute)
+      char patch[64];
+      sprintf(patch, "%s/%s%d", meshname, "patch", domain);
+      hid_t group = H5Gopen(target, patch, H5P_DEFAULT);
+      attribute = H5Aopen(group, "num", H5P_DEFAULT);
+      chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, dims));
+      chkHDF5err(H5Aclose(attribute));
+
+      for(int ii = 0; ii < ndims; ii++)
+	dims[ii]++;
+
+      if( useDP == 0 ){
+	vtkFloatArray *coords[3] = {0, 0, 0};
+	// read the X coordinates from the file
+	coords[0] = vtkFloatArray::New();
+	coords[0]->SetNumberOfTuples(dims[0]);
+	float *hor = (float *)coords[0]->GetVoidPointer(0);
+	// hid_t dataset = H5Dopen(group, "radius", H5P_DEFAULT);
+	hid_t dataset = H5Dopen(group, "node_RR", H5P_DEFAULT);
+	chkHDF5err(H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, hor));
+	chkHDF5err(H5Dclose(dataset));
+
+	// read the Y coordinates from the file
+	coords[1] = vtkFloatArray::New();
+	coords[1]->SetNumberOfTuples(dims[1]);
+	float *ver = (float *)coords[1]->GetVoidPointer(0);
+	// dataset = H5Dopen(group, "height", H5P_DEFAULT);
+	dataset = H5Dopen(group, "node_zz", H5P_DEFAULT);
+	chkHDF5err(H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, ver));
+	chkHDF5err(H5Dclose(dataset));
+
+	// disable the Z coordinates
+	coords[2] = vtkFloatArray::New();
+	coords[2]->SetNumberOfTuples(1);
+	coords[2]->SetComponent(0, 0, 0.);
+
+	// close the target file
+	chkHDF5err(H5Gclose(group));
+	chkHDF5err(H5Fclose(target));
+
+	// create the vtkRectilinearGrid object and set its dimensions and coordinates
+	vtkRectilinearGrid *rgrid = vtkRectilinearGrid::New();
+	rgrid->SetDimensions(dims);
+	rgrid->SetXCoordinates(coords[0]);
+	rgrid->SetYCoordinates(coords[1]);
+	rgrid->SetZCoordinates(coords[2]);
+
+	coords[0]->Delete();
+	coords[1]->Delete();
+	coords[2]->Delete();
+
+	return rgrid;
+      }// if( useDP == 0 ){
+      else{
+	vtkDoubleArray *coords[3] = {0, 0, 0};
+	// read the X coordinates from the file
+	coords[0] = vtkDoubleArray::New();
+	coords[0]->SetNumberOfTuples(dims[0]);
+	double *hor = (double *)coords[0]->GetVoidPointer(0);
+	// hid_t dataset = H5Dopen(group, "radius", H5P_DEFAULT);
+	hid_t dataset = H5Dopen(group, "node_RR", H5P_DEFAULT);
+	chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, hor));
+	chkHDF5err(H5Dclose(dataset));
+
+	// read the Y coordinates from the file
+	coords[1] = vtkDoubleArray::New();
+	coords[1]->SetNumberOfTuples(dims[1]);
+	double *ver = (double *)coords[1]->GetVoidPointer(0);
+	// dataset = H5Dopen(group, "height", H5P_DEFAULT);
+	dataset = H5Dopen(group, "node_zz", H5P_DEFAULT);
+	chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, ver));
+	chkHDF5err(H5Dclose(dataset));
+
+	// disable the Z coordinates
+	coords[2] = vtkDoubleArray::New();
+	coords[2]->SetNumberOfTuples(1);
+	coords[2]->SetComponent(0, 0, 0.);
+
+	// close the target file
+	chkHDF5err(H5Gclose(group));
+	chkHDF5err(H5Fclose(target));
+
+	// create the vtkRectilinearGrid object and set its dimensions and coordinates
+	vtkRectilinearGrid *rgrid = vtkRectilinearGrid::New();
+	rgrid->SetDimensions(dims);
+	rgrid->SetXCoordinates(coords[0]);
+	rgrid->SetYCoordinates(coords[1]);
+	rgrid->SetZCoordinates(coords[2]);
+
+	coords[0]->Delete();
+	coords[1]->Delete();
+	coords[2]->Delete();
+
+	return rgrid;
+      }// else{
+    }// if( strncmp("data", meshname, 4) == 0 ){
+    else{
+      // Error exception
+      EXCEPTION1(InvalidVariableException, meshname);
+    }// else{
+  }// else{
+}
+
+
+// ****************************************************************************
+//  Method: avtMAGI_diskFileFormat::GetVar
+//
+//  Purpose:
+//      Gets a scalar variable associated with this file.  Although VTK has
+//      support for many different types, the best bet is vtkFloatArray, since
+//      that is supported everywhere through VisIt.
+//
+//  Arguments:
+//      domain     The index of the domain.  If there are NDomains, this
+//                 value is guaranteed to be between 0 and NDomains-1,
+//                 regardless of block origin.
+//      varname    The name of the variable requested.
+//
+//  Programmer: ymiki -- generated by xml2avt
+//  Creation:   Mon Nov 14 19:54:49 PST 2016
+//
+// ****************************************************************************
+
+vtkDataArray *
+avtMAGI_diskFileFormat::GetVar(int domain, const char *varname)
+{
+  // extract meshname and variable from varname (varname = meshname/variable)
+  const string str = varname;
+  string::size_type pos = str.find_last_of("/");
+  string meshname = str.substr(0, pos);
+  string variable = str.substr(pos + 1, str.size() - pos);
+
+  // open the target file
+  const char* filename = GetFilename();
+  hid_t target = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+
+  // read useDP
+  int useDP;
+  hid_t attribute = H5Aopen(target, "useDP", H5P_DEFAULT);
+  chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, &useDP));
+  chkHDF5err(H5Aclose(attribute));
+
+  if( strncmp("data", meshname.c_str(), 4) == 0 ){
+    // 2D array
+    char patch[64];
+    sprintf(patch, "%s/%s%d", meshname.c_str(), "patch", domain);
+    hid_t group = H5Gopen(target, patch, H5P_DEFAULT);
+
+    const int ndims = 2;
+    int dims[3] = {1, 1, 1};
+    // read number of nodes from the file (written as an attribute)
+    attribute = H5Aopen(group, "num", H5P_DEFAULT);
+    chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, dims));
+    chkHDF5err(H5Aclose(attribute));
+    dims[2] = 1;
+
+    if( useDP == 0 ){
+      vtkFloatArray *coords[3] = {0, 0, 0};
+      // read the target variable
+      float *ver = new float[dims[0] * dims[1]];
+      hid_t dataset = H5Dopen(group, variable.c_str(), H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, ver));
+      chkHDF5err(H5Dclose(dataset));
+
+      // close the target file
+      chkHDF5err(H5Gclose(group));
+      chkHDF5err(H5Fclose(target));
+
+      vtkFloatArray *rv = vtkFloatArray::New();
+      rv->SetNumberOfTuples(dims[0] * dims[1]);
+      for(int ii = 0; ii < dims[0]; ii++)
+	for(int jj = 0; jj < dims[1]; jj++)
+	  rv->SetTuple1(INDEX2D(dims[1], dims[0], jj, ii), ver[INDEX2D(dims[0], dims[1], ii, jj)]);
+	  // rv->SetTuple1(INDEX2D(dims[0], dims[1], ii, jj), ver[INDEX2D(dims[0], dims[1], ii, jj)]);
+
+      // delete temporary arrays
+      delete [] ver;
+
+      return rv;
+    }// if( useDP == 0 ){
+    else{
+      vtkDoubleArray *coords[3] = {0, 0, 0};
+      // read the target variable
+      double *ver = new double[dims[0] * dims[1]];
+      hid_t dataset = H5Dopen(group, variable.c_str(), H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, ver));
+      chkHDF5err(H5Dclose(dataset));
+
+      // close the target file
+      chkHDF5err(H5Gclose(group));
+      chkHDF5err(H5Fclose(target));
+
+      vtkDoubleArray *rv = vtkDoubleArray::New();
+      rv->SetNumberOfTuples(dims[0] * dims[1]);
+      for(int ii = 0; ii < dims[0]; ii++)
+	for(int jj = 0; jj < dims[1]; jj++)
+	  rv->SetTuple1(INDEX2D(dims[1], dims[0], jj, ii), ver[INDEX2D(dims[0], dims[1], ii, jj)]);
+	  // rv->SetTuple1(INDEX2D(dims[0], dims[1], ii, jj), ver[INDEX2D(dims[0], dims[1], ii, jj)]);
+
+      // delete temporary arrays
+      delete [] ver;
+
+      return rv;
+    }// else{
+  }// if( strncmp("data", meshname.c_str(), 4) == 0 ){
+  else{
+    // 1D array
+    // extract gridname from meshname (gridname = hor_meshname)
+    const string str = meshname;
+    string::size_type pos = str.find_first_of("_");
+    string gridname = str.substr(pos + 1, str.size() - pos);
+    char patch[64];
+    // sprintf(patch, "%s/%s%d", gridname.c_str(), "patch", domain);
+    sprintf(patch, "%s/%s", gridname.c_str(), "1D_data");
+    hid_t group = H5Gopen(target, patch, H5P_DEFAULT);
+
+    const int ndims = 1;
+    int dims[3] = {1, 1, 1};
+    // read number of nodes from the file (written as an attribute)
+    attribute = H5Aopen(group, "num", H5P_DEFAULT);
+    chkHDF5err(H5Aread(attribute, H5T_NATIVE_INT, dims));
+    chkHDF5err(H5Aclose(attribute));
+    dims[1] = dims[2] = 1;
+
+    if( useDP == 0 ){
+      vtkFloatArray *coords[3] = {0, 0, 0};
+      // read the target variable
+      float *ver = new float[dims[0]];
+      hid_t dataset = H5Dopen(group, variable.c_str(), H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, ver));
+      chkHDF5err(H5Dclose(dataset));
+
+      // close the target file
+      chkHDF5err(H5Gclose(group));
+      chkHDF5err(H5Fclose(target));
+
+      vtkFloatArray *rv = vtkFloatArray::New();
+      rv->SetNumberOfTuples(dims[0]);
+      for(int ii = 0; ii < dims[0]; ii++)
+	rv->SetTuple1(ii, ver[ii]);
+
+      // delete temporary arrays
+      delete [] ver;
+
+      return rv;
+    }// if( useDP == 0 ){
+    else{
+      vtkDoubleArray *coords[3] = {0, 0, 0};
+      // read the target variable
+      double *ver = new double[dims[0]];
+      hid_t dataset = H5Dopen(group, variable.c_str(), H5P_DEFAULT);
+      chkHDF5err(H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, ver));
+      chkHDF5err(H5Dclose(dataset));
+
+      // close the target file
+      chkHDF5err(H5Gclose(group));
+      chkHDF5err(H5Fclose(target));
+
+      vtkDoubleArray *rv = vtkDoubleArray::New();
+      rv->SetNumberOfTuples(dims[0]);
+      for(int ii = 0; ii < dims[0]; ii++)
+	rv->SetTuple1(ii, ver[ii]);
+
+      // delete temporary arrays
+      delete [] ver;
+
+      return rv;
+    }// else{
+  }// else{
+}
+
+
+// ****************************************************************************
+//  Method: avtMAGI_diskFileFormat::GetVectorVar
+//
+//  Purpose:
+//      Gets a vector variable associated with this file.  Although VTK has
+//      support for many different types, the best bet is vtkFloatArray, since
+//      that is supported everywhere through VisIt.
+//
+//  Arguments:
+//      domain     The index of the domain.  If there are NDomains, this
+//                 value is guaranteed to be between 0 and NDomains-1,
+//                 regardless of block origin.
+//      varname    The name of the variable requested.
+//
+//  Programmer: ymiki -- generated by xml2avt
+//  Creation:   Mon Nov 14 19:54:49 PST 2016
+//
+// ****************************************************************************
+
+vtkDataArray *
+avtMAGI_diskFileFormat::GetVectorVar(int domain, const char *varname)
+{
+  return NULL;
+}
