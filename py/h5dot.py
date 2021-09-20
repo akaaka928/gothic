@@ -1,0 +1,147 @@
+import h5py
+import numpy as np
+import math
+
+import multiprocessing as mp
+
+import matplotlib
+matplotlib.use("agg")
+import matplotlib.pyplot as plt
+
+import utils as utils
+
+
+nxpanel, nypanel = 4, 4
+filename = "cb17"
+tag = ["6", "5", "4", "3", "2", "1", "0.6", "0.3"]
+zd  = [6.0, 5.0, 4.0, 3.0, 2.0, 1.0, 0.6, 0.3]
+
+
+def make_map(idx):
+    ii = int(np.floor(idx / nypanel))
+    jj =              idx % nypanel
+
+    # pick up an appropriate snapshot
+    if (ii & 1) == 0:
+        snapshot = "000"
+    else:
+        snapshot = "040"
+    kk = jj * (nxpanel >> 1) + ((nxpanel - 1 - ii) >> 1)
+    model = tag[kk] + "kpc"
+    input_file = model + "/dat/" + filename + ".split" + snapshot + ".h5"
+
+    # read snapshot
+    h5file = h5py.File(input_file, "r")
+
+    # read particle position and mass
+    folder = "data2/"
+    position = h5file[folder + "position"]
+    mass = h5file[folder + "mass"]
+
+    # close the HDF5 file
+    h5file.close()
+
+    # data preparation
+    px = position[:, 0]
+    py = position[:, 1]
+    pz = position[:, 2]
+
+    return px, py, pz
+
+
+# embed fonts
+plt.rcParams['ps.useafm'] = True
+plt.rcParams['pdf.use14corefonts'] = True
+plt.rcParams['text.usetex'] = True
+
+# set font size
+# plt.rcParams['font.size'] = 16
+plt.rcParams['font.size'] = 14
+
+# specify direction of ticks
+plt.rcParams['xtick.direction'] = 'in'
+plt.rcParams['ytick.direction'] = 'in'
+
+fig = utils.set_figure(nxpanel, nypanel)
+ax = [0] * nxpanel * nypanel
+utils.locate_panels(fig, ax, nxpanel, nypanel, True, True)
+
+# set plot range
+# xmin, xmax = -25.0, 25.0
+# zmin, zmax = -25.0, 25.0
+# xmin, xmax = -15.0, 15.0
+# zmin, zmax = -15.0, 15.0
+xmin, xmax = -10.0, 10.0
+zmin, zmax = -10.0, 10.0
+
+cores = mp.cpu_count()
+cores = int(np.ceil(cores / 2))
+
+pool = mp.Pool(cores)
+# px, py, pz = pool.map(make_map, range(nxpanel * nypanel))
+result = pool.map(make_map, range(nxpanel * nypanel))
+# px = result[0]
+# py = result[1]
+# pz = result[2]
+
+for idx in range(nxpanel * nypanel):
+    ii = int(np.floor(idx / nypanel))
+    jj =              idx % nypanel
+
+    # pick up an appropriate snapshot
+    if (ii & 1) == 0:
+        snapshot = "000"
+    else:
+        snapshot = "040"
+    kk = jj * (nxpanel >> 1) + ((nxpanel - 1 - ii) >> 1)
+    model = tag[kk] + "kpc"
+    input_file = model + "/dat/" + filename + ".split" + snapshot + ".h5"
+
+    # read snapshot
+    h5file = h5py.File(input_file, "r")
+
+    # read attributes
+    length_unit = h5file["/"].attrs["length_astro_unit_name"]
+    time_unit = h5file["/"].attrs["time_astro_unit_name"]
+    mass_unit = h5file["/"].attrs["mass_astro_unit_name"]
+    current_time = h5file["/"].attrs["time"]
+
+    # close the HDF5 file
+    h5file.close()
+
+    # plot the data
+    # ax[idx].plot(px[idx], pz[idx], ",", color = "black", rasterized = True)
+    ax[idx].plot(result[idx][0], result[idx][2], ",", color = "black", rasterized = True)
+
+    # set plot range
+    ax[idx].set_xlim([xmin, xmax])
+    ax[idx].set_ylim([zmin, zmax])
+
+    # set ticks
+    # ax[idx].set_xticks([-20, -10, 0, 10, 20])
+    # ax[idx].set_yticks([-20, -10, 0, 10, 20])
+    # ax[idx].set_xticks([-10, -5, 0, 5, 10])
+    # ax[idx].set_yticks([-10, -5, 0, 5, 10])
+    ax[idx].set_xticks([-9, -6, -3, 0, 3, 6, 9])
+    ax[idx].set_yticks([-9, -6, -3, 0, 3, 6, 9])
+    ax[idx].tick_params(axis = "both", direction = "in", color = "black", bottom = "on", top = "on", left = "on", right = "on")
+
+    # set label
+    if jj == 0:
+        ax[idx].set_xlabel(r"$x$ ({:<})".format(length_unit[0].decode('UTF-8')))
+    if ii == 0:
+        ax[idx].set_ylabel(r"$z$ ({:<})".format(length_unit[0].decode('UTF-8')))
+
+    # set caption
+    caption  = "(" + "{:^c}".format(97 + ii + nxpanel * (nypanel - 1 - jj)) + ")"
+    caption += " " + r"${:<} = {:.1f}$ {:<}".format("z_\mathrm{d}", zd[kk], length_unit[0].decode('UTF-8'))
+    caption += ", $t = {:.0f}$ {:<}".format(current_time[0] / 1000, "Gyr")
+    ax[idx].text(xmin + 0.5, zmax - 2.5, caption, fontsize=11)
+
+
+utils.set_shared_xlabel(ax, r"$x$ ({:<})".format(length_unit[0].decode('UTF-8')))
+utils.set_shared_ylabel(ax, r"$z$ ({:<})".format(length_unit[0].decode('UTF-8')))
+
+# plt.show()
+plt.savefig("dot.png", format = "png", dpi = 300, bbox_inches = "tight")
+plt.savefig("dot.pdf", format = "pdf", dpi = 300, bbox_inches = "tight")
