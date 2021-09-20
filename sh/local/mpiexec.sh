@@ -1,0 +1,32 @@
+#!/bin/sh
+##################################################################
+if [ $# -lt 3 ]; then
+    echo "$# input(s) is/are detected while at least 3 inputs are required to specify <binary>, <# of MPI processes> and <log file>" 1>&2
+    exit 1
+fi
+##################################################################
+EXEC=$1
+PROCS=$2
+LOG=$3
+##################################################################
+OPTION="`echo $@ | sed -e "s|$EXEC||" -e "s/$PROCS//" -e "s|$LOG||"`"
+##################################################################
+PROCS_PER_SOCKET=2
+##################################################################
+mpiexec -n $PROCS sh/wrapper.sh $EXEC $LOG $JOB_ID $PROCS_PER_NODE $PROCS_PER_SOCKET $OPTION
+# if [ `which numactl` ]; then
+#     # run with numactl
+#     echo "mpiexec -n $PROCS -hostfile $HOSTFILE -l sh/local/numarun.sh $PROCS_PER_SOCKET $LOG $EXEC $OPTION" >> $LOG
+#     mpiexec -n $PROCS -hostfile $HOSTFILE -l sh/local/numarun.sh $PROCS_PER_SOCKET $LOG $EXEC $OPTION
+# else
+#     # run without numactl
+#     echo "mpiexec -n $PROCS -hostfile $HOSTFILE -l $EXEC $OPTION" >> $LOG
+#     mpiexec -n $PROCS -hostfile $HOSTFILE -l $EXEC $OPTION
+# fi
+##################################################################
+# # collecting data with nvprof
+# echo "mpiexec -n $PROCS -hostfile $HOSTFILE -l nvprof --timeout 25 --force-overwrite -o $LOG.$$.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION" >> $LOG
+# TMPDIR=. mpiexec -n $PROCS -hostfile $HOSTFILE -l nvprof --timeout 25 --force-overwrite -o $LOG.$$.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION
+# # echo "mpiexec -n $PROCS -hostfile $HOSTFILE -l nvprof --timeout 3 --device-buffer-size 128 --device-cdp-buffer-size 128 --system-profiling on --force-overwrite -o $LOG.$$.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION" >> $LOG
+# # mpiexec -n $PROCS -hostfile $HOSTFILE -l nvprof --timeout 3 --device-buffer-size 128 --device-cdp-buffer-size 128 --system-profiling on --force-overwrite -o $LOG.$$.%q{MV2_COMM_WORLD_RANK}.nvprof $EXEC $OPTION
+#################################################################
